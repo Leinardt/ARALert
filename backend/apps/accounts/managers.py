@@ -1,0 +1,37 @@
+"""
+Custom User Manager for ARALert.
+Handles user creation with proper password hashing.
+"""
+
+from django.contrib.auth.models import BaseUserManager
+
+
+class CustomUserManager(BaseUserManager):
+    """Custom manager for the User model supporting email/username auth."""
+
+    def create_user(self, username, email, password=None, **extra_fields):
+        """Create and return a regular user with hashed password."""
+        if not username:
+            raise ValueError('Username is required.')
+        if not email:
+            raise ValueError('Email is required.')
+
+        email = self.normalize_email(email)
+        user = self.model(username=username, email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, username, email, password=None, **extra_fields):
+        """Create and return a SuperAdmin with is_superuser=True and role=None."""
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)
+        extra_fields.setdefault('role', None)
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+
+        return self.create_user(username, email, password, **extra_fields)
