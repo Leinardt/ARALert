@@ -62,6 +62,35 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text='12-digit LRN. Required for student accounts.',
     )
 
+    # Tutor Assignment for Students
+    assigned_tutor = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_students',
+        limit_choices_to={'role': 'tutor'},
+        verbose_name='Assigned Tutor',
+        help_text='The tutor assigned to this student.'
+    )
+
+    # Tutor-customizable grading weights (only used if role='tutor')
+    assessment_weight = models.IntegerField(
+        default=50,
+        verbose_name='Assessment Weight (%)',
+        help_text='Tutor custom weight for Assessments.'
+    )
+    weekly_tasks_weight = models.IntegerField(
+        default=30,
+        verbose_name='Weekly Tasks Weight (%)',
+        help_text='Tutor custom weight for Weekly Tasks.'
+    )
+    attendance_weight = models.IntegerField(
+        default=20,
+        verbose_name='Attendance Weight (%)',
+        help_text='Tutor custom weight for Attendance.'
+    )
+
     # Timestamps
     date_joined = models.DateTimeField(default=timezone.now)
     last_login = models.DateTimeField(null=True, blank=True)

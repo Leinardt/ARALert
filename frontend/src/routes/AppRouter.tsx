@@ -22,9 +22,13 @@ import { Settings } from '../pages/SuperAdmin/Settings';
 
 // Role placeholder pages
 import { AdminHome } from '../pages/Admin/AdminHome';
+import { AdminAttendanceQR } from '../pages/Admin/AdminAttendanceQR';
 import { PrincipalHome } from '../pages/Principal/PrincipalHome';
 import { FacultyHome } from '../pages/Faculty/FacultyHome';
 import { TutorHome } from '../pages/Tutor/TutorHome';
+import { TutorQRGenerator } from '../pages/Tutor/TutorQRGenerator';
+import { TutorStudentProfile } from '../pages/Tutor/TutorStudentProfile';
+import { StaffAttendanceScanner } from '../pages/Tutor/StaffAttendanceScanner';
 import { StudentHome } from '../pages/Student/StudentHome';
 
 // Error pages
@@ -72,10 +76,10 @@ export const AppRouter: React.FC = () => {
           <Route path="/admin/students" element={<UserList />} />
           <Route path="/admin/students/create" element={<CreateUser />} />
           <Route path="/admin/students/edit/:id" element={<EditUser />} />
+          <Route path="/admin/attendance" element={<AdminAttendanceQR />} />
           <Route path="/admin/profile" element={<Profile />} />
           <Route path="/admin/settings" element={<Settings />} />
         </Route>
-
 
         {/* ── Principal routes ──────────────────────── */}
         <Route
@@ -108,6 +112,19 @@ export const AppRouter: React.FC = () => {
           }
         >
           <Route path="/tutor" element={<TutorHome />} />
+          <Route path="/tutor/attendance/generate" element={<TutorQRGenerator />} />
+          <Route path="/tutor/students/:id" element={<TutorStudentProfile />} />
+        </Route>
+
+        {/* ── Shared Staff routes ──────────────────── */}
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'tutor', 'principal', 'faculty']}>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/staff/scan" element={<StaffAttendanceScanner />} />
         </Route>
 
         {/* ── Student routes ────────────────────────── */}

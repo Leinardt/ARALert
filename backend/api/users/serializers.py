@@ -12,13 +12,15 @@ class UserListSerializer(serializers.ModelSerializer):
 
     full_name = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
+    assigned_tutor_name = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'full_name', 'first_name', 'last_name',
             'username', 'email', 'role', 'lrn', 'status', 'is_active',
-            'date_joined', 'last_login',
+            'date_joined', 'last_login', 'assigned_tutor', 'assigned_tutor_name',
+            'assessment_weight', 'weekly_tasks_weight', 'attendance_weight'
         ]
 
     def get_full_name(self, obj):
@@ -26,6 +28,11 @@ class UserListSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj):
         return 'Active' if obj.is_active else 'Inactive'
+
+    def get_assigned_tutor_name(self, obj):
+        if obj.assigned_tutor:
+            return obj.assigned_tutor.get_full_name()
+        return None
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -39,6 +46,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         fields = [
             'first_name', 'last_name', 'username', 'email',
             'password', 'confirm_password', 'role', 'lrn', 'is_active',
+            'assigned_tutor', 'assessment_weight', 'weekly_tasks_weight', 'attendance_weight'
         ]
 
     def validate_role(self, value):
@@ -128,7 +136,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'first_name', 'last_name', 'username', 'email',
-            'role', 'lrn', 'is_active',
+            'role', 'lrn', 'is_active', 'assigned_tutor',
+            'assessment_weight', 'weekly_tasks_weight', 'attendance_weight'
         ]
 
     def validate_role(self, value):
@@ -155,7 +164,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
-        """Validate LRN requirement for students."""
+        """Validate LRN requirement for students and weights for tutors."""
         role = data.get('role', getattr(self.instance, 'role', None))
         if role == 'student':
             lrn = data.get('lrn', getattr(self.instance, 'lrn', None))
@@ -170,6 +179,15 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         else:
             # Clear LRN for non-student roles
             data['lrn'] = None
+
+        if role == 'tutor':
+            aw = data.get('assessment_weight', getattr(self.instance, 'assessment_weight', 50))
+            ww = data.get('weekly_tasks_weight', getattr(self.instance, 'weekly_tasks_weight', 30))
+            atw = data.get('attendance_weight', getattr(self.instance, 'attendance_weight', 20))
+            if aw + ww + atw != 100:
+                raise serializers.ValidationError(
+                    {'assessment_weight': 'Grading weights (Assessment + Weekly Tasks + Attendance) must sum to 100%.'}
+                )
         return data
 
 

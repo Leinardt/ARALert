@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { LayoutDashboard, Users, User as UserIcon, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, User as UserIcon, Settings, LogOut, QrCode, Scan } from 'lucide-react';
 
 export const DashboardLayout: React.FC = () => {
   const { user, logout } = useAuth();
@@ -109,6 +109,17 @@ export const DashboardLayout: React.FC = () => {
                 Students
               </Link>
               <Link
+                to="/admin/attendance"
+                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+                  isActive('/admin/attendance')
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <QrCode className="w-5 h-5 mr-3" />
+                Staff QR Code
+              </Link>
+              <Link
                 to="/admin/profile"
                 className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
                   isActive('/admin/profile')
@@ -131,16 +142,107 @@ export const DashboardLayout: React.FC = () => {
                 Settings
               </Link>
             </>
-          ) : (
-            // Placeholder sidebar links for other roles
-            <Link
-              to={`/${user?.role}`}
-              className="flex items-center px-4 py-2.5 rounded-md text-sm font-medium bg-indigo-600 text-white shadow-sm"
-            >
-              <LayoutDashboard className="w-5 h-5 mr-3" />
-              Home
-            </Link>
-          )}
+          ) : user?.role === 'tutor' ? (
+            <>
+              <Link
+                to="/tutor"
+                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+                  isActive('/tutor')
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <LayoutDashboard className="w-5 h-5 mr-3" />
+                Workspace Home
+              </Link>
+              <Link
+                to="/tutor/attendance/generate"
+                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+                  isActive('/tutor/attendance/generate')
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <QrCode className="w-5 h-5 mr-3" />
+                Student QR Code
+              </Link>
+              <Link
+                to="/staff/scan"
+                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+                  isActive('/staff/scan')
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <Scan className="w-5 h-5 mr-3" />
+                Clock In / Out
+              </Link>
+            </>
+          ) : user?.role === 'principal' ? (
+            <>
+              <Link
+                to="/principal"
+                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+                  isActive('/principal')
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <LayoutDashboard className="w-5 h-5 mr-3" />
+                Monitoring Dashboard
+              </Link>
+              <Link
+                to="/staff/scan"
+                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+                  isActive('/staff/scan')
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <Scan className="w-5 h-5 mr-3" />
+                Clock In / Out
+              </Link>
+            </>
+          ) : user?.role === 'faculty' ? (
+            <>
+              <Link
+                to="/faculty"
+                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+                  isActive('/faculty')
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <LayoutDashboard className="w-5 h-5 mr-3" />
+                Faculty Home
+              </Link>
+              <Link
+                to="/staff/scan"
+                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+                  isActive('/staff/scan')
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <Scan className="w-5 h-5 mr-3" />
+                Clock In / Out
+              </Link>
+            </>
+          ) : user?.role === 'student' ? (
+            <>
+              <Link
+                to="/student"
+                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+                  isActive('/student')
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <LayoutDashboard className="w-5 h-5 mr-3" />
+                Student Dashboard
+              </Link>
+            </>
+          ) : null}
         </nav>
 
         {/* Sidebar Footer / Logout */}

@@ -143,7 +143,7 @@ class UserAPIViewTests(APITestCase):
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('role', response.data)
+        self.assertIn('role', response.data.get('errors', response.data))
 
     def test_superadmin_can_create_other_roles(self):
         self.client.force_authenticate(user=self.superadmin)
@@ -187,7 +187,7 @@ class UserAPIViewTests(APITestCase):
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('role', response.data)
+        self.assertIn('role', response.data.get('errors', response.data))
 
     def test_admin_list_only_contains_students(self):
         self.client.force_authenticate(user=self.admin)
