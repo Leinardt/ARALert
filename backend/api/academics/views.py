@@ -20,6 +20,7 @@ from .serializers import (
 
 class GradeListCreateView(generics.ListCreateAPIView):
     serializer_class = GradeSerializer
+    pagination_class = None
 
     def get_queryset(self):
         user = self.request.user
@@ -94,6 +95,7 @@ class GradeDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class AralActivityListCreateView(generics.ListCreateAPIView):
     serializer_class = AralActivitySerializer
+    pagination_class = None
 
     def get_queryset(self):
         user = self.request.user
@@ -161,6 +163,7 @@ class AralActivityDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class AcademicRiskListCreateView(generics.ListCreateAPIView):
     serializer_class = AcademicRiskSerializer
+    pagination_class = None
 
     def get_queryset(self):
         user = self.request.user
@@ -318,8 +321,15 @@ class AttendanceScanView(APIView):
 
             role_label = 'tutor' if user.role == 'tutor' else user.role or 'staff'
             
+            import datetime
+            local_now = timezone.localtime(timezone.now())
+            now_time = local_now.time()
+
             # Action: time_in vs time_out
             if session.action == 'time_in':
+                if now_time > datetime.time(7, 30):
+                    return Response({'error': 'Clock-in is only allowed until 7:30 AM.'}, status=status.HTTP_400_BAD_REQUEST)
+
                 if Attendance.objects.filter(user=user, date=today).exists():
                     return Response({'error': 'Already clocked in for today.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -337,6 +347,9 @@ class AttendanceScanView(APIView):
                 }, status=status.HTTP_200_OK)
 
             elif session.action == 'time_out':
+                if now_time < datetime.time(17, 0):
+                    return Response({'error': 'Clock-out is only allowed from 5:00 PM onwards.'}, status=status.HTTP_400_BAD_REQUEST)
+
                 try:
                     attendance = Attendance.objects.get(user=user, date=today)
                 except Attendance.DoesNotExist:
@@ -422,6 +435,7 @@ class AttendanceManualLogView(APIView):
 
 class AttendanceHistoryView(generics.ListAPIView):
     serializer_class = AttendanceSerializer
+    pagination_class = None
 
     def get_queryset(self):
         user = self.request.user

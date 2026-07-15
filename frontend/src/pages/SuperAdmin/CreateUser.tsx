@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { userService } from '../../services/userService';
+import type { User } from '../../types';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -17,6 +18,7 @@ const createUserSchema = z.object({
   }),
   lrn: z.string().optional(),
   is_active: z.boolean(),
+  assigned_tutor: z.string().optional().nullable(),
 }).refine((data) => {
   if (data.role === 'student') {
     return !!data.lrn && /^\d{12}$/.test(data.lrn);
@@ -34,6 +36,20 @@ export const CreateUser: React.FC = () => {
   const { user: currentUser } = useAuth();
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tutors, setTutors] = useState<User[]>([]);
+
+  // Fetch Tutors to populate dropdown
+  useEffect(() => {
+    const fetchTutors = async () => {
+      try {
+        const data = await userService.getTutors();
+        setTutors(data);
+      } catch (err) {
+        console.error('Failed to load tutors list', err);
+      }
+    };
+    fetchTutors();
+  }, []);
 
   const {
     register,
@@ -50,6 +66,7 @@ export const CreateUser: React.FC = () => {
       role: currentUser?.is_superuser ? 'faculty' : 'student',
       lrn: '',
       is_active: true,
+      assigned_tutor: '',
     },
   });
 
@@ -80,7 +97,11 @@ export const CreateUser: React.FC = () => {
     setIsSubmitting(true);
     setServerErrors(null);
     try {
-      await userService.createUser(data);
+      const payload = {
+        ...data,
+        assigned_tutor: data.role === 'student' && data.assigned_tutor ? data.assigned_tutor : null,
+      };
+      await userService.createUser(payload);
       navigate(currentUser?.is_superuser ? '/superadmin/users' : '/admin/students');
     } catch (error: any) {
       console.error(error);
@@ -234,6 +255,7 @@ export const CreateUser: React.FC = () => {
               >
                 {currentUser?.is_superuser ? (
                   <>
+                    <option value="student">Student</option>
                     <option value="tutor">Tutor</option>
                     <option value="faculty">Faculty</option>
                     <option value="principal">Principal</option>
@@ -247,6 +269,30 @@ export const CreateUser: React.FC = () => {
                 <p className="mt-1 text-xs text-red-600">{errors.role.message}</p>
               )}
             </div>
+
+            {/* Assigned Tutor selection — visible only when role is student */}
+            {selectedRole === 'student' && (
+              <div>
+                <label htmlFor="assigned_tutor" className="block text-sm font-semibold text-gray-700">
+                  Assigned Tutor
+                </label>
+                <select
+                  id="assigned_tutor"
+                  {...register('assigned_tutor')}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
+                >
+                  <option value="">No Tutor Assigned</option>
+                  {tutors.map((tutor) => (
+                    <option key={tutor.id} value={tutor.id}>
+                      {tutor.full_name} ({tutor.email})
+                    </option>
+                  ))}
+                </select>
+                {errors.assigned_tutor && (
+                  <p className="mt-1 text-xs text-red-600">{errors.assigned_tutor.message}</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* LRN Field — visible only when role is student */}

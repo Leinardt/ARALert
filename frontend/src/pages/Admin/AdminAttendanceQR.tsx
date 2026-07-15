@@ -1,44 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { academicService } from '../../services/academicService';
-import { ArrowLeft, Clock, RefreshCw, LogIn, LogOut, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, RefreshCw, LogIn, LogOut, CheckCircle2, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import QRCode from 'qrcode';
 
 export const AdminAttendanceQR: React.FC = () => {
   const [action, setAction] = useState<'time_in' | 'time_out'>('time_in');
   const [session, setSession] = useState<any>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const generateQR = async (actionType: 'time_in' | 'time_out') => {
     setIsLoading(true);
     setError(null);
     try {
-      if (timerRef.current) clearInterval(timerRef.current);
-      
+      // Create a 24-hour long session so it does not count down or expire during the workday
       const newSession = await academicService.createAttendanceSession({
         session_type: 'staff',
         action: actionType,
-        expires_in_minutes: 5,
+        expires_in_minutes: 1440,
       });
 
       setSession(newSession);
-      setTimeLeft(newSession.time_left || 300);
-
-      // Start Countdown Timer
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            if (timerRef.current) clearInterval(timerRef.current);
-            setSession((curr: any) => curr ? { ...curr, is_active: false } : null);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.error || 'Failed to generate QR session.');
@@ -49,9 +33,6 @@ export const AdminAttendanceQR: React.FC = () => {
 
   useEffect(() => {
     generateQR(action);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
   }, [action]);
 
   // Render QR code to Canvas when session changes
@@ -70,12 +51,6 @@ export const AdminAttendanceQR: React.FC = () => {
       });
     }
   }, [session]);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   return (
     <div className="space-y-6 max-w-xl mx-auto">
@@ -133,36 +108,26 @@ export const AdminAttendanceQR: React.FC = () => {
               <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
                 <canvas ref={canvasRef} className="rounded-lg shadow-sm" />
               </div>
-              {session && !session.is_active && (
-                <div className="absolute inset-0 bg-white/95 rounded-2xl flex flex-col items-center justify-center p-6 border border-gray-200">
-                  <Clock className="w-12 h-12 text-red-500 mb-2" />
-                  <h3 className="font-bold text-gray-900 text-base">QR Code Expired</h3>
-                  <p className="text-xs text-gray-500 mt-1 max-w-[200px]">
-                    This security token has expired. Please regenerate a new QR code.
-                  </p>
-                  <button
-                    onClick={() => generateQR(action)}
-                    className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold flex items-center space-x-1.5 shadow-sm transition-all"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    <span>Regenerate</span>
-                  </button>
-                </div>
-              )}
             </div>
           )}
 
-          {session && session.is_active && (
+          {session && (
             <div className="mt-6 space-y-4 w-full">
-              <div className="inline-flex items-center space-x-2 bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-bold border border-green-100">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Active & Secure Session</span>
+              <div className="inline-flex items-center space-x-2 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold border border-indigo-100">
+                <CheckCircle2 className="w-4 h-4 text-indigo-600" />
+                <span>Active Staff QR Code</span>
               </div>
 
-              <div className="flex items-center justify-center space-x-2 text-gray-600 font-medium bg-gray-50 py-2.5 px-4 rounded-xl border border-gray-100 w-fit mx-auto">
-                <Clock className="w-4 h-4 text-indigo-600" />
-                <span className="text-sm">Expires in:</span>
-                <span className="text-sm font-bold font-mono text-indigo-700">{formatTime(timeLeft)}</span>
+              <div className="flex items-center justify-center space-x-2 text-indigo-900 bg-indigo-50 border border-indigo-100 p-4 rounded-xl max-w-sm mx-auto text-left">
+                <Clock className="w-5 h-5 text-indigo-600 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider">Time Limit Rules</p>
+                  <p className="text-xs mt-0.5 font-semibold">
+                    {action === 'time_in'
+                      ? 'Clock-In logs are accepted until 7:30 AM only.'
+                      : 'Clock-Out logs open starting from 5:00 PM onwards.'}
+                  </p>
+                </div>
               </div>
 
               <p className="text-xs text-gray-400 max-w-sm mx-auto">
@@ -174,7 +139,7 @@ export const AdminAttendanceQR: React.FC = () => {
                 className="text-indigo-600 hover:text-indigo-700 text-xs font-bold flex items-center justify-center space-x-1 mx-auto transition-colors mt-2"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Refresh Session</span>
+                <span>Regenerate Session ID</span>
               </button>
             </div>
           )}
