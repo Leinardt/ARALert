@@ -28,7 +28,9 @@ import { FacultyHome } from '../pages/Faculty/FacultyHome';
 import { TutorHome } from '../pages/Tutor/TutorHome';
 import { TutorQRGenerator } from '../pages/Tutor/TutorQRGenerator';
 import { TutorStudentProfile } from '../pages/Tutor/TutorStudentProfile';
+import { TutorAnalytics } from '../pages/Tutor/TutorAnalytics';
 import { StaffAttendanceScanner } from '../pages/Tutor/StaffAttendanceScanner';
+import TutorScores from '../pages/Tutor/TutorScores';
 import { StudentHome } from '../pages/Student/StudentHome';
 
 // Error pages
@@ -113,6 +115,8 @@ export const AppRouter: React.FC = () => {
         >
           <Route path="/tutor" element={<TutorHome />} />
           <Route path="/tutor/attendance/generate" element={<TutorQRGenerator />} />
+          <Route path="/tutor/analytics" element={<TutorAnalytics />} />
+          <Route path="/tutor/scores" element={<TutorScores />} />
           <Route path="/tutor/students/:id" element={<TutorStudentProfile />} />
         </Route>
 

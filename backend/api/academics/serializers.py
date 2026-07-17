@@ -12,8 +12,8 @@ class GradeSerializer(serializers.ModelSerializer):
         model = Grade
         fields = [
             'id', 'student', 'student_name', 'tutor', 'tutor_name',
-            'subject', 'quarter', 'score', 'component_type', 'component_type_display',
-            'remarks', 'date_logged'
+            'subject', 'quarter', 'score', 'total_score', 'component_type', 'component_type_display',
+            'remarks', 'date_logged', 'batch_id'
         ]
         read_only_fields = ['id', 'date_logged', 'tutor']
 

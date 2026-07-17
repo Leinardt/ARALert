@@ -1,4 +1,5 @@
 import uuid
+import uuid
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
@@ -36,12 +37,14 @@ class Grade(models.Model):
         ]
     )
     score = models.DecimalField(max_digits=5, decimal_places=2)  # Score out of 100
+    total_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     component_type = models.CharField(
         max_length=20,
         choices=ComponentType.choices
     )
     remarks = models.TextField(blank=True, null=True)
     date_logged = models.DateTimeField(default=timezone.now)
+    batch_id = models.UUIDField(default=uuid.uuid4, editable=False)
 
     class Meta:
         db_table = 'grades'

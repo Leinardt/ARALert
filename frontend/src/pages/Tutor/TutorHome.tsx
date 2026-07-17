@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
+import { computeStudentRiskRows, type StudentRiskRow } from '../../utils/analyticsHelpers';
 import type { User, AralActivity } from '../../types';
 import {
   Users,
@@ -12,10 +13,32 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+const getRiskTier = (score: number) => {
+  if (score >= 85) return 'Low';
+  if (score >= 70) return 'Moderate';
+  return 'High';
+};
+
+const applyAttendanceEscalation = (tier: string, attendanceRate: number) => {
+  if (attendanceRate >= 90) return tier;
+  if (attendanceRate >= 80) {
+    return tier === 'Low' ? 'Moderate' : tier;
+  }
+  if (tier === 'Low') return 'Moderate';
+  return 'High';
+};
+
+const riskPriority = (tier: string) => {
+  if (tier === 'High') return 2;
+  if (tier === 'Moderate') return 1;
+  return 0;
+};
+
 export const TutorHome: React.FC = () => {
   const { user } = useAuth();
   const [students, setStudents] = useState<User[]>([]);
   const [activities, setActivities] = useState<AralActivity[]>([]);
+  const [topRiskStudents, setTopRiskStudents] = useState<StudentRiskRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,13 +53,27 @@ export const TutorHome: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      // Fetch assigned students
-      const studentRes = await userService.getUsers({ role: 'student' });
-      setStudents(studentRes.results);
+      if (!user) return;
 
-      // Fetch active ARAL activities
-      const activitiesRes = await academicService.getAralActivities({ status: 'in_progress' });
+      const [studentRes, grades, attendanceLogs, activitiesRes] = await Promise.all([
+        userService.getUsers({ role: 'student', assigned_tutor: user.id }),
+        academicService.getGrades(),
+        academicService.getAttendanceHistory(),
+        academicService.getAralActivities({ status: 'in_progress' })
+      ]);
+
+      const students = studentRes.results;
+      setStudents(students);
       setActivities(activitiesRes);
+
+      const riskRows = computeStudentRiskRows(students, grades, attendanceLogs);
+      const sortedRiskRows = riskRows.sort((a, b) => {
+        const priorityDiff = riskPriority(b.riskTier) - riskPriority(a.riskTier);
+        if (priorityDiff !== 0) return priorityDiff;
+        return a.compositeScore - b.compositeScore;
+      });
+
+      setTopRiskStudents(sortedRiskRows.slice(0, 3));
     } catch (err) {
       console.error(err);
       setError('Failed to fetch tutor workspace data.');
@@ -98,7 +135,7 @@ export const TutorHome: React.FC = () => {
             Tutor workspace. Track your assigned students' performance, take attendance, and log intervention activities.
           </p>
         </div>
-        <div className="flex space-x-3 shrink-0">
+        <div className="flex flex-col space-y-3 shrink-0">
           <Link
             to="/tutor/attendance/generate"
             className="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all"
@@ -106,6 +143,7 @@ export const TutorHome: React.FC = () => {
             <Calendar className="w-4 h-4 mr-2" />
             Generate Student QR Code
           </Link>
+
         </div>
       </div>
 
@@ -123,11 +161,11 @@ export const TutorHome: React.FC = () => {
 
         <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Active Interventions</span>
-            <p className="text-3xl font-extrabold text-gray-900">{activities.length}</p>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Top Risk Students</span>
+            <p className="text-3xl font-extrabold text-gray-900">{topRiskStudents.length}</p>
           </div>
-          <div className="p-3 rounded-xl bg-teal-50 text-teal-600 border border-teal-100">
-            <BookOpen className="w-6 h-6" />
+          <div className="p-3 rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
+            <Award className="w-6 h-6" />
           </div>
         </div>
 
@@ -143,6 +181,52 @@ export const TutorHome: React.FC = () => {
           <div className="p-3 rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
             <Award className="w-6 h-6" />
           </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+          <h3 className="font-bold text-gray-900 text-base mb-4">Top Risk Students</h3>
+          {topRiskStudents.length === 0 ? (
+            <div className="py-10 text-center text-gray-400">
+              <p className="text-sm font-semibold">No current risk data available.</p>
+              <p className="text-xs mt-1">Add weekly task or attendance entries to populate risk rankings.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {topRiskStudents.map((row, index) => (
+                <div key={row.student.id} className="rounded-3xl border border-gray-100 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">#{index + 1} Risk Student</p>
+                      <h4 className="mt-2 text-sm font-bold text-slate-900">{row.student.full_name}</h4>
+                      <p className="text-xs text-slate-500">{row.student.username}</p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      row.riskTier === 'High' ? 'bg-rose-100 text-rose-700' : 
+                      row.riskTier === 'Moderate' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {row.riskTier}
+                    </span>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3 text-xs text-slate-600">
+                    <div className="rounded-2xl bg-white p-3 border border-gray-100">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Attendance</p>
+                      <p className="mt-2 font-semibold text-slate-900">{row.attendanceRate}%</p>
+                    </div>
+                    <div className="rounded-2xl bg-white p-3 border border-gray-100">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Score Avg</p>
+                      <p className="mt-2 font-semibold text-slate-900">{row.scoreAvg}%</p>
+                    </div>
+                    <div className="rounded-2xl bg-white p-3 border border-gray-100">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Composite</p>
+                      <p className="mt-2 font-semibold text-slate-900">{row.compositeScore}%</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

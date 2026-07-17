@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { LayoutDashboard, Users, User as UserIcon, Settings, LogOut, QrCode, Scan } from 'lucide-react';
+import { LayoutDashboard, Users, User as UserIcon, Settings, LogOut, QrCode, Scan, Award } from 'lucide-react';
 
 export const DashboardLayout: React.FC = () => {
   const { user, logout } = useAuth();
@@ -165,6 +165,28 @@ export const DashboardLayout: React.FC = () => {
               >
                 <QrCode className="w-5 h-5 mr-3" />
                 Student QR Code
+              </Link>
+              <Link
+                to="/tutor/scores"
+                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+                  isActive('/tutor/scores')
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <Award className="w-5 h-5 mr-3" />
+                Score Entry
+              </Link>
+              <Link
+                to="/tutor/analytics"
+                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+                  isActive('/tutor/analytics')
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <LayoutDashboard className="w-5 h-5 mr-3" />
+                Data Analytics
               </Link>
               <Link
                 to="/staff/scan"

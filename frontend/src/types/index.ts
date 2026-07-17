@@ -49,10 +49,12 @@ export interface Grade {
   subject: string;
   quarter: number;
   score: number;
+  total_score: number;
   component_type: 'assessment' | 'weekly_task' | 'attendance';
   component_type_display: string;
   remarks: string | null;
   date_logged: string;
+  batch_id: string;
 }
 
 export interface AralActivity {
