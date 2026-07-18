@@ -274,7 +274,7 @@ export const UserList: React.FC = () => {
                         {item.full_name}
                       </td>
                       <td className="px-6 py-4 text-gray-600">
-                        {item.username}
+                        {item.username || (item.password_setup_required ? 'Not Set' : '—')}
                       </td>
                       <td className="px-6 py-4 text-gray-600">
                         {item.email}
@@ -296,12 +296,14 @@ export const UserList: React.FC = () => {
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                            item.is_active
-                              ? 'bg-green-50 text-green-700 border-green-200'
-                              : 'bg-red-50 text-red-700 border-red-200'
+                            item.password_setup_required && !item.is_active
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : item.is_active
+                                ? 'bg-green-50 text-green-700 border-green-200'
+                                : 'bg-red-50 text-red-700 border-red-200'
                           }`}
                         >
-                          {item.is_active ? 'Active' : 'Inactive'}
+                          {item.password_setup_required && !item.is_active ? 'Pending Verification' : item.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-gray-500">

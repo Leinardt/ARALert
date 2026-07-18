@@ -51,6 +51,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     # Status flags
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    password_set = models.BooleanField(default=True)
+    email_verified = models.BooleanField(default=True)
+    password_setup_required = models.BooleanField(default=False)
+
+    # Invitation and password recovery tokens
+    activation_token = models.CharField(max_length=255, blank=True, null=True)
+    activation_token_expires_at = models.DateTimeField(blank=True, null=True)
+    password_reset_token = models.CharField(max_length=255, blank=True, null=True)
+    password_reset_token_expires_at = models.DateTimeField(blank=True, null=True)
 
     # Student-specific fields
     lrn = models.CharField(

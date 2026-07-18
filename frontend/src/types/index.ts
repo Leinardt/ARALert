@@ -10,6 +10,8 @@ export interface User {
   role: UserRole | null; // null for SuperAdmin
   lrn: string | null;   // Learner Reference Number (students only)
   is_active: boolean;
+  email_verified?: boolean;
+  password_setup_required?: boolean;
   is_superuser: boolean;
   date_joined: string;
   last_login: string | null;

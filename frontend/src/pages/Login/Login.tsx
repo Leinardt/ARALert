@@ -540,15 +540,14 @@ export const Login: React.FC = () => {
                       />
                       Remember me
                     </label>
-                    <a
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); alert('Password recovery coming soon.'); }}
+                    <Link
+                      to="/forgot-password"
                       style={{ fontSize: '13px', color: '#2E7D32', textDecoration: 'none', fontWeight: 500 }}
                       onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
                     >
                       Forgot password?
-                    </a>
+                    </Link>
                   </div>
 
                   {/* Submit */}

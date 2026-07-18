@@ -2,9 +2,12 @@
 Auth API Serializers.
 """
 
-from rest_framework import serializers
 from django.contrib.auth import authenticate
+from django.utils import timezone
+from rest_framework import serializers
+
 from apps.accounts.models import User
+from services.token_service import is_token_valid
 
 
 class LoginSerializer(serializers.Serializer):
@@ -107,6 +110,61 @@ class StudentLoginSerializer(serializers.Serializer):
                 'This account has been deactivated. Please contact your administrator.'
             )
 
+        data['user'] = user
+        return data
+
+
+class ActivateAccountSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True)
+    username = serializers.CharField(required=True, min_length=3)
+    password = serializers.CharField(required=True, write_only=True, min_length=8)
+    confirm_password = serializers.CharField(required=True, write_only=True)
+
+    def validate(self, data):
+        token = data.get('token')
+        user = User.objects.filter(activation_token=token).first()
+        if not user:
+            raise serializers.ValidationError({'token': 'Invalid or already used activation token.'})
+        if not is_token_valid(token, user.activation_token_expires_at):
+            raise serializers.ValidationError({'token': 'This activation link has expired.'})
+        if not user.password_setup_required:
+            raise serializers.ValidationError({'token': 'This account is already set up.'})
+        if data.get('password') != data.get('confirm_password'):
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+        username = data.get('username', '').strip()
+        if User.objects.filter(username__iexact=username).exists():
+            raise serializers.ValidationError({'username': 'This username is already taken.'})
+        data['username'] = username
+        data['user'] = user
+        return data
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+    def validate(self, data):
+        try:
+            user = User.objects.get(email__iexact=data['email'])
+        except User.DoesNotExist:
+            raise serializers.ValidationError({'email': 'No account was found for that email.'})
+        data['user'] = user
+        return data
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True)
+    password = serializers.CharField(required=True, write_only=True, min_length=8)
+    confirm_password = serializers.CharField(required=True, write_only=True)
+
+    def validate(self, data):
+        token = data.get('token')
+        user = User.objects.filter(password_reset_token=token).first()
+        if not user:
+            raise serializers.ValidationError({'token': 'Invalid or already used password reset token.'})
+        if not is_token_valid(token, user.password_reset_token_expires_at):
+            raise serializers.ValidationError({'token': 'This password reset link has expired.'})
+        if data.get('password') != data.get('confirm_password'):
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
         data['user'] = user
         return data
 

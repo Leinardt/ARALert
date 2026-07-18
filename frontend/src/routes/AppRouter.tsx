@@ -11,6 +11,11 @@ import { ProtectedRoute } from './ProtectedRoute';
 // Public pages
 import { Landing } from '../pages/Landing/Landing';
 import { Login } from '../pages/Login/Login';
+import { ActivateAccount } from '../pages/Auth/ActivateAccount';
+import { ForgotPassword } from '../pages/Auth/ForgotPassword';
+import { ResetPassword } from '../pages/Auth/ResetPassword';
+import { InvalidLink } from '../pages/Auth/InvalidLink';
+import { SuccessPage } from '../pages/Auth/SuccessPage';
 
 // SuperAdmin pages
 import { Dashboard } from '../pages/SuperAdmin/Dashboard';
@@ -50,6 +55,11 @@ export const AppRouter: React.FC = () => {
 
         {/* ── Auth routes ───────────────────────────── */}
         <Route path="/login" element={<Login />} />
+        <Route path="/activate" element={<ActivateAccount />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/invalid-link" element={<InvalidLink />} />
+        <Route path="/success" element={<SuccessPage />} />
 
         {/* ── SuperAdmin routes ─────────────────────── */}
         <Route

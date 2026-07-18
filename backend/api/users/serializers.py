@@ -3,8 +3,14 @@ Users API Serializers.
 Handles validation for user CRUD, password reset, and dashboard stats.
 """
 
+import uuid
+
+from django.conf import settings
 from rest_framework import serializers
+
 from apps.accounts.models import User
+from services.email_service import send_account_invitation_email
+from services.token_service import generate_secure_token, get_token_expiration
 
 
 class UserListSerializer(serializers.ModelSerializer):
@@ -19,9 +25,9 @@ class UserListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'full_name', 'first_name', 'last_name',
             'username', 'email', 'role', 'lrn', 'status', 'is_active',
-            'date_joined', 'last_login', 'assigned_tutor', 'assigned_tutor_name',
-            'assessment_weight', 'weekly_tasks_weight', 'attendance_weight',
-            'aral_level'
+            'password_setup_required', 'email_verified', 'date_joined', 'last_login',
+            'assigned_tutor', 'assigned_tutor_name', 'assessment_weight', 'weekly_tasks_weight',
+            'attendance_weight', 'aral_level'
         ]
 
     def get_full_name(self, obj):
@@ -37,8 +43,9 @@ class UserListSerializer(serializers.ModelSerializer):
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating a new user with password confirmation."""
+    """Serializer for creating a new pending staff account without username/password."""
 
+    username = serializers.CharField(write_only=True, required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
     confirm_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
@@ -61,8 +68,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_username(self, value):
-        """Check for duplicate usernames."""
-        if User.objects.filter(username__iexact=value).exists():
+        """Check for duplicate usernames when one is supplied."""
+        if value and User.objects.filter(username__iexact=value).exists():
             raise serializers.ValidationError('A user with this username already exists.')
         return value
 
@@ -73,37 +80,11 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
-        """Validate password confirmation and LRN requirement."""
-        password = data.get('password')
-        confirm_password = data.get('confirm_password')
-
-        # Auto-generate default password if not provided or empty
-        if not password:
-            first_name = data.get('first_name', '')
-            last_name = data.get('last_name', '')
-            username = data.get('username', '')
-
-            # Extract alphanumeric characters and format capitalization
-            clean_last = "".join(c for c in last_name if c.isalnum()).capitalize()
-            clean_first = "".join(c for c in first_name if c.isalnum()).capitalize()
-            first_initial = clean_first[0] if clean_first else 'X'
-            clean_username = "".join(c for c in username if c.isalnum())
-
-            generated_pwd = f"{clean_last}{first_initial}@{clean_username}"
-            if len(generated_pwd) < 8:
-                generated_pwd = generated_pwd + "123"[:8 - len(generated_pwd)]
-
-            data['password'] = generated_pwd
-            data['confirm_password'] = generated_pwd
-        else:
-            if password != confirm_password:
-                raise serializers.ValidationError(
-                    {'confirm_password': 'Passwords do not match.'}
-                )
-            if len(password) < 8:
-                raise serializers.ValidationError(
-                    {'password': 'Password must be at least 8 characters.'}
-                )
+        """Validate role and LRN requirement for the invitation-based flow."""
+        if data.get('password') and data.get('confirm_password') and data.get('password') != data.get('confirm_password'):
+            raise serializers.ValidationError(
+                {'confirm_password': 'Passwords do not match.'}
+            )
 
         # LRN is required for students
         if data.get('role') == 'student':
@@ -122,12 +103,30 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        """Create user with hashed password."""
-        validated_data.pop('confirm_password')
-        password = validated_data.pop('password')
+        """Create a pending account that requires setup via email invitation."""
+        validated_data.pop('confirm_password', None)
+        validated_data.pop('password', None)
+
+        if not validated_data.get('username'):
+            generated_username = f"pending-{uuid.uuid4().hex[:10]}"
+            while User.objects.filter(username__iexact=generated_username).exists():
+                generated_username = f"pending-{uuid.uuid4().hex[:10]}"
+            validated_data['username'] = generated_username
+
+        validated_data['is_active'] = False
+        validated_data['password_set'] = False
+        validated_data['email_verified'] = False
+        validated_data['password_setup_required'] = True
+        validated_data['activation_token'] = generate_secure_token()
+        validated_data['activation_token_expires_at'] = get_token_expiration()
+
         user = User(**validated_data)
-        user.set_password(password)
+        user.set_unusable_password()
         user.save()
+
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+        activation_link = f"{frontend_url}/activate?token={user.activation_token}"
+        send_account_invitation_email(user, activation_link)
         return user
 
 
