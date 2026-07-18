@@ -20,7 +20,8 @@ class UserListSerializer(serializers.ModelSerializer):
             'id', 'full_name', 'first_name', 'last_name',
             'username', 'email', 'role', 'lrn', 'status', 'is_active',
             'date_joined', 'last_login', 'assigned_tutor', 'assigned_tutor_name',
-            'assessment_weight', 'weekly_tasks_weight', 'attendance_weight'
+            'assessment_weight', 'weekly_tasks_weight', 'attendance_weight',
+            'aral_level'
         ]
 
     def get_full_name(self, obj):
@@ -46,7 +47,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
         fields = [
             'first_name', 'last_name', 'username', 'email',
             'password', 'confirm_password', 'role', 'lrn', 'is_active',
-            'assigned_tutor', 'assessment_weight', 'weekly_tasks_weight', 'attendance_weight'
+            'assigned_tutor', 'assessment_weight', 'weekly_tasks_weight', 'attendance_weight',
+            'aral_level'
         ]
 
     def validate_role(self, value):
@@ -137,7 +139,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         fields = [
             'first_name', 'last_name', 'username', 'email',
             'role', 'lrn', 'is_active', 'assigned_tutor',
-            'assessment_weight', 'weekly_tasks_weight', 'attendance_weight'
+            'assessment_weight', 'weekly_tasks_weight', 'attendance_weight',
+            'aral_level'
         ]
 
     def validate_role(self, value):
@@ -166,6 +169,14 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """Validate LRN requirement for students and weights for tutors."""
         role = data.get('role', getattr(self.instance, 'role', None))
+        request = self.context.get('request')
+        if request and getattr(request.user, 'role', None) == 'tutor':
+            forbidden = {'role', 'assigned_tutor', 'is_active', 'assessment_weight', 'weekly_tasks_weight', 'attendance_weight'}
+            if any(field in data for field in forbidden):
+                raise serializers.ValidationError(
+                    {'detail': 'Tutors may only edit student personal details.'}
+                )
+
         if role == 'student':
             lrn = data.get('lrn', getattr(self.instance, 'lrn', None))
             if not lrn:

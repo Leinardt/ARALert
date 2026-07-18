@@ -2,14 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
-import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
-import type { Attendance, User } from '../../types';
+import { computeStudentRiskRows, type StudentRiskRow } from '../../utils/analyticsHelpers';
 
 const getTierClass = (tier: string) => {
   switch (tier) {
     case 'Low':
       return 'bg-emerald-100 text-emerald-700';
-    case 'Moderate':
+    case 'Medium':
       return 'bg-amber-100 text-amber-700';
     case 'High':
     default:
@@ -17,19 +16,10 @@ const getTierClass = (tier: string) => {
   }
 };
 
-interface StudentAnalyticsRow {
-  student: User;
-  attendanceRate: number;
-  scoreAvg: number;
-  compositeScore: number;
-  riskTier: string;
-  attendanceCount: number;
-  scoreCount: number;
-}
-
 export const TutorAnalytics: React.FC = () => {
   const { user } = useAuth();
-  const [rows, setRows] = useState<StudentAnalyticsRow[]>([]);
+  const [rows, setRows] = useState<StudentRiskRow[]>([]);
+  const [riskCounts, setRiskCounts] = useState({ high: 0, moderate: 0, low: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +40,17 @@ export const TutorAnalytics: React.FC = () => {
         const students = studentsResponse.results;
         const analyticsRows = computeStudentRiskRows(students, grades, attendanceLogs);
 
+        const counts = analyticsRows.reduce(
+          (acc, row) => {
+            if (row.riskTier === 'High') acc.high += 1;
+            else if (row.riskTier === 'Medium') acc.moderate += 1;
+            else acc.low += 1;
+            return acc;
+          },
+          { high: 0, moderate: 0, low: 0 }
+        );
+
+        setRiskCounts(counts);
         setRows(analyticsRows);
       } catch (err: any) {
         console.error(err);
@@ -69,6 +70,22 @@ export const TutorAnalytics: React.FC = () => {
         <p className="mt-2 text-sm text-slate-500">
           Each enrolled student is labeled by composite performance and attendance escalation.
         </p>
+
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-3xl border border-rose-100 bg-rose-50 p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-[0.2em] text-rose-700">High Risk</p>
+          <p className="mt-3 text-3xl font-semibold text-rose-900">{riskCounts.high}</p>
+        </div>
+        <div className="rounded-3xl border border-amber-100 bg-amber-50 p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-[0.2em] text-amber-700">Medium Risk</p>
+          <p className="mt-3 text-3xl font-semibold text-amber-900">{riskCounts.moderate}</p>
+        </div>
+        <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">Low Risk</p>
+          <p className="mt-3 text-3xl font-semibold text-emerald-900">{riskCounts.low}</p>
+        </div>
       </div>
 
       {isLoading ? (
@@ -106,8 +123,8 @@ export const TutorAnalytics: React.FC = () => {
                   <td className="px-4 py-4 text-slate-500">
                     {row.riskTier === 'Low' && row.attendanceRate >= 90 && 'Stable'}
                     {row.riskTier === 'Low' && row.attendanceRate >= 80 && row.attendanceRate < 90 && 'Escalated due to attendance'}
-                    {row.riskTier === 'Moderate' && row.attendanceRate < 80 && 'High risk forced by attendance'}
-                    {row.riskTier === 'Moderate' && row.attendanceRate >= 90 && 'Moderate risk'}
+                    {row.riskTier === 'Medium' && row.attendanceRate < 80 && 'High risk forced by attendance'}
+                    {row.riskTier === 'Medium' && row.attendanceRate >= 90 && 'Medium risk'}
                     {row.riskTier === 'High' && 'Intervention recommended'}
                   </td>
                 </tr>

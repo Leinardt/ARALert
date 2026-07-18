@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { academicService } from '../../services/academicService';
+import { userService } from '../../services/userService';
 import type { StudentAcademicProfile, Grade, Attendance } from '../../types';
 import {
   ArrowLeft,
@@ -52,12 +53,31 @@ export const TutorStudentProfile: React.FC = () => {
     status: 'present' as 'present' | 'late' | 'absent',
     aral_activity_id: ''
   });
+  const [isEditingStudent, setIsEditingStudent] = useState(false);
+  const [studentForm, setStudentForm] = useState({
+    first_name: '',
+    last_name: '',
+    username: '',
+    email: '',
+    lrn: '',
+    aral_level: 'basic'
+  });
+  const [studentEditError, setStudentEditError] = useState<string | null>(null);
+  const [isSavingStudent, setIsSavingStudent] = useState(false);
 
   const fetchProfile = async () => {
     if (!id) return;
     try {
       const data = await academicService.getStudentProfile(id);
       setProfile(data);
+      setStudentForm({
+        first_name: data.student.first_name,
+        last_name: data.student.last_name,
+        username: data.student.username,
+        email: data.student.email,
+        lrn: data.student.lrn || '',
+        aral_level: data.student.aral_level || 'basic'
+      });
     } catch (err) {
       console.error(err);
       setError('Failed to fetch student profile.');
@@ -183,6 +203,29 @@ export const TutorStudentProfile: React.FC = () => {
     }
   };
 
+  const handleSaveStudentDetails = async () => {
+    if (!profile) return;
+    setIsSavingStudent(true);
+    setStudentEditError(null);
+
+    try {
+      await userService.updateUser(profile.student.id, {
+        first_name: studentForm.first_name,
+        last_name: studentForm.last_name,
+        username: studentForm.username,
+        email: studentForm.email,
+        lrn: studentForm.lrn || null,
+        aral_level: studentForm.aral_level
+      });
+      setIsEditingStudent(false);
+      await fetchProfile();
+    } catch (err: any) {
+      setStudentEditError(err?.response?.data?.detail || 'Failed to save student details.');
+    } finally {
+      setIsSavingStudent(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -200,17 +243,103 @@ export const TutorStudentProfile: React.FC = () => {
       {/* Back button and profile summary */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="space-y-2">
-          <Link to="/tutor" className="text-gray-500 hover:text-indigo-600 inline-flex items-center text-sm font-semibold transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-1.5" />
-            Back to Directory
-          </Link>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <Link to="/tutor" className="text-gray-500 hover:text-indigo-600 inline-flex items-center text-sm font-semibold transition-colors">
+              <ArrowLeft className="w-4 h-4 mr-1.5" />
+              Back to Directory
+            </Link>
+            <button
+              type="button"
+              onClick={() => setIsEditingStudent((current) => !current)}
+              className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-all"
+            >
+              {isEditingStudent ? 'Cancel Edit' : 'Edit Student Details'}
+            </button>
+          </div>
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
               {profile.student.name[0].toUpperCase()}
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">{profile.student.name}</h2>
-              <p className="text-xs text-gray-500 font-medium">LRN: {profile.student.lrn || 'N/A'} | {profile.student.email}</p>
+            <div className="space-y-1 w-full">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6">
+                {isEditingStudent ? (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 w-full">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700">First Name</label>
+                      <input
+                        value={studentForm.first_name}
+                        onChange={(e) => setStudentForm({ ...studentForm, first_name: e.target.value })}
+                        className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700">Last Name</label>
+                      <input
+                        value={studentForm.last_name}
+                        onChange={(e) => setStudentForm({ ...studentForm, last_name: e.target.value })}
+                        className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">{profile.student.name}</h2>
+                    <p className="text-xs text-gray-500 font-medium">LRN: {profile.student.lrn || 'N/A'} | {profile.student.email}</p>
+                  </div>
+                )}
+                {isEditingStudent && (
+                  <button
+                    type="button"
+                    onClick={handleSaveStudentDetails}
+                    disabled={isSavingStudent}
+                    className="min-w-[140px] rounded-full bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition-all disabled:cursor-not-allowed disabled:bg-indigo-300"
+                  >
+                    {isSavingStudent ? 'Saving...' : 'Save Details'}
+                  </button>
+                )}
+              </div>
+              {isEditingStudent ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700">Username</label>
+                    <input
+                      value={studentForm.username}
+                      onChange={(e) => setStudentForm({ ...studentForm, username: e.target.value })}
+                      className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700">Email</label>
+                    <input
+                      type="email"
+                      value={studentForm.email}
+                      onChange={(e) => setStudentForm({ ...studentForm, email: e.target.value })}
+                      className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-gray-700">LRN</label>
+                    <input
+                      value={studentForm.lrn}
+                      onChange={(e) => setStudentForm({ ...studentForm, lrn: e.target.value })}
+                      className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-gray-700">ARAL Level</label>
+                    <select
+                      value={studentForm.aral_level}
+                      onChange={(e) => setStudentForm({ ...studentForm, aral_level: e.target.value as 'basic' | 'plus' | 'summer' })}
+                      className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                    >
+                      <option value="basic">Basic</option>
+                      <option value="plus">Plus</option>
+                      <option value="summer">Summer</option>
+                    </select>
+                  </div>
+                </div>
+              ) : null}
+              {studentEditError && <p className="text-xs text-red-600">{studentEditError}</p>}
             </div>
           </div>
         </div>
@@ -281,19 +410,33 @@ export const TutorStudentProfile: React.FC = () => {
 
               {/* Risk Status */}
               <div className={`p-6 rounded-xl border flex items-center justify-between ${
-                profile.academic_risks.length > 0
+                (profile.computed_risk_level || 'low') === 'high'
                   ? 'bg-red-50 border-red-100 text-red-900'
+                  : (profile.computed_risk_level || 'low') === 'medium'
+                  ? 'bg-amber-50 border-amber-100 text-amber-900'
                   : 'bg-green-50 border-green-100 text-green-900'
               }`}>
                 <div>
-                  <span className={`text-xs font-bold uppercase tracking-wide ${profile.academic_risks.length > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    Active Risks
+                  <span className={`text-xs font-bold uppercase tracking-wide ${
+                    (profile.computed_risk_level || 'low') === 'high'
+                      ? 'text-red-600'
+                      : (profile.computed_risk_level || 'low') === 'medium'
+                      ? 'text-amber-600'
+                      : 'text-green-600'
+                  }`}>
+                    Risk Level
                   </span>
-                  <p className="text-3xl font-extrabold mt-1">
-                    {profile.academic_risks.length > 0 ? `${profile.academic_risks.length} Flagged` : 'None'}
+                  <p className="text-3xl font-extrabold mt-1 capitalize">
+                    {profile.computed_risk_level || 'Low'}
                   </p>
                 </div>
-                <AlertTriangle className={`w-10 h-10 stroke-[1.5] ${profile.academic_risks.length > 0 ? 'text-red-500' : 'text-green-500'}`} />
+                <AlertTriangle className={`w-10 h-10 stroke-[1.5] ${
+                  (profile.computed_risk_level || 'low') === 'high'
+                    ? 'text-red-500'
+                    : (profile.computed_risk_level || 'low') === 'medium'
+                    ? 'text-amber-500'
+                    : 'text-green-500'
+                }`} />
               </div>
             </div>
 

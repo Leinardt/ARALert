@@ -27,6 +27,7 @@ import { PrincipalHome } from '../pages/Principal/PrincipalHome';
 import { FacultyHome } from '../pages/Faculty/FacultyHome';
 import { TutorHome } from '../pages/Tutor/TutorHome';
 import { TutorQRGenerator } from '../pages/Tutor/TutorQRGenerator';
+import { TutorStudentDirectory } from '../pages/Tutor/TutorStudentDirectory';
 import { TutorStudentProfile } from '../pages/Tutor/TutorStudentProfile';
 import { TutorAnalytics } from '../pages/Tutor/TutorAnalytics';
 import { StaffAttendanceScanner } from '../pages/Tutor/StaffAttendanceScanner';
@@ -116,6 +117,7 @@ export const AppRouter: React.FC = () => {
           <Route path="/tutor" element={<TutorHome />} />
           <Route path="/tutor/attendance/generate" element={<TutorQRGenerator />} />
           <Route path="/tutor/analytics" element={<TutorAnalytics />} />
+          <Route path="/tutor/students" element={<TutorStudentDirectory />} />
           <Route path="/tutor/scores" element={<TutorScores />} />
           <Route path="/tutor/students/:id" element={<TutorStudentProfile />} />
         </Route>
@@ -123,7 +125,7 @@ export const AppRouter: React.FC = () => {
         {/* ── Shared Staff routes ──────────────────── */}
         <Route
           element={
-            <ProtectedRoute allowedRoles={['admin', 'tutor', 'principal', 'faculty']}>
+            <ProtectedRoute allowedRoles={['admin', 'tutor', 'principal', 'faculty', 'student']}>
               <DashboardLayout />
             </ProtectedRoute>
           }

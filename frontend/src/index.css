@@ -30,3 +30,80 @@ input::-ms-clear {
   display: none !important;
 }
 
+:root {
+  --brand: #097337;
+  --brand-dark: #07582b;
+  --brand-light: #e9f7ee;
+  --brand-lighter: #d4f0da;
+  --brand-border: #c3ebd5;
+  --brand-text: #0a5f2f;
+}
+
+/* Green theme overrides for blue/indigo utility classes */
+.bg-indigo-600,
+.hover\:bg-indigo-600:hover,
+.bg-blue-600,
+.hover\:bg-blue-600:hover {
+  background-color: var(--brand) !important;
+  color: #fff !important;
+}
+
+.bg-indigo-700,
+.hover\:bg-indigo-700:hover,
+.hover\:bg-indigo-700:hover,
+.bg-blue-700,
+.hover\:bg-blue-700:hover {
+  background-color: var(--brand-dark) !important;
+  color: #fff !important;
+}
+
+.border-indigo-600,
+.border-blue-600,
+.border-indigo-700,
+.border-blue-700 {
+  border-color: var(--brand) !important;
+}
+
+.text-indigo-600,
+.hover\:text-indigo-600:hover,
+.text-blue-600,
+.hover\:text-blue-600:hover {
+  color: var(--brand-text) !important;
+}
+
+.text-indigo-700,
+.hover\:text-indigo-700:hover,
+.text-blue-700,
+.hover\:text-blue-700:hover {
+  color: var(--brand-dark) !important;
+}
+
+.bg-indigo-50,
+.bg-blue-50,
+.bg-indigo-100,
+.bg-blue-100,
+.border-indigo-50,
+.border-blue-50,
+.border-indigo-100,
+.border-blue-100 {
+  background-color: var(--brand-light) !important;
+  border-color: var(--brand-border) !important;
+  color: var(--brand-text) !important;
+}
+
+.text-indigo-50,
+.text-blue-50,
+.text-indigo-800,
+.text-indigo-900,
+.text-blue-800,
+.text-blue-900 {
+  color: var(--brand-dark) !important;
+}
+
+.bg-indigo-650,
+.bg-indigo-550 {
+  background-color: var(--brand-dark) !important;
+  color: #fff !important;
+}
+
+

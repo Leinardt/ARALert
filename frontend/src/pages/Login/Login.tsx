@@ -127,19 +127,11 @@ export const Login: React.FC = () => {
           justifyContent: 'space-between',
         }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: '#2E7D32',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontWeight: 800,
-              fontSize: '18px',
-              boxShadow: '0 2px 8px rgba(46,125,50,0.3)',
-            }}>A</div>
+            <img
+              src="/src/assets/ARALert_LOGO.png"
+              alt="ARALert logo"
+              style={{ width: '36px', height: '36px', borderRadius: '10px', objectFit: 'cover' }}
+            />
             <span style={{ fontWeight: 700, fontSize: '20px', color: '#1a1a1a', letterSpacing: '-0.3px' }}>ARALert</span>
           </Link>
 

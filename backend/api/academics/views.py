@@ -3,12 +3,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db import models
 from django.db.models import Q, Avg, Count
 from datetime import datetime, timedelta
 
 from apps.accounts.models import User
 from apps.academics.models import Grade, AralActivity, AcademicRisk, AttendanceSession, Attendance
 from permissions.role_permissions import IsAdmin, IsTutor, role_required
+from utilities.helpers import compute_student_risk_level
 from .serializers import (
     GradeSerializer,
     AralActivitySerializer,
@@ -508,6 +510,20 @@ class StudentAcademicProfileView(APIView):
         w_tasks = tutor.weekly_tasks_weight if tutor else 30
         w_attendance = tutor.attendance_weight if tutor else 20
 
+        score_total = 0.0
+        score_count = 0
+        for grade in grades.filter(component_type__in=['assessment', 'weekly_task', 'attendance']):
+            total_score = float(grade.total_score or 0)
+            percent_score = 0.0
+            if total_score > 0:
+                percent_score = (float(grade.score) / total_score) * 100.0
+            else:
+                percent_score = float(grade.score)
+            score_total += percent_score
+            score_count += 1
+
+        score_avg = round(score_total / score_count, 2) if score_count else 100.0
+
         # Calculate average grades grouped by subject and quarter
         # We need assessment average, weekly task average, and attendance average
         subjects = grades.values_list('subject', flat=True).distinct()
@@ -556,6 +572,7 @@ class StudentAcademicProfileView(APIView):
         
         # 4. Fetch Risk Notices
         risks = AcademicRisk.objects.filter(student=student, resolved=False)
+        computed_risk_level = compute_student_risk_level(attendance_rate, score_avg)
 
         # Tutor Details
         tutor_details = {
@@ -571,8 +588,12 @@ class StudentAcademicProfileView(APIView):
             'student': {
                 'id': student.id,
                 'name': student.get_full_name(),
+                'first_name': student.first_name,
+                'last_name': student.last_name,
+                'username': student.username,
                 'lrn': student.lrn,
-                'email': student.email
+                'email': student.email,
+                'aral_level': student.aral_level,
             },
             'assigned_tutor': tutor_details,
             'gpa': gpa,
@@ -589,7 +610,273 @@ class StudentAcademicProfileView(APIView):
                 'activities': AralActivitySerializer(aral_activities, many=True).data,
                 'stats': {item['status']: item['count'] for item in activity_stats}
             },
-            'academic_risks': AcademicRiskSerializer(risks, many=True).data
+            'academic_risks': AcademicRiskSerializer(risks, many=True).data,
+            'computed_risk_level': computed_risk_level,
         }
 
         return Response(data, status=status.HTTP_200_OK)
+
+
+class PrincipalDashboardView(APIView):
+    """
+    GET /api/academics/principal-dashboard/
+    Provides ARAL-program summaries and attendance performance trends for principals.
+    """
+    permission_classes = [role_required('principal')]
+
+    def get(self, request):
+        days_param = request.query_params.get('days', '7')
+        try:
+            days = int(days_param)
+        except ValueError:
+            days = 7
+        days = max(1, min(days, 30))
+
+        today = timezone.localdate()
+        start_date = today - timedelta(days=days - 1)
+
+        tutors = User.objects.filter(role='tutor', is_active=True, is_superuser=False)
+        faculty = User.objects.filter(role='faculty', is_active=True, is_superuser=False)
+        students = User.objects.filter(role='student', is_active=True, is_superuser=False)
+
+        total_tutors = tutors.count()
+        total_faculty = faculty.count()
+        total_students = students.count()
+
+        aral_student_ids = list(
+            AralActivity.objects.values_list('student_id', flat=True).distinct()
+        )
+
+        aral_tutors = tutors.filter(assigned_students__id__in=aral_student_ids).distinct()
+        aral_students = students.filter(id__in=aral_student_ids).distinct()
+
+        low_risk_count = 0
+        medium_risk_count = 0
+        high_risk_count = 0
+
+        if aral_student_ids:
+            student_grades = Grade.objects.filter(
+                student_id__in=aral_student_ids,
+                component_type__in=['assessment', 'weekly_task', 'attendance']
+            )
+            score_summary = {}
+            for grade in student_grades:
+                student_id = grade.student_id
+                if student_id not in score_summary:
+                    score_summary[student_id] = {'score_total': 0.0, 'score_count': 0}
+                total_score = float(grade.total_score or 0)
+                if total_score > 0:
+                    score_summary[student_id]['score_total'] += (float(grade.score) / total_score) * 100.0
+                else:
+                    score_summary[student_id]['score_total'] += float(grade.score)
+                score_summary[student_id]['score_count'] += 1
+
+            attendance_logs = Attendance.objects.filter(
+                user_id__in=aral_student_ids,
+                role='student'
+            )
+            attendance_summary = {}
+            for log in attendance_logs:
+                student_id = log.user_id
+                if student_id not in attendance_summary:
+                    attendance_summary[student_id] = {'present': 0, 'late': 0, 'absent': 0}
+                if log.status == 'present':
+                    attendance_summary[student_id]['present'] += 1
+                elif log.status == 'late':
+                    attendance_summary[student_id]['late'] += 1
+                elif log.status == 'absent':
+                    attendance_summary[student_id]['absent'] += 1
+
+            for student_id in aral_student_ids:
+                score_data = score_summary.get(student_id, {'score_total': 0.0, 'score_count': 0})
+                score_avg = round(score_data['score_total'] / score_data['score_count'], 2) if score_data['score_count'] else 100.0
+                attendance_data = attendance_summary.get(student_id, {'present': 0, 'late': 0, 'absent': 0})
+                total_logs = attendance_data['present'] + attendance_data['late'] + attendance_data['absent']
+                attendance_rate = round(((attendance_data['present'] + attendance_data['late']) / total_logs) * 100.0, 2) if total_logs > 0 else 100.0
+                risk_level = compute_student_risk_level(attendance_rate, score_avg)
+                if risk_level == 'low':
+                    low_risk_count += 1
+                elif risk_level == 'medium':
+                    medium_risk_count += 1
+                else:
+                    high_risk_count += 1
+
+        class_performance_trend = [
+            {
+                'date': (start_date + timedelta(days=i)).isoformat(),
+                'attendance_rate': 0.0,
+                'average_score': 0.0,
+            }
+            for i in range(days)
+        ]
+
+        student_attendance_qs = Attendance.objects.filter(
+            role='student',
+            tutor_id__in=aral_tutors.values_list('id', flat=True),
+            date__range=(start_date, today)
+        )
+
+        student_attendance_summary = student_attendance_qs.values('date').annotate(
+            present_count=Count('id', filter=models.Q(status='present')),
+            late_count=Count('id', filter=models.Q(status='late')),
+            total_count=Count('id')
+        )
+        
+        attendance_by_date = {
+            row['date']: row 
+            for row in student_attendance_summary
+        }
+
+        grades_qs = Grade.objects.filter(
+            student_id__in=aral_students.values_list('id', flat=True),
+            date_logged__date__range=(start_date, today)
+        )
+        
+        scores_by_date = grades_qs.values('date_logged__date').annotate(
+            avg_score=Avg('score'),
+            total_score=Avg('total_score')
+        )
+        
+        score_by_date = {
+            row['date_logged__date']: row 
+            for row in scores_by_date
+        }
+
+        for i, point in enumerate(class_performance_trend):
+            date_obj = start_date + timedelta(days=i)
+            
+            if date_obj in attendance_by_date:
+                att = attendance_by_date[date_obj]
+                if att['total_count'] > 0:
+                    point['attendance_rate'] = round(((att['present_count'] + att['late_count']) / att['total_count']) * 100.0, 1)
+            
+            if date_obj in score_by_date:
+                score = score_by_date[date_obj]
+                if score['total_score'] and score['total_score'] > 0:
+                    point['average_score'] = round((score['avg_score'] / score['total_score']) * 100.0, 1)
+
+        staff_attendance_trend = [
+            {
+                'date': (start_date + timedelta(days=i)).isoformat(),
+                'tutor_attendance_rate': 0.0,
+                'faculty_attendance_rate': 0.0,
+            }
+            for i in range(days)
+        ]
+
+        staff_attendance_qs = Attendance.objects.filter(
+            role__in=['tutor', 'faculty'],
+            date__range=(start_date, today)
+        )
+        staff_attendance_summary = staff_attendance_qs.values('date', 'role', 'status').annotate(count=Count('id'))
+        attendance_totals = {
+            'tutor': {'present': 0, 'late': 0, 'absent': 0},
+            'faculty': {'present': 0, 'late': 0, 'absent': 0},
+        }
+
+        for row in staff_attendance_summary:
+            date_index = (row['date'] - start_date).days
+            if date_index < 0 or date_index >= days:
+                continue
+            point = staff_attendance_trend[date_index]
+            role_key = 'tutor' if row['role'] == 'tutor' else 'faculty'
+            if row['status'] == 'present':
+                attendance_totals[role_key]['present'] += row['count']
+            elif row['status'] == 'late':
+                attendance_totals[role_key]['late'] += row['count']
+            elif row['status'] == 'absent':
+                attendance_totals[role_key]['absent'] += row['count']
+
+        for point in staff_attendance_trend:
+            for role_key in ('tutor', 'faculty'):
+                total = sum(attendance_totals[role_key].values())
+                if total > 0:
+                    point[f'{role_key}_attendance_rate'] = round(((attendance_totals[role_key]['present'] + attendance_totals[role_key]['late']) / total) * 100.0, 1)
+
+        per_tutor_performance = []
+        
+        try:
+            for tutor in tutors.all():
+                tutor_id = tutor.id
+                tutor_name = f"{tutor.first_name} {tutor.last_name}".strip()
+                
+                tutor_trend = [
+                    {
+                        'date': (start_date + timedelta(days=i)).isoformat(),
+                        'attendance_rate': 0.0,
+                        'average_score': 0.0,
+                    }
+                    for i in range(days)
+                ]
+                
+                # Get students assigned to this tutor
+                tutor_student_ids = list(
+                    User.objects.filter(assigned_tutor_id=tutor_id, role='student', is_active=True)
+                    .values_list('id', flat=True)
+                )
+                
+                if tutor_student_ids:
+                    try:
+                        # Get attendance data for this tutor's students
+                        tutor_attendance_summary = Attendance.objects.filter(
+                            role='student',
+                            user_id__in=tutor_student_ids,
+                            date__range=(start_date, today)
+                        ).values('date').annotate(
+                            present_count=Count('id', filter=models.Q(status='present')),
+                            late_count=Count('id', filter=models.Q(status='late')),
+                            total_count=Count('id')
+                        )
+                        tutor_attendance_by_date = {row['date']: row for row in tutor_attendance_summary}
+                        
+                        # Get grade data for this tutor's students
+                        tutor_grades_qs = Grade.objects.filter(
+                            student_id__in=tutor_student_ids,
+                            date_logged__date__range=(start_date, today)
+                        ).values('date_logged__date').annotate(
+                            avg_score=Avg('score'),
+                            total_score=Avg('total_score')
+                        )
+                        tutor_score_by_date = {row['date_logged__date']: row for row in tutor_grades_qs}
+                        
+                        # Populate trend data
+                        for i, point in enumerate(tutor_trend):
+                            date_obj = start_date + timedelta(days=i)
+                            
+                            if date_obj in tutor_attendance_by_date:
+                                att = tutor_attendance_by_date[date_obj]
+                                if att['total_count'] > 0:
+                                    point['attendance_rate'] = round(((att['present_count'] + att['late_count']) / att['total_count']) * 100.0, 1)
+                            
+                            if date_obj in tutor_score_by_date:
+                                score = tutor_score_by_date[date_obj]
+                                if score['total_score'] and score['total_score'] > 0:
+                                    point['average_score'] = round((float(score['avg_score']) / float(score['total_score'])) * 100.0, 1)
+                    except Exception as e:
+                        # Log error but continue
+                        pass
+                
+                per_tutor_performance.append({
+                    'tutor_id': str(tutor_id),
+                    'tutor_name': tutor_name,
+                    'trend': tutor_trend,
+                })
+        except Exception as e:
+            # If per_tutor_performance fails, return empty list
+            per_tutor_performance = []
+
+        return Response({
+            'program_summary': {
+                'total_tutors': total_tutors,
+                'total_faculty': total_faculty,
+                'total_students': total_students,
+            },
+            'risk_summary': {
+                'low': low_risk_count,
+                'medium': medium_risk_count,
+                'high': high_risk_count,
+            },
+            'class_performance_trend': class_performance_trend,
+            'per_tutor_performance': per_tutor_performance,
+            'staff_attendance_trend': staff_attendance_trend,
+        }, status=status.HTTP_200_OK)

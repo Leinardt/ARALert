@@ -18,6 +18,7 @@ export interface User {
   assessment_weight: number;
   weekly_tasks_weight: number;
   attendance_weight: number;
+  aral_level?: 'basic' | 'plus' | 'summer' | null;
 }
 
 export interface AuthResponse {
@@ -83,6 +84,38 @@ export interface AcademicRisk {
   resolved: boolean;
 }
 
+export interface PrincipalDashboardTrendPoint {
+  date: string;
+  attendance_rate: number;
+  average_score: number;
+}
+
+export interface PrincipalTutorTrend {
+  tutor_id: string;
+  tutor_name: string;
+  trend: PrincipalDashboardTrendPoint[];
+}
+
+export interface PrincipalDashboardResponse {
+  program_summary: {
+    total_tutors: number;
+    total_faculty: number;
+    total_students: number;
+  };
+  risk_summary: {
+    low: number;
+    medium: number;
+    high: number;
+  };
+  class_performance_trend: PrincipalDashboardTrendPoint[];
+  per_tutor_performance: PrincipalTutorTrend[];
+  staff_attendance_trend: Array<{
+    date: string;
+    tutor_attendance_rate: number;
+    faculty_attendance_rate: number;
+  }>;
+}
+
 export interface AttendanceSession {
   id: string;
   creator: string;
@@ -127,8 +160,12 @@ export interface StudentAcademicProfile {
   student: {
     id: string;
     name: string;
+    first_name: string;
+    last_name: string;
+    username: string;
     lrn: string | null;
     email: string;
+    aral_level: 'basic' | 'plus' | 'summer';
   };
   assigned_tutor: {
     id: string;
@@ -153,5 +190,6 @@ export interface StudentAcademicProfile {
     stats: Record<string, number>;
   };
   academic_risks: AcademicRisk[];
+  computed_risk_level?: 'low' | 'medium' | 'high';
 }
 

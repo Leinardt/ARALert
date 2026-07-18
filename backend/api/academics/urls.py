@@ -10,6 +10,7 @@ from .views import (
     AttendanceScanView,
     AttendanceManualLogView,
     AttendanceHistoryView,
+    PrincipalDashboardView,
     StudentAcademicProfileView,
 )
 
@@ -27,6 +28,7 @@ urlpatterns = [
     path('attendance/scan/', AttendanceScanView.as_view(), name='attendance-scan'),
     path('attendance/manual/', AttendanceManualLogView.as_view(), name='attendance-manual'),
     path('attendance/history/', AttendanceHistoryView.as_view(), name='attendance-history'),
+    path('principal-dashboard/', PrincipalDashboardView.as_view(), name='principal-dashboard'),
     
     path('student-profile/<uuid:student_id>/', StudentAcademicProfileView.as_view(), name='student-profile-detail'),
     path('student-profile/', StudentAcademicProfileView.as_view(), name='student-profile-self'),

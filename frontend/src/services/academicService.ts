@@ -26,6 +26,42 @@ export interface GetAttendanceParams {
   user_id?: string;
 }
 
+export interface PrincipalDashboardTrendPoint {
+  date: string;
+  attendance_rate: number;
+  average_score: number;
+}
+
+export interface PrincipalTutorTrend {
+  tutor_id: string;
+  tutor_name: string;
+  trend: PrincipalDashboardTrendPoint[];
+}
+
+export interface PrincipalDashboardResponse {
+  program_summary: {
+    total_tutors: number;
+    total_faculty: number;
+    total_students: number;
+  };
+  risk_summary: {
+    low: number;
+    medium: number;
+    high: number;
+  };
+  class_performance_trend: PrincipalDashboardTrendPoint[];
+  per_tutor_performance: PrincipalTutorTrend[];
+  staff_attendance_trend: Array<{
+    date: string;
+    tutor_attendance_rate: number;
+    faculty_attendance_rate: number;
+  }>;
+}
+
+export interface GetPrincipalDashboardParams {
+  days?: number;
+}
+
 export const academicService = {
   // Grades
   getGrades: async (params: GetGradesParams = {}): Promise<Grade[]> => {
@@ -117,6 +153,11 @@ export const academicService = {
 
   getAttendanceHistory: async (params: GetAttendanceParams = {}): Promise<Attendance[]> => {
     const response = await api.get<Attendance[]>('/academics/attendance/history/', { params });
+    return response.data;
+  },
+
+  getPrincipalDashboard: async (params: GetPrincipalDashboardParams = {}): Promise<PrincipalDashboardResponse> => {
+    const response = await api.get<PrincipalDashboardResponse>('/academics/principal-dashboard/', { params });
     return response.data;
   },
 

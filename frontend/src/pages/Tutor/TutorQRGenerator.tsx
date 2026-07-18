@@ -12,6 +12,9 @@ export const TutorQRGenerator: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [scannedStudents, setScannedStudents] = useState<Attendance[]>([]);
+  const [attendanceHistory, setAttendanceHistory] = useState<Attendance[]>([]);
+  const [attendanceHistoryLoading, setAttendanceHistoryLoading] = useState<boolean>(true);
+  const [attendanceHistoryError, setAttendanceHistoryError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +33,24 @@ export const TutorQRGenerator: React.FC = () => {
       }
     };
     fetchActivities();
+  }, []);
+
+  useEffect(() => {
+    const fetchAttendanceHistory = async () => {
+      setAttendanceHistoryLoading(true);
+      setAttendanceHistoryError(null);
+      try {
+        const logs = await academicService.getAttendanceHistory();
+        setAttendanceHistory(logs.slice(0, 25));
+      } catch (err: any) {
+        console.error('Failed to load attendance history', err);
+        setAttendanceHistoryError(err.response?.data?.error || 'Failed to load attendance history.');
+      } finally {
+        setAttendanceHistoryLoading(false);
+      }
+    };
+
+    fetchAttendanceHistory();
   }, []);
 
   const generateStudentQR = async () => {
@@ -86,6 +107,29 @@ export const TutorQRGenerator: React.FC = () => {
         console.error('Error polling attendance logs:', err);
       }
     }, 3000); // Poll every 3 seconds
+  };
+
+  const formatDateString = (value: string | null) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString(undefined, {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatTimeString = (value: string | null) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   useEffect(() => {
@@ -275,7 +319,7 @@ export const TutorQRGenerator: React.FC = () => {
                       </div>
                       <div className="text-right">
                         <span className="inline-flex items-center text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-100">
-                          {log.time_in ? new Date(log.time_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Logged'}
+                          {log.time_in ? formatTimeString(log.time_in) : 'Logged'}
                         </span>
                       </div>
                     </div>
@@ -283,6 +327,49 @@ export const TutorQRGenerator: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="mt-6 bg-white rounded-2xl border border-gray-200 shadow-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-bold text-gray-900 text-base">Attendance History</h3>
+                <p className="text-xs text-gray-500">Latest attendance records for all students.</p>
+              </div>
+              <span className="text-xs text-slate-500">Showing {attendanceHistory.length} records</span>
+            </div>
+
+            {attendanceHistoryLoading ? (
+              <div className="text-sm text-gray-500">Loading attendance history...</div>
+            ) : attendanceHistoryError ? (
+              <div className="text-sm text-red-600">{attendanceHistoryError}</div>
+            ) : attendanceHistory.length === 0 ? (
+              <div className="text-sm text-gray-500">No attendance history found yet.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
+                  <thead className="bg-slate-50 text-slate-700">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Student</th>
+                      <th className="px-3 py-2 font-medium">Date</th>
+                      <th className="px-3 py-2 font-medium">Time In</th>
+                      <th className="px-3 py-2 font-medium">Status</th>
+                      <th className="px-3 py-2 font-medium">Activity</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {attendanceHistory.map((log) => (
+                      <tr key={log.id}>
+                        <td className="px-3 py-2 text-sm text-slate-700 font-bold">{log.user_name}</td>
+                        <td className="px-3 py-2 text-sm text-slate-700">{formatDateString(log.date)}</td>
+                        <td className="px-3 py-2 text-sm text-slate-700 font-mono">{formatTimeString(log.time_in)}</td>
+                        <td className="px-3 py-2 text-sm text-slate-700">{log.status_display}</td>
+                        <td className="px-3 py-2 text-sm text-slate-700">{log.aral_activity_title || 'General'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>

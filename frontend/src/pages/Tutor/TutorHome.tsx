@@ -3,35 +3,168 @@ import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../../utils/analyticsHelpers';
-import type { User, AralActivity } from '../../types';
+import type { User, AralActivity, Grade, Attendance } from '../../types';
 import {
   Users,
-  BookOpen,
   Calendar,
-  ChevronRight,
-  Award
+  Maximize2
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const getRiskTier = (score: number) => {
-  if (score >= 85) return 'Low';
-  if (score >= 70) return 'Moderate';
-  return 'High';
-};
-
-const applyAttendanceEscalation = (tier: string, attendanceRate: number) => {
-  if (attendanceRate >= 90) return tier;
-  if (attendanceRate >= 80) {
-    return tier === 'Low' ? 'Moderate' : tier;
-  }
-  if (tier === 'Low') return 'Moderate';
-  return 'High';
-};
-
 const riskPriority = (tier: string) => {
   if (tier === 'High') return 2;
-  if (tier === 'Moderate') return 1;
+  if (tier === 'Medium') return 1;
   return 0;
+};
+
+const calculateAverages = (
+  students: User[],
+  grades: Grade[],
+  attendanceLogs: Attendance[]
+) => {
+  const studentIds = new Set(students.map((student) => String(student.id)));
+
+  const scoreTotals = grades
+    .filter((grade) => studentIds.has(String(grade.student)))
+    .reduce((acc, grade) => {
+      const studentId = String(grade.student);
+      const existing = acc.get(studentId) ?? { totalPercent: 0, count: 0 };
+      const scoreValue = Number(grade.score);
+      const totalValue = Number(grade.total_score || 100);
+      const percent = totalValue > 0 ? (scoreValue / totalValue) * 100 : 0;
+      existing.totalPercent += percent;
+      existing.count += 1;
+      acc.set(studentId, existing);
+      return acc;
+    }, new Map<string, { totalPercent: number; count: number }>());
+
+  const attendanceByStudent = attendanceLogs.reduce((acc, attendance) => {
+    const userId = String(attendance.user);
+    if (!studentIds.has(userId)) return acc;
+    const list = acc.get(userId) ?? [];
+    list.push(attendance);
+    acc.set(userId, list);
+    return acc;
+  }, new Map<string, Attendance[]>());
+
+  let attendanceSum = 0;
+  let scoreSum = 0;
+  let scoreCount = 0;
+
+  students.forEach((student) => {
+    const attendanceRecords = attendanceByStudent.get(String(student.id)) ?? [];
+    let attendanceRate = 100;
+
+    if (attendanceRecords.length > 0) {
+      const totalDays = attendanceRecords.length;
+      const presentDays = attendanceRecords.filter((record) => record.status === 'present').length;
+      const lateDays = attendanceRecords.filter((record) => record.status === 'late').length;
+      attendanceRate = Number(((presentDays + lateDays) / totalDays * 100).toFixed(1));
+    }
+
+    attendanceSum += attendanceRate;
+
+    const scoreData = scoreTotals.get(String(student.id));
+    if (scoreData?.count) {
+      scoreSum += Number((scoreData.totalPercent / scoreData.count).toFixed(1));
+      scoreCount += 1;
+    }
+  });
+
+  return {
+    averageAttendance: students.length > 0 ? Number((attendanceSum / students.length).toFixed(1)) : 0,
+    averageScoreAvg: scoreCount > 0 ? Number((scoreSum / scoreCount).toFixed(1)) : 0,
+  };
+};
+
+const buildPerformanceTrend = (
+  students: User[],
+  grades: Grade[],
+  attendanceLogs: Attendance[]
+) => {
+  const studentIds = new Set(students.map((student) => String(student.id)));
+  const relevantScoreGrades = grades.filter(
+    (grade) => studentIds.has(String(grade.student)) && grade.component_type !== 'attendance'
+  );
+  const relevantAttendanceGrades = grades.filter(
+    (grade) => studentIds.has(String(grade.student)) && grade.component_type === 'attendance'
+  );
+  const relevantAttendanceLogs = attendanceLogs.filter((record) => studentIds.has(String(record.user)));
+
+  const scoreBuckets = relevantScoreGrades.reduce((acc, grade) => {
+    const dateKey = grade.date_logged?.slice(0, 10) || '';
+    if (!dateKey) return acc;
+    const percent = grade.total_score > 0 ? (Number(grade.score) / Number(grade.total_score)) * 100 : 0;
+    const bucket = acc.get(dateKey) ?? { total: 0, count: 0 };
+    bucket.total += percent;
+    bucket.count += 1;
+    acc.set(dateKey, bucket);
+    return acc;
+  }, new Map<string, { total: number; count: number }>());
+
+  const attendanceGradeBuckets = relevantAttendanceGrades.reduce((acc, grade) => {
+    const dateKey = grade.date_logged?.slice(0, 10) || '';
+    if (!dateKey) return acc;
+    const percent = grade.total_score > 0 ? (Number(grade.score) / Number(grade.total_score)) * 100 : 0;
+    const bucket = acc.get(dateKey) ?? { total: 0, count: 0 };
+    bucket.total += percent;
+    bucket.count += 1;
+    acc.set(dateKey, bucket);
+    return acc;
+  }, new Map<string, { total: number; count: number }>());
+
+  const attendanceLogBuckets = relevantAttendanceLogs.reduce((acc, record) => {
+    const dateKey = record.date?.toString() || '';
+    if (!dateKey) return acc;
+    const bucket = acc.get(dateKey) ?? { present: 0, late: 0, total: 0 };
+    if (record.status === 'present') bucket.present += 1;
+    if (record.status === 'late') bucket.late += 1;
+    bucket.total += 1;
+    acc.set(dateKey, bucket);
+    return acc;
+  }, new Map<string, { present: number; late: number; total: number }>());
+
+  const allDates = new Set<string>([
+    ...scoreBuckets.keys(),
+    ...attendanceGradeBuckets.keys(),
+    ...attendanceLogBuckets.keys(),
+  ]);
+
+  const trend = Array.from(allDates)
+    .map((date) => {
+      const scoreBucket = scoreBuckets.get(date);
+      const attendanceGradeBucket = attendanceGradeBuckets.get(date);
+      const attendanceLogBucket = attendanceLogBuckets.get(date);
+
+      const scoreAvg = scoreBucket ? scoreBucket.total / scoreBucket.count : undefined;
+      const attendanceGradeAvg = attendanceGradeBucket
+        ? attendanceGradeBucket.total / attendanceGradeBucket.count
+        : undefined;
+      const attendanceLogRate = attendanceLogBucket
+        ? ((attendanceLogBucket.present + attendanceLogBucket.late) / attendanceLogBucket.total) * 100
+        : undefined;
+
+      const attendanceAvg = attendanceLogRate ?? attendanceGradeAvg;
+      const combined =
+        scoreAvg !== undefined && attendanceAvg !== undefined
+          ? Number(((scoreAvg + attendanceAvg) / 2).toFixed(1))
+          : scoreAvg !== undefined
+          ? Number(scoreAvg.toFixed(1))
+          : attendanceAvg !== undefined
+          ? Number(attendanceAvg.toFixed(1))
+          : undefined;
+
+      return {
+        date,
+        label: date.replace(/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/, '$2/$3'),
+        value: combined ?? 0,
+      };
+    })
+    .filter((item) => item.value > 0)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(-6);
+
+  return trend;
 };
 
 export const TutorHome: React.FC = () => {
@@ -39,12 +172,15 @@ export const TutorHome: React.FC = () => {
   const [students, setStudents] = useState<User[]>([]);
   const [activities, setActivities] = useState<AralActivity[]>([]);
   const [topRiskStudents, setTopRiskStudents] = useState<StudentRiskRow[]>([]);
+  const [averageAttendance, setAverageAttendance] = useState(0);
+  const [averageScoreAvg, setAverageScoreAvg] = useState(0);
+  const [performanceTrend, setPerformanceTrend] = useState<{ label: string; value: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Manual attendance modal state
   const [showModal, setShowModal] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
+  const [selectedStudent] = useState<User | null>(null);
   const [attendanceForm, setAttendanceForm] = useState({
     date: new Date().toLocaleDateString('en-CA'),
     status: 'present' as 'present' | 'late' | 'absent',
@@ -66,6 +202,11 @@ export const TutorHome: React.FC = () => {
       setStudents(students);
       setActivities(activitiesRes);
 
+      const averages = calculateAverages(students, grades, attendanceLogs);
+      setAverageAttendance(averages.averageAttendance);
+      setAverageScoreAvg(averages.averageScoreAvg);
+      setPerformanceTrend(buildPerformanceTrend(students, grades, attendanceLogs));
+
       const riskRows = computeStudentRiskRows(students, grades, attendanceLogs);
       const sortedRiskRows = riskRows.sort((a, b) => {
         const priorityDiff = riskPriority(b.riskTier) - riskPriority(a.riskTier);
@@ -85,11 +226,6 @@ export const TutorHome: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
-
-  const handleOpenAttendanceModal = (student: User) => {
-    setSelectedStudent(student);
-    setShowModal(true);
-  };
 
   const handleManualAttendanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,34 +295,97 @@ export const TutorHome: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Top Risk Students</span>
-            <p className="text-3xl font-extrabold text-gray-900">{topRiskStudents.length}</p>
-          </div>
-          <div className="p-3 rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
-            <Award className="w-6 h-6" />
-          </div>
+        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Avg Attendance</span>
+          <p className="mt-2 text-3xl font-extrabold text-gray-900">{averageAttendance}%</p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Grading Weight Profile</span>
-            <div className="text-sm font-bold text-gray-800 mt-1 flex space-x-2">
-              <span>A: {user?.assessment_weight}%</span>
-              <span>T: {user?.weekly_tasks_weight}%</span>
-              <span>At: {user?.attendance_weight}%</span>
-            </div>
-          </div>
-          <div className="p-3 rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
-            <Award className="w-6 h-6" />
-          </div>
+        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Avg Score</span>
+          <p className="mt-2 text-3xl font-extrabold text-gray-900">{averageScoreAvg}%</p>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-5">
+        <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div>
+              <h3 className="font-bold text-gray-900 text-base">Performance Trend</h3>
+              <p className="text-sm text-gray-500">Recent combined attendance and score performance</p>
+            </div>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Last 6 dates</p>
+          </div>
+          {performanceTrend.length === 0 ? (
+            <div className="py-10 text-center text-gray-400">
+              <p className="text-sm font-semibold">No grade history available yet.</p>
+              <p className="text-xs mt-1">Trend will appear once students have grades logged.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="h-52 w-full rounded-3xl bg-slate-50 p-4 border border-gray-100">
+                <svg viewBox="0 0 600 220" className="w-full h-full">
+                  <defs>
+                    <linearGradient id="trend-gradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="#4f46e5" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  {(() => {
+                    const max = Math.max(...performanceTrend.map((point) => point.value), 100);
+                    const min = Math.min(...performanceTrend.map((point) => point.value), 0);
+                    const range = max - min || 1;
+                    const points = performanceTrend.map((point, idx) => {
+                      const x = 50 + (idx * 100);
+                      const y = 200 - ((point.value - min) / range) * 160;
+                      return `${x},${y}`;
+                    }).join(' ');
+                    const areaPoints = `${performanceTrend.map((point, idx) => {
+                      const x = 50 + (idx * 100);
+                      const y = 200 - ((point.value - min) / range) * 160;
+                      return `${x},${y}`;
+                    }).join(' ')} 550,200 50,200`;
+                    return (
+                      <>
+                        <polyline points={points} fill="none" stroke="#4f46e5" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                        <polygon points={areaPoints} fill="url(#trend-gradient)" />
+                        {performanceTrend.map((point, idx) => {
+                          const x = 50 + (idx * 100);
+                          const y = 200 - ((point.value - min) / range) * 160;
+                          return <circle key={point.label} cx={x} cy={y} r="5" fill="#4f46e5" />;
+                        })}
+                      </>
+                    );
+                  })()}
+                </svg>
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-xs text-slate-500">
+                {performanceTrend.map((point) => (
+                  <div key={point.label} className="space-y-1">
+                    <p className="font-semibold text-slate-900">{point.value}%</p>
+                    <p>{point.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-          <h3 className="font-bold text-gray-900 text-base mb-4">Top Risk Students</h3>
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h3 className="font-bold text-gray-900 text-base">Top Risk Students</h3>
+              <p className="text-sm text-gray-500">
+                Showing <span className="text-slate-900">{topRiskStudents.length}</span> student{topRiskStudents.length === 1 ? '' : 's'}
+              </p>
+            </div>
+            <Link
+              to="/tutor/analytics"
+              className="inline-flex items-center justify-center rounded-full border border-indigo-200 bg-indigo-50 p-2 text-indigo-700 hover:bg-indigo-100 transition"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </Link>
+          </div>
+
           {topRiskStudents.length === 0 ? (
             <div className="py-10 text-center text-gray-400">
               <p className="text-sm font-semibold">No current risk data available.</p>
@@ -195,7 +394,16 @@ export const TutorHome: React.FC = () => {
           ) : (
             <div className="space-y-3">
               {topRiskStudents.map((row, index) => (
-                <div key={row.student.id} className="rounded-3xl border border-gray-100 bg-slate-50 p-4">
+                <div
+                  key={row.student.id}
+                  className={`rounded-3xl p-4 ${
+                    row.riskTier === 'High'
+                      ? 'border border-rose-100 bg-rose-50'
+                      : row.riskTier === 'Medium'
+                      ? 'border border-amber-100 bg-amber-50'
+                      : 'border border-emerald-100 bg-emerald-50'
+                  }`}
+                >
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-slate-500">#{index + 1} Risk Student</p>
@@ -204,7 +412,7 @@ export const TutorHome: React.FC = () => {
                     </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                       row.riskTier === 'High' ? 'bg-rose-100 text-rose-700' : 
-                      row.riskTier === 'Moderate' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                      row.riskTier === 'Medium' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
                     }`}>
                       {row.riskTier}
                     </span>
@@ -222,95 +430,6 @@ export const TutorHome: React.FC = () => {
                       <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Composite</p>
                       <p className="mt-2 font-semibold text-slate-900">{row.compositeScore}%</p>
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Assigned Student Directory */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-            <h3 className="font-bold text-gray-900 text-base flex items-center">
-              <Users className="w-5 h-5 mr-2 text-indigo-600" />
-              Assigned Students
-            </h3>
-            <span className="bg-indigo-50 text-indigo-700 text-xs px-2.5 py-0.5 rounded-full font-bold border border-indigo-100">
-              {students.length} Students
-            </span>
-          </div>
-
-          {students.length === 0 ? (
-            <div className="py-12 text-center text-gray-500">
-              <p className="text-sm font-bold">No students assigned yet.</p>
-              <p className="text-xs mt-1 text-gray-400">Ask the administrator to assign student accounts to you.</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {students.map((student) => (
-                <div
-                  key={student.id}
-                  className="py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-gray-50/30 px-2 rounded-xl transition-all"
-                >
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-gray-800 text-sm">{student.full_name}</h4>
-                    <p className="text-xs text-gray-400">LRN: {student.lrn || 'N/A'} | {student.email}</p>
-                  </div>
-                  <div className="flex items-center space-x-3 w-full sm:w-auto justify-end">
-                    <button
-                      onClick={() => handleOpenAttendanceModal(student)}
-                      className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                    >
-                      Log Attendance
-                    </button>
-                    <Link
-                      to={`/tutor/students/${student.id}`}
-                      className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 transition-colors"
-                    >
-                      <span>View Profile</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Active Activities & Interventions */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
-          <h3 className="font-bold text-gray-900 text-base flex items-center border-b border-gray-100 pb-3">
-            <BookOpen className="w-5 h-5 mr-2 text-teal-600" />
-            Active Interventions
-          </h3>
-
-          {activities.length === 0 ? (
-            <div className="py-12 text-center text-gray-400">
-              <p className="text-sm font-semibold">No active activities.</p>
-              <p className="text-xs mt-1">Interventions you tag as "In Progress" will show here.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {activities.map((act) => (
-                <div
-                  key={act.id}
-                  className="p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-2"
-                >
-                  <div className="flex justify-between items-start gap-2">
-                    <h4 className="font-bold text-gray-800 text-xs line-clamp-1">{act.title}</h4>
-                    <span className="bg-teal-50 text-teal-700 border border-teal-100 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0">
-                      In Progress
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 line-clamp-2">{act.description}</p>
-                  <div className="flex justify-between items-center text-[10px] text-gray-400 font-semibold pt-1 border-t border-gray-150/40">
-                    <span>Student: {act.student_name}</span>
-                    <Link to={`/tutor/students/${act.student}`} className="text-indigo-600 font-bold hover:underline">
-                      Manage
-                    </Link>
                   </div>
                 </div>
               ))}

@@ -62,6 +62,19 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text='12-digit LRN. Required for student accounts.',
     )
 
+    class AralLevel(models.TextChoices):
+        BASIC = 'basic', 'Basic'
+        PLUS = 'plus', 'Plus'
+        SUMMER = 'summer', 'Summer'
+
+    aral_level = models.CharField(
+        max_length=10,
+        choices=AralLevel.choices,
+        default=AralLevel.BASIC,
+        verbose_name='ARAL Level',
+        help_text='Student ARAL program level.'
+    )
+
     # Tutor Assignment for Students
     assigned_tutor = models.ForeignKey(
         'self',

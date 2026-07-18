@@ -169,13 +169,19 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
     PATCH /api/users/{id}/   — Update a user.
     """
 
-    permission_classes = [IsAdmin]
     lookup_field = 'id'
+
+    def get_permissions(self):
+        if self.request.user.role == 'tutor':
+            return [IsTutor()]
+        return [IsAdmin()]
 
     def get_queryset(self):
         queryset = User.objects.filter(is_superuser=False)
         if not self.request.user.is_superuser and self.request.user.role == 'admin':
             queryset = queryset.filter(role='student')
+        if self.request.user.role == 'tutor':
+            queryset = queryset.filter(role='student', assigned_tutor=self.request.user)
         return queryset
 
     def get_serializer_class(self):

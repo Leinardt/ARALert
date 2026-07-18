@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { academicService } from '../../services/academicService';
+import type { Attendance } from '../../types';
 import {
   Camera,
   Keyboard,
@@ -9,7 +10,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
 import { useAuth } from '../../hooks/useAuth';
 
 export const StaffAttendanceScanner: React.FC = () => {
@@ -17,8 +18,12 @@ export const StaffAttendanceScanner: React.FC = () => {
   const [scanMode, setScanMode] = useState<'none' | 'camera' | 'text'>('camera');
   const [manualCode, setManualCode] = useState('');
   const [scanResult, setScanResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [attendanceLogs, setAttendanceLogs] = useState<Attendance[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
+  const [logsError, setLogsError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const isPrincipalMonitor = user?.role === 'principal' || Boolean(user?.is_superuser);
 
   const handleScanSuccess = async (sessionId: string) => {
     if (scannerRef.current) {
@@ -38,6 +43,10 @@ export const StaffAttendanceScanner: React.FC = () => {
     try {
       const res = await academicService.scanQRCode(sessionId);
       setScanResult({ type: 'success', message: res.message });
+      if (user) {
+        const logs = await academicService.getAttendanceHistory({ user_id: user.id });
+        setAttendanceLogs(logs.slice(0, 10));
+      }
     } catch (err: any) {
       console.error(err);
       setScanResult({
@@ -50,31 +59,74 @@ export const StaffAttendanceScanner: React.FC = () => {
   };
 
   useEffect(() => {
+    const fetchAttendanceLogs = async () => {
+      if (!user) return;
+      setLogsLoading(true);
+      setLogsError(null);
+
+      try {
+        const logs = isPrincipalMonitor
+          ? await academicService.getAttendanceHistory()
+          : await academicService.getAttendanceHistory({ user_id: user.id });
+
+        const visibleLogs = isPrincipalMonitor
+          ? logs.filter((log) => ['tutor', 'faculty'].includes(log.role))
+          : logs;
+
+        setAttendanceLogs(visibleLogs.slice(0, 20));
+      } catch (err: any) {
+        console.error(err);
+        setLogsError('Failed to load clock history.');
+      } finally {
+        setLogsLoading(false);
+      }
+    };
+
+    fetchAttendanceLogs();
+  }, [user, isPrincipalMonitor]);
+
+  useEffect(() => {
     if (scanMode === 'camera') {
       const timer = setTimeout(() => {
-        try {
-          const scanner = new Html5QrcodeScanner(
-            'staff-qr-reader',
-            {
-              fps: 10,
-              qrbox: { width: 250, height: 250 },
-              aspectRatio: 1.0
-            },
-            /* verbose= */ false
-          );
-          scannerRef.current = scanner;
+        const initScanner = async () => {
+          try {
+            const cameras = await Html5Qrcode.getCameras();
+            let videoConstraints: any = { facingMode: 'environment' };
 
-          scanner.render(
-            (decodedText) => {
-              handleScanSuccess(decodedText);
-            },
-            () => {
-              // Ignore scan errors
+            if (cameras && cameras.length > 0) {
+              const preferredCamera = cameras.find((cam) =>
+                /integrated|webcam|camera|front|back/i.test(cam.label)
+              );
+              const selectedCameraId = preferredCamera?.id || cameras[0].id;
+              videoConstraints = { deviceId: { exact: selectedCameraId } };
             }
-          );
-        } catch (err) {
-          console.error(err);
-        }
+
+            const scanner = new Html5QrcodeScanner(
+              'staff-qr-reader',
+              {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0,
+                videoConstraints
+              },
+              /* verbose= */ false
+            );
+            scannerRef.current = scanner;
+
+            scanner.render(
+              (decodedText) => {
+                handleScanSuccess(decodedText);
+              },
+              () => {
+                // Ignore scan errors
+              }
+            );
+          } catch (err) {
+            console.error(err);
+          }
+        };
+
+        initScanner();
       }, 100);
 
       return () => {
@@ -93,6 +145,29 @@ export const StaffAttendanceScanner: React.FC = () => {
     submitScan(manualCode.trim());
     setManualCode('');
     setScanMode('none');
+  };
+
+  const formatDateString = (value: string | null) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString(undefined, {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatTimeString = (value: string | null) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   return (
@@ -200,6 +275,55 @@ export const StaffAttendanceScanner: React.FC = () => {
               {isSubmitting ? 'Confirming...' : 'Log Time Entry'}
             </button>
           </form>
+        )}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">{isPrincipalMonitor ? 'Tutor & Faculty Attendance History' : 'Clock History'}</h3>
+            <p className="text-xs text-gray-500">
+              {isPrincipalMonitor
+                ? 'Monitor recent tutor and faculty clock-in and clock-out activity.'
+                : 'Recent staff clock-in and clock-out scan records.'}
+            </p>
+          </div>
+          <span className="text-xs text-slate-500">{attendanceLogs.length} entries</span>
+        </div>
+
+        {logsLoading ? (
+          <div className="text-sm text-gray-500">Loading clock history...</div>
+        ) : logsError ? (
+          <div className="text-sm text-red-600">{logsError}</div>
+        ) : attendanceLogs.length === 0 ? (
+          <div className="text-sm text-gray-500">No clock history found yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
+              <thead className="bg-slate-50 text-slate-700">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Staff Member</th>
+                  <th className="px-3 py-2 font-medium">Role</th>
+                  <th className="px-3 py-2 font-medium">Date</th>
+                  <th className="px-3 py-2 font-medium">Time In</th>
+                  <th className="px-3 py-2 font-medium">Time Out</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {attendanceLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td className="px-3 py-2 text-sm text-slate-700">{log.user_name || 'Unknown staff'}</td>
+                    <td className="px-3 py-2 text-sm text-slate-700 capitalize">{log.role}</td>
+                    <td className="px-3 py-2 text-sm text-slate-700">{formatDateString(log.date)}</td>
+                    <td className="px-3 py-2 text-sm text-slate-700 font-mono">{formatTimeString(log.time_in)}</td>
+                    <td className="px-3 py-2 text-sm text-slate-700 font-mono">{formatTimeString(log.time_out)}</td>
+                    <td className="px-3 py-2 text-sm text-slate-700">{log.status_display}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
