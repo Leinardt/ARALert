@@ -284,6 +284,7 @@ class AttendanceScanView(APIView):
         if not session.is_active or timezone.now() > session.expires_at:
             return Response({'error': 'This QR code has expired or is no longer active.'}, status=status.HTTP_400_BAD_REQUEST)
 
+
         today = timezone.localdate()
 
         # Session Types Verification
@@ -322,46 +323,66 @@ class AttendanceScanView(APIView):
                 return Response({'error': 'Only staff members can scan this attendance QR code.'}, status=status.HTTP_403_FORBIDDEN)
 
             role_label = 'tutor' if user.role == 'tutor' else user.role or 'staff'
-            
+
             import datetime
             local_now = timezone.localtime(timezone.now())
             now_time = local_now.time()
+            now_dt = timezone.now()
+            is_morning = user.role != 'tutor' and now_time < datetime.time(12, 0)
 
-            # Action: time_in vs time_out
             if session.action == 'time_in':
-                if now_time > datetime.time(7, 30):
-                    return Response({'error': 'Clock-in is only allowed until 7:30 AM.'}, status=status.HTTP_400_BAD_REQUEST)
-
-                if Attendance.objects.filter(user=user, date=today).exists():
-                    return Response({'error': 'Already clocked in for today.'}, status=status.HTTP_400_BAD_REQUEST)
-
-                attendance = Attendance.objects.create(
+                attendance, created = Attendance.objects.get_or_create(
                     user=user,
-                    role=role_label,
                     date=today,
-                    time_in=timezone.now(),
-                    status='present',
-                    session=session
+                    defaults={
+                        'role': role_label,
+                        'status': 'absent',
+                        'session': session,
+                    }
                 )
+
+                if is_morning:
+                    attendance.morning_time_in = now_dt
+                else:
+                    attendance.afternoon_time_in = now_dt
+
+                if not attendance.time_in or now_dt < attendance.time_in:
+                    attendance.time_in = now_dt
+
+                attendance.session = session
+                attendance.role = role_label
+                attendance.status = attendance.compute_staff_status()
+                attendance.save(update_fields=['morning_time_in', 'afternoon_time_in', 'time_in', 'session', 'role', 'status'])
+
                 return Response({
                     'message': 'Clock In logged successfully!',
                     'attendance': AttendanceSerializer(attendance).data
                 }, status=status.HTTP_200_OK)
 
             elif session.action == 'time_out':
-                if now_time < datetime.time(17, 0):
-                    return Response({'error': 'Clock-out is only allowed from 5:00 PM onwards.'}, status=status.HTTP_400_BAD_REQUEST)
+                attendance, created = Attendance.objects.get_or_create(
+                    user=user,
+                    date=today,
+                    defaults={
+                        'role': role_label,
+                        'status': 'absent',
+                        'session': session,
+                    }
+                )
 
-                try:
-                    attendance = Attendance.objects.get(user=user, date=today)
-                except Attendance.DoesNotExist:
-                    return Response({'error': 'No Clock In log found for today. Please Clock In first.'}, status=status.HTTP_400_BAD_REQUEST)
+                if is_morning:
+                    attendance.morning_time_out = now_dt
+                else:
+                    attendance.afternoon_time_out = now_dt
 
-                if attendance.time_out:
-                    return Response({'error': 'Already clocked out for today.'}, status=status.HTTP_400_BAD_REQUEST)
+                if not attendance.time_out or now_dt > attendance.time_out:
+                    attendance.time_out = now_dt
 
-                attendance.time_out = timezone.now()
-                attendance.save(update_fields=['time_out'])
+                attendance.session = session
+                attendance.role = role_label
+                attendance.status = attendance.compute_staff_status()
+                attendance.save(update_fields=['morning_time_out', 'afternoon_time_out', 'time_out', 'session', 'role', 'status'])
+
                 return Response({
                     'message': 'Clock Out logged successfully!',
                     'attendance': AttendanceSerializer(attendance).data

@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
 import type { Grade, User } from '../../types';
+import { downloadPdf } from '../../utils/pdfExport';
 
 const generateUuid = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -10,6 +11,12 @@ const generateUuid = () => {
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
+};
+
+const parseDateLogged = (value: string | null | undefined): Date | null => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 };
 
 export const TutorScores: React.FC = () => {
@@ -25,14 +32,16 @@ export const TutorScores: React.FC = () => {
   const [totalScore, setTotalScore] = useState<number | ''>(20);
   const [isSaving, setIsSaving] = useState(false);
   const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily');
+  const [selectedExportKey, setSelectedExportKey] = useState('');
 
   const fetchGrades = async () => {
     setGradesLoading(true);
     try {
       const gradeData = await academicService.getGrades();
-      setGrades(gradeData);
+      setGrades(Array.isArray(gradeData) ? gradeData : []);
     } catch (err) {
       console.error(err);
+      setGrades([]);
       setError('Failed to load score records.');
     } finally {
       setGradesLoading(false);
@@ -41,11 +50,16 @@ export const TutorScores: React.FC = () => {
 
   const fetchStudents = async () => {
     try {
-      if (!user) return;
+      if (!user) {
+        setStudents([]);
+        setIsLoading(false);
+        return;
+      }
       const data = await userService.getUsers({ role: 'student', assigned_tutor: user.id });
-      setStudents(data.results);
+      setStudents(Array.isArray(data?.results) ? data.results : []);
     } catch (err) {
       console.error(err);
+      setStudents([]);
       setError('Failed to load assigned students.');
     } finally {
       setIsLoading(false);
@@ -58,7 +72,7 @@ export const TutorScores: React.FC = () => {
 
     students.forEach((student) => {
       initialScores[student.id] = '';
-      initialStatus[student.id] = 'Not';
+      initialStatus[student.id] = 'Taken';
     });
 
     setEntryScores(initialScores);
@@ -121,14 +135,20 @@ export const TutorScores: React.FC = () => {
     fetchGrades();
   }, [user]);
 
-  if (isLoading) return <div className="py-12 text-center">Loading...</div>;
-  if (error) return <div className="bg-red-50 border border-gray-200 text-red-800 rounded-xl p-4">{error}</div>;
-
-  const dailyGrades = grades.filter((grade) => grade.component_type === 'assessment');
-  const sortedDailyGrades = [...dailyGrades].sort((a, b) => new Date(b.date_logged).getTime() - new Date(a.date_logged).getTime());
+  const assignedStudents = Array.isArray(students) ? students : [];
+  const gradeList = Array.isArray(grades) ? grades : [];
+  const dailyGrades = gradeList.filter(
+    (grade) => grade.component_type === 'assessment' && parseDateLogged(grade.date_logged) !== null
+  );
+  const sortedDailyGrades = [...dailyGrades].sort((a, b) => {
+    const dateA = parseDateLogged(a.date_logged)?.getTime() ?? 0;
+    const dateB = parseDateLogged(b.date_logged)?.getTime() ?? 0;
+    return dateB - dateA;
+  });
 
   const dailyGroups = dailyGrades.reduce((acc, grade) => {
-    const date = new Date(grade.date_logged);
+    const date = parseDateLogged(grade.date_logged);
+    if (!date) return acc;
     const dateKey = date.toISOString().slice(0, 10);
     const group = acc[dateKey] || { date, grades: [] as Grade[] };
     group.grades.push(grade);
@@ -139,8 +159,13 @@ export const TutorScores: React.FC = () => {
   const dailyRows = Object.values(dailyGroups)
     .sort((a, b) => b.date.getTime() - a.date.getTime())
     .map((group) => ({
+      key: group.date.toISOString().slice(0, 10),
       date: group.date,
-      grades: group.grades.sort((a, b) => new Date(b.date_logged).getTime() - new Date(a.date_logged).getTime())
+      grades: group.grades.sort((a, b) => {
+        const dateA = parseDateLogged(a.date_logged)?.getTime() ?? 0;
+        const dateB = parseDateLogged(b.date_logged)?.getTime() ?? 0;
+        return dateB - dateA;
+      })
     }));
 
   const getWeekStart = (date: Date) => {
@@ -151,7 +176,8 @@ export const TutorScores: React.FC = () => {
   };
 
   const weeklyGroups = dailyGrades.reduce((acc, grade) => {
-    const date = new Date(grade.date_logged);
+    const date = parseDateLogged(grade.date_logged);
+    if (!date) return acc;
     const weekStart = getWeekStart(date);
     const weekKey = weekStart.toISOString().slice(0, 10);
     const group = acc[weekKey] || { weekStart, grades: [] as Grade[] };
@@ -163,13 +189,160 @@ export const TutorScores: React.FC = () => {
   const weeklyRows = Object.values(weeklyGroups)
     .sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime())
     .map((group) => ({
+      key: group.weekStart.toISOString().slice(0, 10),
       weekStart: group.weekStart,
       weekEnd: new Date(group.weekStart.getTime() + 6 * 24 * 60 * 60 * 1000),
-      grades: group.grades.sort((a, b) => new Date(b.date_logged).getTime() - new Date(a.date_logged).getTime())
+      grades: group.grades.sort((a, b) => {
+        const dateA = parseDateLogged(a.date_logged)?.getTime() ?? 0;
+        const dateB = parseDateLogged(b.date_logged)?.getTime() ?? 0;
+        return dateB - dateA;
+      })
     }));
+
+  useEffect(() => {
+    if (viewMode === 'daily') {
+      if (dailyRows.length > 0 && !dailyRows.some((row) => row.key === selectedExportKey)) {
+        setSelectedExportKey(dailyRows[0].key);
+      }
+    } else if (weeklyRows.length > 0 && !weeklyRows.some((row) => row.key === selectedExportKey)) {
+      setSelectedExportKey(weeklyRows[0].key);
+    }
+  }, [dailyRows, weeklyRows, selectedExportKey, viewMode]);
+
+  if (isLoading) {
+    return (
+      <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center text-slate-600 shadow-sm">
+        <p className="text-lg font-semibold text-slate-900">Loading score entry…</p>
+        <p className="mt-2 text-sm">Preparing your student list and recent records.</p>
+      </div>
+    );
+  }
+
+  const handleExportScores = async () => {
+    const rowsToExport = viewMode === 'daily'
+      ? dailyRows.find((row) => row.key === selectedExportKey)
+      : weeklyRows.find((row) => row.key === selectedExportKey);
+
+    if (!rowsToExport) {
+      alert('Select a day or week to export first.');
+      return;
+    }
+
+    const exportRows = rowsToExport.grades.map((grade) => {
+      const student = assignedStudents.find((entry) => entry.id === grade.student);
+      const aralLevel = student?.aral_level && ['basic', 'plus'].includes(student.aral_level)
+        ? student.aral_level
+        : '';
+
+      return {
+        Student: grade.student_name || grade.student,
+        Score: grade.score,
+        'Total Score': grade.total_score,
+        Status: grade.remarks || 'N/A',
+        Date: parseDateLogged(grade.date_logged)?.toLocaleString() ?? 'Unknown date',
+        Subject: 'Reading',
+        'ARAL Level': aralLevel
+      };
+    });
+
+    try {
+      const XLSXModule = await import('xlsx');
+      const XLSX = (XLSXModule as any).default ?? XLSXModule;
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, viewMode === 'daily' ? 'Daily Scores' : 'Weekly Scores');
+
+      const workbookOut = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+      const blob = new Blob([workbookOut], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${viewMode === 'daily' ? 'daily-scores' : 'weekly-scores'}-${selectedExportKey}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Excel export failed, falling back to CSV.', error);
+      const csvLines = [
+        ['Student', 'Score', 'Total Score', 'Status', 'Date', 'Subject', 'ARAL Level'].join(','),
+        ...exportRows.map((row) => [
+          row.Student,
+          row.Score,
+          row['Total Score'],
+          row.Status,
+          row.Date,
+          row.Subject,
+          row['ARAL Level']
+        ].map((value) => String(value).replace(/"/g, '""')).map((value) => (value.includes(',') || value.includes('"') || value.includes('\n') ? `"${value}"` : value)).join(','))
+      ];
+      const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${viewMode === 'daily' ? 'daily-scores' : 'weekly-scores'}-${selectedExportKey}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleExportScoresPdf = async () => {
+    const rowsToExport = viewMode === 'daily'
+      ? dailyRows.find((row) => row.key === selectedExportKey)
+      : weeklyRows.find((row) => row.key === selectedExportKey);
+
+    if (!rowsToExport) {
+      alert('Select a day or week to export first.');
+      return;
+    }
+
+    const rows = rowsToExport.grades.map((grade) => {
+      const student = assignedStudents.find((entry) => entry.id === grade.student);
+      const aralLevel = student?.aral_level && ['basic', 'plus'].includes(student.aral_level)
+        ? student.aral_level
+        : '';
+
+      return [
+        grade.student_name || grade.student,
+        grade.score,
+        grade.total_score,
+        grade.remarks || 'N/A',
+        parseDateLogged(grade.date_logged)?.toLocaleString() ?? 'Unknown date',
+        'Reading',
+        aralLevel
+      ];
+    });
+
+    try {
+      await downloadPdf(
+        `${viewMode === 'daily' ? 'daily-scores' : 'weekly-scores'}-${selectedExportKey}.pdf`,
+        `Tutor Score Entry ${viewMode === 'daily' ? 'Daily' : 'Weekly'}`,
+        ['Student', 'Score', 'Total Score', 'Status', 'Date', 'Subject', 'ARAL Level'],
+        rows
+      );
+    } catch (error) {
+      console.error('Score PDF export failed.', error);
+      alert('Unable to export PDF file right now.');
+    }
+  };
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          {error}
+        </div>
+      )}
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm">
+        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Tutor score entry</p>
+        <h3 className="mt-2 text-xl font-semibold text-slate-900">Score Entry</h3>
+        <p className="mt-1 text-sm text-slate-500">Use this page to log and review reading scores for your assigned students.</p>
+      </div>
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-lg font-bold">Tutor Daily Score Entry</h2>
@@ -221,7 +394,7 @@ export const TutorScores: React.FC = () => {
                 </div>
 
                 <div className="mt-3 space-y-3">
-                  {students.map((student) => {
+                  {assignedStudents.map((student) => {
                     const status = entryStatus[student.id] || 'Not';
                     const isNotTaken = status === 'Not';
 
@@ -338,20 +511,57 @@ export const TutorScores: React.FC = () => {
                 <h3 className="mt-2 text-xl font-semibold text-slate-900">Recent entries</h3>
                 <p className="mt-1 text-sm text-slate-500">Switch between daily and weekly record views.</p>
               </div>
-              <div className="inline-flex gap-2 rounded-full bg-slate-100 p-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="inline-flex gap-2 rounded-full bg-slate-100 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('daily')}
+                    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${viewMode === 'daily' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 border border-slate-200'}`}
+                  >
+                    Daily
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('weekly')}
+                    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${viewMode === 'weekly' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 border border-slate-200'}`}
+                  >
+                    Weekly
+                  </button>
+                </div>
+
+                <select
+                  value={selectedExportKey}
+                  onChange={(event) => setSelectedExportKey(event.target.value)}
+                  className="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500"
+                >
+                  {viewMode === 'daily' ? (
+                    dailyRows.map((row) => (
+                      <option key={row.key} value={row.key}>
+                        {row.date.toLocaleDateString()}
+                      </option>
+                    ))
+                  ) : (
+                    weeklyRows.map((row) => (
+                      <option key={row.key} value={row.key}>
+                        {row.weekStart.toLocaleDateString()} - {row.weekEnd.toLocaleDateString()}
+                      </option>
+                    ))
+                  )}
+                </select>
+
                 <button
                   type="button"
-                  onClick={() => setViewMode('daily')}
-                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${viewMode === 'daily' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 border border-slate-200'}`}
+                  onClick={handleExportScores}
+                  className="inline-flex items-center justify-center rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
                 >
-                  Daily
+                  Export Excel
                 </button>
                 <button
                   type="button"
-                  onClick={() => setViewMode('weekly')}
-                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${viewMode === 'weekly' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 border border-slate-200'}`}
+                  onClick={handleExportScoresPdf}
+                  className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
                 >
-                  Weekly
+                  Export PDF
                 </button>
               </div>
             </div>
@@ -408,7 +618,11 @@ export const TutorScores: React.FC = () => {
                         <div key={grade.id} className="grid grid-cols-[1.2fr_0.9fr] gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1.2fr_0.9fr_0.9fr_0.9fr]">
                           <div>
                             <p className="text-sm font-semibold text-slate-900">{grade.student_name}</p>
-                            <p className="text-xs text-slate-500">{new Date(grade.date_logged).toLocaleDateString()}</p>
+                            <p className="text-xs text-slate-500">
+                              {parseDateLogged(grade.date_logged)
+                                ? parseDateLogged(grade.date_logged)!.toLocaleDateString()
+                                : 'Unknown date'}
+                            </p>
                           </div>
                           <div className="text-right sm:text-left">
                             <p className="text-sm text-slate-500">Score</p>

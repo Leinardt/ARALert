@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, UserCheck, BookOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import QRCode from 'qrcode';
 import type { AralActivity, Attendance } from '../../types';
+import { downloadPdf } from '../../utils/pdfExport';
 
 export const TutorQRGenerator: React.FC = () => {
   const [activities, setActivities] = useState<AralActivity[]>([]);
@@ -17,6 +18,8 @@ export const TutorQRGenerator: React.FC = () => {
   const [attendanceHistoryError, setAttendanceHistoryError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily');
+  const [selectedExportKey, setSelectedExportKey] = useState('');
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -41,7 +44,7 @@ export const TutorQRGenerator: React.FC = () => {
       setAttendanceHistoryError(null);
       try {
         const logs = await academicService.getAttendanceHistory();
-        setAttendanceHistory(logs.slice(0, 25));
+        setAttendanceHistory(logs);
       } catch (err: any) {
         console.error('Failed to load attendance history', err);
         setAttendanceHistoryError(err.response?.data?.error || 'Failed to load attendance history.');
@@ -131,6 +134,178 @@ export const TutorQRGenerator: React.FC = () => {
       hour12: true
     });
   };
+
+  const getDateValue = (value: string | null | undefined) => {
+    if (!value) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [year, month, day] = value.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const formatDateKey = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getWeekStart = (date: Date) => {
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(date.getFullYear(), date.getMonth(), diff);
+  };
+
+  const sortedAttendanceHistory = [...attendanceHistory].sort((a, b) => {
+    const dateA = getDateValue(a.date)?.getTime() ?? 0;
+    const dateB = getDateValue(b.date)?.getTime() ?? 0;
+    return dateB - dateA;
+  });
+
+  const dailyRows = sortedAttendanceHistory.reduce((acc, entry) => {
+    const date = getDateValue(entry.date);
+    if (!date) return acc;
+    const key = formatDateKey(date);
+    const current = acc.get(key) ?? [];
+    current.push(entry);
+    acc.set(key, current);
+    return acc;
+  }, new Map<string, Attendance[]>());
+
+  const dailyExportRows = Array.from(dailyRows.entries())
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([key, entries]) => ({
+      key,
+      label: new Date(`${key}T00:00:00`).toLocaleDateString(),
+      entries
+    }));
+
+  const weeklyRows = sortedAttendanceHistory.reduce((acc, entry) => {
+    const date = getDateValue(entry.date);
+    if (!date) return acc;
+    const weekStart = getWeekStart(date);
+    const key = formatDateKey(weekStart);
+    const current = acc.get(key) ?? [];
+    current.push(entry);
+    acc.set(key, current);
+    return acc;
+  }, new Map<string, Attendance[]>());
+
+  const weeklyExportRows = Array.from(weeklyRows.entries())
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([key, entries]) => ({
+      key,
+      weekStart: new Date(`${key}T00:00:00`),
+      weekEnd: new Date(new Date(`${key}T00:00:00`).getFullYear(), new Date(`${key}T00:00:00`).getMonth(), new Date(`${key}T00:00:00`).getDate() + 6),
+      entries
+    }));
+
+  useEffect(() => {
+    if (viewMode === 'daily') {
+      if (dailyExportRows.length > 0 && !dailyExportRows.some((row) => row.key === selectedExportKey)) {
+        setSelectedExportKey(dailyExportRows[0].key);
+      }
+    } else if (weeklyExportRows.length > 0 && !weeklyExportRows.some((row) => row.key === selectedExportKey)) {
+      setSelectedExportKey(weeklyExportRows[0].key);
+    }
+  }, [dailyExportRows, weeklyExportRows, selectedExportKey, viewMode]);
+
+  const handleExportAttendance = async () => {
+    const rowsToExport = viewMode === 'daily'
+      ? dailyExportRows.find((row) => row.key === selectedExportKey)
+      : weeklyExportRows.find((row) => row.key === selectedExportKey);
+
+    if (!rowsToExport) {
+      alert('Select a day or week to export first.');
+      return;
+    }
+
+    const exportRows = rowsToExport.entries.map((entry) => ({
+      Student: entry.user_name || entry.user,
+      Date: getDateValue(entry.date)?.toLocaleDateString() ?? entry.date,
+      Time: entry.time_in ? formatTimeString(entry.time_in) : '—',
+      Status: entry.status_display || entry.status,
+      Signature: ''
+    }));
+
+    try {
+      const XLSXModule = await import('xlsx');
+      const XLSX = (XLSXModule as any).default ?? XLSXModule;
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, viewMode === 'daily' ? 'Daily Attendance' : 'Weekly Attendance');
+
+      const workbookOut = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+      const blob = new Blob([workbookOut], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${viewMode === 'daily' ? 'tutor-attendance-daily' : 'tutor-attendance-weekly'}-${rowsToExport.key}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Attendance Excel export failed.', error);
+      const csvLines = [
+        ['Student', 'Date', 'Time', 'Status', 'Signature'].join(','),
+        ...exportRows.map((row) => [
+          row.Student,
+          row.Date,
+          row.Time,
+          row.Status,
+          row.Signature
+        ].map((value) => String(value).replace(/"/g, '""')).map((value) => (value.includes(',') || value.includes('"') || value.includes('\n') ? `"${value}"` : value)).join(','))
+      ];
+      const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${viewMode === 'daily' ? 'tutor-attendance-daily' : 'tutor-attendance-weekly'}-${rowsToExport.key}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleExportAttendancePdf = async () => {
+    const rowsToExport = viewMode === 'daily'
+      ? dailyExportRows.find((row) => row.key === selectedExportKey)
+      : weeklyExportRows.find((row) => row.key === selectedExportKey);
+
+    if (!rowsToExport) {
+      alert('Select a day or week to export first.');
+      return;
+    }
+
+    const rows = rowsToExport.entries.map((entry) => [
+      entry.user_name || entry.user,
+      getDateValue(entry.date)?.toLocaleDateString() ?? entry.date,
+      entry.time_in ? formatTimeString(entry.time_in) : '—',
+      entry.status_display || entry.status,
+      ''
+    ]);
+
+    try {
+      await downloadPdf(
+        `${viewMode === 'daily' ? 'tutor-attendance-daily' : 'tutor-attendance-weekly'}-${rowsToExport.key}.pdf`,
+        `Tutor Attendance ${viewMode === 'daily' ? 'Daily' : 'Weekly'}`,
+        ['Student', 'Date', 'Time', 'Status', 'Signature'],
+        rows
+      );
+    } catch (error) {
+      console.error('Attendance PDF export failed.', error);
+      alert('Unable to export PDF file right now.');
+    }
+  };
+
+  const visibleAttendanceHistory = sortedAttendanceHistory.slice(0, 25);
 
   useEffect(() => {
     return () => {
@@ -330,12 +505,60 @@ export const TutorQRGenerator: React.FC = () => {
           </div>
 
           <div className="mt-6 bg-white rounded-2xl border border-gray-200 shadow-lg p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
               <div>
                 <h3 className="font-bold text-gray-900 text-base">Attendance History</h3>
                 <p className="text-xs text-gray-500">Latest attendance records for all students.</p>
               </div>
-              <span className="text-xs text-slate-500">Showing {attendanceHistory.length} records</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex gap-1 rounded-full bg-slate-100 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('daily')}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${viewMode === 'daily' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500'}`}
+                  >
+                    Daily
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('weekly')}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${viewMode === 'weekly' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500'}`}
+                  >
+                    Weekly
+                  </button>
+                </div>
+                <select
+                  value={selectedExportKey}
+                  onChange={(event) => setSelectedExportKey(event.target.value)}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none"
+                >
+                  {viewMode === 'daily' ? (
+                    dailyExportRows.map((row) => (
+                      <option key={row.key} value={row.key}>{row.label}</option>
+                    ))
+                  ) : (
+                    weeklyExportRows.map((row) => (
+                      <option key={row.key} value={row.key}>
+                        {row.weekStart.toLocaleDateString()} - {row.weekEnd.toLocaleDateString()}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleExportAttendance}
+                  className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                >
+                  Export Excel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportAttendancePdf}
+                  className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+                >
+                  Export PDF
+                </button>
+              </div>
             </div>
 
             {attendanceHistoryLoading ? (
@@ -357,7 +580,7 @@ export const TutorQRGenerator: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
-                    {attendanceHistory.map((log) => (
+                    {visibleAttendanceHistory.map((log) => (
                       <tr key={log.id}>
                         <td className="px-3 py-2 text-sm text-slate-700 font-bold">{log.user_name}</td>
                         <td className="px-3 py-2 text-sm text-slate-700">{formatDateString(log.date)}</td>

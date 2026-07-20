@@ -9,6 +9,7 @@ from rest_framework import status
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -35,6 +36,8 @@ class LoginView(GenericAPIView):
 
     permission_classes = [AllowAny]
     serializer_class = LoginSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'login'
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -118,6 +121,7 @@ class ProfileView(GenericAPIView):
         return Response(serializer.data)
 
 
+
 class StudentLoginView(GenericAPIView):
     """
     POST /api/auth/student-login/
@@ -169,10 +173,12 @@ class ActivateAccountView(GenericAPIView):
         user.email_verified = True
         user.activation_token = None
         user.activation_token_expires_at = None
+        user.failed_login_attempts = 0
+        user.locked_until = None
         user.last_login = timezone.now()
         user.save(update_fields=[
             'username', 'password', 'password_set', 'is_active', 'password_setup_required', 'email_verified',
-            'activation_token', 'activation_token_expires_at', 'last_login'
+            'activation_token', 'activation_token_expires_at', 'failed_login_attempts', 'locked_until', 'last_login'
         ])
 
         refresh = RefreshToken.for_user(user)
@@ -201,6 +207,8 @@ class ForgotPasswordView(GenericAPIView):
 
     permission_classes = [AllowAny]
     serializer_class = ForgotPasswordSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'recovery'
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -234,8 +242,10 @@ class ResetPasswordView(GenericAPIView):
         user.password_set = True
         user.password_reset_token = None
         user.password_reset_token_expires_at = None
+        user.failed_login_attempts = 0
+        user.locked_until = None
         user.last_login = timezone.now()
-        user.save(update_fields=['password', 'password_set', 'password_reset_token', 'password_reset_token_expires_at', 'last_login'])
+        user.save(update_fields=['password', 'password_set', 'password_reset_token', 'password_reset_token_expires_at', 'failed_login_attempts', 'locked_until', 'last_login'])
 
         refresh = RefreshToken.for_user(user)
         return Response({

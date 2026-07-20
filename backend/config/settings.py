@@ -8,12 +8,21 @@ from pathlib import Path
 from datetime import timedelta
 
 from decouple import config, Csv
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = config('DEBUG', default=False, cast=bool)
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production' if DEBUG else None)
+if not SECRET_KEY:
+    raise ImproperlyConfigured('SECRET_KEY must be set in the environment for non-debug runs.')
+if DEBUG and SECRET_KEY == 'django-insecure-change-me-in-production':
+    SECRET_KEY = 'django-insecure-change-me-in-production'
+
 SMTP_HOST = config('SMTP_HOST', default='')
 SMTP_PORT = config('SMTP_PORT', default='587')
 SMTP_EMAIL = config('SMTP_EMAIL', default='')
@@ -23,10 +32,12 @@ SENDER_NAME = config('SENDER_NAME', default='ARALert')
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
 TOKEN_EXPIRATION_TIME = config('TOKEN_EXPIRATION_TIME', default=60, cast=int)
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool)
-
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+allowed_hosts = config(
+    'ALLOWED_HOSTS',
+    default='localhost,127.0.0.1,0.0.0.0,testserver,10.0.2.2',
+    cast=Csv(),
+)
+ALLOWED_HOSTS = list(dict.fromkeys([*allowed_hosts, 'localhost', '127.0.0.1', '0.0.0.0', 'testserver', '10.0.2.2']))
 
 # --------------------------------------------------------------------------
 # Application definition
@@ -160,6 +171,16 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '20/min',
+        'user': '100/min',
+        'login': '5/min',
+        'recovery': '3/15min',
+    },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
     'EXCEPTION_HANDLER': 'utilities.exceptions.custom_exception_handler',
@@ -170,10 +191,11 @@ REST_FRAMEWORK = {
 # --------------------------------------------------------------------------
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
@@ -198,3 +220,13 @@ CSRF_TRUSTED_ORIGINS = config(
     default='http://localhost:5173,http://127.0.0.1:5173',
     cast=Csv(),
 )
+
+# Security headers for production hardening
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_HSTS_PRELOAD = not DEBUG

@@ -140,7 +140,11 @@ export interface Attendance {
   date: string;
   time_in: string | null;
   time_out: string | null;
-  status: 'present' | 'late' | 'absent';
+  morning_time_in?: string | null;
+  morning_time_out?: string | null;
+  afternoon_time_in?: string | null;
+  afternoon_time_out?: string | null;
+  status: 'present' | 'late' | 'absent' | 'early_out';
   status_display: string;
   tutor: string | null;
   tutor_name: string | null;

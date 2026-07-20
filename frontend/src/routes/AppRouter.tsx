@@ -141,6 +141,7 @@ export const AppRouter: React.FC = () => {
           }
         >
           <Route path="/staff/scan" element={<StaffAttendanceScanner />} />
+          <Route path="/staff/attendance" element={<StaffAttendanceScanner />} />
         </Route>
 
         {/* ── Student routes ────────────────────────── */}

@@ -183,6 +183,7 @@ class Attendance(models.Model):
     class Status(models.TextChoices):
         PRESENT = 'present', 'Present'
         LATE = 'late', 'Late'
+        EARLY_OUT = 'early_out', 'Early Out'
         ABSENT = 'absent', 'Absent'
 
     user = models.ForeignKey(
@@ -194,6 +195,10 @@ class Attendance(models.Model):
     date = models.DateField(default=timezone.now)
     time_in = models.DateTimeField(blank=True, null=True)
     time_out = models.DateTimeField(blank=True, null=True)
+    morning_time_in = models.DateTimeField(blank=True, null=True)
+    morning_time_out = models.DateTimeField(blank=True, null=True)
+    afternoon_time_in = models.DateTimeField(blank=True, null=True)
+    afternoon_time_out = models.DateTimeField(blank=True, null=True)
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -225,6 +230,64 @@ class Attendance(models.Model):
         db_table = 'attendance'
         ordering = ['-date', '-time_in']
         unique_together = ('user', 'date')
+
+    def _get_shift_bounds(self):
+        import datetime
+
+        if self.role == 'tutor':
+            return {
+                'morning': None,
+                'afternoon': {
+                    'start': datetime.time(16, 30),
+                    'end': datetime.time(17, 0)
+                }
+            }
+
+        # Faculty, principal, admin use standard school hours
+        return {
+            'morning': {
+                'start': datetime.time(8, 0),
+                'end': datetime.time(11, 30)
+            },
+            'afternoon': {
+                'start': datetime.time(13, 0),
+                'end': datetime.time(16, 30)
+            }
+        }
+
+    def _get_shift_status(self, shift_bounds, time_in, time_out):
+        if not shift_bounds:
+            return None
+
+        start = shift_bounds['start']
+        end = shift_bounds['end']
+        time_in_value = time_in.time() if time_in else None
+        time_out_value = time_out.time() if time_out else None
+
+        if time_in_value and time_out_value:
+            if time_out_value < end:
+                return self.Status.EARLY_OUT
+            if time_in_value > start:
+                return self.Status.LATE
+            return self.Status.PRESENT
+
+        if time_in_value and not time_out_value:
+            return self.Status.LATE
+
+        return None
+
+    def compute_staff_status(self):
+        bounds = self._get_shift_bounds()
+        morning_status = self._get_shift_status(bounds.get('morning'), self.morning_time_in, self.morning_time_out)
+        afternoon_status = self._get_shift_status(bounds.get('afternoon'), self.afternoon_time_in, self.afternoon_time_out)
+
+        if morning_status == self.Status.EARLY_OUT or afternoon_status == self.Status.EARLY_OUT:
+            return self.Status.EARLY_OUT
+        if morning_status == self.Status.LATE or afternoon_status == self.Status.LATE:
+            return self.Status.LATE
+        if morning_status == self.Status.PRESENT or afternoon_status == self.Status.PRESENT:
+            return self.Status.PRESENT
+        return self.Status.ABSENT
 
     def __str__(self):
         return f"{self.user.get_full_name()} ({self.role}) - {self.date} - {self.status}"

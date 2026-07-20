@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -9,6 +10,7 @@ from apps.accounts.models import User
 
 class AuthAPITests(APITestCase):
     def setUp(self):
+        cache.clear()
         # Create standard staff user
         self.staff_user = User.objects.create_user(
             username='staff1',
@@ -55,6 +57,62 @@ class AuthAPITests(APITestCase):
         self.assertIn('access', response.data)
         self.assertIn('refresh', response.data)
         self.assertEqual(response.data['user']['role'], 'faculty')
+
+    def test_unverified_user_cannot_login(self):
+        User.objects.create_user(
+            username='unverified_user',
+            email='unverified@example.com',
+            first_name='Un',
+            last_name='Verified',
+            role='faculty',
+            password='FacultyPassword123!',
+            is_active=True,
+            email_verified=False,
+        )
+
+        url = reverse('auth-login')
+        response = self.client.post(
+            url,
+            {'username_or_email': 'unverified@example.com', 'password': 'FacultyPassword123!'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('verify your email', str(response.data['errors']['non_field_errors'][0]).lower())
+
+    def test_repeated_failed_logins_lock_account(self):
+        user = User.objects.create_user(
+            username='lockout_user',
+            email='lockout@example.com',
+            first_name='Lock',
+            last_name='Out',
+            role='faculty',
+            password='FacultyPassword123!',
+            is_active=True,
+            email_verified=True,
+        )
+
+        url = reverse('auth-login')
+        for _ in range(5):
+            response = self.client.post(
+                url,
+                {'username_or_email': 'lockout@example.com', 'password': 'WrongPassword123!'},
+                format='json',
+            )
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        user.refresh_from_db()
+        self.assertGreaterEqual(user.failed_login_attempts, 5)
+        self.assertIsNotNone(user.locked_until)
+
+        response = self.client.post(
+            url,
+            {'username_or_email': 'lockout@example.com', 'password': 'FacultyPassword123!'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('temporarily locked', str(response.data['errors']['non_field_errors'][0]).lower())
 
     def test_student_login_success(self):
         url = reverse('auth-student-login')
@@ -168,6 +226,35 @@ class AuthAPITests(APITestCase):
         self.assertTrue(user.check_password('NewPassword123!'))
         self.assertIn('access', response.data)
 
+    def test_weak_password_is_rejected_during_activation(self):
+        user = User.objects.create_user(
+            username='weakpassworduser',
+            email='weak@example.com',
+            first_name='Weak',
+            last_name='User',
+            role='faculty',
+            password=None,
+            is_active=False,
+            password_setup_required=True,
+        )
+        user.activation_token = 'activation-token-456'
+        user.activation_token_expires_at = timezone.now() + timezone.timedelta(hours=1)
+        user.save(update_fields=['activation_token', 'activation_token_expires_at'])
+
+        response = self.client.post(
+            reverse('auth-activate'),
+            {
+                'token': 'activation-token-456',
+                'username': 'strongeruser',
+                'password': '12345678',
+                'confirm_password': '12345678',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password', response.data['errors'])
+
     def test_forgot_password_sets_reset_token_and_allows_password_reset(self):
         user = User.objects.create_user(
             username='resetuser',
@@ -201,3 +288,74 @@ class AuthAPITests(APITestCase):
         user.refresh_from_db()
         self.assertTrue(user.check_password('NewRecoveredPassword123!'))
         self.assertIn('access', response.data)
+
+    def test_expired_reset_token_is_rejected_and_cleared(self):
+        user = User.objects.create_user(
+            username='expiredresetuser',
+            email='expiredreset@example.com',
+            first_name='Expired',
+            last_name='Reset',
+            role='faculty',
+            password='OldPassword123!',
+            is_active=True,
+        )
+        user.password_reset_token = 'expired-reset-token'
+        user.password_reset_token_expires_at = timezone.now() - timezone.timedelta(minutes=10)
+        user.save(update_fields=['password_reset_token', 'password_reset_token_expires_at'])
+
+        response = self.client.post(
+            reverse('auth-reset-password'),
+            {
+                'token': 'expired-reset-token',
+                'password': 'AnotherRecoveredPassword123!',
+                'confirm_password': 'AnotherRecoveredPassword123!',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        user.refresh_from_db()
+        self.assertIsNone(user.password_reset_token)
+        self.assertIsNone(user.password_reset_token_expires_at)
+
+    def test_password_recovery_is_rate_limited(self):
+        self.client.post(
+            reverse('auth-forgot-password'),
+            {'email': 'staff1@example.com'},
+            format='json',
+        )
+        self.client.post(
+            reverse('auth-forgot-password'),
+            {'email': 'staff1@example.com'},
+            format='json',
+        )
+        self.client.post(
+            reverse('auth-forgot-password'),
+            {'email': 'staff1@example.com'},
+            format='json',
+        )
+
+        response = self.client.post(
+            reverse('auth-forgot-password'),
+            {'email': 'staff1@example.com'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    def test_login_is_rate_limited(self):
+        for _ in range(5):
+            response = self.client.post(
+                reverse('auth-login'),
+                {'username_or_email': 'missing@example.com', 'password': 'WrongPassword123!'},
+                format='json',
+            )
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        response = self.client.post(
+            reverse('auth-login'),
+            {'username_or_email': 'missing@example.com', 'password': 'WrongPassword123!'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)

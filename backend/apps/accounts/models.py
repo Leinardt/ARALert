@@ -55,6 +55,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     email_verified = models.BooleanField(default=True)
     password_setup_required = models.BooleanField(default=False)
 
+    # Authentication abuse protection
+    failed_login_attempts = models.IntegerField(default=0)
+    locked_until = models.DateTimeField(blank=True, null=True)
+
     # Invitation and password recovery tokens
     activation_token = models.CharField(max_length=255, blank=True, null=True)
     activation_token_expires_at = models.DateTimeField(blank=True, null=True)
@@ -94,6 +98,22 @@ class User(AbstractBaseUser, PermissionsMixin):
         limit_choices_to={'role': 'tutor'},
         verbose_name='Assigned Tutor',
         help_text='The tutor assigned to this student.'
+    )
+
+    # Attendance QR window settings
+    attendance_qr_start_time = models.CharField(
+        max_length=5,
+        blank=True,
+        default='08:00',
+        verbose_name='Attendance QR Start Time',
+        help_text='Default time when the QR attendance window begins.',
+    )
+    attendance_qr_end_time = models.CharField(
+        max_length=5,
+        blank=True,
+        default='09:00',
+        verbose_name='Attendance QR End Time',
+        help_text='Default time when the QR attendance window ends.',
     )
 
     # Tutor-customizable grading weights (only used if role='tutor')

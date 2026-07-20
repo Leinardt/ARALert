@@ -188,33 +188,42 @@ export const TutorHome: React.FC = () => {
   });
 
   const fetchData = async () => {
-    try {
-      if (!user) return;
+    if (!user) {
+      setIsLoading(false);
+      setError('Please sign in to view your tutor workspace.');
+      return;
+    }
 
+    try {
       const [studentRes, grades, attendanceLogs, activitiesRes] = await Promise.all([
-        userService.getUsers({ role: 'student', assigned_tutor: user.id }),
-        academicService.getGrades(),
-        academicService.getAttendanceHistory(),
-        academicService.getAralActivities({ status: 'in_progress' })
+        userService.getUsers({ role: 'student', assigned_tutor: user.id }).catch(() => ({ results: [] } as { results: User[] })),
+        academicService.getGrades().catch(() => []),
+        academicService.getAttendanceHistory().catch(() => []),
+        academicService.getAralActivities({ status: 'in_progress' }).catch(() => [])
       ]);
 
-      const students = studentRes.results;
-      setStudents(students);
-      setActivities(activitiesRes);
+      const students = Array.isArray(studentRes?.results) ? studentRes.results : [];
+      const safeGrades = Array.isArray(grades) ? grades : [];
+      const safeAttendanceLogs = Array.isArray(attendanceLogs) ? attendanceLogs : [];
+      const safeActivities = Array.isArray(activitiesRes) ? activitiesRes : [];
 
-      const averages = calculateAverages(students, grades, attendanceLogs);
+      setStudents(students);
+      setActivities(safeActivities);
+
+      const averages = calculateAverages(students, safeGrades, safeAttendanceLogs);
       setAverageAttendance(averages.averageAttendance);
       setAverageScoreAvg(averages.averageScoreAvg);
-      setPerformanceTrend(buildPerformanceTrend(students, grades, attendanceLogs));
+      setPerformanceTrend(buildPerformanceTrend(students, safeGrades, safeAttendanceLogs));
 
-      const riskRows = computeStudentRiskRows(students, grades, attendanceLogs);
-      const sortedRiskRows = riskRows.sort((a, b) => {
+      const riskRows = computeStudentRiskRows(students, safeGrades, safeAttendanceLogs);
+      const sortedRiskRows = [...riskRows].sort((a, b) => {
         const priorityDiff = riskPriority(b.riskTier) - riskPriority(a.riskTier);
         if (priorityDiff !== 0) return priorityDiff;
         return a.compositeScore - b.compositeScore;
       });
 
       setTopRiskStudents(sortedRiskRows.slice(0, 3));
+      setError(null);
     } catch (err) {
       console.error(err);
       setError('Failed to fetch tutor workspace data.');
@@ -225,7 +234,7 @@ export const TutorHome: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [user]);
 
   const handleManualAttendanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

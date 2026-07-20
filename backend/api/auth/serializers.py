@@ -3,7 +3,11 @@ Auth API Serializers.
 """
 
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Q
 from django.utils import timezone
+from django.utils import timezone as django_timezone
 from rest_framework import serializers
 
 from apps.accounts.models import User
@@ -36,13 +40,29 @@ class LoginSerializer(serializers.Serializer):
             )
 
         # Use our custom EmailOrUsernameBackend
-        user = authenticate(
-            request=self.context.get('request'),
-            username=username_or_email,
-            password=password,
-        )
+        user = None
+        try:
+            user = authenticate(
+                request=self.context.get('request'),
+                username=username_or_email,
+                password=password,
+            )
+        except Exception:
+            user = None
 
         if user is None:
+            user_obj = User.objects.filter(
+                Q(username__iexact=username_or_email) | Q(email__iexact=username_or_email)
+            ).first()
+            if user_obj:
+                user_obj.failed_login_attempts = (user_obj.failed_login_attempts or 0) + 1
+                if user_obj.failed_login_attempts >= 5:
+                    user_obj.locked_until = django_timezone.now() + django_timezone.timedelta(minutes=15)
+                user_obj.save(update_fields=['failed_login_attempts', 'locked_until'])
+                if user_obj.locked_until and user_obj.locked_until > django_timezone.now():
+                    raise serializers.ValidationError(
+                        'This account is temporarily locked. Please try again later.'
+                    )
             raise serializers.ValidationError(
                 'Invalid username/email or password.'
             )
@@ -51,6 +71,25 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 'This account has been deactivated. Please contact your administrator.'
             )
+
+        if not user.email_verified:
+            raise serializers.ValidationError(
+                'Please verify your email before logging in.'
+            )
+
+        if user.locked_until and user.locked_until > django_timezone.now():
+            raise serializers.ValidationError(
+                'This account is temporarily locked. Please try again later.'
+            )
+
+        if user.locked_until and user.locked_until <= django_timezone.now():
+            user.failed_login_attempts = 0
+            user.locked_until = None
+            user.save(update_fields=['failed_login_attempts', 'locked_until'])
+
+        if user.failed_login_attempts and user.failed_login_attempts > 0:
+            user.failed_login_attempts = 0
+            user.save(update_fields=['failed_login_attempts'])
 
         data['user'] = user
         return data
@@ -131,6 +170,12 @@ class ActivateAccountSerializer(serializers.Serializer):
             raise serializers.ValidationError({'token': 'This account is already set up.'})
         if data.get('password') != data.get('confirm_password'):
             raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+
+        try:
+            validate_password(data.get('password'), user=user)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({'password': list(exc.messages)}) from exc
+
         username = data.get('username', '').strip()
         if User.objects.filter(username__iexact=username).exists():
             raise serializers.ValidationError({'username': 'This username is already taken.'})
@@ -162,9 +207,19 @@ class ResetPasswordSerializer(serializers.Serializer):
         if not user:
             raise serializers.ValidationError({'token': 'Invalid or already used password reset token.'})
         if not is_token_valid(token, user.password_reset_token_expires_at):
+            user.password_reset_token = None
+            user.password_reset_token_expires_at = None
+            user.save(update_fields=['password_reset_token', 'password_reset_token_expires_at'])
+            raise serializers.ValidationError({'token': 'This password reset link has expired.'})
             raise serializers.ValidationError({'token': 'This password reset link has expired.'})
         if data.get('password') != data.get('confirm_password'):
             raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+
+        try:
+            validate_password(data.get('password'), user=user)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({'password': list(exc.messages)}) from exc
+
         data['user'] = user
         return data
 

@@ -18,7 +18,10 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.81.0",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.5.28",
     "react-router-dom": "^7.18.1",
+    "xlsx": "^0.18.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

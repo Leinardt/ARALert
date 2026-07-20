@@ -77,6 +77,7 @@ class AttendanceSerializer(serializers.ModelSerializer):
         model = Attendance
         fields = [
             'id', 'user', 'user_name', 'user_lrn', 'role', 'date', 'time_in', 'time_out',
+            'morning_time_in', 'morning_time_out', 'afternoon_time_in', 'afternoon_time_out',
             'status', 'status_display', 'tutor', 'tutor_name', 'aral_activity', 'aral_activity_title', 'session'
         ]
         read_only_fields = ['id', 'role']

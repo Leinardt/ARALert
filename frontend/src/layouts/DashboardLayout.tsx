@@ -335,6 +335,17 @@ export const DashboardLayout: React.FC = () => {
                 Monitoring Dashboard
               </Link>
               <Link
+                to="/staff/attendance"
+                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
+                  isActive('/staff/attendance')
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <Scan className="w-5 h-5 mr-3" />
+                Attendance
+              </Link>
+              <Link
                 to="/staff/scan"
                 className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
                   isActive('/staff/scan')
