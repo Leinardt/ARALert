@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { userService } from '../../services/userService';
 import type { UserStats } from '../../types';
-import { Users, CheckCircle, XCircle, Shield, GraduationCap, School, BookOpen, UserCheck } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -9,115 +8,62 @@ export const Dashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const loadStats = async () => {
       try {
         const data = await userService.getStats();
         setStats(data);
-      } catch (err) {
-        console.error(err);
-        setError('Failed to load dashboard statistics.');
+      } catch (err: unknown) {
+        console.error('Failed to load dashboard stats', err);
+        setError('Unable to load dashboard statistics.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchStats();
+    loadStats();
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (error || !stats) {
-    return (
-      <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4">
-        {error || 'Could not load statistics.'}
-      </div>
-    );
-  }
-
-  const statCards = [
-    {
-      title: 'Total Users',
-      value: stats.total_users,
-      icon: Users,
-      color: 'bg-blue-50 text-blue-600 border-blue-100',
-    },
-    {
-      title: 'Active Users',
-      value: stats.active_users,
-      icon: CheckCircle,
-      color: 'bg-green-50 text-green-600 border-green-100',
-    },
-    {
-      title: 'Inactive Users',
-      value: stats.inactive_users,
-      icon: XCircle,
-      color: 'bg-red-50 text-red-600 border-red-100',
-    },
-    {
-      title: 'School Admins',
-      value: stats.admins,
-      icon: Shield,
-      color: 'bg-purple-50 text-purple-600 border-purple-100',
-    },
-    {
-      title: 'Principals',
-      value: stats.principals,
-      icon: School,
-      color: 'bg-yellow-50 text-yellow-600 border-yellow-100',
-    },
-    {
-      title: 'Faculty members',
-      value: stats.faculty,
-      icon: UserCheck,
-      color: 'bg-orange-50 text-orange-600 border-orange-100',
-    },
-    {
-      title: 'Academic Tutors',
-      value: stats.tutors,
-      icon: BookOpen,
-      color: 'bg-pink-50 text-pink-600 border-pink-100',
-    },
-    {
-      title: 'Registered Students',
-      value: stats.students,
-      icon: GraduationCap,
-      color: 'bg-teal-50 text-teal-600 border-teal-100',
-    },
-  ];
-
   return (
-    <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900">Welcome to SuperAdmin Dashboard</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          This system dashboard allows you to monitor user accounts, audit statistics, and create new users.
-        </p>
-      </div>
+    <div className="min-h-screen p-8 bg-slate-50">
+      <div className="max-w-6xl mx-auto bg-white rounded-3xl shadow border border-slate-200 p-8">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">SuperAdmin Dashboard</h1>
+            <p className="mt-2 text-sm text-slate-500">High-level system metrics for users and assignments.</p>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            Live system snapshot pulled from user analytics.
+          </div>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((card, index) => {
-          const Icon = card.icon;
-          return (
-            <div
-              key={index}
-              className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between"
-            >
-              <div className="space-y-1">
-                <span className="text-sm font-medium text-gray-500">{card.title}</span>
-                <p className="text-3xl font-extrabold text-gray-900">{card.value}</p>
-              </div>
-              <div className={`p-3 rounded-lg border ${card.color}`}>
-                <Icon className="w-6 h-6" />
-              </div>
+        {isLoading ? (
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-8 text-center text-slate-500">Loading statistics…</div>
+        ) : error ? (
+          <div className="rounded-3xl border border-rose-200 bg-rose-50 p-8 text-center text-rose-700">{error}</div>
+        ) : stats ? (
+          <div className="grid gap-6 xl:grid-cols-4 lg:grid-cols-2">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Total users</p>
+              <p className="mt-3 text-4xl font-extrabold text-slate-900">{stats.total_users}</p>
+              <p className="mt-2 text-sm text-slate-500">Active: {stats.active_users} · Inactive: {stats.inactive_users}</p>
             </div>
-          );
-        })}
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Staff breakdown</p>
+              <p className="mt-3 text-4xl font-extrabold text-slate-900">{stats.admins + stats.principals + stats.faculty + stats.tutors}</p>
+              <p className="mt-2 text-sm text-slate-500">Admins {stats.admins} · Principals {stats.principals}</p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Tutors</p>
+              <p className="mt-3 text-4xl font-extrabold text-slate-900">{stats.tutors}</p>
+              <p className="mt-2 text-sm text-slate-500">Students assigned: {stats.assigned_students}</p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Students</p>
+              <p className="mt-3 text-4xl font-extrabold text-slate-900">{stats.students}</p>
+              <p className="mt-2 text-sm text-slate-500">Unassigned: {stats.unassigned_students}</p>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

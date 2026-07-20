@@ -1,1 +1,1 @@
-# accounts app
+"""Accounts app package."""

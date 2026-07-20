@@ -2,9 +2,12 @@
 Auth API Serializers.
 """
 
-from rest_framework import serializers
 from django.contrib.auth import authenticate
+from django.utils import timezone
+from rest_framework import serializers
+
 from apps.accounts.models import User
+from services.token_service import is_token_valid
 
 
 class LoginSerializer(serializers.Serializer):
@@ -57,18 +60,28 @@ class UserProfileSerializer(serializers.ModelSerializer):
     """Read-only serializer for the authenticated user's profile."""
 
     full_name = serializers.SerializerMethodField()
+    avatar = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
             'full_name', 'role', 'is_active', 'is_superuser',
-            'date_joined', 'last_login',
+            'date_joined', 'last_login', 'avatar', 'mfa_enabled',
         ]
         read_only_fields = fields
 
     def get_full_name(self, obj):
         return obj.get_full_name()
+
+    def get_avatar(self, obj):
+        if obj.avatar:
+            request = self.context.get('request')
+            avatar_url = obj.avatar.url
+            if request is not None:
+                return request.build_absolute_uri(avatar_url)
+            return avatar_url
+        return None
 
 
 class StudentLoginSerializer(serializers.Serializer):
@@ -108,5 +121,128 @@ class StudentLoginSerializer(serializers.Serializer):
             )
 
         data['user'] = user
+        return data
+
+
+class ActivateAccountSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True)
+    username = serializers.CharField(required=True, min_length=3)
+    password = serializers.CharField(required=True, write_only=True, min_length=8)
+    confirm_password = serializers.CharField(required=True, write_only=True)
+
+    def validate(self, data):
+        token = data.get('token')
+        user = User.objects.filter(activation_token=token).first()
+        if not user:
+            raise serializers.ValidationError({'token': 'Invalid or already used activation token.'})
+        if not is_token_valid(token, user.activation_token_expires_at):
+            raise serializers.ValidationError({'token': 'This activation link has expired.'})
+        if not user.password_setup_required:
+            raise serializers.ValidationError({'token': 'This account is already set up.'})
+        if data.get('password') != data.get('confirm_password'):
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+        username = data.get('username', '').strip()
+        if User.objects.filter(username__iexact=username).exists():
+            raise serializers.ValidationError({'username': 'This username is already taken.'})
+        data['username'] = username
+        data['user'] = user
+        return data
+
+
+class ProfileUpdateSerializer(serializers.Serializer):
+    """Allow only a small safe set of profile updates from the user-facing profile endpoint.
+
+    Users are NOT allowed to change their email or full name via this endpoint; those
+    attributes are read-only for regular users and must be changed by admins if needed.
+    """
+    username = serializers.CharField(required=False, allow_blank=False)
+    password = serializers.CharField(required=False, write_only=True, allow_blank=False, min_length=8)
+    confirm_password = serializers.CharField(required=False, write_only=True, allow_blank=False)
+    avatar = serializers.FileField(required=False, allow_null=True)
+
+    def validate_username(self, value):
+        user = self.context.get('user')
+        if not user:
+            return value
+        if User.objects.filter(username__iexact=value).exclude(id=user.id).exists():
+            raise serializers.ValidationError('This username is already taken.')
+        return value
+
+    def validate(self, data):
+        password = data.get('password')
+        confirm_password = data.get('confirm_password')
+        if password and not confirm_password:
+            raise serializers.ValidationError({'confirm_password': 'Please confirm your password.'})
+        if confirm_password and not password:
+            raise serializers.ValidationError({'password': 'Please enter a new password.'})
+        if password and confirm_password and password != confirm_password:
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+        return data
+
+    def validate_avatar(self, value):
+        if value is None:
+            return value
+        allowed_types = ['image/jpeg', 'image/png', 'image/webp']
+        if getattr(value, 'content_type', None) not in allowed_types:
+            raise serializers.ValidationError('Only JPEG, PNG, and WEBP images are allowed.')
+        max_size = 2 * 1024 * 1024  # 2MB
+        if value.size > max_size:
+            raise serializers.ValidationError('Avatar images must be 2MB or smaller.')
+        return value
+
+    def update(self, instance, validated_data):
+        # Only allow username, password and avatar updates from this endpoint
+        if 'username' in validated_data:
+            instance.username = validated_data['username']
+        if validated_data.get('password'):
+            instance.set_password(validated_data['password'])
+        if 'avatar' in validated_data:
+            instance.avatar = validated_data['avatar']
+
+        update_fields = [f for f in ['username', 'password', 'avatar'] if f in validated_data]
+        instance.save(update_fields=update_fields)
+        return instance
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+    def validate(self, data):
+        try:
+            user = User.objects.get(email__iexact=data['email'])
+        except User.DoesNotExist:
+            raise serializers.ValidationError({'email': 'No account was found for that email.'})
+        data['user'] = user
+        return data
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True)
+    password = serializers.CharField(required=True, write_only=True, min_length=8)
+    confirm_password = serializers.CharField(required=True, write_only=True)
+
+    def validate(self, data):
+        token = data.get('token')
+        user = User.objects.filter(password_reset_token=token).first()
+        if not user:
+            raise serializers.ValidationError({'token': 'Invalid or already used password reset token.'})
+        if not is_token_valid(token, user.password_reset_token_expires_at):
+            raise serializers.ValidationError({'token': 'This password reset link has expired.'})
+        if data.get('password') != data.get('confirm_password'):
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+        data['user'] = user
+        return data
+
+
+class MFAToggleSerializer(serializers.Serializer):
+    enable = serializers.BooleanField(required=True)
+
+
+class VerifyOTPSerializer(serializers.Serializer):
+    user_id = serializers.UUIDField(required=True)
+    code = serializers.CharField(required=True, min_length=4, max_length=16)
+
+    def validate(self, data):
+        # Basic validation only; view will enforce OTP lifecycle checks.
         return data
 

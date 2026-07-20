@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
 import type { UserStats } from '../../types';
-import { GraduationCap, CheckCircle, XCircle, Plus, Users } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
+import { Activity, AlertTriangle, GraduationCap, Shield, Sparkles, Users } from 'lucide-react';
 
 export const AdminHome: React.FC = () => {
   const { user } = useAuth();
@@ -12,105 +11,191 @@ export const AdminHome: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const loadStats = async () => {
       try {
+        setIsLoading(true);
+        setError(null);
         const data = await userService.getStats();
         setStats(data);
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
-        setError('Failed to load dashboard statistics.');
+        setError(err.response?.data?.detail || 'Unable to load admin statistics.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchStats();
+    loadStats();
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (error || !stats) {
-    return (
-      <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4">
-        {error || 'Could not load statistics.'}
-      </div>
-    );
-  }
-
-  const statCards = [
-    {
-      title: 'Total Enrolled Students',
-      value: stats.students,
-      icon: GraduationCap,
-      color: 'bg-teal-50 text-teal-600 border-teal-100',
-    },
-    {
-      title: 'Active Students',
-      value: stats.active_users,
-      icon: CheckCircle,
-      color: 'bg-green-50 text-green-600 border-green-100',
-    },
-    {
-      title: 'Inactive Students',
-      value: stats.inactive_users,
-      icon: XCircle,
-      color: 'bg-red-50 text-red-600 border-red-100',
-    },
-  ];
+  const attendanceSummary = stats?.attendance_summary;
+  const academicSummary = stats?.academic_summary;
+  const riskSummary = stats?.risk_summary;
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Banner */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Welcome back, {user?.full_name || user?.username}!</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            School Administrator Dashboard. Track student enrollment, status, and register new students.
-          </p>
+    <div className="min-h-screen bg-slate-50 p-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
+              <p className="mt-2 text-slate-600">
+                Track adoption, attendance, academic performance, and intervention needs in one place.
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
+              <Shield className="h-5 w-5" />
+              {user?.full_name ?? 'Admin'} Access
+            </div>
+          </div>
         </div>
-        <div className="flex space-x-3 shrink-0">
-          <Link
-            to="/admin/students"
-            className="inline-flex items-center bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all"
-          >
-            <Users className="w-4 h-4 mr-2" />
-            Student Directory
-          </Link>
-          <Link
-            to="/admin/students/create"
-            className="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Enroll Student
-          </Link>
-        </div>
-      </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {statCards.map((card, index) => {
-          const Icon = card.icon;
-          return (
-            <div
-              key={index}
-              className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between"
-            >
-              <div className="space-y-1">
-                <span className="text-sm font-medium text-gray-500">{card.title}</span>
-                <p className="text-3xl font-extrabold text-gray-900">{card.value}</p>
+        {isLoading ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+            <div className="flex items-center justify-center py-24">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-300 border-t-blue-600" />
+            </div>
+          </div>
+        ) : error ? (
+          <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-red-700 shadow-sm">
+            {error}
+          </div>
+        ) : stats ? (
+          <div className="grid gap-6 xl:grid-cols-2">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Total users</p>
+                  <p className="mt-4 text-4xl font-extrabold text-slate-900">{stats.total_users}</p>
+                </div>
+                <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
+                  <Users className="h-6 w-6" />
+                </div>
               </div>
-              <div className={`p-3 rounded-lg border ${card.color}`}>
-                <Icon className="w-6 h-6" />
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Active</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">{stats.active_users}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Inactive</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">{stats.inactive_users}</p>
+                </div>
               </div>
             </div>
-          );
-        })}
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Attendance snapshot</p>
+                  <p className="mt-4 text-4xl font-extrabold text-slate-900">{attendanceSummary?.total_logs ?? 0}</p>
+                </div>
+                <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
+                  <Activity className="h-6 w-6" />
+                </div>
+              </div>
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Present</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">{attendanceSummary?.present ?? 0}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Late</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">{attendanceSummary?.late ?? 0}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Absent</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">{attendanceSummary?.absent ?? 0}</p>
+                </div>
+              </div>
+              <div className="mt-4 text-sm text-slate-600">
+                Attendance rate: <span className="font-semibold text-slate-900">{academicSummary?.average_attendance_rate ?? 0}%</span>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Academic health</p>
+                  <p className="mt-4 text-4xl font-extrabold text-slate-900">{academicSummary?.average_score ?? 0}%</p>
+                </div>
+                <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
+                  <GraduationCap className="h-6 w-6" />
+                </div>
+              </div>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Grade entries</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">{academicSummary?.grade_entries ?? 0}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Avg attendance</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">{academicSummary?.average_attendance_rate ?? 0}%</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Risk overview</p>
+                  <p className="mt-4 text-4xl font-extrabold text-slate-900">{(riskSummary?.high ?? 0) + (riskSummary?.medium ?? 0)}</p>
+                </div>
+                <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
+                  <AlertTriangle className="h-6 w-6" />
+                </div>
+              </div>
+              <div className="mt-6 space-y-3 text-sm text-slate-600">
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-3">
+                  <span>High risk</span>
+                  <span className="font-semibold text-slate-900">{riskSummary?.high ?? 0}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-3">
+                  <span>Medium risk</span>
+                  <span className="font-semibold text-slate-900">{riskSummary?.medium ?? 0}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-3">
+                  <span>Low risk</span>
+                  <span className="font-semibold text-slate-900">{riskSummary?.low ?? 0}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-3">
+                  <span>Resolved</span>
+                  <span className="font-semibold text-slate-900">{riskSummary?.resolved ?? 0}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Staff summary</p>
+                  <p className="mt-4 text-4xl font-extrabold text-slate-900">{stats.admins + stats.principals + stats.faculty + stats.tutors}</p>
+                </div>
+                <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
+                  <Sparkles className="h-6 w-6" />
+                </div>
+              </div>
+              <div className="mt-6 grid gap-3 md:grid-cols-4">
+                <div className="rounded-2xl bg-slate-50 p-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Admins</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">{stats.admins}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Principals</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">{stats.principals}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Faculty</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">{stats.faculty}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Tutors</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">{stats.tutors}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

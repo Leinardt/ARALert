@@ -14,6 +14,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
+SMTP_HOST = config('SMTP_HOST', default='')
+SMTP_PORT = config('SMTP_PORT', default='587')
+SMTP_EMAIL = config('SMTP_EMAIL', default='')
+SMTP_PASSWORD = config('SMTP_PASSWORD', default='')
+SMTP_USE_TLS = config('SMTP_USE_TLS', default=True, cast=bool)
+SENDER_NAME = config('SENDER_NAME', default='ARALert')
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
+TOKEN_EXPIRATION_TIME = config('TOKEN_EXPIRATION_TIME', default=60, cast=int)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
@@ -38,6 +46,7 @@ INSTALLED_APPS = [
     'corsheaders',
     # Local apps
     'apps.accounts',
+    'apps.academics',
 ]
 
 MIDDLEWARE = [
@@ -57,7 +66,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [str(BASE_DIR / 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -76,16 +85,27 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database — PostgreSQL
 # --------------------------------------------------------------------------
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='aralert_db'),
-        'USER': config('DB_USER', default='postgres'),
-        'PASSWORD': config('DB_PASSWORD', default='postgres'),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+# Development fallback: allow using SQLite when `USE_SQLITE=True` in .env
+USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
+
+if USE_SQLITE:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME', default='aralert'),
+            'USER': config('DB_USER', default='postgresql'),
+            'PASSWORD': config('DB_PASSWORD', default='postgresql'),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+        }
+    }
 
 # --------------------------------------------------------------------------
 # Password validation
@@ -112,6 +132,8 @@ USE_TZ = True
 # --------------------------------------------------------------------------
 
 STATIC_URL = 'static/'
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # --------------------------------------------------------------------------
 # Default primary key field type

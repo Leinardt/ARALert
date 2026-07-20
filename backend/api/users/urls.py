@@ -10,11 +10,13 @@ from .views import (
     UserDeactivateView,
     ResetPasswordView,
     UserStatsView,
+    TutorListView,
 )
 
 urlpatterns = [
     path('stats/', UserStatsView.as_view(), name='user-stats'),
-    path('', UserListCreateView.as_view(), name='user-list-create'),
+    path('tutors/', TutorListView.as_view(), name='tutor-list'),
+    path('', UserListCreateView.as_view(), name='user-list'),
     path('<uuid:id>/', UserDetailView.as_view(), name='user-detail'),
     path('<uuid:id>/activate/', UserActivateView.as_view(), name='user-activate'),
     path('<uuid:id>/deactivate/', UserDeactivateView.as_view(), name='user-deactivate'),

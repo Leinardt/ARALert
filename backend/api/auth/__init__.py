@@ -1,1 +1,1 @@
-# api.auth package
+"""Authentication API package."""

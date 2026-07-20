@@ -1,17 +1,10 @@
 import React from 'react';
-import { useAuth } from '../../hooks/useAuth';
 
-export const FacultyHome: React.FC = () => {
-  const { user } = useAuth();
-  return (
-    <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-      <h2 className="text-2xl font-bold text-gray-900">Welcome Faculty</h2>
-      <p className="mt-2 text-gray-600">
-        Hello {user?.full_name || user?.username}, you are currently logged in as a Faculty member.
-      </p>
-      <p className="mt-4 text-xs text-gray-500 bg-gray-50 p-3 rounded border border-gray-100 italic">
-        Note: The Faculty portal features are out of scope for Sprint 1 and will be developed in a future sprint.
-      </p>
+export const FacultyHome: React.FC = () => (
+  <div className="min-h-screen p-8 bg-slate-50">
+    <div className="max-w-6xl mx-auto bg-white rounded-3xl shadow border border-slate-200 p-8">
+      <h1 className="text-3xl font-bold text-slate-900">Faculty Home</h1>
+      <p className="mt-4 text-slate-600">This is the faculty dashboard placeholder.</p>
     </div>
-  );
-};
+  </div>
+);

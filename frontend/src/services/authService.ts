@@ -29,8 +29,47 @@ export const authService = {
     localStorage.removeItem('user');
   },
 
+  activateAccount: async (token: string, username: string, password: string, confirmPassword: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/activate/', {
+      token,
+      username,
+      password,
+      confirm_password: confirmPassword,
+    });
+    return response.data;
+  },
+
+  forgotPassword: async (email: string): Promise<{ detail: string }> => {
+    const response = await api.post<{ detail: string }>('/auth/forgot-password/', { email });
+    return response.data;
+  },
+
+  resetPassword: async (token: string, password: string, confirmPassword: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/reset-password/', {
+      token,
+      password,
+      confirm_password: confirmPassword,
+    });
+    return response.data;
+  },
+
   getProfile: async (): Promise<User> => {
     const response = await api.get<User>('/profile/');
+    return response.data;
+  },
+
+  updateProfile: async (data: FormData): Promise<User> => {
+    const response = await api.patch<User>('/profile/', data);
+    return response.data;
+  },
+
+  toggleMfa: async (enable: boolean): Promise<{ mfa_enabled: boolean }> => {
+    const response = await api.post<{ mfa_enabled: boolean }>('/auth/mfa/', { enable });
+    return response.data;
+  },
+
+  verifyOtp: async (userId: string, code: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/verify-otp/', { user_id: userId, code });
     return response.data;
   },
 };

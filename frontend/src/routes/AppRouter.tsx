@@ -11,6 +11,12 @@ import { ProtectedRoute } from './ProtectedRoute';
 // Public pages
 import { Landing } from '../pages/Landing/Landing';
 import { Login } from '../pages/Login/Login';
+import { ActivateAccount } from '../pages/Auth/ActivateAccount';
+import { ForgotPassword } from '../pages/Auth/ForgotPassword';
+import { ResetPassword } from '../pages/Auth/ResetPassword';
+import { InvalidLink } from '../pages/Auth/InvalidLink';
+import { SuccessPage } from '../pages/Auth/SuccessPage';
+import { MFA } from '../pages/Auth/MFA';
 
 // SuperAdmin pages
 import { Dashboard } from '../pages/SuperAdmin/Dashboard';
@@ -22,9 +28,16 @@ import { Settings } from '../pages/SuperAdmin/Settings';
 
 // Role placeholder pages
 import { AdminHome } from '../pages/Admin/AdminHome';
+import { AdminAttendanceQR } from '../pages/Admin/AdminAttendanceQR';
 import { PrincipalHome } from '../pages/Principal/PrincipalHome';
 import { FacultyHome } from '../pages/Faculty/FacultyHome';
 import { TutorHome } from '../pages/Tutor/TutorHome';
+import { TutorQRGenerator } from '../pages/Tutor/TutorQRGenerator';
+import { TutorStudentDirectory } from '../pages/Tutor/TutorStudentDirectory';
+import { TutorStudentProfile } from '../pages/Tutor/TutorStudentProfile';
+import { TutorAnalytics } from '../pages/Tutor/TutorAnalytics';
+import { StaffAttendanceScanner } from '../pages/Tutor/StaffAttendanceScanner';
+import TutorScores from '../pages/Tutor/TutorScores';
 import { StudentHome } from '../pages/Student/StudentHome';
 
 // Error pages
@@ -43,6 +56,12 @@ export const AppRouter: React.FC = () => {
 
         {/* ── Auth routes ───────────────────────────── */}
         <Route path="/login" element={<Login />} />
+        <Route path="/activate" element={<ActivateAccount />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/mfa" element={<MFA />} />
+        <Route path="/invalid-link" element={<InvalidLink />} />
+        <Route path="/success" element={<SuccessPage />} />
 
         {/* ── SuperAdmin routes ─────────────────────── */}
         <Route
@@ -72,10 +91,10 @@ export const AppRouter: React.FC = () => {
           <Route path="/admin/students" element={<UserList />} />
           <Route path="/admin/students/create" element={<CreateUser />} />
           <Route path="/admin/students/edit/:id" element={<EditUser />} />
+          <Route path="/admin/attendance" element={<AdminAttendanceQR />} />
           <Route path="/admin/profile" element={<Profile />} />
           <Route path="/admin/settings" element={<Settings />} />
         </Route>
-
 
         {/* ── Principal routes ──────────────────────── */}
         <Route
@@ -108,6 +127,32 @@ export const AppRouter: React.FC = () => {
           }
         >
           <Route path="/tutor" element={<TutorHome />} />
+          <Route path="/tutor/attendance/generate" element={<TutorQRGenerator />} />
+          <Route path="/tutor/analytics" element={<TutorAnalytics />} />
+          <Route path="/tutor/students" element={<TutorStudentDirectory />} />
+          <Route path="/tutor/scores" element={<TutorScores />} />
+          <Route path="/tutor/students/:id" element={<TutorStudentProfile />} />
+        </Route>
+
+        {/* ── Shared Staff routes ──────────────────── */}
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'tutor', 'principal', 'faculty', 'student']}>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/staff/scan" element={<StaffAttendanceScanner />} />
+        </Route>
+
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={['superadmin', 'admin', 'tutor', 'principal', 'faculty', 'student']}>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/profile" element={<Profile />} />
         </Route>
 
         {/* ── Student routes ────────────────────────── */}

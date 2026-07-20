@@ -7,6 +7,7 @@ export interface GetUsersParams {
   status?: string;
   ordering?: string;
   page?: number;
+  assigned_tutor?: string;
 }
 
 export interface GetUsersResponse {
@@ -54,6 +55,11 @@ export const userService = {
 
   getStats: async (): Promise<UserStats> => {
     const response = await api.get<UserStats>('/users/stats/');
+    return response.data;
+  },
+
+  getTutors: async (): Promise<User[]> => {
+    const response = await api.get<User[]>('/users/tutors/');
     return response.data;
   },
 };

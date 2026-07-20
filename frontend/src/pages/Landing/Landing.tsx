@@ -1,135 +1,165 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
 
-export const Landing: React.FC = () => {
-  const { isAuthenticated, user } = useAuth();
-
-  const getDashboardLink = () => {
-    if (!user) return '/login';
-    if (user.is_superuser) return '/superadmin';
-    return `/${user.role}`;
-  };
-
-  return (
-    <div className="bg-white">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gray-50 border-b border-gray-100 py-24 sm:py-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center">
-          <div className="inline-flex items-center space-x-2 bg-indigo-50 border border-indigo-100 rounded-full px-3 py-1 text-xs font-semibold text-indigo-700 mb-6">
-            <span>Sprint 1 Auth Foundation Active</span>
-          </div>
-          <h1 className="text-4xl sm:text-6xl font-extrabold text-gray-900 tracking-tight max-w-3xl leading-none">
-            Student Performance Monitoring &amp; Early Academic Risk Detection
-          </h1>
-          <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-2xl">
-            A comprehensive, secure monitoring platform helping educators detect student academic risk early and implement proactive interventions.
-          </p>
-          <div className="mt-10 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-            {isAuthenticated ? (
-              <Link
-                to={getDashboardLink()}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-8 py-3 rounded-lg shadow-md transition-all text-base"
-              >
-                Go to Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link
-                  to="/login"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-8 py-3 rounded-lg shadow-md transition-all text-base"
-                >
-                  Get Started
-                </Link>
-                <a
-                  href="#features"
-                  className="bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-semibold px-8 py-3 rounded-lg transition-all text-base"
-                >
-                  Learn More
-                </a>
-              </>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-3xl font-bold text-gray-900">Platform Features</h2>
-            <p className="mt-4 text-gray-600">
-              ARALert monitors critical performance indexes to keep students on track.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="p-6 bg-gray-50 rounded-xl border border-gray-100">
-              <div className="w-10 h-10 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 font-bold mb-4">
-                01
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Early Risk Detection</h3>
-              <p className="text-sm text-gray-600">
-                Detect learning loss, attendance gaps, and academic flags automatically before students fall behind.
-              </p>
-            </div>
-
-            <div className="p-6 bg-gray-50 rounded-xl border border-gray-100">
-              <div className="w-10 h-10 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 font-bold mb-4">
-                02
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Role-Based Access</h3>
-              <p className="text-sm text-gray-600">
-                Secure access for Principals, Admins, Faculty, Tutors, and Students with tailored views.
-              </p>
-            </div>
-
-            <div className="p-6 bg-gray-50 rounded-xl border border-gray-100">
-              <div className="w-10 h-10 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 font-bold mb-4">
-                03
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Integrated Monitoring</h3>
-              <p className="text-sm text-gray-600">
-                Unified data tracking including attendance trends, weekly assessment scores, and risk classifications.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* About Section */}
-      <section id="about" className="py-20 bg-gray-50 border-t border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">About ARALert</h2>
-              <p className="text-gray-600 mb-4">
-                ARALert was designed to address student learning challenges. By combining simple, secure user portals with intuitive monitoring, ARALert empowers educators, tutors, and parents to act early.
-              </p>
-              <p className="text-gray-600">
-                Sprint 1 introduces a rock-solid, secure, JWT-based login mechanism with strict role-based dashboards and user directory controls for system administrators.
-              </p>
-            </div>
-            <div className="bg-gray-200 rounded-xl h-64 flex items-center justify-center text-gray-400 font-medium">
-              [Placeholder About Image]
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Contact Section */}
-      <section id="contact" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-xl">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Get In Touch</h2>
-          <p className="text-gray-600 mb-8">
-            Have questions about the ARALert platform or rollout timeline? Contact our system administrator.
-          </p>
-          <div className="p-6 bg-gray-50 rounded-xl border border-gray-100">
-            <p className="text-sm text-gray-500">Email Administrator</p>
-            <p className="text-base font-semibold text-indigo-600 mt-1">support@aralert.com</p>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
+const containerStyle: React.CSSProperties = {
+  minHeight: '100vh',
+  background: 'linear-gradient(180deg, #eef7f1 0%, #f8fafc 60%, #ffffff 100%)',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: '40px 24px',
 };
+
+const panelStyle: React.CSSProperties = {
+  width: '100%',
+  maxWidth: '1080px',
+  borderRadius: '32px',
+  background: 'rgba(255,255,255,0.96)',
+  boxShadow: '0 32px 90px rgba(15, 23, 42, 0.12)',
+  border: '1px solid rgba(148, 163, 184, 0.18)',
+  overflow: 'hidden',
+};
+
+const heroStyle: React.CSSProperties = {
+  padding: '56px 48px 24px',
+};
+
+const badgeStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  background: '#e7f0ff',
+  color: '#0b5ed7',
+  borderRadius: '999px',
+  padding: '10px 18px',
+  fontSize: '12px',
+  letterSpacing: '0.18em',
+  fontWeight: 700,
+};
+
+const titleStyle: React.CSSProperties = {
+  marginTop: '32px',
+  fontSize: '3.2rem',
+  lineHeight: 1.05,
+  color: '#0f172a',
+  maxWidth: '750px',
+};
+
+const descriptionStyle: React.CSSProperties = {
+  marginTop: '24px',
+  color: '#475569',
+  fontSize: '1.05rem',
+  lineHeight: 1.8,
+  maxWidth: '680px',
+};
+
+const buttonPrimaryStyle: React.CSSProperties = {
+  borderRadius: '999px',
+  background: '#0b5ed7',
+  color: '#ffffff',
+  padding: '16px 32px',
+  fontWeight: 700,
+  border: 'none',
+  cursor: 'pointer',
+  textDecoration: 'none',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  boxShadow: '0 20px 40px rgba(11, 94, 215, 0.12)',
+};
+
+const buttonSecondaryStyle: React.CSSProperties = {
+  borderRadius: '999px',
+  background: '#ffffff',
+  color: '#0f172a',
+  padding: '16px 32px',
+  fontWeight: 700,
+  border: '1px solid rgba(148, 163, 184, 0.3)',
+  cursor: 'pointer',
+  textDecoration: 'none',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const cardGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gap: '20px',
+  padding: '24px 48px 48px',
+  background: '#f8fafc',
+};
+
+const cardStyle: React.CSSProperties = {
+  borderRadius: '24px',
+  background: '#ffffff',
+  border: '1px solid rgba(148, 163, 184, 0.18)',
+  boxShadow: '0 12px 30px rgba(15, 23, 42, 0.06)',
+  padding: '32px',
+};
+
+const cardTitleStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: '1.125rem',
+  fontWeight: 700,
+  color: '#0f172a',
+};
+
+const cardTextStyle: React.CSSProperties = {
+  marginTop: '14px',
+  color: '#475569',
+  fontSize: '1rem',
+  lineHeight: 1.75,
+};
+
+const features = [
+  {
+    title: 'Student performance monitoring',
+    description: 'Continuous collection of grades, assessments, and attendance to compute per-student performance indicators and trends.',
+  },
+  {
+    title: 'Early academic risk detection',
+    description: 'Automated algorithms identify at-risk students using attendance and performance signals so teachers can intervene early.',
+  },
+  {
+    title: 'Data-driven interventions',
+    description: 'Actionable reports and timelines empower tutors and administrators to target support and measure outcomes over time.',
+  },
+];
+
+export const Landing: React.FC = () => (
+  <div style={containerStyle}>
+    <div style={panelStyle}>
+      <div style={heroStyle}>
+        <span style={badgeStyle}>Student Risk Monitoring</span>
+
+        <h1 style={titleStyle}>
+          A Web-Based Student Performance Monitoring and Early Academic Risk Detection System for the ARAL Program of Palanas National Agriculture High School
+        </h1>
+
+        <p style={descriptionStyle}>
+          ARALert is designed to support the Academic Recovery and Accessible Learning (ARAL) program by consolidating attendance, assessment, and course performance data into a unified monitoring platform. The system computes student-level performance indicators, surfaces early warning signs, and equips tutors and administrators with timely, actionable insights for interventions.
+        </p>
+
+        <p style={descriptionStyle}>
+          Key capabilities include continuous student performance tracking, robust attendance logging, automated risk detection, and reporting tools that drive data-informed decisions and targeted academic support.
+        </p>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginTop: '32px' }}>
+          <Link to="/login" style={buttonPrimaryStyle}>
+            Sign in
+          </Link>
+          <a href="#features" style={buttonSecondaryStyle}>
+            Explore features
+          </a>
+        </div>
+      </div>
+
+      <div style={cardGridStyle}>
+        {features.map((feature) => (
+          <div key={feature.title} style={cardStyle}>
+            <h2 style={cardTitleStyle}>{feature.title}</h2>
+            <p style={cardTextStyle}>{feature.description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);

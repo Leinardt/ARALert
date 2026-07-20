@@ -18,6 +18,7 @@ const editUserSchema = z.object({
   }),
   lrn: z.string().optional(),
   is_active: z.boolean(),
+  assigned_tutor: z.string().optional().nullable(),
 }).refine((data) => {
   if (data.role === 'student') {
     return !!data.lrn && /^\d{12}$/.test(data.lrn);
@@ -38,6 +39,7 @@ export const EditUser: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [tutors, setTutors] = useState<User[]>([]);
 
   const {
     register,
@@ -51,19 +53,26 @@ export const EditUser: React.FC = () => {
 
   const selectedRole = watch('role');
 
+  // Fetch tutors list and user details
   useEffect(() => {
-    const fetchUser = async () => {
+    const loadData = async () => {
       if (!id) return;
       try {
-        const user: User = await userService.getUser(id);
+        const [userData, tutorsData] = await Promise.all([
+          userService.getUser(id),
+          userService.getTutors(),
+        ]);
+        
+        setTutors(tutorsData);
         reset({
-          first_name: user.first_name,
-          last_name: user.last_name,
-          username: user.username,
-          email: user.email,
-          role: user.role as EditUserFields['role'],
-          lrn: user.lrn || '',
-          is_active: user.is_active,
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          username: userData.username,
+          email: userData.email,
+          role: userData.role as EditUserFields['role'],
+          lrn: userData.lrn || '',
+          is_active: userData.is_active,
+          assigned_tutor: userData.assigned_tutor || '',
         });
       } catch (err) {
         console.error(err);
@@ -72,7 +81,7 @@ export const EditUser: React.FC = () => {
         setIsLoading(false);
       }
     };
-    fetchUser();
+    loadData();
   }, [id, reset]);
 
   const onSubmit = async (data: EditUserFields) => {
@@ -80,7 +89,11 @@ export const EditUser: React.FC = () => {
     setIsSubmitting(true);
     setServerErrors(null);
     try {
-      await userService.updateUser(id, data);
+      const payload = {
+        ...data,
+        assigned_tutor: data.role === 'student' && data.assigned_tutor ? data.assigned_tutor : null,
+      };
+      await userService.updateUser(id, payload);
       navigate(currentUser?.is_superuser ? '/superadmin/users' : '/admin/students');
     } catch (error: any) {
       console.error(error);
@@ -203,6 +216,33 @@ export const EditUser: React.FC = () => {
               </select>
               {errors.role && <p className="mt-1 text-xs text-red-600">{errors.role.message}</p>}
             </div>
+
+            {/* Assigned Tutor selection — visible only when role is student */}
+            {selectedRole === 'student' && (
+              <div>
+                <label htmlFor="assigned_tutor" className="block text-sm font-semibold text-gray-700">
+                  Assigned Tutor
+                </label>
+                <select
+                  id="assigned_tutor"
+                  {...register('assigned_tutor')}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
+                >
+                  <option value="">No Tutor Assigned</option>
+                  {tutors.map((tutor) => (
+                    <option key={tutor.id} value={tutor.id}>
+                      {tutor.full_name} ({tutor.email})
+                    </option>
+                  ))}
+                </select>
+                {errors.assigned_tutor && (
+                  <p className="mt-1 text-xs text-red-600">{errors.assigned_tutor.message}</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="flex items-center mt-6">
               <input id="is_active" type="checkbox" {...register('is_active')}
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"

@@ -57,16 +57,25 @@ export const Login: React.FC = () => {
     setServerError(null);
     try {
       const response = await login(data.usernameOrEmail, data.password, data.rememberMe);
-      navigate(response.redirect);
+      if (response.mfa_required) {
+        navigate('/mfa');
+        return;
+      }
+      navigate(response.redirect ?? '/login');
     } catch (error: any) {
-      const errorsPayload = error.response?.data?.errors;
-      if (errorsPayload?.detail) {
-        setServerError(errorsPayload.detail);
-      } else if (errorsPayload?.non_field_errors) {
-        setServerError(errorsPayload.non_field_errors[0]);
-      } else if (typeof errorsPayload === 'object') {
-        const errorMsg = Object.values(errorsPayload).flat().join(' ');
-        setServerError(errorMsg || 'Failed to authenticate. Please check your credentials.');
+      const responseData = error.response?.data;
+      if (responseData?.detail) {
+        setServerError(responseData.detail);
+      } else if (responseData?.errors) {
+        const errorsPayload = responseData.errors;
+        if (errorsPayload?.detail) {
+          setServerError(errorsPayload.detail);
+        } else if (errorsPayload?.non_field_errors) {
+          setServerError(errorsPayload.non_field_errors[0]);
+        } else if (typeof errorsPayload === 'object') {
+          const errorMsg = Object.values(errorsPayload).flat().join(' ');
+          setServerError(errorMsg || 'Failed to authenticate. Please check your credentials.');
+        }
       } else {
         setServerError('Authentication failed. Server might be offline.');
       }
@@ -80,16 +89,21 @@ export const Login: React.FC = () => {
     setServerError(null);
     try {
       const response = await studentLogin(data.fullName, data.lrn);
-      navigate(response.redirect);
+      navigate(response.redirect ?? '/login');
     } catch (error: any) {
-      const errorsPayload = error.response?.data?.errors;
-      if (errorsPayload?.detail) {
-        setServerError(errorsPayload.detail);
-      } else if (errorsPayload?.non_field_errors) {
-        setServerError(errorsPayload.non_field_errors[0]);
-      } else if (typeof errorsPayload === 'object') {
-        const errorMsg = Object.values(errorsPayload).flat().join(' ');
-        setServerError(errorMsg || 'Invalid Full Name or LRN.');
+      const responseData = error.response?.data;
+      if (responseData?.detail) {
+        setServerError(responseData.detail);
+      } else if (responseData?.errors) {
+        const errorsPayload = responseData.errors;
+        if (errorsPayload?.detail) {
+          setServerError(errorsPayload.detail);
+        } else if (errorsPayload?.non_field_errors) {
+          setServerError(errorsPayload.non_field_errors[0]);
+        } else if (typeof errorsPayload === 'object') {
+          const errorMsg = Object.values(errorsPayload).flat().join(' ');
+          setServerError(errorMsg || 'Invalid Full Name or LRN.');
+        }
       } else {
         setServerError('Authentication failed. Server might be offline.');
       }
@@ -127,19 +141,11 @@ export const Login: React.FC = () => {
           justifyContent: 'space-between',
         }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: '#2E7D32',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontWeight: 800,
-              fontSize: '18px',
-              boxShadow: '0 2px 8px rgba(46,125,50,0.3)',
-            }}>A</div>
+            <img
+              src="/src/assets/ARALert_LOGO.png"
+              alt="ARALert logo"
+              style={{ width: '36px', height: '36px', borderRadius: '10px', objectFit: 'cover' }}
+            />
             <span style={{ fontWeight: 700, fontSize: '20px', color: '#1a1a1a', letterSpacing: '-0.3px' }}>ARALert</span>
           </Link>
 
@@ -158,8 +164,8 @@ export const Login: React.FC = () => {
                   transition: 'all 0.2s',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#2E7D32';
-                  e.currentTarget.style.background = '#f0fdf4';
+                  e.currentTarget.style.color = '#0b5ed7';
+                  e.currentTarget.style.background = '#e7f0ff';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.color = '#6b7280';
@@ -168,13 +174,13 @@ export const Login: React.FC = () => {
               >{item}</a>
             ))}
             <div style={{
-              background: '#2E7D32',
+              background: '#0b5ed7',
               color: '#fff',
               padding: '8px 20px',
               borderRadius: '10px',
               fontSize: '14px',
               fontWeight: 600,
-              boxShadow: '0 2px 8px rgba(46,125,50,0.25)',
+              boxShadow: '0 2px 8px rgba(11,94,215,0.18)',
               cursor: 'default',
             }}>Sign In</div>
           </nav>
@@ -548,15 +554,14 @@ export const Login: React.FC = () => {
                       />
                       Remember me
                     </label>
-                    <a
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); alert('Password recovery coming soon.'); }}
+                    <Link
+                      to="/forgot-password"
                       style={{ fontSize: '13px', color: '#2E7D32', textDecoration: 'none', fontWeight: 500 }}
                       onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
                     >
                       Forgot password?
-                    </a>
+                    </Link>
                   </div>
 
                   {/* Submit */}
