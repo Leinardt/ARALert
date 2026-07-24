@@ -43,7 +43,7 @@ export const AdminAttendanceQR: React.FC = () => {
         width: 256,
         margin: 2,
         color: {
-          dark: '#1e1b4b', // Deep indigo
+          dark: '#21793D',
           light: '#ffffff',
         },
       }, (err) => {
@@ -57,7 +57,7 @@ export const AdminAttendanceQR: React.FC = () => {
       <div className="flex items-center space-x-2">
         <Link
           to="/admin"
-          className="text-gray-500 hover:text-indigo-600 inline-flex items-center text-sm font-semibold transition-colors"
+          className="text-gray-500 hover:text-[var(--brand)] inline-flex items-center text-sm font-semibold transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-1.5" />
           Back to Dashboard
@@ -71,7 +71,7 @@ export const AdminAttendanceQR: React.FC = () => {
             onClick={() => setAction('time_in')}
             className={`flex-1 py-4 text-center font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition-all ${
               action === 'time_in'
-                ? 'border-indigo-600 text-indigo-600 bg-white'
+                ? 'border-[var(--brand)] text-[var(--brand)] bg-white'
                 : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/50'
             }`}
           >
@@ -82,7 +82,7 @@ export const AdminAttendanceQR: React.FC = () => {
             onClick={() => setAction('time_out')}
             className={`flex-1 py-4 text-center font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition-all ${
               action === 'time_out'
-                ? 'border-indigo-600 text-indigo-600 bg-white'
+                ? 'border-[var(--brand)] text-[var(--brand)] bg-white'
                 : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/50'
             }`}
           >
@@ -100,12 +100,12 @@ export const AdminAttendanceQR: React.FC = () => {
 
           {isLoading ? (
             <div className="w-64 h-64 flex flex-col items-center justify-center border border-gray-100 rounded-xl bg-gray-50/50">
-              <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" />
+              <RefreshCw className="w-8 h-8 text-[var(--brand)] animate-spin" />
               <span className="mt-3 text-sm text-gray-500 font-medium">Generating secure code...</span>
             </div>
           ) : (
             <div className="relative">
-              <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
+              <div className="p-4 bg-[var(--brand-light)]/50 rounded-2xl border border-[var(--brand-border)]">
                 <canvas ref={canvasRef} className="rounded-lg shadow-sm" />
               </div>
             </div>
@@ -113,13 +113,13 @@ export const AdminAttendanceQR: React.FC = () => {
 
           {session && (
             <div className="mt-6 space-y-4 w-full">
-              <div className="inline-flex items-center space-x-2 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold border border-indigo-100">
-                <CheckCircle2 className="w-4 h-4 text-indigo-600" />
+              <div className="inline-flex items-center space-x-2 bg-[var(--brand-light)] text-[var(--brand-dark)] px-3 py-1 rounded-full text-xs font-bold border border-[var(--brand-border)]">
+                <CheckCircle2 className="w-4 h-4 text-[var(--brand)]" />
                 <span>Active Staff QR Code</span>
               </div>
 
-              <div className="flex items-center justify-center space-x-2 text-indigo-900 bg-indigo-50 border border-indigo-100 p-4 rounded-xl max-w-sm mx-auto text-left">
-                <Clock className="w-5 h-5 text-indigo-600 shrink-0" />
+              <div className="flex items-center justify-center space-x-2 text-[var(--brand-text)] bg-[var(--brand-light)] border border-[var(--brand-border)] p-4 rounded-xl max-w-sm mx-auto text-left">
+                <Clock className="w-5 h-5 text-[var(--brand)] shrink-0" />
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider">Time Limit Rules</p>
                   <p className="text-xs mt-0.5 font-semibold">
@@ -136,7 +136,7 @@ export const AdminAttendanceQR: React.FC = () => {
 
               <button
                 onClick={() => generateQR(action)}
-                className="text-indigo-600 hover:text-indigo-700 text-xs font-bold flex items-center justify-center space-x-1 mx-auto transition-colors mt-2"
+                className="text-[var(--brand)] hover:text-[var(--brand-dark)] text-xs font-bold flex items-center justify-center space-x-1 mx-auto transition-colors mt-2"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Regenerate Session ID</span>

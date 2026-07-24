@@ -32,19 +32,19 @@ export const TutorStudentDirectory: React.FC = () => {
     <div className="space-y-6">
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-indigo-600 uppercase tracking-[0.24em]">Students</p>
+          <p className="text-sm font-semibold text-[var(--brand)] uppercase tracking-[0.24em]">Students</p>
           <h1 className="mt-2 text-2xl font-bold text-gray-900">Assigned Students</h1>
           <p className="mt-1 text-sm text-gray-500">All students currently assigned to you as tutor.</p>
         </div>
-        <div className="rounded-2xl bg-indigo-50 px-4 py-3 text-indigo-700 border border-indigo-100">
-          <p className="text-xs uppercase tracking-[0.24em] text-indigo-600">Total</p>
+        <div className="rounded-2xl bg-[var(--brand-light)] px-4 py-3 text-[var(--brand-dark)] border border-[var(--brand-border)]">
+          <p className="text-xs uppercase tracking-[0.24em] text-[var(--brand)]">Total</p>
           <p className="mt-1 text-3xl font-bold">{students.length}</p>
         </div>
       </div>
 
       {isLoading ? (
         <div className="flex justify-center items-center h-60">
-          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <div className="w-10 h-10 border-4 border-[var(--brand)] border-t-transparent rounded-full animate-spin"></div>
         </div>
       ) : error ? (
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-4">
@@ -86,7 +86,7 @@ export const TutorStudentDirectory: React.FC = () => {
                     <td className="px-6 py-4 text-right">
                       <Link
                         to={`/tutor/students/${student.id}`}
-                        className="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-semibold"
+                        className="inline-flex items-center text-[var(--brand)] hover:text-[var(--brand-text)] font-semibold"
                       >
                         View
                         <ChevronRight className="w-4 h-4 ml-1" />

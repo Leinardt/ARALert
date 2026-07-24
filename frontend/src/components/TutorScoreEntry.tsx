@@ -71,7 +71,7 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
             value={score}
             onChange={(e) => setScore(e.target.value === '' ? '' : Number(e.target.value))}
             placeholder="Enter score"
-            className="mt-3 w-full rounded-2xl border border-slate-700 bg-slate-950 px-3 py-3 text-lg font-semibold text-white outline-none transition focus:border-indigo-500"
+            className="mt-3 w-full rounded-2xl border border-slate-700 bg-slate-950 px-3 py-3 text-lg font-semibold text-white outline-none transition focus:border-[var(--brand)]"
           />
         </div>
 
@@ -84,7 +84,7 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
 
         <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-4">
           <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Status</p>
-          <div className="mt-3 inline-flex items-center rounded-2xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm">
+          <div className="mt-3 inline-flex items-center rounded-2xl bg-[var(--brand)] px-3 py-2 text-sm font-semibold text-white shadow-sm">
             {score === '' ? 'Pending' : 'Set'}
           </div>
         </div>
@@ -96,7 +96,7 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
           type="button"
           onClick={handleSubmit}
           disabled={loading}
-          className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-3xl bg-[var(--brand)] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? 'Saving...' : 'Save Score'}
         </button>

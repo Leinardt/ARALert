@@ -25,6 +25,36 @@ const studentLoginSchema = z.object({
 });
 type StudentLoginFields = z.infer<typeof studentLoginSchema>;
 
+// ── Error parsing helper ─────────────────────────────────
+const parseApiError = (error: any, fallback: string): string => {
+  if (!error || !error.response) {
+    return 'Authentication failed. Server might be offline or unreachable.';
+  }
+  const data = error.response.data;
+  if (!data) return fallback;
+
+  if (typeof data === 'string') return data;
+  if (data.detail) return data.detail;
+  if (data.non_field_errors) {
+    return Array.isArray(data.non_field_errors) ? data.non_field_errors[0] : String(data.non_field_errors);
+  }
+  if (data.errors) {
+    const ep = data.errors;
+    if (typeof ep === 'string') return ep;
+    if (ep.detail) return ep.detail;
+    if (ep.non_field_errors) return Array.isArray(ep.non_field_errors) ? ep.non_field_errors[0] : String(ep.non_field_errors);
+    if (typeof ep === 'object') {
+      const msg = Object.values(ep).flat().join(' ');
+      if (msg) return msg;
+    }
+  }
+  if (typeof data === 'object') {
+    const msg = Object.values(data).flat().join(' ');
+    if (msg) return msg;
+  }
+  return fallback;
+};
+
 // ── Login type enum ──────────────────────────────────────
 type LoginType = 'select' | 'staff' | 'student';
 
@@ -63,22 +93,7 @@ export const Login: React.FC = () => {
       }
       navigate(response.redirect ?? '/login');
     } catch (error: any) {
-      const responseData = error.response?.data;
-      if (responseData?.detail) {
-        setServerError(responseData.detail);
-      } else if (responseData?.errors) {
-        const errorsPayload = responseData.errors;
-        if (errorsPayload?.detail) {
-          setServerError(errorsPayload.detail);
-        } else if (errorsPayload?.non_field_errors) {
-          setServerError(errorsPayload.non_field_errors[0]);
-        } else if (typeof errorsPayload === 'object') {
-          const errorMsg = Object.values(errorsPayload).flat().join(' ');
-          setServerError(errorMsg || 'Failed to authenticate. Please check your credentials.');
-        }
-      } else {
-        setServerError('Authentication failed. Server might be offline.');
-      }
+      setServerError(parseApiError(error, 'Failed to authenticate. Please check your credentials.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -91,22 +106,7 @@ export const Login: React.FC = () => {
       const response = await studentLogin(data.fullName, data.lrn);
       navigate(response.redirect ?? '/login');
     } catch (error: any) {
-      const responseData = error.response?.data;
-      if (responseData?.detail) {
-        setServerError(responseData.detail);
-      } else if (responseData?.errors) {
-        const errorsPayload = responseData.errors;
-        if (errorsPayload?.detail) {
-          setServerError(errorsPayload.detail);
-        } else if (errorsPayload?.non_field_errors) {
-          setServerError(errorsPayload.non_field_errors[0]);
-        } else if (typeof errorsPayload === 'object') {
-          const errorMsg = Object.values(errorsPayload).flat().join(' ');
-          setServerError(errorMsg || 'Invalid Full Name or LRN.');
-        }
-      } else {
-        setServerError('Authentication failed. Server might be offline.');
-      }
+      setServerError(parseApiError(error, 'Invalid Full Name or LRN.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -144,7 +144,7 @@ export const Login: React.FC = () => {
             <img
               src="/src/assets/ARALert_LOGO.png"
               alt="ARALert logo"
-              style={{ width: '36px', height: '36px', borderRadius: '10px', objectFit: 'cover' }}
+              style={{ width: '36px', height: '36px', objectFit: 'contain' }}
             />
             <span style={{ fontWeight: 700, fontSize: '20px', color: '#1a1a1a', letterSpacing: '-0.3px' }}>ARALert</span>
           </Link>
@@ -164,8 +164,8 @@ export const Login: React.FC = () => {
                   transition: 'all 0.2s',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#0b5ed7';
-                  e.currentTarget.style.background = '#e7f0ff';
+                  e.currentTarget.style.color = 'var(--brand)';
+                  e.currentTarget.style.background = 'var(--brand-light)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.color = '#6b7280';
@@ -173,16 +173,6 @@ export const Login: React.FC = () => {
                 }}
               >{item}</a>
             ))}
-            <div style={{
-              background: '#0b5ed7',
-              color: '#fff',
-              padding: '8px 20px',
-              borderRadius: '10px',
-              fontSize: '14px',
-              fontWeight: 600,
-              boxShadow: '0 2px 8px rgba(11,94,215,0.18)',
-              cursor: 'default',
-            }}>Sign In</div>
           </nav>
         </div>
       </header>

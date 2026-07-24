@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
+import { buildPerformanceTrend, type PerformanceTrendPoint } from '../../utils/performanceTrendHelpers';
 import type { StudentAcademicProfile, Attendance } from '../../types';
 import {
   GraduationCap,
@@ -13,6 +14,7 @@ export const StudentHome: React.FC = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<StudentAcademicProfile | null>(null);
   const [attendanceLogs, setAttendanceLogs] = useState<Attendance[]>([]);
+  const [performanceTrend, setPerformanceTrend] = useState<PerformanceTrendPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,12 +26,18 @@ export const StudentHome: React.FC = () => {
     ? profile.computed_risk_level.charAt(0).toUpperCase() + profile.computed_risk_level.slice(1)
     : profile?.academic_risks?.[0]?.risk_level_display ?? 'Low';
   const riskLevelKey = (profile?.computed_risk_level || 'low').toLowerCase() as 'low' | 'medium' | 'high';
-  const trendPoints = profile?.attendance.logs?.length ? profile.attendance.logs.slice(0, 8) : [];
 
   const fetchProfile = async () => {
+    if (!user) return;
+
     try {
-      const data = await academicService.getMyProfile();
+      const [data, grades, logs] = await Promise.all([
+        academicService.getMyProfile(),
+        academicService.getGrades(),
+        academicService.getAttendanceHistory({ user_id: user.id }),
+      ]);
       setProfile(data);
+      setPerformanceTrend(buildPerformanceTrend([user.id], grades, logs));
     } catch (err) {
       console.error(err);
       setError('Failed to fetch academic details.');
@@ -40,7 +48,7 @@ export const StudentHome: React.FC = () => {
 
   useEffect(() => {
     fetchProfile();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const fetchAttendanceLogs = async () => {
@@ -85,17 +93,12 @@ export const StudentHome: React.FC = () => {
     });
   };
 
-  const trendSeries = trendPoints.map((log) => {
-    const value = log.status === 'present' ? 100 : log.status === 'late' ? 80 : 0;
-    return { label: formatDateString(log.date), value, status: log.status };
-  });
-
-  const maxTrendValue = Math.max(...trendSeries.map((point) => point.value), 100);
+  const maxTrendValue = Math.max(...performanceTrend.map((point) => point.value), 100);
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-[var(--brand)] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -136,7 +139,7 @@ export const StudentHome: React.FC = () => {
             <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Average Score</p>
             <p className="mt-2 text-3xl font-extrabold text-gray-900">{averageScore > 0 ? averageScore.toFixed(2) : 'N/A'}</p>
           </div>
-          <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+          <div className="p-3 rounded-xl bg-[var(--brand-light)] text-[var(--brand)] border border-[var(--brand-border)]">
             <GraduationCap className="w-6 h-6" />
           </div>
         </div>
@@ -172,10 +175,10 @@ export const StudentHome: React.FC = () => {
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
         <div className="flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-indigo-600" />
+          <TrendingUp className="w-5 h-5 text-[var(--brand)]" />
           <h3 className="text-lg font-bold text-gray-900">Performance Trend</h3>
         </div>
-        {trendPoints.length === 0 ? (
+        {performanceTrend.length === 0 ? (
           <div className="text-sm text-gray-500">No performance trend data yet.</div>
         ) : (
           <div className="space-y-4">
@@ -184,25 +187,25 @@ export const StudentHome: React.FC = () => {
                 <line x1="20" y1="150" x2="300" y2="150" stroke="#cbd5e1" strokeWidth="1" />
                 <line x1="20" y1="100" x2="300" y2="100" stroke="#e2e8f0" strokeWidth="1" />
                 <line x1="20" y1="50" x2="300" y2="50" stroke="#e2e8f0" strokeWidth="1" />
-                {trendSeries.length > 1 && (
+                {performanceTrend.length > 1 && (
                   <path
-                    d={trendSeries.map((point, index) => {
+                    d={performanceTrend.map((point, index) => {
                       const x = 40 + index * 52;
                       const y = 150 - (point.value / maxTrendValue) * 90;
                       return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
                     }).join(' ')}
                     fill="none"
-                    stroke="#4f46e5"
+                    stroke="var(--brand)"
                     strokeWidth="3"
                     strokeLinecap="round"
                   />
                 )}
-                {trendSeries.map((point, index) => {
+                {performanceTrend.map((point, index) => {
                   const x = 40 + index * 52;
                   const y = 150 - (point.value / maxTrendValue) * 90;
                   return (
-                    <g key={`${point.label}-${index}`}>
-                      <circle cx={x} cy={y} r="5" fill="#4f46e5" />
+                    <g key={`${point.date}-${index}`}>
+                      <circle cx={x} cy={y} r="5" fill="var(--brand)" />
                       <text x={x} y="168" textAnchor="middle" className="fill-slate-500 text-[10px]">{point.label}</text>
                     </g>
                   );
@@ -210,7 +213,7 @@ export const StudentHome: React.FC = () => {
               </svg>
             </div>
             <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
-              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: '#4f46e5' }} />Composite performance trend</span>
+              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'var(--brand)' }} />Your composite performance trend</span>
             </div>
           </div>
         )}

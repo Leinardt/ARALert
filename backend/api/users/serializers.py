@@ -6,6 +6,8 @@ Handles validation for user CRUD, password reset, and dashboard stats.
 import uuid
 
 from django.conf import settings
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from apps.accounts.models import User
@@ -23,7 +25,7 @@ class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'full_name', 'first_name', 'last_name',
+            'id', 'full_name', 'first_name', 'middle_name', 'last_name',
             'username', 'email', 'role', 'lrn', 'status', 'is_active',
             'password_setup_required', 'email_verified', 'date_joined', 'last_login',
             'assigned_tutor', 'assigned_tutor_name', 'assessment_weight', 'weekly_tasks_weight',
@@ -52,7 +54,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'first_name', 'last_name', 'username', 'email',
+            'first_name', 'middle_name', 'last_name', 'username', 'email',
             'password', 'confirm_password', 'role', 'lrn', 'is_active',
             'assigned_tutor', 'assessment_weight', 'weekly_tasks_weight', 'attendance_weight',
             'aral_level'
@@ -126,7 +128,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
         frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
         activation_link = f"{frontend_url}/activate?token={user.activation_token}"
-        send_account_invitation_email(user, activation_link)
+        user.activation_link = activation_link
+        user.email_sent = bool(send_account_invitation_email(user, activation_link))
+        user.save(update_fields=['activation_link', 'email_sent'])
         return user
 
 
@@ -136,7 +140,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'first_name', 'last_name', 'username', 'email',
+            'first_name', 'middle_name', 'last_name', 'username', 'email',
             'role', 'lrn', 'is_active', 'assigned_tutor',
             'assessment_weight', 'weekly_tasks_weight', 'attendance_weight',
             'aral_level'
@@ -202,7 +206,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
 
 class ResetPasswordSerializer(serializers.Serializer):
-    """Serializer for resetting a user's password."""
+    """Serializer for resetting a user's password (admin-side)."""
 
     new_password = serializers.CharField(min_length=8, write_only=True)
     confirm_password = serializers.CharField(write_only=True)
@@ -212,6 +216,11 @@ class ResetPasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {'confirm_password': 'Passwords do not match.'}
             )
+        # Run Django's full AUTH_PASSWORD_VALIDATORS suite
+        try:
+            validate_password(data['new_password'])
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({'new_password': list(exc.messages)})
         return data
 
 

@@ -146,7 +146,7 @@ export const TutorQRGenerator: React.FC = () => {
         width: 256,
         margin: 2,
         color: {
-          dark: '#312e81', // Indigo 900
+          dark: '#21793D',
           light: '#ffffff',
         },
       }, (err) => {
@@ -166,7 +166,7 @@ export const TutorQRGenerator: React.FC = () => {
       <div className="flex items-center space-x-2">
         <Link
           to="/tutor"
-          className="text-gray-500 hover:text-indigo-600 inline-flex items-center text-sm font-semibold transition-colors"
+          className="text-gray-500 hover:text-[var(--brand)] inline-flex items-center text-sm font-semibold transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-1.5" />
           Back to Dashboard
@@ -188,7 +188,7 @@ export const TutorQRGenerator: React.FC = () => {
                   <select
                     value={selectedActivity}
                     onChange={(e) => setSelectedActivity(e.target.value ? Number(e.target.value) : '')}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm bg-white"
                   >
                     <option value="">No linked activity (General attendance)</option>
                     {activities.map((act) => (
@@ -206,7 +206,7 @@ export const TutorQRGenerator: React.FC = () => {
                   <select
                     value={expiresIn}
                     onChange={(e) => setExpiresIn(Number(e.target.value))}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm bg-white"
                   >
                     <option value={3}>3 Minutes</option>
                     <option value={5}>5 Minutes</option>
@@ -219,7 +219,7 @@ export const TutorQRGenerator: React.FC = () => {
                 <button
                   onClick={generateStudentQR}
                   disabled={isLoading}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all cursor-pointer"
+                  className="w-full bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all cursor-pointer"
                 >
                   {isLoading ? 'Creating session...' : 'Generate QR Code'}
                 </button>
@@ -235,7 +235,7 @@ export const TutorQRGenerator: React.FC = () => {
                 )}
 
                 <div className="relative">
-                  <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
+                  <div className="p-4 bg-[var(--brand-light)]/50 rounded-2xl border border-[var(--brand-border)]">
                     <canvas ref={canvasRef} className="rounded-lg" />
                   </div>
                   {!session.is_active && (
@@ -244,7 +244,7 @@ export const TutorQRGenerator: React.FC = () => {
                       <h3 className="font-bold text-gray-900 text-sm">Expired</h3>
                       <button
                         onClick={() => setSession(null)}
-                        className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-all"
+                        className="mt-4 px-4 py-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-lg text-xs font-semibold transition-all"
                       >
                         Reset Configuration
                       </button>
@@ -255,20 +255,20 @@ export const TutorQRGenerator: React.FC = () => {
                 {session.is_active && (
                   <div className="mt-6 space-y-4 w-full text-center">
                     <div className="flex items-center justify-center space-x-2 text-gray-600 font-semibold bg-gray-50 py-2 px-4 rounded-xl border border-gray-100 w-fit mx-auto">
-                      <Clock className="w-4 h-4 text-indigo-600" />
+                      <Clock className="w-4 h-4 text-[var(--brand)]" />
                       <span className="text-xs">Remaining:</span>
-                      <span className="text-sm font-bold font-mono text-indigo-700">{formatTime(timeLeft)}</span>
+                      <span className="text-sm font-bold font-mono text-[var(--brand-dark)]">{formatTime(timeLeft)}</span>
                     </div>
 
-                    <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 text-xs text-indigo-800 text-left space-y-1">
+                    <div className="bg-[var(--brand-light)]/50 border border-[var(--brand-border)] rounded-xl p-3 text-xs text-[var(--brand-text)] text-left space-y-1">
                       {session.aral_activity_title && (
                         <p className="flex items-center">
-                          <BookOpen className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                          <BookOpen className="w-3.5 h-3.5 mr-1 text-[var(--brand)]" />
                           <span className="font-semibold">Linked Activity:</span>&nbsp;{session.aral_activity_title}
                         </p>
                       )}
                       <p>
-                        <span className="font-semibold">Session ID:</span> <code className="bg-indigo-100 px-1 rounded select-all">{session.id}</code>
+                        <span className="font-semibold">Session ID:</span> <code className="bg-[var(--brand-lighter)] px-1 rounded select-all">{session.id}</code>
                       </p>
                     </div>
 
@@ -294,7 +294,7 @@ export const TutorQRGenerator: React.FC = () => {
           <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-6 h-full flex flex-col min-h-[400px]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-gray-900 text-base">Check-in Feed</h3>
-              <span className="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-bold border border-indigo-100">
+              <span className="bg-[var(--brand-light)] text-[var(--brand-dark)] text-xs px-2 py-0.5 rounded-full font-bold border border-[var(--brand-border)]">
                 {scannedStudents.length} Checked In
               </span>
             </div>

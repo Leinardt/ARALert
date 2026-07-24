@@ -1,165 +1,251 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
+import {
+  Shield,
+  Activity,
+  BarChart3,
+  QrCode,
+  Users,
+  CheckCircle2,
+  ArrowRight,
+  BookOpen,
+  Award,
+} from 'lucide-react';
 
-const containerStyle: React.CSSProperties = {
-  minHeight: '100vh',
-  background: 'linear-gradient(180deg, #eef7f1 0%, #f8fafc 60%, #ffffff 100%)',
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
-  padding: '40px 24px',
-};
+export const Landing: React.FC = () => {
+  const { isAuthenticated, user } = useAuth();
 
-const panelStyle: React.CSSProperties = {
-  width: '100%',
-  maxWidth: '1080px',
-  borderRadius: '32px',
-  background: 'rgba(255,255,255,0.96)',
-  boxShadow: '0 32px 90px rgba(15, 23, 42, 0.12)',
-  border: '1px solid rgba(148, 163, 184, 0.18)',
-  overflow: 'hidden',
-};
+  const getDashboardLink = () => {
+    if (!user) return '/login';
+    if (user.is_superuser) return '/superadmin';
+    return `/${user.role}`;
+  };
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(180deg, #F0FDF4 0%, #F8FAFC 50%, #FFFFFF 100%)',
+        fontFamily: 'var(--font-body)',
+        color: 'var(--text-primary)',
+        padding: '2rem 1.5rem 4rem',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+      }}
+    >
+      {/* ── Outer Card Wrapper ── */}
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '1140px',
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderRadius: '32px',
+          boxShadow: '0 32px 90px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(9, 115, 55, 0.12)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* ── Top Bar Brand Header ── */}
+        <div
+          style={{
+            padding: '1.75rem 2.5rem',
+            borderBottom: '1px solid var(--slate-100)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <img
+              src="/src/assets/ARALert_LOGO.png"
+              alt="ARALert Logo"
+              style={{ width: '36px', height: '36px', objectFit: 'contain' }}
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = 'none';
+              }}
+            />
+            <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+              ARALert
+            </span>
+          </div>
 
-const heroStyle: React.CSSProperties = {
-  padding: '56px 48px 24px',
-};
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <Link
+              to={isAuthenticated ? getDashboardLink() : '/login'}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.65rem 1.35rem',
+                borderRadius: 'var(--radius-pill)',
+                background: 'var(--brand)',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                textDecoration: 'none',
+                boxShadow: '0 10px 25px rgba(9, 115, 55, 0.3)',
+                transition: 'var(--transition-fast)',
+              }}
+            >
+              {isAuthenticated ? 'Go to Dashboard' : 'Sign In'} <ArrowRight size={16} />
+            </Link>
+          </div>
+        </div>
 
-const badgeStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  background: '#e7f0ff',
-  color: '#0b5ed7',
-  borderRadius: '999px',
-  padding: '10px 18px',
-  fontSize: '12px',
-  letterSpacing: '0.18em',
-  fontWeight: 700,
-};
+        {/* ── Hero Section ── */}
+        <div style={{ padding: '3.5rem 2.5rem 2.5rem', textAlign: 'center', position: 'relative' }}>
+          <h1
+            style={{
+              fontFamily: 'var(--font-heading)',
+              fontSize: 'clamp(2rem, 4vw, 3.1rem)',
+              fontWeight: 800,
+              lineHeight: 1.15,
+              color: '#0F172A',
+              maxWidth: '900px',
+              margin: '0 auto 1.5rem',
+              letterSpacing: '-0.03em',
+            }}
+          >
+            Student Performance Monitoring & Early Academic Risk Detection
+          </h1>
 
-const titleStyle: React.CSSProperties = {
-  marginTop: '32px',
-  fontSize: '3.2rem',
-  lineHeight: 1.05,
-  color: '#0f172a',
-  maxWidth: '750px',
-};
+          <p
+            style={{
+              fontSize: '1.05rem',
+              lineHeight: 1.75,
+              color: 'var(--text-secondary)',
+              maxWidth: '780px',
+              margin: '0 auto 2.25rem',
+            }}
+          >
+            Empowering the Academic Recovery and Accessible Learning (ARAL) program with automated risk detection, real-time QR attendance tracking, weighted academic evaluation, and targeted intervention management.
+          </p>
 
-const descriptionStyle: React.CSSProperties = {
-  marginTop: '24px',
-  color: '#475569',
-  fontSize: '1.05rem',
-  lineHeight: 1.8,
-  maxWidth: '680px',
-};
+          {/* Action CTAs */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <Link
+              to={isAuthenticated ? getDashboardLink() : '/login'}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.65rem',
+                padding: '0.9rem 2.25rem',
+                borderRadius: 'var(--radius-pill)',
+                background: 'linear-gradient(135deg, #097337 0%, #075C2C 100%)',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: '1rem',
+                textDecoration: 'none',
+                boxShadow: 'var(--shadow-brand)',
+              }}
+            >
+              {isAuthenticated ? 'Go to Dashboard' : 'Access System Portal'} <ArrowRight size={18} />
+            </Link>
+          </div>
+        </div>
 
-const buttonPrimaryStyle: React.CSSProperties = {
-  borderRadius: '999px',
-  background: '#0b5ed7',
-  color: '#ffffff',
-  padding: '16px 32px',
-  fontWeight: 700,
-  border: 'none',
-  cursor: 'pointer',
-  textDecoration: 'none',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  boxShadow: '0 20px 40px rgba(11, 94, 215, 0.12)',
-};
+        {/* ── Feature Cards Grid ── */}
+        <div
+          id="features"
+          style={{
+            padding: '2.5rem',
+            background: 'var(--slate-50)',
+            borderTop: '1px solid var(--slate-100)',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: '1.5rem',
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: '24px',
+              padding: '2rem',
+              border: '1px solid var(--slate-200)',
+              boxShadow: 'var(--shadow-xs)',
+            }}
+          >
+            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#E6F7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#097337', marginBottom: '1.25rem' }}>
+              <BarChart3 size={24} />
+            </div>
+            <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Continuous Performance Tracking
+            </h3>
+            <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+              Consolidates assessments, weekly tasks, and attendance scores using customizable weight ratios to compute instant performance indicators per student.
+            </p>
+          </div>
 
-const buttonSecondaryStyle: React.CSSProperties = {
-  borderRadius: '999px',
-  background: '#ffffff',
-  color: '#0f172a',
-  padding: '16px 32px',
-  fontWeight: 700,
-  border: '1px solid rgba(148, 163, 184, 0.3)',
-  cursor: 'pointer',
-  textDecoration: 'none',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-};
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: '24px',
+              padding: '2rem',
+              border: '1px solid var(--slate-200)',
+              boxShadow: 'var(--shadow-xs)',
+            }}
+          >
+            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444', marginBottom: '1.25rem' }}>
+              <Shield size={24} />
+            </div>
+            <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Automated Early Risk Warning
+            </h3>
+            <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+              Algorithms analyze attendance thresholds and grade drops to surface high, medium, and low risk alerts, enabling proactive interventions.
+            </p>
+          </div>
 
-const cardGridStyle: React.CSSProperties = {
-  display: 'grid',
-  gap: '20px',
-  padding: '24px 48px 48px',
-  background: '#f8fafc',
-};
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: '24px',
+              padding: '2rem',
+              border: '1px solid var(--slate-200)',
+              boxShadow: 'var(--shadow-xs)',
+            }}
+          >
+            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3B82F6', marginBottom: '1.25rem' }}>
+              <QrCode size={24} />
+            </div>
+            <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              QR Code Attendance & Scanning
+            </h3>
+            <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+              Generates session-specific QR codes for both students and staff, recording precise timestamped clock-in and clock-out events.
+            </p>
+          </div>
+        </div>
 
-const cardStyle: React.CSSProperties = {
-  borderRadius: '24px',
-  background: '#ffffff',
-  border: '1px solid rgba(148, 163, 184, 0.18)',
-  boxShadow: '0 12px 30px rgba(15, 23, 42, 0.06)',
-  padding: '32px',
-};
-
-const cardTitleStyle: React.CSSProperties = {
-  margin: 0,
-  fontSize: '1.125rem',
-  fontWeight: 700,
-  color: '#0f172a',
-};
-
-const cardTextStyle: React.CSSProperties = {
-  marginTop: '14px',
-  color: '#475569',
-  fontSize: '1rem',
-  lineHeight: 1.75,
-};
-
-const features = [
-  {
-    title: 'Student performance monitoring',
-    description: 'Continuous collection of grades, assessments, and attendance to compute per-student performance indicators and trends.',
-  },
-  {
-    title: 'Early academic risk detection',
-    description: 'Automated algorithms identify at-risk students using attendance and performance signals so teachers can intervene early.',
-  },
-  {
-    title: 'Data-driven interventions',
-    description: 'Actionable reports and timelines empower tutors and administrators to target support and measure outcomes over time.',
-  },
-];
-
-export const Landing: React.FC = () => (
-  <div style={containerStyle}>
-    <div style={panelStyle}>
-      <div style={heroStyle}>
-        <span style={badgeStyle}>Student Risk Monitoring</span>
-
-        <h1 style={titleStyle}>
-          A Web-Based Student Performance Monitoring and Early Academic Risk Detection System for the ARAL Program of Palanas National Agriculture High School
-        </h1>
-
-        <p style={descriptionStyle}>
-          ARALert is designed to support the Academic Recovery and Accessible Learning (ARAL) program by consolidating attendance, assessment, and course performance data into a unified monitoring platform. The system computes student-level performance indicators, surfaces early warning signs, and equips tutors and administrators with timely, actionable insights for interventions.
-        </p>
-
-        <p style={descriptionStyle}>
-          Key capabilities include continuous student performance tracking, robust attendance logging, automated risk detection, and reporting tools that drive data-informed decisions and targeted academic support.
-        </p>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginTop: '32px' }}>
-          <Link to="/login" style={buttonPrimaryStyle}>
-            Sign in
-          </Link>
-          <a href="#features" style={buttonSecondaryStyle}>
-            Explore features
-          </a>
+        {/* ── System Roles Footer ── */}
+        <div style={{ padding: '2rem 2.5rem', background: '#fff', borderTop: '1px solid var(--slate-100)', textTransform: 'none' }}>
+          <p style={{ margin: 0, textAlign: 'center', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+            SUPPORTED SYSTEM ROLES & ACCESS BOUNDARIES
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+            {['SuperAdmin', 'School Admin', 'Principal', 'Faculty', 'Tutor', 'Student'].map((role) => (
+              <span
+                key={role}
+                style={{
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  padding: '0.4rem 0.9rem',
+                  borderRadius: 'var(--radius-pill)',
+                  background: 'var(--surface-muted)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--slate-200)',
+                }}
+              >
+                {role}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
-
-      <div style={cardGridStyle}>
-        {features.map((feature) => (
-          <div key={feature.title} style={cardStyle}>
-            <h2 style={cardTitleStyle}>{feature.title}</h2>
-            <p style={cardTextStyle}>{feature.description}</p>
-          </div>
-        ))}
-      </div>
     </div>
-  </div>
-);
+  );
+};

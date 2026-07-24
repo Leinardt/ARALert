@@ -10,6 +10,7 @@ import { useAuth } from '../../hooks/useAuth';
 
 const editUserSchema = z.object({
   first_name: z.string().min(1, 'First Name is required.'),
+  middle_name: z.string().optional(),
   last_name: z.string().min(1, 'Last Name is required.'),
   username: z.string().min(3, 'Username must be at least 3 characters.'),
   email: z.string().email('Invalid email address.'),
@@ -66,6 +67,7 @@ export const EditUser: React.FC = () => {
         setTutors(tutorsData);
         reset({
           first_name: userData.first_name,
+          middle_name: userData.middle_name || '',
           last_name: userData.last_name,
           username: userData.username,
           email: userData.email,
@@ -91,6 +93,9 @@ export const EditUser: React.FC = () => {
     try {
       const payload = {
         ...data,
+        first_name: data.first_name.toUpperCase().trim(),
+        middle_name: data.middle_name ? data.middle_name.toUpperCase().trim() : '',
+        last_name: data.last_name.toUpperCase().trim(),
         assigned_tutor: data.role === 'student' && data.assigned_tutor ? data.assigned_tutor : null,
       };
       await userService.updateUser(id, payload);
@@ -111,7 +116,7 @@ export const EditUser: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-[var(--brand)] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -121,7 +126,7 @@ export const EditUser: React.FC = () => {
       <div className="space-y-4">
         <Link
           to={currentUser?.is_superuser ? '/superadmin/users' : '/admin/students'}
-          className="text-gray-500 hover:text-indigo-600 inline-flex items-center text-sm font-semibold transition-colors"
+          className="text-gray-500 hover:text-[var(--brand)] inline-flex items-center text-sm font-semibold transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-1.5" />
           Back to {currentUser?.is_superuser ? 'Directory' : 'Student Directory'}
@@ -135,7 +140,7 @@ export const EditUser: React.FC = () => {
     <div className="space-y-6 max-w-2xl">
       <Link
         to={currentUser?.is_superuser ? '/superadmin/users' : '/admin/students'}
-        className="text-gray-500 hover:text-indigo-600 inline-flex items-center text-sm font-semibold transition-colors"
+        className="text-gray-500 hover:text-[var(--brand)] inline-flex items-center text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="w-4 h-4 mr-1.5" />
         Back to {currentUser?.is_superuser ? 'Directory' : 'Student Directory'}
@@ -154,20 +159,27 @@ export const EditUser: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div>
               <label htmlFor="first_name" className="block text-sm font-semibold text-gray-700">First Name</label>
               <input id="first_name" type="text" {...register('first_name')}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${errors.first_name || serverErrors?.first_name ? 'border-red-300' : 'border-gray-300'}`}
+                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm ${errors.first_name || serverErrors?.first_name ? 'border-red-300' : 'border-gray-300'}`}
               />
               {(errors.first_name || serverErrors?.first_name) && (
                 <p className="mt-1 text-xs text-red-600">{errors.first_name?.message || serverErrors?.first_name?.[0]}</p>
               )}
             </div>
             <div>
+              <label htmlFor="middle_name" className="block text-sm font-semibold text-gray-700">Middle Name <span className="font-normal text-gray-400">(optional)</span></label>
+              <input id="middle_name" type="text" {...register('middle_name')}
+                placeholder="Full middle name"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm"
+              />
+            </div>
+            <div>
               <label htmlFor="last_name" className="block text-sm font-semibold text-gray-700">Last Name</label>
               <input id="last_name" type="text" {...register('last_name')}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${errors.last_name || serverErrors?.last_name ? 'border-red-300' : 'border-gray-300'}`}
+                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm ${errors.last_name || serverErrors?.last_name ? 'border-red-300' : 'border-gray-300'}`}
               />
               {(errors.last_name || serverErrors?.last_name) && (
                 <p className="mt-1 text-xs text-red-600">{errors.last_name?.message || serverErrors?.last_name?.[0]}</p>
@@ -179,7 +191,7 @@ export const EditUser: React.FC = () => {
             <div>
               <label htmlFor="username" className="block text-sm font-semibold text-gray-700">Username</label>
               <input id="username" type="text" {...register('username')}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${errors.username || serverErrors?.username ? 'border-red-300' : 'border-gray-300'}`}
+                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm ${errors.username || serverErrors?.username ? 'border-red-300' : 'border-gray-300'}`}
               />
               {(errors.username || serverErrors?.username) && (
                 <p className="mt-1 text-xs text-red-600">{errors.username?.message || serverErrors?.username?.[0]}</p>
@@ -188,7 +200,7 @@ export const EditUser: React.FC = () => {
             <div>
               <label htmlFor="email" className="block text-sm font-semibold text-gray-700">Email</label>
               <input id="email" type="email" {...register('email')}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${errors.email || serverErrors?.email ? 'border-red-300' : 'border-gray-300'}`}
+                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm ${errors.email || serverErrors?.email ? 'border-red-300' : 'border-gray-300'}`}
               />
               {(errors.email || serverErrors?.email) && (
                 <p className="mt-1 text-xs text-red-600">{errors.email?.message || serverErrors?.email?.[0]}</p>
@@ -200,7 +212,7 @@ export const EditUser: React.FC = () => {
             <div>
               <label htmlFor="role" className="block text-sm font-semibold text-gray-700">System Role</label>
               <select id="role" {...register('role')}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm bg-white"
               >
                 {currentUser?.is_superuser ? (
                   <>
@@ -226,7 +238,7 @@ export const EditUser: React.FC = () => {
                 <select
                   id="assigned_tutor"
                   {...register('assigned_tutor')}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm bg-white"
                 >
                   <option value="">No Tutor Assigned</option>
                   {tutors.map((tutor) => (
@@ -245,7 +257,7 @@ export const EditUser: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="flex items-center mt-6">
               <input id="is_active" type="checkbox" {...register('is_active')}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                className="h-4 w-4 text-[var(--brand)] focus:ring-[var(--brand)] border-gray-300 rounded"
               />
               <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900 cursor-pointer">
                 Account Status (Active)
@@ -265,7 +277,7 @@ export const EditUser: React.FC = () => {
                 maxLength={12}
                 placeholder="e.g. 123456789012"
                 {...register('lrn')}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
+                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm ${
                   errors.lrn || serverErrors?.lrn ? 'border-red-300' : 'border-gray-300'
                 }`}
               />
@@ -283,7 +295,7 @@ export const EditUser: React.FC = () => {
               className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-semibold hover:bg-gray-50 transition-colors"
             >Cancel</Link>
             <button type="submit" disabled={isSubmitting}
-              className="bg-indigo-600 text-white px-5 py-2 rounded-md text-sm font-semibold hover:bg-indigo-700 shadow-sm disabled:opacity-50 transition-colors cursor-pointer"
+              className="bg-[var(--brand)] text-white px-5 py-2 rounded-md text-sm font-semibold hover:bg-[var(--brand-dark)] shadow-sm disabled:opacity-50 transition-colors cursor-pointer"
             >{isSubmitting ? 'Saving...' : 'Save Changes'}</button>
           </div>
         </form>

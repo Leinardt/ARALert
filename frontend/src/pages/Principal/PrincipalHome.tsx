@@ -34,28 +34,36 @@ export const PrincipalHome: React.FC = () => {
     ? (dashboardData?.per_tutor_performance?.find(t => t.tutor_id === selectedTutorId)?.trend ?? [])
     : (dashboardData?.class_performance_trend ?? []);
   const staffTrend = dashboardData?.staff_attendance_trend ?? [];
+  const hasClassTrendData = classTrend.some(
+    (point) => point.attendance_rate > 0 || point.average_score > 0
+  );
+  const hasStaffTrendData = staffTrend.some(
+    (point) => point.tutor_attendance_rate > 0 || point.faculty_attendance_rate > 0
+  );
   const selectedTutorName = selectedTutorId !== 'all'
     ? dashboardData?.per_tutor_performance?.find(t => t.tutor_id === selectedTutorId)?.tutor_name
     : null;
 
-  const chartWidth = Math.max(360, classTrend.length * 55);
+  const classChartWidth = Math.max(360, classTrend.length * 55);
+  const staffChartWidth = Math.max(360, staffTrend.length * 55);
   const chartPadding = 40;
   const chartHeight = 220;
-  const stepX = classTrend.length > 1 ? (chartWidth - chartPadding * 2) / (classTrend.length - 1) : 0;
+  const classStepX = classTrend.length > 1 ? (classChartWidth - chartPadding * 2) / (classTrend.length - 1) : 0;
+  const staffStepX = staffTrend.length > 1 ? (staffChartWidth - chartPadding * 2) / (staffTrend.length - 1) : 0;
 
-  const buildCompositePoints = (points: PrincipalDashboardTrendPoint[]) => {
+  const buildCompositePoints = (points: PrincipalDashboardTrendPoint[], stepX: number) => {
     if (!points.length) return '';
     return points
       .map((point, index) => {
         const x = chartPadding + index * stepX;
-        const compositeValue = Number(((point.attendance_rate + point.average_score) / 2).toFixed(1));
+        const compositeValue = compositeFromPrincipalPoint(point);
         const y = chartHeight - chartPadding - ((compositeValue / 100) * (chartHeight - chartPadding * 1.5));
         return `${x},${y}`;
       })
       .join(' ');
   };
 
-  const buildRatePoints = (field: 'tutor' | 'faculty') => {
+  const buildRatePoints = (field: 'tutor' | 'faculty', stepX: number) => {
     if (!staffTrend.length) return '';
     return staffTrend
       .map((point, index) => {
@@ -81,7 +89,7 @@ export const PrincipalHome: React.FC = () => {
       label: 'Tutors',
       value: dashboardData?.program_summary.total_tutors ?? '—',
       icon: Users,
-      accent: 'bg-indigo-50 text-indigo-700 border-indigo-100',
+      accent: 'bg-[var(--brand-light)] text-[var(--brand-dark)] border-[var(--brand-border)]',
     },
     {
       label: 'Faculty',
@@ -190,30 +198,30 @@ export const PrincipalHome: React.FC = () => {
 
           {dashboardLoading ? (
             <div className="flex justify-center items-center h-48">
-              <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-4 border-[var(--brand)] border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : dashboardError ? (
             <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{dashboardError}</div>
-          ) : classTrend.length > 0 ? (
+          ) : hasClassTrendData ? (
             <div className="overflow-x-auto">
-              <svg width={chartWidth} height={chartHeight} className="block mx-auto">
+              <svg width={classChartWidth} height={chartHeight} className="block mx-auto">
                 {[0, 1, 2, 3, 4].map((line) => {
                   const y = chartPadding + ((chartHeight - chartPadding * 1.5) / 4) * line;
-                  return <line key={line} x1={chartPadding} y1={y} x2={chartWidth - chartPadding} y2={y} stroke="#E5E7EB" strokeWidth="1" />;
+                  return <line key={line} x1={chartPadding} y1={y} x2={classChartWidth - chartPadding} y2={y} stroke="#E5E7EB" strokeWidth="1" />;
                 })}
-                <polyline fill="none" stroke="#4F46E5" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" points={buildCompositePoints(classTrend)} />
+                <polyline fill="none" stroke="var(--brand)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" points={buildCompositePoints(classTrend, classStepX)} />
                 {classTrend.map((point, index) => {
-                  const x = chartPadding + index * stepX;
-                  const compositeValue = Number(((point.attendance_rate + point.average_score) / 2).toFixed(1));
+                  const x = chartPadding + index * classStepX;
+                  const compositeValue = compositeFromPrincipalPoint(point);
                   const compositeY = chartHeight - chartPadding - ((compositeValue / 100) * (chartHeight - chartPadding * 1.5));
                   return (
                     <g key={point.date}>
-                      <circle cx={x} cy={compositeY} r="4" fill="#4F46E5" />
+                      <circle cx={x} cy={compositeY} r="4" fill="var(--brand)" />
                     </g>
                   );
                 })}
                 {classTrend.map((point, index) => {
-                  const x = chartPadding + index * stepX;
+                  const x = chartPadding + index * classStepX;
                   return (
                     <text key={point.date} x={x} y={chartHeight - chartPadding / 2} textAnchor="middle" fontSize="10" fill="#6B7280">
                       {formatDateLabel(point.date)}
@@ -236,39 +244,39 @@ export const PrincipalHome: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900">Tutor and faculty attendance rate</h3>
             </div>
             <div className="flex items-center gap-3 text-xs text-gray-500">
-              <span className="inline-flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-indigo-500"></span>Tutors</span>
+              <span className="inline-flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[var(--brand-light)]0"></span>Tutors</span>
               <span className="inline-flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>Faculty</span>
             </div>
           </div>
 
           {dashboardLoading ? (
             <div className="flex justify-center items-center h-48">
-              <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-4 border-[var(--brand)] border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : dashboardError ? (
             <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{dashboardError}</div>
-          ) : staffTrend.length > 0 ? (
+          ) : hasStaffTrendData ? (
             <div className="overflow-x-auto">
-              <svg width={chartWidth} height={chartHeight} className="block mx-auto">
+              <svg width={staffChartWidth} height={chartHeight} className="block mx-auto">
                 {[0, 1, 2, 3, 4].map((line) => {
                   const y = chartPadding + ((chartHeight - chartPadding * 1.5) / 4) * line;
-                  return <line key={line} x1={chartPadding} y1={y} x2={chartWidth - chartPadding} y2={y} stroke="#E5E7EB" strokeWidth="1" />;
+                  return <line key={line} x1={chartPadding} y1={y} x2={staffChartWidth - chartPadding} y2={y} stroke="#E5E7EB" strokeWidth="1" />;
                 })}
-                <polyline fill="none" stroke="#4F46E5" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" points={buildRatePoints('tutor')} />
-                <polyline fill="none" stroke="#10B981" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" points={buildRatePoints('faculty')} />
+                <polyline fill="none" stroke="var(--brand)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" points={buildRatePoints('tutor', staffStepX)} />
+                <polyline fill="none" stroke="#10B981" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" points={buildRatePoints('faculty', staffStepX)} />
                 {staffTrend.map((point, index) => {
-                  const x = chartPadding + index * stepX;
+                  const x = chartPadding + index * staffStepX;
                   const tutorY = chartHeight - chartPadding - ((point.tutor_attendance_rate / 100) * (chartHeight - chartPadding * 1.5));
                   const facultyY = chartHeight - chartPadding - ((point.faculty_attendance_rate / 100) * (chartHeight - chartPadding * 1.5));
                   return (
                     <g key={point.date}>
-                      <circle cx={x} cy={tutorY} r="4" fill="#4F46E5" />
+                      <circle cx={x} cy={tutorY} r="4" fill="var(--brand)" />
                       <circle cx={x} cy={facultyY} r="4" fill="#10B981" />
                     </g>
                   );
                 })}
                 {staffTrend.map((point, index) => {
-                  const x = chartPadding + index * stepX;
+                  const x = chartPadding + index * staffStepX;
                   return (
                     <text key={point.date} x={x} y={chartHeight - chartPadding / 2} textAnchor="middle" fontSize="10" fill="#6B7280">
                       {formatDateLabel(point.date)}
@@ -287,7 +295,7 @@ export const PrincipalHome: React.FC = () => {
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 text-sm text-gray-600">
         <div className="flex flex-wrap items-center gap-3">
-          <BarChart3 className="w-4 h-4 text-indigo-600" />
+          <BarChart3 className="w-4 h-4 text-[var(--brand)]" />
           <span>These views are consolidated for the ARAL program and reflect the latest principal dashboard payload.</span>
         </div>
       </div>

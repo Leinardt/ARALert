@@ -229,7 +229,7 @@ export const TutorStudentProfile: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-[var(--brand)] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -244,20 +244,20 @@ export const TutorStudentProfile: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="space-y-2">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <Link to="/tutor" className="text-gray-500 hover:text-indigo-600 inline-flex items-center text-sm font-semibold transition-colors">
+            <Link to="/tutor" className="text-gray-500 hover:text-[var(--brand)] inline-flex items-center text-sm font-semibold transition-colors">
               <ArrowLeft className="w-4 h-4 mr-1.5" />
               Back to Directory
             </Link>
             <button
               type="button"
               onClick={() => setIsEditingStudent((current) => !current)}
-              className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-all"
+              className="inline-flex items-center rounded-full border border-[var(--brand-border)] bg-[var(--brand-light)] px-3 py-1 text-xs font-bold text-[var(--brand-dark)] hover:bg-[var(--brand-lighter)] transition-all"
             >
               {isEditingStudent ? 'Cancel Edit' : 'Edit Student Details'}
             </button>
           </div>
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+            <div className="w-12 h-12 rounded-full bg-[var(--brand)] flex items-center justify-center text-white font-bold text-lg shadow-sm">
               {profile.student.name[0].toUpperCase()}
             </div>
             <div className="space-y-1 w-full">
@@ -292,7 +292,7 @@ export const TutorStudentProfile: React.FC = () => {
                     type="button"
                     onClick={handleSaveStudentDetails}
                     disabled={isSavingStudent}
-                    className="min-w-[140px] rounded-full bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition-all disabled:cursor-not-allowed disabled:bg-indigo-300"
+                    className="min-w-[140px] rounded-full bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition-all disabled:cursor-not-allowed disabled:bg-[var(--brand-light)]"
                   >
                     {isSavingStudent ? 'Saving...' : 'Save Details'}
                   </button>
@@ -373,7 +373,7 @@ export const TutorStudentProfile: React.FC = () => {
               onClick={() => setActiveTab(tab.key as any)}
               className={`pb-4 text-sm font-bold flex items-center space-x-1.5 border-b-2 transition-all cursor-pointer ${
                 activeTab === tab.key
-                  ? 'border-indigo-600 text-indigo-600'
+                  ? 'border-[var(--brand)] text-[var(--brand)]'
                   : 'border-transparent text-gray-500 hover:text-gray-900'
               }`}
             >
@@ -391,12 +391,12 @@ export const TutorStudentProfile: React.FC = () => {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* GPA */}
-              <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-6 rounded-xl border border-indigo-100 flex items-center justify-between">
+              <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-6 rounded-xl border border-[var(--brand-border)] flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">General GPA</span>
-                  <p className="text-3xl font-extrabold text-indigo-900 mt-1">{profile.gpa !== null ? profile.gpa.toFixed(2) : 'N/A'}</p>
+                  <span className="text-xs font-bold text-[var(--brand)] uppercase tracking-wide">General GPA</span>
+                  <p className="text-3xl font-extrabold text-[var(--brand-text)] mt-1">{profile.gpa !== null ? profile.gpa.toFixed(2) : 'N/A'}</p>
                 </div>
-                <GraduationCap className="w-10 h-10 text-indigo-600 stroke-[1.5]" />
+                <GraduationCap className="w-10 h-10 text-[var(--brand)] stroke-[1.5]" />
               </div>
 
               {/* Attendance Rate */}
@@ -466,7 +466,7 @@ export const TutorStudentProfile: React.FC = () => {
                           <td className="px-4 py-3 text-center text-sm text-gray-600">{detail.assessment_avg}%</td>
                           <td className="px-4 py-3 text-center text-sm text-gray-600">{detail.weekly_task_avg}%</td>
                           <td className="px-4 py-3 text-center text-sm text-gray-600">{detail.attendance_avg}%</td>
-                          <td className="px-4 py-3 text-right text-sm font-extrabold text-indigo-700">{detail.final_grade}%</td>
+                          <td className="px-4 py-3 text-right text-sm font-extrabold text-[var(--brand-dark)]">{detail.final_grade}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -484,7 +484,7 @@ export const TutorStudentProfile: React.FC = () => {
               <h3 className="font-bold text-gray-800 text-base">Academic Component Logs</h3>
               <button
                 onClick={() => setShowGradeModal(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 transition-all cursor-pointer"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Log New Grade</span>
@@ -513,7 +513,7 @@ export const TutorStudentProfile: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowAttendanceModal(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 transition-all cursor-pointer"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Log Manual Attendance</span>
@@ -531,7 +531,7 @@ export const TutorStudentProfile: React.FC = () => {
               <h3 className="font-bold text-gray-800 text-base">ARAL Intervention Activities</h3>
               <button
                 onClick={() => setShowActivityModal(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 transition-all cursor-pointer"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Create Activity</span>
@@ -551,7 +551,7 @@ export const TutorStudentProfile: React.FC = () => {
                           act.status === 'completed'
                             ? 'bg-green-50 text-green-700 border-green-100'
                             : act.status === 'in_progress'
-                            ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                            ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] border-[var(--brand-border)]'
                             : 'bg-yellow-50 text-yellow-700 border-yellow-100'
                         }`}>
                           {act.status_display}
@@ -573,7 +573,7 @@ export const TutorStudentProfile: React.FC = () => {
                         {act.status !== 'completed' && (
                           <button
                             onClick={() => handleUpdateActivityStatus(act.id, act.status === 'pending' ? 'in_progress' : 'completed')}
-                            className="bg-indigo-550 hover:bg-indigo-600 text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer"
+                            className="bg-[var(--brand-light)] hover:bg-[var(--brand)] text-[var(--brand-dark)] border border-[var(--brand-border)] px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer"
                           >
                             Mark {act.status === 'pending' ? 'In Progress' : 'Completed'}
                           </button>
@@ -600,7 +600,7 @@ export const TutorStudentProfile: React.FC = () => {
               <h3 className="font-bold text-gray-800 text-base">Academic Risk Notice Board</h3>
               <button
                 onClick={() => setShowRiskModal(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 transition-all cursor-pointer"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Flag New Risk</span>
@@ -725,7 +725,7 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
               >
                 Save Log
               </button>
@@ -796,7 +796,7 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
               >
                 Create
               </button>
@@ -845,7 +845,7 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
               >
                 Submit Flag
               </button>
@@ -910,7 +910,7 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
               >
                 Log Entry
               </button>
@@ -973,7 +973,7 @@ const GradeTableList: React.FC<GradeTableProps> = ({ studentId, reloadTrigger, o
                   {grade.component_type_display}
                 </span>
               </td>
-              <td className="px-4 py-2.5 text-center text-sm font-extrabold text-indigo-600">{grade.score}</td>
+              <td className="px-4 py-2.5 text-center text-sm font-extrabold text-[var(--brand)]">{grade.score}</td>
               <td className="px-4 py-2.5 text-sm text-gray-500 font-medium max-w-[200px] truncate">{grade.remarks || '—'}</td>
               <td className="px-4 py-2.5 text-right text-sm">
                 <button

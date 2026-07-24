@@ -21,18 +21,24 @@ export const StaffAttendanceScanner: React.FC = () => {
   const [attendanceLogs, setAttendanceLogs] = useState<Attendance[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
   const [logsError, setLogsError] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const isPrincipalMonitor = user?.role === 'principal' || Boolean(user?.is_superuser);
 
-  const handleScanSuccess = async (sessionId: string) => {
+  const stopScanner = async () => {
     if (scannerRef.current) {
       try {
         await scannerRef.current.clear();
       } catch (err) {
         console.error(err);
       }
+      scannerRef.current = null;
     }
+  };
+
+  const handleScanSuccess = async (sessionId: string) => {
+    await stopScanner();
     setScanMode('none');
     submitScan(sessionId);
   };
@@ -86,57 +92,104 @@ export const StaffAttendanceScanner: React.FC = () => {
   }, [user, isPrincipalMonitor]);
 
   useEffect(() => {
-    if (scanMode === 'camera') {
-      const timer = setTimeout(() => {
-        const initScanner = async () => {
+    if (scanMode !== 'camera') {
+      setCameraError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const timer = window.setTimeout(() => {
+      const initScanner = async () => {
+        setCameraError(null);
+        await stopScanner();
+
+        try {
+          // 1. Ask for camera permission FIRST. Until permission is granted,
+          // Chrome/Edge return device labels as empty strings, which breaks
+          // the "which camera is the built-in one" matching below. Requesting
+          // access up front also lets us tell "permission denied" apart from
+          // "no camera exists" instead of lumping both into one vague error.
+          let permissionStream: MediaStream | null = null;
           try {
-            const cameras = await Html5Qrcode.getCameras();
-            let videoConstraints: any = { facingMode: 'environment' };
-
-            if (cameras && cameras.length > 0) {
-              const preferredCamera = cameras.find((cam) =>
-                /integrated|webcam|camera|front|back/i.test(cam.label)
-              );
-              const selectedCameraId = preferredCamera?.id || cameras[0].id;
-              videoConstraints = { deviceId: { exact: selectedCameraId } };
+            permissionStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          } catch (permErr: any) {
+            if (permErr?.name === 'NotAllowedError' || permErr?.name === 'PermissionDeniedError') {
+              throw new Error('Camera permission was denied. Please allow camera access in your browser settings and try again.');
             }
-
-            const scanner = new Html5QrcodeScanner(
-              'staff-qr-reader',
-              {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0,
-                videoConstraints
-              },
-              /* verbose= */ false
-            );
-            scannerRef.current = scanner;
-
-            scanner.render(
-              (decodedText) => {
-                handleScanSuccess(decodedText);
-              },
-              () => {
-                // Ignore scan errors
-              }
-            );
-          } catch (err) {
-            console.error(err);
+            if (permErr?.name === 'NotFoundError') {
+              throw new Error('No camera was detected on this device.');
+            }
+            throw permErr;
+          } finally {
+            // We only needed this to trigger the permission prompt / unlock labels.
+            permissionStream?.getTracks().forEach((track) => track.stop());
           }
-        };
 
-        initScanner();
-      }, 100);
+          if (cancelled) return;
 
-      return () => {
-        clearTimeout(timer);
-        if (scannerRef.current) {
-          scannerRef.current.clear().catch((err) => console.error(err));
-          scannerRef.current = null;
+          // 2. Now enumerate — labels will be populated since permission is granted.
+          const cameras = await Html5Qrcode.getCameras();
+
+          if (!cameras || cameras.length === 0) {
+            throw new Error('No camera was detected on this device.');
+          }
+
+          const preferredCamera =
+            cameras.find((cam) =>
+              /integrated|built-?in|webcam|front|user|face/i.test(cam.label)
+            ) || cameras[0];
+
+          // "ideal" degrades gracefully if the exact device becomes unavailable
+          // (e.g. re-enumeration, unplugged/replugged, OS handing it to another app)
+          // instead of throwing OverconstrainedError like "exact" does.
+          const videoConstraints: any = {
+            deviceId: { ideal: preferredCamera.id },
+            facingMode: 'user'
+          };
+
+          const scanner = new Html5QrcodeScanner(
+            'staff-qr-reader',
+            {
+              fps: 10,
+              qrbox: { width: 240, height: 240 },
+              aspectRatio: 1.0,
+              disableFlip: true,
+              showTorchButtonIfSupported: true,
+              videoConstraints
+            },
+            /* verbose= */ false
+          );
+
+          scannerRef.current = scanner;
+
+          scanner.render(
+            (decodedText) => {
+              void handleScanSuccess(decodedText);
+            },
+            () => {
+              // Ignore non-fatal per-frame scan errors (no QR in view yet).
+            }
+          );
+        } catch (err: any) {
+          if (!cancelled) {
+            console.error(err);
+            setCameraError(
+              err?.message ||
+                'Unable to access your laptop camera. Please allow camera permission and try again.'
+            );
+          }
         }
       };
-    }
+
+      void initScanner();
+    }, 120);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      void stopScanner();
+    };
   }, [scanMode]);
 
   const handleManualSubmit = (e: React.FormEvent) => {
@@ -175,7 +228,7 @@ export const StaffAttendanceScanner: React.FC = () => {
       <div className="flex items-center space-x-2">
         <Link
           to={`/${user?.role || 'tutor'}`}
-          className="text-gray-500 hover:text-indigo-600 inline-flex items-center text-sm font-semibold transition-colors"
+          className="text-gray-500 hover:text-[var(--brand)] inline-flex items-center text-sm font-semibold transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-1.5" />
           Back to Workspace
@@ -184,7 +237,7 @@ export const StaffAttendanceScanner: React.FC = () => {
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden p-8 flex flex-col items-center">
         <div className="text-center space-y-2 mb-6">
-          <div className="p-3 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-full w-fit mx-auto">
+          <div className="p-3 bg-[var(--brand-light)] text-[var(--brand)] border border-[var(--brand-border)] rounded-full w-fit mx-auto">
             <Briefcase className="w-6 h-6" />
           </div>
           <h2 className="text-xl font-bold text-gray-900">Staff Clock-In / Clock-Out Scanner</h2>
@@ -221,7 +274,7 @@ export const StaffAttendanceScanner: React.FC = () => {
             }}
             className={`flex-1 py-2.5 text-center font-bold text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
               scanMode === 'camera'
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-[var(--brand)] text-white'
                 : 'bg-gray-50 text-gray-500 hover:text-gray-900 hover:bg-gray-100/50'
             }`}
           >
@@ -235,7 +288,7 @@ export const StaffAttendanceScanner: React.FC = () => {
             }}
             className={`flex-1 py-2.5 text-center font-bold text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
               scanMode === 'text'
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-[var(--brand)] text-white'
                 : 'bg-gray-50 text-gray-500 hover:text-gray-900 hover:bg-gray-100/50'
             }`}
           >
@@ -246,6 +299,11 @@ export const StaffAttendanceScanner: React.FC = () => {
 
         {scanMode === 'camera' && (
           <div className="w-full space-y-4">
+            {cameraError ? (
+              <div className="max-w-sm mx-auto rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {cameraError}
+              </div>
+            ) : null}
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-950 max-w-sm mx-auto">
               <div id="staff-qr-reader" className="w-full font-mono text-xs text-white" />
             </div>
@@ -270,7 +328,7 @@ export const StaffAttendanceScanner: React.FC = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-xs font-bold transition-all cursor-pointer"
+              className="w-full bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2 rounded-lg text-xs font-bold transition-all cursor-pointer"
             >
               {isSubmitting ? 'Confirming...' : 'Log Time Entry'}
             </button>

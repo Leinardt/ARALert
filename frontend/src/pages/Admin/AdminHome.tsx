@@ -43,7 +43,7 @@ export const AdminHome: React.FC = () => {
                 Track adoption, attendance, academic performance, and intervention needs in one place.
               </p>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
+            <div className="inline-flex items-center gap-2 rounded-2xl bg-[var(--brand-light)] px-4 py-3 text-sm font-semibold text-[var(--brand-dark)]">
               <Shield className="h-5 w-5" />
               {user?.full_name ?? 'Admin'} Access
             </div>
@@ -68,7 +68,7 @@ export const AdminHome: React.FC = () => {
                   <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Total users</p>
                   <p className="mt-4 text-4xl font-extrabold text-slate-900">{stats.total_users}</p>
                 </div>
-                <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
+                <div className="rounded-2xl bg-[var(--brand-light)] p-3 text-[var(--brand-dark)]">
                   <Users className="h-6 w-6" />
                 </div>
               </div>
@@ -90,7 +90,7 @@ export const AdminHome: React.FC = () => {
                   <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Attendance snapshot</p>
                   <p className="mt-4 text-4xl font-extrabold text-slate-900">{attendanceSummary?.total_logs ?? 0}</p>
                 </div>
-                <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
+                <div className="rounded-2xl bg-[var(--brand-light)] p-3 text-[var(--brand-dark)]">
                   <Activity className="h-6 w-6" />
                 </div>
               </div>
@@ -119,7 +119,7 @@ export const AdminHome: React.FC = () => {
                   <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Academic health</p>
                   <p className="mt-4 text-4xl font-extrabold text-slate-900">{academicSummary?.average_score ?? 0}%</p>
                 </div>
-                <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
+                <div className="rounded-2xl bg-[var(--brand-light)] p-3 text-[var(--brand-dark)]">
                   <GraduationCap className="h-6 w-6" />
                 </div>
               </div>
@@ -141,7 +141,7 @@ export const AdminHome: React.FC = () => {
                   <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Risk overview</p>
                   <p className="mt-4 text-4xl font-extrabold text-slate-900">{(riskSummary?.high ?? 0) + (riskSummary?.medium ?? 0)}</p>
                 </div>
-                <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
+                <div className="rounded-2xl bg-[var(--brand-light)] p-3 text-[var(--brand-dark)]">
                   <AlertTriangle className="h-6 w-6" />
                 </div>
               </div>
@@ -171,7 +171,7 @@ export const AdminHome: React.FC = () => {
                   <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Staff summary</p>
                   <p className="mt-4 text-4xl font-extrabold text-slate-900">{stats.admins + stats.principals + stats.faculty + stats.tutors}</p>
                 </div>
-                <div className="rounded-2xl bg-blue-50 p-3 text-blue-700">
+                <div className="rounded-2xl bg-[var(--brand-light)] p-3 text-[var(--brand-dark)]">
                   <Sparkles className="h-6 w-6" />
                 </div>
               </div>

@@ -2,12 +2,19 @@
 Auth API Serializers.
 """
 
+import re
+
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from rest_framework import serializers
 
 from apps.accounts.models import User
 from services.token_service import is_token_valid
+
+# Allowed characters for username: letters, digits, underscore, hyphen, dot
+_USERNAME_RE = re.compile(r'^[a-zA-Z0-9._-]+$')
 
 
 class LoginSerializer(serializers.Serializer):
@@ -124,11 +131,27 @@ class StudentLoginSerializer(serializers.Serializer):
         return data
 
 
+def _run_password_validators(password: str, user=None) -> None:
+    """Run Django AUTH_PASSWORD_VALIDATORS and raise DRF ValidationError on failure."""
+    try:
+        validate_password(password, user=user)
+    except DjangoValidationError as exc:
+        raise serializers.ValidationError({'password': list(exc.messages)})
+
+
 class ActivateAccountSerializer(serializers.Serializer):
     token = serializers.CharField(required=True)
-    username = serializers.CharField(required=True, min_length=3)
+    username = serializers.CharField(required=True, min_length=3, max_length=150)
     password = serializers.CharField(required=True, write_only=True, min_length=8)
     confirm_password = serializers.CharField(required=True, write_only=True)
+
+    def validate_username(self, value):
+        value = value.strip()
+        if not _USERNAME_RE.match(value):
+            raise serializers.ValidationError(
+                'Username may only contain letters, digits, dots, underscores, and hyphens.'
+            )
+        return value
 
     def validate(self, data):
         token = data.get('token')
@@ -136,14 +159,19 @@ class ActivateAccountSerializer(serializers.Serializer):
         if not user:
             raise serializers.ValidationError({'token': 'Invalid or already used activation token.'})
         if not is_token_valid(token, user.activation_token_expires_at):
-            raise serializers.ValidationError({'token': 'This activation link has expired.'})
+            raise serializers.ValidationError({'token': 'This activation link has expired. Please contact your administrator to resend the invitation.'})
         if not user.password_setup_required:
-            raise serializers.ValidationError({'token': 'This account is already set up.'})
+            raise serializers.ValidationError({'token': 'This account has already been set up. Please log in.'})
         if data.get('password') != data.get('confirm_password'):
             raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+
         username = data.get('username', '').strip()
         if User.objects.filter(username__iexact=username).exists():
-            raise serializers.ValidationError({'username': 'This username is already taken.'})
+            raise serializers.ValidationError({'username': 'This username is already taken. Please choose a different one.'})
+
+        # Run Django password validators (common-password, numeric-only, similarity)
+        _run_password_validators(data.get('password'), user=user)
+
         data['username'] = username
         data['user'] = user
         return data
@@ -154,13 +182,20 @@ class ProfileUpdateSerializer(serializers.Serializer):
 
     Users are NOT allowed to change their email or full name via this endpoint; those
     attributes are read-only for regular users and must be changed by admins if needed.
+    When changing password, the user must supply their current password to confirm identity.
     """
     username = serializers.CharField(required=False, allow_blank=False)
+    current_password = serializers.CharField(required=False, write_only=True, allow_blank=False)
     password = serializers.CharField(required=False, write_only=True, allow_blank=False, min_length=8)
     confirm_password = serializers.CharField(required=False, write_only=True, allow_blank=False)
     avatar = serializers.FileField(required=False, allow_null=True)
 
     def validate_username(self, value):
+        value = value.strip()
+        if not _USERNAME_RE.match(value):
+            raise serializers.ValidationError(
+                'Username may only contain letters, digits, dots, underscores, and hyphens.'
+            )
         user = self.context.get('user')
         if not user:
             return value
@@ -169,14 +204,37 @@ class ProfileUpdateSerializer(serializers.Serializer):
         return value
 
     def validate(self, data):
+        user = self.context.get('user')
         password = data.get('password')
         confirm_password = data.get('confirm_password')
-        if password and not confirm_password:
-            raise serializers.ValidationError({'confirm_password': 'Please confirm your password.'})
-        if confirm_password and not password:
-            raise serializers.ValidationError({'password': 'Please enter a new password.'})
-        if password and confirm_password and password != confirm_password:
-            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+        current_password = data.get('current_password')
+
+        if password or confirm_password or current_password:
+            # All three must be present when changing password
+            if not current_password:
+                raise serializers.ValidationError(
+                    {'current_password': 'Please enter your current password to set a new one.'}
+                )
+            if not password:
+                raise serializers.ValidationError(
+                    {'password': 'Please enter a new password.'}
+                )
+            if not confirm_password:
+                raise serializers.ValidationError(
+                    {'confirm_password': 'Please confirm your new password.'}
+                )
+            # Verify current password
+            if user and not user.check_password(current_password):
+                raise serializers.ValidationError(
+                    {'current_password': 'Your current password is incorrect.'}
+                )
+            if password != confirm_password:
+                raise serializers.ValidationError(
+                    {'confirm_password': 'Passwords do not match.'}
+                )
+            # Run Django password validators
+            _run_password_validators(password, user=user)
+
         return data
 
     def validate_avatar(self, value):
@@ -188,6 +246,11 @@ class ProfileUpdateSerializer(serializers.Serializer):
         max_size = 2 * 1024 * 1024  # 2MB
         if value.size > max_size:
             raise serializers.ValidationError('Avatar images must be 2MB or smaller.')
+        # Basic extension check as a second layer
+        allowed_extensions = ('.jpg', '.jpeg', '.png', '.webp')
+        name = getattr(value, 'name', '')
+        if name and not name.lower().endswith(allowed_extensions):
+            raise serializers.ValidationError('Only JPEG, PNG, and WEBP images are allowed.')
         return value
 
     def update(self, instance, validated_data):
@@ -208,10 +271,12 @@ class ForgotPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
 
     def validate(self, data):
+        # Resolve the user internally but do NOT reveal whether the email exists.
+        # The view will only send the email if user is not None.
         try:
             user = User.objects.get(email__iexact=data['email'])
         except User.DoesNotExist:
-            raise serializers.ValidationError({'email': 'No account was found for that email.'})
+            user = None
         data['user'] = user
         return data
 
@@ -227,9 +292,13 @@ class ResetPasswordSerializer(serializers.Serializer):
         if not user:
             raise serializers.ValidationError({'token': 'Invalid or already used password reset token.'})
         if not is_token_valid(token, user.password_reset_token_expires_at):
-            raise serializers.ValidationError({'token': 'This password reset link has expired.'})
+            raise serializers.ValidationError({'token': 'This password reset link has expired. Please request a new one.'})
         if data.get('password') != data.get('confirm_password'):
             raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+
+        # Run Django password validators
+        _run_password_validators(data.get('password'), user=user)
+
         data['user'] = user
         return data
 
@@ -240,9 +309,15 @@ class MFAToggleSerializer(serializers.Serializer):
 
 class VerifyOTPSerializer(serializers.Serializer):
     user_id = serializers.UUIDField(required=True)
-    code = serializers.CharField(required=True, min_length=4, max_length=16)
+    code = serializers.CharField(required=True, min_length=6, max_length=6)
+    remember_device = serializers.BooleanField(default=False, required=False)
+    device_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def validate_code(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError('The verification code must consist of 6 digits.')
+        return value
 
     def validate(self, data):
         # Basic validation only; view will enforce OTP lifecycle checks.
         return data
-

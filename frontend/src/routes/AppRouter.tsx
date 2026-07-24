@@ -25,6 +25,7 @@ import { CreateUser } from '../pages/SuperAdmin/CreateUser';
 import { EditUser } from '../pages/SuperAdmin/EditUser';
 import { Profile } from '../pages/SuperAdmin/Profile';
 import { Settings } from '../pages/SuperAdmin/Settings';
+import { AuditLog } from '../pages/SuperAdmin/AuditLog';
 
 // Role placeholder pages
 import { AdminHome } from '../pages/Admin/AdminHome';
@@ -77,6 +78,7 @@ export const AppRouter: React.FC = () => {
           <Route path="/superadmin/users/edit/:id" element={<EditUser />} />
           <Route path="/superadmin/profile" element={<Profile />} />
           <Route path="/superadmin/settings" element={<Settings />} />
+          <Route path="/superadmin/audit-logs" element={<AuditLog />} />
         </Route>
 
         {/* ── Admin routes ──────────────────────────── */}

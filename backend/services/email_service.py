@@ -25,21 +25,26 @@ def send_mail_with_smtp(subject, body, recipient_email, recipient_name=None):
     sender_name = getattr(settings, 'SENDER_NAME', None) or os.getenv('SENDER_NAME', 'ARALert')
 
     if not all([smtp_host, smtp_port, smtp_email, smtp_password]):
-        logger.warning('SMTP configuration is incomplete; email not sent.')
+        logger.warning('SMTP configuration is incomplete; email not sent. Falling back to console output in development.')
+        print(f"[EMAIL FALLBACK] To: {recipient_email}")
+        print(f"[EMAIL FALLBACK] Subject: {subject}")
+        print(f"[EMAIL FALLBACK] Body: {body}")
         return False
 
     msg = EmailMessage()
     msg['Subject'] = subject
     msg['From'] = f'{sender_name} <{smtp_email}>'
     msg['To'] = recipient_email if recipient_name is None else f'{recipient_name} <{recipient_email}>'
+    msg['Reply-To'] = smtp_email
     msg.set_content(body)
 
     try:
-        with smtplib.SMTP(smtp_host, int(smtp_port)) as server:
+        with smtplib.SMTP(smtp_host, int(smtp_port), timeout=10) as server:
             if smtp_use_tls:
                 server.starttls()
             server.login(smtp_email, smtp_password)
             server.send_message(msg)
+        logger.info(f'Email sent successfully to {recipient_email}')
         return True
     except Exception as exc:
         logger.exception('Failed to send email to %s: %s', recipient_email, exc)

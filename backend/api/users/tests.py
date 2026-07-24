@@ -63,6 +63,25 @@ class UserCreateSerializerTests(TestCase):
         self.assertIsNotNone(user.activation_token)
         self.assertIsNotNone(user.activation_token_expires_at)
 
+    @patch('api.users.serializers.send_account_invitation_email', return_value=False)
+    def test_pending_staff_account_preserves_activation_link_when_email_fails(self, mock_send_email):
+        """Even if the email cannot be delivered, the user should still get an activation link."""
+        data = {
+            'first_name': 'C',
+            'last_name': 'D',
+            'email': 'cd@example.com',
+            'role': 'tutor',
+            'is_active': False,
+        }
+
+        serializer = UserCreateSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        user = serializer.save()
+        self.assertFalse(user.email_sent)
+        self.assertTrue(user.activation_link.endswith('/activate?token=' + user.activation_token))
+        mock_send_email.assert_called_once()
+
     def test_create_student_requires_lrn(self):
         """Test that creating a student requires a 12-digit LRN."""
         data = {
@@ -77,6 +96,26 @@ class UserCreateSerializerTests(TestCase):
         serializer = UserCreateSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         self.assertIn('lrn', serializer.errors)
+
+    def test_create_student_accepts_middle_name_and_lrn(self):
+        """Student creation should accept a middle name and LRN."""
+        data = {
+            'first_name': 'Student',
+            'middle_name': 'Middle',
+            'last_name': 'One',
+            'username': 'student2',
+            'email': 'student2@example.com',
+            'role': 'student',
+            'lrn': '123456789012',
+            'is_active': True,
+        }
+
+        serializer = UserCreateSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        user = serializer.save()
+        self.assertEqual(user.middle_name, 'Middle')
+        self.assertEqual(user.lrn, '123456789012')
 
 
 from rest_framework.test import APITestCase

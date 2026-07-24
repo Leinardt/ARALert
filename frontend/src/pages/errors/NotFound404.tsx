@@ -8,7 +8,7 @@ export const NotFound404: React.FC = () => (
       <p className="mt-4 text-lg text-slate-600">Page not found.</p>
       <Link
         to="/"
-        className="mt-8 inline-block rounded-full bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
+        className="mt-8 inline-block rounded-full bg-[var(--brand)] px-6 py-3 text-sm font-semibold text-white hover:bg-[var(--brand-dark)]"
       >
         Return home
       </Link>

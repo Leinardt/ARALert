@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
 import type { Grade, User } from '../../types';
+import { ExportScoreModal } from '../../components/ExportScoreModal';
 
 const generateUuid = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -25,6 +26,15 @@ export const TutorScores: React.FC = () => {
   const [totalScore, setTotalScore] = useState<number | ''>(20);
   const [isSaving, setIsSaving] = useState(false);
   const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily');
+  const [exportModalConfig, setExportModalConfig] = useState<{
+    isOpen: boolean;
+    mode: 'all' | 'daily' | 'weekly';
+    targetKey: string;
+  }>({
+    isOpen: false,
+    mode: 'all',
+    targetKey: ''
+  });
 
   const fetchGrades = async () => {
     setGradesLoading(true);
@@ -177,13 +187,22 @@ export const TutorScores: React.FC = () => {
             Log daily Reading scores for students and review recent records by day or week.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => handleOpenAddEntry()}
-          className="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-        >
-          Add Score Entry
-        </button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setExportModalConfig({ isOpen: true, mode: 'all', targetKey: '' })}
+            className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+          >
+            📊 Export Score Sheet
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOpenAddEntry()}
+            className="inline-flex items-center justify-center rounded-2xl bg-[var(--brand)] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--brand-dark)]"
+          >
+            Add Score Entry
+          </button>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -254,7 +273,7 @@ export const TutorScores: React.FC = () => {
                             }}
                             placeholder="Score"
                             disabled={isNotTaken}
-                            className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-60"
                           />
                         </div>
 
@@ -281,7 +300,7 @@ export const TutorScores: React.FC = () => {
                                 });
                               }
                             }}
-                            className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500"
+                            className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[var(--brand)]"
                           />
                         </div>
 
@@ -301,7 +320,7 @@ export const TutorScores: React.FC = () => {
                                 }));
                               }
                             }}
-                            className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500"
+                            className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[var(--brand)]"
                           >
                             <option value="Taken">Taken</option>
                             <option value="Not">Not</option>
@@ -323,7 +342,7 @@ export const TutorScores: React.FC = () => {
                 type="button"
                 onClick={handleAddScore}
                 disabled={isSaving}
-                className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-3xl bg-[var(--brand)] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSaving ? 'Saving...' : 'Save Scores'}
               </button>
@@ -342,14 +361,14 @@ export const TutorScores: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setViewMode('daily')}
-                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${viewMode === 'daily' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 border border-slate-200'}`}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${viewMode === 'daily' ? 'bg-[var(--brand)] text-white' : 'bg-white text-slate-500 border border-slate-200'}`}
                 >
                   Daily
                 </button>
                 <button
                   type="button"
                   onClick={() => setViewMode('weekly')}
-                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${viewMode === 'weekly' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 border border-slate-200'}`}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${viewMode === 'weekly' ? 'bg-[var(--brand)] text-white' : 'bg-white text-slate-500 border border-slate-200'}`}
                 >
                   Weekly
                 </button>
@@ -366,9 +385,24 @@ export const TutorScores: React.FC = () => {
               <div className="mt-8 space-y-4">
                 {dailyRows.map((day) => (
                   <div key={day.date.toISOString()} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                    <div className="bg-slate-50 px-5 py-4">
-                      <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">{day.date.toLocaleDateString()}</h4>
-                      <p className="mt-2 text-lg font-semibold text-slate-900">{day.grades.length} score entr{day.grades.length === 1 ? 'y' : 'ies'}</p>
+                    <div className="bg-slate-50 px-5 py-4 flex flex-row items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">{day.date.toLocaleDateString()}</h4>
+                        <p className="mt-1 text-lg font-semibold text-slate-900">{day.grades.length} score entr{day.grades.length === 1 ? 'y' : 'ies'}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExportModalConfig({
+                            isOpen: true,
+                            mode: 'daily',
+                            targetKey: day.date.toISOString().slice(0, 10)
+                          })
+                        }
+                        className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition shadow-sm"
+                      >
+                        📊 Export Day
+                      </button>
                     </div>
                     <div className="divide-y divide-slate-200 bg-white px-5 py-4">
                       {day.grades.map((grade) => (
@@ -379,7 +413,7 @@ export const TutorScores: React.FC = () => {
                           </div>
                           <div className="text-right sm:text-left">
                             <p className="text-sm text-slate-500">Score</p>
-                            <p className="mt-1 text-lg font-semibold text-indigo-600">{grade.score}</p>
+                            <p className="mt-1 text-lg font-semibold text-[var(--brand)]">{grade.score}</p>
                           </div>
                           <div className="text-right sm:text-left">
                             <p className="text-sm text-slate-500">Total</p>
@@ -400,8 +434,23 @@ export const TutorScores: React.FC = () => {
                 {weeklyRows.map((row) => (
                   <div key={row.weekStart.toISOString()} className="rounded-3xl border border-slate-200 bg-white p-4">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
-                      <p className="text-sm font-semibold text-slate-900">{row.weekStart.toLocaleDateString()} - {row.weekEnd.toLocaleDateString()}</p>
-                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{row.grades.length} entries</p>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">{row.weekStart.toLocaleDateString()} - {row.weekEnd.toLocaleDateString()}</p>
+                        <p className="text-xs uppercase tracking-[0.16em] text-slate-500 mt-0.5">{row.grades.length} entries</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExportModalConfig({
+                            isOpen: true,
+                            mode: 'weekly',
+                            targetKey: row.weekStart.toISOString().slice(0, 10)
+                          })
+                        }
+                        className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition shadow-sm"
+                      >
+                        📊 Export Week
+                      </button>
                     </div>
                     <div className="mt-4 space-y-3">
                       {row.grades.map((grade) => (
@@ -412,7 +461,7 @@ export const TutorScores: React.FC = () => {
                           </div>
                           <div className="text-right sm:text-left">
                             <p className="text-sm text-slate-500">Score</p>
-                            <p className="mt-1 text-lg font-semibold text-indigo-600">{grade.score}</p>
+                            <p className="mt-1 text-lg font-semibold text-[var(--brand)]">{grade.score}</p>
                           </div>
                           <div className="text-right sm:text-left">
                             <p className="text-sm text-slate-500">Total</p>
@@ -431,7 +480,17 @@ export const TutorScores: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
+
+      <ExportScoreModal
+        isOpen={exportModalConfig.isOpen}
+        onClose={() => setExportModalConfig((prev) => ({ ...prev, isOpen: false }))}
+        currentUser={user}
+        students={students}
+        grades={grades}
+        initialMode={exportModalConfig.mode}
+        initialTargetKey={exportModalConfig.targetKey}
+      />
+    </div>
   );
 };
 

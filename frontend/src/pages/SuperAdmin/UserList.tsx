@@ -120,7 +120,7 @@ export const UserList: React.FC = () => {
         </div>
         <Link
           to={currentUser?.is_superuser ? '/superadmin/users/create' : '/admin/students/create'}
-          className="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all cursor-pointer"
+          className="inline-flex items-center bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4 mr-2" />
           {currentUser?.is_superuser ? 'Create User' : 'Enroll Student'}
@@ -136,7 +136,7 @@ export const UserList: React.FC = () => {
               placeholder="Search by full name, username, email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-[var(--brand)]"
             />
             <Search className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" />
           </div>
@@ -156,7 +156,7 @@ export const UserList: React.FC = () => {
               <select
                 value={roleFilter}
                 onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
-                className="border border-gray-300 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                className="border border-gray-300 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] bg-white"
               >
                 <option value="">All Roles</option>
                 <option value="admin">School Admin</option>
@@ -173,7 +173,7 @@ export const UserList: React.FC = () => {
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="border border-gray-300 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+              className="border border-gray-300 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] bg-white"
             >
               <option value="">All Statuses</option>
               <option value="active">Active</option>
@@ -187,7 +187,7 @@ export const UserList: React.FC = () => {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="flex justify-center items-center py-20">
-            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-4 border-[var(--brand)] border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : error ? (
           <div className="text-center py-12 text-red-600 font-medium">{error}</div>
@@ -315,7 +315,7 @@ export const UserList: React.FC = () => {
                       <td className="px-6 py-4 text-right pr-8 space-x-2 whitespace-nowrap">
                         <Link
                           to={currentUser?.is_superuser ? `/superadmin/users/edit/${item.id}` : `/admin/students/edit/${item.id}`}
-                          className="inline-flex items-center text-gray-500 hover:text-indigo-600 p-1 border border-gray-200 rounded hover:border-indigo-100 bg-gray-50 hover:bg-indigo-50/50 transition-all"
+                          className="inline-flex items-center text-gray-500 hover:text-[var(--brand)] p-1 border border-gray-200 rounded hover:border-[var(--brand-border)] bg-gray-50 hover:bg-[var(--brand-light)]/50 transition-all"
                           title={currentUser?.is_superuser ? 'Edit User' : 'Edit Student'}
                         >
                           <Edit className="w-4 h-4" />

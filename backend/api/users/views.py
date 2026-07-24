@@ -1,6 +1,6 @@
 """
 Users API Views.
-SuperAdmin-only endpoints for user management.
+SuperAdmin and Admin endpoints for user management with audit logging.
 """
 
 from rest_framework import status, generics
@@ -9,9 +9,10 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 
-from apps.accounts.models import User
+from apps.accounts.models import User, AuditLog
 from apps.academics.models import Attendance, AcademicRisk, Grade
 from permissions.role_permissions import IsAdmin, IsTutor, role_required
+from utilities.audit import log_audit_event
 from .serializers import (
     UserListSerializer,
     UserCreateSerializer,
@@ -29,7 +30,6 @@ class UserStatsView(APIView):
     permission_classes = [IsAdmin]
 
     def get(self, request):
-        # If logged-in user is a School Admin, only return Student statistics
         if not request.user.is_superuser and request.user.role == 'admin':
             students = User.objects.filter(is_superuser=False, role='student')
             stats = {
@@ -46,7 +46,6 @@ class UserStatsView(APIView):
             }
             return Response(stats)
 
-        # Exclude SuperAdmin from counts
         users = User.objects.filter(is_superuser=False)
         attendance_logs = Attendance.objects.filter(user__is_superuser=False)
         grade_entries = Grade.objects.filter(student__is_superuser=False)
@@ -112,7 +111,6 @@ class UserListCreateView(generics.ListCreateAPIView):
     def get_permissions(self):
         if self.request.method == 'POST':
             return [IsAdmin()]
-        # Allow Tutors to list their assigned students
         return [IsAdmin() if not self.request.user.role == 'tutor' else IsTutor()]
 
     def get_serializer_class(self):
@@ -121,18 +119,14 @@ class UserListCreateView(generics.ListCreateAPIView):
         return UserListSerializer
 
     def get_queryset(self):
-        # Never expose the SuperAdmin in user management
         queryset = User.objects.filter(is_superuser=False)
 
-        # Tutors can ONLY see their assigned students
         if not self.request.user.is_superuser and self.request.user.role == 'tutor':
             return queryset.filter(assigned_tutor=self.request.user, role='student')
 
-        # Filter queryset to show only student accounts for School Admins
         if not self.request.user.is_superuser and self.request.user.role == 'admin':
             queryset = queryset.filter(role='student')
 
-        # Filter by assigned tutor
         assigned_tutor = self.request.query_params.get('assigned_tutor', '').strip()
         if assigned_tutor:
             if assigned_tutor == 'none':
@@ -140,7 +134,6 @@ class UserListCreateView(generics.ListCreateAPIView):
             else:
                 queryset = queryset.filter(assigned_tutor_id=assigned_tutor)
 
-        # Search by name, username, or email
         search = self.request.query_params.get('search', '').strip()
         if search:
             queryset = queryset.filter(
@@ -150,19 +143,16 @@ class UserListCreateView(generics.ListCreateAPIView):
                 | Q(email__icontains=search)
             )
 
-        # Filter by role
         role = self.request.query_params.get('role', '').strip()
         if role:
             queryset = queryset.filter(role=role)
 
-        # Filter by status
         status_filter = self.request.query_params.get('status', '').strip()
         if status_filter == 'active':
             queryset = queryset.filter(is_active=True)
         elif status_filter == 'inactive':
             queryset = queryset.filter(is_active=False)
 
-        # Sort
         ordering = self.request.query_params.get('ordering', '-date_joined')
         allowed_orderings = [
             'first_name', '-first_name',
@@ -183,7 +173,6 @@ class UserListCreateView(generics.ListCreateAPIView):
         serializer = UserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        # Enforce role-creation logic based on current user's role
         role = serializer.validated_data.get('role')
         from rest_framework.exceptions import ValidationError
         if request.user.is_superuser:
@@ -198,6 +187,12 @@ class UserListCreateView(generics.ListCreateAPIView):
                 )
 
         user = serializer.save()
+        log_audit_event(
+            'USER_CREATED',
+            user=request.user,
+            request=request,
+            details={'target_user_id': str(user.id), 'target_username': user.username, 'role': user.role, 'email': user.email}
+        )
         return Response(
             UserListSerializer(user).data,
             status=status.HTTP_201_CREATED,
@@ -238,7 +233,13 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
                 raise ValidationError(
                     {'role': 'School Admins can only manage student accounts.'}
                 )
-        serializer.save()
+        updated_user = serializer.save()
+        log_audit_event(
+            'USER_UPDATED',
+            user=self.request.user,
+            request=self.request,
+            details={'target_user_id': str(updated_user.id), 'target_username': updated_user.username, 'updated_fields': list(serializer.validated_data.keys())}
+        )
 
 
 class UserActivateView(APIView):
@@ -256,6 +257,13 @@ class UserActivateView(APIView):
             user = get_object_or_404(User, id=id, is_superuser=False)
         user.is_active = True
         user.save(update_fields=['is_active'])
+
+        log_audit_event(
+            'USER_ACTIVATED_BY_ADMIN',
+            user=request.user,
+            request=request,
+            details={'target_user_id': str(user.id), 'target_username': user.username}
+        )
         return Response({'detail': 'User activated successfully.'})
 
 
@@ -274,6 +282,13 @@ class UserDeactivateView(APIView):
             user = get_object_or_404(User, id=id, is_superuser=False)
         user.is_active = False
         user.save(update_fields=['is_active'])
+
+        log_audit_event(
+            'USER_DEACTIVATED_BY_ADMIN',
+            user=request.user,
+            request=request,
+            details={'target_user_id': str(user.id), 'target_username': user.username}
+        )
         return Response({'detail': 'User deactivated successfully.'})
 
 
@@ -294,6 +309,13 @@ class ResetPasswordView(APIView):
         serializer.is_valid(raise_exception=True)
         user.set_password(serializer.validated_data['new_password'])
         user.save(update_fields=['password'])
+
+        log_audit_event(
+            'USER_PASSWORD_RESET_BY_ADMIN',
+            user=request.user,
+            request=request,
+            details={'target_user_id': str(user.id), 'target_username': user.username}
+        )
         return Response({'detail': 'Password reset successfully.'})
 
 
@@ -304,8 +326,58 @@ class TutorListView(generics.ListAPIView):
     """
     permission_classes = [IsAdmin]
     serializer_class = UserListSerializer
-    pagination_class = None  # Return all for dropdowns
+    pagination_class = None
 
     def get_queryset(self):
         return User.objects.filter(role='tutor', is_active=True, is_superuser=False)
 
+
+class AuditLogListView(APIView):
+    """
+    GET /api/users/audit-logs/
+    Return paginated, filtered audit log entries. SuperAdmin only.
+    """
+
+    def get_permissions(self):
+        from rest_framework.permissions import IsAuthenticated
+        return [IsAuthenticated()]
+
+    def get(self, request):
+        if not request.user.is_superuser:
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+
+        action_filter = request.query_params.get('action', '')
+        username_filter = request.query_params.get('username', '')
+        page = max(1, int(request.query_params.get('page', 1)))
+        page_size = 20
+
+        qs = AuditLog.objects.all().order_by('-timestamp')
+        if action_filter:
+            qs = qs.filter(action__icontains=action_filter)
+        if username_filter:
+            qs = qs.filter(username__icontains=username_filter)
+
+        total = qs.count()
+        offset = (page - 1) * page_size
+        logs = qs[offset: offset + page_size]
+
+        results = [
+            {
+                'id': str(log.id),
+                'timestamp': log.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC'),
+                'action': log.action,
+                'username': log.username or (str(log.user) if log.user else 'Anonymous'),
+                'ip_address': str(log.ip_address) if log.ip_address else 'N/A',
+                'user_agent': log.user_agent[:100] if log.user_agent else '',
+                'details': log.details,
+            }
+            for log in logs
+        ]
+
+        return Response({
+            'count': total,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': max(1, (total + page_size - 1) // page_size),
+            'results': results,
+        })

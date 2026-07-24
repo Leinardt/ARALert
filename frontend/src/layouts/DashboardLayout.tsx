@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { LayoutDashboard, Users, User as UserIcon, Settings, LogOut, QrCode, Scan, Award, Bell } from 'lucide-react';
+import {
+  LayoutDashboard, Users, User as UserIcon, LogOut, QrCode, Scan,
+  Award, Bell, ChevronDown, Shield, BookOpen, BarChart2, X, Activity,
+} from 'lucide-react';
 import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../utils/analyticsHelpers';
@@ -19,8 +22,20 @@ export const DashboardLayout: React.FC = () => {
 
   const getRoleLabel = () => {
     if (!user) return '';
-    if (user.is_superuser) return 'SuperAdmin';
-    return user.role ? user.role.toUpperCase() : 'USER';
+    if (user.is_superuser) return 'Super Admin';
+    return user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User';
+  };
+
+  const getPageTitle = () => {
+    const p = location.pathname;
+    if (p.includes('/audit-logs')) return 'Audit Trail';
+    if (p.includes('/superadmin/users') || p.includes('/admin/students')) return 'User Management';
+    if (p.includes('/profile')) return 'Profile & Settings';
+    if (p.includes('/settings')) return 'System Settings';
+    if (p.includes('/analytics')) return 'Data Analytics';
+    if (p.includes('/scores')) return 'Score Entry';
+    if (p.includes('/attendance') || p.includes('/scan')) return 'Attendance';
+    return 'Dashboard';
   };
 
   const [highRiskCount, setHighRiskCount] = useState(0);
@@ -33,24 +48,25 @@ export const DashboardLayout: React.FC = () => {
   const [acknowledgedNotes, setAcknowledgedNotes] = useState<Record<string, string>>({});
   const [acknowledgedRiskIds, setAcknowledgedRiskIds] = useState<Record<string, number>>({});
 
-  const isActive = (path: string) => {
-    return location.pathname === path;
-  };
+  const isActive = (path: string) => location.pathname === path;
+  const isActivePrefix = (prefix: string) => location.pathname.startsWith(prefix);
+
+  const navLinkClass = (active: boolean) =>
+    `sidebar-item ${active ? 'active' : ''}`;
 
   const fetchRiskStudents = async () => {
     if (!user || user.role !== 'tutor') return;
-
     try {
       const [studentRes, grades, attendanceLogs, riskRecords] = await Promise.all([
         userService.getUsers({ role: 'student', assigned_tutor: user.id }),
         academicService.getGrades(),
         academicService.getAttendanceHistory(),
-        academicService.getAcademicRisks()
+        academicService.getAcademicRisks(),
       ]);
 
       const rows = computeStudentRiskRows(studentRes.results, grades, attendanceLogs);
-      const highRiskRows = rows.filter((row) => row.riskTier === 'High').sort((a, b) => b.compositeScore - a.compositeScore).slice(0, 5);
-      const moderateRiskRows = rows.filter((row) => row.riskTier === 'Medium').sort((a, b) => b.compositeScore - a.compositeScore).slice(0, 5);
+      const highRiskRows = rows.filter((r) => r.riskTier === 'High').sort((a, b) => b.compositeScore - a.compositeScore).slice(0, 5);
+      const moderateRiskRows = rows.filter((r) => r.riskTier === 'Medium').sort((a, b) => b.compositeScore - a.compositeScore).slice(0, 5);
 
       const latestResolvedRiskByStudent = riskRecords
         .filter((risk) => risk.resolved)
@@ -60,18 +76,11 @@ export const DashboardLayout: React.FC = () => {
           return acc;
         }, {});
 
-      const notesByStudent = Object.fromEntries(
-        Object.entries(latestResolvedRiskByStudent).map(([studentId, risk]) => [studentId, risk.details])
-      );
-      const riskIdsByStudent = Object.fromEntries(
-        Object.entries(latestResolvedRiskByStudent).map(([studentId, risk]) => [studentId, risk.id])
-      );
-
       setHighRiskStudents(highRiskRows);
       setModerateRiskStudents(moderateRiskRows);
       setHighRiskCount(highRiskRows.length + moderateRiskRows.length);
-      setAcknowledgedNotes(notesByStudent);
-      setAcknowledgedRiskIds(riskIdsByStudent);
+      setAcknowledgedNotes(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]) => [id, r.details])));
+      setAcknowledgedRiskIds(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]) => [id, r.id])));
     } catch (error) {
       console.error('Failed to load tutor alerts', error);
     }
@@ -85,33 +94,21 @@ export const DashboardLayout: React.FC = () => {
   const handleAcknowledgeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!acknowledgingStudent) return;
-
     const noteText = acknowledgeNote || `Acknowledged ${acknowledgingStudent.student.full_name}`;
     const existingRiskId = acknowledgedRiskIds[acknowledgingStudent.student.id];
-
     try {
       if (existingRiskId) {
-        await academicService.updateAcademicRisk(existingRiskId, {
-          details: noteText,
-          resolved: true
-        });
+        await academicService.updateAcademicRisk(existingRiskId, { details: noteText, resolved: true });
       } else {
         const newRisk = await academicService.createAcademicRisk({
           student: acknowledgingStudent.student.id,
           risk_level: 'high',
           details: noteText,
-          resolved: true
+          resolved: true,
         });
-        setAcknowledgedRiskIds((prev) => ({
-          ...prev,
-          [acknowledgingStudent.student.id]: newRisk.id
-        }));
+        setAcknowledgedRiskIds((prev) => ({ ...prev, [acknowledgingStudent.student.id]: newRisk.id }));
       }
-
-      setAcknowledgedNotes((prev) => ({
-        ...prev,
-        [acknowledgingStudent.student.id]: noteText
-      }));
+      setAcknowledgedNotes((prev) => ({ ...prev, [acknowledgingStudent.student.id]: noteText }));
       setAcknowledgingStudent(null);
       setAcknowledgeNote('');
       await fetchRiskStudents();
@@ -127,329 +124,414 @@ export const DashboardLayout: React.FC = () => {
     setAcknowledgeNote('');
   };
 
-  useEffect(() => {
-    fetchRiskStudents();
-  }, [user]);
-
-  useEffect(() => {
-    if (!showRiskList) return;
-    fetchRiskStudents();
-  }, [showRiskList]);
-
-  useEffect(() => {
-    setProfileMenuOpen(false);
-  }, [location.pathname]);
+  useEffect(() => { fetchRiskStudents(); }, [user]);
+  useEffect(() => { if (!showRiskList) return; fetchRiskStudents(); }, [showRiskList]);
+  useEffect(() => { setProfileMenuOpen(false); }, [location.pathname]);
 
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-72 bg-white flex flex-col shrink-0 border-r border-slate-200 shadow-sm">
+    <div style={{ display: 'flex', height: '100vh', background: 'var(--surface-bg)', overflow: 'hidden', fontFamily: 'var(--font-body)' }}>
+
+      {/* ── Sidebar ───────────────────────────────────── */}
+      <aside
+        style={{
+          width: '260px',
+          background: '#ffffff',
+          display: 'flex',
+          flexDirection: 'column',
+          flexShrink: 0,
+          borderRight: '1px solid var(--slate-200)',
+          zIndex: 20,
+          position: 'relative',
+        }}
+      >
         {/* Brand Header */}
-        <div className="h-16 flex items-center px-6 border-b border-slate-200 space-x-2 shrink-0">
-          <img src="/src/assets/ARALert_LOGO.png" alt="ARALert logo" className="w-8 h-8" />
-          <span className="font-bold text-lg text-slate-900 tracking-wider">ARALert</span>
+        <div
+          style={{
+            padding: '1.25rem 1.25rem 1rem',
+            borderBottom: '1px solid var(--slate-100)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            flexShrink: 0,
+            position: 'relative',
+          }}
+        >
+          <img
+            src="/src/assets/ARALert_LOGO.png"
+            alt="ARALert"
+            style={{ width: '32px', height: '32px', objectFit: 'contain', flexShrink: 0 }}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+          <div>
+            <div
+              style={{
+                fontFamily: 'var(--font-heading)',
+                fontWeight: 800,
+                fontSize: '1.1rem',
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
+                lineHeight: 1.1,
+              }}
+            >
+              ARALert
+            </div>
+          </div>
         </div>
 
-        {/* Navigation Section */}
-        <nav className="flex-grow py-6 px-4 space-y-1 overflow-y-auto">
-          {user?.is_superuser ? (
+        {/* Navigation */}
+        <nav
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '0.875rem 0.75rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+          }}
+        >
+          {/* SuperAdmin nav */}
+          {user?.is_superuser && (
             <>
-              <Link
-                to="/superadmin"
-                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/superadmin')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
-              >
-                <LayoutDashboard className="w-5 h-5 mr-3" />
+              <span className="sidebar-section-label">Management</span>
+              <Link to="/superadmin" className={navLinkClass(isActive('/superadmin'))}>
+                <LayoutDashboard className="sidebar-icon" size={18} />
                 Dashboard
               </Link>
               <Link
                 to="/superadmin/users"
-                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/superadmin/users') || isActive('/superadmin/users/create') || location.pathname.includes('/superadmin/users/edit')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
+                className={navLinkClass(isActivePrefix('/superadmin/users'))}
               >
-                <Users className="w-5 h-5 mr-3" />
-                Users
+                <Users className="sidebar-icon" size={18} />
+                User Management
               </Link>
-              {/* SuperAdmin keeps dashboard and users links only; profile/settings in dropdown */}
-            </>
-          ) : user?.role === 'admin' ? (
-            <>
               <Link
-                to="/admin"
-                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/admin')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
+                to="/superadmin/audit-logs"
+                className={navLinkClass(isActivePrefix('/superadmin/audit-logs'))}
               >
-                <LayoutDashboard className="w-5 h-5 mr-3" />
+                <Activity className="sidebar-icon" size={18} />
+                Audit Trail
+              </Link>
+              <Link
+                to="/superadmin/settings"
+                className={navLinkClass(isActivePrefix('/superadmin/settings'))}
+              >
+                <Shield className="sidebar-icon" size={18} />
+                System Settings
+              </Link>
+            </>
+          )}
+
+          {/* Admin nav */}
+          {user?.role === 'admin' && (
+            <>
+              <span className="sidebar-section-label">Admin Panel</span>
+              <Link to="/admin" className={navLinkClass(isActive('/admin'))}>
+                <LayoutDashboard className="sidebar-icon" size={18} />
                 Dashboard
               </Link>
               <Link
                 to="/admin/students"
-                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/admin/students') || isActive('/admin/students/create') || location.pathname.includes('/admin/students/edit')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
+                className={navLinkClass(isActivePrefix('/admin/students'))}
               >
-                <Users className="w-5 h-5 mr-3" />
-                Students
+                <Users className="sidebar-icon" size={18} />
+                Student Directory
               </Link>
-              <Link
-                to="/admin/attendance"
-                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/admin/attendance')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
-              >
-                <QrCode className="w-5 h-5 mr-3" />
-                Staff QR Code
+              <Link to="/admin/attendance" className={navLinkClass(isActive('/admin/attendance'))}>
+                <QrCode className="sidebar-icon" size={18} />
+                Staff QR Generator
               </Link>
-              {/* Admin sidebar cleaned: Profile and Settings removed; use profile dropdown for account actions */}
             </>
-          ) : user?.role === 'tutor' ? (
+          )}
+
+          {/* Tutor nav */}
+          {user?.role === 'tutor' && (
             <>
-              <Link
-                to="/tutor"
-                className={`sidebar-item flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/tutor')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
-              >
-                <LayoutDashboard className="w-5 h-5 mr-3" />
+              <span className="sidebar-section-label">Workspace</span>
+              <Link to="/tutor" className={navLinkClass(isActive('/tutor'))}>
+                <LayoutDashboard className="sidebar-icon" size={18} />
                 Workspace Home
               </Link>
-              <Link
-                to="/tutor/attendance/generate"
-                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/tutor/attendance/generate')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
-              >
-                <QrCode className="w-5 h-5 mr-3" />
-                Student QR Code
+              <Link to="/tutor/students" className={navLinkClass(isActive('/tutor/students'))}>
+                <Users className="sidebar-icon" size={18} />
+                Assigned Students
               </Link>
-              <Link
-                to="/tutor/scores"
-                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/tutor/scores')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
-              >
-                <Award className="w-5 h-5 mr-3" />
+              <Link to="/tutor/scores" className={navLinkClass(isActive('/tutor/scores'))}>
+                <Award className="sidebar-icon" size={18} />
                 Score Entry
               </Link>
-              <Link
-                to="/tutor/analytics"
-                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/tutor/analytics')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
-              >
-                <LayoutDashboard className="w-5 h-5 mr-3" />
+              <Link to="/tutor/analytics" className={navLinkClass(isActive('/tutor/analytics'))}>
+                <BarChart2 className="sidebar-icon" size={18} />
                 Data Analytics
               </Link>
+              <span className="sidebar-section-label">Attendance</span>
               <Link
-                to="/tutor/students"
-                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/tutor/students')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
+                to="/tutor/attendance/generate"
+                className={navLinkClass(isActive('/tutor/attendance/generate'))}
               >
-                <Users className="w-5 h-5 mr-3" />
-                Students
+                <QrCode className="sidebar-icon" size={18} />
+                QR Generator
               </Link>
-              <Link
-                to="/staff/scan"
-                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/staff/scan')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
-              >
-                <Scan className="w-5 h-5 mr-3" />
+              <Link to="/staff/scan" className={navLinkClass(isActive('/staff/scan'))}>
+                <Scan className="sidebar-icon" size={18} />
                 Clock In / Out
               </Link>
             </>
-          ) : user?.role === 'principal' ? (
+          )}
+
+          {/* Principal nav */}
+          {user?.role === 'principal' && (
             <>
-              <Link
-                to="/principal"
-                className={`sidebar-item flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/principal')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
-              >
-                <LayoutDashboard className="w-5 h-5 mr-3" />
+              <span className="sidebar-section-label">Monitoring</span>
+              <Link to="/principal" className={navLinkClass(isActive('/principal'))}>
+                <LayoutDashboard className="sidebar-icon" size={18} />
                 Monitoring Dashboard
               </Link>
-              <Link
-                to="/staff/scan"
-                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/staff/scan')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
-              >
-                <Scan className="w-5 h-5 mr-3" />
+              <Link to="/staff/scan" className={navLinkClass(isActive('/staff/scan'))}>
+                <Scan className="sidebar-icon" size={18} />
                 Clock In / Out
               </Link>
             </>
-          ) : user?.role === 'faculty' ? (
+          )}
+
+          {/* Faculty nav */}
+          {user?.role === 'faculty' && (
             <>
-              <Link
-                to="/faculty"
-                className={`sidebar-item flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/faculty')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
-              >
-                <LayoutDashboard className="w-5 h-5 mr-3" />
+              <span className="sidebar-section-label">Faculty</span>
+              <Link to="/faculty" className={navLinkClass(isActive('/faculty'))}>
+                <LayoutDashboard className="sidebar-icon" size={18} />
                 Faculty Home
               </Link>
-              <Link
-                to="/staff/scan"
-                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/staff/scan')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
-              >
-                <Scan className="w-5 h-5 mr-3" />
+              <Link to="/staff/scan" className={navLinkClass(isActive('/staff/scan'))}>
+                <Scan className="sidebar-icon" size={18} />
                 Clock In / Out
               </Link>
             </>
-          ) : user?.role === 'student' ? (
+          )}
+
+          {/* Student nav */}
+          {user?.role === 'student' && (
             <>
-              <Link
-                to="/student"
-                className={`sidebar-item flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/student')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
-              >
-                <LayoutDashboard className="w-5 h-5 mr-3" />
-                Student Dashboard
+              <span className="sidebar-section-label">Student</span>
+              <Link to="/student" className={navLinkClass(isActive('/student'))}>
+                <BookOpen className="sidebar-icon" size={18} />
+                My Dashboard
               </Link>
-              <Link
-                to="/staff/scan"
-                className={`flex items-center px-4 py-2.5 rounded-md text-sm font-medium transition-all ${
-                  isActive('/staff/scan')
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-700 hover:bg-white/70 hover:text-blue-900'
-                }`}
-              >
-                <Scan className="w-5 h-5 mr-3" />
-                Scan QR Code
+              <Link to="/staff/scan" className={navLinkClass(isActive('/staff/scan'))}>
+                <Scan className="sidebar-icon" size={18} />
+                Scan Attendance QR
               </Link>
             </>
-          ) : null}
+          )}
         </nav>
-
       </aside>
 
-      {/* Main Panel */}
-      <div className="flex flex-col flex-grow overflow-hidden">
-        {/* Header bar */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0">
-          <h1 className="text-xl font-bold text-gray-800">
-            {location.pathname.startsWith('/superadmin/users')
-              ? 'User Management'
-              : location.pathname.startsWith('/admin/students')
-              ? 'Student Directory'
-              : location.pathname.includes('/profile')
-              ? 'Profile'
-              : location.pathname.includes('/settings')
-              ? 'Settings'
-              : 'Dashboard'}
-          </h1>
+      {/* ── Main Panel ─────────────────────────────────────── */}
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
 
-          <div className="flex items-center space-x-4 relative">
+        {/* ── Top Bar ── */}
+        <header
+          style={{
+            height: '64px',
+            background: 'rgba(255,255,255,0.9)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            borderBottom: '1px solid var(--slate-200)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 1.75rem',
+            flexShrink: 0,
+            zIndex: 10,
+          }}
+        >
+          {/* Page title */}
+          <div>
+            <h1
+              style={{
+                margin: 0,
+                fontFamily: 'var(--font-heading)',
+                fontWeight: 700,
+                fontSize: '1.15rem',
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              {getPageTitle()}
+            </h1>
+          </div>
+
+          {/* Right controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', position: 'relative' }}>
+
+            {/* Notification Bell (tutor only) */}
             {user?.role === 'tutor' && (
-              <div className="relative">
+              <div style={{ position: 'relative' }}>
                 <button
                   type="button"
                   onClick={() => setShowRiskList((prev) => !prev)}
-                  className="flex items-center justify-center text-black hover:text-gray-700 transition-all p-0"
-                  aria-label="High risk alerts"
+                  aria-label="Risk alerts"
+                  style={{
+                    position: 'relative',
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: 'var(--surface-muted)',
+                    border: '1px solid var(--slate-200)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary)',
+                    transition: 'var(--transition-fast)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--brand-light)';
+                    e.currentTarget.style.color = 'var(--brand-dark)';
+                    e.currentTarget.style.borderColor = 'var(--brand-border)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'var(--surface-muted)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.borderColor = 'var(--slate-200)';
+                  }}
                 >
-                  <Bell className="w-6 h-6" />
+                  <Bell size={17} />
                   {highRiskCount > 0 && (
-<span className="absolute -top-1 -right-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-bold">
+                    <span
+                      className="animate-badge-pulse"
+                      style={{
+                        position: 'absolute',
+                        top: '-4px',
+                        right: '-4px',
+                        minWidth: '18px',
+                        height: '18px',
+                        padding: '0 4px',
+                        borderRadius: '99px',
+                        background: '#EF4444',
+                        color: '#fff',
+                        fontSize: '10px',
+                        fontWeight: 800,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '2px solid #fff',
+                      }}
+                    >
                       {highRiskCount}
                     </span>
                   )}
                 </button>
 
+                {/* Risk dropdown */}
                 {showRiskList && (
-                  <div className="absolute right-0 mt-3 w-96 bg-white rounded-3xl border border-gray-200 shadow-xl z-50">
-                    <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                  <div
+                    className="animate-fade-in-scale"
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 'calc(100% + 10px)',
+                      width: '380px',
+                      background: '#fff',
+                      border: '1px solid var(--slate-200)',
+                      borderRadius: '18px',
+                      boxShadow: 'var(--shadow-xl)',
+                      zIndex: 50,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {/* Dropdown header */}
+                    <div
+                      style={{
+                        padding: '1rem 1.25rem',
+                        background: 'var(--surface-muted)',
+                        borderBottom: '1px solid var(--slate-200)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
                       <div>
-                        <p className="text-sm font-bold text-gray-900">Academic Alerts</p>
-                        <p className="text-xs text-gray-500">High and medium risk students tracked here.</p>
+                        <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Academic Risk Alerts
+                        </p>
+                        <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          Students requiring intervention
+                        </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setShowRiskList(false)}
-                        className="text-gray-400 hover:text-gray-600"
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: 'transparent',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          color: 'var(--text-muted)',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                       >
-                        Close
+                        <X size={15} />
                       </button>
                     </div>
-                    <div className="max-h-[400px] overflow-y-auto p-4 space-y-4">
-                      <div className="rounded-3xl border border-rose-100 bg-rose-50 p-3">
-                        <div className="mb-3 flex items-center justify-between gap-3">
+
+                    {/* Risk list body */}
+                    <div style={{ maxHeight: '380px', overflowY: 'auto', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {/* High risk */}
+                      <div style={{ background: '#FFF5F5', border: '1px solid #FECACA', borderRadius: '12px', padding: '0.875rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                           <div>
-                            <p className="text-sm font-bold text-rose-900">High Risk</p>
-                            <p className="text-xs text-rose-600">Needs action</p>
+                            <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>High Risk</p>
+                            <p style={{ margin: '2px 0 0', fontSize: '0.7rem', color: '#EF4444' }}>Immediate action required</p>
                           </div>
-                          <span className="text-[10px] font-bold uppercase text-rose-700 bg-rose-100 rounded-full px-2 py-1">
+                          <span style={{ background: '#FEE2E2', color: '#991B1B', fontSize: '0.7rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid #FECACA' }}>
                             {highRiskStudents.length}
                           </span>
                         </div>
                         {highRiskStudents.length === 0 ? (
-                          <div className="text-sm text-rose-700">No high-risk students at the moment.</div>
+                          <p style={{ fontSize: '0.8rem', color: '#EF4444', margin: 0 }}>No high-risk students detected.</p>
                         ) : (
-                          <div className="space-y-3">
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             {highRiskStudents.map((row) => (
-                              <div key={`high-${row.student.id}`} className="rounded-3xl border border-rose-100 bg-white p-3">
-                                <div className="flex items-start justify-between gap-3">
+                              <div key={`high-${row.student.id}`} style={{ background: '#fff', border: '1px solid #FECACA', borderRadius: '10px', padding: '0.65rem 0.75rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
                                   <div>
-                                    <p className="text-sm font-bold text-gray-900">{row.student.full_name}</p>
-                                    <p className="text-xs text-gray-500">Composite {row.compositeScore}% • Attendance {row.attendanceRate}%</p>
-                                    {acknowledgedNotes[row.student.id] ? (
-                                      <p className="mt-2 text-xs font-semibold text-black">Acknowledged - Note saved</p>
-                                    ) : null}
+                                    <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{row.student.full_name}</p>
+                                    <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                      Score: {row.compositeScore}% · Attendance: {row.attendanceRate}%
+                                    </p>
                                     {acknowledgedNotes[row.student.id] && (
-                                      <p className="mt-1 text-xs text-slate-500">“{acknowledgedNotes[row.student.id]}”</p>
+                                      <p style={{ margin: '3px 0 0', fontSize: '0.72rem', color: 'var(--brand-dark)', fontWeight: 600 }}>✓ Note saved</p>
                                     )}
                                   </div>
-                                  <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-rose-700 bg-rose-100 rounded-full px-2 py-1">
-                                    High
-                                  </span>
+                                  <span style={{ background: '#FEE2E2', color: '#991B1B', fontSize: '0.62rem', fontWeight: 800, borderRadius: '6px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0 }}>HIGH</span>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={() => handleAcknowledgeInitiate(row)}
-                                  className="mt-3 w-full inline-flex items-center justify-center rounded-2xl bg-white border border-gray-200 text-gray-700 text-xs font-bold px-3 py-2 hover:bg-gray-100 transition-all"
+                                  style={{
+                                    marginTop: '0.5rem',
+                                    width: '100%',
+                                    padding: '5px 10px',
+                                    borderRadius: '7px',
+                                    border: '1px solid var(--slate-200)',
+                                    background: 'var(--surface-muted)',
+                                    color: 'var(--text-secondary)',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    transition: 'var(--transition-fast)',
+                                    fontFamily: 'var(--font-body)',
+                                  }}
+                                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand-dark)'; }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                                 >
-                                  {acknowledgedNotes[row.student.id] ? 'Edit Note' : 'Acknowledge'}
+                                  {acknowledgedNotes[row.student.id] ? 'Edit Note' : 'Acknowledge Risk'}
                                 </button>
                               </div>
                             ))}
@@ -457,43 +539,53 @@ export const DashboardLayout: React.FC = () => {
                         )}
                       </div>
 
-                      <div className="rounded-3xl border border-amber-100 bg-amber-50 p-3">
-                        <div className="mb-3 flex items-center justify-between gap-3">
+                      {/* Moderate risk */}
+                      <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '12px', padding: '0.875rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                           <div>
-                            <p className="text-sm font-bold text-amber-900">Medium Risk</p>
-                            <p className="text-xs text-amber-600">Watchlist</p>
+                            <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Medium Risk</p>
+                            <p style={{ margin: '2px 0 0', fontSize: '0.7rem', color: '#D97706' }}>Under observation</p>
                           </div>
-                          <span className="text-[10px] font-bold uppercase text-amber-700 bg-amber-100 rounded-full px-2 py-1">
+                          <span style={{ background: '#FEF3C7', color: '#92400E', fontSize: '0.7rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid #FDE68A' }}>
                             {moderateRiskStudents.length}
                           </span>
                         </div>
                         {moderateRiskStudents.length === 0 ? (
-                          <div className="text-sm text-amber-700">No medium-risk students at the moment.</div>
+                          <p style={{ fontSize: '0.8rem', color: '#D97706', margin: 0 }}>No medium-risk students detected.</p>
                         ) : (
-                          <div className="space-y-3">
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             {moderateRiskStudents.map((row) => (
-                              <div key={`moderate-${row.student.id}`} className="rounded-3xl border border-amber-100 bg-white p-3">
-                                <div className="flex items-start justify-between gap-3">
+                              <div key={`mod-${row.student.id}`} style={{ background: '#fff', border: '1px solid #FDE68A', borderRadius: '10px', padding: '0.65rem 0.75rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
                                   <div>
-                                    <p className="text-sm font-bold text-gray-900">{row.student.full_name}</p>
-                                    <p className="text-xs text-gray-500">Composite {row.compositeScore}% • Attendance {row.attendanceRate}%</p>
-                                    {acknowledgedNotes[row.student.id] ? (
-                                      <p className="mt-2 text-xs font-semibold text-black">Acknowledged - Note saved</p>
-                                    ) : null}
-                                    {acknowledgedNotes[row.student.id] && (
-                                      <p className="mt-1 text-xs text-slate-500">“{acknowledgedNotes[row.student.id]}”</p>
-                                    )}
+                                    <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{row.student.full_name}</p>
+                                    <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                      Score: {row.compositeScore}% · Attendance: {row.attendanceRate}%
+                                    </p>
                                   </div>
-                                  <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-amber-700 bg-amber-100 rounded-full px-2 py-1">
-                                    Medium
-                                  </span>
+                                  <span style={{ background: '#FEF3C7', color: '#92400E', fontSize: '0.62rem', fontWeight: 800, borderRadius: '6px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0 }}>MED</span>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={() => handleAcknowledgeInitiate(row)}
-                                  className="mt-3 w-full inline-flex items-center justify-center rounded-2xl bg-white border border-gray-200 text-gray-700 text-xs font-bold px-3 py-2 hover:bg-gray-100 transition-all"
+                                  style={{
+                                    marginTop: '0.5rem',
+                                    width: '100%',
+                                    padding: '5px 10px',
+                                    borderRadius: '7px',
+                                    border: '1px solid var(--slate-200)',
+                                    background: 'var(--surface-muted)',
+                                    color: 'var(--text-secondary)',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    transition: 'var(--transition-fast)',
+                                    fontFamily: 'var(--font-body)',
+                                  }}
+                                  onMouseEnter={(e) => { e.currentTarget.style.background = '#FFFBEB'; e.currentTarget.style.color = '#92400E'; }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                                 >
-                                  {acknowledgedNotes[row.student.id] ? 'Edit Note' : 'Acknowledge'}
+                                  {acknowledgedNotes[row.student.id] ? 'Edit Note' : 'Acknowledge Risk'}
                                 </button>
                               </div>
                             ))}
@@ -503,47 +595,79 @@ export const DashboardLayout: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Acknowledge modal */}
                 {acknowledgingStudent && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                  <div
+                    className="animate-fade-in"
+                    style={{
+                      position: 'fixed',
+                      inset: 0,
+                      zIndex: 60,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(15,23,42,0.5)',
+                      backdropFilter: 'blur(4px)',
+                      padding: '1rem',
+                    }}
+                  >
                     <form
                       onSubmit={handleAcknowledgeSubmit}
-                      className="w-full max-w-md rounded-3xl bg-white border border-gray-200 p-6 shadow-2xl"
+                      className="animate-fade-in-scale"
+                      style={{
+                        width: '100%',
+                        maxWidth: '440px',
+                        background: '#fff',
+                        borderRadius: '20px',
+                        padding: '1.75rem',
+                        boxShadow: 'var(--shadow-xl)',
+                        border: '1px solid var(--slate-200)',
+                      }}
                     >
-                      <div className="flex items-start justify-between gap-4">
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
                         <div>
-                          <h3 className="text-lg font-bold text-gray-900">Acknowledge {acknowledgingStudent.student.full_name}</h3>
-                          <p className="text-xs text-gray-500">Add an optional note for the acknowledgment.</p>
+                          <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                            Acknowledge Risk
+                          </h3>
+                          <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            {acknowledgingStudent.student.full_name} — log an intervention note.
+                          </p>
                         </div>
                         <button
                           type="button"
                           onClick={handleAcknowledgeCancel}
-                          className="text-gray-400 hover:text-gray-600"
+                          style={{
+                            width: '30px',
+                            height: '30px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: 'var(--surface-muted)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--text-muted)',
+                          }}
                         >
-                          Close
+                          <X size={16} />
                         </button>
                       </div>
-                      <div className="mt-4">
-                        <label className="block text-xs font-bold text-gray-700 mb-2">Note</label>
+                      <div className="form-group">
+                        <label className="form-label">Intervention Note</label>
                         <textarea
                           value={acknowledgeNote}
                           onChange={(e) => setAcknowledgeNote(e.target.value)}
-                          className="w-full min-h-[120px] rounded-2xl border border-gray-200 p-3 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
-                          placeholder="Optional note about the acknowledgment"
+                          className="form-textarea"
+                          placeholder="Describe the intervention or action taken..."
                         />
                       </div>
-                      <div className="mt-5 flex items-center justify-end gap-3">
-                        <button
-                          type="button"
-                          onClick={handleAcknowledgeCancel}
-                          className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
-                        >
+                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
+                        <button type="button" onClick={handleAcknowledgeCancel} className="btn btn-secondary btn-sm">
                           Cancel
                         </button>
-                        <button
-                          type="submit"
-                          className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
-                        >
-                          Acknowledge
+                        <button type="submit" className="btn btn-primary btn-sm">
+                          Save Note
                         </button>
                       </div>
                     </form>
@@ -552,55 +676,146 @@ export const DashboardLayout: React.FC = () => {
               </div>
             )}
 
-            <div className="relative">
+            {/* Profile dropdown */}
+            <div style={{ position: 'relative' }}>
               <button
                 type="button"
                 onClick={() => setProfileMenuOpen((prev) => !prev)}
-                className="inline-flex items-center gap-3 rounded-3xl border border-slate-200 bg-white px-3 py-2 shadow-sm hover:shadow-md transition-all"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  padding: '0.35rem 0.75rem 0.35rem 0.35rem',
+                  borderRadius: '12px',
+                  border: '1.5px solid var(--slate-200)',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  transition: 'var(--transition-fast)',
+                  boxShadow: 'var(--shadow-xs)',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--brand-border)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--slate-200)'; e.currentTarget.style.boxShadow = 'var(--shadow-xs)'; }}
               >
                 {user?.avatar ? (
-                  <img src={user.avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
+                  <img
+                    src={user.avatar}
+                    alt="avatar"
+                    style={{ width: '32px', height: '32px', borderRadius: '9px', objectFit: 'cover' }}
+                  />
                 ) : (
-                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-base shadow-sm">
+                  <div
+                    style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '9px',
+                      background: 'var(--brand)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontFamily: 'var(--font-heading)',
+                      fontWeight: 800,
+                      fontSize: '0.9rem',
+                    }}
+                  >
                     {user?.first_name ? user.first_name[0].toUpperCase() : 'U'}
                   </div>
                 )}
-                <div className="hidden md:flex flex-col text-left">
-                  <span className="text-sm font-semibold text-slate-900">{user?.full_name || user?.username}</span>
-                  <span className="text-xs text-slate-500 uppercase tracking-[0.18em]">{getRoleLabel()}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {user?.first_name || user?.username}
+                  </span>
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {getRoleLabel()}
+                  </span>
                 </div>
+                <ChevronDown size={14} style={{ color: 'var(--text-muted)', marginLeft: '2px' }} />
               </button>
 
               {profileMenuOpen && (
-                <div className="absolute right-0 top-full mt-3 w-64 rounded-3xl border border-slate-200 bg-white shadow-2xl">
-                  <div className="p-4 border-b border-slate-100">
-                    <p className="text-sm font-semibold text-slate-900">Account Menu</p>
-                    <p className="mt-1 text-xs text-slate-500">Manage profile, security, and logout.</p>
+                <div
+                  className="animate-fade-in-scale"
+                  style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: 'calc(100% + 8px)',
+                    width: '220px',
+                    background: '#fff',
+                    border: '1px solid var(--slate-200)',
+                    borderRadius: '16px',
+                    boxShadow: 'var(--shadow-xl)',
+                    zIndex: 50,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {/* User info */}
+                  <div style={{ padding: '0.875rem 1rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-100)' }}>
+                    <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>{user?.full_name}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email}</p>
                   </div>
-                    <div className="p-2">
-                    <button
-                      type="button"
-                      onClick={() => { setProfileMenuOpen(false); navigate('/profile'); }}
-                      className="flex w-full items-center gap-3 rounded-3xl px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50 transition-all"
-                    >
-                      <UserIcon className="w-4 h-4 text-slate-500" />
-                      Edit Profile
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setProfileMenuOpen(false); navigate('/mfa'); }}
-                      className="flex w-full items-center gap-3 rounded-3xl px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50 transition-all"
-                    >
-                      <Bell className="w-4 h-4 text-slate-500" />
-                      Multi-Factor Authentication
-                    </button>
+
+                  {/* Menu items */}
+                  <div style={{ padding: '0.5rem' }}>
+                    {[
+                      { label: 'Edit Profile', icon: <UserIcon size={15} />, action: () => { setProfileMenuOpen(false); navigate('/profile'); } },
+                      { label: 'MFA Security', icon: <Shield size={15} />, action: () => { setProfileMenuOpen(false); navigate('/mfa'); } },
+                    ].map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={item.action}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.6rem',
+                          width: '100%',
+                          padding: '0.55rem 0.75rem',
+                          borderRadius: '10px',
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                          fontSize: '0.825rem',
+                          fontWeight: 600,
+                          color: 'var(--text-secondary)',
+                          fontFamily: 'var(--font-body)',
+                          transition: 'var(--transition-fast)',
+                          textAlign: 'left',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand-dark)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                      >
+                        <span style={{ color: 'var(--text-muted)' }}>{item.icon}</span>
+                        {item.label}
+                      </button>
+                    ))}
+
+                    <div style={{ margin: '0.35rem 0', borderTop: '1px solid var(--slate-100)' }} />
+
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="mt-2 flex w-full items-center gap-3 rounded-3xl px-4 py-3 text-left text-sm font-semibold text-rose-600 hover:bg-rose-50 transition-all"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.6rem',
+                        width: '100%',
+                        padding: '0.55rem 0.75rem',
+                        borderRadius: '10px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        fontSize: '0.825rem',
+                        fontWeight: 700,
+                        color: '#DC2626',
+                        fontFamily: 'var(--font-body)',
+                        transition: 'var(--transition-fast)',
+                        textAlign: 'left',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#FEF2F2'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                     >
-                      <LogOut className="w-4 h-4" />
-                      Logout
+                      <LogOut size={15} style={{ color: '#EF4444' }} />
+                      Sign Out
                     </button>
                   </div>
                 </div>
@@ -609,8 +824,8 @@ export const DashboardLayout: React.FC = () => {
           </div>
         </header>
 
-        {/* Content body */}
-        <main className="flex-grow overflow-y-auto p-8">
+        {/* ── Content body ── */}
+        <main style={{ flex: 1, overflowY: 'auto', padding: '2rem' }}>
           <Outlet />
         </main>
       </div>
