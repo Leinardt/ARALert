@@ -1,145 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { authService } from '../../services/authService';
-import { ShieldCheck, Mail, ArrowLeft } from 'lucide-react';
+import React from 'react';
+import { Link } from 'react-router-dom';
 
 export const MFA: React.FC = () => {
-  const { user, completeAuthSession } = useAuth();
-  const navigate = useNavigate();
-  const [isEnabled, setIsEnabled] = useState(Boolean(user?.mfa_enabled));
-  const [isSaving, setIsSaving] = useState(false);
-  const [otp, setOtp] = useState('');
-  const [rememberDevice, setRememberDevice] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pendingUserId, setPendingUserId] = useState<string | null>(localStorage.getItem('mfa_user_id'));
-
-  useEffect(() => {
-    setIsEnabled(Boolean(user?.mfa_enabled));
-  }, [user]);
-
-  const pageTitle = useMemo(() => (pendingUserId ? 'Verify your one-time code' : 'Multi-Factor Authentication'), [pendingUserId]);
-
-  const handleToggle = async () => {
-    setIsSaving(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const result = await authService.toggleMfa(!isEnabled);
-      setIsEnabled(result.mfa_enabled);
-      setMessage(result.mfa_enabled ? 'MFA is now enabled for your account.' : 'MFA has been disabled.');
-    } catch (err: unknown) {
-      const axiosError = err as any;
-      const msg =
-        axiosError?.response?.data?.detail ||
-        axiosError?.response?.data?.message ||
-        (err instanceof Error ? err.message : null) ||
-        'Unable to update MFA settings. Please try again.';
-      setError(msg);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleVerify = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!pendingUserId) {
-      setError('No verification request is active. Please sign in again and try the OTP step.');
-      return;
-    }
-
-    setIsSaving(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const response = await authService.verifyOtp(pendingUserId, otp, rememberDevice);
-      completeAuthSession(response);
-      localStorage.removeItem('mfa_user_id');
-      navigate(response.redirect ?? '/login');
-    } catch (err: unknown) {
-      const axiosError = err as any;
-      const msg =
-        axiosError?.response?.data?.detail ||
-        axiosError?.response?.data?.message ||
-        (err instanceof Error ? err.message : null) ||
-        'The verification code was invalid or has expired. Please try again.';
-      setError(msg);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', padding: '24px' }}>
-      <div style={{ width: '100%', maxWidth: '480px', background: '#ffffff', borderRadius: '24px', boxShadow: '0 20px 60px rgba(15, 23, 42, 0.08)', border: '1px solid var(--brand-border)', overflow: 'hidden' }}>
-        <div style={{ padding: '32px 32px 16px', background: 'linear-gradient(135deg, var(--brand-light) 0%, #ffffff 100%)' }}>
-          <button type="button" onClick={() => navigate(-1)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--brand)', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}>
-            <ArrowLeft size={16} /> Back
-          </button>
-          <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'var(--brand-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ShieldCheck size={24} color="var(--brand)" />
-            </div>
-          </div>
-          <h1 style={{ textAlign: 'center', fontSize: '24px', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>{pageTitle}</h1>
-          <p style={{ textAlign: 'center', color: '#64748b', margin: 0 }}>
-            {pendingUserId ? 'Enter the secure code sent to your registered email to continue.' : 'Set or remove two-step verification for your account.'}
-          </p>
-        </div>
-
-        <div style={{ padding: '24px 32px 32px' }}>
-          {message && <div style={{ marginBottom: '16px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', padding: '12px 14px' }}>{message}</div>}
-          {error && <div style={{ marginBottom: '16px', borderRadius: '12px', background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', padding: '12px 14px' }}>{error}</div>}
-
-          {!pendingUserId ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ borderRadius: '16px', border: '1px solid var(--brand-border)', background: '#f8fbff', padding: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Mail size={18} color="var(--brand)" />
-                  <div>
-                    <p style={{ margin: 0, fontWeight: 700, color: '#0f172a' }}>Email-based verification</p>
-                    <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '14px' }}>You’ll receive a one-time code whenever MFA is enabled and you log in.</p>
-                  </div>
-                </div>
-              </div>
-              <button type="button" onClick={handleToggle} disabled={isSaving} style={{ border: 'none', borderRadius: '999px', background: isEnabled ? 'var(--brand)' : '#64748b', color: '#ffffff', padding: '14px 18px', fontWeight: 700, cursor: 'pointer' }}>
-                {isSaving ? 'Updating…' : isEnabled ? 'Disable MFA' : 'Enable MFA'}
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', color: '#334155', fontSize: '14px', fontWeight: 600 }}>
-                One-time password
-                <input
-                  id="otp-code"
-                  value={otp}
-                  onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="Enter 6-digit code"
-                  maxLength={6}
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  aria-label="One-time verification code"
-                  autoFocus
-                  style={{ border: '1px solid var(--brand-border)', borderRadius: '12px', padding: '12px 14px', fontSize: '16px', outline: 'none' }}
-                />
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#334155', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={rememberDevice}
-                  onChange={(e) => setRememberDevice(e.target.checked)}
-                  style={{ cursor: 'pointer', width: '16px', height: '16px' }}
-                />
-                Remember this device for 30 days
-              </label>
-              <button type="submit" disabled={isSaving || otp.length < 6} style={{ border: 'none', borderRadius: '999px', background: otp.length < 6 ? '#94a3b8' : 'var(--brand)', color: '#ffffff', padding: '14px 18px', fontWeight: 700, cursor: otp.length < 6 ? 'not-allowed' : 'pointer' }}>
-                {isSaving ? 'Verifying…' : 'Verify code'}
-              </button>
-              <Link to="/login" style={{ textAlign: 'center', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600 }}>Return to sign in</Link>
-            </form>
-          )}
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="bg-white p-8 rounded-2xl border border-gray-200 max-w-md w-full text-center space-y-4 shadow-sm">
+        <h2 className="text-xl font-bold text-gray-900">Google Authentication Active</h2>
+        <p className="text-sm text-gray-600">
+          Two-factor authentication is automatically protected via your Google OAuth account.
+        </p>
+        <Link
+          to="/login"
+          className="inline-block bg-[var(--brand)] text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[var(--brand-dark)] transition-all"
+        >
+          Go to Sign In
+        </Link>
       </div>
     </div>
   );

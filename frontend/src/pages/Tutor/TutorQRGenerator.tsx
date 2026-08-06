@@ -1,11 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
+import { userService } from '../../services/userService';
 import { ArrowLeft, Clock, UserCheck, BookOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import QRCode from 'qrcode';
-import type { AralActivity, Attendance } from '../../types';
+import type { AralActivity, Attendance, User } from '../../types';
+import { ExportAttendanceModal } from '../../components/ExportAttendanceModal';
 
 export const TutorQRGenerator: React.FC = () => {
+  const { user } = useAuth();
+  const [students, setStudents] = useState<User[]>([]);
   const [activities, setActivities] = useState<AralActivity[]>([]);
   const [selectedActivity, setSelectedActivity] = useState<number | ''>('');
   const [expiresIn, setExpiresIn] = useState<number>(5);
@@ -17,10 +22,25 @@ export const TutorQRGenerator: React.FC = () => {
   const [attendanceHistoryError, setAttendanceHistoryError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [showExportModal, setShowExportModal] = useState<boolean>(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch tutor's assigned students for attendance export sheet
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        if (!user) return;
+        const res = await userService.getUsers({ role: 'student' });
+        setStudents(Array.isArray(res.results) ? res.results : Array.isArray(res as any) ? (res as any) : []);
+      } catch (err) {
+        console.error('Failed to load students for export', err);
+      }
+    };
+    fetchStudents();
+  }, [user]);
 
   // Fetch tutor's active activities to associate with the QR code if they want
   useEffect(() => {
@@ -330,12 +350,21 @@ export const TutorQRGenerator: React.FC = () => {
           </div>
 
           <div className="mt-6 bg-white rounded-2xl border border-gray-200 shadow-lg p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div>
                 <h3 className="font-bold text-gray-900 text-base">Attendance History</h3>
                 <p className="text-xs text-gray-500">Latest attendance records for all students.</p>
               </div>
-              <span className="text-xs text-slate-500">Showing {attendanceHistory.length} records</span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(true)}
+                  className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                >
+                  📊 Export Attendance Sheet
+                </button>
+                <span className="text-xs text-slate-500">Showing {attendanceHistory.length} records</span>
+              </div>
             </div>
 
             {attendanceHistoryLoading ? (
@@ -373,6 +402,13 @@ export const TutorQRGenerator: React.FC = () => {
           </div>
         </div>
       </div>
+      <ExportAttendanceModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        currentUser={user}
+        students={students}
+        attendanceLogs={attendanceHistory}
+      />
     </div>
   );
 };

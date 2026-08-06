@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
-import type { PrincipalDashboardResponse, PrincipalDashboardTrendPoint } from '../../types';
-import { RefreshCw, Users, GraduationCap, Briefcase, BarChart3 } from 'lucide-react';
+import type { Attendance, PrincipalDashboardResponse, PrincipalDashboardTrendPoint } from '../../types';
+import { RefreshCw, Users, GraduationCap, Briefcase, BarChart3, Download } from 'lucide-react';
+import { ExportDtrModal } from '../../components/ExportDtrModal';
 
 export const PrincipalHome: React.FC = () => {
   const { user } = useAuth();
@@ -11,6 +12,23 @@ export const PrincipalHome: React.FC = () => {
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [dashboardDays, setDashboardDays] = useState<number>(7);
   const [selectedTutorId, setSelectedTutorId] = useState<string>('all');
+  const [staffAttendance, setStaffAttendance] = useState<Attendance[]>([]);
+  const [isDtrExportOpen, setIsDtrExportOpen] = useState(false);
+  const [isLoadingDtr, setIsLoadingDtr] = useState(false);
+
+  const openDtrExport = async () => {
+    setIsLoadingDtr(true);
+    try {
+      const records = await academicService.getAttendanceHistory();
+      setStaffAttendance(records.filter((record) => ['tutor', 'faculty'].includes(record.role)));
+      setIsDtrExportOpen(true);
+    } catch (err) {
+      console.error('Failed to load staff attendance for DTR export.', err);
+      setDashboardError('Failed to load tutor and faculty attendance for the DTR export.');
+    } finally {
+      setIsLoadingDtr(false);
+    }
+  };
 
   const fetchDashboardData = async () => {
     setDashboardLoading(true);
@@ -50,6 +68,9 @@ export const PrincipalHome: React.FC = () => {
   const chartHeight = 220;
   const classStepX = classTrend.length > 1 ? (classChartWidth - chartPadding * 2) / (classTrend.length - 1) : 0;
   const staffStepX = staffTrend.length > 1 ? (staffChartWidth - chartPadding * 2) / (staffTrend.length - 1) : 0;
+
+  const compositeFromPrincipalPoint = (point: PrincipalDashboardTrendPoint) =>
+    Math.round(((point.attendance_rate || 0) + (point.average_score || 0)) / 2);
 
   const buildCompositePoints = (points: PrincipalDashboardTrendPoint[], stepX: number) => {
     if (!points.length) return '';
@@ -130,6 +151,15 @@ export const PrincipalHome: React.FC = () => {
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh Analytics
+          </button>
+          <button
+            type="button"
+            onClick={openDtrExport}
+            disabled={isLoadingDtr}
+            className="inline-flex items-center bg-[var(--brand)] text-white hover:bg-[var(--brand-dark)] px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {isLoadingDtr ? 'Loading DTR…' : 'Export Staff DTR'}
           </button>
         </div>
       </div>
@@ -299,6 +329,13 @@ export const PrincipalHome: React.FC = () => {
           <span>These views are consolidated for the ARAL program and reflect the latest principal dashboard payload.</span>
         </div>
       </div>
+
+      <ExportDtrModal
+        isOpen={isDtrExportOpen}
+        onClose={() => setIsDtrExportOpen(false)}
+        currentUser={user}
+        attendanceLogs={staffAttendance}
+      />
     </div>
   );
 };

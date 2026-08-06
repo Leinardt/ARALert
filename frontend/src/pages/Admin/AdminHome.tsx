@@ -65,7 +65,7 @@ export const AdminHome: React.FC = () => {
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Total users</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Total Students</p>
                   <p className="mt-4 text-4xl font-extrabold text-slate-900">{stats.total_users}</p>
                 </div>
                 <div className="rounded-2xl bg-[var(--brand-light)] p-3 text-[var(--brand-dark)]">
@@ -87,7 +87,7 @@ export const AdminHome: React.FC = () => {
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Attendance snapshot</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Total Attendance Status</p>
                   <p className="mt-4 text-4xl font-extrabold text-slate-900">{attendanceSummary?.total_logs ?? 0}</p>
                 </div>
                 <div className="rounded-2xl bg-[var(--brand-light)] p-3 text-[var(--brand-dark)]">
@@ -116,7 +116,7 @@ export const AdminHome: React.FC = () => {
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Academic health</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Academic Performance</p>
                   <p className="mt-4 text-4xl font-extrabold text-slate-900">{academicSummary?.average_score ?? 0}%</p>
                 </div>
                 <div className="rounded-2xl bg-[var(--brand-light)] p-3 text-[var(--brand-dark)]">

@@ -4,3 +4,4 @@ djangorestframework-simplejwt>=5.3,<6.0
 psycopg[binary]>=3.1,<4.0
 python-decouple>=3.8,<4.0
 django-cors-headers>=4.3,<5.0
+google-auth>=2.0,<3.0

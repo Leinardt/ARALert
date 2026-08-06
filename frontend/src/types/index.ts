@@ -18,12 +18,14 @@ export interface User {
   is_superuser: boolean;
   date_joined: string;
   last_login: string | null;
+  has_logged_in?: boolean;
   assigned_tutor: string | null;
   assigned_tutor_name: string | null;
   assessment_weight: number;
   weekly_tasks_weight: number;
   attendance_weight: number;
   aral_level?: 'basic' | 'plus' | 'summer' | null;
+  faculty_type?: string | null;
 }
 
 export interface AuthResponse {
@@ -107,6 +109,7 @@ export interface AcademicRisk {
   details: string;
   date_created: string;
   resolved: boolean;
+  student_acknowledged: boolean;
 }
 
 export interface PrincipalDashboardTrendPoint {
@@ -146,7 +149,7 @@ export interface AttendanceSession {
   creator: string;
   creator_name: string;
   session_type: 'student' | 'staff';
-  action: 'time_in' | 'time_out' | null;
+  action: 'time_in' | 'time_out' | 'arrival_am' | 'departure_am' | 'arrival_pm' | 'departure_pm' | null;
   aral_activity: number | null;
   aral_activity_title: string | null;
   expires_at: string;
@@ -163,6 +166,10 @@ export interface Attendance {
   date: string;
   time_in: string | null;
   time_out: string | null;
+  arrival_am: string | null;
+  departure_am: string | null;
+  arrival_pm: string | null;
+  departure_pm: string | null;
   status: 'present' | 'late' | 'absent';
   status_display: string;
   tutor: string | null;

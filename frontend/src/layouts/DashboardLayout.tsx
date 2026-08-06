@@ -47,6 +47,8 @@ export const DashboardLayout: React.FC = () => {
   const [acknowledgeNote, setAcknowledgeNote] = useState('');
   const [acknowledgedNotes, setAcknowledgedNotes] = useState<Record<string, string>>({});
   const [acknowledgedRiskIds, setAcknowledgedRiskIds] = useState<Record<string, number>>({});
+  const [studentNotes, setStudentNotes] = useState<AcademicRisk[]>([]);
+  const [showStudentNotes, setShowStudentNotes] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
   const isActivePrefix = (prefix: string) => location.pathname.startsWith(prefix);
@@ -54,33 +56,48 @@ export const DashboardLayout: React.FC = () => {
   const navLinkClass = (active: boolean) =>
     `sidebar-item ${active ? 'active' : ''}`;
 
+  const studentNoteStyle = (riskLevel: AcademicRisk['risk_level']) => {
+    if (riskLevel === 'high') {
+      return { background: '#FFF5F5', border: '#FECACA', label: '#991B1B', text: '#7F1D1D', button: '#DC2626', acknowledged: '#B91C1C' };
+    }
+    if (riskLevel === 'medium') {
+      return { background: '#FFFBEB', border: '#FDE68A', label: '#92400E', text: '#78350F', button: '#D97706', acknowledged: '#B45309' };
+    }
+    return { background: '#ECFDF5', border: '#A7F3D0', label: '#065F46', text: '#064E3B', button: '#059669', acknowledged: '#047857' };
+  };
+
   const fetchRiskStudents = async () => {
     if (!user || user.role !== 'tutor') return;
     try {
-      const [studentRes, grades, attendanceLogs, riskRecords] = await Promise.all([
+      const [studentRes, gradesRaw, attRaw, risksRaw] = await Promise.all([
         userService.getUsers({ role: 'student', assigned_tutor: user.id }),
         academicService.getGrades(),
         academicService.getAttendanceHistory(),
         academicService.getAcademicRisks(),
       ]);
 
-      const rows = computeStudentRiskRows(studentRes.results, grades, attendanceLogs);
+      const students = Array.isArray(studentRes.results) ? studentRes.results : [];
+      const grades = Array.isArray(gradesRaw) ? gradesRaw : (gradesRaw as any)?.results ?? [];
+      const attendanceLogs = Array.isArray(attRaw) ? attRaw : (attRaw as any)?.results ?? [];
+      const riskRecords = Array.isArray(risksRaw) ? risksRaw : (risksRaw as any)?.results ?? [];
+
+      const rows = computeStudentRiskRows(students, grades, attendanceLogs);
       const highRiskRows = rows.filter((r) => r.riskTier === 'High').sort((a, b) => b.compositeScore - a.compositeScore).slice(0, 5);
       const moderateRiskRows = rows.filter((r) => r.riskTier === 'Medium').sort((a, b) => b.compositeScore - a.compositeScore).slice(0, 5);
 
-      const latestResolvedRiskByStudent = riskRecords
-        .filter((risk) => risk.resolved)
-        .sort((a, b) => new Date(b.date_created).getTime() - new Date(a.date_created).getTime())
-        .reduce<Record<string, AcademicRisk>>((acc, risk) => {
+      const latestResolvedRiskByStudent = (riskRecords as AcademicRisk[])
+        .filter((risk: AcademicRisk) => risk.resolved)
+        .sort((a: AcademicRisk, b: AcademicRisk) => new Date(b.date_created).getTime() - new Date(a.date_created).getTime())
+        .reduce((acc: Record<string, AcademicRisk>, risk: AcademicRisk) => {
           if (!acc[risk.student]) acc[risk.student] = risk;
           return acc;
-        }, {});
+        }, {} as Record<string, AcademicRisk>);
 
       setHighRiskStudents(highRiskRows);
       setModerateRiskStudents(moderateRiskRows);
       setHighRiskCount(highRiskRows.length + moderateRiskRows.length);
-      setAcknowledgedNotes(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]) => [id, r.details])));
-      setAcknowledgedRiskIds(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]) => [id, r.id])));
+      setAcknowledgedNotes(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.details])));
+      setAcknowledgedRiskIds(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.id])));
     } catch (error) {
       console.error('Failed to load tutor alerts', error);
     }
@@ -124,8 +141,30 @@ export const DashboardLayout: React.FC = () => {
     setAcknowledgeNote('');
   };
 
+  const fetchStudentNotes = async () => {
+    if (user?.role !== 'student') return;
+    try {
+      const risks = await academicService.getAcademicRisks();
+      setStudentNotes(risks.filter((risk) => Boolean(risk.details)).sort(
+        (a, b) => new Date(b.date_created).getTime() - new Date(a.date_created).getTime()
+      ));
+    } catch (error) {
+      console.error('Failed to load student tutor notes', error);
+    }
+  };
+
+  const acknowledgeStudentNote = async (riskId: number) => {
+    try {
+      await academicService.updateAcademicRisk(riskId, { student_acknowledged: true });
+      await fetchStudentNotes();
+    } catch (error) {
+      console.error('Failed to acknowledge tutor note', error);
+    }
+  };
+
   useEffect(() => { fetchRiskStudents(); }, [user]);
   useEffect(() => { if (!showRiskList) return; fetchRiskStudents(); }, [showRiskList]);
+  useEffect(() => { fetchStudentNotes(); }, [user]);
   useEffect(() => { setProfileMenuOpen(false); }, [location.pathname]);
 
   return (
@@ -671,6 +710,64 @@ export const DashboardLayout: React.FC = () => {
                         </button>
                       </div>
                     </form>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {user?.role === 'student' && (
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowStudentNotes((visible) => !visible)}
+                  aria-label="Tutor notes"
+                  style={{
+                    position: 'relative', width: '38px', height: '38px', borderRadius: '10px',
+                    background: 'var(--surface-muted)', border: '1px solid var(--slate-200)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                    color: 'var(--text-secondary)', transition: 'var(--transition-fast)',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand-dark)'; e.currentTarget.style.borderColor = 'var(--brand-border)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--slate-200)'; }}
+                >
+                  <Bell size={17} />
+                  {studentNotes.filter((note) => !note.student_acknowledged).length > 0 && (
+                    <span className="animate-badge-pulse" style={{ position: 'absolute', top: '-4px', right: '-4px', minWidth: '18px', height: '18px', padding: '0 4px', borderRadius: '99px', background: '#EF4444', color: '#fff', fontSize: '10px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>
+                      {studentNotes.filter((note) => !note.student_acknowledged).length}
+                    </span>
+                  )}
+                </button>
+
+                {showStudentNotes && (
+                  <div className="animate-fade-in-scale" style={{ position: 'absolute', right: 0, top: 'calc(100% + 10px)', width: '360px', background: '#fff', border: '1px solid var(--slate-200)', borderRadius: '18px', boxShadow: 'var(--shadow-xl)', zIndex: 50, overflow: 'hidden' }}>
+                    <div style={{ padding: '1rem 1.25rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-200)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tutor Notes</p>
+                        <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Messages and support reminders from your tutor.</p>
+                      </div>
+                      <button type="button" onClick={() => setShowStudentNotes(false)} aria-label="Close tutor notes" style={{ width: '28px', height: '28px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={15} /></button>
+                    </div>
+                    <div style={{ maxHeight: '380px', overflowY: 'auto', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {studentNotes.length === 0 ? (
+                        <p style={{ margin: 0, padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>No tutor notes right now.</p>
+                      ) : studentNotes.map((note) => {
+                        const colors = studentNoteStyle(note.risk_level);
+                        return (
+                        <div key={note.id} style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: '12px', padding: '0.875rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: colors.label, textTransform: 'uppercase' }}>{note.risk_level_display} risk</span>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{new Date(note.date_created).toLocaleDateString()}</span>
+                          </div>
+                          <p style={{ margin: '0.55rem 0 0', fontSize: '0.82rem', color: colors.text, lineHeight: 1.45 }}>{note.details}</p>
+                          {note.student_acknowledged ? (
+                            <p style={{ margin: '0.65rem 0 0', fontSize: '0.75rem', fontWeight: 700, color: colors.acknowledged }}>Acknowledged</p>
+                          ) : (
+                            <button type="button" onClick={() => acknowledgeStudentNote(note.id)} style={{ marginTop: '0.65rem', border: 'none', borderRadius: '7px', padding: '6px 10px', background: colors.button, color: '#fff', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Acknowledge</button>
+                          )}
+                        </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

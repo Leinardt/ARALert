@@ -1,24 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { academicService } from '../../services/academicService';
-import { ArrowLeft, RefreshCw, LogIn, LogOut, CheckCircle2, Clock } from 'lucide-react';
+import { ArrowLeft, RefreshCw, CheckCircle2, Clock, FileImage, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import QRCode from 'qrcode';
+import { exportStaffQrPrintFile } from '../../utils/staffQrPrintExport';
 
 export const AdminAttendanceQR: React.FC = () => {
-  const [action, setAction] = useState<'time_in' | 'time_out'>('time_in');
   const [session, setSession] = useState<any>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [exportingFormat, setExportingFormat] = useState<'png' | 'jpeg' | 'pdf' | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const generateQR = async (actionType: 'time_in' | 'time_out') => {
+  const generateQR = async () => {
     setIsLoading(true);
     setError(null);
     try {
       // Create a 24-hour long session so it does not count down or expire during the workday
       const newSession = await academicService.createAttendanceSession({
         session_type: 'staff',
-        action: actionType,
         expires_in_minutes: 1440,
       });
 
@@ -32,8 +32,8 @@ export const AdminAttendanceQR: React.FC = () => {
   };
 
   useEffect(() => {
-    generateQR(action);
-  }, [action]);
+    generateQR();
+  }, []);
 
   // Render QR code to Canvas when session changes
   useEffect(() => {
@@ -52,6 +52,24 @@ export const AdminAttendanceQR: React.FC = () => {
     }
   }, [session]);
 
+  const exportPrintFile = async (format: 'png' | 'jpeg' | 'pdf') => {
+    if (!session) return;
+    setExportingFormat(format);
+    try {
+      await exportStaffQrPrintFile({
+        sessionId: session.id,
+        action: 'staff_day',
+        expiresAt: session.expires_at,
+        format,
+      });
+    } catch (exportError) {
+      console.error('Staff QR print export failed:', exportError);
+      setError('Unable to create the print-ready QR file. Please try again.');
+    } finally {
+      setExportingFormat(null);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-xl mx-auto">
       <div className="flex items-center space-x-2">
@@ -65,32 +83,6 @@ export const AdminAttendanceQR: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden">
-        {/* Header tabs */}
-        <div className="flex border-b border-gray-200 bg-gray-50/50">
-          <button
-            onClick={() => setAction('time_in')}
-            className={`flex-1 py-4 text-center font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition-all ${
-              action === 'time_in'
-                ? 'border-[var(--brand)] text-[var(--brand)] bg-white'
-                : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/50'
-            }`}
-          >
-            <LogIn className="w-4 h-4" />
-            <span>Staff Clock In</span>
-          </button>
-          <button
-            onClick={() => setAction('time_out')}
-            className={`flex-1 py-4 text-center font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition-all ${
-              action === 'time_out'
-                ? 'border-[var(--brand)] text-[var(--brand)] bg-white'
-                : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/50'
-            }`}
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Staff Clock Out</span>
-          </button>
-        </div>
-
         <div className="p-8 flex flex-col items-center text-center">
           {error && (
             <div className="w-full mb-6 bg-red-50 border border-red-200 text-red-800 text-sm rounded-lg p-4">
@@ -121,21 +113,35 @@ export const AdminAttendanceQR: React.FC = () => {
               <div className="flex items-center justify-center space-x-2 text-[var(--brand-text)] bg-[var(--brand-light)] border border-[var(--brand-border)] p-4 rounded-xl max-w-sm mx-auto text-left">
                 <Clock className="w-5 h-5 text-[var(--brand)] shrink-0" />
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider">Time Limit Rules</p>
+                  <p className="text-xs font-bold uppercase tracking-wider">All-day staff DTR QR</p>
                   <p className="text-xs mt-0.5 font-semibold">
-                    {action === 'time_in'
-                      ? 'Clock-In logs are accepted until 7:30 AM only.'
-                      : 'Clock-Out logs open starting from 5:00 PM onwards.'}
+                    One QR code records each tutor or faculty DTR punch automatically based on the scan time.
                   </p>
                 </div>
               </div>
 
               <p className="text-xs text-gray-400 max-w-sm mx-auto">
-                Instruct staff to scan this QR code using their device cameras on the check-in scanner page.
+                Faculty: 8:00 AM in, 11:30 AM out, 1:00 PM in, 4:30 PM out. Tutors: 4:30 PM in, 5:00 PM out.
               </p>
 
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-left">
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-700">Print-ready long bond paper export</p>
+                <p className="mt-1 text-xs text-gray-500">Downloads an 8.5 × 13 inch poster ready to print and post for tutors and faculty.</p>
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <button type="button" onClick={() => exportPrintFile('png')} disabled={exportingFormat !== null} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-60">
+                    <FileImage className="h-4 w-4" /> {exportingFormat === 'png' ? 'Creating…' : 'PNG'}
+                  </button>
+                  <button type="button" onClick={() => exportPrintFile('jpeg')} disabled={exportingFormat !== null} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-60">
+                    <FileImage className="h-4 w-4" /> {exportingFormat === 'jpeg' ? 'Creating…' : 'JPEG'}
+                  </button>
+                  <button type="button" onClick={() => exportPrintFile('pdf')} disabled={exportingFormat !== null} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--brand)] px-3 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] disabled:opacity-60">
+                    <FileText className="h-4 w-4" /> {exportingFormat === 'pdf' ? 'Creating…' : 'PDF'}
+                  </button>
+                </div>
+              </div>
+
               <button
-                onClick={() => generateQR(action)}
+                onClick={generateQR}
                 className="text-[var(--brand)] hover:text-[var(--brand-dark)] text-xs font-bold flex items-center justify-center space-x-1 mx-auto transition-colors mt-2"
               >
                 <RefreshCw className="w-3.5 h-3.5" />

@@ -1,30 +1,32 @@
 """
 Auth API URL configuration.
+All staff authenticate via Google OAuth.
+Students authenticate via Full Name (3 fields) + LRN.
 """
 
 from django.urls import path
 
 from .views import (
-    ActivateAccountView,
+    AllowedEmailDestroyView,
+    AllowedEmailListCreateView,
     CustomTokenRefreshView,
-    ForgotPasswordView,
-    LoginView,
+    GoogleLoginView,
     LogoutView,
-    ResetPasswordView,
-    MFAToggleView,
-    VerifyOTPView,
     StudentLoginView,
 )
 
 urlpatterns = [
-    path('login/', LoginView.as_view(), name='auth-login'),
+    # Google OAuth login (staff — Admin, Principal, Tutor, Faculty, SuperAdmin)
+    path('google/', GoogleLoginView.as_view(), name='auth-google-login'),
+
+    # Student login (First Name + Middle Name + Last Name + LRN)
     path('student-login/', StudentLoginView.as_view(), name='auth-student-login'),
+
+    # Common endpoints
     path('logout/', LogoutView.as_view(), name='auth-logout'),
     path('refresh/', CustomTokenRefreshView.as_view(), name='auth-refresh'),
-    path('activate/', ActivateAccountView.as_view(), name='auth-activate'),
-    path('forgot-password/', ForgotPasswordView.as_view(), name='auth-forgot-password'),
-    path('reset-password/', ResetPasswordView.as_view(), name='auth-reset-password'),
-    path('mfa/', MFAToggleView.as_view(), name='auth-mfa-toggle'),
-    path('verify-otp/', VerifyOTPView.as_view(), name='auth-verify-otp'),
-]
 
+    # SuperAdmin — Allowed Email whitelist management
+    path('allowed-emails/', AllowedEmailListCreateView.as_view(), name='allowed-email-list'),
+    path('allowed-emails/<int:pk>/', AllowedEmailDestroyView.as_view(), name='allowed-email-destroy'),
+]

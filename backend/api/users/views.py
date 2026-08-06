@@ -1,23 +1,25 @@
 """
 Users API Views.
-SuperAdmin and Admin endpoints for user management with audit logging.
+SuperAdmin and Admin endpoints for user management with audit logging, bulk tutor assignment,
+and user login/logout activity history.
 """
 
-from rest_framework import status, generics
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
+from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.shortcuts import get_object_or_404
-from django.db.models import Q
 
-from apps.accounts.models import User, AuditLog
-from apps.academics.models import Attendance, AcademicRisk, Grade
-from permissions.role_permissions import IsAdmin, IsTutor, role_required
+from apps.academics.models import AssessmentScore, Prediction, StudentAttendance
+from apps.accounts.models import AuditLog, User
+from permissions.role_permissions import IsAdmin, IsTutor
 from utilities.audit import log_audit_event
+
 from .serializers import (
-    UserListSerializer,
+    BulkAssignTutorSerializer,
     UserCreateSerializer,
+    UserListSerializer,
     UserUpdateSerializer,
-    ResetPasswordSerializer,
 )
 
 
@@ -47,42 +49,17 @@ class UserStatsView(APIView):
             return Response(stats)
 
         users = User.objects.filter(is_superuser=False)
-        attendance_logs = Attendance.objects.filter(user__is_superuser=False)
-        grade_entries = Grade.objects.filter(student__is_superuser=False)
-        risk_entries = AcademicRisk.objects.filter(student__is_superuser=False)
+        attendance_logs = StudentAttendance.objects.all()
+        assessment_entries = AssessmentScore.objects.all()
 
-        attendance_summary = {
-            'total_logs': attendance_logs.count(),
-            'present': attendance_logs.filter(status='present').count(),
-            'late': attendance_logs.filter(status='late').count(),
-            'absent': attendance_logs.filter(status='absent').count(),
-        }
-        attendance_rate = round(
-            ((attendance_summary['present'] + attendance_summary['late']) / attendance_summary['total_logs'] * 100)
-            if attendance_summary['total_logs'] else 0,
-            1,
-        )
+        total_att = attendance_logs.count()
+        present_att = attendance_logs.filter(status__iexact='PRESENT').count()
+        absent_att = attendance_logs.filter(status__iexact='ABSENT').count()
 
-        score_values = []
-        for grade in grade_entries.filter(component_type__in=['assessment', 'weekly_task', 'attendance']):
-            total_score = float(grade.total_score or 0)
-            if total_score > 0:
-                score_values.append((float(grade.score) / total_score) * 100.0)
-            elif grade.score is not None:
-                score_values.append(float(grade.score))
+        att_rate = round((present_att / total_att * 100.0), 1) if total_att > 0 else 0
 
-        academic_summary = {
-            'average_score': round(sum(score_values) / len(score_values), 1) if score_values else 0,
-            'average_attendance_rate': attendance_rate,
-            'grade_entries': grade_entries.count(),
-        }
-
-        risk_summary = {
-            'low': risk_entries.filter(risk_level='low').count(),
-            'medium': risk_entries.filter(risk_level='medium').count(),
-            'high': risk_entries.filter(risk_level='high').count(),
-            'resolved': risk_entries.filter(resolved=True).count(),
-        }
+        scores = [float(s.score) for s in assessment_entries if s.score is not None]
+        avg_score = round(sum(scores) / len(scores), 1) if scores else 0
 
         stats = {
             'total_users': users.count(),
@@ -95,9 +72,16 @@ class UserStatsView(APIView):
             'students': users.filter(role='student').count(),
             'assigned_students': users.filter(role='student', assigned_tutor__isnull=False).count(),
             'unassigned_students': users.filter(role='student', assigned_tutor__isnull=True).count(),
-            'attendance_summary': attendance_summary,
-            'academic_summary': academic_summary,
-            'risk_summary': risk_summary,
+            'attendance_summary': {
+                'total_logs': total_att,
+                'present': present_att,
+                'absent': absent_att,
+            },
+            'academic_summary': {
+                'average_score': avg_score,
+                'average_attendance_rate': att_rate,
+                'total_assessments': len(scores),
+            },
         }
         return Response(stats)
 
@@ -105,7 +89,7 @@ class UserStatsView(APIView):
 class UserListCreateView(generics.ListCreateAPIView):
     """
     GET  /api/users/     — List users (paginated, searchable, sortable, filterable).
-    POST /api/users/     — Create a new user.
+    POST /api/users/     — Create a new user (SuperAdmin registers staff; Admin registers students).
     """
 
     def get_permissions(self):
@@ -141,6 +125,7 @@ class UserListCreateView(generics.ListCreateAPIView):
                 | Q(last_name__icontains=search)
                 | Q(username__icontains=search)
                 | Q(email__icontains=search)
+                | Q(lrn__icontains=search)
             )
 
         role = self.request.query_params.get('role', '').strip()
@@ -172,15 +157,10 @@ class UserListCreateView(generics.ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = UserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         role = serializer.validated_data.get('role')
         from rest_framework.exceptions import ValidationError
-        if request.user.is_superuser:
-            if role == 'student':
-                raise ValidationError(
-                    {'role': 'SuperAdmin cannot create student accounts.'}
-                )
-        elif request.user.role == 'admin':
+        if not request.user.is_superuser and request.user.role == 'admin':
             if role != 'student':
                 raise ValidationError(
                     {'role': 'School Admins can only enroll student accounts.'}
@@ -243,10 +223,7 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
 
 
 class UserActivateView(APIView):
-    """
-    PATCH /api/users/{id}/activate/
-    Set user is_active=True.
-    """
+    """PATCH /api/users/{id}/activate/ — Set user is_active=True."""
 
     permission_classes = [IsAdmin]
 
@@ -268,10 +245,7 @@ class UserActivateView(APIView):
 
 
 class UserDeactivateView(APIView):
-    """
-    PATCH /api/users/{id}/deactivate/
-    Set user is_active=False.
-    """
+    """PATCH /api/users/{id}/deactivate/ — Set user is_active=False."""
 
     permission_classes = [IsAdmin]
 
@@ -292,38 +266,105 @@ class UserDeactivateView(APIView):
         return Response({'detail': 'User deactivated successfully.'})
 
 
-class ResetPasswordView(APIView):
+class BulkAssignTutorView(APIView):
     """
-    POST /api/users/{id}/reset-password/
-    Reset a user's password.
+    POST /api/users/bulk-assign-tutor/
+    Multi-select students and assign them to a tutor in a single request.
+    If tutor_id is null/blank, sets assignment to TBA (null).
+    Accessible by Admin and SuperAdmin.
     """
 
     permission_classes = [IsAdmin]
 
-    def post(self, request, id):
-        if not request.user.is_superuser and request.user.role == 'admin':
-            user = get_object_or_404(User, id=id, is_superuser=False, role='student')
-        else:
-            user = get_object_or_404(User, id=id, is_superuser=False)
-        serializer = ResetPasswordSerializer(data=request.data)
+    def post(self, request):
+        serializer = BulkAssignTutorSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user.set_password(serializer.validated_data['new_password'])
-        user.save(update_fields=['password'])
 
+        student_ids = serializer.validated_data['student_ids']
+        tutor = serializer.validated_data.get('tutor_id')  # User instance or None
+
+        students = User.objects.filter(id__in=student_ids, role='student', is_superuser=False)
+        updated_count = students.update(assigned_tutor=tutor)
+
+        tutor_name = tutor.get_full_name() if tutor else 'TBA'
         log_audit_event(
-            'USER_PASSWORD_RESET_BY_ADMIN',
+            'BULK_TUTOR_ASSIGNED',
             user=request.user,
             request=request,
-            details={'target_user_id': str(user.id), 'target_username': user.username}
+            details={
+                'updated_count': updated_count,
+                'tutor': tutor_name,
+                'student_ids': [str(s) for s in student_ids],
+            },
         )
-        return Response({'detail': 'Password reset successfully.'})
+
+        return Response({
+            'detail': f'Successfully assigned {updated_count} student(s) to {tutor_name}.',
+            'updated_count': updated_count,
+            'tutor_name': tutor_name,
+        }, status=status.HTTP_200_OK)
+
+
+class UserActivityHistoryView(APIView):
+    """
+    GET /api/users/{id}/activity/
+    Return full login and logout history for a specific user with dates, times, and IP.
+    Accessible by Admin and SuperAdmin.
+    """
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request, id):
+        target_user = get_object_or_404(User, id=id)
+
+        # Match by user FK, or email/username
+        qs = AuditLog.objects.filter(
+            Q(user=target_user)
+            | Q(username__iexact=target_user.email)
+            | Q(username__iexact=target_user.username)
+        ).order_by('-timestamp')
+
+        login_logout_actions = [
+            'GOOGLE_LOGIN_SUCCESS',
+            'STUDENT_LOGIN_SUCCESS',
+            'LOGOUT_SUCCESS',
+            'LOGIN_SUCCESS',
+        ]
+
+        auth_only = request.query_params.get('auth_only', 'true').lower() == 'true'
+        if auth_only:
+            qs = qs.filter(action__in=login_logout_actions)
+
+        from django.utils.timezone import localtime
+
+        logs = qs[:100]
+
+        results = [
+            {
+                'id': str(log.id),
+                'timestamp': log.timestamp.isoformat(),
+                'formatted_time': localtime(log.timestamp).strftime('%B %d, %Y at %I:%M %p'),
+                'action': log.action,
+                'event_type': 'LOGIN' if 'LOGIN' in log.action else ('LOGOUT' if 'LOGOUT' in log.action else 'OTHER'),
+                'ip_address': str(log.ip_address) if log.ip_address else 'N/A',
+                'user_agent': log.user_agent[:100] if log.user_agent else '',
+                'details': log.details,
+            }
+            for log in logs
+        ]
+
+        return Response({
+            'user_id': str(target_user.id),
+            'full_name': target_user.get_full_name(),
+            'email': target_user.email,
+            'count': len(results),
+            'activities': results,
+        })
 
 
 class TutorListView(generics.ListAPIView):
-    """
-    GET /api/users/tutors/
-    List active tutors (accessible by Admin and Principal and SuperAdmin).
-    """
+    """GET /api/users/tutors/ — List active tutors for assignment dropdowns."""
+
     permission_classes = [IsAdmin]
     serializer_class = UserListSerializer
     pagination_class = None
@@ -333,10 +374,7 @@ class TutorListView(generics.ListAPIView):
 
 
 class AuditLogListView(APIView):
-    """
-    GET /api/users/audit-logs/
-    Return paginated, filtered audit log entries. SuperAdmin only.
-    """
+    """GET /api/users/audit-logs/ — Return paginated audit logs for SuperAdmin."""
 
     def get_permissions(self):
         from rest_framework.permissions import IsAuthenticated
@@ -361,10 +399,12 @@ class AuditLogListView(APIView):
         offset = (page - 1) * page_size
         logs = qs[offset: offset + page_size]
 
+        from django.utils.timezone import localtime
+
         results = [
             {
                 'id': str(log.id),
-                'timestamp': log.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC'),
+                'timestamp': localtime(log.timestamp).strftime('%Y-%m-%d %I:%M:%S %p PHT'),
                 'action': log.action,
                 'username': log.username or (str(log.user) if log.user else 'Anonymous'),
                 'ip_address': str(log.ip_address) if log.ip_address else 'N/A',

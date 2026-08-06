@@ -50,6 +50,7 @@ export const StudentHome: React.FC = () => {
     fetchProfile();
   }, [user]);
 
+
   useEffect(() => {
     const fetchAttendanceLogs = async () => {
       if (!user) return;
@@ -204,7 +205,7 @@ export const StudentHome: React.FC = () => {
                   const x = 40 + index * 52;
                   const y = 150 - (point.value / maxTrendValue) * 90;
                   return (
-                    <g key={`${point.date}-${index}`}>
+                    <g key={`${point.label}-${index}`}>
                       <circle cx={x} cy={y} r="5" fill="var(--brand)" />
                       <text x={x} y="168" textAnchor="middle" className="fill-slate-500 text-[10px]">{point.label}</text>
                     </g>

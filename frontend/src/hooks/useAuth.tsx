@@ -5,8 +5,8 @@ import { authService } from '../services/authService';
 interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
-  login: (usernameOrEmail: string, password: string, rememberMe: boolean) => Promise<AuthResponse>;
-  studentLogin: (fullName: string, lrn: string) => Promise<AuthResponse>;
+  googleLogin: (idToken: string) => Promise<AuthResponse>;
+  studentLogin: (firstName: string, middleName: string, lastName: string, lrn: string) => Promise<AuthResponse>;
   completeAuthSession: (response: AuthResponse) => void;
   updateProfile: (data: FormData) => Promise<User>;
   logout: () => Promise<void>;
@@ -32,22 +32,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(response.user);
   };
 
-  const login = async (usernameOrEmail: string, password: string, rememberMe: boolean) => {
-    const response = await authService.login(usernameOrEmail, password, rememberMe);
-    if (response.mfa_required) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
-      localStorage.setItem('mfa_user_id', response.user_id ?? '');
-      setUser(null);
-      return response;
-    }
+  const googleLogin = async (idToken: string) => {
+    const response = await authService.googleLogin(idToken);
     completeAuthSession(response);
     return response;
   };
 
-  const studentLogin = async (fullName: string, lrn: string) => {
-    const response = await authService.studentLogin(fullName, lrn);
+  const studentLogin = async (firstName: string, middleName: string, lastName: string, lrn: string) => {
+    const response = await authService.studentLogin(firstName, middleName, lastName, lrn);
     completeAuthSession(response);
     return response;
   };
@@ -89,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, studentLogin, completeAuthSession, updateProfile, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, googleLogin, studentLogin, completeAuthSession, updateProfile, logout }}>
       {children}
     </AuthContext.Provider>
   );

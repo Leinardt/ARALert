@@ -12,14 +12,14 @@ const editUserSchema = z.object({
   first_name: z.string().min(1, 'First Name is required.'),
   middle_name: z.string().optional(),
   last_name: z.string().min(1, 'Last Name is required.'),
-  username: z.string().min(3, 'Username must be at least 3 characters.'),
-  email: z.string().email('Invalid email address.'),
+  email: z.string().optional(),
   role: z.enum(['admin', 'principal', 'faculty', 'tutor', 'student'], {
     message: 'Please select a valid role.',
   }),
   lrn: z.string().optional(),
   is_active: z.boolean(),
   assigned_tutor: z.string().optional().nullable(),
+  aral_level: z.string().optional(),
 }).refine((data) => {
   if (data.role === 'student') {
     return !!data.lrn && /^\d{12}$/.test(data.lrn);
@@ -54,7 +54,6 @@ export const EditUser: React.FC = () => {
 
   const selectedRole = watch('role');
 
-  // Fetch tutors list and user details
   useEffect(() => {
     const loadData = async () => {
       if (!id) return;
@@ -63,22 +62,22 @@ export const EditUser: React.FC = () => {
           userService.getUser(id),
           userService.getTutors(),
         ]);
-        
+
         setTutors(tutorsData);
         reset({
           first_name: userData.first_name,
           middle_name: userData.middle_name || '',
           last_name: userData.last_name,
-          username: userData.username,
           email: userData.email,
           role: userData.role as EditUserFields['role'],
           lrn: userData.lrn || '',
           is_active: userData.is_active,
           assigned_tutor: userData.assigned_tutor || '',
+          aral_level: userData.aral_level || 'basic',
         });
       } catch (err) {
         console.error(err);
-        setFetchError('User not found or could not be loaded.');
+        setFetchError('User account not found or could not be loaded.');
       } finally {
         setIsLoading(false);
       }
@@ -102,7 +101,7 @@ export const EditUser: React.FC = () => {
       navigate(currentUser?.is_superuser ? '/superadmin/users' : '/admin/students');
     } catch (error: any) {
       console.error(error);
-      const errorsPayload = error.response?.data?.errors;
+      const errorsPayload = error.response?.data;
       if (errorsPayload && typeof errorsPayload === 'object') {
         setServerErrors(errorsPayload);
       } else {
@@ -148,7 +147,7 @@ export const EditUser: React.FC = () => {
 
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
         <h2 className="text-lg font-bold text-gray-900 mb-6">
-          {currentUser?.is_superuser ? 'Edit User' : 'Edit Student'}
+          {currentUser?.is_superuser ? 'Edit User Profile' : 'Edit Student Record'}
         </h2>
 
         {serverErrors?.detail && (
@@ -159,27 +158,28 @@ export const EditUser: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label htmlFor="first_name" className="block text-sm font-semibold text-gray-700">First Name</label>
               <input id="first_name" type="text" {...register('first_name')}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm ${errors.first_name || serverErrors?.first_name ? 'border-red-300' : 'border-gray-300'}`}
+                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] sm:text-sm ${errors.first_name || serverErrors?.first_name ? 'border-red-300' : 'border-gray-300'}`}
               />
               {(errors.first_name || serverErrors?.first_name) && (
                 <p className="mt-1 text-xs text-red-600">{errors.first_name?.message || serverErrors?.first_name?.[0]}</p>
               )}
             </div>
+
             <div>
               <label htmlFor="middle_name" className="block text-sm font-semibold text-gray-700">Middle Name <span className="font-normal text-gray-400">(optional)</span></label>
               <input id="middle_name" type="text" {...register('middle_name')}
-                placeholder="Full middle name"
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] sm:text-sm"
               />
             </div>
+
             <div>
               <label htmlFor="last_name" className="block text-sm font-semibold text-gray-700">Last Name</label>
               <input id="last_name" type="text" {...register('last_name')}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm ${errors.last_name || serverErrors?.last_name ? 'border-red-300' : 'border-gray-300'}`}
+                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] sm:text-sm ${errors.last_name || serverErrors?.last_name ? 'border-red-300' : 'border-gray-300'}`}
               />
               {(errors.last_name || serverErrors?.last_name) && (
                 <p className="mt-1 text-xs text-red-600">{errors.last_name?.message || serverErrors?.last_name?.[0]}</p>
@@ -187,40 +187,46 @@ export const EditUser: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="username" className="block text-sm font-semibold text-gray-700">Username</label>
-              <input id="username" type="text" {...register('username')}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm ${errors.username || serverErrors?.username ? 'border-red-300' : 'border-gray-300'}`}
-              />
-              {(errors.username || serverErrors?.username) && (
-                <p className="mt-1 text-xs text-red-600">{errors.username?.message || serverErrors?.username?.[0]}</p>
+          {selectedRole !== 'student' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label htmlFor="email" className="block text-sm font-semibold text-gray-700">Google Email Address</label>
+                <input id="email" type="email" {...register('email')}
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] sm:text-sm ${errors.email || serverErrors?.email ? 'border-red-300' : 'border-gray-300'}`}
+                />
+                {(errors.email || serverErrors?.email) && (
+                  <p className="mt-1 text-xs text-red-600">{errors.email?.message || serverErrors?.email?.[0]}</p>
+                )}
+              </div>
+
+              {selectedRole === 'tutor' && (
+                <div>
+                  <label htmlFor="aral_level" className="block text-sm font-semibold text-gray-700">ARAL Level</label>
+                  <select id="aral_level" {...register('aral_level')}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] sm:text-sm bg-white font-medium"
+                  >
+                    <option value="basic">ARAL Basic</option>
+                    <option value="plus">ARAL Plus</option>
+                    <option value="summer">ARAL Summer</option>
+                  </select>
+                </div>
               )}
             </div>
-            <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700">Email</label>
-              <input id="email" type="email" {...register('email')}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm ${errors.email || serverErrors?.email ? 'border-red-300' : 'border-gray-300'}`}
-              />
-              {(errors.email || serverErrors?.email) && (
-                <p className="mt-1 text-xs text-red-600">{errors.email?.message || serverErrors?.email?.[0]}</p>
-              )}
-            </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
               <label htmlFor="role" className="block text-sm font-semibold text-gray-700">System Role</label>
               <select id="role" {...register('role')}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm bg-white"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] sm:text-sm bg-white font-medium"
               >
                 {currentUser?.is_superuser ? (
                   <>
-                    <option value="student">Student</option>
                     <option value="tutor">Tutor</option>
                     <option value="faculty">Faculty</option>
                     <option value="principal">Principal</option>
                     <option value="admin">School Admin</option>
+                    <option value="student">Student</option>
                   </>
                 ) : (
                   <option value="student">Student</option>
@@ -229,7 +235,6 @@ export const EditUser: React.FC = () => {
               {errors.role && <p className="mt-1 text-xs text-red-600">{errors.role.message}</p>}
             </div>
 
-            {/* Assigned Tutor selection — visible only when role is student */}
             {selectedRole === 'student' && (
               <div>
                 <label htmlFor="assigned_tutor" className="block text-sm font-semibold text-gray-700">
@@ -238,57 +243,67 @@ export const EditUser: React.FC = () => {
                 <select
                   id="assigned_tutor"
                   {...register('assigned_tutor')}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm bg-white"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] sm:text-sm bg-white"
                 >
-                  <option value="">No Tutor Assigned</option>
+                  <option value="">-- TBA (Unassigned) --</option>
                   {tutors.map((tutor) => (
                     <option key={tutor.id} value={tutor.id}>
-                      {tutor.full_name} ({tutor.email})
+                      {tutor.full_name || `${tutor.first_name} ${tutor.last_name}`} ({tutor.email})
                     </option>
                   ))}
                 </select>
-                {errors.assigned_tutor && (
-                  <p className="mt-1 text-xs text-red-600">{errors.assigned_tutor.message}</p>
-                )}
               </div>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="flex items-center mt-6">
-              <input id="is_active" type="checkbox" {...register('is_active')}
-                className="h-4 w-4 text-[var(--brand)] focus:ring-[var(--brand)] border-gray-300 rounded"
-              />
-              <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900 cursor-pointer">
-                Account Status (Active)
-              </label>
-            </div>
-          </div>
-
-          {/* LRN Field — visible only when role is student */}
           {selectedRole === 'student' && (
-            <div className="max-w-sm">
-              <label htmlFor="lrn" className="block text-sm font-semibold text-gray-700">
-                Learner Reference Number (LRN)
-              </label>
-              <input
-                id="lrn"
-                type="text"
-                maxLength={12}
-                placeholder="e.g. 123456789012"
-                {...register('lrn')}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] sm:text-sm ${
-                  errors.lrn || serverErrors?.lrn ? 'border-red-300' : 'border-gray-300'
-                }`}
-              />
-              {(errors.lrn || serverErrors?.lrn) && (
-                <p className="mt-1 text-xs text-red-600">
-                  {errors.lrn?.message || serverErrors?.lrn?.[0]}
-                </p>
-              )}
-              <p className="mt-1 text-xs text-gray-400">12-digit number assigned by DepEd.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label htmlFor="lrn" className="block text-sm font-semibold text-gray-700">
+                  Learner Reference Number (LRN)
+                </label>
+                <input
+                  id="lrn"
+                  type="text"
+                  maxLength={12}
+                  placeholder="12-digit LRN"
+                  {...register('lrn')}
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] sm:text-sm ${
+                    errors.lrn || serverErrors?.lrn ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                />
+                {(errors.lrn || serverErrors?.lrn) && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {errors.lrn?.message || serverErrors?.lrn?.[0]}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="student_aral_level_edit" className="block text-sm font-semibold text-gray-700">
+                  ARAL Level
+                </label>
+                <select
+                  id="student_aral_level_edit"
+                  {...register('aral_level')}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] sm:text-sm bg-white font-medium"
+                >
+                  <option value="basic">ARAL Basic</option>
+                  <option value="plus">ARAL Plus</option>
+                  <option value="summer">ARAL Summer</option>
+                </select>
+              </div>
             </div>
           )}
+
+          <div className="flex items-center pt-2">
+            <input id="is_active" type="checkbox" {...register('is_active')}
+              className="h-4 w-4 text-[var(--brand)] focus:ring-[var(--brand)] border-gray-300 rounded"
+            />
+            <label htmlFor="is_active" className="ml-2 block text-sm font-medium text-gray-900 cursor-pointer">
+              Account Status (Active)
+            </label>
+          </div>
 
           <div className="flex justify-end pt-4 space-x-3">
             <Link to={currentUser?.is_superuser ? '/superadmin/users' : '/admin/students'}

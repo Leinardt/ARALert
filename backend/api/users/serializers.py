@@ -1,18 +1,14 @@
 """
 Users API Serializers.
-Handles validation for user CRUD, password reset, and dashboard stats.
+Handles validation for user CRUD, bulk tutor assignment, and directory listings.
 """
 
 import uuid
 
 from django.conf import settings
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from apps.accounts.models import User
-from services.email_service import send_account_invitation_email
-from services.token_service import generate_secure_token, get_token_expiration
 
 
 class UserListSerializer(serializers.ModelSerializer):
@@ -21,13 +17,14 @@ class UserListSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     assigned_tutor_name = serializers.SerializerMethodField()
+    has_logged_in = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'full_name', 'first_name', 'middle_name', 'last_name',
             'username', 'email', 'role', 'lrn', 'status', 'is_active',
-            'password_setup_required', 'email_verified', 'date_joined', 'last_login',
+            'date_joined', 'last_login', 'has_logged_in',
             'assigned_tutor', 'assigned_tutor_name', 'assessment_weight', 'weekly_tasks_weight',
             'attendance_weight', 'aral_level'
         ]
@@ -39,29 +36,38 @@ class UserListSerializer(serializers.ModelSerializer):
         return 'Active' if obj.is_active else 'Inactive'
 
     def get_assigned_tutor_name(self, obj):
-        if obj.assigned_tutor:
-            return obj.assigned_tutor.get_full_name()
+        if obj.role == 'student':
+            if obj.assigned_tutor:
+                return obj.assigned_tutor.get_full_name()
+            return 'TBA'
         return None
+
+    def get_has_logged_in(self, obj):
+        return bool(obj.google_sub or obj.last_login)
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating a new pending staff account without username/password."""
+    """Serializer for pre-creating a staff account or enrolling a student."""
 
     username = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    confirm_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    assigned_tutor = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(role='tutor', is_superuser=False),
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = User
         fields = [
             'first_name', 'middle_name', 'last_name', 'username', 'email',
-            'password', 'confirm_password', 'role', 'lrn', 'is_active',
+            'role', 'lrn', 'is_active',
             'assigned_tutor', 'assessment_weight', 'weekly_tasks_weight', 'attendance_weight',
             'aral_level'
         ]
 
     def validate_role(self, value):
-        """Prevent SuperAdmin role assignment."""
+        """Prevent SuperAdmin role assignment via API."""
         allowed_roles = [r[0] for r in User.Role.choices]
         if value not in allowed_roles:
             raise serializers.ValidationError(
@@ -69,169 +75,93 @@ class UserCreateSerializer(serializers.ModelSerializer):
             )
         return value
 
-    def validate_username(self, value):
-        """Check for duplicate usernames when one is supplied."""
-        if value and User.objects.filter(username__iexact=value).exists():
-            raise serializers.ValidationError('A user with this username already exists.')
-        return value
-
     def validate_email(self, value):
-        """Check for duplicate emails."""
-        if User.objects.filter(email__iexact=value).exists():
+        """Check for duplicate emails for staff roles."""
+        value = value.strip().lower() if value else ''
+        if value and User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError('A user with this email already exists.')
         return value
 
     def validate(self, data):
-        """Validate role and LRN requirement for the invitation-based flow."""
-        if data.get('password') and data.get('confirm_password') and data.get('password') != data.get('confirm_password'):
-            raise serializers.ValidationError(
-                {'confirm_password': 'Passwords do not match.'}
-            )
+        """Validate role and LRN requirement."""
+        role = data.get('role')
 
-        # LRN is required for students
-        if data.get('role') == 'student':
+        if role == 'student':
             lrn = data.get('lrn')
             if not lrn:
-                raise serializers.ValidationError(
-                    {'lrn': 'LRN is required for student accounts.'}
-                )
+                raise serializers.ValidationError({'lrn': 'LRN is required for student accounts.'})
+            lrn = str(lrn).strip()
             if not lrn.isdigit() or len(lrn) != 12:
-                raise serializers.ValidationError(
-                    {'lrn': 'LRN must be exactly 12 digits.'}
-                )
+                raise serializers.ValidationError({'lrn': 'LRN must be exactly 12 digits.'})
+            if User.objects.filter(lrn=lrn, role='student').exists():
+                raise serializers.ValidationError({'lrn': 'A student with this LRN already exists.'})
         else:
-            # Clear LRN for non-student roles
             data['lrn'] = None
+            data['assigned_tutor'] = None
+            if not data.get('email'):
+                raise serializers.ValidationError({'email': 'Email is required for staff accounts.'})
+
         return data
 
     def create(self, validated_data):
-        """Create a pending account that requires setup via email invitation."""
-        validated_data.pop('confirm_password', None)
-        validated_data.pop('password', None)
+        """
+        Create a user account.
+        Staff: created pre-registered with assigned role (log in via Google).
+        Students: created with LRN (log in via Name + LRN). Can be assigned to a tutor or set to TBA.
+        """
+        role = validated_data.get('role')
+        email = validated_data.get('email', '').strip().lower()
 
-        if not validated_data.get('username'):
-            generated_username = f"pending-{uuid.uuid4().hex[:10]}"
-            while User.objects.filter(username__iexact=generated_username).exists():
-                generated_username = f"pending-{uuid.uuid4().hex[:10]}"
-            validated_data['username'] = generated_username
+        if not email and role == 'student':
+            email = f"student-{validated_data.get('lrn')}@aralert.local"
 
-        validated_data['is_active'] = False
-        validated_data['password_set'] = False
-        validated_data['email_verified'] = False
-        validated_data['password_setup_required'] = True
-        validated_data['activation_token'] = generate_secure_token()
-        validated_data['activation_token_expires_at'] = get_token_expiration()
+        validated_data['email'] = email
+        validated_data['username'] = email
+        validated_data['is_active'] = True
 
         user = User(**validated_data)
         user.set_unusable_password()
         user.save()
-
-        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
-        activation_link = f"{frontend_url}/activate?token={user.activation_token}"
-        user.activation_link = activation_link
-        user.email_sent = bool(send_account_invitation_email(user, activation_link))
-        user.save(update_fields=['activation_link', 'email_sent'])
         return user
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
-    """Serializer for editing a user (no password field)."""
+    """Serializer for editing a user profile or assigning a tutor."""
 
     class Meta:
         model = User
         fields = [
-            'first_name', 'middle_name', 'last_name', 'username', 'email',
-            'role', 'lrn', 'is_active', 'assigned_tutor',
-            'assessment_weight', 'weekly_tasks_weight', 'attendance_weight',
-            'aral_level'
+            'first_name', 'middle_name', 'last_name', 'email', 'role',
+            'is_active', 'assigned_tutor', 'assessment_weight',
+            'weekly_tasks_weight', 'attendance_weight', 'aral_level', 'lrn'
         ]
 
-    def validate_role(self, value):
-        """Prevent SuperAdmin role assignment."""
-        allowed_roles = [r[0] for r in User.Role.choices]
-        if value not in allowed_roles:
-            raise serializers.ValidationError(
-                f'Invalid role. Allowed roles: {", ".join(allowed_roles)}'
-            )
-        return value
-
-    def validate_username(self, value):
-        """Check for duplicate usernames, excluding self."""
-        user = self.instance
-        if User.objects.filter(username__iexact=value).exclude(id=user.id).exists():
-            raise serializers.ValidationError('A user with this username already exists.')
-        return value
-
-    def validate_email(self, value):
-        """Check for duplicate emails, excluding self."""
-        user = self.instance
-        if User.objects.filter(email__iexact=value).exclude(id=user.id).exists():
-            raise serializers.ValidationError('A user with this email already exists.')
-        return value
-
-    def validate(self, data):
-        """Validate LRN requirement for students and weights for tutors."""
-        role = data.get('role', getattr(self.instance, 'role', None))
-        request = self.context.get('request')
-        if request and getattr(request.user, 'role', None) == 'tutor':
-            forbidden = {'role', 'assigned_tutor', 'is_active', 'assessment_weight', 'weekly_tasks_weight', 'attendance_weight'}
-            if any(field in data for field in forbidden):
-                raise serializers.ValidationError(
-                    {'detail': 'Tutors may only edit student personal details.'}
-                )
-
-        if role == 'student':
-            lrn = data.get('lrn', getattr(self.instance, 'lrn', None))
-            if not lrn:
-                raise serializers.ValidationError(
-                    {'lrn': 'LRN is required for student accounts.'}
-                )
-            if not lrn.isdigit() or len(lrn) != 12:
-                raise serializers.ValidationError(
-                    {'lrn': 'LRN must be exactly 12 digits.'}
-                )
-        else:
-            # Clear LRN for non-student roles
-            data['lrn'] = None
-
-        if role == 'tutor':
-            aw = data.get('assessment_weight', getattr(self.instance, 'assessment_weight', 50))
-            ww = data.get('weekly_tasks_weight', getattr(self.instance, 'weekly_tasks_weight', 30))
-            atw = data.get('attendance_weight', getattr(self.instance, 'attendance_weight', 20))
-            if aw + ww + atw != 100:
-                raise serializers.ValidationError(
-                    {'assessment_weight': 'Grading weights (Assessment + Weekly Tasks + Attendance) must sum to 100%.'}
-                )
-        return data
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
 
 
-class ResetPasswordSerializer(serializers.Serializer):
-    """Serializer for resetting a user's password (admin-side)."""
+class BulkAssignTutorSerializer(serializers.Serializer):
+    """Serializer for multi-selecting students and assigning them to a tutor (or clearing to TBA)."""
 
-    new_password = serializers.CharField(min_length=8, write_only=True)
-    confirm_password = serializers.CharField(write_only=True)
+    student_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        allow_empty=False,
+        help_text='List of Student User UUIDs to update.',
+    )
+    tutor_id = serializers.UUIDField(
+        required=False,
+        allow_null=True,
+        help_text='UUID of the Tutor User to assign. Pass null or blank to clear assignment to TBA.',
+    )
 
-    def validate(self, data):
-        if data['new_password'] != data['confirm_password']:
-            raise serializers.ValidationError(
-                {'confirm_password': 'Passwords do not match.'}
-            )
-        # Run Django's full AUTH_PASSWORD_VALIDATORS suite
-        try:
-            validate_password(data['new_password'])
-        except DjangoValidationError as exc:
-            raise serializers.ValidationError({'new_password': list(exc.messages)})
-        return data
-
-
-class UserStatsSerializer(serializers.Serializer):
-    """Serializer for dashboard stats cards."""
-
-    total_users = serializers.IntegerField()
-    active_users = serializers.IntegerField()
-    inactive_users = serializers.IntegerField()
-    admins = serializers.IntegerField()
-    principals = serializers.IntegerField()
-    faculty = serializers.IntegerField()
-    tutors = serializers.IntegerField()
-    students = serializers.IntegerField()
+    def validate_tutor_id(self, value):
+        if value:
+            try:
+                tutor = User.objects.get(id=value, role='tutor')
+                return tutor
+            except User.DoesNotExist:
+                raise serializers.ValidationError('Selected tutor does not exist or is not a tutor.')
+        return None

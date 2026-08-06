@@ -23,18 +23,31 @@ const applyAttendanceEscalation = (tier: string, attendanceRate: number) => {
   return 'High';
 };
 
+const toArray = <T>(value: unknown): T[] => {
+  if (Array.isArray(value)) return value as T[];
+  if (value && typeof value === 'object' && Array.isArray((value as any).results)) {
+    return (value as any).results as T[];
+  }
+  return [];
+};
+
 export const computeStudentRiskRows = (
   students: User[],
   grades: Grade[],
   attendanceLogs: Attendance[]
 ): StudentRiskRow[] => {
-  const studentIds = new Set(students.map((student) => student.id));
+  // Defensive: always work with arrays regardless of what callers pass in
+  const safeStudents: User[] = toArray<User>(students);
+  const safeGrades: Grade[] = toArray<Grade>(grades);
+  const safeAtt: Attendance[] = toArray<Attendance>(attendanceLogs);
 
-  const scoreTotals = grades
+  const studentIds = new Set(safeStudents.map((student) => student.id));
+
+  const scoreTotals = safeGrades
     .filter(
-      (grade) => grade.component_type !== 'attendance' && studentIds.has(grade.student)
+      (grade: Grade) => grade.component_type !== 'attendance' && studentIds.has(grade.student)
     )
-    .reduce((acc, grade) => {
+    .reduce((acc: Map<string, { totalPercent: number; count: number }>, grade: Grade) => {
       const existing = acc.get(grade.student) ?? { totalPercent: 0, count: 0 };
       const scoreValue = Number(grade.score);
       const totalValue = Number(grade.total_score || 100);
@@ -45,19 +58,22 @@ export const computeStudentRiskRows = (
       return acc;
     }, new Map<string, { totalPercent: number; count: number }>());
 
-  const attendanceByStudent = attendanceLogs.reduce((acc, attendance) => {
-    if (!studentIds.has(attendance.user)) return acc;
-    const list = acc.get(attendance.user) ?? [];
-    list.push(attendance);
-    acc.set(attendance.user, list);
-    return acc;
-  }, new Map<string, Attendance[]>());
+  const attendanceByStudent = safeAtt.reduce(
+    (acc: Map<string, Attendance[]>, attendance: Attendance) => {
+      if (!studentIds.has(attendance.user)) return acc;
+      const list = acc.get(attendance.user) ?? [];
+      list.push(attendance);
+      acc.set(attendance.user, list);
+      return acc;
+    },
+    new Map<string, Attendance[]>()
+  );
 
-  return students.map((student) => {
+  return safeStudents.map((student: User) => {
     const attendanceRecords = attendanceByStudent.get(student.id) ?? [];
     const totalDays = attendanceRecords.length;
-    const presentDays = attendanceRecords.filter((record) => record.status === 'present').length;
-    const lateDays = attendanceRecords.filter((record) => record.status === 'late').length;
+    const presentDays = attendanceRecords.filter((record: Attendance) => record.status === 'present').length;
+    const lateDays = attendanceRecords.filter((record: Attendance) => record.status === 'late').length;
     const attendanceRate = totalDays > 0 ? Number(((presentDays + lateDays) / totalDays) * 100) : 100;
 
     const scoreData = scoreTotals.get(student.id);

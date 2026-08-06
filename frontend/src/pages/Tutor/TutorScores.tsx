@@ -5,6 +5,14 @@ import { academicService } from '../../services/academicService';
 import type { Grade, User } from '../../types';
 import { ExportScoreModal } from '../../components/ExportScoreModal';
 
+type ScoreEntryKind = 'daily' | 'mosy' | 'eosy' | 'endline';
+
+const levelScoreEntry = {
+  basic: { kind: 'mosy' as const, buttonLabel: 'Add MOSY Score Entry', title: 'MOSY Reading score', subject: 'MOSY Reading' },
+  plus: { kind: 'eosy' as const, buttonLabel: 'Add EOSY Score Entry', title: 'EOSY Reading score', subject: 'EOSY Reading' },
+  summer: { kind: 'endline' as const, buttonLabel: 'Add EndLine Score Entry', title: 'EndLine Reading score', subject: 'EndLine Reading' },
+};
+
 const generateUuid = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (crypto.getRandomValues(new Uint8Array(1))[0] % 16) | 0;
@@ -21,6 +29,7 @@ export const TutorScores: React.FC = () => {
   const [gradesLoading, setGradesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAddEntry, setShowAddEntry] = useState(false);
+  const [entryKind, setEntryKind] = useState<ScoreEntryKind>('daily');
   const [entryScores, setEntryScores] = useState<Record<string, number | ''>>({});
   const [entryStatus, setEntryStatus] = useState<Record<string, 'Taken' | 'Not'>>({});
   const [totalScore, setTotalScore] = useState<number | ''>(20);
@@ -40,7 +49,7 @@ export const TutorScores: React.FC = () => {
     setGradesLoading(true);
     try {
       const gradeData = await academicService.getGrades();
-      setGrades(gradeData);
+      setGrades(Array.isArray(gradeData) ? gradeData : (gradeData as any)?.results ?? []);
     } catch (err) {
       console.error(err);
       setError('Failed to load score records.');
@@ -53,7 +62,7 @@ export const TutorScores: React.FC = () => {
     try {
       if (!user) return;
       const data = await userService.getUsers({ role: 'student', assigned_tutor: user.id });
-      setStudents(data.results);
+      setStudents(Array.isArray(data.results) ? data.results : Array.isArray(data) ? (data as any) : []);
     } catch (err) {
       console.error(err);
       setError('Failed to load assigned students.');
@@ -62,11 +71,11 @@ export const TutorScores: React.FC = () => {
     }
   };
 
-  const handleOpenAddEntry = () => {
+  const handleOpenAddEntry = (kind: ScoreEntryKind = 'daily') => {
     const initialScores: Record<string, number | ''> = {};
     const initialStatus: Record<string, 'Taken' | 'Not'> = {};
 
-    students.forEach((student) => {
+    (students || []).forEach((student) => {
       initialScores[student.id] = '';
       initialStatus[student.id] = 'Not';
     });
@@ -74,6 +83,7 @@ export const TutorScores: React.FC = () => {
     setEntryScores(initialScores);
     setEntryStatus(initialStatus);
     setTotalScore(20);
+    setEntryKind(kind);
     setShowAddEntry(true);
   };
 
@@ -82,7 +92,7 @@ export const TutorScores: React.FC = () => {
       return alert('Enter at least one student score.');
     }
 
-    const zeroTakenStudents = students.filter(
+    const zeroTakenStudents = (students || []).filter(
       (student) =>
         Number(entryScores[student.id] || 0) === 0 && entryStatus[student.id] === 'Taken'
     );
@@ -98,10 +108,12 @@ export const TutorScores: React.FC = () => {
     setIsSaving(true);
     try {
       const batchId = generateUuid();
-      const entries: Partial<Grade>[] = students.map((student) => ({
+      const entries: Partial<Grade>[] = (students || []).map((student) => ({
         student: student.id,
         component_type: 'assessment' as Grade['component_type'],
-        subject: 'Reading',
+        subject: entryKind === 'daily'
+          ? 'Reading'
+          : Object.values(levelScoreEntry).find((entry) => entry.kind === entryKind)?.subject || 'Reading',
         quarter: Math.ceil((new Date().getMonth() + 1) / 3),
         score: Number(entryScores[student.id] || 0),
         total_score: totalScore === '' ? 0 : Number(totalScore),
@@ -114,10 +126,16 @@ export const TutorScores: React.FC = () => {
       setEntryStatus({});
       setShowAddEntry(false);
       await fetchGrades();
-      alert('Daily Reading scores logged successfully.');
+      alert(`${entryKind === 'daily' ? 'Daily Reading' : Object.values(levelScoreEntry).find((entry) => entry.kind === entryKind)?.title} scores logged successfully.`);
     } catch (err: any) {
-      console.error(err);
-      alert(err?.response?.data?.detail || 'Failed to log scores.');
+      console.error('Error saving scores:', err);
+      const data = err?.response?.data;
+      const detailMsg = data
+        ? typeof data === 'string'
+          ? data
+          : JSON.stringify(data)
+        : err?.message || 'Failed to log scores.';
+      alert(`Failed to log scores: ${detailMsg}`);
     } finally {
       setIsSaving(false);
     }
@@ -134,7 +152,9 @@ export const TutorScores: React.FC = () => {
   if (isLoading) return <div className="py-12 text-center">Loading...</div>;
   if (error) return <div className="bg-red-50 border border-gray-200 text-red-800 rounded-xl p-4">{error}</div>;
 
-  const dailyGrades = grades.filter((grade) => grade.component_type === 'assessment');
+  const safeGrades = Array.isArray(grades) ? grades : [];
+  const levelEntry = levelScoreEntry[user?.aral_level || 'basic'];
+  const dailyGrades = safeGrades.filter((grade) => grade.component_type === 'assessment');
   const sortedDailyGrades = [...dailyGrades].sort((a, b) => new Date(b.date_logged).getTime() - new Date(a.date_logged).getTime());
 
   const dailyGroups = dailyGrades.reduce((acc, grade) => {
@@ -202,6 +222,13 @@ export const TutorScores: React.FC = () => {
           >
             Add Score Entry
           </button>
+          <button
+            type="button"
+            onClick={() => handleOpenAddEntry(levelEntry.kind)}
+            className="inline-flex items-center justify-center rounded-2xl border border-[var(--brand-border)] bg-[var(--brand-light)] px-5 py-3 text-sm font-semibold text-[var(--brand-dark)] shadow-sm transition hover:bg-[var(--brand-border)]"
+          >
+            {levelEntry.buttonLabel}
+          </button>
         </div>
       </div>
 
@@ -211,7 +238,11 @@ export const TutorScores: React.FC = () => {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Add score entry</p>
-                <h3 className="mt-2 text-xl font-semibold text-slate-900">Daily Reading score</h3>
+                <h3 className="mt-2 text-xl font-semibold text-slate-900">
+                  {entryKind === 'daily'
+                    ? 'Daily Reading score'
+                    : Object.values(levelScoreEntry).find((entry) => entry.kind === entryKind)?.title}
+                </h3>
                 <p className="mt-1 text-sm text-slate-500">Log today&apos;s score for each assigned student.</p>
               </div>
               <button
@@ -351,135 +382,135 @@ export const TutorScores: React.FC = () => {
         )}
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Score records</p>
-                <h3 className="mt-2 text-xl font-semibold text-slate-900">Recent entries</h3>
-                <p className="mt-1 text-sm text-slate-500">Switch between daily and weekly record views.</p>
-              </div>
-              <div className="inline-flex gap-2 rounded-full bg-slate-100 p-1">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('daily')}
-                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${viewMode === 'daily' ? 'bg-[var(--brand)] text-white' : 'bg-white text-slate-500 border border-slate-200'}`}
-                >
-                  Daily
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('weekly')}
-                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${viewMode === 'weekly' ? 'bg-[var(--brand)] text-white' : 'bg-white text-slate-500 border border-slate-200'}`}
-                >
-                  Weekly
-                </button>
-              </div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Score records</p>
+              <h3 className="mt-2 text-xl font-semibold text-slate-900">Recent entries</h3>
+              <p className="mt-1 text-sm text-slate-500">Switch between daily and weekly record views.</p>
             </div>
-
-            {gradesLoading ? (
-              <div className="mt-8 text-center text-slate-500">Loading records...</div>
-            ) : sortedDailyGrades.length === 0 ? (
-              <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
-                No daily score records found. Add an entry to get started.
-              </div>
-            ) : viewMode === 'daily' ? (
-              <div className="mt-8 space-y-4">
-                {dailyRows.map((day) => (
-                  <div key={day.date.toISOString()} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                    <div className="bg-slate-50 px-5 py-4 flex flex-row items-center justify-between">
-                      <div>
-                        <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">{day.date.toLocaleDateString()}</h4>
-                        <p className="mt-1 text-lg font-semibold text-slate-900">{day.grades.length} score entr{day.grades.length === 1 ? 'y' : 'ies'}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExportModalConfig({
-                            isOpen: true,
-                            mode: 'daily',
-                            targetKey: day.date.toISOString().slice(0, 10)
-                          })
-                        }
-                        className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition shadow-sm"
-                      >
-                        📊 Export Day
-                      </button>
-                    </div>
-                    <div className="divide-y divide-slate-200 bg-white px-5 py-4">
-                      {day.grades.map((grade) => (
-                        <div key={grade.id} className="grid grid-cols-[1.2fr_0.9fr] gap-4 py-3 sm:grid-cols-[1.2fr_0.9fr_0.9fr_0.9fr]">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{grade.student_name}</p>
-                            <p className="text-xs text-slate-500">{new Date(grade.date_logged).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                          </div>
-                          <div className="text-right sm:text-left">
-                            <p className="text-sm text-slate-500">Score</p>
-                            <p className="mt-1 text-lg font-semibold text-[var(--brand)]">{grade.score}</p>
-                          </div>
-                          <div className="text-right sm:text-left">
-                            <p className="text-sm text-slate-500">Total</p>
-                            <p className="mt-1 text-lg font-semibold text-slate-900">{grade.total_score}</p>
-                          </div>
-                          <div className="text-right sm:text-left">
-                            <p className="text-sm text-slate-500">Status</p>
-                            <p className="mt-1 text-sm text-slate-600">{grade.remarks || 'N/A'}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="mt-8 space-y-5">
-                {weeklyRows.map((row) => (
-                  <div key={row.weekStart.toISOString()} className="rounded-3xl border border-slate-200 bg-white p-4">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{row.weekStart.toLocaleDateString()} - {row.weekEnd.toLocaleDateString()}</p>
-                        <p className="text-xs uppercase tracking-[0.16em] text-slate-500 mt-0.5">{row.grades.length} entries</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExportModalConfig({
-                            isOpen: true,
-                            mode: 'weekly',
-                            targetKey: row.weekStart.toISOString().slice(0, 10)
-                          })
-                        }
-                        className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition shadow-sm"
-                      >
-                        📊 Export Week
-                      </button>
-                    </div>
-                    <div className="mt-4 space-y-3">
-                      {row.grades.map((grade) => (
-                        <div key={grade.id} className="grid grid-cols-[1.2fr_0.9fr] gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1.2fr_0.9fr_0.9fr_0.9fr]">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{grade.student_name}</p>
-                            <p className="text-xs text-slate-500">{new Date(grade.date_logged).toLocaleDateString()}</p>
-                          </div>
-                          <div className="text-right sm:text-left">
-                            <p className="text-sm text-slate-500">Score</p>
-                            <p className="mt-1 text-lg font-semibold text-[var(--brand)]">{grade.score}</p>
-                          </div>
-                          <div className="text-right sm:text-left">
-                            <p className="text-sm text-slate-500">Total</p>
-                            <p className="mt-1 text-lg font-semibold text-slate-900">{grade.total_score}</p>
-                          </div>
-                          <div className="text-right sm:text-left">
-                            <p className="text-sm text-slate-500">Status</p>
-                            <p className="mt-1 text-sm text-slate-600">{grade.remarks || 'N/A'}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="inline-flex gap-2 rounded-full bg-slate-100 p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode('daily')}
+                className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${viewMode === 'daily' ? 'bg-[var(--brand)] text-white' : 'bg-white text-slate-500 border border-slate-200'}`}
+              >
+                Daily
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('weekly')}
+                className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${viewMode === 'weekly' ? 'bg-[var(--brand)] text-white' : 'bg-white text-slate-500 border border-slate-200'}`}
+              >
+                Weekly
+              </button>
+            </div>
           </div>
+
+          {gradesLoading ? (
+            <div className="mt-8 text-center text-slate-500">Loading records...</div>
+          ) : sortedDailyGrades.length === 0 ? (
+            <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
+              No daily score records found. Add an entry to get started.
+            </div>
+          ) : viewMode === 'daily' ? (
+            <div className="mt-8 space-y-4">
+              {dailyRows.map((day) => (
+                <div key={day.date.toISOString()} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                  <div className="bg-slate-50 px-5 py-4 flex flex-row items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">{day.date.toLocaleDateString()}</h4>
+                      <p className="mt-1 text-lg font-semibold text-slate-900">{day.grades.length} score entr{day.grades.length === 1 ? 'y' : 'ies'}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExportModalConfig({
+                          isOpen: true,
+                          mode: 'daily',
+                          targetKey: day.date.toISOString().slice(0, 10)
+                        })
+                      }
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition shadow-sm"
+                    >
+                      📊 Export Day
+                    </button>
+                  </div>
+                  <div className="divide-y divide-slate-200 bg-white px-5 py-4">
+                    {day.grades.map((grade) => (
+                      <div key={grade.id} className="grid grid-cols-[1.2fr_0.9fr] gap-4 py-3 sm:grid-cols-[1.2fr_0.9fr_0.9fr_0.9fr]">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{grade.student_name}</p>
+                          <p className="text-xs text-slate-500">{new Date(grade.date_logged).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                        <div className="text-right sm:text-left">
+                          <p className="text-sm text-slate-500">Score</p>
+                          <p className="mt-1 text-lg font-semibold text-[var(--brand)]">{grade.score}</p>
+                        </div>
+                        <div className="text-right sm:text-left">
+                          <p className="text-sm text-slate-500">Total</p>
+                          <p className="mt-1 text-lg font-semibold text-slate-900">{grade.total_score}</p>
+                        </div>
+                        <div className="text-right sm:text-left">
+                          <p className="text-sm text-slate-500">Status</p>
+                          <p className="mt-1 text-sm text-slate-600">{grade.remarks || 'N/A'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-8 space-y-5">
+              {weeklyRows.map((row) => (
+                <div key={row.weekStart.toISOString()} className="rounded-3xl border border-slate-200 bg-white p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{row.weekStart.toLocaleDateString()} - {row.weekEnd.toLocaleDateString()}</p>
+                      <p className="text-xs uppercase tracking-[0.16em] text-slate-500 mt-0.5">{row.grades.length} entries</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExportModalConfig({
+                          isOpen: true,
+                          mode: 'weekly',
+                          targetKey: row.weekStart.toISOString().slice(0, 10)
+                        })
+                      }
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition shadow-sm"
+                    >
+                      📊 Export Week
+                    </button>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {row.grades.map((grade) => (
+                      <div key={grade.id} className="grid grid-cols-[1.2fr_0.9fr] gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1.2fr_0.9fr_0.9fr_0.9fr]">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{grade.student_name}</p>
+                          <p className="text-xs text-slate-500">{new Date(grade.date_logged).toLocaleDateString()}</p>
+                        </div>
+                        <div className="text-right sm:text-left">
+                          <p className="text-sm text-slate-500">Score</p>
+                          <p className="mt-1 text-lg font-semibold text-[var(--brand)]">{grade.score}</p>
+                        </div>
+                        <div className="text-right sm:text-left">
+                          <p className="text-sm text-slate-500">Total</p>
+                          <p className="mt-1 text-lg font-semibold text-slate-900">{grade.total_score}</p>
+                        </div>
+                        <div className="text-right sm:text-left">
+                          <p className="text-sm text-slate-500">Status</p>
+                          <p className="mt-1 text-sm text-slate-600">{grade.remarks || 'N/A'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+      </div>
 
       <ExportScoreModal
         isOpen={exportModalConfig.isOpen}

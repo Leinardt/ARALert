@@ -65,8 +65,9 @@ export interface GetPrincipalDashboardParams {
 export const academicService = {
   // Grades
   getGrades: async (params: GetGradesParams = {}): Promise<Grade[]> => {
-    const response = await api.get<Grade[]>('/academics/grades/', { params });
-    return response.data;
+    const response = await api.get<Grade[] | { results: Grade[] }>('/academics/grades/', { params });
+    const data = response.data as any;
+    return Array.isArray(data) ? data : (data?.results ?? []);
   },
 
   createGrade: async (data: Partial<Grade>): Promise<Grade> => {
@@ -85,8 +86,9 @@ export const academicService = {
 
   // ARAL Activities
   getAralActivities: async (params: GetAralActivitiesParams = {}): Promise<AralActivity[]> => {
-    const response = await api.get<AralActivity[]>('/academics/aral-activities/', { params });
-    return response.data;
+    const response = await api.get<AralActivity[] | { results: AralActivity[] }>('/academics/aral-activities/', { params });
+    const data = response.data as any;
+    return Array.isArray(data) ? data : (data?.results ?? []);
   },
 
   createAralActivity: async (data: Partial<AralActivity>): Promise<AralActivity> => {
@@ -105,8 +107,9 @@ export const academicService = {
 
   // Academic Risks
   getAcademicRisks: async (params: { student_id?: string } = {}): Promise<AcademicRisk[]> => {
-    const response = await api.get<AcademicRisk[]>('/academics/risks/', { params });
-    return response.data;
+    const response = await api.get<AcademicRisk[] | { results: AcademicRisk[] }>('/academics/risks/', { params });
+    const data = response.data as any;
+    return Array.isArray(data) ? data : (data?.results ?? []);
   },
 
   createAcademicRisk: async (data: Partial<AcademicRisk>): Promise<AcademicRisk> => {
@@ -126,7 +129,7 @@ export const academicService = {
   // Attendance
   createAttendanceSession: async (data: {
     session_type: 'student' | 'staff';
-    action?: 'time_in' | 'time_out';
+    action?: 'time_in' | 'time_out' | 'arrival_am' | 'departure_am' | 'arrival_pm' | 'departure_pm';
     aral_activity_id?: number;
     expires_in_minutes?: number;
   }): Promise<AttendanceSession> => {
@@ -152,8 +155,9 @@ export const academicService = {
   },
 
   getAttendanceHistory: async (params: GetAttendanceParams = {}): Promise<Attendance[]> => {
-    const response = await api.get<Attendance[]>('/academics/attendance/history/', { params });
-    return response.data;
+    const response = await api.get<Attendance[] | { results: Attendance[] }>('/academics/attendance/history/', { params });
+    const data = response.data as any;
+    return Array.isArray(data) ? data : (data?.results ?? []);
   },
 
   getPrincipalDashboard: async (params: GetPrincipalDashboardParams = {}): Promise<PrincipalDashboardResponse> => {

@@ -23,6 +23,9 @@ SENDER_NAME = config('SENDER_NAME', default='ARALert')
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
 TOKEN_EXPIRATION_TIME = config('TOKEN_EXPIRATION_TIME', default=60, cast=int)
 
+# Google OAuth — obtain from Google Cloud Console
+GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
@@ -148,7 +151,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.User'
 
 AUTHENTICATION_BACKENDS = [
-    'apps.accounts.backends.EmailOrUsernameBackend',
+    # Google OAuth is validated in the view layer (GoogleLoginView).
+    # We keep Django's default backend for admin panel access.
+    'django.contrib.auth.backends.ModelBackend',
 ]
 
 # --------------------------------------------------------------------------

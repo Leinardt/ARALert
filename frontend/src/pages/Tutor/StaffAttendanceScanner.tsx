@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { academicService } from '../../services/academicService';
 import type { Attendance } from '../../types';
 import {
@@ -7,11 +7,26 @@ import {
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
-  Briefcase
+  Briefcase,
+  Download
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
 import { useAuth } from '../../hooks/useAuth';
+import { ExportDtrModal } from '../../components/ExportDtrModal';
+
+const formatDtrTime = (value: string | null | undefined) => {
+  if (!value) return '—';
+  const match = value.match(/(?:T|^)(\d{1,2}):(\d{2})/);
+  if (!match) return value;
+  const hours = Number(match[1]);
+  return `${hours % 12 || 12}:${match[2]} ${hours >= 12 ? 'PM' : 'AM'}`;
+};
+
+const timeToMinutes = (value: string | null | undefined) => {
+  const match = value?.match(/(?:T|^)(\d{1,2}):(\d{2})/);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+};
 
 export const StaffAttendanceScanner: React.FC = () => {
   const { user } = useAuth();
@@ -23,8 +38,24 @@ export const StaffAttendanceScanner: React.FC = () => {
   const [logsError, setLogsError] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDtrExportModal, setShowDtrExportModal] = useState(false);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const isPrincipalMonitor = user?.role === 'principal' || Boolean(user?.is_superuser);
+  const dtrRows = useMemo(() => {
+    const rows = new Map<string, Attendance>();
+    attendanceLogs.forEach((log) => {
+      const key = `${log.user}-${log.date}`;
+      const existing = rows.get(key);
+      if (!existing) {
+        rows.set(key, { ...log });
+        return;
+      }
+      (['arrival_am', 'departure_am', 'arrival_pm', 'departure_pm'] as const).forEach((field) => {
+        if (!existing[field] && log[field]) existing[field] = log[field];
+      });
+    });
+    return Array.from(rows.values());
+  }, [attendanceLogs]);
 
   const stopScanner = async () => {
     if (scannerRef.current) {
@@ -79,7 +110,7 @@ export const StaffAttendanceScanner: React.FC = () => {
           ? logs.filter((log) => ['tutor', 'faculty'].includes(log.role))
           : logs;
 
-        setAttendanceLogs(visibleLogs.slice(0, 20));
+        setAttendanceLogs(isPrincipalMonitor ? visibleLogs : visibleLogs.slice(0, 20));
       } catch (err: any) {
         console.error(err);
         setLogsError('Failed to load clock history.');
@@ -339,14 +370,26 @@ export const StaffAttendanceScanner: React.FC = () => {
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-lg font-bold text-gray-900">{isPrincipalMonitor ? 'Tutor & Faculty Attendance History' : 'Clock History'}</h3>
+            <h3 className="text-lg font-bold text-gray-900">{isPrincipalMonitor ? 'Tutor & Faculty DTR' : 'My Daily Time Record'}</h3>
             <p className="text-xs text-gray-500">
               {isPrincipalMonitor
-                ? 'Monitor recent tutor and faculty clock-in and clock-out activity.'
-                : 'Recent staff clock-in and clock-out scan records.'}
+                ? 'DTR view for recent tutor and faculty attendance.'
+                : 'Your attendance punches in DTR format.'}
             </p>
           </div>
-          <span className="text-xs text-slate-500">{attendanceLogs.length} entries</span>
+          <div className="flex items-center gap-3">
+            {isPrincipalMonitor && (
+              <button
+                type="button"
+                onClick={() => setShowDtrExportModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand)] px-3 py-2 text-xs font-bold text-white transition hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export DTR
+              </button>
+            )}
+            <span className="text-xs text-slate-500">{dtrRows.length} day{dtrRows.length === 1 ? '' : 's'}</span>
+          </div>
         </div>
 
         {logsLoading ? (
@@ -357,33 +400,55 @@ export const StaffAttendanceScanner: React.FC = () => {
           <div className="text-sm text-gray-500">No clock history found yet.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
+            <table className="min-w-[760px] divide-y divide-gray-200 text-center text-sm">
               <thead className="bg-slate-50 text-slate-700">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Staff Member</th>
-                  <th className="px-3 py-2 font-medium">Role</th>
-                  <th className="px-3 py-2 font-medium">Date</th>
-                  <th className="px-3 py-2 font-medium">Time In</th>
-                  <th className="px-3 py-2 font-medium">Time Out</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
+                  {isPrincipalMonitor && <th className="px-3 py-2 font-medium text-left" rowSpan={2}>Staff Member</th>}
+                  {isPrincipalMonitor && <th className="px-3 py-2 font-medium" rowSpan={2}>Role</th>}
+                  <th className="px-3 py-2 font-medium" rowSpan={2}>Date</th>
+                  <th className="px-3 py-2 font-medium border-x border-gray-200" colSpan={2}>AM</th>
+                  <th className="px-3 py-2 font-medium border-r border-gray-200" colSpan={2}>PM</th>
+                  <th className="px-3 py-2 font-medium" rowSpan={2}>Undertime</th>
+                  <th className="px-3 py-2 font-medium" rowSpan={2}>Status</th>
+                </tr>
+                <tr>
+                  <th className="px-3 py-2 font-medium border-l border-gray-200">Arrival</th>
+                  <th className="px-3 py-2 font-medium border-r border-gray-200">Departure</th>
+                  <th className="px-3 py-2 font-medium">Arrival</th>
+                  <th className="px-3 py-2 font-medium border-r border-gray-200">Departure</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {attendanceLogs.map((log) => (
-                  <tr key={log.id}>
-                    <td className="px-3 py-2 text-sm text-slate-700">{log.user_name || 'Unknown staff'}</td>
-                    <td className="px-3 py-2 text-sm text-slate-700 capitalize">{log.role}</td>
-                    <td className="px-3 py-2 text-sm text-slate-700">{formatDateString(log.date)}</td>
-                    <td className="px-3 py-2 text-sm text-slate-700 font-mono">{formatTimeString(log.time_in)}</td>
-                    <td className="px-3 py-2 text-sm text-slate-700 font-mono">{formatTimeString(log.time_out)}</td>
-                    <td className="px-3 py-2 text-sm text-slate-700">{log.status_display}</td>
-                  </tr>
-                ))}
+                {dtrRows.map((log) => {
+                  const legacyIn = timeToMinutes(log.time_in);
+                  const legacyOut = timeToMinutes(log.time_out);
+                  const arrivalAm = log.arrival_am || (legacyIn !== null && legacyIn < 720 ? log.time_in : null);
+                  const departureAm = log.departure_am || (legacyOut !== null && legacyOut < 720 ? log.time_out : null);
+                  const arrivalPm = log.arrival_pm || (legacyIn !== null && legacyIn >= 720 ? log.time_in : null);
+                  const departurePm = log.departure_pm || (legacyOut !== null && legacyOut >= 720 ? log.time_out : null);
+                  const departureMinutes = timeToMinutes(departurePm);
+                  const undertime = departureMinutes !== null && departureMinutes < 1020
+                    ? `${Math.floor((1020 - departureMinutes) / 60)}h ${(1020 - departureMinutes) % 60}m`
+                    : '—';
+
+                  return <tr key={`${log.user}-${log.date}`}>
+                    {isPrincipalMonitor && <td className="px-3 py-2 text-left text-slate-700">{log.user_name || 'Unknown staff'}</td>}
+                    {isPrincipalMonitor && <td className="px-3 py-2 text-slate-700 capitalize">{log.role}</td>}
+                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{formatDateString(log.date)}</td>
+                    <td className="px-3 py-2 text-slate-700 font-medium border-l border-gray-100 whitespace-nowrap">{formatDtrTime(arrivalAm)}</td>
+                    <td className="px-3 py-2 text-slate-700 font-medium border-r border-gray-100 whitespace-nowrap">{formatDtrTime(departureAm)}</td>
+                    <td className="px-3 py-2 text-slate-700 font-medium whitespace-nowrap">{formatDtrTime(arrivalPm)}</td>
+                    <td className="px-3 py-2 text-slate-700 font-medium border-r border-gray-100 whitespace-nowrap">{formatDtrTime(departurePm)}</td>
+                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{undertime}</td>
+                    <td className="px-3 py-2 text-slate-700">{log.status_display}</td>
+                  </tr>;
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+      {isPrincipalMonitor && <ExportDtrModal isOpen={showDtrExportModal} onClose={() => setShowDtrExportModal(false)} currentUser={user} attendanceLogs={attendanceLogs} />}
     </div>
   );
 };

@@ -1,9 +1,15 @@
 import api from '../api/axios';
 import type { AuthResponse, User } from '../types';
 
+export interface AllowedEmail {
+  id: number;
+  email: string;
+  note: string;
+  added_by: string | null;
+  date_added: string;
+}
+
 export const authService = {
-  // Generate or retrieve a device ID for trusted device tracking.
-  // Uses crypto.randomUUID() for a cryptographically secure identifier.
   getDeviceId: (): string => {
     let deviceId = localStorage.getItem('device_id');
     if (!deviceId) {
@@ -13,56 +19,39 @@ export const authService = {
     return deviceId;
   },
 
-  login: async (usernameOrEmail: string, password: string, rememberMe: boolean): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/auth/login/', {
-      username_or_email: usernameOrEmail,
-      password,
-      remember_me: rememberMe,
-      device_id: authService.getDeviceId(),
+  googleLogin: async (idToken: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/google/', {
+      id_token: idToken,
     });
     return response.data;
   },
 
-  studentLogin: async (fullName: string, lrn: string): Promise<AuthResponse> => {
+  studentLogin: async (
+    firstName: string,
+    middleName: string,
+    lastName: string,
+    lrn: string
+  ): Promise<AuthResponse> => {
     const response = await api.post<AuthResponse>('/auth/student-login/', {
-      full_name: fullName,
+      first_name: firstName,
+      middle_name: middleName,
+      last_name: lastName,
       lrn,
     });
     return response.data;
   },
 
-
   logout: async (refreshToken: string | null): Promise<void> => {
     if (refreshToken) {
-      await api.post('/auth/logout/', { refresh: refreshToken });
+      try {
+        await api.post('/auth/logout/', { refresh: refreshToken });
+      } catch {
+        // Ignore logout network errors
+      }
     }
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
-  },
-
-  activateAccount: async (token: string, username: string, password: string, confirmPassword: string): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/auth/activate/', {
-      token,
-      username,
-      password,
-      confirm_password: confirmPassword,
-    });
-    return response.data;
-  },
-
-  forgotPassword: async (email: string): Promise<{ detail: string }> => {
-    const response = await api.post<{ detail: string }>('/auth/forgot-password/', { email });
-    return response.data;
-  },
-
-  resetPassword: async (token: string, password: string, confirmPassword: string): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/auth/reset-password/', {
-      token,
-      password,
-      confirm_password: confirmPassword,
-    });
-    return response.data;
   },
 
   getProfile: async (): Promise<User> => {
@@ -75,18 +64,35 @@ export const authService = {
     return response.data;
   },
 
-  toggleMfa: async (enable: boolean): Promise<{ mfa_enabled: boolean }> => {
-    const response = await api.post<{ mfa_enabled: boolean }>('/auth/mfa/', { enable });
+  // SuperAdmin: Allowed Emails Whitelist Management
+  getAllowedEmails: async (): Promise<AllowedEmail[]> => {
+    const response = await api.get<AllowedEmail[]>('/auth/allowed-emails/');
     return response.data;
   },
 
-  verifyOtp: async (userId: string, code: string, rememberDevice: boolean = false): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/auth/verify-otp/', { 
-      user_id: userId, 
-      code, 
-      remember_device: rememberDevice,
-      device_id: authService.getDeviceId(),
-    });
+  addAllowedEmail: async (email: string, note: string = ''): Promise<AllowedEmail> => {
+    const response = await api.post<AllowedEmail>('/auth/allowed-emails/', { email, note });
     return response.data;
+  },
+
+  deleteAllowedEmail: async (id: number): Promise<void> => {
+    await api.delete(`/auth/allowed-emails/${id}/`);
+  },
+
+  // Legacy stubs for unused password/MFA pages
+  activateAccount: async (..._args: any[]): Promise<any> => {
+    return { redirect: '/login' };
+  },
+  forgotPassword: async (..._args: any[]): Promise<any> => {
+    return { detail: 'Password operations are not applicable. All accounts use Google OAuth.' };
+  },
+  resetPassword: async (..._args: any[]): Promise<any> => {
+    return { redirect: '/login' };
+  },
+  toggleMfa: async (..._args: any[]): Promise<any> => {
+    return { mfa_enabled: false };
+  },
+  verifyOtp: async (..._args: any[]): Promise<any> => {
+    return { redirect: '/login' };
   },
 };
