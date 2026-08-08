@@ -92,11 +92,12 @@ class GoogleLoginSerializer(serializers.Serializer):
 # ---------------------------------------------------------------------------
 
 class StudentLoginSerializer(serializers.Serializer):
-    """Serializer for student login using First Name, Middle Name, Last Name, and LRN."""
+    """Serializer for student login using LRN (First Name, Middle Name, Last Name are optional)."""
 
-    first_name  = serializers.CharField(required=True, help_text='Student first name.')
+    first_name  = serializers.CharField(required=False, allow_blank=True, default='')
     middle_name = serializers.CharField(required=False, allow_blank=True, default='')
-    last_name   = serializers.CharField(required=True, help_text='Student last name.')
+    last_name   = serializers.CharField(required=False, allow_blank=True, default='')
+    full_name   = serializers.CharField(required=False, allow_blank=True, default='')
     lrn         = serializers.CharField(required=True, help_text='12-digit LRN.')
 
     def validate_lrn(self, value):
@@ -109,33 +110,38 @@ class StudentLoginSerializer(serializers.Serializer):
         first_name  = data.get('first_name',  '').strip()
         middle_name = data.get('middle_name', '').strip()
         last_name   = data.get('last_name',   '').strip()
+        full_name   = data.get('full_name',   '').strip()
         lrn         = data.get('lrn',         '').strip()
 
-        if not first_name or not last_name or not lrn:
-            raise serializers.ValidationError(
-                'First name, last name, and LRN are required.'
-            )
+        if not lrn:
+            raise serializers.ValidationError('LRN is required.')
 
         # Look up by LRN
         try:
             user = User.objects.get(lrn=lrn, role='student')
         except User.DoesNotExist:
-            raise serializers.ValidationError('Invalid name or LRN. Please try again.')
+            raise serializers.ValidationError('Invalid student LRN. Please try again.')
 
-        # Build the name to compare from the supplied fields
-        mi_part = f'{middle_name[0].upper()}.' if middle_name else ''
-        entered_name = ' '.join(
-            p for p in [
-                first_name.upper(),
-                mi_part,
-                last_name.upper(),
-            ] if p
-        ).strip()
+        # If name fields were supplied (e.g. legacy/testing request), check them
+        entered_name = ''
+        if first_name or last_name:
+            mi_part = f'{middle_name[0].upper()}.' if middle_name else ''
+            entered_name = ' '.join(
+                p for p in [
+                    first_name.upper(),
+                    mi_part,
+                    last_name.upper(),
+                ] if p
+            ).strip()
+        elif full_name:
+            entered_name = full_name.upper().strip()
 
-        db_name = user.get_full_name().strip()
-
-        if entered_name.lower() != db_name.lower():
-            raise serializers.ValidationError('Invalid name or LRN. Please try again.')
+        if entered_name:
+            db_name = user.get_full_name().strip()
+            entered_normalized = ' '.join(entered_name.lower().split())
+            db_normalized = ' '.join(db_name.lower().split())
+            if entered_normalized != db_normalized:
+                raise serializers.ValidationError('Invalid name or LRN. Please try again.')
 
         if not user.is_active:
             raise serializers.ValidationError(

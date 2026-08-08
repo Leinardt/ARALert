@@ -95,4 +95,9 @@ export const userService = {
     const response = await api.get<User[]>('/users/tutors/');
     return response.data;
   },
+
+  getStaff: async (): Promise<User[]> => {
+    const response = await api.get<GetUsersResponse>('/users/', { params: { role: 'staff' } });
+    return response.data.results;
+  },
 };

@@ -1,16 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth';
 import {
   Shield,
-  Activity,
   BarChart3,
   QrCode,
-  Users,
-  CheckCircle2,
   ArrowRight,
-  BookOpen,
-  Award,
 } from 'lucide-react';
 
 export const Landing: React.FC = () => {
@@ -25,7 +20,7 @@ export const Landing: React.FC = () => {
     <div
       style={{
         minHeight: '100vh',
-        background: 'linear-gradient(180deg, #F0FDF4 0%, #F8FAFC 50%, #FFFFFF 100%)',
+        background: 'linear-gradient(180deg, #EFF6FF 0%, #F8FAFC 50%, #FFFFFF 100%)',
         fontFamily: 'var(--font-body)',
         color: 'var(--text-primary)',
         padding: '2rem 1.5rem 4rem',
@@ -39,11 +34,11 @@ export const Landing: React.FC = () => {
         style={{
           width: '100%',
           maxWidth: '1140px',
-          background: 'rgba(255, 255, 255, 0.95)',
+          background: 'rgba(255, 255, 255, 0.98)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           borderRadius: '32px',
-          boxShadow: '0 32px 90px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(9, 115, 55, 0.12)',
+          boxShadow: '0 32px 90px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(22, 72, 230, 0.12)',
           overflow: 'hidden',
         }}
       >
@@ -87,7 +82,7 @@ export const Landing: React.FC = () => {
                 gap: '0.65rem',
                 padding: '0.9rem 2.25rem',
                 borderRadius: 'var(--radius-pill)',
-                background: 'linear-gradient(135deg, #097337 0%, #075C2C 100%)',
+                background: 'linear-gradient(135deg, #1648E6 0%, #1648E6 100%)',
                 color: '#fff',
                 fontWeight: 700,
                 fontSize: '1rem',
@@ -121,7 +116,7 @@ export const Landing: React.FC = () => {
               boxShadow: 'var(--shadow-xs)',
             }}
           >
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#E6F7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#097337', marginBottom: '1.25rem' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1D4ED8', marginBottom: '1.25rem' }}>
               <BarChart3 size={24} />
             </div>
             <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -141,7 +136,7 @@ export const Landing: React.FC = () => {
               boxShadow: 'var(--shadow-xs)',
             }}
           >
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444', marginBottom: '1.25rem' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#FEF9C3', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B45309', marginBottom: '1.25rem' }}>
               <Shield size={24} />
             </div>
             <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -161,7 +156,7 @@ export const Landing: React.FC = () => {
               boxShadow: 'var(--shadow-xs)',
             }}
           >
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3B82F6', marginBottom: '1.25rem' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1D4ED8', marginBottom: '1.25rem' }}>
               <QrCode size={24} />
             </div>
             <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>

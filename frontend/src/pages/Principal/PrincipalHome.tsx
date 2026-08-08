@@ -323,10 +323,10 @@ export const PrincipalHome: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 text-sm text-gray-600">
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 text-sm text-gray-600 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
-          <BarChart3 className="w-4 h-4 text-[var(--brand)]" />
-          <span>These views are consolidated for the ARAL program and reflect the latest principal dashboard payload.</span>
+          <BarChart3 className="h-4 w-4 text-[var(--brand)]" />
+          <span>ARAL program oversight dashboard with consolidated class and staff attendance trends.</span>
         </div>
       </div>
 

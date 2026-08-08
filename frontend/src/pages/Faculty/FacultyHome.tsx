@@ -75,38 +75,63 @@ export const FacultyHome: React.FC = () => {
   const linePath = pointCoordinates.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', alignItems: 'stretch' }}>
-      <section style={{ background: '#fff', border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-xl)', padding: '1.5rem', boxShadow: 'var(--shadow-xs)' }}>
-        <div style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', background: 'var(--brand-light)', color: 'var(--brand-dark)' }}>
-          <UsersRound size={21} />
+    <div className="space-y-4">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Faculty overview</p>
+            <h1 className="mt-1 text-2xl font-semibold text-slate-900">Welcome back, {user?.full_name || 'Faculty'}</h1>
+            <p className="mt-1 text-sm text-slate-600">Track your current profile and attendance trend in a single concise view.</p>
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-light)] px-3 py-2 text-sm font-semibold text-[var(--brand-dark)]">
+            <UsersRound className="h-4 w-4" />
+            {facultyType}
+          </div>
         </div>
-        <p style={{ margin: '1.25rem 0 0.3rem', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Faculty Type</p>
-        <h1 style={{ margin: 0, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)', fontSize: '1.6rem', fontWeight: 800 }}>{facultyType}</h1>
       </section>
 
-      <section style={{ background: '#fff', border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-xl)', padding: '1.5rem', boxShadow: 'var(--shadow-xs)' }}>
-        <div style={{ width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', background: '#E6F7ED', color: '#097337' }}>
-          <Activity size={21} />
-        </div>
-        <p style={{ margin: '1.25rem 0 0.3rem', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Average Attendance Rate</p>
-        <h2 style={{ margin: 0, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)', fontSize: '2.15rem', fontWeight: 800 }}>{attendanceRate}%</h2>
-        <p style={{ margin: '0.35rem 0 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{attendance.length} recorded {attendance.length === 1 ? 'day' : 'days'}</p>
-      </section>
+      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-[var(--brand-light)] p-2.5 text-[var(--brand-dark)]">
+              <Activity className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Attendance rate</p>
+              <p className="text-3xl font-semibold text-slate-900">{attendanceRate}%</p>
+            </div>
+          </div>
+          <p className="mt-4 text-sm text-slate-600">{attendance.length} recorded {attendance.length === 1 ? 'day' : 'days'} across your recent attendance history.</p>
+        </section>
 
-      <section style={{ background: '#fff', border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-xl)', padding: '1.5rem', boxShadow: 'var(--shadow-xs)', gridColumn: '1 / -1' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <BarChart3 size={20} color="var(--brand-dark)" />
-          <h2 style={{ margin: 0, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 700 }}>Your Attendance Rate</h2>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-700">
+              <BarChart3 className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Faculty type</p>
+              <p className="text-xl font-semibold text-slate-900">{facultyType}</p>
+            </div>
+          </div>
+          <p className="mt-4 text-sm text-slate-600">This summary keeps the page focused on the essentials without distracting sections.</p>
+        </section>
+      </div>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-5 w-5 text-[var(--brand-dark)]" />
+          <h2 className="text-lg font-semibold text-slate-900">Your attendance trend</h2>
         </div>
 
         {isLoading ? (
-          <p style={{ color: 'var(--text-muted)', margin: '2.5rem 0', textAlign: 'center' }}>Loading attendance rate…</p>
+          <p className="py-10 text-center text-sm text-slate-600">Loading attendance rate…</p>
         ) : error ? (
-          <p style={{ color: '#B91C1C', margin: '2.5rem 0', textAlign: 'center' }}>{error}</p>
+          <p className="py-10 text-center text-sm text-red-700">{error}</p>
         ) : chartPoints.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', margin: '2.5rem 0', textAlign: 'center' }}>No attendance records yet.</p>
+          <p className="py-10 text-center text-sm text-slate-600">No attendance records yet.</p>
         ) : (
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Faculty attendance rate chart" style={{ width: '100%', height: 230, marginTop: '1rem', overflow: 'visible' }}>
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Faculty attendance rate chart" className="mt-4 h-[230px] w-full overflow-visible">
             {[0, 50, 100].map((rate) => {
               const y = chartPadding.top + plotHeight - (rate / 100) * plotHeight;
               return <g key={rate}><line x1={chartPadding.left} y1={y} x2={chartWidth - chartPadding.right} y2={y} stroke="#E2E8F0" /><text x={chartPadding.left - 8} y={y + 4} textAnchor="end" fontSize="10" fill="#64748B">{rate}%</text></g>;

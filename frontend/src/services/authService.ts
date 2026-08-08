@@ -26,16 +26,8 @@ export const authService = {
     return response.data;
   },
 
-  studentLogin: async (
-    firstName: string,
-    middleName: string,
-    lastName: string,
-    lrn: string
-  ): Promise<AuthResponse> => {
+  studentLogin: async (lrn: string): Promise<AuthResponse> => {
     const response = await api.post<AuthResponse>('/auth/student-login/', {
-      first_name: firstName,
-      middle_name: middleName,
-      last_name: lastName,
       lrn,
     });
     return response.data;

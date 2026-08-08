@@ -136,16 +136,16 @@ export const EditUser: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <Link
         to={currentUser?.is_superuser ? '/superadmin/users' : '/admin/students'}
-        className="text-gray-500 hover:text-[var(--brand)] inline-flex items-center text-sm font-semibold transition-colors"
+        className="text-slate-500 hover:text-blue-700 inline-flex items-center text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="w-4 h-4 mr-1.5" />
         Back to {currentUser?.is_superuser ? 'Directory' : 'Student Directory'}
       </Link>
 
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+      <div className="bg-white p-8 sm:p-10 rounded-2xl border border-slate-200 shadow-md">
         <h2 className="text-lg font-bold text-gray-900 mb-6">
           {currentUser?.is_superuser ? 'Edit User Profile' : 'Edit Student Record'}
         </h2>

@@ -136,7 +136,7 @@ export const AuditLog: React.FC = () => {
 
       {/* ── Page Header ── */}
       <div style={{
-        background: '#fff',
+        background: 'var(--surface-card)',
         borderRadius: 'var(--radius-xl)',
         padding: '1.75rem 2rem',
         border: '1px solid var(--slate-200)',
@@ -215,7 +215,7 @@ export const AuditLog: React.FC = () => {
 
       {/* ── Filters ── */}
       <form onSubmit={handleSearch} style={{
-        background: '#fff', borderRadius: 'var(--radius-xl)',
+        background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)',
         border: '1px solid var(--slate-200)', padding: '1.25rem 1.5rem',
         boxShadow: 'var(--shadow-xs)',
         display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end',
@@ -238,7 +238,7 @@ export const AuditLog: React.FC = () => {
                 fontFamily: 'var(--font-body)', background: 'var(--surface-muted)',
                 transition: 'border-color 0.2s, box-shadow 0.2s',
               }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--brand)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; e.currentTarget.style.background = '#fff'; }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--brand)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; e.currentTarget.style.background = 'var(--surface-card)'; }}
               onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--slate-200)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.background = 'var(--surface-muted)'; }}
             />
           </div>
@@ -262,7 +262,7 @@ export const AuditLog: React.FC = () => {
                 fontFamily: 'var(--font-body)', background: 'var(--surface-muted)',
                 transition: 'border-color 0.2s, box-shadow 0.2s',
               }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--brand)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; e.currentTarget.style.background = '#fff'; }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--brand)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; e.currentTarget.style.background = 'var(--surface-card)'; }}
               onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--slate-200)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.background = 'var(--surface-muted)'; }}
             />
           </div>
@@ -300,7 +300,7 @@ export const AuditLog: React.FC = () => {
       </form>
 
       {/* ── Log Table ── */}
-      <div style={{ background: '#fff', border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-xl)', overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
+      <div style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-xl)', overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
 
         {/* Table header info bar */}
         <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--slate-100)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface-muted)' }}>
@@ -432,7 +432,7 @@ export const AuditLog: React.FC = () => {
                       {/* Expandable details row */}
                       {isExpanded && hasDetails && (
                         <tr>
-                          <td colSpan={6} style={{ padding: '0 1.25rem 1rem', background: '#F8FAFC' }}>
+                          <td colSpan={6} style={{ padding: '0 1.25rem 1rem', background: 'var(--surface-muted)' }}>
                             <div style={{
                               background: '#0F172A',
                               borderRadius: '12px',
@@ -522,7 +522,7 @@ export const AuditLog: React.FC = () => {
       )}
 
       {/* ── Legend ── */}
-      <div style={{ background: '#fff', border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-xl)', padding: '1.25rem 1.5rem', boxShadow: 'var(--shadow-xs)' }}>
+      <div style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-xl)', padding: '1.25rem 1.5rem', boxShadow: 'var(--shadow-xs)' }}>
         <p style={{ margin: '0 0 0.875rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Event Legend
         </p>

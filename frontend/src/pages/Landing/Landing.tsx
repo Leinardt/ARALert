@@ -3,14 +3,9 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import {
   Shield,
-  Activity,
   BarChart3,
   QrCode,
-  Users,
-  CheckCircle2,
   ArrowRight,
-  BookOpen,
-  Award,
 } from 'lucide-react';
 
 export const Landing: React.FC = () => {
@@ -21,229 +16,85 @@ export const Landing: React.FC = () => {
     if (user.is_superuser) return '/superadmin';
     return `/${user.role}`;
   };
+
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(180deg, #F0FDF4 0%, #F8FAFC 50%, #FFFFFF 100%)',
-        fontFamily: 'var(--font-body)',
-        color: 'var(--text-primary)',
-        padding: '2rem 1.5rem 4rem',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-      }}
-    >
-      {/* ── Outer Card Wrapper ── */}
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '1140px',
-          background: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderRadius: '32px',
-          boxShadow: '0 32px 90px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(9, 115, 55, 0.12)',
-          overflow: 'hidden',
-        }}
-      >
-        {/* ── Top Bar Brand Header ── */}
-        <div
-          style={{
-            padding: '1.75rem 2.5rem',
-            borderBottom: '1px solid var(--slate-100)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '1rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-            <img
-              src="/src/assets/ARALert_LOGO.png"
-              alt="ARALert Logo"
-              style={{ width: '36px', height: '36px', objectFit: 'contain' }}
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = 'none';
-              }}
-            />
-            <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-              ARALert
-            </span>
+    <div className="min-h-screen flex flex-col lg:flex-row font-body">
+      
+      {/* ── Left Side: Content & CTA ── */}
+      <div className="flex-1 bg-slate-50 p-8 sm:p-12 lg:p-24 flex flex-col justify-center">
+        <div className="max-w-xl mx-auto lg:mx-0">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold mb-6">
+            <Shield className="w-4 h-4" />
+            <span>Academic Recovery System</span>
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-            <Link
-              to={isAuthenticated ? getDashboardLink() : '/login'}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.65rem 1.35rem',
-                borderRadius: 'var(--radius-pill)',
-                background: 'var(--brand)',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                textDecoration: 'none',
-                boxShadow: '0 10px 25px rgba(9, 115, 55, 0.3)',
-                transition: 'var(--transition-fast)',
-              }}
-            >
-              {isAuthenticated ? 'Go to Dashboard' : 'Sign In'} <ArrowRight size={16} />
-            </Link>
-          </div>
-        </div>
-
-        {/* ── Hero Section ── */}
-        <div style={{ padding: '3.5rem 2.5rem 2.5rem', textAlign: 'center', position: 'relative' }}>
-          <h1
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: 'clamp(2rem, 4vw, 3.1rem)',
-              fontWeight: 800,
-              lineHeight: 1.15,
-              color: '#0F172A',
-              maxWidth: '900px',
-              margin: '0 auto 1.5rem',
-              letterSpacing: '-0.03em',
-            }}
-          >
-            Student Performance Monitoring & Early Academic Risk Detection
+          
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.15] mb-6 font-heading">
+            Early Risk Detection & Performance Monitoring
           </h1>
-
-          <p
-            style={{
-              fontSize: '1.05rem',
-              lineHeight: 1.75,
-              color: 'var(--text-secondary)',
-              maxWidth: '780px',
-              margin: '0 auto 2.25rem',
-            }}
-          >
+          
+          <p className="text-lg text-slate-600 mb-8 leading-relaxed">
             Empowering the Academic Recovery and Accessible Learning (ARAL) program with automated risk detection, real-time QR attendance tracking, weighted academic evaluation, and targeted intervention management.
           </p>
-
-          {/* Action CTAs */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <Link
               to={isAuthenticated ? getDashboardLink() : '/login'}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.65rem',
-                padding: '0.9rem 2.25rem',
-                borderRadius: 'var(--radius-pill)',
-                background: 'linear-gradient(135deg, #097337 0%, #075C2C 100%)',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: '1rem',
-                textDecoration: 'none',
-                boxShadow: 'var(--shadow-brand)',
-              }}
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg transition-all shadow-lg hover:shadow-blue-600/30 w-full sm:w-auto"
             >
-              {isAuthenticated ? 'Go to Dashboard' : 'Access System Portal'} <ArrowRight size={18} />
+              {isAuthenticated ? 'Go to Dashboard' : 'Access System Portal'} <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
-        </div>
 
-        {/* ── Feature Cards Grid ── */}
-        <div
-          id="features"
-          style={{
-            padding: '2.5rem',
-            background: 'var(--slate-50)',
-            borderTop: '1px solid var(--slate-100)',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '1.5rem',
-          }}
-        >
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: '24px',
-              padding: '2rem',
-              border: '1px solid var(--slate-200)',
-              boxShadow: 'var(--shadow-xs)',
-            }}
-          >
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#E6F7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#097337', marginBottom: '1.25rem' }}>
-              <BarChart3 size={24} />
+          {/* Feature Highlights Grid */}
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-8 pt-10 border-t border-slate-200/60">
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700">
+                <BarChart3 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900 mb-1">Performance Tracking</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">Consolidates assessments and attendance for instant indicators.</p>
+              </div>
             </div>
-            <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Continuous Performance Tracking
-            </h3>
-            <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              Consolidates assessments, weekly tasks, and attendance scores using customizable weight ratios to compute instant performance indicators per student.
-            </p>
-          </div>
-
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: '24px',
-              padding: '2rem',
-              border: '1px solid var(--slate-200)',
-              boxShadow: 'var(--shadow-xs)',
-            }}
-          >
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444', marginBottom: '1.25rem' }}>
-              <Shield size={24} />
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center text-red-600">
+                <Shield className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900 mb-1">Risk Warning</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">Algorithms surface high, medium, and low risk alerts proactively.</p>
+              </div>
             </div>
-            <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Automated Early Risk Warning
-            </h3>
-            <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              Algorithms analyze attendance thresholds and grade drops to surface high, medium, and low risk alerts, enabling proactive interventions.
-            </p>
-          </div>
-
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: '24px',
-              padding: '2rem',
-              border: '1px solid var(--slate-200)',
-              boxShadow: 'var(--shadow-xs)',
-            }}
-          >
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3B82F6', marginBottom: '1.25rem' }}>
-              <QrCode size={24} />
+            <div className="flex gap-4 sm:col-span-2">
+              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-700">
+                <QrCode className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900 mb-1">QR Attendance</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">Precise timestamped clock-in and clock-out events for students and staff.</p>
+              </div>
             </div>
-            <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              QR Code Attendance & Scanning
-            </h3>
-            <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-              Generates session-specific QR codes for both students and staff, recording precise timestamped clock-in and clock-out events.
-            </p>
           </div>
         </div>
+      </div>
 
-        {/* ── System Roles Footer ── */}
-        <div style={{ padding: '2rem 2.5rem', background: '#fff', borderTop: '1px solid var(--slate-100)', textTransform: 'none' }}>
-          <p style={{ margin: 0, textAlign: 'center', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-            SUPPORTED SYSTEM ROLES & ACCESS BOUNDARIES
-          </p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-            {['SuperAdmin', 'School Admin', 'Principal', 'Faculty', 'Tutor', 'Student'].map((role) => (
-              <span
-                key={role}
-                style={{
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  padding: '0.4rem 0.9rem',
-                  borderRadius: 'var(--radius-pill)',
-                  background: 'var(--surface-muted)',
-                  color: 'var(--text-secondary)',
-                  border: '1px solid var(--slate-200)',
-                }}
-              >
-                {role}
-              </span>
-            ))}
-          </div>
+      {/* ── Right Side: Branding (Logo & Info) ── */}
+      <div className="flex-1 p-8 sm:p-12 lg:p-24 flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[40vh] lg:min-h-screen">
+        {/* Subtle background decoration */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none">
+          <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-white rounded-full mix-blend-overlay filter blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
+          <div className="absolute bottom-0 left-0 w-[40rem] h-[40rem] bg-white rounded-full mix-blend-overlay filter blur-3xl transform -translate-x-1/2 translate-y-1/2"></div>
+        </div>
+
+        <div className="relative z-10 flex flex-col items-center">
+            <img 
+              src="/src/assets/ARALert_LOGO_light.png" 
+              alt="ARALert Logo" 
+              className="w-40 h-40 sm:w-56 sm:h-56 object-contain drop-shadow-xl"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = '/src/assets/ARALert_LOGO.png';
+              }}
+            />
         </div>
       </div>
     </div>

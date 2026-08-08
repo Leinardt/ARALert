@@ -32,7 +32,7 @@ export const Profile: React.FC = () => {
 
   if (!localUser) {
     return (
-      <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+      <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
         Loading profile information...
       </div>
     );
@@ -90,7 +90,7 @@ export const Profile: React.FC = () => {
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* ── User Overview Header ── */}
-      <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '2rem', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
+      <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', padding: '2rem', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
             <div style={{ position: 'relative' }}>
@@ -146,7 +146,7 @@ export const Profile: React.FC = () => {
       </div>
 
       {/* ── Form Section ── */}
-      <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '2rem', boxShadow: 'var(--shadow-xs)' }}>
+      <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '2rem', boxShadow: 'var(--shadow-xs)' }}>
         <h2 style={{ margin: '0 0 1.5rem', fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
           Account & Profile Settings
         </h2>

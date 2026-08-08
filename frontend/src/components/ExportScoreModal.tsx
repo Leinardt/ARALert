@@ -694,7 +694,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
             type="button"
             onClick={handleExcelExport}
             disabled={isExporting}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition shadow-sm disabled:opacity-60"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition shadow-sm disabled:opacity-60"
           >
             📊 {isExporting ? 'Exporting...' : 'Download Excel (.xlsx)'}
           </button>

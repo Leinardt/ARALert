@@ -50,13 +50,13 @@ export const AppRouter: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ── Public routes ─────────────────────────── */}
+        {/* ── Public routes (Landing & Login) ───────── */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
         </Route>
 
         {/* ── Auth routes ───────────────────────────── */}
-        <Route path="/login" element={<Login />} />
         <Route path="/activate" element={<ActivateAccount />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />

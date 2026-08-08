@@ -32,22 +32,6 @@ class UserStatsView(APIView):
     permission_classes = [IsAdmin]
 
     def get(self, request):
-        if not request.user.is_superuser and request.user.role == 'admin':
-            students = User.objects.filter(is_superuser=False, role='student')
-            stats = {
-                'total_users': students.count(),
-                'active_users': students.filter(is_active=True).count(),
-                'inactive_users': students.filter(is_active=False).count(),
-                'admins': 0,
-                'principals': 0,
-                'faculty': 0,
-                'tutors': 0,
-                'students': students.count(),
-                'assigned_students': students.filter(assigned_tutor__isnull=False).count(),
-                'unassigned_students': students.filter(assigned_tutor__isnull=True).count(),
-            }
-            return Response(stats)
-
         users = User.objects.filter(is_superuser=False)
         attendance_logs = StudentAttendance.objects.all()
         assessment_entries = AssessmentScore.objects.all()
@@ -108,8 +92,11 @@ class UserListCreateView(generics.ListCreateAPIView):
         if not self.request.user.is_superuser and self.request.user.role == 'tutor':
             return queryset.filter(assigned_tutor=self.request.user, role='student')
 
+        role = self.request.query_params.get('role', '').strip()
+
         if not self.request.user.is_superuser and self.request.user.role == 'admin':
-            queryset = queryset.filter(role='student')
+            if not role:
+                queryset = queryset.filter(role='student')
 
         assigned_tutor = self.request.query_params.get('assigned_tutor', '').strip()
         if assigned_tutor:
@@ -128,9 +115,11 @@ class UserListCreateView(generics.ListCreateAPIView):
                 | Q(lrn__icontains=search)
             )
 
-        role = self.request.query_params.get('role', '').strip()
         if role:
-            queryset = queryset.filter(role=role)
+            if role == 'staff':
+                queryset = queryset.filter(role__in=['admin', 'principal', 'faculty', 'tutor'])
+            else:
+                queryset = queryset.filter(role=role)
 
         status_filter = self.request.query_params.get('status', '').strip()
         if status_filter == 'active':
@@ -194,8 +183,6 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
 
     def get_queryset(self):
         queryset = User.objects.filter(is_superuser=False)
-        if not self.request.user.is_superuser and self.request.user.role == 'admin':
-            queryset = queryset.filter(role='student')
         if self.request.user.role == 'tutor':
             queryset = queryset.filter(role='student', assigned_tutor=self.request.user)
         return queryset

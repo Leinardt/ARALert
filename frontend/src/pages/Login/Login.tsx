@@ -6,14 +6,11 @@ import * as z from 'zod';
 import { useAuth } from '../../hooks/useAuth';
 import {
   AlertCircle, Shield, GraduationCap, ArrowLeft, BookOpen,
-  User, Hash, Info, CheckCircle2,
+  Hash, Info, CheckCircle2,
 } from 'lucide-react';
 
-// ── Student Login Schema (3 Name Fields + LRN) ──────────────────────────
+// ── Student Login Schema (LRN only) ───────────────────────────────
 const studentLoginSchema = z.object({
-  firstName: z.string().min(1, 'First Name is required.'),
-  middleName: z.string().optional(),
-  lastName: z.string().min(1, 'Last Name is required.'),
   lrn: z.string()
     .min(1, 'LRN is required.')
     .regex(/^\d{12}$/, 'LRN must be exactly 12 digits.'),
@@ -75,7 +72,7 @@ export const Login: React.FC = () => {
   // Student form
   const studentForm = useForm<StudentLoginFields>({
     resolver: zodResolver(studentLoginSchema),
-    defaultValues: { firstName: '', middleName: '', lastName: '', lrn: '' },
+    defaultValues: { lrn: '' },
   });
 
   // Handle Google OAuth Credential Response
@@ -148,12 +145,7 @@ export const Login: React.FC = () => {
     setIsSubmitting(true);
     setServerError(null);
     try {
-      const response = await studentLogin(
-        data.firstName,
-        data.middleName || '',
-        data.lastName,
-        data.lrn
-      );
+      const response = await studentLogin(data.lrn);
       navigate(response.redirect ?? '/student');
     } catch (error: any) {
       setServerError(parseApiError(error, 'Invalid student credentials or LRN.'));
@@ -169,82 +161,26 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f5f7f5' }}>
-      {/* ── Top Navigation Header ────────────────────────────────────────── */}
-      <header style={{
-        background: '#ffffff',
-        borderBottom: '1px solid #e5e7eb',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-      }}>
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          padding: '0 24px',
-          height: '64px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-            <img
-              src="/src/assets/ARALert_LOGO.png"
-              alt="ARALert logo"
-              style={{ width: '36px', height: '36px', objectFit: 'contain' }}
-            />
-            <span style={{ fontWeight: 700, fontSize: '20px', color: '#1a1a1a', letterSpacing: '-0.3px' }}>ARALert</span>
-          </Link>
-
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {['Home', 'About', 'Features', 'Contact'].map((item) => (
-              <a
-                key={item}
-                href={item === 'Home' ? '/' : `/#${item.toLowerCase()}`}
-                style={{
-                  color: '#6b7280',
-                  textDecoration: 'none',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#2E7D32';
-                  e.currentTarget.style.background = '#f0fdf4';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#6b7280';
-                  e.currentTarget.style.background = 'transparent';
-                }}
-              >{item}</a>
-            ))}
-          </nav>
-        </div>
-      </header>
-
-      {/* ── Main Container ────────────────────────────────────────────────── */}
       <main style={{
         flex: 1,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '40px 16px',
+        padding: '48px 16px',
       }}>
         <div style={{
           width: '100%',
-          maxWidth: loginType === 'select' ? '640px' : '460px',
+          maxWidth: loginType === 'select' ? '600px' : '480px',
+          margin: '0 auto',
           transition: 'max-width 0.3s ease',
         }}>
           {/* Session expired alert */}
           {isSessionExpired && (
             <div style={{
               marginBottom: '20px',
-              background: '#fffbeb',
-              border: '1px solid #fde68a',
-              color: '#92400e',
+              background: 'var(--color-warning-bg)',
+              border: '1px solid var(--color-warning-border)',
+              color: 'var(--color-warning)',
               fontSize: '13px',
               borderRadius: '12px',
               padding: '14px 16px',
@@ -252,7 +188,7 @@ export const Login: React.FC = () => {
               alignItems: 'center',
               gap: '10px',
             }}>
-              <AlertCircle style={{ width: '18px', height: '18px', color: '#d97706', flexShrink: 0 }} />
+              <AlertCircle style={{ width: '18px', height: '18px', color: 'var(--color-warning)', flexShrink: 0 }} />
               <span>Your session has expired. Please log in again to continue.</span>
             </div>
           )}
@@ -261,9 +197,9 @@ export const Login: React.FC = () => {
           {serverError && (
             <div style={{
               marginBottom: '20px',
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
-              color: '#991b1b',
+              background: 'var(--color-danger-bg)',
+              border: '1px solid var(--color-danger-border)',
+              color: '#dc2626',
               fontSize: '13px',
               borderRadius: '12px',
               padding: '14px 16px',
@@ -278,15 +214,15 @@ export const Login: React.FC = () => {
 
           {/* ── Card ──────────────────────────────────────────────────────── */}
           <div style={{
-            background: '#ffffff',
-            borderRadius: '20px',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)',
+            background: 'var(--surface-card)',
+            borderRadius: '24px',
+            border: '1px solid var(--slate-200)',
+            boxShadow: 'var(--shadow-xl)',
             overflow: 'hidden',
           }}>
             {/* Card Header */}
             <div style={{
-              padding: '32px 32px 0',
+              padding: '36px 36px 0',
               textAlign: 'center',
             }}>
               {loginType !== 'select' && (
@@ -294,59 +230,59 @@ export const Login: React.FC = () => {
                   onClick={handleBack}
                   type="button"
                   style={{
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
-                    color: '#6b7280',
+                    color: 'var(--brand-dark)',
                     fontSize: '13px',
-                    fontWeight: 500,
-                    background: 'none',
-                    border: 'none',
+                    fontWeight: 600,
+                    background: 'var(--brand-light)',
+                    border: '1px solid var(--brand-border)',
                     cursor: 'pointer',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
+                    padding: '6px 14px',
+                    borderRadius: '99px',
                     marginBottom: '16px',
                     transition: 'all 0.2s',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.color = '#2E7D32';
-                    e.currentTarget.style.background = '#f0fdf4';
+                    e.currentTarget.style.background = 'var(--surface-muted)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.color = '#6b7280';
-                    e.currentTarget.style.background = 'none';
+                    e.currentTarget.style.background = 'var(--brand-light)';
                   }}
                 >
-                  <ArrowLeft style={{ width: '16px', height: '16px' }} />
+                  <ArrowLeft style={{ width: '15px', height: '15px' }} />
                   Back to options
                 </button>
               )}
 
               <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '14px',
-                background: '#e8f5e9',
+                width: '56px',
+                height: '56px',
+                borderRadius: '16px',
+                background: loginType === 'student' ? 'var(--color-warning-bg)' : 'var(--brand-light)',
+                border: loginType === 'student' ? '1px solid var(--color-warning-border)' : '1px solid var(--brand-border)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 margin: '0 auto 16px',
               }}>
                 {loginType === 'student' ? (
-                  <GraduationCap style={{ width: '26px', height: '26px', color: '#2E7D32' }} />
+                  <GraduationCap style={{ width: '28px', height: '28px', color: '#B45309' }} />
                 ) : loginType === 'staff' ? (
-                  <Shield style={{ width: '26px', height: '26px', color: '#2E7D32' }} />
+                  <Shield style={{ width: '28px', height: '28px', color: 'var(--brand)' }} />
                 ) : (
-                  <BookOpen style={{ width: '26px', height: '26px', color: '#2E7D32' }} />
+                  <BookOpen style={{ width: '28px', height: '28px', color: 'var(--brand)' }} />
                 )}
               </div>
 
               <h1 style={{
                 fontSize: loginType === 'select' ? '24px' : '22px',
-                fontWeight: 700,
-                color: '#111827',
+                fontWeight: 800,
+                color: 'var(--text-primary)',
                 margin: '0 0 6px',
                 letterSpacing: '-0.3px',
+                fontFamily: 'var(--font-heading)',
               }}>
                 {loginType === 'select' && 'Sign In Options'}
                 {loginType === 'staff' && 'Staff Google Login'}
@@ -354,21 +290,21 @@ export const Login: React.FC = () => {
               </h1>
               <p style={{
                 fontSize: '14px',
-                color: '#6b7280',
-                margin: '0 0 24px',
+                color: 'var(--text-secondary)',
+                margin: '0 0 28px',
               }}>
-                {loginType === 'select' && 'Select your portal to continue.'}
-                {loginType === 'staff' && 'Sign in using your Google account.'}
-                {loginType === 'student' && 'Enter your full name and Learner Reference Number.'}
+                {loginType === 'select' && 'Select your portal to access the ARALert system.'}
+                {loginType === 'staff' && 'Sign in using your pre-registered Google account.'}
+                {loginType === 'student' && 'Enter your 12-digit Learner Reference Number to continue.'}
               </p>
             </div>
 
             {/* Card Body */}
-            <div style={{ padding: '0 32px 32px' }}>
+            <div style={{ padding: '0 36px 36px' }}>
 
               {/* ── Option Cards ────────────────────────────────────────── */}
               {loginType === 'select' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {/* Staff Google Login Option */}
                   <button
                     type="button"
@@ -378,45 +314,46 @@ export const Login: React.FC = () => {
                       alignItems: 'center',
                       gap: '18px',
                       padding: '22px 24px',
-                      borderRadius: '16px',
-                      border: '2px solid #e5e7eb',
-                      background: '#ffffff',
+                      borderRadius: '18px',
+                      border: '2px solid var(--slate-200)',
+                      background: 'var(--surface-card)',
                       cursor: 'pointer',
                       textAlign: 'left',
                       transition: 'all 0.25s ease',
                       width: '100%',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = '#2E7D32';
-                      e.currentTarget.style.transform = 'scale(1.02)';
-                      e.currentTarget.style.boxShadow = '0 8px 25px rgba(46,125,50,0.12)';
-                      e.currentTarget.style.background = '#fafff9';
+                      e.currentTarget.style.borderColor = 'var(--brand)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                      e.currentTarget.style.background = 'var(--surface-muted)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = '#e5e7eb';
-                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.borderColor = 'var(--slate-200)';
+                      e.currentTarget.style.transform = 'translateY(0)';
                       e.currentTarget.style.boxShadow = 'none';
-                      e.currentTarget.style.background = '#ffffff';
+                      e.currentTarget.style.background = 'var(--surface-card)';
                     }}
                   >
                     <div style={{
                       width: '52px',
                       height: '52px',
                       borderRadius: '14px',
-                      background: 'linear-gradient(135deg, #e8f5e9, #c8e6c9)',
+                      background: 'var(--brand-light)',
+                      border: '1px solid var(--brand-border)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
                     }}>
-                      <Shield style={{ width: '26px', height: '26px', color: '#2E7D32' }} />
+                      <Shield style={{ width: '26px', height: '26px', color: 'var(--brand-dark)' }} />
                     </div>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: '16px', color: '#111827', marginBottom: '4px' }}>
-                        Faculty, Principal, and ARAL Program Tutor Login
+                      <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                        Faculty, Principal, & Tutor Login
                       </div>
-                      <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: '1.5' }}>
-                        Sign in using your registered email.
+                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                        Sign in using your pre-registered Google account.
                       </div>
                     </div>
                   </button>
@@ -430,45 +367,46 @@ export const Login: React.FC = () => {
                       alignItems: 'center',
                       gap: '18px',
                       padding: '22px 24px',
-                      borderRadius: '16px',
-                      border: '2px solid #e5e7eb',
-                      background: '#ffffff',
+                      borderRadius: '18px',
+                      border: '2px solid var(--slate-200)',
+                      background: 'var(--surface-card)',
                       cursor: 'pointer',
                       textAlign: 'left',
                       transition: 'all 0.25s ease',
                       width: '100%',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = '#2E7D32';
-                      e.currentTarget.style.transform = 'scale(1.02)';
-                      e.currentTarget.style.boxShadow = '0 8px 25px rgba(46,125,50,0.12)';
-                      e.currentTarget.style.background = '#fafff9';
+                      e.currentTarget.style.borderColor = '#F59E0B';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                      e.currentTarget.style.background = 'var(--surface-muted)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = '#e5e7eb';
-                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.borderColor = 'var(--slate-200)';
+                      e.currentTarget.style.transform = 'translateY(0)';
                       e.currentTarget.style.boxShadow = 'none';
-                      e.currentTarget.style.background = '#ffffff';
+                      e.currentTarget.style.background = 'var(--surface-card)';
                     }}
                   >
                     <div style={{
                       width: '52px',
                       height: '52px',
                       borderRadius: '14px',
-                      background: 'linear-gradient(135deg, #e8f5e9, #c8e6c9)',
+                      background: 'var(--color-warning-bg)',
+                      border: '1px solid var(--color-warning-border)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
                     }}>
-                      <GraduationCap style={{ width: '26px', height: '26px', color: '#2E7D32' }} />
+                      <GraduationCap style={{ width: '26px', height: '26px', color: '#B45309' }} />
                     </div>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: '16px', color: '#111827', marginBottom: '4px' }}>
-                        Student Login
+                      <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                        Student Login Portal
                       </div>
-                      <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: '1.5' }}>
-                        Sign in using your name and LRN.
+                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                        Sign in using your 12-digit LRN.
                       </div>
                     </div>
                   </button>
@@ -486,154 +424,40 @@ export const Login: React.FC = () => {
                   />
 
                   {googleLoading && (
-                    <div style={{ fontSize: '14px', color: '#2E7D32', fontWeight: 500 }}>
+                    <div style={{ fontSize: '14px', color: 'var(--brand)', fontWeight: 600 }}>
                       Authenticating with Google...
                     </div>
                   )}
 
                   <div style={{
                     fontSize: '12px',
-                    color: '#9ca3af',
+                    color: 'var(--text-muted)',
                     textAlign: 'center',
                     marginTop: '8px',
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '4px',
+                    background: 'var(--surface-muted)',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--slate-200)',
                   }}>
-                    <Info style={{ width: '14px', height: '14px' }} />
-                    Only registered Google accounts to ARALert are permitted.
+                    <Info style={{ width: '14px', height: '14px', color: 'var(--brand)', flexShrink: 0 }} />
+                    Only registered Google accounts in ARALert are permitted to log in.
                   </div>
                 </div>
               )}
 
-              {/* ── Student Login Form (3 Name Fields + LRN) ─────────────── */}
+              {/* ── Student Login Form (LRN only) ────────────────────────── */}
               {loginType === 'student' && (
                 <form onSubmit={studentForm.handleSubmit(onStudentSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-                  {/* First Name */}
                   <div>
-                    <label htmlFor="firstName" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
-                      First Name <span style={{ color: '#dc2626' }}>*</span>
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <User style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '18px', color: '#9ca3af' }} />
-                      <input
-                        id="firstName"
-                        type="text"
-                        placeholder="e.g. Juan"
-                        {...studentForm.register('firstName')}
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px 12px 42px',
-                          border: `1.5px solid ${studentForm.formState.errors.firstName ? '#fca5a5' : '#d1d5db'}`,
-                          borderRadius: '12px',
-                          fontSize: '14px',
-                          outline: 'none',
-                          transition: 'border-color 0.2s, box-shadow 0.2s',
-                          background: '#fafafa',
-                          boxSizing: 'border-box',
-                        }}
-                        onFocus={(e) => {
-                          e.currentTarget.style.borderColor = '#2E7D32';
-                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(46,125,50,0.1)';
-                          e.currentTarget.style.background = '#fff';
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.borderColor = studentForm.formState.errors.firstName ? '#fca5a5' : '#d1d5db';
-                          e.currentTarget.style.boxShadow = 'none';
-                          e.currentTarget.style.background = '#fafafa';
-                        }}
-                      />
-                    </div>
-                    {studentForm.formState.errors.firstName && (
-                      <p style={{ marginTop: '4px', fontSize: '12px', color: '#dc2626' }}>{studentForm.formState.errors.firstName.message}</p>
-                    )}
-                  </div>
-
-                  {/* Middle Name */}
-                  <div>
-                    <label htmlFor="middleName" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
-                      Middle Name <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 400 }}>(Optional)</span>
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <User style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '18px', color: '#9ca3af' }} />
-                      <input
-                        id="middleName"
-                        type="text"
-                        placeholder="e.g. Santos"
-                        {...studentForm.register('middleName')}
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px 12px 42px',
-                          border: '1.5px solid #d1d5db',
-                          borderRadius: '12px',
-                          fontSize: '14px',
-                          outline: 'none',
-                          transition: 'border-color 0.2s, box-shadow 0.2s',
-                          background: '#fafafa',
-                          boxSizing: 'border-box',
-                        }}
-                        onFocus={(e) => {
-                          e.currentTarget.style.borderColor = '#2E7D32';
-                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(46,125,50,0.1)';
-                          e.currentTarget.style.background = '#fff';
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.borderColor = '#d1d5db';
-                          e.currentTarget.style.boxShadow = 'none';
-                          e.currentTarget.style.background = '#fafafa';
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Last Name */}
-                  <div>
-                    <label htmlFor="lastName" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
-                      Last Name <span style={{ color: '#dc2626' }}>*</span>
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <User style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '18px', color: '#9ca3af' }} />
-                      <input
-                        id="lastName"
-                        type="text"
-                        placeholder="e.g. Dela Cruz"
-                        {...studentForm.register('lastName')}
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px 12px 42px',
-                          border: `1.5px solid ${studentForm.formState.errors.lastName ? '#fca5a5' : '#d1d5db'}`,
-                          borderRadius: '12px',
-                          fontSize: '14px',
-                          outline: 'none',
-                          transition: 'border-color 0.2s, box-shadow 0.2s',
-                          background: '#fafafa',
-                          boxSizing: 'border-box',
-                        }}
-                        onFocus={(e) => {
-                          e.currentTarget.style.borderColor = '#2E7D32';
-                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(46,125,50,0.1)';
-                          e.currentTarget.style.background = '#fff';
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.borderColor = studentForm.formState.errors.lastName ? '#fca5a5' : '#d1d5db';
-                          e.currentTarget.style.boxShadow = 'none';
-                          e.currentTarget.style.background = '#fafafa';
-                        }}
-                      />
-                    </div>
-                    {studentForm.formState.errors.lastName && (
-                      <p style={{ marginTop: '4px', fontSize: '12px', color: '#dc2626' }}>{studentForm.formState.errors.lastName.message}</p>
-                    )}
-                  </div>
-
-                  {/* LRN */}
-                  <div>
-                    <label htmlFor="lrn" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+                    <label htmlFor="lrn" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
                       Learner Reference Number (LRN) <span style={{ color: '#dc2626' }}>*</span>
                     </label>
                     <div style={{ position: 'relative' }}>
-                      <Hash style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '18px', color: '#9ca3af' }} />
+                      <Hash style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '18px', color: 'var(--text-muted)' }} />
                       <input
                         id="lrn"
                         type="text"
@@ -643,56 +467,62 @@ export const Login: React.FC = () => {
                         style={{
                           width: '100%',
                           padding: '12px 14px 12px 42px',
-                          border: `1.5px solid ${studentForm.formState.errors.lrn ? '#fca5a5' : '#d1d5db'}`,
+                          border: `1.5px solid ${studentForm.formState.errors.lrn ? '#fca5a5' : 'var(--slate-200)'}`,
                           borderRadius: '12px',
                           fontSize: '14px',
                           outline: 'none',
                           transition: 'border-color 0.2s, box-shadow 0.2s',
-                          background: '#fafafa',
+                          background: 'var(--surface-muted)',
+                          color: 'var(--text-primary)',
                           boxSizing: 'border-box',
                           letterSpacing: '1px',
                         }}
                         onFocus={(e) => {
-                          e.currentTarget.style.borderColor = '#2E7D32';
-                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(46,125,50,0.1)';
-                          e.currentTarget.style.background = '#fff';
+                          e.currentTarget.style.borderColor = 'var(--brand)';
+                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.15)';
+                          e.currentTarget.style.background = 'var(--surface-card)';
                         }}
                         onBlur={(e) => {
-                          e.currentTarget.style.borderColor = studentForm.formState.errors.lrn ? '#fca5a5' : '#d1d5db';
+                          e.currentTarget.style.borderColor = studentForm.formState.errors.lrn ? '#fca5a5' : 'var(--slate-200)';
                           e.currentTarget.style.boxShadow = 'none';
-                          e.currentTarget.style.background = '#fafafa';
+                          e.currentTarget.style.background = 'var(--surface-muted)';
                         }}
                       />
                     </div>
                     {studentForm.formState.errors.lrn && (
                       <p style={{ marginTop: '4px', fontSize: '12px', color: '#dc2626' }}>{studentForm.formState.errors.lrn.message}</p>
                     )}
-                    <p style={{ marginTop: '4px', fontSize: '11px', color: '#9ca3af' }}>12-digit number assigned by DepEd.</p>
+                    <p style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>12-digit official number issued by DepEd.</p>
                   </div>
 
-                  {/* Submit */}
                   <button
                     type="submit"
                     disabled={isSubmitting}
                     style={{
                       width: '100%',
-                      padding: '13px',
-                      background: isSubmitting ? '#66bb6a' : '#2E7D32',
+                      padding: '14px',
+                      background: isSubmitting ? 'var(--slate-400)' : 'var(--brand)',
                       color: '#fff',
                       border: 'none',
                       borderRadius: '12px',
                       fontSize: '15px',
-                      fontWeight: 600,
+                      fontWeight: 700,
                       cursor: isSubmitting ? 'not-allowed' : 'pointer',
                       transition: 'all 0.2s',
-                      boxShadow: '0 2px 8px rgba(46,125,50,0.25)',
+                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.25)',
                       marginTop: '8px',
                     }}
                     onMouseEnter={(e) => {
-                      if (!isSubmitting) e.currentTarget.style.background = '#1b5e20';
+                      if (!isSubmitting) {
+                        e.currentTarget.style.background = 'var(--brand-hover)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }
                     }}
                     onMouseLeave={(e) => {
-                      if (!isSubmitting) e.currentTarget.style.background = '#2E7D32';
+                      if (!isSubmitting) {
+                        e.currentTarget.style.background = 'var(--brand)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }
                     }}
                   >
                     {isSubmitting ? 'Signing in...' : 'Sign In as Student'}
@@ -704,6 +534,5 @@ export const Login: React.FC = () => {
           </div>
         </div>
       </main>
-    </div>
-  );
+    );
 };

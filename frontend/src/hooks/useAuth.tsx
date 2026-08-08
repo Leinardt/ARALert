@@ -6,7 +6,7 @@ interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   googleLogin: (idToken: string) => Promise<AuthResponse>;
-  studentLogin: (firstName: string, middleName: string, lastName: string, lrn: string) => Promise<AuthResponse>;
+  studentLogin: (lrn: string) => Promise<AuthResponse>;
   completeAuthSession: (response: AuthResponse) => void;
   updateProfile: (data: FormData) => Promise<User>;
   logout: () => Promise<void>;
@@ -38,8 +38,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return response;
   };
 
-  const studentLogin = async (firstName: string, middleName: string, lastName: string, lrn: string) => {
-    const response = await authService.studentLogin(firstName, middleName, lastName, lrn);
+  const studentLogin = async (lrn: string) => {
+    const response = await authService.studentLogin(lrn);
     completeAuthSession(response);
     return response;
   };

@@ -48,21 +48,24 @@ User.objects.all().delete()
 
 print("All user accounts deleted successfully.")
 
-# Seed SuperAdmin Account
-superadmin_email = "lro2023-4992-68567@bicol-u.edu.ph"
+# Seed SuperAdmin Accounts
+superadmin_emails = [
+    ("lro2023-4992-68567@bicol-u.edu.ph", "SUPER", "ADMIN"),
+]
 
-superadmin_user = User.objects.create_superuser(
-    email=superadmin_email,
-    first_name="SUPER",
-    last_name="ADMIN",
-)
+for email, fn, ln in superadmin_emails:
+    superadmin_user = User.objects.create_superuser(
+        email=email,
+        first_name=fn,
+        last_name=ln,
+    )
+    SuperAdminProfile.objects.create(
+        user=superadmin_user,
+        account_status="ACTIVE",
+    )
+    AllowedEmail.objects.get_or_create(
+        email=email,
+        defaults={"note": "SuperAdmin Account"}
+    )
+    print(f"SuperAdmin account seeded successfully: {email}")
 
-SuperAdminProfile.objects.create(
-    user=superadmin_user,
-    account_status="ACTIVE",
-)
-
-print(f"SuperAdmin account seeded successfully:")
-print(f"  Email: {superadmin_user.email}")
-print(f"  Role: SuperAdmin (is_superuser=True)")
-print(f"  Auth Method: Google OAuth (bicol-u.edu.ph domain)")

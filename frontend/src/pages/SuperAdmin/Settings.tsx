@@ -208,7 +208,7 @@ const AuditLogTab: React.FC = () => {
       </form>
 
       {/* Table */}
-      <div style={{ background: '#fff', border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-xl)', overflow: 'hidden' }}>
         {loading ? (
           <div style={{ padding: '3rem', textAlign: 'center' }}>
             {[1,2,3,4,5].map(i => (
@@ -341,7 +341,7 @@ const AuditLogTab: React.FC = () => {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '4px',
                 padding: '0.45rem 0.9rem', borderRadius: 'var(--radius-md)',
-                background: page <= 1 ? 'var(--surface-muted)' : '#fff',
+                background: page <= 1 ? 'var(--surface-muted)' : 'var(--surface-card)',
                 border: '1px solid var(--slate-200)', color: page <= 1 ? 'var(--text-disabled)' : 'var(--text-secondary)',
                 fontSize: '0.8rem', fontWeight: 600, cursor: page <= 1 ? 'not-allowed' : 'pointer',
                 fontFamily: 'var(--font-body)',
@@ -356,7 +356,7 @@ const AuditLogTab: React.FC = () => {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '4px',
                 padding: '0.45rem 0.9rem', borderRadius: 'var(--radius-md)',
-                background: page >= data.total_pages ? 'var(--surface-muted)' : '#fff',
+                background: page >= data.total_pages ? 'var(--surface-muted)' : 'var(--surface-card)',
                 border: '1px solid var(--slate-200)', color: page >= data.total_pages ? 'var(--text-disabled)' : 'var(--text-secondary)',
                 fontSize: '0.8rem', fontWeight: 600, cursor: page >= data.total_pages ? 'not-allowed' : 'pointer',
                 fontFamily: 'var(--font-body)',
@@ -415,7 +415,7 @@ export const Settings: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1000px', margin: '0 auto' }}>
       {/* Page header */}
-      <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '1.75rem 2rem', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
+      <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', padding: '1.75rem 2rem', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -452,7 +452,7 @@ export const Settings: React.FC = () => {
 
           <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {/* Authentication & Security */}
-            <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '1.75rem', boxShadow: 'var(--shadow-xs)' }}>
+            <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '1.75rem', boxShadow: 'var(--shadow-xs)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--slate-100)' }}>
                 <Shield size={20} color="var(--brand)" />
                 <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -492,7 +492,7 @@ export const Settings: React.FC = () => {
             </div>
 
             {/* Rate Limiting */}
-            <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '1.75rem', boxShadow: 'var(--shadow-xs)' }}>
+            <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '1.75rem', boxShadow: 'var(--shadow-xs)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--slate-100)' }}>
                 <Lock size={20} color="#EAB308" />
                 <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -514,7 +514,7 @@ export const Settings: React.FC = () => {
             </div>
 
             {/* Infrastructure Diagnostics */}
-            <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '1.75rem', boxShadow: 'var(--shadow-xs)' }}>
+            <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '1.75rem', boxShadow: 'var(--shadow-xs)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--slate-100)' }}>
                 <Server size={20} color="#3B82F6" />
                 <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -545,7 +545,7 @@ export const Settings: React.FC = () => {
           </form>
         </>
       ) : (
-        <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '1.75rem', boxShadow: 'var(--shadow-xs)' }}>
+        <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '1.75rem', boxShadow: 'var(--shadow-xs)' }}>
           <AuditLogTab />
         </div>
       )}
