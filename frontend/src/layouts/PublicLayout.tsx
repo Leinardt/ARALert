@@ -155,7 +155,6 @@ export const PublicLayout: React.FC = () => {
               width: '24px',
               height: '24px',
               borderRadius: '4px',
-              background: 'var(--brand)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -163,7 +162,7 @@ export const PublicLayout: React.FC = () => {
               fontWeight: 'bold',
               fontSize: '12px'
             }}>
-              A
+              <img src="/src/assets/ARALert_Logo_LIGHT.png" alt="ARALert_Logo_LIGHT.png" />
             </div>
             <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>ARALert</span>
           </div>
