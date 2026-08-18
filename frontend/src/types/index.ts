@@ -24,8 +24,19 @@ export interface User {
   assessment_weight: number;
   weekly_tasks_weight: number;
   attendance_weight: number;
-  aral_level?: 'basic' | 'plus' | 'summer' | null;
+  aral_level?: 'basic' | 'plus' | 'summer' | 'graduated' | null;
   faculty_type?: string | null;
+}
+
+export interface AralProgressionResult {
+  student_id: string;
+  student_name: string;
+  previous_level: string;
+  new_level: string;
+  assessment_type: string;
+  score_percentage: number | null;
+  status: 'PROMOTED' | 'GRADUATED' | 'RETAINED' | 'ASSIGNED_SUMMER';
+  message: string;
 }
 
 export interface AuthResponse {

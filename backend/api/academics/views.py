@@ -32,9 +32,166 @@ from .serializers import (
 )
 
 
+
+# ---------------------------------------------------------------------------
+# ARAL Level Progression Helper
+# ---------------------------------------------------------------------------
+
+def evaluate_student_aral_progression(student):
+    """
+    Automatically evaluates student's MOSY, EOSY, or BOSY/EndLine assessment scores
+    and updates student.aral_level accordingly.
+    Rules:
+    - Basic level: Evaluated by MOSY score. If pass (>= 28/40) -> Promoted to Plus. If fail -> Retains Basic.
+    - Plus level: Evaluated by EOSY score. If pass (>= 28/40) -> Graduated. If fail -> Assigned to Summer.
+    - Summer level: Evaluated by BOSY/EndLine score. If pass (>= 28/40) -> Graduated. If fail -> Retains Summer.
+    """
+    curr_level = student.aral_level or 'basic'
+    if curr_level == 'graduated':
+        return {
+            'student_id': str(student.id),
+            'student_name': student.get_full_name(),
+            'previous_level': curr_level,
+            'new_level': curr_level,
+            'assessment_type': 'N/A',
+            'score_percentage': None,
+            'status': 'GRADUATED',
+            'message': 'Student has already graduated from the ARAL program.'
+        }
+
+    grades = ApiGrade.objects.filter(student=student)
+
+    mosy_grade = grades.filter(Q(subject__icontains='MOSY') | Q(remarks__icontains='MOSY')).order_by('-date_logged').first()
+    eosy_grade = grades.filter(Q(subject__icontains='EOSY') | Q(remarks__icontains='EOSY')).order_by('-date_logged').first()
+    endline_grade = grades.filter(Q(subject__icontains='EndLine') | Q(subject__icontains='BOSY') | Q(remarks__icontains='EndLine')).order_by('-date_logged').first()
+
+    def check_pass(grade_obj):
+        if not grade_obj:
+            return False, 0.0
+        ts = float(grade_obj.total_score) if grade_obj.total_score and float(grade_obj.total_score) > 0 else 40.0
+        s = float(grade_obj.score) if grade_obj.score is not None else 0.0
+        pct = round((s / ts) * 100.0, 1)
+        # Passing score: 28 items out of 40 (or >= 70%)
+        is_pass = s >= 28.0 if ts == 40.0 else (s / ts) >= (28.0 / 40.0)
+        return is_pass, pct
+
+    new_level = curr_level
+    status_code = 'RETAINED'
+    msg = ''
+    ass_type = 'Milestone'
+    target_grade = None
+
+    if curr_level == 'basic':
+        if mosy_grade:
+            target_grade = mosy_grade
+            ass_type = 'MOSY'
+            passed, pct = check_pass(mosy_grade)
+            if passed:
+                new_level = 'plus'
+                status_code = 'PROMOTED'
+                msg = f'Passed MOSY with {mosy_grade.score}/{mosy_grade.total_score or 40} ({pct}%). Promoted to Plus level.'
+            else:
+                new_level = 'basic'
+                status_code = 'RETAINED'
+                msg = f'Did not reach passing score (28/40) on MOSY ({mosy_grade.score}/{mosy_grade.total_score or 40}). Retained in Basic level.'
+        elif eosy_grade:
+            target_grade = eosy_grade
+            ass_type = 'EOSY'
+            passed, pct = check_pass(eosy_grade)
+            if passed:
+                new_level = 'plus'
+                status_code = 'PROMOTED'
+                msg = f'Passed EOSY with {eosy_grade.score}/{eosy_grade.total_score or 40} ({pct}%). Promoted to Plus level.'
+            else:
+                new_level = 'summer'
+                status_code = 'ASSIGNED_SUMMER'
+                msg = f'Did not reach passing score (28/40) on EOSY ({eosy_grade.score}/{eosy_grade.total_score or 40}). Assigned to Summer remediation.'
+        else:
+            return {
+                'student_id': str(student.id),
+                'student_name': student.get_full_name(),
+                'previous_level': curr_level,
+                'new_level': curr_level,
+                'assessment_type': 'MOSY',
+                'score_percentage': None,
+                'status': 'RETAINED',
+                'message': 'Awaiting MOSY assessment entry for level evaluation.'
+            }
+
+    elif curr_level == 'plus':
+        if eosy_grade:
+            target_grade = eosy_grade
+            ass_type = 'EOSY'
+            passed, pct = check_pass(eosy_grade)
+            if passed:
+                new_level = 'graduated'
+                status_code = 'GRADUATED'
+                msg = f'Passed EOSY with {eosy_grade.score}/{eosy_grade.total_score or 40} ({pct}%). Graduated from ARAL program!'
+            else:
+                new_level = 'summer'
+                status_code = 'ASSIGNED_SUMMER'
+                msg = f'Did not reach passing score (28/40) on EOSY ({eosy_grade.score}/{eosy_grade.total_score or 40}). Assigned to Summer remediation.'
+        else:
+            return {
+                'student_id': str(student.id),
+                'student_name': student.get_full_name(),
+                'previous_level': curr_level,
+                'new_level': curr_level,
+                'assessment_type': 'EOSY',
+                'score_percentage': None,
+                'status': 'RETAINED',
+                'message': 'Awaiting EOSY assessment entry for graduation evaluation.'
+            }
+
+    elif curr_level == 'summer':
+        if endline_grade:
+            target_grade = endline_grade
+            ass_type = 'BOSY/EndLine'
+            passed, pct = check_pass(endline_grade)
+            if passed:
+                new_level = 'graduated'
+                status_code = 'GRADUATED'
+                msg = f'Passed BOSY/EndLine with {endline_grade.score}/{endline_grade.total_score or 40} ({pct}%). Graduated from ARAL program!'
+            else:
+                new_level = 'summer'
+                status_code = 'RETAINED'
+                msg = f'Did not reach passing score (28/40) on BOSY/EndLine ({endline_grade.score}/{endline_grade.total_score or 40}). Retained in Summer remediation.'
+        else:
+            return {
+                'student_id': str(student.id),
+                'student_name': student.get_full_name(),
+                'previous_level': curr_level,
+                'new_level': curr_level,
+                'assessment_type': 'BOSY/EndLine',
+                'score_percentage': None,
+                'status': 'RETAINED',
+                'message': 'Awaiting BOSY/EndLine assessment entry for remediation evaluation.'
+            }
+
+    if new_level != curr_level:
+        student.aral_level = new_level
+        student.save(update_fields=['aral_level'])
+
+    ts = float(target_grade.total_score) if target_grade and target_grade.total_score else 40.0
+    s = float(target_grade.score) if target_grade and target_grade.score is not None else 0.0
+    pct_val = round((s / ts) * 100.0, 1)
+
+    return {
+        'student_id': str(student.id),
+        'student_name': student.get_full_name(),
+        'previous_level': curr_level,
+        'new_level': new_level,
+        'assessment_type': ass_type,
+        'score_percentage': pct_val,
+        'status': status_code,
+        'message': msg
+    }
+
+
 # ---------------------------------------------------------------------------
 # Grades
 # ---------------------------------------------------------------------------
+
 
 class GradeListCreateView(generics.ListCreateAPIView):
     """
@@ -73,7 +230,9 @@ class GradeListCreateView(generics.ListCreateAPIView):
         if user.role != 'tutor' and not user.is_superuser:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('Only tutors can log grades.')
-        serializer.save(tutor=user)
+        grade = serializer.save(tutor=user)
+        if grade.student:
+            evaluate_student_aral_progression(grade.student)
 
 
 class GradeDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -86,6 +245,12 @@ class GradeDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
     queryset           = ApiGrade.objects.select_related('student', 'tutor').all()
     lookup_field       = 'id'
+
+    def perform_update(self, serializer):
+        grade = serializer.save()
+        if grade.student:
+            evaluate_student_aral_progression(grade.student)
+
 
 
 # ---------------------------------------------------------------------------
@@ -474,6 +639,9 @@ class StudentAcademicProfileView(APIView):
             if user.role == 'student' and student != user:
                 return Response({'error': 'You cannot view other students\' profiles.'}, status=status.HTTP_403_FORBIDDEN)
 
+        # Automatically evaluate student ARAL level progression
+        evaluate_student_aral_progression(student)
+
         tutor = student.assigned_tutor
         w_assess  = tutor.assessment_weight   if tutor else 50
         w_tasks   = tutor.weekly_tasks_weight if tutor else 30
@@ -663,3 +831,38 @@ class PrincipalDashboardView(APIView):
             'per_tutor_performance':   per_tutor,
             'staff_attendance_trend':  staff_trend,
         }, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# ARAL Level Progression Evaluation
+# ---------------------------------------------------------------------------
+
+class AralLevelProgressionView(APIView):
+    """
+    POST /api/academics/level-up/evaluate/
+    Evaluates student ARAL Level Progression based on MOSY, EOSY, and BOSY/EndLine assessment scores.
+    Rules:
+    - Basic level: Takes MOSY score. If pass (>= 75%) -> Promoted to Plus. If fail -> Retains Basic.
+    - Plus level: Takes EOSY score. If pass (>= 75%) -> Graduated. If fail -> Assigned to Summer.
+    - Basic level (at EOSY): If fails EOSY -> Assigned to Summer.
+    - Summer level: Takes BOSY/EndLine score. If pass (>= 75%) -> Graduated. If fail -> Retains Summer.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if user.role not in ('tutor', 'admin', 'principal') and not user.is_superuser:
+            return Response({'error': 'Unauthorized to run level progression evaluation.'}, status=status.HTTP_403_FORBIDDEN)
+
+        student_id = request.data.get('student_id')
+
+        if student_id:
+            students = User.objects.filter(id=student_id, role='student')
+        elif user.role == 'tutor':
+            students = user.assigned_students.filter(role='student')
+        else:
+            students = User.objects.filter(role='student')
+
+        results = [evaluate_student_aral_progression(s) for s in students]
+        return Response({'results': results}, status=status.HTTP_200_OK)
+

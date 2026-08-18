@@ -19,6 +19,7 @@ class GradeSerializer(serializers.ModelSerializer):
     student_name = serializers.SerializerMethodField()
     tutor_name   = serializers.SerializerMethodField()
     component_type_display = serializers.SerializerMethodField()
+    date_logged  = serializers.DateField(required=False, default=timezone.localdate)
 
     class Meta:
         model  = ApiGrade

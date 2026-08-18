@@ -5,7 +5,8 @@ import type {
   AcademicRisk,
   AttendanceSession,
   Attendance,
-  StudentAcademicProfile
+  StudentAcademicProfile,
+  AralProgressionResult
 } from '../types';
 
 export interface GetGradesParams {
@@ -174,5 +175,13 @@ export const academicService = {
   getMyProfile: async (): Promise<StudentAcademicProfile> => {
     const response = await api.get<StudentAcademicProfile>('/academics/student-profile/');
     return response.data;
+  },
+
+  // ARAL Level Progression
+  evaluateAralLevelUp: async (studentId?: string): Promise<AralProgressionResult[]> => {
+    const response = await api.post<{ results: AralProgressionResult[] }>('/academics/level-up/evaluate/', {
+      student_id: studentId
+    });
+    return response.data.results;
   }
 };

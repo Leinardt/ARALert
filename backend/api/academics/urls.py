@@ -9,6 +9,7 @@ from .views import (
     AcademicRiskListCreateView,
     AralActivityDetailView,
     AralActivityListCreateView,
+    AralLevelProgressionView,
     AttendanceHistoryView,
     AttendanceManualLogView,
     AttendanceScanView,
@@ -38,6 +39,9 @@ urlpatterns = [
     path('attendance/manual/', AttendanceManualLogView.as_view(), name='attendance-manual'),
     path('attendance/history/', AttendanceHistoryView.as_view(), name='attendance-history'),
 
+    # ARAL Level Progression
+    path('level-up/evaluate/', AralLevelProgressionView.as_view(), name='aral-level-up-evaluate'),
+
     # Student Profile
     path('student-profile/<uuid:student_id>/', StudentAcademicProfileView.as_view(), name='student-profile-detail'),
     path('student-profile/', StudentAcademicProfileView.as_view(), name='student-profile-self'),
@@ -45,3 +49,4 @@ urlpatterns = [
     # Principal Dashboard
     path('principal-dashboard/', PrincipalDashboardView.as_view(), name='principal-dashboard'),
 ]
+

@@ -81,12 +81,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
 
     class AralLevel(models.TextChoices):
-        BASIC  = 'basic',  'Basic'
-        PLUS   = 'plus',   'Plus'
-        SUMMER = 'summer', 'Summer'
+        BASIC     = 'basic',     'Basic'
+        PLUS      = 'plus',      'Plus'
+        SUMMER    = 'summer',    'Summer'
+        GRADUATED = 'graduated', 'Graduated'
 
     aral_level = models.CharField(
-        max_length=10,
+        max_length=15,
         choices=AralLevel.choices,
         default=AralLevel.BASIC,
         verbose_name='ARAL Level',

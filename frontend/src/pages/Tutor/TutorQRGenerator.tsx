@@ -193,11 +193,10 @@ export const TutorQRGenerator: React.FC = () => {
               </div>
               {session && (
                 <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                    session.is_active
+                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${session.is_active
                       ? 'bg-green-50 text-green-700 border border-green-200'
                       : 'bg-red-50 text-red-700 border border-red-200'
-                  }`}
+                    }`}
                 >
                   {session.is_active ? 'Active' : 'Expired'}
                 </span>
@@ -208,7 +207,7 @@ export const TutorQRGenerator: React.FC = () => {
               <div className="space-y-4">
                 <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-3.5">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                   Select Duration
+                    Select Duration
                   </label>
                   <select
                     value={expiresIn}

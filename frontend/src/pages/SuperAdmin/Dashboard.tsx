@@ -29,10 +29,6 @@ export const Dashboard: React.FC = () => {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between shrink-0">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">SuperAdmin Dashboard</h1>
-            <p className="mt-2 text-sm text-slate-500">High-level system metrics for users and assignments.</p>
-          </div>
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            Live system snapshot pulled from user analytics.
           </div>
         </div>
 

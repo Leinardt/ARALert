@@ -62,8 +62,28 @@ export const TutorStudentProfile: React.FC = () => {
     lrn: '',
     aral_level: 'basic'
   });
+  const [isEvaluatingLevel, setIsEvaluatingLevel] = useState(false);
+  const [levelEvalMessage, setLevelEvalMessage] = useState<string | null>(null);
   const [studentEditError, setStudentEditError] = useState<string | null>(null);
   const [isSavingStudent, setIsSavingStudent] = useState(false);
+
+  const handleEvaluateLevelProgression = async () => {
+    if (!id) return;
+    setIsEvaluatingLevel(true);
+    setLevelEvalMessage(null);
+    try {
+      const results = await academicService.evaluateAralLevelUp(id);
+      if (results && results.length > 0) {
+        setLevelEvalMessage(results[0].message);
+      }
+      await fetchProfile();
+    } catch (err: any) {
+      console.error(err);
+      alert('Failed to evaluate ARAL level progression.');
+    } finally {
+      setIsEvaluatingLevel(false);
+    }
+  };
 
   const fetchProfile = async () => {
     if (!id) return;
@@ -256,6 +276,12 @@ export const TutorStudentProfile: React.FC = () => {
               {isEditingStudent ? 'Cancel Edit' : 'Edit Student Details'}
             </button>
           </div>
+          {levelEvalMessage && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-xs text-indigo-900 font-medium flex items-center justify-between">
+              <span>{levelEvalMessage}</span>
+              <button onClick={() => setLevelEvalMessage(null)} className="text-indigo-600 font-bold hover:underline ml-2">✕</button>
+            </div>
+          )}
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 rounded-full bg-[var(--brand)] flex items-center justify-center text-white font-bold text-lg shadow-sm">
               {profile.student.name[0].toUpperCase()}
@@ -329,12 +355,13 @@ export const TutorStudentProfile: React.FC = () => {
                     <label className="block text-xs font-semibold text-gray-700">ARAL Level</label>
                     <select
                       value={studentForm.aral_level}
-                      onChange={(e) => setStudentForm({ ...studentForm, aral_level: e.target.value as 'basic' | 'plus' | 'summer' })}
+                      onChange={(e) => setStudentForm({ ...studentForm, aral_level: e.target.value })}
                       className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
                     >
                       <option value="basic">Basic</option>
                       <option value="plus">Plus</option>
                       <option value="summer">Summer</option>
+                      <option value="graduated">Graduated 🎓</option>
                     </select>
                   </div>
                 </div>
