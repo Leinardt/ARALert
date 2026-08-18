@@ -8,18 +8,210 @@ import {
   Users,
   Calendar,
   Award,
-  TrendingUp,
   AlertTriangle,
-  QrCode,
-  FileSpreadsheet,
   CheckCircle,
-  Clock,
-  ChevronRight,
   ShieldAlert,
-  BarChart2
+  FileSpreadsheet,
+  ChevronRight,
+  ArrowRight,
+  TrendingUp,
+  TrendingDown,
+  Activity
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { computeStudentRiskRows, type StudentRiskRow } from '../../utils/analyticsHelpers';
+
+interface TutorChartPoint {
+  label: string;
+  dateRange: string;
+  value: number;
+  actualCount: number;
+}
+
+const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[] }> = ({ data }) => {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  const width = 500;
+  const height = 150;
+  const paddingLeft = 35;
+  const paddingRight = 15;
+  const paddingTop = 15;
+  const paddingBottom = 20;
+
+  const chartW = width - paddingLeft - paddingRight;
+  const chartH = height - paddingTop - paddingBottom;
+
+  const points = data.map((d, idx) => {
+    const x = paddingLeft + (idx * chartW) / (data.length - 1 || 1);
+    const y = paddingTop + chartH - (d.value / 100) * chartH;
+    return { x, y, ...d };
+  });
+
+  let pathD = '';
+  if (points.length > 0) {
+    pathD = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      const p0 = points[i - 1];
+      const p1 = points[i];
+      const cp1x = p0.x + (p1.x - p0.x) / 3;
+      const cp1y = p0.y;
+      const cp2x = p1.x - (p1.x - p0.x) / 3;
+      const cp2y = p1.y;
+      pathD += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p1.x} ${p1.y}`;
+    }
+  }
+
+  const areaD = points.length > 0 
+    ? `${pathD} L ${points[points.length - 1].x} ${paddingTop + chartH} L ${points[0].x} ${paddingTop + chartH} Z`
+    : '';
+
+  return (
+    <div className="relative w-full h-full">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
+        <defs>
+          <linearGradient id="tutorChartFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="var(--brand)" stopOpacity="0.01" />
+          </linearGradient>
+        </defs>
+
+        {/* Horizontal gridlines */}
+        {[0, 25, 50, 75, 100].map((val) => {
+          const y = paddingTop + chartH - (val / 100) * chartH;
+          return (
+            <g key={val}>
+              <line 
+                x1={paddingLeft} 
+                y1={y} 
+                x2={width - paddingRight} 
+                y2={y} 
+                stroke="var(--slate-200)" 
+                strokeWidth="0.5" 
+                strokeDasharray="3 3"
+                opacity="0.6"
+              />
+              <text 
+                x={paddingLeft - 8} 
+                y={y + 3} 
+                className="fill-slate-400 dark:fill-slate-500 font-semibold text-[8px]" 
+                textAnchor="end"
+              >
+                {val}%
+              </text>
+            </g>
+          );
+        })}
+
+        {/* X-axis labels */}
+        {points.map((p, idx) => (
+          <text
+            key={idx}
+            x={p.x}
+            y={height - 4}
+            className="fill-slate-400 dark:fill-slate-500 font-semibold text-[8px]"
+            textAnchor="middle"
+          >
+            {p.label}
+          </text>
+        ))}
+
+        {/* Line & Area */}
+        {points.length > 0 && (
+          <>
+            <path d={areaD} fill="url(#tutorChartFill)" />
+            <path 
+              d={pathD} 
+              fill="none" 
+              stroke="var(--brand)" 
+              strokeWidth="2.5" 
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        )}
+
+        {/* Vertical line and dots on hover */}
+        {hoveredIdx !== null && points[hoveredIdx] && (
+          <g>
+            <line
+              x1={points[hoveredIdx].x}
+              y1={paddingTop}
+              x2={points[hoveredIdx].x}
+              y2={paddingTop + chartH}
+              stroke="var(--brand)"
+              strokeWidth="1.5"
+              strokeDasharray="2 2"
+              opacity="0.7"
+            />
+            <circle
+              cx={points[hoveredIdx].x}
+              cy={points[hoveredIdx].y}
+              r="4.5"
+              fill="var(--brand)"
+            />
+            <circle
+              cx={points[hoveredIdx].x}
+              cy={points[hoveredIdx].y}
+              r="8"
+              fill="var(--brand)"
+              opacity="0.25"
+            />
+          </g>
+        )}
+
+        {/* Hover hit test regions (invisible vertical bars) */}
+        {points.map((p, idx) => {
+          const barW = chartW / (data.length - 1 || 1);
+          const xStart = idx === 0 
+            ? paddingLeft 
+            : p.x - barW / 2;
+          const xEnd = idx === data.length - 1 
+            ? width - paddingRight 
+            : p.x + barW / 2;
+          
+          return (
+            <rect
+              key={idx}
+              x={xStart}
+              y={paddingTop}
+              width={xEnd - xStart}
+              height={chartH}
+              fill="transparent"
+              className="cursor-pointer"
+              onMouseEnter={() => setHoveredIdx(idx)}
+              onMouseLeave={() => setHoveredIdx(null)}
+            />
+          );
+        })}
+      </svg>
+
+      {/* Floating Tooltip Div */}
+      {hoveredIdx !== null && points[hoveredIdx] && (
+        <div 
+          className="absolute z-10 bg-slate-900/95 dark:bg-slate-950/95 text-white p-3 rounded-lg shadow-xl text-left pointer-events-none transition-all duration-100 ease-out border border-slate-700/50 text-[11px] leading-normal font-medium"
+          style={{
+            left: `${(points[hoveredIdx].x / width) * 100}%`,
+            top: `${(points[hoveredIdx].y / height) * 100 - 55}%`,
+            transform: 'translateX(-50%)',
+            minWidth: '150px',
+          }}
+        >
+          <div className="font-extrabold text-[10px] uppercase text-sky-400">{points[hoveredIdx].label}</div>
+          <div className="text-[9px] text-slate-350">{points[hoveredIdx].dateRange}</div>
+          <div className="flex items-baseline gap-1 mt-1">
+            <span className="text-sm font-extrabold">{points[hoveredIdx].value}%</span>
+            <span className="text-[9px] text-slate-400">Class Average</span>
+          </div>
+          <div className="text-[9px] text-slate-400 mt-1 italic border-t border-slate-800 pt-1 font-medium">
+            {points[hoveredIdx].actualCount > 0 
+              ? `${points[hoveredIdx].actualCount} assessments logged`
+              : 'No assessments logged'}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -32,140 +224,6 @@ function computeStudentStats(
 ): StudentStat[] {
   return computeStudentRiskRows(students, grades, attendanceLogs);
 }
-
-interface TrendPoint {
-  label: string;
-  attendanceRate: number;
-  scoreAvg: number;
-  compositeRating: number;
-}
-
-function computeTrendData(grades: Grade[], attendanceLogs: Attendance[]): TrendPoint[] {
-  const dateMap = new Map<string, { attPresent: number; attTotal: number; scoreSum: number; scoreCount: number }>();
-
-  attendanceLogs.forEach((a) => {
-    const d = a.date;
-    if (!d) return;
-    const entry = dateMap.get(d) ?? { attPresent: 0, attTotal: 0, scoreSum: 0, scoreCount: 0 };
-    entry.attTotal += 1;
-    if (a.status === 'present' || a.status === 'late') entry.attPresent += 1;
-    dateMap.set(d, entry);
-  });
-
-  grades.forEach((g) => {
-    const d = g.date_logged;
-    if (!d) return;
-    const entry = dateMap.get(d) ?? { attPresent: 0, attTotal: 0, scoreSum: 0, scoreCount: 0 };
-    const ts = Number(g.total_score || 100);
-    const scoreVal = Number(g.score);
-    if (ts > 0 && !isNaN(scoreVal)) {
-      entry.scoreSum += (scoreVal / ts) * 100;
-      entry.scoreCount += 1;
-    }
-    dateMap.set(d, entry);
-  });
-
-  return Array.from(dateMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-6)
-    .map(([date, v]) => {
-      const attendanceRate = v.attTotal > 0 ? Math.round((v.attPresent / v.attTotal) * 100 * 10) / 10 : 0;
-      const scoreAvg = v.scoreCount > 0 ? Math.round((v.scoreSum / v.scoreCount) * 10) / 10 : 0;
-      // Composite rating: 60% score + 40% attendance if both exist, or the non-zero metric
-      const compositeRating = (attendanceRate > 0 && scoreAvg > 0)
-        ? Math.round(((scoreAvg * 0.6) + (attendanceRate * 0.4)) * 10) / 10
-        : Math.round((scoreAvg || attendanceRate) * 10) / 10;
-
-      return {
-        label: new Date(date + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }),
-        attendanceRate,
-        scoreAvg,
-        compositeRating
-      };
-    });
-}
-
-// ─── Single-Line Composite SVG Chart ─────────────────────────────────────────
-
-const TrendChart: React.FC<{ data: TrendPoint[] }> = ({ data }) => {
-  const W = 600;
-  const H = 200;
-  const PAD = { top: 16, right: 24, bottom: 28, left: 40 };
-  const chartW = W - PAD.left - PAD.right;
-  const chartH = H - PAD.top - PAD.bottom;
-
-  const allVals = data.map((d) => d.compositeRating);
-  const maxVal = Math.max(...allVals, 100);
-  const minVal = Math.min(...allVals, 0);
-  const range = maxVal - minVal || 1;
-
-  const xStep = data.length > 1 ? chartW / (data.length - 1) : chartW;
-  const px = (i: number) => PAD.left + i * xStep;
-  const py = (v: number) => PAD.top + chartH - ((v - minVal) / range) * chartH;
-
-  const compositePts: [number, number][] = data.map((d, i) => [px(i), py(d.compositeRating)]);
-
-  const linePath = compositePts.map(([x, y], i) => (i === 0 ? `M${x},${y}` : `L${x},${y}`)).join(' ');
-
-  const areaPath = () => {
-    if (compositePts.length === 0) return '';
-    const bottom = PAD.top + chartH;
-    return (
-      `M${compositePts[0][0]},${bottom} ` +
-      compositePts.map(([x, y]) => `L${x},${y}`).join(' ') +
-      ` L${compositePts[compositePts.length - 1][0]},${bottom} Z`
-    );
-  };
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full">
-      <defs>
-        <linearGradient id="composite-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="#4f46e5" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
-      {/* Grid lines */}
-      {[0, 25, 50, 75, 100].map((v) => {
-        const y = py(v);
-        if (y < PAD.top || y > PAD.top + chartH) return null;
-        return (
-          <g key={v}>
-            <line x1={PAD.left} y1={y} x2={PAD.left + chartW} y2={y} stroke="#e5e7eb" strokeWidth="1" />
-            <text x={PAD.left - 6} y={y + 4} fontSize="9" fill="#9ca3af" textAnchor="end">{v}%</text>
-          </g>
-        );
-      })}
-
-      {/* Single Composite Area */}
-      {data.length > 1 && (
-        <path d={areaPath()} fill="url(#composite-grad)" />
-      )}
-
-      {/* Single Composite Line */}
-      {data.length > 1 && (
-        <path d={linePath} fill="none" stroke="#4f46e5" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      )}
-
-      {/* Interactive Dots with Tooltips */}
-      {compositePts.map(([x, y], i) => {
-        const pt = data[i];
-        return (
-          <g key={`pt-${i}`} className="group cursor-pointer">
-            <circle cx={x} cy={y} r="5" fill="#4f46e5" stroke="#ffffff" strokeWidth="2.5" className="transition-all group-hover:r-7" />
-            <title>{`${pt.label}: ${pt.compositeRating}% Composite Rating (Score: ${pt.scoreAvg}%, Attendance: ${pt.attendanceRate}%)`}</title>
-          </g>
-        );
-      })}
-
-      {/* X-axis labels */}
-      {data.map((d, i) => (
-        <text key={i} x={px(i)} y={H - 4} fontSize="9" fill="#6b7280" textAnchor="middle">{d.label}</text>
-      ))}
-    </svg>
-  );
-};
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -242,10 +300,105 @@ export const TutorHome: React.FC = () => {
     return counts;
   }, [studentStats]);
 
-  const trendData = useMemo(
-    () => computeTrendData(grades, attendance),
-    [grades, attendance]
-  );
+  // ── Tutor Performance Trend calculations ──
+  const last4WeeksData = useMemo(() => {
+    if (students.length === 0 || grades.length === 0) return [];
+
+    const studentIds = new Set(students.map((s) => String(s.id)));
+    const assessmentGrades = grades.filter(
+      (g) => studentIds.has(String(g.student)) && g.component_type === 'assessment'
+    );
+
+    if (assessmentGrades.length === 0) return [];
+
+    const now = new Date();
+    const oneDay = 24 * 60 * 60 * 1000;
+
+    const periods = Array.from({ length: 4 }).map((_, idx) => {
+      const endDaysAgo = idx * 7;
+      const startDaysAgo = (idx + 1) * 7;
+      const start = new Date(now.getTime() - startDaysAgo * oneDay);
+      const end = new Date(now.getTime() - endDaysAgo * oneDay);
+      
+      const startStr = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      const endStr = end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      
+      return {
+        label: `Week ${4 - idx}`,
+        dateRange: `${startStr} - ${endStr}`,
+        start,
+        end,
+        scores: [] as number[],
+      };
+    }).reverse();
+
+    assessmentGrades.forEach((g) => {
+      const gDate = new Date(g.date_logged);
+      if (isNaN(gDate.getTime())) return;
+
+      for (const p of periods) {
+        if (gDate >= p.start && gDate < p.end) {
+          const scorePercent = g.total_score > 0 ? (g.score / g.total_score) * 100 : g.score;
+          p.scores.push(scorePercent);
+          break;
+        }
+      }
+    });
+
+    const points = periods.map((p) => {
+      const avg = p.scores.length > 0
+        ? Math.round(p.scores.reduce((a, b) => a + b, 0) / p.scores.length)
+        : null;
+      return {
+        label: p.label,
+        dateRange: p.dateRange,
+        value: avg,
+        count: p.scores.length,
+      };
+    });
+
+    if (points.every((p) => p.value === null)) {
+      return [];
+    }
+
+    let lastValid = 70;
+    return points.map((p) => {
+      if (p.value !== null) {
+        lastValid = p.value;
+      }
+      return {
+        label: p.label,
+        dateRange: p.dateRange,
+        value: p.value !== null ? p.value : lastValid,
+        actualCount: p.count,
+      };
+    });
+  }, [students, grades]);
+
+  const avgScoreThisMonth = useMemo(() => {
+    if (last4WeeksData.length === 0) return 0;
+    const sum = last4WeeksData.reduce((acc, d) => acc + d.value, 0);
+    return Math.round(sum / last4WeeksData.length);
+  }, [last4WeeksData]);
+
+  const highestScore = useMemo(() => {
+    if (last4WeeksData.length === 0) return 0;
+    return Math.max(...last4WeeksData.map((d) => d.value));
+  }, [last4WeeksData]);
+
+  const lowestScore = useMemo(() => {
+    if (last4WeeksData.length === 0) return 0;
+    return Math.min(...last4WeeksData.map((d) => d.value));
+  }, [last4WeeksData]);
+
+  const tutorTrendDir = useMemo(() => {
+    if (last4WeeksData.length < 2) return 'stable';
+    const first = last4WeeksData[0].value;
+    const last = last4WeeksData[last4WeeksData.length - 1].value;
+    if (last > first) return 'up';
+    if (last < first) return 'down';
+    return 'stable';
+  }, [last4WeeksData]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -279,59 +432,50 @@ export const TutorHome: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Greeting Banner */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="space-y-5">
+      {/* Welcome Header — compact with export action in toolbar area */}
+      <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Tutor Portal</p>
-          <h1 className="mt-0.5 text-2xl font-extrabold text-gray-900">
+          <h1 className="mt-0.5 text-xl font-extrabold text-gray-900">
             {greeting}, {user?.first_name || user?.full_name || 'Tutor'}!
           </h1>
-          <p className="text-xs text-gray-500 mt-1">
-            You are managing <span className="font-bold text-gray-800">{totalStudents} assigned learners</span>. Here is your class overview.
+          <p className="text-xs text-gray-500 mt-0.5">
+            Managing <span className="font-bold text-gray-800">{totalStudents} assigned learners</span>
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setShowExportAttendanceModal(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-            Export Attendance
-          </button>
-          <Link
-            to="/tutor/scores"
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--brand)] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[var(--brand-dark)]"
-          >
-            <Award className="w-4 h-4" />
-            Log Scores
-          </Link>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowExportAttendanceModal(true)}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 shrink-0"
+        >
+          <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+          Export Attendance
+        </button>
       </div>
 
-      {/* 4 KPI Stat Cards Matrix */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* 4 KPI Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* My Students */}
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
-            <Users className="w-6 h-6 text-indigo-500" />
+          <div className="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+            <Users className="w-5 h-5 text-indigo-500" />
           </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400">My Students</p>
-            <p className="text-3xl font-extrabold text-gray-900 mt-0.5">{totalStudents}</p>
+            <p className="text-2xl font-extrabold text-gray-900 mt-0.5">{totalStudents}</p>
             <p className="text-xs text-gray-400 mt-0.5">Assigned learners</p>
           </div>
         </div>
 
         {/* Average Attendance */}
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
-            <Calendar className="w-6 h-6 text-indigo-500" />
+          <div className="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+            <Calendar className="w-5 h-5 text-indigo-500" />
           </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Avg Attendance</p>
-            <p className={`text-3xl font-extrabold mt-0.5 ${avgAttendance >= 75 ? 'text-emerald-600' : avgAttendance >= 60 ? 'text-amber-500' : 'text-rose-500'}`}>
+            <p className={`text-2xl font-extrabold mt-0.5 ${avgAttendance >= 75 ? 'text-emerald-600' : avgAttendance >= 60 ? 'text-amber-500' : 'text-rose-500'}`}>
               {attendance.length === 0 ? '—' : `${avgAttendance}%`}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">Class attendance rate</p>
@@ -340,193 +484,204 @@ export const TutorHome: React.FC = () => {
 
         {/* Average Score */}
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
-            <Award className="w-6 h-6 text-indigo-500" />
+          <div className="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+            <Award className="w-5 h-5 text-indigo-500" />
           </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Avg Assessment</p>
-            <p className={`text-3xl font-extrabold mt-0.5 ${avgScore >= 70 ? 'text-emerald-600' : avgScore >= 60 ? 'text-amber-500' : 'text-rose-500'}`}>
+            <p className={`text-2xl font-extrabold mt-0.5 ${avgScore >= 70 ? 'text-emerald-600' : avgScore >= 60 ? 'text-amber-500' : 'text-rose-500'}`}>
               {grades.length === 0 ? '—' : `${avgScore}%`}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">From {grades.length} grade entries</p>
+            <p className="text-xs text-gray-400 mt-0.5">From {grades.length} entries</p>
           </div>
         </div>
 
         {/* At-Risk Students */}
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0">
-            <ShieldAlert className="w-6 h-6 text-rose-500" />
+          <div className="w-11 h-11 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0">
+            <ShieldAlert className="w-5 h-5 text-rose-500" />
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">At-Risk Students</p>
-            <p className="text-3xl font-extrabold text-rose-600 mt-0.5">{atRiskStudents.length}</p>
-            <p className="text-xs text-rose-400 mt-0.5">Require intervention</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">At-Risk</p>
+            <p className="text-2xl font-extrabold text-rose-600 mt-0.5">{atRiskStudents.length}</p>
+            <p className="text-xs text-rose-400 mt-0.5">Need intervention</p>
           </div>
         </div>
       </div>
 
-      {/* Quick Launchpad Buttons */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link
-          to="/tutor/attendance/generate"
-          className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm hover:border-[var(--brand)] transition-all flex items-center gap-3 group"
-        >
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0 group-hover:bg-[var(--brand)] group-hover:text-white transition-colors">
-            <QrCode className="w-5 h-5" />
+      {/* ── Tutor Performance Trend Section ── */}
+      <div 
+        className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 space-y-6"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-wider">Student Performance Overview</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Last 4 weeks assessment performance trend</p>
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-gray-900 group-hover:text-[var(--brand)] transition-colors">QR Attendance Generator</p>
-            <p className="text-xs text-gray-400">Launch student check-in session</p>
-          </div>
-        </Link>
+          {last4WeeksData.length > 0 && (
+            <div className="flex items-center gap-4 text-xs font-semibold">
+              <div className="flex items-center gap-1.5 text-gray-650 dark:text-slate-350">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'var(--brand)' }} />
+                <span>Class Average</span>
+              </div>
+            </div>
+          )}
+        </div>
 
-        <Link
-          to="/tutor/scores"
-          className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm hover:border-[var(--brand)] transition-all flex items-center gap-3 group"
-        >
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-            <Award className="w-5 h-5" />
+        {last4WeeksData.length === 0 ? (
+          <div className="h-44 border border-dashed border-gray-200 dark:border-slate-800 rounded-xl flex flex-col items-center justify-center text-center p-4">
+            <TrendingUp className="w-8 h-8 text-gray-300 dark:text-slate-700 mb-2" />
+            <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No performance data yet</p>
+            <p className="text-xs text-gray-405 dark:text-slate-500 mt-0.5">Assessments logged for your students will display here.</p>
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">Score Entry Portal</p>
-            <p className="text-xs text-gray-400">Log daily reading or MOSY/EOSY</p>
-          </div>
-        </Link>
+        ) : (
+          <div className="space-y-6">
+            <div className="relative h-44 w-full bg-slate-50/50 dark:bg-slate-950/20 border border-gray-150 dark:border-slate-800/60 rounded-xl p-4">
+              <InteractiveTutorChart data={last4WeeksData} />
+            </div>
 
-        <Link
-          to="/tutor/analytics"
-          className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm hover:border-[var(--brand)] transition-all flex items-center gap-3 group"
-        >
-          <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-600 shrink-0 group-hover:bg-violet-600 group-hover:text-white transition-colors">
-            <BarChart2 className="w-5 h-5" />
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4 border-t border-gray-100 dark:border-slate-850">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1 max-w-3xl">
+                <div className="bg-gray-50 dark:bg-slate-850 p-3 rounded-xl border border-gray-100 dark:border-slate-800/80 text-center">
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">Avg Score</p>
+                  <p className="text-lg font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">{avgScoreThisMonth}%</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-slate-850 p-3 rounded-xl border border-gray-100 dark:border-slate-800/80 text-center">
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">Highest</p>
+                  <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-450 mt-0.5">{highestScore}%</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-slate-850 p-3 rounded-xl border border-gray-100 dark:border-slate-800/80 text-center">
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">Lowest</p>
+                  <p className="text-lg font-extrabold text-rose-600 dark:text-rose-450 mt-0.5">{lowestScore}%</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-slate-850 p-3 rounded-xl border border-gray-100 dark:border-slate-800/80 text-center flex flex-col justify-center items-center">
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">Trend</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    {tutorTrendDir === 'up' ? (
+                      <span className="text-xs font-extrabold text-emerald-650 dark:text-emerald-400 flex items-center gap-0.5"><TrendingUp className="w-3.5 h-3.5 text-emerald-600" /> Improving</span>
+                    ) : tutorTrendDir === 'down' ? (
+                      <span className="text-xs font-extrabold text-rose-650 dark:text-rose-450 flex items-center gap-0.5"><TrendingDown className="w-3.5 h-3.5 text-rose-500" /> Declining</span>
+                    ) : (
+                      <span className="text-xs font-extrabold text-gray-550 dark:text-slate-400 flex items-center gap-0.5"><Activity className="w-3.5 h-3.5 text-gray-400" /> Stable</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <Link
+                to="/tutor/analytics"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--brand)] text-white hover:bg-[var(--brand-hover)] px-5 py-3 text-xs font-bold shadow-sm transition shrink-0"
+              >
+                <span>View Detailed Report</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-gray-900 group-hover:text-violet-600 transition-colors">Data Analytics</p>
-            <p className="text-xs text-gray-400">View risk matrix &amp; ARAL levels</p>
-          </div>
-        </Link>
+        )}
       </div>
 
-      {/* Chart + Risk Distribution Grid */}
-      <div className="grid gap-6 lg:grid-cols-5">
-        {/* Performance Trend Chart */}
-        <div className="lg:col-span-3 bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
-          <div className="flex items-start justify-between mb-4">
+      {/* Risk Distribution + Students Needing Attention — side by side */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        {/* Class Risk Distribution */}
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5">
+          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">Class Risk Distribution</h3>
+          <div className="space-y-3">
             <div>
-              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                COMPOSITE PERFORMANCE TREND
-              </h3>
-              <p className="text-xs text-gray-400 mt-0.5">Combined rating (60% Assessment Score + 40% Attendance)</p>
+              <div className="flex justify-between text-xs font-bold mb-1">
+                <span className="text-rose-600 flex items-center gap-1">
+                  <ShieldAlert className="w-3.5 h-3.5" /> High Risk
+                </span>
+                <span className="text-rose-600">{riskCounts.high}</span>
+              </div>
+              <div className="w-full h-2 bg-rose-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-rose-500 rounded-full transition-all duration-500"
+                  style={{ width: `${totalStudents ? (riskCounts.high / totalStudents) * 100 : 0}%` }}
+                />
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100 shrink-0">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block" />
-              Composite Rating
+
+            <div>
+              <div className="flex justify-between text-xs font-bold mb-1">
+                <span className="text-amber-600 flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Medium Risk
+                </span>
+                <span className="text-amber-600">{riskCounts.medium}</span>
+              </div>
+              <div className="w-full h-2 bg-amber-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                  style={{ width: `${totalStudents ? (riskCounts.medium / totalStudents) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-xs font-bold mb-1">
+                <span className="text-emerald-600 flex items-center gap-1">
+                  <CheckCircle className="w-3.5 h-3.5" /> Low Risk
+                </span>
+                <span className="text-emerald-600">{riskCounts.low}</span>
+              </div>
+              <div className="w-full h-2 bg-emerald-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                  style={{ width: `${totalStudents ? (riskCounts.low / totalStudents) * 100 : 0}%` }}
+                />
+              </div>
             </div>
           </div>
-
-          {trendData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-14 text-center text-gray-400 space-y-2">
-              <TrendingUp className="w-10 h-10 opacity-30" />
-              <p className="text-sm font-semibold">No trend data yet</p>
-              <p className="text-xs">Trend will appear once grades and attendance are logged.</p>
-            </div>
-          ) : (
-            <div className="h-52 w-full">
-              <TrendChart data={trendData} />
-            </div>
-          )}
-
-          {/* Date summary row */}
-          {trendData.length > 0 && (
-            <div className="mt-4 grid gap-2 text-center" style={{ gridTemplateColumns: `repeat(${trendData.length}, 1fr)` }}>
-              {trendData.map((pt, i) => (
-                <div key={i} className="bg-gray-50 p-2 rounded-xl border border-gray-100 space-y-0.5">
-                  <p className="text-[10px] text-gray-400 font-medium">{pt.label}</p>
-                  <p className="text-xs font-extrabold text-indigo-600">{pt.compositeRating}%</p>
-                  <p className="text-[9px] text-gray-400">Score: {pt.scoreAvg}%</p>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
-        {/* Class Risk Breakdown */}
-        <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-sm p-6 flex flex-col justify-between">
-          <div className="space-y-4">
-            <h3 className="text-base font-bold text-gray-900">CLASS RISK DISTRIBUTION</h3>
-
-            {/* Risk Tier Bars */}
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-xs font-bold mb-1">
-                  <span className="text-rose-600 flex items-center gap-1">
-                    <ShieldAlert className="w-3.5 h-3.5" /> High Risk
-                  </span>
-                  <span className="text-rose-600">{riskCounts.high} student{riskCounts.high !== 1 ? 's' : ''}</span>
-                </div>
-                <div className="w-full h-2 bg-rose-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-rose-500 rounded-full transition-all duration-500"
-                    style={{ width: `${totalStudents ? (riskCounts.high / totalStudents) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs font-bold mb-1">
-                  <span className="text-amber-600 flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Medium Risk
-                  </span>
-                  <span className="text-amber-600">{riskCounts.medium} student{riskCounts.medium !== 1 ? 's' : ''}</span>
-                </div>
-                <div className="w-full h-2 bg-amber-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-amber-500 rounded-full transition-all duration-500"
-                    style={{ width: `${totalStudents ? (riskCounts.medium / totalStudents) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs font-bold mb-1">
-                  <span className="text-emerald-600 flex items-center gap-1">
-                    <CheckCircle className="w-3.5 h-3.5" /> Low Risk
-                  </span>
-                  <span className="text-emerald-600">{riskCounts.low} student{riskCounts.low !== 1 ? 's' : ''}</span>
-                </div>
-                <div className="w-full h-2 bg-emerald-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                    style={{ width: `${totalStudents ? (riskCounts.low / totalStudents) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* At Risk Watch List */}
-            {atRiskStudents.length > 0 && (
-              <div className="border-t border-gray-100 pt-3 space-y-2">
-                <p className="text-xs font-bold text-gray-800 uppercase tracking-wider">Top Learners Needing Support</p>
-                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                  {atRiskStudents.slice(0, 4).map((s) => (
-                    <div key={s.student.id} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded-xl">
-                      <span className="font-semibold text-gray-800 truncate">{s.student.full_name}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${s.riskTier === 'High' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {s.compositeScore}% ({s.riskTier})
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+        {/* Students Needing Attention */}
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 flex flex-col">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Students Needing Attention</h3>
+            {atRiskStudents.length > 5 && (
+              <Link
+                to="/tutor/analytics"
+                className="text-xs font-semibold text-[var(--brand)] hover:underline flex items-center gap-0.5"
+              >
+                View all <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
             )}
           </div>
 
-          <Link
-            to="/tutor/analytics"
-            className="mt-4 w-full py-2.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold text-center block transition-all"
-          >
-            View Full Analytics Report &rarr;
-          </Link>
+          {atRiskStudents.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center text-center py-6 text-gray-400">
+              <div>
+                <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <p className="text-sm font-semibold">All students are on track</p>
+                <p className="text-xs mt-0.5">No high or medium risk students at this time.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2 overflow-y-auto max-h-44">
+              {atRiskStudents.slice(0, 5).map((s) => (
+                <Link
+                  key={s.student.id}
+                  to={`/tutor/students/${s.student.id}`}
+                  className="flex items-center justify-between text-xs bg-gray-50 hover:bg-gray-100 p-3 rounded-xl transition-colors group"
+                >
+                  <div className="min-w-0">
+                    <span className="font-semibold text-gray-800 truncate block">{s.student.full_name}</span>
+                    <span className="text-gray-400 text-[10px]">
+                      Attendance: {Math.round(s.attendanceRate)}% · Score: {Math.round(s.scoreAvg)}%
+                    </span>
+                  </div>
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 ${
+                      s.riskTier === 'High'
+                        ? 'bg-rose-100 text-rose-700'
+                        : 'bg-amber-100 text-amber-700'
+                    }`}
+                  >
+                    {s.riskTier}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -534,6 +689,7 @@ export const TutorHome: React.FC = () => {
         isOpen={showExportAttendanceModal}
         onClose={() => setShowExportAttendanceModal(false)}
         currentUser={user}
+        students={students}
         attendanceLogs={attendance}
       />
     </div>

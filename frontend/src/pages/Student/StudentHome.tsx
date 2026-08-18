@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import { buildPerformanceTrend, type PerformanceTrendPoint } from '../../utils/performanceTrendHelpers';
@@ -7,9 +7,113 @@ import {
   GraduationCap,
   Calendar,
   TrendingUp,
-  ShieldAlert
+  TrendingDown,
+  ShieldAlert,
+  Activity
 } from 'lucide-react';
 
+/* ──────────────────────────────────────────────────
+   Compact Sparkline Component
+   ────────────────────────────────────────────────── */
+const Sparkline: React.FC<{
+  data: PerformanceTrendPoint[];
+  width?: number;
+  height?: number;
+}> = ({ data, width = 280, height = 64 }) => {
+  if (data.length === 0) return null;
+  const maxVal = Math.max(...data.map((d) => d.value), 100);
+  const minVal = Math.min(...data.map((d) => d.value), 0);
+  const range = maxVal - minVal || 1;
+  const pad = 4;
+  const innerW = width - pad * 2;
+  const innerH = height - pad * 2;
+  const step = data.length > 1 ? innerW / (data.length - 1) : 0;
+
+  const points = data.map((d, i) => ({
+    x: pad + i * step,
+    y: pad + innerH - ((d.value - minVal) / range) * innerH,
+  }));
+
+  // Build smooth cubic bezier path
+  const linePath = points
+    .map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`))
+    .join(' ');
+
+  // Fill area
+  const areaPath = `${linePath} L ${points[points.length - 1].x} ${height} L ${points[0].x} ${height} Z`;
+
+  return (
+    <svg width={width} height={height} className="overflow-visible">
+      <defs>
+        <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.2" />
+          <stop offset="100%" stopColor="var(--brand)" stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill="url(#sparkFill)" />
+      <path d={linePath} fill="none" stroke="var(--brand)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Latest point dot */}
+      {points.length > 0 && (
+        <>
+          <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="4" fill="var(--brand)" />
+          <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="7" fill="var(--brand)" opacity="0.2" />
+        </>
+      )}
+    </svg>
+  );
+};
+
+
+
+/* ──────────────────────────────────────────────────
+   ARAL Level Badge
+   ────────────────────────────────────────────────── */
+const ARAL_LEVELS = ['basic', 'plus', 'summer', 'graduated'] as const;
+const ARAL_LABELS: Record<string, string> = {
+  basic: 'Basic',
+  plus: 'Plus',
+  summer: 'Summer',
+  graduated: 'Graduated',
+};
+
+const AralLevelProgress: React.FC<{ level: string | null | undefined }> = ({ level }) => {
+  const currentIdx = ARAL_LEVELS.indexOf((level || 'basic') as any);
+  const progress = currentIdx >= 0 ? ((currentIdx + 1) / ARAL_LEVELS.length) * 100 : 25;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>ARAL Level</span>
+        <span className="text-sm font-extrabold" style={{ color: 'var(--brand)' }}>{ARAL_LABELS[level || 'basic'] || 'Basic'}</span>
+      </div>
+      <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--slate-200)' }}>
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${progress}%`,
+            background: 'linear-gradient(90deg, var(--brand), var(--brand-hover))',
+            transition: 'width 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        />
+      </div>
+      <div className="flex justify-between">
+        {ARAL_LEVELS.map((l, i) => (
+          <span
+            key={l}
+            className="text-[9px] font-bold uppercase"
+            style={{ color: i <= currentIdx ? 'var(--brand)' : 'var(--text-disabled)' }}
+          >
+            {ARAL_LABELS[l]}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/* ══════════════════════════════════════════════════
+   MAIN COMPONENT
+   ══════════════════════════════════════════════════ */
 export const StudentHome: React.FC = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<StudentAcademicProfile | null>(null);
@@ -94,12 +198,19 @@ export const StudentHome: React.FC = () => {
     });
   };
 
-  const maxTrendValue = Math.max(...performanceTrend.map((point) => point.value), 100);
-  const chartWidth = Math.max(320, performanceTrend.length * 72 + 80);
-  const chartHeight = 180;
-  const chartLeft = 20;
-  const chartRight = chartWidth - 20;
-  const chartBottom = 150;
+  // Trend direction computation
+  const trendDirection = useMemo(() => {
+    if (performanceTrend.length < 2) return 'neutral';
+    const last = performanceTrend[performanceTrend.length - 1].value;
+    const prev = performanceTrend[performanceTrend.length - 2].value;
+    if (last > prev) return 'up';
+    if (last < prev) return 'down';
+    return 'neutral';
+  }, [performanceTrend]);
+
+  const latestTrendValue = performanceTrend.length > 0 ? performanceTrend[performanceTrend.length - 1].value : null;
+
+
 
   if (isLoading) {
     return (
@@ -111,7 +222,7 @@ export const StudentHome: React.FC = () => {
 
   if (error || !profile) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-4">
+      <div style={{ background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)', color: 'var(--color-danger)' }} className="rounded-xl p-4">
         {error || 'Profile could not be loaded.'}
       </div>
     );
@@ -119,145 +230,215 @@ export const StudentHome: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      {/* ── Header ── */}
+      <div
+        className="p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6"
+        style={{
+          background: 'var(--surface-card)',
+          border: '1px solid var(--slate-200)',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Hello, {user?.first_name}!</h2>
-          <p className="mt-1 text-sm text-gray-500 font-medium">
+          <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Hello, {user?.first_name}!</h2>
+          <p className="mt-1 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
             Your academic and attendance overview.
           </p>
         </div>
-
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+      {/* ── Stat Cards Row ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Attendance Rate */}
+        <div
+          className="p-5 rounded-2xl flex items-center justify-between"
+          style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-sm)' }}
+        >
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Attendance Rate</p>
-            <p className="mt-2 text-3xl font-extrabold text-gray-900">{attendanceRate}%</p>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Attendance Rate</p>
+            <p className="mt-2 text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{attendanceRate}%</p>
           </div>
-          <div className="p-3 rounded-xl bg-teal-50 text-teal-600 border border-teal-100">
+          <div className="p-3 rounded-xl" style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)', border: '1px solid var(--color-success-border)' }}>
             <Calendar className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+        {/* Average Score */}
+        <div
+          className="p-5 rounded-2xl flex items-center justify-between"
+          style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-sm)' }}
+        >
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Average Score</p>
-            <p className="mt-2 text-3xl font-extrabold text-gray-900">{averageScore > 0 ? averageScore.toFixed(2) : 'N/A'}</p>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Average Score</p>
+            <p className="mt-2 text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{averageScore > 0 ? averageScore.toFixed(2) : 'N/A'}</p>
           </div>
-          <div className="p-3 rounded-xl bg-[var(--brand-light)] text-[var(--brand)] border border-[var(--brand-border)]">
+          <div className="p-3 rounded-xl" style={{ background: 'var(--brand-light)', color: 'var(--brand)', border: '1px solid var(--brand-border)' }}>
             <GraduationCap className="w-6 h-6" />
           </div>
         </div>
 
-        <div className={`p-5 rounded-2xl border shadow-sm flex items-center justify-between ${
-          riskLevelKey === 'high'
-            ? 'bg-red-50 border-red-100 text-red-900'
-            : riskLevelKey === 'medium'
-            ? 'bg-amber-50 border-amber-100 text-amber-900'
-            : 'bg-green-50 border-green-100 text-green-900'
-        }`}>
+        {/* Risk Level */}
+        <div
+          className="p-5 rounded-2xl flex items-center justify-between"
+          style={{
+            background: riskLevelKey === 'high' ? 'var(--color-danger-bg)' : riskLevelKey === 'medium' ? 'var(--color-warning-bg)' : 'var(--color-success-bg)',
+            border: `1px solid ${riskLevelKey === 'high' ? 'var(--color-danger-border)' : riskLevelKey === 'medium' ? 'var(--color-warning-border)' : 'var(--color-success-border)'}`,
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
           <div>
-            <p className={`text-xs font-bold uppercase tracking-wide ${
-              riskLevelKey === 'high'
-                ? 'text-red-600'
-                : riskLevelKey === 'medium'
-                ? 'text-amber-600'
-                : 'text-green-600'
-            }`}>Risk Level</p>
-            <p className="mt-2 text-3xl font-extrabold">{riskLevel}</p>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{
+              color: riskLevelKey === 'high' ? 'var(--color-danger)' : riskLevelKey === 'medium' ? 'var(--color-warning)' : 'var(--color-success)'
+            }}>Risk Level</p>
+            <p className="mt-2 text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{riskLevel}</p>
           </div>
-          <div className={`p-3 rounded-xl border ${
-            riskLevelKey === 'high'
-              ? 'bg-red-100 text-red-600 border-red-200'
-              : riskLevelKey === 'medium'
-              ? 'bg-amber-100 text-amber-600 border-amber-200'
-              : 'bg-green-100 text-green-600 border-green-200'
-          }`}>
+          <div className="p-3 rounded-xl" style={{
+            background: riskLevelKey === 'high' ? 'var(--color-danger-bg)' : riskLevelKey === 'medium' ? 'var(--color-warning-bg)' : 'var(--color-success-bg)',
+            color: riskLevelKey === 'high' ? 'var(--color-danger)' : riskLevelKey === 'medium' ? 'var(--color-warning)' : 'var(--color-success)',
+            border: `1px solid ${riskLevelKey === 'high' ? 'var(--color-danger-border)' : riskLevelKey === 'medium' ? 'var(--color-warning-border)' : 'var(--color-success-border)'}`,
+          }}>
             <ShieldAlert className="w-6 h-6" />
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-[var(--brand)]" />
-          <h3 className="text-lg font-bold text-gray-900">Performance Trend</h3>
-        </div>
-        {performanceTrend.length === 0 ? (
-          <div className="text-sm text-gray-500">No performance trend data yet.</div>
-        ) : (
-          <div className="space-y-4">
-            <div className="h-56 rounded-xl border border-gray-200 bg-slate-50 p-4 overflow-x-auto">
-              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-full w-full min-w-full">
-                <line x1={chartLeft} y1={chartBottom} x2={chartRight} y2={chartBottom} stroke="#cbd5e1" strokeWidth="1" />
-                <line x1={chartLeft} y1={chartBottom - 50} x2={chartRight} y2={chartBottom - 50} stroke="#e2e8f0" strokeWidth="1" />
-                <line x1={chartLeft} y1={chartBottom - 100} x2={chartRight} y2={chartBottom - 100} stroke="#e2e8f0" strokeWidth="1" />
-                {performanceTrend.length > 1 && (
-                  <path
-                    d={performanceTrend.map((point, index) => {
-                      const x = chartLeft + (performanceTrend.length === 1 ? (chartRight - chartLeft) / 2 : index * ((chartRight - chartLeft) / (performanceTrend.length - 1)));
-                      const y = chartBottom - (point.value / maxTrendValue) * 90;
-                      return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-                    }).join(' ')}
-                    fill="none"
-                    stroke="var(--brand)"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                  />
-                )}
-                {performanceTrend.map((point, index) => {
-                  const x = chartLeft + (performanceTrend.length === 1 ? (chartRight - chartLeft) / 2 : index * ((chartRight - chartLeft) / (performanceTrend.length - 1)));
-                  const y = chartBottom - (point.value / maxTrendValue) * 90;
-                  return (
-                    <g key={`${point.label}-${index}`}>
-                      <circle cx={x} cy={y} r="5" fill="var(--brand)" />
-                      <text x={x} y="168" textAnchor="middle" className="fill-slate-500 text-[10px]">{point.label}</text>
-                    </g>
-                  );
-                })}
-              </svg>
+      {/* ── Performance Trend & ARAL Progress (Side by Side) ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* ── Performance Trend ── */}
+        <div
+          className="p-5 rounded-2xl space-y-3 flex flex-col justify-between"
+          style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-sm)' }}
+        >
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" style={{ color: 'var(--brand)' }} />
+                <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Performance Trend</h3>
+              </div>
+              {latestTrendValue !== null && (
+                <div className="flex items-center gap-1.5">
+                  {trendDirection === 'up' ? (
+                    <TrendingUp className="w-3.5 h-3.5" style={{ color: 'var(--color-success)' }} />
+                  ) : trendDirection === 'down' ? (
+                    <TrendingDown className="w-3.5 h-3.5" style={{ color: 'var(--color-danger)' }} />
+                  ) : (
+                    <Activity className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
+                  )}
+                  <span className="text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}>{latestTrendValue}</span>
+                  <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--text-muted)' }}>Latest</span>
+                </div>
+              )}
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
-              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'var(--brand)' }} />Your composite performance trend</span>
+
+            {performanceTrend.length === 0 ? (
+              <div className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>No performance data yet.</div>
+            ) : (
+              <div className="flex flex-col gap-2 mt-3">
+                <div className="w-full overflow-x-auto">
+                  <Sparkline data={performanceTrend} width={Math.max(280, performanceTrend.length * 48)} height={72} />
+                </div>
+                {/* Date labels */}
+                <div className="flex justify-between px-1">
+                  {performanceTrend.length > 0 && (
+                    <>
+                      <span className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>{performanceTrend[0].label}</span>
+                      {performanceTrend.length > 1 && (
+                        <span className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>{performanceTrend[performanceTrend.length - 1].label}</span>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {performanceTrend.length > 0 && (
+            <div className="flex items-center gap-2 text-[10px] font-semibold pt-2" style={{ color: 'var(--text-muted)', borderTop: '1px solid var(--slate-100)' }}>
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--brand)' }} />
+              Composite score (65% academic, 35% attendance)
+            </div>
+          )}
+        </div>
+
+        {/* ── ARAL Progress + Attendance Stats ── */}
+        <div
+          className="p-5 rounded-2xl space-y-4 flex flex-col justify-between"
+          style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-sm)' }}
+        >
+          <AralLevelProgress level={profile.student.aral_level} />
+
+          {/* Attendance stats */}
+          <div className="pt-3" style={{ borderTop: '1px solid var(--slate-200)' }}>
+            <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>Attendance</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'Present', value: profile.attendance.present, color: 'var(--color-success)' },
+                { label: 'Late', value: profile.attendance.late, color: 'var(--color-warning)' },
+                { label: 'Absent', value: profile.attendance.absent, color: 'var(--color-danger)' },
+              ].map((stat) => (
+                <div key={stat.label} className="text-center p-2 rounded-lg" style={{ background: 'var(--surface-muted)' }}>
+                  <p className="text-lg font-extrabold" style={{ color: stat.color }}>{stat.value}</p>
+                  <p className="text-[9px] font-bold uppercase" style={{ color: 'var(--text-muted)' }}>{stat.label}</p>
+                </div>
+              ))}
             </div>
           </div>
-        )}
+        </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+      {/* ── Attendance History Table ── */}
+      <div
+        className="rounded-2xl p-6 space-y-4"
+        style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-sm)' }}
+      >
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Attendance History</h3>
-            <p className="text-xs text-gray-500">Complete attendance log with date, time, and status.</p>
+            <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Attendance History</h3>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Complete attendance log with date, time, and status.</p>
           </div>
-          <span className="text-xs text-slate-500">{attendanceLogs.length} entries</span>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: 'var(--surface-muted)', color: 'var(--text-muted)' }}>
+            {attendanceLogs.length} entries
+          </span>
         </div>
 
         {logsLoading ? (
-          <div className="text-sm text-gray-500">Loading history...</div>
+          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading history...</div>
         ) : logsError ? (
-          <div className="text-sm text-red-600">{logsError}</div>
+          <div className="text-sm" style={{ color: 'var(--color-danger)' }}>{logsError}</div>
         ) : attendanceLogs.length === 0 ? (
-          <div className="text-sm text-gray-500">No attendance history found yet.</div>
+          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>No attendance history found yet.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
-              <thead className="bg-slate-50 text-slate-700">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Date</th>
-                  <th className="px-3 py-2 font-medium">Time In</th>
-                  <th className="px-3 py-2 font-medium">Time Out</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
+            <table className="min-w-full divide-y text-left text-sm" style={{ borderColor: 'var(--slate-200)' }}>
+              <thead>
+                <tr style={{ background: 'var(--surface-muted)' }}>
+                  <th className="px-3 py-2 font-semibold text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Date</th>
+                  <th className="px-3 py-2 font-semibold text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Time In</th>
+                  <th className="px-3 py-2 font-semibold text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Time Out</th>
+                  <th className="px-3 py-2 font-semibold text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y" style={{ borderColor: 'var(--slate-200)' }}>
                 {attendanceLogs.map((log) => (
-                  <tr key={log.id}>
-                    <td className="px-3 py-2 text-sm text-slate-700">{formatDateString(log.date)}</td>
-                    <td className="px-3 py-2 text-sm text-slate-700 font-mono">{formatTimeString(log.time_in)}</td>
-                    <td className="px-3 py-2 text-sm text-slate-700 font-mono">{formatTimeString(log.time_out)}</td>
-                    <td className="px-3 py-2 text-sm text-slate-700">{log.status_display}</td>
+                  <tr key={log.id} className="transition-colors" style={{ background: 'var(--surface-card)' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-muted)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--surface-card)')}
+                  >
+                    <td className="px-3 py-2.5 text-sm" style={{ color: 'var(--text-secondary)' }}>{formatDateString(log.date)}</td>
+                    <td className="px-3 py-2.5 text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>{formatTimeString(log.time_in)}</td>
+                    <td className="px-3 py-2.5 text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>{formatTimeString(log.time_out)}</td>
+                    <td className="px-3 py-2.5">
+                      <span
+                        className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
+                        style={{
+                          background: log.status === 'present' ? 'var(--color-success-bg)' : log.status === 'late' ? 'var(--color-warning-bg)' : 'var(--color-danger-bg)',
+                          color: log.status === 'present' ? 'var(--color-success)' : log.status === 'late' ? 'var(--color-warning)' : 'var(--color-danger)',
+                          border: `1px solid ${log.status === 'present' ? 'var(--color-success-border)' : log.status === 'late' ? 'var(--color-warning-border)' : 'var(--color-danger-border)'}`,
+                        }}
+                      >
+                        {log.status_display}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

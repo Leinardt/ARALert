@@ -964,6 +964,47 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
   border-color: var(--glass-border);
 }
 
+/* ── Dashboard accent color overrides (indigo, rose, violet, green) ── */
+.dark .bg-indigo-50  { background-color: rgba(30, 58, 138, 0.25) !important; }
+.dark .bg-indigo-100 { background-color: rgba(30, 58, 138, 0.35) !important; }
+.dark .text-indigo-500 { color: #818cf8 !important; }
+.dark .text-indigo-600 { color: #a5b4fc !important; }
+.dark .border-indigo-100 { border-color: rgba(30, 58, 138, 0.4) !important; }
+
+.dark .bg-rose-50  { background-color: rgba(136, 19, 55, 0.25) !important; }
+.dark .bg-rose-100 { background-color: rgba(136, 19, 55, 0.35) !important; }
+.dark .text-rose-400 { color: #fda4af !important; }
+.dark .text-rose-500 { color: #fb7185 !important; }
+.dark .text-rose-600 { color: #fda4af !important; }
+.dark .text-rose-700 { color: #fecdd3 !important; }
+.dark .border-rose-100 { border-color: rgba(136, 19, 55, 0.4) !important; }
+.dark .border-rose-200 { border-color: rgba(136, 19, 55, 0.5) !important; }
+
+.dark .bg-violet-50  { background-color: rgba(76, 29, 149, 0.25) !important; }
+.dark .text-violet-600 { color: #c4b5fd !important; }
+
+.dark .bg-green-50  { background-color: rgba(5, 46, 22, 0.5) !important; }
+.dark .text-green-700 { color: #86efac !important; }
+.dark .border-green-100 { border-color: rgba(5, 46, 22, 0.6) !important; }
+
+/* Dashboard hover overrides */
+.dark .hover\:bg-slate-100:hover { background-color: var(--surface-muted) !important; }
+.dark .hover\:bg-gray-50:hover   { background-color: var(--surface-muted) !important; }
+.dark .hover\:bg-green-100:hover { background-color: rgba(5, 46, 22, 0.5) !important; }
+
+/* Chart SVG dark mode */
+.dark .dashboard-chart line[stroke="#e5e7eb"],
+.dark .dashboard-chart line[stroke="#E5E7EB"] { stroke: var(--slate-200) !important; }
+.dark .dashboard-chart text[fill="#9ca3af"],
+.dark .dashboard-chart text[fill="#6b7280"],
+.dark .dashboard-chart text[fill="#6B7280"] { fill: var(--text-muted) !important; }
+
+/* Divide dark mode */
+.dark .divide-slate-100 > * + * { border-color: var(--slate-200) !important; }
+
+/* Shadow overrides for dark mode cards */
+.dark .shadow-sm { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important; }
+
 /* ── Landing & Login page backgrounds ── */
 .dark [style*="background: '#F8FAFC'"],
 .dark [style*="background: '#ffffff'"],
