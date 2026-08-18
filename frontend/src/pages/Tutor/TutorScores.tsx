@@ -202,10 +202,7 @@ export const TutorScores: React.FC = () => {
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-lg font-bold">Tutor Daily Score Entry</h2>
-          <p className="mt-1 text-sm text-gray-500 max-w-2xl">
-            Log daily Reading scores for students and review recent records by day or week.
-          </p>
+          <h2 className="text-lg font-bold">TUTOR DAILY SCORE ENTRY</h2>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <button
@@ -385,8 +382,7 @@ export const TutorScores: React.FC = () => {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Score records</p>
-              <h3 className="mt-2 text-xl font-semibold text-slate-900">Recent entries</h3>
-              <p className="mt-1 text-sm text-slate-500">Switch between daily and weekly record views.</p>
+              <h3 className="mt-2 text-xl font-semibold text-slate-900">RECENT ENTRIES</h3>
             </div>
             <div className="inline-flex gap-2 rounded-full bg-slate-100 p-1">
               <button
@@ -419,7 +415,7 @@ export const TutorScores: React.FC = () => {
                   <div className="bg-slate-50 px-5 py-4 flex flex-row items-center justify-between">
                     <div>
                       <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">{day.date.toLocaleDateString()}</h4>
-                      <p className="mt-1 text-lg font-semibold text-slate-900">{day.grades.length} score entr{day.grades.length === 1 ? 'y' : 'ies'}</p>
+                      <p className="mt-1 text-lg font-semibold text-slate-900">{day.grades.length} SCORE ENTR{day.grades.length === 1 ? 'Y' : 'IES'}</p>
                     </div>
                     <button
                       type="button"

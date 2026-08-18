@@ -32,9 +32,7 @@ export const TutorStudentDirectory: React.FC = () => {
     <div className="space-y-6">
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-[var(--brand)] uppercase tracking-[0.24em]">Students</p>
-          <h1 className="mt-2 text-2xl font-bold text-gray-900">Assigned Students</h1>
-          <p className="mt-1 text-sm text-gray-500">All students currently assigned to you as tutor.</p>
+          <h1 className="mt-2 text-2xl font-bold text-gray-900">ASSIGNED STUDENTS</h1>
         </div>
         <div className="rounded-2xl bg-[var(--brand-light)] px-4 py-3 text-[var(--brand-dark)] border border-[var(--brand-border)]">
           <p className="text-xs uppercase tracking-[0.24em] text-[var(--brand)]">Total</p>

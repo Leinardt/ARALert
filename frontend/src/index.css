@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -7,8 +8,11 @@
    ═══════════════════════════════════════════════════════════════ */
 :root {
   /* Fonts */
-  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --sidebar-icon-color: #0F172A;
+  --sidebar-icon-active-color: #FFFFFF;
 
   /* ── Core Brand / Academic Blue Palette ── */
   --brand:         #1648E6;
@@ -95,6 +99,9 @@
 
 .dark, :root.dark {
   color-scheme: dark;
+
+  --sidebar-icon-color: #FFFFFF;
+  --sidebar-icon-active-color: #FFFFFF;
 
   --brand:         #3B82F6;
   --brand-hover:   #60A5FA;
@@ -652,18 +659,20 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
   box-shadow: var(--sidebar-active-glow);
 }
 
-.sidebar-item.active .sidebar-icon { color: #fff; }
+.sidebar-item.active .sidebar-icon { color: var(--sidebar-icon-active-color); }
 
 .sidebar-icon {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  color: var(--slate-400);
-  transition: color 0.2s;
+  color: var(--sidebar-icon-color);
+  background: transparent;
+  display: block;
+  transition: color 0.2s, fill 0.2s;
 }
 
 .sidebar-item:hover .sidebar-icon {
-  color: var(--text-primary);
+  color: var(--sidebar-icon-color);
 }
 
 .sidebar-section-label {

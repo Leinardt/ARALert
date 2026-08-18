@@ -306,34 +306,6 @@ export const TutorHome: React.FC = () => {
   return (
     <div className="space-y-6">
 
-      {/* ── Header Banner ─────────────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-gray-900">
-            Welcome back, Teacher {user?.first_name}!
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Here's a snapshot of your students' performance today.
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowExportAttendanceModal(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-          >
-            📊 Export Attendance Sheet
-          </button>
-          <Link
-            to="/tutor/attendance/generate"
-            className="inline-flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all"
-          >
-            <Calendar className="w-4 h-4" />
-            Generate QR Code
-          </Link>
-        </div>
-      </div>
-
       {/* ── Stat Cards ────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         {/* Total Students */}
@@ -344,35 +316,35 @@ export const TutorHome: React.FC = () => {
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400">My Students</p>
             <p className="text-3xl font-extrabold text-gray-900 mt-0.5">{totalStudents}</p>
-            <p className="text-xs text-gray-400 mt-0.5">currently assigned</p>
+            <p className="text-xs text-gray-400 mt-0.5">Currently assigned</p>
           </div>
         </div>
 
         {/* Average Attendance */}
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center shrink-0">
-            <Calendar className="w-6 h-6 text-violet-500" />
+          <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+            <Calendar className="w-6 h-6 text-indigo-500" />
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Avg Attendance</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Average Attendance</p>
             <p className={`text-3xl font-extrabold mt-0.5 ${avgAttendance >= 75 ? 'text-emerald-600' : avgAttendance >= 60 ? 'text-amber-500' : 'text-rose-500'}`}>
               {attendance.length === 0 ? '—' : `${avgAttendance}%`}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">across all students</p>
+            <p className="text-xs text-gray-400 mt-0.5">Across all students</p>
           </div>
         </div>
 
         {/* Average Score */}
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
-            <Award className="w-6 h-6 text-emerald-500" />
+          <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+            <Award className="w-6 h-6 text-indigo-500" />
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Avg Score</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Average Score</p>
             <p className={`text-3xl font-extrabold mt-0.5 ${avgScore >= 75 ? 'text-emerald-600' : avgScore >= 60 ? 'text-amber-500' : 'text-rose-500'}`}>
               {grades.length === 0 ? '—' : `${avgScore}%`}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">from {grades.length} grade entries</p>
+            <p className="text-xs text-gray-400 mt-0.5">From {grades.length} grade entries</p>
           </div>
         </div>
       </div>
@@ -385,10 +357,9 @@ export const TutorHome: React.FC = () => {
           <div className="flex items-start justify-between mb-4">
             <div>
               <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-indigo-500" />
-                Performance Trend
+                PERFORMANCE TREND
               </h3>
-              <p className="text-sm text-gray-400 mt-0.5">Combined attendance &amp; score over time</p>
+              <p className="text-sm text-gray-400 mt-0.5">Combined attendance rate &amp; average score</p>
             </div>
             {/* Legend */}
             <div className="flex items-center gap-4 text-xs text-gray-500 shrink-0">
@@ -434,10 +405,9 @@ export const TutorHome: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                Top Risk Students
+                TOP RISK STUDENTS
               </h3>
-              <p className="text-sm text-gray-400 mt-0.5">{topRisk.length} student{topRisk.length !== 1 ? 's' : ''} shown</p>
+              <p className="text-sm text-gray-400 mt-0.5">{topRisk.length} Student{topRisk.length !== 1 ? 's' : ''} shown</p>
             </div>
             <Link
               to="/tutor/analytics"

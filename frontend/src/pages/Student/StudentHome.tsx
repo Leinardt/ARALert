@@ -95,6 +95,11 @@ export const StudentHome: React.FC = () => {
   };
 
   const maxTrendValue = Math.max(...performanceTrend.map((point) => point.value), 100);
+  const chartWidth = Math.max(320, performanceTrend.length * 72 + 80);
+  const chartHeight = 180;
+  const chartLeft = 20;
+  const chartRight = chartWidth - 20;
+  const chartBottom = 150;
 
   if (isLoading) {
     return (
@@ -183,16 +188,16 @@ export const StudentHome: React.FC = () => {
           <div className="text-sm text-gray-500">No performance trend data yet.</div>
         ) : (
           <div className="space-y-4">
-            <div className="h-56 rounded-xl border border-gray-200 bg-slate-50 p-4">
-              <svg viewBox="0 0 320 180" className="h-full w-full">
-                <line x1="20" y1="150" x2="300" y2="150" stroke="#cbd5e1" strokeWidth="1" />
-                <line x1="20" y1="100" x2="300" y2="100" stroke="#e2e8f0" strokeWidth="1" />
-                <line x1="20" y1="50" x2="300" y2="50" stroke="#e2e8f0" strokeWidth="1" />
+            <div className="h-56 rounded-xl border border-gray-200 bg-slate-50 p-4 overflow-x-auto">
+              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-full w-full min-w-full">
+                <line x1={chartLeft} y1={chartBottom} x2={chartRight} y2={chartBottom} stroke="#cbd5e1" strokeWidth="1" />
+                <line x1={chartLeft} y1={chartBottom - 50} x2={chartRight} y2={chartBottom - 50} stroke="#e2e8f0" strokeWidth="1" />
+                <line x1={chartLeft} y1={chartBottom - 100} x2={chartRight} y2={chartBottom - 100} stroke="#e2e8f0" strokeWidth="1" />
                 {performanceTrend.length > 1 && (
                   <path
                     d={performanceTrend.map((point, index) => {
-                      const x = 40 + index * 52;
-                      const y = 150 - (point.value / maxTrendValue) * 90;
+                      const x = chartLeft + (performanceTrend.length === 1 ? (chartRight - chartLeft) / 2 : index * ((chartRight - chartLeft) / (performanceTrend.length - 1)));
+                      const y = chartBottom - (point.value / maxTrendValue) * 90;
                       return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
                     }).join(' ')}
                     fill="none"
@@ -202,8 +207,8 @@ export const StudentHome: React.FC = () => {
                   />
                 )}
                 {performanceTrend.map((point, index) => {
-                  const x = 40 + index * 52;
-                  const y = 150 - (point.value / maxTrendValue) * 90;
+                  const x = chartLeft + (performanceTrend.length === 1 ? (chartRight - chartLeft) / 2 : index * ((chartRight - chartLeft) / (performanceTrend.length - 1)));
+                  const y = chartBottom - (point.value / maxTrendValue) * 90;
                   return (
                     <g key={`${point.label}-${index}`}>
                       <circle cx={x} cy={y} r="5" fill="var(--brand)" />

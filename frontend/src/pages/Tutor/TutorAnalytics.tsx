@@ -64,73 +64,71 @@ export const TutorAnalytics: React.FC = () => {
   }, [user]);
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-2xl font-bold text-slate-900">Student Risk Analytics</h2>
-        <p className="mt-2 text-sm text-slate-500">
-          Each enrolled student is labeled by composite performance and attendance escalation.
-        </p>
+    <div className="space-y-6 p-4 sm:p-6">
+      
 
-      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-700">High Risk</p>
+          </div>
+          <p className="mt-4 text-3xl font-bold text-rose-900">{riskCounts.high}</p>
+        </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-3xl border border-rose-100 bg-rose-50 p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.2em] text-rose-700">High Risk</p>
-          <p className="mt-3 text-3xl font-semibold text-rose-900">{riskCounts.high}</p>
+        <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700">Medium Risk</p>
+          </div>
+          <p className="mt-4 text-3xl font-bold text-amber-900">{riskCounts.moderate}</p>
         </div>
-        <div className="rounded-3xl border border-amber-100 bg-amber-50 p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.2em] text-amber-700">Medium Risk</p>
-          <p className="mt-3 text-3xl font-semibold text-amber-900">{riskCounts.moderate}</p>
-        </div>
-        <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">Low Risk</p>
-          <p className="mt-3 text-3xl font-semibold text-emerald-900">{riskCounts.low}</p>
+
+        <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">Low Risk</p>
+          </div>
+          <p className="mt-4 text-3xl font-bold text-emerald-900">{riskCounts.low}</p>
         </div>
       </div>
 
       {isLoading ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center text-slate-500 shadow-sm">Loading analytics...</div>
+        <div className="rounded-[24px] border border-slate-200 bg-white p-10 text-center text-slate-500 shadow-sm">
+          Loading analytics...
+        </div>
       ) : error ? (
-        <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-center text-rose-700 shadow-sm">{error}</div>
+        <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-6 text-center text-rose-700 shadow-sm">{error}</div>
       ) : (
-        <div className="overflow-x-auto rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-          <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-            <thead className="bg-slate-50 text-slate-700">
-              <tr>
-                <th className="px-4 py-3 font-medium">Student</th>
-                <th className="px-4 py-3 font-medium">Attendance Rate</th>
-                <th className="px-4 py-3 font-medium">Score Avg</th>
-                <th className="px-4 py-3 font-medium">Composite Score</th>
-                <th className="px-4 py-3 font-medium">Risk Tier</th>
-                <th className="px-4 py-3 font-medium">Comments</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {rows.map((row) => (
-                <tr key={row.student.id}>
-                  <td className="px-4 py-4">
-                    <div className="font-semibold text-slate-900">{row.student.full_name}</div>
-                    <div className="text-xs text-slate-500">{row.student.username}</div>
-                  </td>
-                  <td className="px-4 py-4">{row.attendanceRate}%</td>
-                  <td className="px-4 py-4">{row.scoreAvg}%</td>
-                  <td className="px-4 py-4">{row.compositeScore}%</td>
-                  <td className="px-4 py-4">
-                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getTierClass(row.riskTier)}`}>
-                      {row.riskTier}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-slate-500">
-                    {row.riskTier === 'Low' && row.attendanceRate >= 90 && 'Stable'}
-                    {row.riskTier === 'Low' && row.attendanceRate >= 80 && row.attendanceRate < 90 && 'Escalated due to attendance'}
-                    {row.riskTier === 'Medium' && row.attendanceRate < 80 && 'High risk forced by attendance'}
-                    {row.riskTier === 'Medium' && row.attendanceRate >= 90 && 'Medium risk'}
-                    {row.riskTier === 'High' && 'Intervention recommended'}
-                  </td>
+        <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_45px_rgba(15,23,42,0.04)]">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+              <thead className="bg-slate-50 text-slate-700">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">STUDENT</th>
+                  <th className="px-4 py-3 font-semibold">ATTENDANCE RATE</th>
+                  <th className="px-4 py-3 font-semibold">SCORE AVERAGE</th>
+                  <th className="px-4 py-3 font-semibold">COMPOSITE SCORE</th>
+                  <th className="px-4 py-3 font-semibold">RISK LEVEL</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-200 bg-white">
+                {rows.map((row) => (
+                  <tr key={row.student.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-4 align-top">
+                      <div className="font-semibold text-slate-900">{row.student.full_name}</div>
+                      <div className="mt-1 text-xs text-slate-500">{row.student.username}</div>
+                    </td>
+                    <td className="px-4 py-4 align-top text-slate-700">{row.attendanceRate}%</td>
+                    <td className="px-4 py-4 align-top text-slate-700">{row.scoreAvg}%</td>
+                    <td className="px-4 py-4 align-top text-slate-700">{row.compositeScore}%</td>
+                    <td className="px-4 py-4 align-top">
+                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getTierClass(row.riskTier)}`}>
+                        {row.riskTier}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

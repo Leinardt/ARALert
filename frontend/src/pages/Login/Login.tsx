@@ -251,7 +251,7 @@ export const Login: React.FC = () => {
                     e.currentTarget.style.background = 'var(--brand-light)';
                   }}
                 >
-                  <ArrowLeft style={{ width: '15px', height: '15px' }} />
+                  <ArrowLeft style={{width: '15px', height: '15px' }} />
                   Back to options
                 </button>
               )}

@@ -43,7 +43,7 @@ export const AdminAttendanceQR: React.FC = () => {
         width: 256,
         margin: 2,
         color: {
-          dark: '#21793D',
+          dark: '#000000',
           light: '#ffffff',
         },
       }, (err) => {
@@ -71,84 +71,133 @@ export const AdminAttendanceQR: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-xl mx-auto">
-      <div className="flex items-center space-x-2">
-        <Link
-          to="/admin"
-          className="text-gray-500 hover:text-[var(--brand)] inline-flex items-center text-sm font-semibold transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-1.5" />
-          Back to Dashboard
-        </Link>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        
+
+        <div className="inline-flex items-center gap-2 rounded-full border border-[var(--brand-border)] bg-[var(--brand-light)] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--brand-dark)]">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Staff Attendance
+        </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden">
-        <div className="p-8 flex flex-col items-center text-center">
-          {error && (
-            <div className="w-full mb-6 bg-red-50 border border-red-200 text-red-800 text-sm rounded-lg p-4">
-              {error}
+      <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-[0_20px_45px_rgba(15,23,42,0.08)]">
+        <div className="border-b border-gray-200 bg-gradient-to-r from-[var(--brand-light)] via-white to-slate-50 px-5 py-5 sm:px-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Attendance Access</p>
+              <h1 className="mt-1 text-2xl font-bold text-gray-900">Staff DTR QR Code</h1>
             </div>
-          )}
+            {session && (
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                Active Session
+              </span>
+            )}
+          </div>
+        </div>
 
-          {isLoading ? (
-            <div className="w-64 h-64 flex flex-col items-center justify-center border border-gray-100 rounded-xl bg-gray-50/50">
-              <RefreshCw className="w-8 h-8 text-[var(--brand)] animate-spin" />
-              <span className="mt-3 text-sm text-gray-500 font-medium">Generating secure code...</span>
-            </div>
-          ) : (
-            <div className="relative">
-              <div className="p-4 bg-[var(--brand-light)]/50 rounded-2xl border border-[var(--brand-border)]">
-                <canvas ref={canvasRef} className="rounded-lg shadow-sm" />
+        <div className="grid gap-4 p-4 sm:p-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+          <div className="flex flex-col items-center justify-center rounded-[24px] border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
+            {error && (
+              <div className="mb-2 w-full rounded-2xl border border-red-200 bg-red-50 p-2.5 text-left text-xs text-red-700">
+                {error}
               </div>
+            )}
+
+            <div className="flex w-full flex-col items-center justify-center">
+              {isLoading ? (
+                <div className="flex h-[160px] w-full max-w-[160px] flex-col items-center justify-center rounded-[16px] border border-dashed border-slate-200 bg-white">
+                  <RefreshCw className="h-7 w-7 animate-spin text-[var(--brand)]" />
+                  <span className="mt-2.5 text-xs font-medium text-slate-500">Generating...</span>
+                </div>
+              ) : (
+                <div className="relative w-full max-w-[180px]">
+                  <div className="rounded-[16px] border border-[var(--brand-border)] bg-[var(--brand-light)]/60 p-2.5 shadow-inner">
+                    <canvas ref={canvasRef} className="block w-full rounded-lg bg-white p-2" />
+                  </div>
+                </div>
+              )}
+
+              {session && (
+                <button
+                  onClick={generateQR}
+                  className="mt-2 inline-flex items-center justify-center gap-1.5 text-xs font-bold text-[var(--brand)] transition-colors hover:text-[var(--brand-dark)]"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  <span>Regenerate</span>
+                </button>
+              )}
             </div>
-          )}
+          </div>
 
-          {session && (
-            <div className="mt-6 space-y-4 w-full">
-              <div className="inline-flex items-center space-x-2 bg-[var(--brand-light)] text-[var(--brand-dark)] px-3 py-1 rounded-full text-xs font-bold border border-[var(--brand-border)]">
-                <CheckCircle2 className="w-4 h-4 text-[var(--brand)]" />
-                <span>Active Staff QR Code</span>
-              </div>
-
-              <div className="flex items-center justify-center space-x-2 text-[var(--brand-text)] bg-[var(--brand-light)] border border-[var(--brand-border)] p-4 rounded-xl max-w-sm mx-auto text-left">
-                <Clock className="w-5 h-5 text-[var(--brand)] shrink-0" />
+          <div className="space-y-3">
+            <div className="rounded-[20px] border border-[var(--brand-border)] bg-[var(--brand-light)] p-3.5 text-left">
+              <div className="flex items-start gap-2.5">
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[var(--brand-dark)] shadow-sm">
+                  <Clock className="h-3.5 w-3.5" />
+                </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider">All-day staff DTR QR</p>
-                  <p className="text-xs mt-0.5 font-semibold">
-                    One QR code records each tutor or faculty DTR punch automatically based on the scan time.
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--brand-dark)]">All-day staff DTR</p>
+                  <p className="mt-0.5 text-xs text-[var(--brand-text)]">
+                    One QR code records each tutor or faculty DTR punch automatically based on scan time.
                   </p>
                 </div>
               </div>
+            </div>
 
-              <p className="text-xs text-gray-400 max-w-sm mx-auto">
+            <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-3.5">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                <p className="text-xs font-semibold text-slate-800">Recommended schedule</p>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-600">
                 Faculty: 8:00 AM in, 11:30 AM out, 1:00 PM in, 4:30 PM out. Tutors: 4:30 PM in, 5:00 PM out.
               </p>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-left">
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-700">Print-ready long bond paper export</p>
-                <p className="mt-1 text-xs text-gray-500">Downloads an 8.5 × 13 inch poster ready to print and post for tutors and faculty.</p>
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  <button type="button" onClick={() => exportPrintFile('png')} disabled={exportingFormat !== null} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-60">
-                    <FileImage className="h-4 w-4" /> {exportingFormat === 'png' ? 'Creating…' : 'PNG'}
-                  </button>
-                  <button type="button" onClick={() => exportPrintFile('jpeg')} disabled={exportingFormat !== null} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-60">
-                    <FileImage className="h-4 w-4" /> {exportingFormat === 'jpeg' ? 'Creating…' : 'JPEG'}
-                  </button>
-                  <button type="button" onClick={() => exportPrintFile('pdf')} disabled={exportingFormat !== null} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--brand)] px-3 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] disabled:opacity-60">
-                    <FileText className="h-4 w-4" /> {exportingFormat === 'pdf' ? 'Creating…' : 'PDF'}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                onClick={generateQR}
-                className="text-[var(--brand)] hover:text-[var(--brand-dark)] text-xs font-bold flex items-center justify-center space-x-1 mx-auto transition-colors mt-2"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Regenerate Session ID</span>
-              </button>
             </div>
-          )}
+
+            <div className="rounded-[20px] border border-slate-200 bg-white p-3.5 shadow-sm">
+              <div className="mb-2.5 flex items-center gap-2">
+                <FileText className="h-3.5 w-3.5 text-slate-700" />
+                <p className="text-xs font-semibold text-slate-800">Print-ready export</p>
+              </div>
+              <p className="text-xs text-slate-500">
+                Download a long bond paper poster for staff area.
+              </p>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => exportPrintFile('png')}
+                  disabled={exportingFormat !== null}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                >
+                  <FileImage className="h-4 w-4" />
+                  {exportingFormat === 'png' ? 'Creating…' : 'PNG'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => exportPrintFile('jpeg')}
+                  disabled={exportingFormat !== null}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                >
+                  <FileImage className="h-4 w-4" />
+                  {exportingFormat === 'jpeg' ? 'Creating…' : 'JPEG'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => exportPrintFile('pdf')}
+                  disabled={exportingFormat !== null}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--brand)] px-3 py-2.5 text-xs font-bold text-white transition hover:bg-[var(--brand-dark)] disabled:opacity-60"
+                >
+                  <FileText className="h-4 w-4" />
+                  {exportingFormat === 'pdf' ? 'Creating…' : 'PDF'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

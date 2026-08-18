@@ -1,15 +1,92 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import {
   LayoutDashboard, Users, User as UserIcon, LogOut, QrCode, Scan,
-  Award, Bell, ChevronDown, Shield, BookOpen, BarChart2, X, Activity, Moon, Sun,
+  Award, Bell, ChevronDown, Shield, BookOpen, X, Activity, Moon, Sun,
 } from 'lucide-react';
 import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../utils/analyticsHelpers';
 import type { AcademicRisk } from '../types';
+import dashboardDarkDefault from '../assets/icons/dashboard_dark.png';
+import dashboardDarkActive from '../assets/icons/dashboard_dark_active.png';
+import dashboardLightDefault from '../assets/icons/dashboard_light.png';
+import dashboardLightActive from '../assets/icons/dashboard_light_active.png';
+import studentsDarkDefault from '../assets/icons/students_dark.png';
+import studentsDarkActive from '../assets/icons/students_dark_active.png';
+import studentsLightDefault from '../assets/icons/students_light.png';
+import studentsLightActive from '../assets/icons/students_light_active.png';
+import analyticsDarkDefault from '../assets/icons/data_analytics_dark.png';
+import analyticsDarkActive from '../assets/icons/data_analytics_dark_active.png';
+import analyticsLightDefault from '../assets/icons/data_analytics_light.png';
+import analyticsLightActive from '../assets/icons/data_analytics_light_active.png';
+import qrDarkDefault from '../assets/icons/qr_attendance_dark.png';
+import qrDarkActive from '../assets/icons/qr_attendance_dark_active.png';
+import qrLightDefault from '../assets/icons/qr_attendance_light.png';
+import qrLightActive from '../assets/icons/qr_attendance_light_active.png';
+import clockDarkDefault from '../assets/icons/clock_dark.png';
+import clockDarkActive from '../assets/icons/clock_dark_active.png';
+import clockLightDefault from '../assets/icons/clock_light.png';
+import clockLightActive from '../assets/icons/clock_light_active.png';
+import scoreDarkDefault from '../assets/icons/score_entry_dark.png';
+import scoreDarkActive from '../assets/icons/score_entry_dark_active.png';
+import scoreLightDefault from '../assets/icons/score_entry_light.png';
+import scoreLightActive from '../assets/icons/score_entry_light_active.png';
+
+const SidebarIcon: React.FC<{
+  Icon: React.ComponentType<{ className?: string; size?: number; strokeWidth?: number; fill?: string; style?: React.CSSProperties }>; 
+  active?: boolean;
+}> = ({ Icon, active = false }) => (
+  <Icon
+    className="sidebar-icon"
+    size={18}
+    strokeWidth={2.1}
+    fill={active ? 'currentColor' : 'none'}
+    style={{ background: 'transparent' }}
+  />
+);
+
+const AssetSidebarIcon: React.FC<{
+  darkSrc: string;
+  darkActiveSrc?: string;
+  lightSrc: string;
+  lightActiveSrc?: string;
+  active?: boolean;
+  alt?: string;
+  size?: number;
+  theme?: 'light' | 'dark';
+}> = ({
+  darkSrc,
+  darkActiveSrc,
+  lightSrc,
+  lightActiveSrc,
+  active = false,
+  alt = 'sidebar icon',
+  size = 18,
+  theme = 'light',
+}) => {
+  const source = theme === 'dark'
+    ? active ? (darkActiveSrc ?? darkSrc) : darkSrc
+    : active ? (lightActiveSrc ?? lightSrc) : lightSrc;
+
+  return (
+    <img
+      src={source}
+      alt={alt}
+      style={{
+        width: size,
+        height: size,
+        objectFit: 'contain',
+        display: 'block',
+        background: 'transparent',
+        opacity: active ? 1 : 0.9,
+      }}
+    />
+  );
+};
 
 export const DashboardLayout: React.FC = () => {
   const { user, logout } = useAuth();
@@ -31,12 +108,16 @@ export const DashboardLayout: React.FC = () => {
   const getPageTitle = () => {
     const p = location.pathname;
     if (p.includes('/audit-logs')) return 'Audit Trail';
-    if (p.includes('/superadmin/users') || p.includes('/admin/students')) return 'User Management';
+    if (p.includes('/superadmin/users')) return 'User Management';
+    if (p.includes('/admin/students')) return 'Student Directory';
+    if (p.includes('/tutor/students')) return 'Assigned Students';
+    if (p.includes('/staff/scan')) return user?.role === 'student' ? 'Scan Attendance QR' : 'Clock In / Out';
+    if (p.includes('/admin/attendance')) return 'Staff QR Generator';
+    if (p.includes('/tutor/attendance')) return 'QR Attendance';
     if (p.includes('/profile')) return 'Profile & Settings';
     if (p.includes('/settings')) return 'System Settings';
     if (p.includes('/analytics')) return 'Data Analytics';
     if (p.includes('/scores')) return 'Score Entry';
-    if (p.includes('/attendance') || p.includes('/scan')) return 'Attendance';
     return 'Dashboard';
   };
 
@@ -97,7 +178,10 @@ export const DashboardLayout: React.FC = () => {
 
       setHighRiskStudents(highRiskRows);
       setModerateRiskStudents(moderateRiskRows);
-      setHighRiskCount(highRiskRows.length + moderateRiskRows.length);
+      // Only count students that haven't been acknowledged (no existing resolved note)
+      const unacknowledgedHigh = highRiskRows.filter((r) => !latestResolvedRiskByStudent[r.student.id]).length;
+      const unacknowledgedMed = moderateRiskRows.filter((r) => !latestResolvedRiskByStudent[r.student.id]).length;
+      setHighRiskCount(unacknowledgedHigh + unacknowledgedMed);
       setAcknowledgedNotes(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.details])));
       setAcknowledgedRiskIds(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.id])));
     } catch (error) {
@@ -115,13 +199,18 @@ export const DashboardLayout: React.FC = () => {
     if (!acknowledgingStudent) return;
     const noteText = acknowledgeNote || `Acknowledged ${acknowledgingStudent.student.full_name}`;
     const existingRiskId = acknowledgedRiskIds[acknowledgingStudent.student.id];
+    // Derive the correct risk level from the student's computed tier
+    const studentRiskLevel: AcademicRisk['risk_level'] =
+      acknowledgingStudent.riskTier === 'High' ? 'high'
+      : acknowledgingStudent.riskTier === 'Medium' ? 'medium'
+      : 'low';
     try {
       if (existingRiskId) {
         await academicService.updateAcademicRisk(existingRiskId, { details: noteText, resolved: true });
       } else {
         const newRisk = await academicService.createAcademicRisk({
           student: acknowledgingStudent.student.id,
-          risk_level: 'high',
+          risk_level: studentRiskLevel,
           details: noteText,
           resolved: true,
         });
@@ -134,7 +223,6 @@ export const DashboardLayout: React.FC = () => {
       setShowRiskList(true);
     } catch (error) {
       console.error('Failed to acknowledge risk', error);
-      alert('Failed to acknowledge the risk. Please try again.');
     }
   };
 
@@ -147,7 +235,8 @@ export const DashboardLayout: React.FC = () => {
     if (user?.role !== 'student') return;
     try {
       const risks = await academicService.getAcademicRisks();
-      setStudentNotes(risks.filter((risk) => Boolean(risk.details)).sort(
+      // Only show resolved intervention notes that have a details message from the tutor
+      setStudentNotes(risks.filter((risk) => risk.resolved && Boolean(risk.details)).sort(
         (a, b) => new Date(b.date_created).getTime() - new Date(a.date_created).getTime()
       ));
     } catch (error) {
@@ -188,7 +277,8 @@ export const DashboardLayout: React.FC = () => {
         {/* Brand Header */}
         <div
           style={{
-            padding: '1.25rem 1.25rem 1rem',
+            padding: '0 1.25rem',
+            minHeight: '64px',
             borderBottom: '1px solid var(--slate-100)',
             display: 'flex',
             alignItems: 'center',
@@ -235,29 +325,31 @@ export const DashboardLayout: React.FC = () => {
             <>
               <span className="sidebar-section-label">Management</span>
               <Link to="/superadmin" className={navLinkClass(isActive('/superadmin'))}>
-                <LayoutDashboard className="sidebar-icon" size={18} />
+                <AssetSidebarIcon
+                  darkSrc={dashboardDarkDefault}
+                  darkActiveSrc={dashboardDarkActive}
+                  lightSrc={dashboardLightDefault}
+                  lightActiveSrc={dashboardLightActive}
+                  active={isActive('/superadmin')}
+                  alt="Dashboard"
+                  size={18}
+                  theme={theme}
+                />
                 Dashboard
               </Link>
               <Link
                 to="/superadmin/users"
                 className={navLinkClass(isActivePrefix('/superadmin/users'))}
               >
-                <Users className="sidebar-icon" size={18} />
+                <SidebarIcon Icon={Users} active={isActivePrefix('/superadmin/users')} />
                 User Management
               </Link>
               <Link
                 to="/superadmin/audit-logs"
                 className={navLinkClass(isActivePrefix('/superadmin/audit-logs'))}
               >
-                <Activity className="sidebar-icon" size={18} />
+                <SidebarIcon Icon={Activity} active={isActivePrefix('/superadmin/audit-logs')} />
                 Audit Trail
-              </Link>
-              <Link
-                to="/superadmin/settings"
-                className={navLinkClass(isActivePrefix('/superadmin/settings'))}
-              >
-                <Shield className="sidebar-icon" size={18} />
-                System Settings
               </Link>
             </>
           )}
@@ -267,18 +359,36 @@ export const DashboardLayout: React.FC = () => {
             <>
               <span className="sidebar-section-label">Admin Panel</span>
               <Link to="/admin" className={navLinkClass(isActive('/admin'))}>
-                <LayoutDashboard className="sidebar-icon" size={18} />
+                <AssetSidebarIcon
+                  darkSrc={dashboardDarkDefault}
+                  darkActiveSrc={dashboardDarkActive}
+                  lightSrc={dashboardLightDefault}
+                  lightActiveSrc={dashboardLightActive}
+                  active={isActive('/admin')}
+                  alt="Dashboard"
+                  size={18}
+                  theme={theme}
+                />
                 Dashboard
               </Link>
               <Link
                 to="/admin/students"
                 className={navLinkClass(isActivePrefix('/admin/students'))}
               >
-                <Users className="sidebar-icon" size={18} />
+                <SidebarIcon Icon={Users} active={isActivePrefix('/admin/students')} />
                 Student Directory
               </Link>
               <Link to="/admin/attendance" className={navLinkClass(isActive('/admin/attendance'))}>
-                <QrCode className="sidebar-icon" size={18} />
+                <AssetSidebarIcon
+                  darkSrc={qrDarkDefault}
+                  darkActiveSrc={qrDarkActive}
+                  lightSrc={qrLightDefault}
+                  lightActiveSrc={qrLightActive}
+                  active={isActive('/admin/attendance')}
+                  alt="Staff QR Generator"
+                  size={18}
+                  theme={theme}
+                />
                 Staff QR Generator
               </Link>
             </>
@@ -287,33 +397,92 @@ export const DashboardLayout: React.FC = () => {
           {/* Tutor nav */}
           {user?.role === 'tutor' && (
             <>
-              <span className="sidebar-section-label">Workspace</span>
               <Link to="/tutor" className={navLinkClass(isActive('/tutor'))}>
-                <LayoutDashboard className="sidebar-icon" size={18} />
-                Workspace Home
+                <AssetSidebarIcon
+                  darkSrc={dashboardDarkDefault}
+                  darkActiveSrc={dashboardDarkActive}
+                  lightSrc={dashboardLightDefault}
+                  lightActiveSrc={dashboardLightActive}
+                  active={isActive('/tutor')}
+                  alt="Dashboard"
+                  size={18}
+                  theme={theme}
+                />
+                Dashboard
               </Link>
-              <Link to="/tutor/students" className={navLinkClass(isActive('/tutor/students'))}>
-                <Users className="sidebar-icon" size={18} />
-                Assigned Students
-              </Link>
-              <Link to="/tutor/scores" className={navLinkClass(isActive('/tutor/scores'))}>
-                <Award className="sidebar-icon" size={18} />
-                Score Entry
-              </Link>
-              <Link to="/tutor/analytics" className={navLinkClass(isActive('/tutor/analytics'))}>
-                <BarChart2 className="sidebar-icon" size={18} />
-                Data Analytics
-              </Link>
-              <span className="sidebar-section-label">Attendance</span>
+
               <Link
                 to="/tutor/attendance/generate"
                 className={navLinkClass(isActive('/tutor/attendance/generate'))}
               >
-                <QrCode className="sidebar-icon" size={18} />
-                QR Generator
+                <AssetSidebarIcon
+                  darkSrc={qrDarkDefault}
+                  darkActiveSrc={qrDarkActive}
+                  lightSrc={qrLightDefault}
+                  lightActiveSrc={qrLightActive}
+                  active={isActive('/tutor/attendance/generate')}
+                  alt="QR Attendance"
+                  size={18}
+                  theme={theme}
+                />
+                QR Attendance
               </Link>
+
+              <Link to="/tutor/scores" className={navLinkClass(isActive('/tutor/scores'))}>
+                <AssetSidebarIcon
+                  darkSrc={scoreDarkDefault}
+                  darkActiveSrc={scoreDarkActive}
+                  lightSrc={scoreLightDefault}
+                  lightActiveSrc={scoreLightActive}
+                  active={isActive('/tutor/scores')}
+                  alt="Score Entry"
+                  size={18}
+                  theme={theme}
+                />
+                Score Entry
+              </Link>
+
+              <Link to="/tutor/analytics" className={navLinkClass(isActive('/tutor/analytics'))}>
+                <AssetSidebarIcon
+                  darkSrc={analyticsDarkDefault}
+                  darkActiveSrc={analyticsDarkActive}
+                  lightSrc={analyticsLightDefault}
+                  lightActiveSrc={analyticsLightActive}
+                  active={isActive('/tutor/analytics')}
+                  alt="Data Analytics"
+                  size={18}
+                  theme={theme}
+                />
+                Data Analytics
+              </Link>
+
+              <Link to="/tutor/students" className={navLinkClass(isActive('/tutor/students'))}>
+                <AssetSidebarIcon
+                  darkSrc={studentsDarkDefault}
+                  darkActiveSrc={studentsDarkActive}
+                  lightSrc={studentsLightDefault}
+                  lightActiveSrc={studentsLightActive}
+                  active={isActive('/tutor/students')}
+                  alt="Assigned Students"
+                  size={18}
+                  theme={theme}
+                />
+                Assigned Students
+              </Link>
+
+              <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0', boxShadow: 'inset 0 1px 0 var(--slate-200)' }} />
+
               <Link to="/staff/scan" className={navLinkClass(isActive('/staff/scan'))}>
-                <Scan className="sidebar-icon" size={18} />
+                <AssetSidebarIcon
+                  darkSrc={clockDarkDefault}
+                  darkActiveSrc={clockDarkActive}
+                  lightSrc={clockLightDefault}
+                  lightActiveSrc={clockLightActive}
+                  active={isActive('/staff/scan')}
+                  alt="Clock In Out"
+                  size={18}
+                  theme={theme}
+                />
                 Clock In / Out
               </Link>
             </>
@@ -324,11 +493,29 @@ export const DashboardLayout: React.FC = () => {
             <>
               <span className="sidebar-section-label">Monitoring</span>
               <Link to="/principal" className={navLinkClass(isActive('/principal'))}>
-                <LayoutDashboard className="sidebar-icon" size={18} />
+                <AssetSidebarIcon
+                  darkSrc={dashboardDarkDefault}
+                  darkActiveSrc={dashboardDarkActive}
+                  lightSrc={dashboardLightDefault}
+                  lightActiveSrc={dashboardLightActive}
+                  active={isActive('/principal')}
+                  alt="Monitoring Dashboard"
+                  size={18}
+                  theme={theme}
+                />
                 Monitoring Dashboard
               </Link>
               <Link to="/staff/scan" className={navLinkClass(isActive('/staff/scan'))}>
-                <Scan className="sidebar-icon" size={18} />
+                <AssetSidebarIcon
+                  darkSrc={clockDarkDefault}
+                  darkActiveSrc={clockDarkActive}
+                  lightSrc={clockLightDefault}
+                  lightActiveSrc={clockLightActive}
+                  active={isActive('/staff/scan')}
+                  alt="Clock In Out"
+                  size={18}
+                  theme={theme}
+                />
                 Clock In / Out
               </Link>
             </>
@@ -339,11 +526,29 @@ export const DashboardLayout: React.FC = () => {
             <>
               <span className="sidebar-section-label">Faculty</span>
               <Link to="/faculty" className={navLinkClass(isActive('/faculty'))}>
-                <LayoutDashboard className="sidebar-icon" size={18} />
+                <AssetSidebarIcon
+                  darkSrc={dashboardDarkDefault}
+                  darkActiveSrc={dashboardDarkActive}
+                  lightSrc={dashboardLightDefault}
+                  lightActiveSrc={dashboardLightActive}
+                  active={isActive('/faculty')}
+                  alt="Faculty Home"
+                  size={18}
+                  theme={theme}
+                />
                 Faculty Home
               </Link>
               <Link to="/staff/scan" className={navLinkClass(isActive('/staff/scan'))}>
-                <Scan className="sidebar-icon" size={18} />
+                <AssetSidebarIcon
+                  darkSrc={clockDarkDefault}
+                  darkActiveSrc={clockDarkActive}
+                  lightSrc={clockLightDefault}
+                  lightActiveSrc={clockLightActive}
+                  active={isActive('/staff/scan')}
+                  alt="Clock In Out"
+                  size={18}
+                  theme={theme}
+                />
                 Clock In / Out
               </Link>
             </>
@@ -354,11 +559,29 @@ export const DashboardLayout: React.FC = () => {
             <>
               <span className="sidebar-section-label">Student</span>
               <Link to="/student" className={navLinkClass(isActive('/student'))}>
-                <BookOpen className="sidebar-icon" size={18} />
+                <AssetSidebarIcon
+                  darkSrc={dashboardDarkDefault}
+                  darkActiveSrc={dashboardDarkActive}
+                  lightSrc={dashboardLightDefault}
+                  lightActiveSrc={dashboardLightActive}
+                  active={isActive('/student')}
+                  alt="My Dashboard"
+                  size={18}
+                  theme={theme}
+                />
                 My Dashboard
               </Link>
               <Link to="/staff/scan" className={navLinkClass(isActive('/staff/scan'))}>
-                <Scan className="sidebar-icon" size={18} />
+                <AssetSidebarIcon
+                  darkSrc={clockDarkDefault}
+                  darkActiveSrc={clockDarkActive}
+                  lightSrc={clockLightDefault}
+                  lightActiveSrc={clockLightActive}
+                  active={isActive('/staff/scan')}
+                  alt="Scan Attendance"
+                  size={18}
+                  theme={theme}
+                />
                 Scan Attendance QR
               </Link>
             </>
@@ -380,7 +603,7 @@ export const DashboardLayout: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 1.75rem',
+            padding: '0 2rem',
             flexShrink: 0,
             zIndex: 10,
           }}
@@ -395,6 +618,7 @@ export const DashboardLayout: React.FC = () => {
                 fontSize: '1.15rem',
                 color: 'var(--text-primary)',
                 letterSpacing: '-0.02em',
+                textTransform: 'uppercase',
               }}
             >
               {getPageTitle()}
@@ -550,7 +774,6 @@ export const DashboardLayout: React.FC = () => {
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                           <div>
                             <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>High Risk</p>
-                            <p style={{ margin: '2px 0 0', fontSize: '0.7rem', color: '#EF4444' }}>Immediate action required</p>
                           </div>
                           <span style={{ background: '#FEE2E2', color: '#991B1B', fontSize: '0.7rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid #FECACA' }}>
                             {highRiskStudents.length}
@@ -569,7 +792,9 @@ export const DashboardLayout: React.FC = () => {
                                       Score: {row.compositeScore}% · Attendance: {row.attendanceRate}%
                                     </p>
                                     {acknowledgedNotes[row.student.id] && (
-                                      <p style={{ margin: '3px 0 0', fontSize: '0.72rem', color: 'var(--brand-dark)', fontWeight: 600 }}>✓ Note saved</p>
+                                      <div style={{ marginTop: '6px' }}>
+                                        <p style={{ margin: '2px 0 0', fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{acknowledgedNotes[row.student.id]}</p>
+                                      </div>
                                     )}
                                   </div>
                                   <span style={{ background: '#FEE2E2', color: '#991B1B', fontSize: '0.62rem', fontWeight: 800, borderRadius: '6px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0 }}>HIGH</span>
@@ -606,9 +831,7 @@ export const DashboardLayout: React.FC = () => {
                       <div style={{ background: 'var(--color-warning-bg)', border: '1px solid var(--color-warning-border)', borderRadius: '12px', padding: '0.875rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                           <div>
-                            <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Medium Risk</p>
-                            <p style={{ margin: '2px 0 0', fontSize: '0.7rem', color: '#D97706' }}>Under observation</p>
-                          </div>
+                            <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Medium Risk</p>                          </div>
                           <span style={{ background: '#FEF3C7', color: '#92400E', fontSize: '0.7rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid #FDE68A' }}>
                             {moderateRiskStudents.length}
                           </span>
@@ -628,6 +851,11 @@ export const DashboardLayout: React.FC = () => {
                                   </div>
                                   <span style={{ background: '#FEF3C7', color: '#92400E', fontSize: '0.62rem', fontWeight: 800, borderRadius: '6px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0 }}>MED</span>
                                 </div>
+                                {acknowledgedNotes[row.student.id] && (
+                                  <div style={{ marginTop: '6px' }}>
+                                    <p style={{ margin: '2px 0 0', fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{acknowledgedNotes[row.student.id]}</p>
+                                  </div>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => handleAcknowledgeInitiate(row)}
@@ -656,84 +884,6 @@ export const DashboardLayout: React.FC = () => {
                         )}
                       </div>
                     </div>
-                  </div>
-                )}
-
-                {/* Acknowledge modal */}
-                {acknowledgingStudent && (
-                  <div
-                    className="animate-fade-in"
-                    style={{
-                      position: 'fixed',
-                      inset: 0,
-                      zIndex: 60,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: 'rgba(15,23,42,0.5)',
-                      backdropFilter: 'blur(4px)',
-                      padding: '1rem',
-                    }}
-                  >
-                    <form
-                      onSubmit={handleAcknowledgeSubmit}
-                      className="animate-fade-in-scale"
-                      style={{
-                        width: '100%',
-                        maxWidth: '440px',
-                        background: 'var(--surface-card)',
-                        borderRadius: '20px',
-                        padding: '1.75rem',
-                        boxShadow: 'var(--shadow-xl)',
-                        border: '1px solid var(--slate-200)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-                        <div>
-                          <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
-                            Acknowledge Risk
-                          </h3>
-                          <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            {acknowledgingStudent.student.full_name} — log an intervention note.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleAcknowledgeCancel}
-                          style={{
-                            width: '30px',
-                            height: '30px',
-                            borderRadius: '8px',
-                            border: 'none',
-                            background: 'var(--surface-muted)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'var(--text-muted)',
-                          }}
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Intervention Note</label>
-                        <textarea
-                          value={acknowledgeNote}
-                          onChange={(e) => setAcknowledgeNote(e.target.value)}
-                          className="form-textarea"
-                          placeholder="Describe the intervention or action taken..."
-                        />
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-                        <button type="button" onClick={handleAcknowledgeCancel} className="btn btn-secondary btn-sm">
-                          Cancel
-                        </button>
-                        <button type="submit" className="btn btn-primary btn-sm">
-                          Save Note
-                        </button>
-                      </div>
-                    </form>
                   </div>
                 )}
               </div>
@@ -950,6 +1100,82 @@ export const DashboardLayout: React.FC = () => {
           <Outlet />
         </main>
       </div>
+
+      {/* Acknowledge modal — rendered via portal so backdrop-filter on the header doesn't clip it */}
+      {acknowledgingStudent && createPortal(
+        <div
+          className="animate-fade-in"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(15,23,42,0.5)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
+            padding: '1rem',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) handleAcknowledgeCancel(); }}
+        >
+          <form
+            onSubmit={handleAcknowledgeSubmit}
+            className="animate-fade-in-scale"
+            style={{
+              width: '100%',
+              maxWidth: '440px',
+              background: 'var(--surface-card)',
+              borderRadius: '20px',
+              padding: '1.75rem',
+              boxShadow: 'var(--shadow-xl)',
+              border: '1px solid var(--slate-200)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                  {acknowledgedNotes[acknowledgingStudent.student.id] ? 'Edit Note' : 'Acknowledge Risk'}
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {acknowledgingStudent.student.full_name} — {acknowledgedNotes[acknowledgingStudent.student.id] ? 'update the intervention note.' : 'log an intervention note.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAcknowledgeCancel}
+                style={{
+                  width: '30px', height: '30px', borderRadius: '8px',
+                  border: 'none', background: 'var(--surface-muted)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', color: 'var(--text-muted)',
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Note</label>
+              <textarea
+                value={acknowledgeNote}
+                onChange={(e) => setAcknowledgeNote(e.target.value)}
+                className="form-textarea"
+                placeholder="Describe the intervention or action taken..."
+                autoFocus
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
+              <button type="button" onClick={handleAcknowledgeCancel} className="btn btn-secondary btn-sm">
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary btn-sm">
+                {acknowledgedNotes[acknowledgingStudent.student.id] ? 'Update Note' : 'Save Note'}
+              </button>
+            </div>
+          </form>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
