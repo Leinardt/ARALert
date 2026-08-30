@@ -1,7 +1,22 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Enforce Poppins on Calendar / Date Pickers ── */
+input[type="date"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="time"],
+::-webkit-datetime-edit,
+::-webkit-datetime-edit-fields-wrapper,
+::-webkit-datetime-edit-text,
+::-webkit-datetime-edit-month-field,
+::-webkit-datetime-edit-day-field,
+::-webkit-datetime-edit-year-field,
+::-webkit-calendar-picker-indicator {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
 
 /* ═══════════════════════════════════════════════════════════════
    :root
@@ -14,16 +29,16 @@
   --sidebar-icon-color: #0F172A;
   --sidebar-icon-active-color: #FFFFFF;
 
-  /* ── Core Brand / Academic Blue Palette ── */
-  --brand:         #1648E6;
-  --brand-hover:   #123BBA;
-  --brand-dark:    #0E2E91;
-  --brand-darker:  #0F172A;
-  --brand-light:   #EEF2FF;
-  --brand-lighter: #F5F7FF;
-  --brand-border:  #C7D2FE;
-  --brand-text:    #1648E6;
-  --brand-glow:    rgba(22, 72, 230, 0.25);
+  /* ── Core Brand / Academic Green Palette (#07BB47) ── */
+  --brand:         #07BB47;
+  --brand-hover:   #06A83F;
+  --brand-dark:    #058C34;
+  --brand-darker:  #03581F;
+  --brand-light:   #E6F9EE;
+  --brand-lighter: #F0FCF5;
+  --brand-border:  #6DD99A;
+  --brand-text:    #035A22;
+  --brand-glow:    rgba(7, 187, 71, 0.35);
 
   /* ── Accent Yellow Palette ── */
   --yellow-accent:        #F59E0B;
@@ -61,25 +76,25 @@
   --color-success: #10B981;
   --color-warning: #F59E0B;
   --color-danger:  #EF4444;
-  --color-info:    #1648E6;
+  --color-info:    #167C0C;
 
   --color-success-bg: #ECFDF5;
   --color-warning-bg: #FFFBEB;
   --color-danger-bg:  #FEF2F2;
-  --color-info-bg:    #EEF2FF;
+  --color-info-bg:    #EFFCEE;
 
   --color-success-border: #A7F3D0;
   --color-warning-border: #FDE68A;
   --color-danger-border:  #FECACA;
-  --color-info-border:    #C7D2FE;
+  --color-info-border:    #A1ED99;
 
   /* ── Sidebar Palette ── */
   --sidebar-bg:         #FFFFFF;
   --sidebar-border:     #E2E8F0;
   --sidebar-item:       #475569;
   --sidebar-item-hover: #EEF2FF;
-  --sidebar-active-bg:  #1648E6;
-  --sidebar-active-glow: 0 4px 14px -2px rgba(22, 72, 230, 0.35);
+  --sidebar-active-bg:  #07BB47;
+  --sidebar-active-glow: 0 4px 14px -2px rgba(7, 187, 71, 0.45);
   --sidebar-heading:    #94A3B8;
 
   /* ── Glassmorphism ── */
@@ -93,7 +108,7 @@
   --shadow-md:  0 8px 24px rgba(15,23,42,0.08);
   --shadow-lg:  0 20px 48px rgba(15,23,42,0.10);
   --shadow-xl:  0 32px 64px rgba(15,23,42,0.14);
-  --shadow-brand: 0 12px 32px -4px rgba(22, 72, 230, 0.35);
+  --shadow-brand: 0 12px 32px -4px rgba(7, 187, 71, 0.4);
   --shadow-yellow: 0 8px 20px -4px rgba(245, 158, 11, 0.35);
 }
 
@@ -103,15 +118,15 @@
   --sidebar-icon-color: #FFFFFF;
   --sidebar-icon-active-color: #FFFFFF;
 
-  --brand:         #3B82F6;
-  --brand-hover:   #60A5FA;
-  --brand-dark:    #93C5FD;
+  --brand:         #07BB47;
+  --brand-hover:   #30CC67;
+  --brand-dark:    #6DD99A;
   --brand-darker:  #F8FAFC;
-  --brand-light:   #111111;
-  --brand-lighter: #0A0A0A;
-  --brand-border:  #1E3A8A;
-  --brand-text:    #60A5FA;
-  --brand-glow:    rgba(59, 130, 246, 0.25);
+  --brand-light:   #022E13;
+  --brand-lighter: #011A0B;
+  --brand-border:  #0A7A35;
+  --brand-text:    #07BB47;
+  --brand-glow:    rgba(7, 187, 71, 0.35);
 
   --yellow-accent:        #FBBF24;
   --yellow-hover:         #F59E0B;
@@ -144,24 +159,24 @@
   --color-success: #22C55E;
   --color-warning: #FBBF24;
   --color-danger:  #FB7185;
-  --color-info:    #60A5FA;
+  --color-info:    #07BB47;
 
   --color-success-bg: #064E3B;
   --color-warning-bg: #451A03;
   --color-danger-bg:  #450A0A;
-  --color-info-bg:    #1E3A8A;
+  --color-info-bg:    #092E07;
 
   --color-success-border: #059669;
   --color-warning-border: #B45309;
   --color-danger-border:  #DC2626;
-  --color-info-border:    #2563EB;
+  --color-info-border:    #1E8015;
 
   --sidebar-bg:         #000000;
   --sidebar-border:     #1A1A1A;
   --sidebar-item:       #CBD5E1;
   --sidebar-item-hover: #1A1A1A;
-  --sidebar-active-bg:  #1648E6;
-  --sidebar-active-glow: 0 4px 14px -2px rgba(22, 72, 230, 0.35);
+  --sidebar-active-bg:  #07BB47;
+  --sidebar-active-glow: 0 4px 14px -2px rgba(7, 187, 71, 0.45);
   --sidebar-heading:    #64748B;
 
   --glass-bg:     rgba(10, 10, 10, 0.95);
@@ -643,7 +658,7 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
   font-weight: 500;
   color: var(--text-secondary);
   text-decoration: none;
-  transition: var(--transition-base);
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
   position: relative;
 }
 
@@ -654,12 +669,16 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
 
 .sidebar-item.active {
   background: var(--sidebar-active-bg);
-  color: #fff;
-  font-weight: 600;
+  color: #FFFFFF;
+  font-weight: 500;
+  text-shadow: 0 0 0.4px rgba(255, 255, 255, 0.85), 0 0 0.4px rgba(255, 255, 255, 0.85);
   box-shadow: var(--sidebar-active-glow);
 }
 
-.sidebar-item.active .sidebar-icon { color: var(--sidebar-icon-active-color); }
+.sidebar-item.active .sidebar-icon {
+  color: #FFFFFF;
+  stroke-width: 2.3;
+}
 
 .sidebar-icon {
   width: 18px;
@@ -707,6 +726,11 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
   border-bottom: 1px solid var(--slate-200);
   text-align: left;
   white-space: nowrap;
+}
+
+table thead th {
+  text-align: center !important;
+  vertical-align: middle;
 }
 
 .data-table th:first-child { border-radius: var(--radius-md) 0 0 0; }

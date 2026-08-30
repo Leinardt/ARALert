@@ -27,10 +27,10 @@ import qrDarkDefault from '../assets/icons/qr_attendance_dark.png';
 import qrDarkActive from '../assets/icons/qr_attendance_dark_active.png';
 import qrLightDefault from '../assets/icons/qr_attendance_light.png';
 import qrLightActive from '../assets/icons/qr_attendance_light_active.png';
-import clockDarkDefault from '../assets/icons/clock_dark.png';
-import clockDarkActive from '../assets/icons/clock_dark_active.png';
-import clockLightDefault from '../assets/icons/clock_light.png';
-import clockLightActive from '../assets/icons/clock_light_active.png';
+import clockDarkDefault from '../assets/icons/dtrlog_dark.png';
+import clockDarkActive from '../assets/icons/dtrlog_dark_active.png';
+import clockLightDefault from '../assets/icons/dtrlog_light.png';
+import clockLightActive from '../assets/icons/dtrlog_light_active.png';
 import scoreDarkDefault from '../assets/icons/score_entry_dark.png';
 import scoreDarkActive from '../assets/icons/score_entry_dark_active.png';
 import scoreLightDefault from '../assets/icons/score_entry_light.png';
@@ -68,9 +68,9 @@ const AssetSidebarIcon: React.FC<{
   size = 18,
   theme = 'light',
 }) => {
-  const source = theme === 'dark'
-    ? active ? (darkActiveSrc ?? darkSrc) : darkSrc
-    : active ? (lightActiveSrc ?? lightSrc) : lightSrc;
+  const source = active
+    ? (darkActiveSrc ?? lightActiveSrc ?? darkSrc)
+    : (theme === 'dark' ? darkSrc : lightSrc);
 
   return (
     <img
@@ -111,10 +111,10 @@ export const DashboardLayout: React.FC = () => {
     if (p.includes('/superadmin/users')) return 'User Management';
     if (p.includes('/admin/students')) return 'Student Directory';
     if (p.includes('/tutor/students')) return 'Assigned Students';
-    if (p.includes('/staff/scan')) return user?.role === 'student' ? 'Scan Attendance QR' : 'Clock In / Out';
+    if (p.includes('/staff/scan')) return user?.role === 'student' ? 'Scan Attendance QR' : 'DTR Log';
     if (p.includes('/admin/attendance')) return 'Staff QR Generator';
     if (p.includes('/tutor/attendance')) return 'QR Attendance';
-    if (p.includes('/profile')) return 'Profile & Settings';
+    if (p.includes('/profile')) return user?.role === 'tutor' ? 'Tutor Profile' : 'Profile';
     if (p.includes('/settings')) return 'System Settings';
     if (p.includes('/analytics')) return 'Data Analytics';
     if (p.includes('/scores')) return 'Score Entry';
@@ -165,7 +165,7 @@ export const DashboardLayout: React.FC = () => {
       const riskRecords = Array.isArray(risksRaw) ? risksRaw : (risksRaw as any)?.results ?? [];
 
       const rows = computeStudentRiskRows(students, grades, attendanceLogs);
-      const highRiskRows = rows.filter((r) => r.riskTier === 'High').sort((a, b) => b.compositeScore - a.compositeScore).slice(0, 5);
+      const highRiskRows = rows.filter((r) => r.riskTier === 'High').sort((a, b) => b.compositeScore - a.compositeScore);
       const moderateRiskRows = rows.filter((r) => r.riskTier === 'Medium').sort((a, b) => b.compositeScore - a.compositeScore).slice(0, 5);
 
       const latestResolvedRiskByStudent = (riskRecords as AcademicRisk[])
@@ -177,11 +177,10 @@ export const DashboardLayout: React.FC = () => {
         }, {} as Record<string, AcademicRisk>);
 
       setHighRiskStudents(highRiskRows);
-      setModerateRiskStudents(moderateRiskRows);
-      // Only count students that haven't been acknowledged (no existing resolved note)
-      const unacknowledgedHigh = highRiskRows.filter((r) => !latestResolvedRiskByStudent[r.student.id]).length;
-      const unacknowledgedMed = moderateRiskRows.filter((r) => !latestResolvedRiskByStudent[r.student.id]).length;
-      setHighRiskCount(unacknowledgedHigh + unacknowledgedMed);
+      setModerateRiskStudents([]);
+      // The alert badge and High Risk section both represent every student
+      // currently classified as High risk, regardless of acknowledgement notes.
+      setHighRiskCount(highRiskRows.length);
       setAcknowledgedNotes(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.details])));
       setAcknowledgedRiskIds(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.id])));
     } catch (error) {
@@ -275,7 +274,9 @@ export const DashboardLayout: React.FC = () => {
         }}
       >
         {/* Brand Header */}
-        <div
+        <Link
+          to={user?.is_superuser ? '/superadmin' : user?.role ? `/${user.role}` : '/'}
+          className="group"
           style={{
             padding: '0 1.25rem',
             minHeight: '64px',
@@ -285,21 +286,46 @@ export const DashboardLayout: React.FC = () => {
             gap: '0.75rem',
             flexShrink: 0,
             position: 'relative',
+            textDecoration: 'none',
           }}
         >
-          <img
-            src="/src/assets/ARALert_LOGO_light.png"
-            alt="ARALert"
-            style={{ width: '32px', height: '32px', objectFit: 'contain', flexShrink: 0 }}
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-          />
+          <div
+            className="transition-transform duration-300 ease-out group-hover:-translate-y-1 group-hover:scale-110 will-change-transform cursor-pointer select-none"
+            style={{
+              width: '32px',
+              height: '32px',
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transformOrigin: 'center center',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              transform: 'translateZ(0)',
+            }}
+          >
+            <img
+              src="/src/assets/ARALert_Logo_LIGHT.png"
+              alt="ARALert"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                display: 'block',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                transform: 'translateZ(0)',
+              }}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            />
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <div
               style={{
                 fontFamily: 'var(--font-heading)',
                 fontWeight: 800,
                 fontSize: '1.1rem',
-                color: '#1648E6',
+                color: 'var(--brand)',
                 letterSpacing: '-0.02em',
                 lineHeight: 1.1,
               }}
@@ -307,7 +333,7 @@ export const DashboardLayout: React.FC = () => {
               ARALert
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* Navigation */}
         <nav
@@ -479,11 +505,11 @@ export const DashboardLayout: React.FC = () => {
                   lightSrc={clockLightDefault}
                   lightActiveSrc={clockLightActive}
                   active={isActive('/staff/scan')}
-                  alt="Clock In Out"
+                  alt="DTR Log"
                   size={18}
                   theme={theme}
                 />
-                Clock In / Out
+                DTR Log
               </Link>
             </>
           )}
@@ -512,11 +538,11 @@ export const DashboardLayout: React.FC = () => {
                   lightSrc={clockLightDefault}
                   lightActiveSrc={clockLightActive}
                   active={isActive('/staff/scan')}
-                  alt="Clock In Out"
+                  alt="DTR Log"
                   size={18}
                   theme={theme}
                 />
-                Clock In / Out
+                DTR Log
               </Link>
             </>
           )}
@@ -545,11 +571,11 @@ export const DashboardLayout: React.FC = () => {
                   lightSrc={clockLightDefault}
                   lightActiveSrc={clockLightActive}
                   active={isActive('/staff/scan')}
-                  alt="Clock In Out"
+                  alt="DTR Log"
                   size={18}
                   theme={theme}
                 />
-                Clock In / Out
+                DTR Log
               </Link>
             </>
           )}
@@ -789,7 +815,7 @@ export const DashboardLayout: React.FC = () => {
                                   <div>
                                     <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{row.student.full_name}</p>
                                     <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                      Score: {row.compositeScore}% · Attendance: {row.attendanceRate}%
+                                      Score: {parseFloat(row.compositeScore.toFixed(2)).toString()}% · Attendance: {parseFloat(row.attendanceRate.toFixed(2)).toString()}%
                                     </p>
                                     {acknowledgedNotes[row.student.id] && (
                                       <div style={{ marginTop: '6px' }}>
@@ -817,63 +843,6 @@ export const DashboardLayout: React.FC = () => {
                                     fontFamily: 'var(--font-body)',
                                   }}
                                   onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand-dark)'; }}
-                                  onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                                >
-                                  {acknowledgedNotes[row.student.id] ? 'Edit Note' : 'Acknowledge Risk'}
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Moderate risk */}
-                      <div style={{ background: 'var(--color-warning-bg)', border: '1px solid var(--color-warning-border)', borderRadius: '12px', padding: '0.875rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                          <div>
-                            <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Medium Risk</p>                          </div>
-                          <span style={{ background: '#FEF3C7', color: '#92400E', fontSize: '0.7rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid #FDE68A' }}>
-                            {moderateRiskStudents.length}
-                          </span>
-                        </div>
-                        {moderateRiskStudents.length === 0 ? (
-                          <p style={{ fontSize: '0.8rem', color: '#D97706', margin: 0 }}>No medium-risk students detected.</p>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {moderateRiskStudents.map((row) => (
-                              <div key={`mod-${row.student.id}`} style={{ background: 'var(--surface-card)', border: '1px solid #FDE68A', borderRadius: '10px', padding: '0.65rem 0.75rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                  <div>
-                                    <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{row.student.full_name}</p>
-                                    <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                      Score: {row.compositeScore}% · Attendance: {row.attendanceRate}%
-                                    </p>
-                                  </div>
-                                  <span style={{ background: '#FEF3C7', color: '#92400E', fontSize: '0.62rem', fontWeight: 800, borderRadius: '6px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0 }}>MED</span>
-                                </div>
-                                {acknowledgedNotes[row.student.id] && (
-                                  <div style={{ marginTop: '6px' }}>
-                                    <p style={{ margin: '2px 0 0', fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{acknowledgedNotes[row.student.id]}</p>
-                                  </div>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => handleAcknowledgeInitiate(row)}
-                                  style={{
-                                    marginTop: '0.5rem',
-                                    width: '100%',
-                                    padding: '5px 10px',
-                                    borderRadius: '7px',
-                                    border: '1px solid var(--slate-200)',
-                                    background: 'var(--surface-muted)',
-                                    color: 'var(--text-secondary)',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    transition: 'var(--transition-fast)',
-                                    fontFamily: 'var(--font-body)',
-                                  }}
-                                  onMouseEnter={(e) => { e.currentTarget.style.background = '#FFFBEB'; e.currentTarget.style.color = '#92400E'; }}
                                   onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                                 >
                                   {acknowledgedNotes[row.student.id] ? 'Edit Note' : 'Acknowledge Risk'}
@@ -1021,15 +990,23 @@ export const DashboardLayout: React.FC = () => {
                 >
                   {/* User info */}
                   <div style={{ padding: '0.875rem 1rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-100)' }}>
-                    <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>{user?.full_name}</p>
+                    <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>
+                      {(() => {
+                        const first = (user?.first_name || '').trim().toUpperCase();
+                        const last = (user?.last_name || '').trim().toUpperCase();
+                        const mi = user?.middle_name && user.middle_name.trim() ? `${user.middle_name.trim()[0].toUpperCase()}.` : '';
+                        const given = [first, mi].filter(Boolean).join(' ');
+                        if (last && given) return `${last}, ${given}`;
+                        return last || given || user?.full_name || user?.username;
+                      })()}
+                    </p>
                     <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email}</p>
                   </div>
 
                   {/* Menu items */}
                   <div style={{ padding: '0.5rem' }}>
                     {[
-                      { label: 'Edit Profile', icon: <UserIcon size={15} />, action: () => { setProfileMenuOpen(false); navigate('/profile'); } },
-                      { label: 'MFA Security', icon: <Shield size={15} />, action: () => { setProfileMenuOpen(false); navigate('/mfa'); } },
+                      { label: 'View Profile', icon: <UserIcon size={15} />, action: () => { setProfileMenuOpen(false); navigate('/profile'); } },
                     ].map((item) => (
                       <button
                         key={item.label}

@@ -38,18 +38,33 @@ const formatDateKey = (year: number, month: number, day: number): string => {
   return `${year}-${m}-${d}`;
 };
 
-const formatTimeString = (timeStr: string | null) => {
-  if (!timeStr) return '—';
-  const parts = timeStr.split(':');
-  if (parts.length < 2) return timeStr;
-  let hours = parseInt(parts[0], 10);
-  const minutes = parts[1];
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  hours = hours % 12 || 12;
-  return `${hours}:${minutes} ${ampm}`;
+const formatTimeString = (value: string | null | undefined): string => {
+  if (!value) return '—';
+
+  // Handle standard "HH:MM:SS" or "HH:MM" time strings
+  const timeParts = value.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (timeParts) {
+    let hours = parseInt(timeParts[1], 10);
+    const minutes = timeParts[2];
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    return `${hours}:${minutes} ${ampm}`;
+  }
+
+  // Handle full ISO / datetime strings
+  const date = new Date(value.includes('T') || value.includes(' ') ? value : `1970-01-01T${value}`);
+  if (!Number.isNaN(date.getTime())) {
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    return `${hours}:${minutes} ${ampm}`;
+  }
+
+  return value;
 };
 
-// Interactive Calendar Picker Component
+// ─── Interactive Calendar Picker Component ──────────────────────────────────
 interface CalendarPickerProps {
   exportMode: 'all' | 'daily' | 'weekly';
   selectedDateKey: string;
@@ -77,7 +92,6 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
 
   const firstDayOfWeek = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-
   const monthName = viewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
   const calendarCells = [];
@@ -89,26 +103,31 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm text-xs select-none">
+    <div
+      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm text-xs select-none"
+      style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+    >
       <div className="flex items-center justify-between pb-3 border-b border-slate-100">
         <button
           type="button"
           onClick={prevMonth}
-          className="rounded-lg p-1 hover:bg-slate-100 text-slate-600 transition"
+          className="rounded-lg px-2 py-1 text-slate-600 hover:bg-slate-100 font-bold transition cursor-pointer"
+          aria-label="Previous Month"
         >
-          ◀
+          &lt;
         </button>
-        <span className="font-bold text-slate-800">{monthName}</span>
+        <span className="font-bold text-slate-900 text-xs tracking-wide">{monthName}</span>
         <button
           type="button"
           onClick={nextMonth}
-          className="rounded-lg p-1 hover:bg-slate-100 text-slate-600 transition"
+          className="rounded-lg px-2 py-1 text-slate-600 hover:bg-slate-100 font-bold transition cursor-pointer"
+          aria-label="Next Month"
         >
-          ▶
+          &gt;
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center font-semibold text-slate-400 py-2 text-[11px]">
+      <div className="grid grid-cols-7 gap-1 text-center font-bold text-slate-400 py-2 text-[10px] uppercase tracking-wider">
         <span>Sun</span>
         <span>Mon</span>
         <span>Tue</span>
@@ -147,7 +166,7 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
                   onSelectDate(cellDateKey);
                 }
               }}
-              className={`relative flex flex-col items-center justify-center h-8 rounded-xl transition text-xs ${
+              className={`relative flex flex-col items-center justify-center h-8 rounded-xl transition text-xs cursor-pointer ${
                 isDaySelected
                   ? 'bg-[var(--brand)] text-white font-bold shadow-sm'
                   : isWeekSelected
@@ -159,7 +178,7 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
             >
               <span>{dayNum}</span>
               {hasLoggedData && !isDaySelected && !isWeekSelected && (
-                <span className="absolute bottom-1 h-1 w-1 rounded-full bg-emerald-500" />
+                <span className="absolute bottom-1 h-1 w-1 rounded-full bg-[var(--brand)]" />
               )}
             </button>
           );
@@ -167,18 +186,19 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
       </div>
 
       <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
-        <div className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" />
+        <div className="flex items-center gap-1.5 font-medium">
+          <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block" />
           <span>Has attendance logs</span>
         </div>
-        <span className="italic">
-          {exportMode === 'weekly' ? 'Click any date to select its week' : 'Click a date to select'}
+        <span className="text-[10px] uppercase font-bold text-slate-400">
+          {exportMode === 'weekly' ? 'Click date to select week' : 'Click date to select'}
         </span>
       </div>
     </div>
   );
 };
 
+// ─── Main Modal Component ───────────────────────────────────────────────────
 export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
   isOpen,
   onClose,
@@ -387,71 +407,54 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm overflow-y-auto"
+      style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+    >
       <div className="relative w-full max-w-4xl rounded-3xl bg-white p-6 shadow-xl border border-slate-200 my-8 max-h-[90vh] overflow-y-auto space-y-4">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-4">
           <div>
-            <h3 className="text-xl font-bold text-slate-900">Export Student Attendance Sheet</h3>
-            <p className="text-xs text-slate-500 mt-1">Official DepEd ARAL Program Student Attendance Record</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Attendance Export</p>
+            <h3 className="text-lg font-bold text-slate-900">Export Student Attendance Sheet</h3>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setShowCalendar(!showCalendar)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-100 transition cursor-pointer"
             >
-              {showCalendar ? 'Hide Calendar' : '📅 Show Calendar'}
+              {showCalendar ? 'Hide Calendar' : 'Show Calendar'}
             </button>
             <button
               type="button"
               onClick={() => setShowSettings(!showSettings)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-100 transition cursor-pointer"
             >
               {showSettings ? 'Hide Header Settings' : 'Edit Header & Signatures'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
-            >
-              ✕
             </button>
           </div>
         </div>
 
-        {/* Scope Selector Bar */}
+        {/* Scope Selector Bar styled to match discussion pattern */}
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-700">Export Scope:</span>
-            <div className="inline-flex rounded-xl bg-slate-200/80 p-1">
-              <button
-                type="button"
-                onClick={() => setExportMode('all')}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  exportMode === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                All Records
-              </button>
-              <button
-                type="button"
-                onClick={() => setExportMode('daily')}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  exportMode === 'daily' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Specific Day
-              </button>
-              <button
-                type="button"
-                onClick={() => setExportMode('weekly')}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  exportMode === 'weekly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Specific Week
-              </button>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Scope:</span>
+            <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5">
+              {(['all', 'daily', 'weekly'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setExportMode(mode)}
+                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                    exportMode === mode
+                      ? 'bg-[var(--brand)] text-white shadow-sm'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {mode === 'all' ? 'All' : mode === 'daily' ? 'Day' : 'Week'}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -485,7 +488,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                   type="text"
                   value={division}
                   onChange={(e) => setDivision(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 outline-none focus:border-[var(--brand)]"
                 />
               </div>
               <div>
@@ -494,7 +497,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                   type="text"
                   value={district}
                   onChange={(e) => setDistrict(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 outline-none focus:border-[var(--brand)]"
                 />
               </div>
               <div>
@@ -503,7 +506,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                   type="text"
                   value={schoolName}
                   onChange={(e) => setSchoolName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 outline-none focus:border-[var(--brand)]"
                 />
               </div>
               <div>
@@ -512,7 +515,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                   type="text"
                   value={schoolAddress}
                   onChange={(e) => setSchoolAddress(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 outline-none focus:border-[var(--brand)]"
                 />
               </div>
               <div>
@@ -521,16 +524,16 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                   type="text"
                   value={subjectTitle}
                   onChange={(e) => setSubjectTitle(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 outline-none focus:border-[var(--brand)]"
                 />
               </div>
               <div>
-                <label className="block text-slate-600 font-medium mb-1">Grade & Section</label>
+                <label className="block text-slate-600 font-medium mb-1">Grade &amp; Section</label>
                 <input
                   type="text"
                   value={gradeSection}
                   onChange={(e) => setGradeSection(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 outline-none focus:border-[var(--brand)]"
                 />
               </div>
             </div>
@@ -544,7 +547,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                   value={tutorName}
                   onChange={(e) => setTutorName(e.target.value)}
                   placeholder="TUTOR FULL NAME"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 outline-none focus:border-[var(--brand)]"
                 />
               </div>
               <div>
@@ -554,7 +557,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                   value={checkedName}
                   onChange={(e) => setCheckedName(e.target.value)}
                   placeholder="FIRSTNAME M.I. LASTNAME"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 outline-none focus:border-[var(--brand)]"
                 />
               </div>
               <div>
@@ -564,7 +567,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                   value={notedName}
                   onChange={(e) => setNotedName(e.target.value)}
                   placeholder="FIRSTNAME M.I. LASTNAME"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 outline-none focus:border-[var(--brand)]"
                 />
               </div>
             </div>
@@ -663,28 +666,28 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
         </div>
 
         {/* Modal Action Buttons */}
-        <div className="sticky bottom-0 bg-white border-t border-slate-200 pt-3 pb-1 flex flex-col sm:flex-row items-center justify-end gap-3 z-10">
+        <div className="sticky bottom-0 bg-white border-t border-slate-200 pt-3 pb-1 flex flex-col sm:flex-row items-center justify-end gap-2.5 z-10">
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto rounded-2xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+            className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handlePrint}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 transition shadow-sm"
+            className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50 transition shadow-xs cursor-pointer"
           >
-            🖨️ Print / Save PDF
+            Print / Save PDF
           </button>
           <button
             type="button"
             onClick={handleExcelExport}
             disabled={isExporting}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition shadow-sm disabled:opacity-60"
+            className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer"
           >
-            📊 {isExporting ? 'Exporting...' : 'Download Excel (.xlsx)'}
+            {isExporting ? 'Exporting...' : 'Download Excel (.xlsx)'}
           </button>
         </div>
       </div>

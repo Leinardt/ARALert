@@ -42,6 +42,19 @@ export const userService = {
     return response.data;
   },
 
+  getAllUsers: async (params: GetUsersParams = {}): Promise<User[]> => {
+    const users: User[] = [];
+    let page = 1;
+    let response = await userService.getUsers({ ...params, page });
+    users.push(...response.results);
+    while (response.next) {
+      page += 1;
+      response = await userService.getUsers({ ...params, page });
+      users.push(...response.results);
+    }
+    return users;
+  },
+
   getUser: async (id: string): Promise<User> => {
     const response = await api.get<User>(`/users/${id}/`);
     return response.data;

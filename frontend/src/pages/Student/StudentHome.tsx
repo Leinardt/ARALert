@@ -9,7 +9,8 @@ import {
   TrendingUp,
   TrendingDown,
   ShieldAlert,
-  Activity
+  Activity,
+  X,
 } from 'lucide-react';
 
 /* ──────────────────────────────────────────────────
@@ -124,6 +125,13 @@ export const StudentHome: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [logsError, setLogsError] = useState<string | null>(null);
 
+  // ── Attendance filter state ───────────────────────────────────────
+  // filterDate: null = show all; string (YYYY-MM-DD) = anchor date
+  // filterScope: the range around the anchor date
+  type FilterScope = 'day' | 'week' | 'month';
+  const [filterDate, setFilterDate] = useState<string | null>(null);
+  const [filterScope, setFilterScope] = useState<FilterScope>('day');
+
   const attendanceRate = profile?.attendance.attendance_rate ?? 0;
   const averageScore = profile?.gpa ?? 0;
   const riskLevel = profile?.computed_risk_level
@@ -163,7 +171,7 @@ export const StudentHome: React.FC = () => {
 
       try {
         const logs = await academicService.getAttendanceHistory({ user_id: user.id });
-        setAttendanceLogs(logs.slice(0, 10));
+        setAttendanceLogs(logs);
       } catch (err: any) {
         console.error(err);
         setLogsError('Failed to load attendance history.');
@@ -175,27 +183,41 @@ export const StudentHome: React.FC = () => {
     fetchAttendanceLogs();
   }, [user]);
 
-  const formatDateString = (value: string | null) => {
+  const formatDateString = (value: string | null | undefined): string => {
     if (!value) return '—';
-    const date = new Date(value);
+    const date = new Date(value.includes('T') ? value : `${value}T00:00:00`);
     if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleDateString(undefined, {
-      weekday: 'short',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
+    const month = date.toLocaleDateString('en-US', { month: 'long' });
+    const day = date.getDate();
+    const year = date.getFullYear();
+    return `${weekday} | ${month} ${day}, ${year}`;
   };
 
-  const formatTimeString = (value: string | null) => {
+  const formatTimeString = (value: string | null | undefined): string => {
     if (!value) return '—';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleTimeString(undefined, {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+
+    // Handle standard "HH:MM:SS" or "HH:MM" time strings
+    const timeParts = value.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (timeParts) {
+      let hours = parseInt(timeParts[1], 10);
+      const minutes = timeParts[2];
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      return `${hours}:${minutes} ${ampm}`;
+    }
+
+    // Handle full ISO / datetime strings
+    const date = new Date(value.includes('T') || value.includes(' ') ? value : `1970-01-01T${value}`);
+    if (!Number.isNaN(date.getTime())) {
+      let hours = date.getHours();
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      return `${hours}:${minutes} ${ampm}`;
+    }
+
+    return value;
   };
 
   // Trend direction computation
@@ -209,6 +231,54 @@ export const StudentHome: React.FC = () => {
   }, [performanceTrend]);
 
   const latestTrendValue = performanceTrend.length > 0 ? performanceTrend[performanceTrend.length - 1].value : null;
+
+  // ── Attendance filter helpers ─────────────────────────────────────
+  const getWeekBounds = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const day = d.getDay();
+    const diffToMon = (day === 0 ? -6 : 1 - day);
+    const mon = new Date(d);
+    mon.setDate(d.getDate() + diffToMon);
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6);
+    const fmt = (dt: Date) => dt.toISOString().slice(0, 10);
+    return { from: fmt(mon), to: fmt(sun) };
+  };
+
+  const getMonthBounds = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const from = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+    const to   = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+    return { from, to };
+  };
+
+  const filteredLogs = useMemo(() => {
+    if (!filterDate) return attendanceLogs;
+    if (filterScope === 'day') return attendanceLogs.filter(l => l.date === filterDate);
+    if (filterScope === 'week') {
+      const { from, to } = getWeekBounds(filterDate);
+      return attendanceLogs.filter(l => l.date >= from && l.date <= to);
+    }
+    if (filterScope === 'month') {
+      const { from, to } = getMonthBounds(filterDate);
+      return attendanceLogs.filter(l => l.date >= from && l.date <= to);
+    }
+    return attendanceLogs;
+  }, [attendanceLogs, filterDate, filterScope]);
+
+  const filterRangeLabel = () => {
+    if (!filterDate) return null;
+    const d = new Date(filterDate + 'T00:00:00');
+    if (filterScope === 'day') return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    if (filterScope === 'week') {
+      const { from, to } = getWeekBounds(filterDate);
+      const f = new Date(from + 'T00:00:00');
+      const t = new Date(to + 'T00:00:00');
+      return `${f.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${t.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    }
+    if (filterScope === 'month') return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return null;
+  };
 
 
 
@@ -251,12 +321,14 @@ export const StudentHome: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Attendance Rate */}
         <div
-          className="p-5 rounded-2xl flex items-center justify-between"
+          className="p-5 rounded-2xl flex items-center justify-between transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_rgba(7,187,71,0.25)]"
           style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-sm)' }}
         >
           <div>
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Attendance Rate</p>
-            <p className="mt-2 text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{attendanceRate}%</p>
+            <p className="mt-2 text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>
+              {typeof attendanceRate === 'number' ? `${parseFloat(attendanceRate.toFixed(2)).toString()}%` : `${attendanceRate}%`}
+            </p>
           </div>
           <div className="p-3 rounded-xl" style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)', border: '1px solid var(--color-success-border)' }}>
             <Calendar className="w-6 h-6" />
@@ -265,12 +337,12 @@ export const StudentHome: React.FC = () => {
 
         {/* Average Score */}
         <div
-          className="p-5 rounded-2xl flex items-center justify-between"
+          className="p-5 rounded-2xl flex items-center justify-between transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_rgba(7,187,71,0.25)]"
           style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-sm)' }}
         >
           <div>
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Average Score</p>
-            <p className="mt-2 text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{averageScore > 0 ? averageScore.toFixed(2) : 'N/A'}</p>
+            <p className="mt-2 text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{averageScore > 0 ? `${parseFloat(averageScore.toFixed(2)).toString()}%` : 'N/A'}</p>
           </div>
           <div className="p-3 rounded-xl" style={{ background: 'var(--brand-light)', color: 'var(--brand)', border: '1px solid var(--brand-border)' }}>
             <GraduationCap className="w-6 h-6" />
@@ -279,7 +351,7 @@ export const StudentHome: React.FC = () => {
 
         {/* Risk Level */}
         <div
-          className="p-5 rounded-2xl flex items-center justify-between"
+          className="p-5 rounded-2xl flex items-center justify-between transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
           style={{
             background: riskLevelKey === 'high' ? 'var(--color-danger-bg)' : riskLevelKey === 'medium' ? 'var(--color-warning-bg)' : 'var(--color-success-bg)',
             border: `1px solid ${riskLevelKey === 'high' ? 'var(--color-danger-border)' : riskLevelKey === 'medium' ? 'var(--color-warning-border)' : 'var(--color-success-border)'}`,
@@ -391,15 +463,81 @@ export const StudentHome: React.FC = () => {
         className="rounded-2xl p-6 space-y-4"
         style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-sm)' }}
       >
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Attendance History</h3>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Complete attendance log with date, time, and status.</p>
           </div>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: 'var(--surface-muted)', color: 'var(--text-muted)' }}>
-            {attendanceLogs.length} entries
-          </span>
+
+          {/* ── Filter Controls ── */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Date picker */}
+            <div className="relative flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+              <input
+                type="date"
+                id="attendance-filter-date"
+                value={filterDate ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFilterDate(val || null);
+                  if (val) setFilterScope('day');
+                }}
+                className="text-xs font-semibold px-2 py-1.5 rounded-lg"
+                style={{
+                  background: 'var(--surface-muted)',
+                  border: '1px solid var(--slate-200)',
+                  color: filterDate ? 'var(--text-primary)' : 'var(--text-muted)',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
+              />
+              {filterDate && (
+                <button
+                  id="attendance-filter-clear"
+                  onClick={() => setFilterDate(null)}
+                  className="p-1 rounded-full transition-colors"
+                  style={{ background: 'var(--surface-muted)', color: 'var(--text-muted)' }}
+                  aria-label="Clear filter"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Scope pills — only visible once a date is picked */}
+            {filterDate && (
+              <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--slate-200)', background: 'var(--surface-muted)' }}>
+                {(['day', 'week', 'month'] as const).map((scope) => (
+                  <button
+                    key={scope}
+                    id={`attendance-scope-${scope}`}
+                    onClick={() => setFilterScope(scope)}
+                    className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-all duration-150"
+                    style={{
+                      background: filterScope === scope ? 'var(--brand)' : 'transparent',
+                      color: filterScope === scope ? '#fff' : 'var(--text-muted)',
+                    }}
+                  >
+                    {scope}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: 'var(--surface-muted)', color: 'var(--text-muted)' }}>
+              {filteredLogs.length} entr{filteredLogs.length === 1 ? 'y' : 'ies'}
+            </span>
+          </div>
         </div>
+
+        {/* Active filter label */}
+        {filterDate && filterRangeLabel() && (
+          <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--brand)' }}>
+            <Calendar className="w-3.5 h-3.5" />
+            {filterRangeLabel()}
+          </div>
+        )}
 
         {logsLoading ? (
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading history...</div>
@@ -407,6 +545,10 @@ export const StudentHome: React.FC = () => {
           <div className="text-sm" style={{ color: 'var(--color-danger)' }}>{logsError}</div>
         ) : attendanceLogs.length === 0 ? (
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>No attendance history found yet.</div>
+        ) : filteredLogs.length === 0 ? (
+          <div className="text-sm py-4 text-center" style={{ color: 'var(--text-muted)' }}>
+            No attendance records found for this {filterScope}.
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y text-left text-sm" style={{ borderColor: 'var(--slate-200)' }}>
@@ -419,7 +561,7 @@ export const StudentHome: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y" style={{ borderColor: 'var(--slate-200)' }}>
-                {attendanceLogs.map((log) => (
+                {filteredLogs.map((log) => (
                   <tr key={log.id} className="transition-colors" style={{ background: 'var(--surface-card)' }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-muted)')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--surface-card)')}

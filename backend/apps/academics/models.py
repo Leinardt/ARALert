@@ -260,11 +260,15 @@ class Student(models.Model):
         verbose_name_plural = 'Students'
 
     def get_full_name(self) -> str:
-        parts = [self.stu_fname.upper().strip()]
+        first_name = self.stu_fname.upper().strip()
+        last_name = self.stu_lname.upper().strip()
+        middle_initial = ''
         if self.stu_mname and self.stu_mname.strip():
-            parts.append(f'{self.stu_mname.strip()[0].upper()}.')
-        parts.append(self.stu_lname.upper().strip())
-        return ' '.join(p for p in parts if p)
+            middle_initial = f'{self.stu_mname.strip()[0].upper()}.'
+        given_name = ' '.join(part for part in [first_name, middle_initial] if part).strip()
+        if last_name and given_name:
+            return f'{last_name}, {given_name}'
+        return last_name or given_name
 
     def __str__(self):
         return f'{self.get_full_name()} (LRN: {self.lrn})'
@@ -655,6 +659,7 @@ class ApiGrade(models.Model):
     remarks        = models.TextField(null=True, blank=True)
     date_logged    = models.DateField()
     batch_id       = models.CharField(max_length=50)
+    created_at     = models.DateTimeField(null=True, blank=True, auto_now_add=True)
 
     class Meta:
         db_table = 'api_grade'

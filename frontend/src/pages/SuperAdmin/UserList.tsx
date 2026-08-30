@@ -209,7 +209,7 @@ export const UserList: React.FC = () => {
           <div className="relative flex-grow">
             <input
               type="text"
-              placeholder="Search by name, email, or LRN..."
+              placeholder="Search Student Name"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-[var(--brand)]"

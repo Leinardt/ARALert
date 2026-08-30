@@ -12,6 +12,9 @@ export interface User {
   mfa_enabled?: boolean;
   role: UserRole | null; // null for SuperAdmin
   lrn: string | null;   // Learner Reference Number (students only)
+  age?: number | string | null;
+  sex?: string | null;
+  gender?: string | null;
   is_active: boolean;
   email_verified?: boolean;
   password_setup_required?: boolean;
@@ -94,6 +97,7 @@ export interface Grade {
   remarks: string | null;
   date_logged: string;
   batch_id: string;
+  created_at: string | null;
 }
 
 export interface AralActivity {

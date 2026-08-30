@@ -11,9 +11,11 @@ from .views import (
     AralActivityListCreateView,
     AralLevelProgressionView,
     AttendanceHistoryView,
+    AttendanceDetailView,
     AttendanceManualLogView,
     AttendanceScanView,
     AttendanceSessionCreateView,
+    AttendanceSessionCloseView,
     GradeDetailView,
     GradeListCreateView,
     PrincipalDashboardView,
@@ -35,9 +37,11 @@ urlpatterns = [
 
     # Attendance
     path('attendance/session/', AttendanceSessionCreateView.as_view(), name='attendance-session-create'),
+    path('attendance/session/<uuid:session_id>/close/', AttendanceSessionCloseView.as_view(), name='attendance-session-close'),
     path('attendance/scan/', AttendanceScanView.as_view(), name='attendance-scan'),
     path('attendance/manual/', AttendanceManualLogView.as_view(), name='attendance-manual'),
     path('attendance/history/', AttendanceHistoryView.as_view(), name='attendance-history'),
+    path('attendance/<int:id>/', AttendanceDetailView.as_view(), name='attendance-detail'),
 
     # ARAL Level Progression
     path('level-up/evaluate/', AralLevelProgressionView.as_view(), name='aral-level-up-evaluate'),

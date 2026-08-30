@@ -361,14 +361,12 @@ class TutorListView(generics.ListAPIView):
 
 
 class AuditLogListView(APIView):
-    """GET /api/users/audit-logs/ — Return paginated audit logs for SuperAdmin."""
+    """GET /api/users/audit-logs/ — Return paginated audit logs for Admin and SuperAdmin."""
 
-    def get_permissions(self):
-        from rest_framework.permissions import IsAuthenticated
-        return [IsAuthenticated()]
+    permission_classes = [IsAdmin]
 
     def get(self, request):
-        if not request.user.is_superuser:
+        if not request.user.is_superuser and request.user.role != 'admin':
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
         action_filter = request.query_params.get('action', '')

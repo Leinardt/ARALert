@@ -57,7 +57,7 @@ export const AuthLayout: React.FC = () => {
         }}
       >
         <img
-          src="/src/assets/ARALert_LOGO.png"
+          src="/src/assets/ARALert_Logo_LIGHT.png"
           alt="ARALert"
           style={{ width: '32px', height: '32px', objectFit: 'contain' }}
           onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}

@@ -9,17 +9,8 @@ export interface StudentRiskRow {
 }
 
 const getRiskTier = (score: number) => {
-  if (score >= 85) return 'Low';
+  if (score >= 86) return 'Low';
   if (score >= 70) return 'Medium';
-  return 'High';
-};
-
-const applyAttendanceEscalation = (tier: string, attendanceRate: number) => {
-  if (attendanceRate >= 90) return tier;
-  if (attendanceRate >= 80) {
-    return tier === 'Low' ? 'Medium' : tier;
-  }
-  if (tier === 'Low') return 'Medium';
   return 'High';
 };
 
@@ -74,14 +65,13 @@ export const computeStudentRiskRows = (
     const totalDays = attendanceRecords.length;
     const presentDays = attendanceRecords.filter((record: Attendance) => record.status === 'present').length;
     const lateDays = attendanceRecords.filter((record: Attendance) => record.status === 'late').length;
-    const attendanceRate = totalDays > 0 ? Number(((presentDays + lateDays) / totalDays) * 100) : 100;
+    const attendanceRate = totalDays > 0 ? Number((((presentDays + lateDays) / totalDays) * 100).toFixed(2)) : 100;
 
     const scoreData = scoreTotals.get(student.id);
     const scoreAvg = scoreData?.count ? Number((scoreData.totalPercent / scoreData.count).toFixed(2)) : 100;
 
     const compositeScore = Number(((attendanceRate * 0.4) + (scoreAvg * 0.6)).toFixed(2));
-    const baseTier = getRiskTier(compositeScore);
-    const riskTier = applyAttendanceEscalation(baseTier, attendanceRate);
+    const riskTier = getRiskTier(compositeScore);
 
     return {
       student,

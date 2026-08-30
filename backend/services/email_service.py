@@ -1,138 +1,74 @@
-"""
-Email Service for ARALert.
-Handles sending emails via SMTP using settings from Django config.
-"""
-
-import smtplib
 import logging
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import os
+import smtplib
+from email.message import EmailMessage
 
 from django.conf import settings
+from django.template.loader import render_to_string
 
 logger = logging.getLogger(__name__)
 
+def send_mail_with_smtp(subject, body, recipient_email, recipient_name=None):
+    """Send an email using Python's built-in smtplib."""
+    smtp_host = getattr(settings, 'SMTP_HOST', None) or os.getenv('SMTP_HOST')
+    smtp_port = getattr(settings, 'SMTP_PORT', None) or os.getenv('SMTP_PORT')
+    smtp_email = getattr(settings, 'SMTP_EMAIL', None) or os.getenv('SMTP_EMAIL')
+    smtp_password = getattr(settings, 'SMTP_PASSWORD', None) or os.getenv('SMTP_PASSWORD')
+    smtp_use_tls_raw = getattr(settings, 'SMTP_USE_TLS', None)
+    if smtp_use_tls_raw is None:
+        smtp_use_tls_raw = os.getenv('SMTP_USE_TLS', 'True')
+    if isinstance(smtp_use_tls_raw, str):
+        smtp_use_tls = smtp_use_tls_raw.strip().lower() in {'1', 'true', 'yes', 'on'}
+    else:
+        smtp_use_tls = bool(smtp_use_tls_raw)
+    sender_name = getattr(settings, 'SENDER_NAME', None) or os.getenv('SENDER_NAME', 'ARALert')
 
-def send_mail_with_smtp(subject: str, body: str, to_email: str, to_name: str = '') -> bool:
-    """
-    Send a plain-text email via SMTP.
-    Returns True on success, False on failure.
-    """
-    smtp_host = getattr(settings, 'SMTP_HOST', '')
-    smtp_port = int(getattr(settings, 'SMTP_PORT', 587))
-    smtp_email = getattr(settings, 'SMTP_EMAIL', '')
-    smtp_password = getattr(settings, 'SMTP_PASSWORD', '')
-    smtp_use_tls = getattr(settings, 'SMTP_USE_TLS', True)
-    sender_name = getattr(settings, 'SENDER_NAME', 'ARALert')
-
-    if not smtp_host or not smtp_email:
-        logger.warning('SMTP not configured. Email not sent to %s.', to_email)
+    if not all([smtp_host, smtp_port, smtp_email, smtp_password]):
+        logger.warning('SMTP configuration is incomplete; email not sent. Falling back to console output in development.')
+        print(f"[EMAIL FALLBACK] To: {recipient_email}")
+        print(f"[EMAIL FALLBACK] Subject: {subject}")
+        print(f"[EMAIL FALLBACK] Body: {body}")
         return False
+
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = f'{sender_name} <{smtp_email}>'
+    msg['To'] = recipient_email if recipient_name is None else f'{recipient_name} <{recipient_email}>'
+    msg['Reply-To'] = smtp_email
+    msg.set_content(body)
 
     try:
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = f'{sender_name} <{smtp_email}>'
-        msg['To'] = f'{to_name} <{to_email}>' if to_name else to_email
-
-        msg.attach(MIMEText(body, 'plain'))
-
-        if smtp_use_tls:
-            server = smtplib.SMTP(smtp_host, smtp_port)
-            server.ehlo()
-            server.starttls()
-        else:
-            server = smtplib.SMTP_SSL(smtp_host, smtp_port)
-
-        server.login(smtp_email, smtp_password)
-        server.sendmail(smtp_email, to_email, msg.as_string())
-        server.quit()
-
-        logger.info('Email sent to %s: %s', to_email, subject)
+        with smtplib.SMTP(smtp_host, int(smtp_port), timeout=10) as server:
+            if smtp_use_tls:
+                server.starttls()
+            server.login(smtp_email, smtp_password)
+            server.send_message(msg)
+        logger.info(f'Email sent successfully to {recipient_email}')
         return True
-
     except Exception as exc:
-        logger.error('Failed to send email to %s: %s', to_email, exc)
+        logger.exception('Failed to send email to %s: %s', recipient_email, exc)
         return False
 
 
-def send_html_mail_with_smtp(subject: str, html_body: str, plain_body: str, to_email: str, to_name: str = '') -> bool:
-    """
-    Send an HTML email (with plain-text fallback) via SMTP.
-    Returns True on success, False on failure.
-    """
-    smtp_host = getattr(settings, 'SMTP_HOST', '')
-    smtp_port = int(getattr(settings, 'SMTP_PORT', 587))
-    smtp_email = getattr(settings, 'SMTP_EMAIL', '')
-    smtp_password = getattr(settings, 'SMTP_PASSWORD', '')
-    smtp_use_tls = getattr(settings, 'SMTP_USE_TLS', True)
-    sender_name = getattr(settings, 'SENDER_NAME', 'ARALert')
-
-    if not smtp_host or not smtp_email:
-        logger.warning('SMTP not configured. Email not sent to %s.', to_email)
-        return False
-
-    try:
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = f'{sender_name} <{smtp_email}>'
-        msg['To'] = f'{to_name} <{to_email}>' if to_name else to_email
-
-        msg.attach(MIMEText(plain_body, 'plain'))
-        msg.attach(MIMEText(html_body, 'html'))
-
-        if smtp_use_tls:
-            server = smtplib.SMTP(smtp_host, smtp_port)
-            server.ehlo()
-            server.starttls()
-        else:
-            server = smtplib.SMTP_SSL(smtp_host, smtp_port)
-
-        server.login(smtp_email, smtp_password)
-        server.sendmail(smtp_email, to_email, msg.as_string())
-        server.quit()
-
-        logger.info('HTML email sent to %s: %s', to_email, subject)
-        return True
-
-    except Exception as exc:
-        logger.error('Failed to send HTML email to %s: %s', to_email, exc)
-        return False
+def _render_email_template(template_name, context):
+    return render_to_string(template_name, context).strip()
 
 
-def send_account_invitation_email(user, activation_link: str) -> bool:
-    """
-    Send a Google login invitation email to a newly created staff account.
-    Since the system now uses Google OAuth, this just notifies the user that
-    their account has been created and they can now log in with Google.
-    """
-    full_name = user.get_full_name() if hasattr(user, 'get_full_name') else str(user)
-    email = user.email
-
-    subject = 'Your ARALert Account Has Been Created'
-    body = (
-        f'Hello {full_name},\n\n'
-        f'Your ARALert account has been created.\n\n'
-        f'You can now sign in using your Google account ({email}) at:\n'
-        f'{activation_link}\n\n'
-        f'Important: Only accounts with @edu.ph or @deped.gov.ph email addresses '
-        f'can log in directly. If your email is a personal address, please contact '
-        f'your administrator to verify that your email has been approved.\n\n'
-        f'If you have any questions, please contact your school administrator.\n\n'
-        f'Best regards,\n'
-        f'The ARALert Team'
-    )
-
-    return send_mail_with_smtp(subject, body, email, full_name)
+def send_account_invitation_email(user, activation_link):
+    subject = 'Welcome to ARALert — Create Your Password'
+    body = _render_email_template('emails/account_invitation.txt', {
+        'recipient_name': user.get_full_name(),
+        'activation_link': activation_link,
+        'expiration_minutes': getattr(settings, 'TOKEN_EXPIRATION_TIME', '60'),
+    })
+    return send_mail_with_smtp(subject, body, user.email, user.get_full_name())
 
 
-def send_password_reset_email(user, reset_link: str) -> bool:
-    """
-    Stub — password resets are no longer used since all accounts use Google OAuth.
-    Kept for import compatibility.
-    """
-    logger.info(
-        'send_password_reset_email called for %s but passwords are not used (Google OAuth). No email sent.',
-        user.email,
-    )
-    return False
+def send_password_reset_email(user, reset_link):
+    subject = 'ARALert Password Reset'
+    body = _render_email_template('emails/password_reset.txt', {
+        'recipient_name': user.get_full_name(),
+        'reset_link': reset_link,
+        'expiration_minutes': getattr(settings, 'TOKEN_EXPIRATION_TIME', '60'),
+    })
+    return send_mail_with_smtp(subject, body, user.email, user.get_full_name())

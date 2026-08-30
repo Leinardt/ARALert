@@ -22,6 +22,8 @@ export interface GetAralActivitiesParams {
 
 export interface GetAttendanceParams {
   date?: string;
+  date_from?: string;
+  date_to?: string;
   role?: string;
   status?: string;
   user_id?: string;
@@ -68,7 +70,22 @@ export const academicService = {
   getGrades: async (params: GetGradesParams = {}): Promise<Grade[]> => {
     const response = await api.get<Grade[] | { results: Grade[] }>('/academics/grades/', { params });
     const data = response.data as any;
-    return Array.isArray(data) ? data : (data?.results ?? []);
+    if (Array.isArray(data)) return data;
+
+    const grades = [...(data?.results ?? [])];
+    let page = 1;
+    while (data?.next) {
+      page += 1;
+      const nextResponse = await api.get<Grade[] | { results: Grade[] }>('/academics/grades/', { params: { ...params, page } });
+      const nextData = nextResponse.data as any;
+      if (Array.isArray(nextData)) {
+        grades.push(...nextData);
+        break;
+      }
+      grades.push(...(nextData?.results ?? []));
+      if (!nextData?.next) break;
+    }
+    return grades;
   },
 
   createGrade: async (data: Partial<Grade>): Promise<Grade> => {
@@ -138,6 +155,11 @@ export const academicService = {
     return response.data;
   },
 
+  closeAttendanceSession: async (sessionId: string): Promise<{ message: string; session: AttendanceSession }> => {
+    const response = await api.post<{ message: string; session: AttendanceSession }>(`/academics/attendance/session/${sessionId}/close/`);
+    return response.data;
+  },
+
   scanQRCode: async (sessionId: string): Promise<{ message: string; attendance: Attendance }> => {
     const response = await api.post<{ message: string; attendance: Attendance }>('/academics/attendance/scan/', {
       session_id: sessionId
@@ -159,6 +181,11 @@ export const academicService = {
     const response = await api.get<Attendance[] | { results: Attendance[] }>('/academics/attendance/history/', { params });
     const data = response.data as any;
     return Array.isArray(data) ? data : (data?.results ?? []);
+  },
+
+  updateAttendance: async (id: number, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>): Promise<Attendance> => {
+    const response = await api.patch<Attendance>(`/academics/attendance/${id}/`, data);
+    return response.data;
   },
 
   getPrincipalDashboard: async (params: GetPrincipalDashboardParams = {}): Promise<PrincipalDashboardResponse> => {

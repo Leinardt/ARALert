@@ -129,13 +129,16 @@ class User(AbstractBaseUser, PermissionsMixin):
         return f'{self.email} ({self.get_full_name()})'
 
     def get_full_name(self):
-        """Return FIRST_NAME [MIDDLE_INITIAL.] LAST_NAME — all uppercase."""
+        """Return LAST_NAME, FIRST_NAME [MIDDLE_INITIAL.] — all uppercase."""
         fn = self.first_name.upper().strip() if self.first_name else ''
         ln = self.last_name.upper().strip()  if self.last_name  else ''
         mi = ''
         if self.middle_name and self.middle_name.strip():
             mi = f'{self.middle_name.strip()[0].upper()}.'
-        return ' '.join(part for part in [fn, mi, ln] if part).strip()
+        given_name = ' '.join(part for part in [fn, mi] if part).strip()
+        if ln and given_name:
+            return f'{ln}, {given_name}'
+        return ln or given_name
 
     def get_short_name(self):
         return self.first_name.upper().strip() if self.first_name else ''

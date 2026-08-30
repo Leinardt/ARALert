@@ -22,6 +22,7 @@ from apps.academics.models import (
     ApiGrade,
 )
 from apps.accounts.models import User
+from utilities.audit import log_audit_event
 
 from .serializers import (
     AcademicRiskSerializer,
@@ -68,11 +69,11 @@ def evaluate_student_aral_progression(student):
     def check_pass(grade_obj):
         if not grade_obj:
             return False, 0.0
-        ts = float(grade_obj.total_score) if grade_obj.total_score and float(grade_obj.total_score) > 0 else 40.0
+        ts = float(grade_obj.total_score) if grade_obj.total_score and float(grade_obj.total_score) > 0 else 100.0
         s = float(grade_obj.score) if grade_obj.score is not None else 0.0
         pct = round((s / ts) * 100.0, 1)
-        # Passing score: 28 items out of 40 (or >= 70%)
-        is_pass = s >= 28.0 if ts == 40.0 else (s / ts) >= (28.0 / 40.0)
+        # Passing score: >= 70%
+        is_pass = pct >= 70.0
         return is_pass, pct
 
     new_level = curr_level
@@ -86,26 +87,28 @@ def evaluate_student_aral_progression(student):
             target_grade = mosy_grade
             ass_type = 'MOSY'
             passed, pct = check_pass(mosy_grade)
+            tot = mosy_grade.total_score or 100
             if passed:
                 new_level = 'plus'
                 status_code = 'PROMOTED'
-                msg = f'Passed MOSY with {mosy_grade.score}/{mosy_grade.total_score or 40} ({pct}%). Promoted to Plus level.'
+                msg = f'Passed MOSY with {mosy_grade.score}/{tot} ({pct}%). Promoted to Plus level.'
             else:
                 new_level = 'basic'
                 status_code = 'RETAINED'
-                msg = f'Did not reach passing score (28/40) on MOSY ({mosy_grade.score}/{mosy_grade.total_score or 40}). Retained in Basic level.'
+                msg = f'Did not reach passing score (>=70%) on MOSY ({mosy_grade.score}/{tot}, {pct}%). Retained in Basic level.'
         elif eosy_grade:
             target_grade = eosy_grade
             ass_type = 'EOSY'
             passed, pct = check_pass(eosy_grade)
+            tot = eosy_grade.total_score or 100
             if passed:
                 new_level = 'plus'
                 status_code = 'PROMOTED'
-                msg = f'Passed EOSY with {eosy_grade.score}/{eosy_grade.total_score or 40} ({pct}%). Promoted to Plus level.'
+                msg = f'Passed EOSY with {eosy_grade.score}/{tot} ({pct}%). Promoted to Plus level.'
             else:
                 new_level = 'summer'
                 status_code = 'ASSIGNED_SUMMER'
-                msg = f'Did not reach passing score (28/40) on EOSY ({eosy_grade.score}/{eosy_grade.total_score or 40}). Assigned to Summer remediation.'
+                msg = f'Did not reach passing score (>=70%) on EOSY ({eosy_grade.score}/{tot}, {pct}%). Assigned to Summer remediation.'
         else:
             return {
                 'student_id': str(student.id),
@@ -123,14 +126,15 @@ def evaluate_student_aral_progression(student):
             target_grade = eosy_grade
             ass_type = 'EOSY'
             passed, pct = check_pass(eosy_grade)
+            tot = eosy_grade.total_score or 100
             if passed:
                 new_level = 'graduated'
                 status_code = 'GRADUATED'
-                msg = f'Passed EOSY with {eosy_grade.score}/{eosy_grade.total_score or 40} ({pct}%). Graduated from ARAL program!'
+                msg = f'Passed EOSY with {eosy_grade.score}/{tot} ({pct}%). Graduated from ARAL program!'
             else:
                 new_level = 'summer'
                 status_code = 'ASSIGNED_SUMMER'
-                msg = f'Did not reach passing score (28/40) on EOSY ({eosy_grade.score}/{eosy_grade.total_score or 40}). Assigned to Summer remediation.'
+                msg = f'Did not reach passing score (>=70%) on EOSY ({eosy_grade.score}/{tot}, {pct}%). Assigned to Summer remediation.'
         else:
             return {
                 'student_id': str(student.id),
@@ -148,14 +152,15 @@ def evaluate_student_aral_progression(student):
             target_grade = endline_grade
             ass_type = 'BOSY/EndLine'
             passed, pct = check_pass(endline_grade)
+            tot = endline_grade.total_score or 100
             if passed:
                 new_level = 'graduated'
                 status_code = 'GRADUATED'
-                msg = f'Passed BOSY/EndLine with {endline_grade.score}/{endline_grade.total_score or 40} ({pct}%). Graduated from ARAL program!'
+                msg = f'Passed BOSY/EndLine with {endline_grade.score}/{tot} ({pct}%). Graduated from ARAL program!'
             else:
                 new_level = 'summer'
                 status_code = 'RETAINED'
-                msg = f'Did not reach passing score (28/40) on BOSY/EndLine ({endline_grade.score}/{endline_grade.total_score or 40}). Retained in Summer remediation.'
+                msg = f'Did not reach passing score (>=70%) on BOSY/EndLine ({endline_grade.score}/{tot}, {pct}%). Retained in Summer remediation.'
         else:
             return {
                 'student_id': str(student.id),
@@ -394,6 +399,18 @@ class AttendanceSessionCreateView(APIView):
         else:
             return Response({'error': 'Invalid session_type.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        if session_type == 'student':
+            # Finalize any currently active student sessions for this creator before creating a new one
+            existing_active = ApiAttendanceSession.objects.filter(
+                creator=user,
+                session_type='student',
+                is_active=True,
+            )
+            for old_session in existing_active:
+                finalize_session_absentees(old_session)
+                old_session.is_active = False
+                old_session.save(update_fields=['is_active'])
+
         aral_activity = None
         if aral_activity_id:
             aral_activity = get_object_or_404(ApiAralActivity, id=aral_activity_id)
@@ -408,6 +425,87 @@ class AttendanceSessionCreateView(APIView):
             is_active    = True,
         )
         return Response(AttendanceSessionSerializer(session).data, status=status.HTTP_201_CREATED)
+
+
+def finalize_session_absentees(session):
+    """
+    Marks all assigned students who failed to scan the QR code before session expiration as 'absent'.
+    """
+    if session.session_type != 'student':
+        return
+    tutor = session.creator
+    if not tutor:
+        return
+    session_date = session.expires_at.date() if session.expires_at else timezone.localdate()
+
+    # Get students assigned to this tutor, or all students if tutor has no direct assignments
+    students = tutor.assigned_students.filter(role='student')
+    if not students.exists():
+        students = User.objects.filter(role='student')
+
+    for student in students:
+        # Check if student already has a logged record with present/late status for this date/session
+        already_present = ApiAttendance.objects.filter(
+            user=student,
+            date=session_date,
+        ).filter(Q(session=session) | Q(status__in=['present', 'late'])).exists()
+
+        if not already_present:
+            existing_record = ApiAttendance.objects.filter(user=student, date=session_date).first()
+            if not existing_record:
+                ApiAttendance.objects.create(
+                    user=student,
+                    role='student',
+                    date=session_date,
+                    status='absent',
+                    tutor=tutor,
+                    aral_activity=session.aral_activity,
+                    session=session,
+                )
+            elif existing_record.status not in ['present', 'late']:
+                existing_record.status = 'absent'
+                existing_record.tutor = tutor
+                existing_record.session = session
+                existing_record.save(update_fields=['status', 'tutor', 'session'])
+
+
+def finalize_expired_student_sessions():
+    """
+    Checks for all active student sessions that have expired and marks unscanned students as absent.
+    """
+    now = timezone.now()
+    expired_sessions = ApiAttendanceSession.objects.filter(
+        session_type='student',
+        is_active=True,
+        expires_at__lte=now,
+    ).select_related('creator', 'aral_activity')
+
+    for session in expired_sessions:
+        finalize_session_absentees(session)
+        session.is_active = False
+        session.save(update_fields=['is_active'])
+
+
+class AttendanceSessionCloseView(APIView):
+    """
+    POST /api/academics/attendance/session/<uuid:session_id>/close/
+    Explicitly close an attendance session and finalize unscanned students as absent.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, session_id):
+        session = get_object_or_404(ApiAttendanceSession, id=session_id)
+        if session.creator != request.user and not request.user.is_superuser:
+            return Response({'error': 'Unauthorized to close this session.'}, status=status.HTTP_403_FORBIDDEN)
+
+        session.is_active = False
+        session.save(update_fields=['is_active'])
+        finalize_session_absentees(session)
+
+        return Response({
+            'message': 'Attendance session closed. Unscanned students marked as absent.',
+            'session': AttendanceSessionSerializer(session).data,
+        }, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------------------------
@@ -434,6 +532,10 @@ class AttendanceScanView(APIView):
             return Response({'error': 'Invalid session ID.'}, status=status.HTTP_404_NOT_FOUND)
 
         if not session.is_active or timezone.now() > session.expires_at:
+            if session.is_active and session.session_type == 'student':
+                finalize_session_absentees(session)
+                session.is_active = False
+                session.save(update_fields=['is_active'])
             return Response({'error': 'QR code has expired.'}, status=status.HTTP_400_BAD_REQUEST)
 
         today = timezone.localdate()
@@ -581,16 +683,23 @@ class AttendanceHistoryView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        finalize_expired_student_sessions()
         user = self.request.user
         qs   = ApiAttendance.objects.select_related('user', 'tutor', 'aral_activity', 'session').all()
 
-        date_param    = self.request.query_params.get('date')
-        role_param    = self.request.query_params.get('role')
-        status_param  = self.request.query_params.get('status')
-        user_id_param = self.request.query_params.get('user_id')
+        date_param      = self.request.query_params.get('date')
+        date_from_param = self.request.query_params.get('date_from')
+        date_to_param   = self.request.query_params.get('date_to')
+        role_param      = self.request.query_params.get('role')
+        status_param    = self.request.query_params.get('status')
+        user_id_param   = self.request.query_params.get('user_id')
 
         if date_param:
             qs = qs.filter(date=date_param)
+        if date_from_param:
+            qs = qs.filter(date__gte=date_from_param)
+        if date_to_param:
+            qs = qs.filter(date__lte=date_to_param)
         if role_param:
             qs = qs.filter(role=role_param)
         if status_param:
@@ -608,6 +717,59 @@ class AttendanceHistoryView(generics.ListAPIView):
         if user.role in ('faculty', 'admin'):
             return qs.filter(user=user)
         return qs.none()
+
+
+class AttendanceDetailView(generics.RetrieveUpdateAPIView):
+    """
+    PATCH /api/academics/attendance/<id>/
+    Tutors can update attendance records for their assigned students.
+    """
+    serializer_class = AttendanceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = ApiAttendance.objects.select_related('user', 'tutor', 'aral_activity', 'session').all()
+    lookup_field = 'id'
+    editable_fields = {'date', 'status', 'time_in', 'time_out'}
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or user.role in ('principal', 'admin', 'faculty'):
+            return self.queryset
+        if user.role == 'tutor':
+            assigned_ids = user.assigned_students.values_list('id', flat=True)
+            return self.queryset.filter(user_id__in=assigned_ids)
+        if user.role == 'student':
+            return self.queryset.filter(user=user)
+        return self.queryset.none()
+
+    def perform_update(self, serializer):
+        attendance = serializer.instance
+        before = {
+            'date': str(attendance.date),
+            'status': attendance.status,
+            'time_in': str(attendance.time_in) if attendance.time_in else None,
+            'time_out': str(attendance.time_out) if attendance.time_out else None,
+        }
+        for field in set(serializer.validated_data) - self.editable_fields:
+            serializer.validated_data.pop(field)
+        updated = serializer.save()
+        after = {
+            'date': str(updated.date),
+            'status': updated.status,
+            'time_in': str(updated.time_in) if updated.time_in else None,
+            'time_out': str(updated.time_out) if updated.time_out else None,
+        }
+        log_audit_event(
+            'ATTENDANCE_UPDATED',
+            user=self.request.user,
+            request=self.request,
+            details={
+                'attendance_id': updated.id,
+                'student_id': str(updated.user_id),
+                'student_name': updated.user.get_full_name(),
+                'before': before,
+                'after': after,
+            },
+        )
 
 
 # ---------------------------------------------------------------------------
