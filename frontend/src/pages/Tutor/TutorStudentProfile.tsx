@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
 import type { StudentAcademicProfile, Grade, Attendance } from '../../types';
+import { getRiskAvatarClass } from '../../utils/analyticsHelpers';
 import {
   ArrowLeft,
   GraduationCap,
@@ -570,7 +571,7 @@ export const TutorStudentProfile: React.FC = () => {
       <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 space-y-5">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
           <div className="flex items-center gap-4">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-extrabold shadow-sm shrink-0 ${avatarColor(profile.student.name)}`}>
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-extrabold shadow-sm shrink-0 ${getRiskAvatarClass(riskTier)}`}>
               {getInitials(profile.student.name)}
             </div>
             <div>

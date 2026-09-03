@@ -218,7 +218,7 @@ export const UserList: React.FC = () => {
           </div>
           <button
             type="submit"
-            className="bg-gray-900 hover:bg-gray-800 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer"
+            className="bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white px-5 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer shadow-xs"
           >
             Search
           </button>
@@ -241,7 +241,7 @@ export const UserList: React.FC = () => {
                 onClick={() => { setRoleFilter(tab.id); setPage(1); }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   roleFilter === tab.id
-                    ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] border border-[var(--brand)]'
+                    ? 'bg-[var(--brand-light)] text-[var(--brand-text)] border border-[var(--brand)]'
                     : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
                 }`}
               >

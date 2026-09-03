@@ -321,7 +321,7 @@ export const StudentHome: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Attendance Rate */}
         <div
-          className="p-5 rounded-2xl flex items-center justify-between transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_rgba(7,187,71,0.25)]"
+          className="p-5 rounded-2xl flex items-center justify-between transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_var(--brand-glow)]"
           style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-sm)' }}
         >
           <div>
@@ -337,7 +337,7 @@ export const StudentHome: React.FC = () => {
 
         {/* Average Score */}
         <div
-          className="p-5 rounded-2xl flex items-center justify-between transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_rgba(7,187,71,0.25)]"
+          className="p-5 rounded-2xl flex items-center justify-between transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_var(--brand-glow)]"
           style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-sm)' }}
         >
           <div>

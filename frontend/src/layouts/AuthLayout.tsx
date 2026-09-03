@@ -20,7 +20,7 @@ export const AuthLayout: React.FC = () => {
           maxWidth: '500px',
           maxHeight: '500px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(16,185,129,0.12) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, var(--brand-glow) 0%, transparent 70%)',
           animation: 'orb-drift 18s ease-in-out infinite',
           pointerEvents: 'none',
         }}
@@ -36,7 +36,7 @@ export const AuthLayout: React.FC = () => {
           maxWidth: '450px',
           maxHeight: '450px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(5,150,105,0.09) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, var(--brand-light) 0%, transparent 70%)',
           animation: 'orb-drift 22s ease-in-out infinite reverse',
           pointerEvents: 'none',
         }}

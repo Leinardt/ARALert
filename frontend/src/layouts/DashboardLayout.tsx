@@ -140,13 +140,35 @@ export const DashboardLayout: React.FC = () => {
     `sidebar-item ${active ? 'active' : ''}`;
 
   const studentNoteStyle = (riskLevel: AcademicRisk['risk_level']) => {
+    const isDark = theme === 'dark';
     if (riskLevel === 'high') {
-      return { background: '#FFF5F5', border: '#FECACA', label: '#991B1B', text: '#7F1D1D', button: '#DC2626', acknowledged: '#B91C1C' };
+      return {
+        background: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
+        border: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FECACA',
+        label: isDark ? '#FDA4AF' : '#991B1B',
+        text: isDark ? '#FECDD3' : '#7F1D1D',
+        button: '#E11D48',
+        acknowledged: isDark ? '#FDA4AF' : '#DC2626',
+      };
     }
     if (riskLevel === 'medium') {
-      return { background: '#FFFBEB', border: '#FDE68A', label: '#92400E', text: '#78350F', button: '#D97706', acknowledged: '#B45309' };
+      return {
+        background: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FFFBEB',
+        border: isDark ? 'rgba(245, 158, 11, 0.25)' : '#FDE68A',
+        label: isDark ? '#FCD34D' : '#92400E',
+        text: isDark ? '#FDE68A' : '#78350F',
+        button: '#D97706',
+        acknowledged: isDark ? '#FBBF24' : '#B45309',
+      };
     }
-    return { background: '#ECFDF5', border: '#A7F3D0', label: '#065F46', text: '#064E3B', button: '#059669', acknowledged: '#047857' };
+    return {
+      background: isDark ? 'rgba(46, 158, 68, 0.12)' : '#E6F4E7',
+      border: isDark ? 'rgba(46, 158, 68, 0.25)' : '#A3DBA6',
+      label: isDark ? '#68D391' : '#046307',
+      text: isDark ? '#A3DBA6' : '#034E05',
+      button: '#046307',
+      acknowledged: isDark ? '#48BB78' : '#035206',
+    };
   };
 
   const fetchRiskStudents = async () => {
@@ -799,18 +821,18 @@ export const DashboardLayout: React.FC = () => {
                       <div style={{ background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)', borderRadius: '12px', padding: '0.875rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                           <div>
-                            <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>High Risk</p>
+                            <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: theme === 'dark' ? '#F87171' : '#991B1B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>High Risk</p>
                           </div>
-                          <span style={{ background: '#FEE2E2', color: '#991B1B', fontSize: '0.7rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid #FECACA' }}>
+                          <span style={{ background: theme === 'dark' ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2', color: theme === 'dark' ? '#FCA5A5' : '#991B1B', fontSize: '0.7rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: `1px solid ${theme === 'dark' ? 'rgba(239, 68, 68, 0.4)' : '#FECACA'}` }}>
                             {highRiskStudents.length}
                           </span>
                         </div>
                         {highRiskStudents.length === 0 ? (
-                          <p style={{ fontSize: '0.8rem', color: '#EF4444', margin: 0 }}>No high-risk students detected.</p>
+                          <p style={{ fontSize: '0.8rem', color: theme === 'dark' ? '#F87171' : '#EF4444', margin: 0 }}>No high-risk students detected.</p>
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             {highRiskStudents.map((row) => (
-                              <div key={`high-${row.student.id}`} style={{ background: 'var(--surface-card)', border: '1px solid #FECACA', borderRadius: '10px', padding: '0.65rem 0.75rem' }}>
+                              <div key={`high-${row.student.id}`} style={{ background: 'var(--surface-card)', border: `1px solid ${theme === 'dark' ? 'rgba(239, 68, 68, 0.35)' : '#FECACA'}`, borderRadius: '10px', padding: '0.65rem 0.75rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
                                   <div>
                                     <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{row.student.full_name}</p>
@@ -823,7 +845,7 @@ export const DashboardLayout: React.FC = () => {
                                       </div>
                                     )}
                                   </div>
-                                  <span style={{ background: '#FEE2E2', color: '#991B1B', fontSize: '0.62rem', fontWeight: 800, borderRadius: '6px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0 }}>HIGH</span>
+                                  <span style={{ background: theme === 'dark' ? 'rgba(239, 68, 68, 0.25)' : '#FEE2E2', color: theme === 'dark' ? '#FCA5A5' : '#991B1B', fontSize: '0.62rem', fontWeight: 800, borderRadius: '6px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0 }}>HIGH</span>
                                 </div>
                                 <button
                                   type="button"

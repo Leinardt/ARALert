@@ -83,7 +83,7 @@ export const FacultyHome: React.FC = () => {
             <h1 className="mt-1 text-2xl font-semibold text-slate-900">Welcome back, {user?.full_name || 'Faculty'}</h1>
             <p className="mt-1 text-sm text-slate-600">Track your current profile and attendance trend in a single concise view.</p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-light)] px-3 py-2 text-sm font-semibold text-[var(--brand-dark)]">
+          <div className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-light)] px-3 py-2 text-sm font-semibold text-[var(--brand-text)]">
             <UsersRound className="h-4 w-4" />
             {facultyType}
           </div>
@@ -93,7 +93,7 @@ export const FacultyHome: React.FC = () => {
       <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-[var(--brand-light)] p-2.5 text-[var(--brand-dark)]">
+            <div className="rounded-xl bg-[var(--brand-light)] p-2.5 text-[var(--brand-text)]">
               <Activity className="h-5 w-5" />
             </div>
             <div>
@@ -120,7 +120,7 @@ export const FacultyHome: React.FC = () => {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-[var(--brand-dark)]" />
+          <BarChart3 className="h-5 w-5 text-[var(--brand-text)]" />
           <h2 className="text-lg font-semibold text-slate-900">Your attendance trend</h2>
         </div>
 

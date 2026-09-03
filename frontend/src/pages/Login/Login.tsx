@@ -161,22 +161,29 @@ export const Login: React.FC = () => {
   };
 
   return (
-      <main style={{
-        flex: 1,
+    <div
+      style={{
+        minHeight: 'calc(100vh - 64px)',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '48px 16px',
-      }}>
-        <div style={{
+        padding: '64px 20px 96px',
+        boxSizing: 'border-box',
+      }}
+    >
+      <div
+        style={{
           width: '100%',
-          maxWidth: loginType === 'select' ? '600px' : '480px',
+          maxWidth: loginType === 'select' ? '560px' : '440px',
           margin: '0 auto',
           transition: 'max-width 0.3s ease',
-        }}>
-          {/* Session expired alert */}
-          {isSessionExpired && (
-            <div style={{
+        }}
+      >
+        {/* Session expired alert */}
+        {isSessionExpired && (
+          <div
+            style={{
               marginBottom: '20px',
               background: 'var(--color-warning-bg)',
               border: '1px solid var(--color-warning-border)',
@@ -187,157 +194,170 @@ export const Login: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
-            }}>
-              <AlertCircle style={{ width: '18px', height: '18px', color: 'var(--color-warning)', flexShrink: 0 }} />
-              <span>Your session has expired. Please log in again to continue.</span>
-            </div>
-          )}
+            }}
+          >
+            <AlertCircle style={{ width: '18px', height: '18px', color: 'var(--color-warning)', flexShrink: 0 }} />
+            <span>Your session has expired. Please log in again to continue.</span>
+          </div>
+        )}
 
-          {/* Server error alert */}
-          {serverError && (
-            <div style={{
+        {/* Server error alert */}
+        {serverError && (
+          <div
+            style={{
               marginBottom: '20px',
               background: 'var(--color-danger-bg)',
               border: '1px solid var(--color-danger-border)',
-              color: '#dc2626',
+              color: 'var(--color-danger)',
               fontSize: '13px',
               borderRadius: '12px',
               padding: '14px 16px',
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
-            }}>
-              <AlertCircle style={{ width: '18px', height: '18px', color: '#dc2626', flexShrink: 0 }} />
-              <span>{serverError}</span>
-            </div>
-          )}
+            }}
+          >
+            <AlertCircle style={{ width: '18px', height: '18px', color: 'var(--color-danger)', flexShrink: 0 }} />
+            <span>{serverError}</span>
+          </div>
+        )}
 
-          {/* ── Card ──────────────────────────────────────────────────────── */}
-          <div style={{
+        {/* ── Card ──────────────────────────────────────────────────────── */}
+        <div
+          style={{
             background: 'var(--surface-card)',
             borderRadius: '24px',
             border: '1px solid var(--slate-200)',
             boxShadow: 'var(--shadow-xl)',
             overflow: 'hidden',
-          }}>
-            {/* Card Header */}
-            <div style={{
+          }}
+        >
+          {/* Card Header */}
+          <div
+            style={{
               padding: '36px 36px 0',
               textAlign: 'center',
-            }}>
-              {loginType !== 'select' && (
-                <button
-                  onClick={handleBack}
-                  type="button"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: 'var(--brand-dark)',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    background: 'var(--brand-light)',
-                    border: '1px solid var(--brand-border)',
-                    cursor: 'pointer',
-                    padding: '6px 14px',
-                    borderRadius: '99px',
-                    marginBottom: '16px',
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--surface-muted)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'var(--brand-light)';
-                  }}
-                >
-                  <ArrowLeft style={{width: '15px', height: '15px' }} />
-                  Back to options
-                </button>
-              )}
+            }}
+          >
+            {loginType !== 'select' && (
+              <button
+                onClick={handleBack}
+                type="button"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  color: 'var(--brand)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  background: 'var(--brand-light)',
+                  border: '1px solid var(--brand-border)',
+                  cursor: 'pointer',
+                  padding: '6px 14px',
+                  borderRadius: '99px',
+                  marginBottom: '16px',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--surface-muted)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'var(--brand-light)';
+                }}
+              >
+                <ArrowLeft style={{ width: '15px', height: '15px' }} />
+                Back to options
+              </button>
+            )}
 
-              <div style={{
+            <div
+              style={{
                 width: '56px',
                 height: '56px',
                 borderRadius: '16px',
-                background: loginType === 'student' ? 'var(--color-warning-bg)' : 'var(--brand-light)',
-                border: loginType === 'student' ? '1px solid var(--color-warning-border)' : '1px solid var(--brand-border)',
+                background: 'var(--brand-light)',
+                border: '1px solid var(--brand-border)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 margin: '0 auto 16px',
-              }}>
-                {loginType === 'student' ? (
-                  <GraduationCap style={{ width: '28px', height: '28px', color: '#B45309' }} />
-                ) : loginType === 'staff' ? (
-                  <Shield style={{ width: '28px', height: '28px', color: 'var(--brand)' }} />
-                ) : (
-                  <BookOpen style={{ width: '28px', height: '28px', color: 'var(--brand)' }} />
-                )}
-              </div>
+              }}
+            >
+              {loginType === 'student' ? (
+                <GraduationCap style={{ width: '28px', height: '28px', color: 'var(--brand)' }} />
+              ) : loginType === 'staff' ? (
+                <Shield style={{ width: '28px', height: '28px', color: 'var(--brand)' }} />
+              ) : (
+                <BookOpen style={{ width: '28px', height: '28px', color: 'var(--brand)' }} />
+              )}
+            </div>
 
-              <h1 style={{
+            <h1
+              style={{
                 fontSize: loginType === 'select' ? '24px' : '22px',
                 fontWeight: 800,
                 color: 'var(--text-primary)',
                 margin: '0 0 6px',
                 letterSpacing: '-0.3px',
                 fontFamily: 'var(--font-heading)',
-              }}>
-                {loginType === 'select' && 'Sign In Options'}
-                {loginType === 'staff' && 'Staff Google Login'}
-                {loginType === 'student' && 'Student Login'}
-              </h1>
-              <p style={{
+              }}
+            >
+              {loginType === 'select' && 'Sign In Options'}
+              {loginType === 'staff' && 'Staff Google Login'}
+              {loginType === 'student' && 'Student Login'}
+            </h1>
+            <p
+              style={{
                 fontSize: '14px',
                 color: 'var(--text-secondary)',
                 margin: '0 0 28px',
-              }}>
-                {loginType === 'select' && 'Select your portal to access the ARALert system.'}
-                {loginType === 'staff' && 'Sign in using your pre-registered Google account.'}
-                {loginType === 'student' && 'Enter your 12-digit Learner Reference Number to continue.'}
-              </p>
-            </div>
+              }}
+            >
+              {loginType === 'select' && 'Select your portal to access the ARALert system.'}
+              {loginType === 'staff' && 'Sign in using your pre-registered Google account.'}
+              {loginType === 'student' && 'Enter your 12-digit Learner Reference Number to continue.'}
+            </p>
+          </div>
 
-            {/* Card Body */}
-            <div style={{ padding: '0 36px 36px' }}>
-
-              {/* ── Option Cards ────────────────────────────────────────── */}
-              {loginType === 'select' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {/* Staff Google Login Option */}
-                  <button
-                    type="button"
-                    onClick={() => { setLoginType('staff'); setServerError(null); }}
+          {/* Card Body */}
+          <div style={{ padding: '0 36px 36px' }}>
+            {/* ── Option Cards ────────────────────────────────────────── */}
+            {loginType === 'select' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Staff Google Login Option */}
+                <button
+                  type="button"
+                  onClick={() => { setLoginType('staff'); setServerError(null); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '18px',
+                    padding: '20px 22px',
+                    borderRadius: '18px',
+                    border: '1.5px solid var(--slate-200)',
+                    background: 'var(--surface-card)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s ease',
+                    width: '100%',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--brand)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                    e.currentTarget.style.background = 'var(--surface-muted)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--slate-200)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.background = 'var(--surface-card)';
+                  }}
+                >
+                  <div
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '18px',
-                      padding: '22px 24px',
-                      borderRadius: '18px',
-                      border: '2px solid var(--slate-200)',
-                      background: 'var(--surface-card)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      transition: 'all 0.25s ease',
-                      width: '100%',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--brand)';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-                      e.currentTarget.style.background = 'var(--surface-muted)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--slate-200)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                      e.currentTarget.style.background = 'var(--surface-card)';
-                    }}
-                  >
-                    <div style={{
-                      width: '52px',
-                      height: '52px',
+                      width: '50px',
+                      height: '50px',
                       borderRadius: '14px',
                       background: 'var(--brand-light)',
                       border: '1px solid var(--brand-border)',
@@ -345,91 +365,94 @@ export const Login: React.FC = () => {
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
-                    }}>
-                      <Shield style={{ width: '26px', height: '26px', color: 'var(--brand-dark)' }} />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                        Faculty, Principal, & Tutor Login
-                      </div>
-                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                        Sign in using your pre-registered Google account.
-                      </div>
-                    </div>
-                  </button>
-
-                  {/* Student Login Option */}
-                  <button
-                    type="button"
-                    onClick={() => { setLoginType('student'); setServerError(null); }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '18px',
-                      padding: '22px 24px',
-                      borderRadius: '18px',
-                      border: '2px solid var(--slate-200)',
-                      background: 'var(--surface-card)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      transition: 'all 0.25s ease',
-                      width: '100%',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = '#F59E0B';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-                      e.currentTarget.style.background = 'var(--surface-muted)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--slate-200)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                      e.currentTarget.style.background = 'var(--surface-card)';
                     }}
                   >
-                    <div style={{
-                      width: '52px',
-                      height: '52px',
+                    <Shield style={{ width: '24px', height: '24px', color: 'var(--brand)' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', marginBottom: '3px' }}>
+                      Staff & Faculty Portal
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                      Sign in using your pre-registered Google account (Principal, Admin, Tutor, Faculty).
+                    </div>
+                  </div>
+                </button>
+
+                {/* Student Login Option */}
+                <button
+                  type="button"
+                  onClick={() => { setLoginType('student'); setServerError(null); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '18px',
+                    padding: '20px 22px',
+                    borderRadius: '18px',
+                    border: '1.5px solid var(--slate-200)',
+                    background: 'var(--surface-card)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s ease',
+                    width: '100%',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--brand)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                    e.currentTarget.style.background = 'var(--surface-muted)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--slate-200)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.background = 'var(--surface-card)';
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '50px',
+                      height: '50px',
                       borderRadius: '14px',
-                      background: 'var(--color-warning-bg)',
-                      border: '1px solid var(--color-warning-border)',
+                      background: 'var(--brand-light)',
+                      border: '1px solid var(--brand-border)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
-                    }}>
-                      <GraduationCap style={{ width: '26px', height: '26px', color: '#B45309' }} />
+                    }}
+                  >
+                    <GraduationCap style={{ width: '24px', height: '24px', color: 'var(--brand)' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', marginBottom: '3px' }}>
+                      Student Learner Portal
                     </div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                        Student Login Portal
-                      </div>
-                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                        Sign in using your 12-digit LRN.
-                      </div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                      Sign in directly with your 12-digit Learner Reference Number (LRN).
                     </div>
-                  </button>
-                </div>
-              )}
+                  </div>
+                </button>
+              </div>
+            )}
 
-              {/* ── Staff Google Login ───────────────────────────────────── */}
-              {loginType === 'staff' && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+            {/* ── Staff Google Login ───────────────────────────────────── */}
+            {loginType === 'staff' && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+                {/* Render Google Sign-In Button */}
+                <div
+                  ref={googleBtnRef}
+                  style={{ minHeight: '50px', display: 'flex', justifyContent: 'center', width: '100%' }}
+                />
 
-                  {/* Render Google Sign-In Button */}
-                  <div
-                    ref={googleBtnRef}
-                    style={{ minHeight: '50px', display: 'flex', justifyContent: 'center', width: '100%' }}
-                  />
+                {googleLoading && (
+                  <div style={{ fontSize: '14px', color: 'var(--brand)', fontWeight: 600 }}>
+                    Authenticating with Google...
+                  </div>
+                )}
 
-                  {googleLoading && (
-                    <div style={{ fontSize: '14px', color: 'var(--brand)', fontWeight: 600 }}>
-                      Authenticating with Google...
-                    </div>
-                  )}
-
-                  <div style={{
+                <div
+                  style={{
                     fontSize: '12px',
                     color: 'var(--text-muted)',
                     textAlign: 'center',
@@ -437,102 +460,104 @@ export const Login: React.FC = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '4px',
+                    gap: '6px',
                     background: 'var(--surface-muted)',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
                     border: '1px solid var(--slate-200)',
-                  }}>
-                    <Info style={{ width: '14px', height: '14px', color: 'var(--brand)', flexShrink: 0 }} />
-                    Only registered Google accounts in ARALert are permitted to log in.
-                  </div>
+                    lineHeight: '1.4',
+                  }}
+                >
+                  <Info style={{ width: '14px', height: '14px', color: 'var(--brand)', flexShrink: 0 }} />
+                  <span>Only authorized DepEd / ARALert accounts are permitted to access.</span>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* ── Student Login Form (LRN only) ────────────────────────── */}
-              {loginType === 'student' && (
-                <form onSubmit={studentForm.handleSubmit(onStudentSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div>
-                    <label htmlFor="lrn" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                      Learner Reference Number (LRN) <span style={{ color: '#dc2626' }}>*</span>
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <Hash style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '18px', color: 'var(--text-muted)' }} />
-                      <input
-                        id="lrn"
-                        type="text"
-                        placeholder="12-digit LRN"
-                        maxLength={12}
-                        {...studentForm.register('lrn')}
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px 12px 42px',
-                          border: `1.5px solid ${studentForm.formState.errors.lrn ? '#fca5a5' : 'var(--slate-200)'}`,
-                          borderRadius: '12px',
-                          fontSize: '14px',
-                          outline: 'none',
-                          transition: 'border-color 0.2s, box-shadow 0.2s',
-                          background: 'var(--surface-muted)',
-                          color: 'var(--text-primary)',
-                          boxSizing: 'border-box',
-                          letterSpacing: '1px',
-                        }}
-                        onFocus={(e) => {
-                          e.currentTarget.style.borderColor = 'var(--brand)';
-                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.15)';
-                          e.currentTarget.style.background = 'var(--surface-card)';
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.borderColor = studentForm.formState.errors.lrn ? '#fca5a5' : 'var(--slate-200)';
-                          e.currentTarget.style.boxShadow = 'none';
-                          e.currentTarget.style.background = 'var(--surface-muted)';
-                        }}
-                      />
-                    </div>
-                    {studentForm.formState.errors.lrn && (
-                      <p style={{ marginTop: '4px', fontSize: '12px', color: '#dc2626' }}>{studentForm.formState.errors.lrn.message}</p>
-                    )}
-                    <p style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>12-digit official number issued by DepEd.</p>
+            {/* ── Student Login Form (LRN only) ────────────────────────── */}
+            {loginType === 'student' && (
+              <form onSubmit={studentForm.handleSubmit(onStudentSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label htmlFor="lrn" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                    Learner Reference Number (LRN) <span style={{ color: 'var(--color-danger)' }}>*</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <Hash style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '18px', color: 'var(--text-muted)' }} />
+                    <input
+                      id="lrn"
+                      type="text"
+                      placeholder="Enter 12-digit LRN"
+                      maxLength={12}
+                      {...studentForm.register('lrn')}
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px 12px 42px',
+                        border: `1.5px solid ${studentForm.formState.errors.lrn ? 'var(--color-danger)' : 'var(--slate-200)'}`,
+                        borderRadius: '12px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        transition: 'border-color 0.2s, box-shadow 0.2s',
+                        background: 'var(--surface-muted)',
+                        color: 'var(--text-primary)',
+                        boxSizing: 'border-box',
+                        letterSpacing: '1px',
+                        fontFamily: 'var(--font-body)',
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--brand)';
+                        e.currentTarget.style.boxShadow = '0 0 0 3px var(--brand-glow)';
+                        e.currentTarget.style.background = 'var(--surface-card)';
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = studentForm.formState.errors.lrn ? 'var(--color-danger)' : 'var(--slate-200)';
+                        e.currentTarget.style.boxShadow = 'none';
+                        e.currentTarget.style.background = 'var(--surface-muted)';
+                      }}
+                    />
                   </div>
+                  {studentForm.formState.errors.lrn && (
+                    <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--color-danger)' }}>{studentForm.formState.errors.lrn.message}</p>
+                  )}
+                  <p style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>Official 12-digit number issued by the Department of Education.</p>
+                </div>
 
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    style={{
-                      width: '100%',
-                      padding: '14px',
-                      background: isSubmitting ? 'var(--slate-400)' : 'var(--brand)',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '12px',
-                      fontSize: '15px',
-                      fontWeight: 700,
-                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.2s',
-                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.25)',
-                      marginTop: '8px',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSubmitting) {
-                        e.currentTarget.style.background = 'var(--brand-hover)';
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSubmitting) {
-                        e.currentTarget.style.background = 'var(--brand)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }
-                    }}
-                  >
-                    {isSubmitting ? 'Signing in...' : 'Sign In as Student'}
-                  </button>
-                </form>
-              )}
-
-            </div>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  style={{
+                    width: '100%',
+                    padding: '13px',
+                    background: isSubmitting ? 'var(--slate-400)' : 'var(--brand)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    boxShadow: 'var(--shadow-brand)',
+                    marginTop: '6px',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSubmitting) {
+                      e.currentTarget.style.background = 'var(--brand-hover)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSubmitting) {
+                      e.currentTarget.style.background = 'var(--brand)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }
+                  }}
+                >
+                  {isSubmitting ? 'Signing in...' : 'Sign In as Student'}
+                </button>
+              </form>
+            )}
           </div>
         </div>
-      </main>
-    );
+      </div>
+    </div>
+  );
 };

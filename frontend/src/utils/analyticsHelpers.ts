@@ -8,10 +8,23 @@ export interface StudentRiskRow {
   riskTier: string;
 }
 
-const getRiskTier = (score: number) => {
+export const getRiskTier = (score: number) => {
   if (score >= 86) return 'Low';
   if (score >= 70) return 'Medium';
   return 'High';
+};
+
+export const getRiskAvatarClass = (riskTier?: string | null): string => {
+  switch (riskTier?.toLowerCase()) {
+    case 'high':
+      return 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800/50';
+    case 'medium':
+    case 'moderate':
+      return 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/50';
+    case 'low':
+    default:
+      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50';
+  }
 };
 
 const toArray = <T>(value: unknown): T[] => {

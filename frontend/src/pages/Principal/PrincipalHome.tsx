@@ -180,7 +180,7 @@ export const PrincipalHome: React.FC = () => {
           </select>
           <button
             onClick={fetchDashboardData}
-            className="inline-flex items-center bg-green-50 text-green-700 hover:bg-green-100 px-3 py-2 rounded-lg text-xs font-semibold border border-green-100 transition-colors"
+            className="inline-flex items-center bg-[var(--brand-light)] text-[var(--brand-text)] hover:bg-[var(--surface-muted)] px-3 py-2 rounded-lg text-xs font-semibold border border-[var(--brand-border)] transition-colors cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
             Refresh

@@ -946,7 +946,7 @@ export const TutorAnalytics: React.FC = () => {
             </div>
           </div>
           <div className="relative mt-6 h-56 w-full rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
-            <TrendChart data={attendanceTrend} color="#059669" emptyLabel="No attendance trend data" />
+            <TrendChart data={attendanceTrend} color="#046307" emptyLabel="No attendance trend data" />
           </div>
         </div>
         <div className="w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
@@ -999,7 +999,7 @@ export const TutorAnalytics: React.FC = () => {
             </div>
           </div>
           <div className="relative mt-6 h-56 w-full rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
-            <TrendChart data={scoreTrend} color="#059669" emptyLabel="No score trend data" />
+            <TrendChart data={scoreTrend} color="#046307" emptyLabel="No score trend data" />
           </div>
         </div>
         <div className="w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">

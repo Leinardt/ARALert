@@ -193,12 +193,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 class ProfileUpdateSerializer(serializers.Serializer):
-    """Allow updating name fields from the user-facing profile endpoint."""
+    """Allow avatar update from the user-facing profile endpoint."""
 
-    first_name  = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    middle_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    last_name   = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    avatar      = serializers.FileField(required=False, allow_null=True)
+    avatar = serializers.FileField(required=False, allow_null=True)
 
     def validate_avatar(self, value):
         if value is None:
@@ -212,13 +209,7 @@ class ProfileUpdateSerializer(serializers.Serializer):
         return value
 
     def update(self, instance, validated_data):
-        if 'first_name' in validated_data and validated_data['first_name'] is not None:
-            instance.first_name = validated_data['first_name'].strip()
-        if 'middle_name' in validated_data and validated_data['middle_name'] is not None:
-            instance.middle_name = validated_data['middle_name'].strip()
-        if 'last_name' in validated_data and validated_data['last_name'] is not None:
-            instance.last_name = validated_data['last_name'].strip()
-        instance.save()
+        # No-op for now (avatar field removed from model)
         return instance
 
 

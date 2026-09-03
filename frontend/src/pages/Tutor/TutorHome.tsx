@@ -14,8 +14,7 @@ import {
   Meh,
   Frown,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { computeStudentRiskRows, type StudentRiskRow } from '../../utils/analyticsHelpers';
+import { computeStudentRiskRows, type StudentRiskRow, getRiskAvatarClass } from '../../utils/analyticsHelpers';
 import dashboardDarkActive from '../../assets/icons/dashboard_dark_active.png';
 import clockDark from '../../assets/icons/dtrlog_dark.png';
 import clockLight from '../../assets/icons/dtrlog_light.png';
@@ -547,7 +546,7 @@ export const TutorHome: React.FC = () => {
             <Link
               key={card.label}
               to={card.to}
-              className="group flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] dark:border-[#1A1A1A] dark:bg-[#0A0A0A] dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_rgba(7,187,71,0.25)]"
+              className="group flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] dark:border-[#1A1A1A] dark:bg-[#0A0A0A] dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_var(--brand-glow)]"
             >
               <div className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 ${card.iconBg}`}>
                 {iconImage ? (
@@ -700,7 +699,7 @@ export const TutorHome: React.FC = () => {
                       }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(s.student.full_name || '')}`}>
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${getRiskAvatarClass(s.riskTier)}`}>
                         {getInitials(s.student.full_name || '?')}
                       </div>
                       <div className="min-w-0">
