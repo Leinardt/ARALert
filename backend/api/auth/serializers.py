@@ -137,10 +137,36 @@ class StudentLoginSerializer(serializers.Serializer):
             entered_name = full_name.upper().strip()
 
         if entered_name:
-            db_name = user.get_full_name().strip()
-            entered_normalized = ' '.join(entered_name.lower().split())
-            db_normalized = ' '.join(db_name.lower().split())
-            if entered_normalized != db_normalized:
+            import re
+
+            def clean_tokens(s):
+                return ' '.join(re.sub(r'[^a-zA-Z0-9]', ' ', s).lower().split())
+
+            fn = user.first_name or ''
+            ln = user.last_name or ''
+            mn = user.middle_name or ''
+            mi = mn[0] if mn else ''
+
+            candidates = [
+                f"{fn} {ln}",
+                f"{fn} {mn} {ln}",
+                f"{fn} {mi} {ln}",
+                f"{ln} {fn}",
+                f"{ln} {fn} {mn}",
+                f"{ln} {fn} {mi}",
+                user.get_full_name(),
+            ]
+            valid_normalizations = {
+                clean_tokens(c) for c in candidates if c.strip()
+            }
+            valid_normalizations.update({
+                ' '.join(c.lower().split()) for c in candidates if c.strip()
+            })
+
+            entered_clean = clean_tokens(entered_name)
+            entered_collapsed = ' '.join(entered_name.lower().split())
+
+            if entered_clean not in valid_normalizations and entered_collapsed not in valid_normalizations:
                 raise serializers.ValidationError('Invalid name or LRN. Please try again.')
 
         if not user.is_active:

@@ -90,6 +90,9 @@ class UserListCreateView(generics.ListCreateAPIView):
         queryset = User.objects.filter(is_superuser=False)
 
         if not self.request.user.is_superuser and self.request.user.role == 'tutor':
+            role = self.request.query_params.get('role', '').strip()
+            if role == 'principal':
+                return queryset.filter(role='principal', is_active=True)
             return queryset.filter(assigned_tutor=self.request.user, role='student')
 
         role = self.request.query_params.get('role', '').strip()

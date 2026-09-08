@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
@@ -8,6 +8,19 @@ export const PublicLayout: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
+
+  const isLanding = location.pathname === '/';
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!isLanding) return;
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 25);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isLanding]);
 
   const getDashboardLink = () => {
     if (!user) return '/login';
@@ -30,71 +43,130 @@ export const PublicLayout: React.FC = () => {
   const logoSrc = '/src/assets/ARALert_Logo_LIGHT.png';
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--surface-bg)] text-[var(--text-primary)] font-sans">
-      {/* ── Top Navigation Header ── */}
-      <header className="sticky top-0 z-50 bg-[var(--glass-bg)] backdrop-blur-md border-b border-[var(--slate-200)] shadow-xs">
-        <div className="max-w-6xl mx-auto px-6 h-16 grid grid-cols-3 items-center">
-          {/* Logo / Brand */}
-          <div className="flex items-center justify-start">
-            <Link
-              to="/"
-              className="flex items-center gap-2.5 text-decoration-none group"
-              onClick={(e) => handleNavClick(e, 'home')}
-            >
+    <div
+      className="min-h-screen flex flex-col font-sans bg-[var(--surface-bg)] text-[var(--text-primary)] relative"
+      style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+    >
+      {/* ── Dynamic Navbar ── */}
+      {isLanding ? (
+        <div
+          className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 pointer-events-none ${
+            isScrolled ? 'pt-4' : 'pt-2'
+          }`}
+        >
+          <header
+            className={`pointer-events-auto mx-auto transition-all duration-300 ${
+              isScrolled
+                ? 'w-[92%] max-w-5xl bg-white/25 dark:bg-slate-900/35 backdrop-blur-2xl border border-white/40 dark:border-white/15 rounded-2xl px-5 sm:px-6 h-14 shadow-[0_8px_32px_0_rgba(0,0,0,0.18)] flex items-center justify-between text-[var(--text-primary)]'
+                : 'w-full max-w-7xl px-6 sm:px-10 h-18 bg-transparent border-transparent shadow-none flex items-center justify-between text-[var(--text-primary)]'
+            }`}
+          >
+            {/* Left: Logo & Brand + "/" Divider + Navigation links */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              <Link
+                to="/"
+                className="flex items-center gap-2 text-decoration-none group px-2 py-1.5 rounded-xl hover:bg-white/[0.15] dark:hover:bg-white/[0.1] hover:backdrop-blur-md transition-all duration-200"
+                onClick={(e) => handleNavClick(e, 'home')}
+              >
+                <img
+                  src={logoSrc}
+                  alt="ARALert logo"
+                  className="w-7 h-7 object-contain transition-transform duration-200 group-hover:scale-105"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                <span className="text-xs sm:text-sm font-semibold tracking-tight text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] dark:text-slate-300 dark:group-hover:text-white transition-colors">
+                  ARALert
+                </span>
+              </Link>
+
+              {/* Slash Divider between ARALert and Home */}
+              <span className="text-slate-400/70 dark:text-slate-500/70 font-light text-sm select-none">
+                /
+              </span>
+
+              {/* Navigation links: Always on the left beside the logo with glassmorphism hover effect */}
+              <nav className="hidden md:flex items-center gap-1">
+                {[
+                  { label: 'Home', id: 'home', to: '/#home' },
+                  { label: 'About', id: 'about', to: '/#about' },
+                  { label: 'Features', id: 'features', to: '/#features' },
+                  { label: 'FAQ', id: 'faq', to: '/#faq' },
+                ].map((item) => (
+                  <a
+                    key={item.id}
+                    href={item.to}
+                    onClick={(e) => handleNavClick(e, item.id)}
+                    className="text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] dark:text-slate-300 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/[0.12] hover:backdrop-blur-md hover:border hover:border-white/40 dark:hover:border-white/20 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-transparent transition-all duration-200 cursor-pointer"
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </nav>
+            </div>
+
+            {/* Right: Dark mode toggle + Sign In / Dashboard button */}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 shadow-xs ${
+                  isScrolled
+                    ? 'border border-white/30 dark:border-white/10 bg-white/20 dark:bg-white/[0.05] text-[var(--text-secondary)] dark:text-slate-300 hover:text-[var(--text-primary)] dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/[0.1]'
+                    : 'border border-[var(--slate-200)] bg-[var(--surface-card)] text-[var(--text-secondary)] hover:bg-[var(--surface-muted)]'
+                }`}
+              >
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+
+              <Link
+                to={isAuthenticated ? getDashboardLink() : '/login'}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-bold text-xs sm:text-sm transition-all duration-150 shadow-xs hover:shadow-md"
+              >
+                <span>{isAuthenticated ? 'Dashboard' : 'Sign In'}</span>
+                <ArrowRight size={14} />
+              </Link>
+            </div>
+          </header>
+        </div>
+      ) : (
+        /* Standard Header for Login / other public routes */
+        <header className="sticky top-0 z-50 bg-[var(--glass-bg)] backdrop-blur-md border-b border-[var(--slate-200)] shadow-xs">
+          <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-2.5 text-decoration-none group">
               <img
                 src={logoSrc}
                 alt="ARALert logo"
-                className="w-8 h-8 object-contain transition-transform duration-200 group-hover:scale-105"
+                className="w-8 h-8 object-contain"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).style.display = 'none';
                 }}
               />
-              <span className="font-extrabold text-xl tracking-tight text-[var(--brand)] font-heading">
+              <span className="font-extrabold text-xl tracking-tight text-[var(--brand)]">
                 ARALert
               </span>
             </Link>
-          </div>
-
-          {/* Nav Links */}
-          <nav className="hidden md:flex items-center justify-center gap-1.5 justify-self-center">
-            {[
-              { label: 'Home', id: 'home', to: '/#home' },
-              { label: 'About', id: 'about', to: '/#about' },
-              { label: 'Features', id: 'features', to: '/#features' },
-              { label: 'FAQ', id: 'faq', to: '/#faq' },
-            ].map((item) => (
-              <a
-                key={item.id}
-                href={item.to}
-                onClick={(e) => handleNavClick(e, item.id)}
-                className="text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--brand)] hover:bg-[var(--surface-muted)] transition-all duration-150"
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="w-9 h-9 rounded-xl border border-[var(--slate-200)] bg-[var(--surface-card)] text-[var(--text-secondary)] flex items-center justify-center cursor-pointer"
               >
-                {item.label}
-              </a>
-            ))}
-          </nav>
-
-          {/* Right Actions */}
-          <div className="flex items-center justify-end gap-3 col-start-3">
-            <button
-              type="button"
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-              className="w-9 h-9 rounded-xl border border-[var(--slate-200)] bg-[var(--surface-card)] hover:bg-[var(--surface-muted)] flex items-center justify-center cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 shadow-xs"
-            >
-              {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-            </button>
-
-            <Link
-              to={isAuthenticated ? getDashboardLink() : '/login'}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-bold text-xs sm:text-sm transition-all duration-150 shadow-xs hover:shadow-md"
-            >
-              <span>{isAuthenticated ? 'Dashboard' : 'Sign In'}</span>
-              <ArrowRight size={15} />
-            </Link>
+                {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+              </button>
+              <Link
+                to={isAuthenticated ? getDashboardLink() : '/login'}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--brand)] text-white font-bold text-xs sm:text-sm"
+              >
+                <span>{isAuthenticated ? 'Dashboard' : 'Sign In'}</span>
+                <ArrowRight size={15} />
+              </Link>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* ── Main Content Area ── */}
       <main className="flex-1 flex flex-col">
@@ -102,7 +174,7 @@ export const PublicLayout: React.FC = () => {
       </main>
 
       {/* ── Footer ── */}
-      <footer className="bg-[var(--surface-card)] text-[var(--text-secondary)] border-t border-[var(--slate-200)]">
+      <footer className="bg-[var(--surface-card)] text-[var(--text-secondary)] border-t border-[var(--slate-200)] relative z-10">
         <div className="max-w-6xl mx-auto px-6 py-12">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
             {/* Col 1: Brand & DepEd Affiliation */}
@@ -118,7 +190,7 @@ export const PublicLayout: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                Student Performance Monitoring & Early Academic Risk Detection system for the Academic Recovery and Accessible Learning (ARAL) initiative.
+                Student Performance Monitoring &amp; Early Academic Risk Detection system for the Academic Recovery and Accessible Learning (ARAL) initiative.
               </p>
               <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] pt-1">
                 <School className="w-3.5 h-3.5 text-[var(--brand)]" />
@@ -212,3 +284,5 @@ export const PublicLayout: React.FC = () => {
     </div>
   );
 };
+
+export default PublicLayout;

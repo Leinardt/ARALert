@@ -26,8 +26,17 @@ import {
   Search,
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import type { Attendance, User } from '../../types';
+import type { Attendance, User, AttendanceSession } from '../../types';
 import { ExportAttendanceModal } from '../../components/ExportAttendanceModal';
+
+interface StoredSessionData {
+  session: AttendanceSession;
+  durationMinutes: number;
+  localExpiresAt: number;
+}
+
+const getStorageKey = (userId?: string | number) =>
+  userId ? `aralert_tutor_qr_session_${userId}` : null;
 
 const formatDateString = (value: string | null | undefined): string => {
   if (!value) return '—';
@@ -66,11 +75,7 @@ const formatTimeString = (value: string | null | undefined): string => {
   return value;
 };
 
-const getInitials = (name: string) => {
-  const parts = name.trim().split(' ');
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-};
+import { getStudentInitials as getInitials } from '../../utils/studentFormatters';
 
 const AVATAR_COLORS = [
   'bg-blue-100 text-blue-700',
@@ -507,7 +512,7 @@ export const TutorQRGenerator: React.FC = () => {
   const { user } = useAuth();
   const [students, setStudents] = useState<User[]>([]);
   const [expiresIn, setExpiresIn] = useState<number>(5);
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<AttendanceSession | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [scannedStudents, setScannedStudents] = useState<Attendance[]>([]);
   const [attendanceHistory, setAttendanceHistory] = useState<Attendance[]>([]);
@@ -596,7 +601,7 @@ export const TutorQRGenerator: React.FC = () => {
 
   // ── QR canvas render ───────────────────────────────────────────
   useEffect(() => {
-    if (session && canvasRef.current) {
+    if (session?.id && canvasRef.current) {
       QRCode.toCanvas(
         canvasRef.current,
         session.id,
@@ -614,7 +619,145 @@ export const TutorQRGenerator: React.FC = () => {
         }
       );
     }
-  }, [session]);
+  }, [session?.id, session?.is_active]);
+
+  // ── Polling & Timer helpers ────────────────────────────────────
+  const calcRemainingSeconds = (targetSession: AttendanceSession, localExpiresAt?: number) => {
+    if (localExpiresAt && localExpiresAt > 0) {
+      const diff = Math.floor((localExpiresAt - Date.now()) / 1000);
+      return Math.max(0, diff);
+    }
+    if (targetSession.expires_at) {
+      const diff = Math.floor((new Date(targetSession.expires_at).getTime() - Date.now()) / 1000);
+      return Math.max(0, diff);
+    }
+    return Math.max(0, targetSession.time_left || 0);
+  };
+
+  const startPolling = useCallback((sessionId: string) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const fetchLogs = async () => {
+      try {
+        const logs = await academicService.getAttendanceHistory({ date: todayStr });
+        setScannedStudents(logs.filter((log) => log.session === sessionId));
+      } catch (err) {
+        console.error('Error polling attendance logs:', err);
+      }
+    };
+    void fetchLogs();
+    pollRef.current = setInterval(fetchLogs, 3000);
+  }, []);
+
+  const startTimer = useCallback((targetSession: AttendanceSession, localExpiresAt?: number) => {
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    const initialRemaining = calcRemainingSeconds(targetSession, localExpiresAt);
+    setTimeLeft(initialRemaining);
+
+    timerRef.current = setInterval(() => {
+      const remaining = calcRemainingSeconds(targetSession, localExpiresAt);
+      setTimeLeft(remaining);
+
+      if (remaining <= 0) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (pollRef.current) clearInterval(pollRef.current);
+
+        const storageKey = getStorageKey(user?.id);
+        if (storageKey) {
+          localStorage.removeItem(storageKey);
+        }
+
+        if (targetSession.id) {
+          void academicService.closeAttendanceSession(targetSession.id).catch(() => {});
+        }
+
+        setSession((curr) => (curr ? { ...curr, is_active: false, time_left: 0 } : null));
+        void fetchAttendanceHistory();
+      }
+    }, 1000);
+  }, [user?.id, fetchAttendanceHistory]);
+
+  // ── Restore active QR session across page switch, browser reload, or re-login ──
+  useEffect(() => {
+    if (!user) return;
+    const storageKey = getStorageKey(user.id);
+    let isMounted = true;
+
+    // 1. Instant optimistic restore from localStorage if exists and not expired
+    if (storageKey) {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (raw) {
+          const parsed: StoredSessionData = JSON.parse(raw);
+          const remaining = calcRemainingSeconds(parsed.session, parsed.localExpiresAt);
+          if (parsed.session && parsed.session.is_active && remaining > 0) {
+            setSession(parsed.session);
+            setTimeLeft(remaining);
+            if (parsed.durationMinutes) {
+              setExpiresIn(parsed.durationMinutes);
+            }
+            startTimer(parsed.session, parsed.localExpiresAt);
+            startPolling(parsed.session.id);
+          } else {
+            localStorage.removeItem(storageKey);
+          }
+        }
+      } catch {
+        localStorage.removeItem(storageKey);
+      }
+    }
+
+    // 2. Query backend for authoritative active session
+    academicService.getActiveAttendanceSession('student')
+      .then((activeSession) => {
+        if (!isMounted) return;
+
+        if (activeSession && activeSession.is_active) {
+          const remaining = typeof activeSession.time_left === 'number'
+            ? activeSession.time_left
+            : calcRemainingSeconds(activeSession);
+
+          if (remaining > 0) {
+            const localExpiresAt = Date.now() + remaining * 1000;
+            setSession(activeSession);
+            setTimeLeft(remaining);
+
+            const durationMinutes = expiresIn || Math.max(5, Math.ceil(remaining / 60));
+            if (storageKey) {
+              localStorage.setItem(
+                storageKey,
+                JSON.stringify({
+                  session: activeSession,
+                  durationMinutes,
+                  localExpiresAt,
+                })
+              );
+            }
+
+            startTimer(activeSession, localExpiresAt);
+            startPolling(activeSession.id);
+          } else {
+            if (storageKey) localStorage.removeItem(storageKey);
+            setSession((curr) => (curr ? { ...curr, is_active: false, time_left: 0 } : null));
+            if (timerRef.current) clearInterval(timerRef.current);
+            if (pollRef.current) clearInterval(pollRef.current);
+          }
+        } else {
+          if (storageKey) localStorage.removeItem(storageKey);
+          setSession(null);
+          if (timerRef.current) clearInterval(timerRef.current);
+          if (pollRef.current) clearInterval(pollRef.current);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to sync active attendance session:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user, startTimer, startPolling]);
 
   // ── Actions ────────────────────────────────────────────────────
   const generateStudentQR = async () => {
@@ -628,25 +771,24 @@ export const TutorQRGenerator: React.FC = () => {
 
       const newSession = await academicService.createAttendanceSession(payload);
       setSession(newSession);
-      setTimeLeft(newSession.time_left || expiresIn * 60);
+      const remaining = newSession.time_left || expiresIn * 60;
+      setTimeLeft(remaining);
       setScannedStudents([]);
 
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            if (timerRef.current) clearInterval(timerRef.current);
-            if (pollRef.current) clearInterval(pollRef.current);
-            if (newSession?.id) {
-              void academicService.closeAttendanceSession(newSession.id).catch(() => {});
-            }
-            setSession((curr: any) => curr ? { ...curr, is_active: false } : null);
-            void fetchAttendanceHistory();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+      const localExpiresAt = Date.now() + remaining * 1000;
+      const storageKey = getStorageKey(user?.id);
+      if (storageKey) {
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify({
+            session: newSession,
+            durationMinutes: expiresIn,
+            localExpiresAt,
+          })
+        );
+      }
 
+      startTimer(newSession, localExpiresAt);
       startPolling(newSession.id);
     } catch (err: any) {
       console.error(err);
@@ -656,21 +798,15 @@ export const TutorQRGenerator: React.FC = () => {
     }
   };
 
-  const startPolling = (sessionId: string) => {
-    const todayStr = new Date().toLocaleDateString('en-CA');
-    pollRef.current = setInterval(async () => {
-      try {
-        const logs = await academicService.getAttendanceHistory({ date: todayStr });
-        setScannedStudents(logs.filter((log) => log.session === sessionId));
-      } catch (err) {
-        console.error('Error polling attendance logs:', err);
-      }
-    }, 3000);
-  };
-
   const cancelSession = async () => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (pollRef.current) clearInterval(pollRef.current);
+
+    const storageKey = getStorageKey(user?.id);
+    if (storageKey) {
+      localStorage.removeItem(storageKey);
+    }
+
     if (session?.id) {
       try {
         await academicService.closeAttendanceSession(session.id);
@@ -679,6 +815,7 @@ export const TutorQRGenerator: React.FC = () => {
       }
     }
     setSession(null);
+    setScannedStudents([]);
     void fetchAttendanceHistory();
   };
 
@@ -720,8 +857,10 @@ export const TutorQRGenerator: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const totalDuration = expiresIn * 60;
-  const progressPct = session?.is_active ? Math.round(((totalDuration - timeLeft) / totalDuration) * 100) : 100;
+  const totalDuration = Math.max(expiresIn * 60, timeLeft);
+  const progressPct = session?.is_active && totalDuration > 0
+    ? Math.min(100, Math.max(0, Math.round(((totalDuration - timeLeft) / totalDuration) * 100)))
+    : 100;
 
   // ── Attendance history helpers ───────────────────────────────────
 
@@ -822,7 +961,7 @@ export const TutorQRGenerator: React.FC = () => {
 
   /* ─────────────────────────── render ─────────────────────────── */
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 max-w-6xl mx-auto data-loaded-content">
 
       {/* ── Main Grid ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -945,7 +1084,10 @@ export const TutorQRGenerator: React.FC = () => {
                           </div>
                           <button
                             onClick={() => {
+                              const storageKey = getStorageKey(user?.id);
+                              if (storageKey) localStorage.removeItem(storageKey);
                               setSession(null);
+                              setScannedStudents([]);
                               void fetchAttendanceHistory();
                             }}
                             className="mt-1 px-5 py-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
@@ -1174,7 +1316,11 @@ export const TutorQRGenerator: React.FC = () => {
           {attendanceHistoryLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-11 bg-gray-100 rounded-xl animate-pulse" />
+                <div key={i} className="h-11 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse flex items-center px-4 gap-3">
+                  <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 shrink-0" />
+                  <div className="h-3.5 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/5 ml-auto" />
+                </div>
               ))}
             </div>
           ) : attendanceHistoryError ? (

@@ -11,6 +11,7 @@ import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../utils/analyticsHelpers';
 import type { AcademicRisk } from '../types';
+import { TutorGreetingIntro } from '../components/TutorGreetingIntro';
 import dashboardDarkDefault from '../assets/icons/dashboard_dark.png';
 import dashboardDarkActive from '../assets/icons/dashboard_dark_active.png';
 import dashboardLightDefault from '../assets/icons/dashboard_light.png';
@@ -37,7 +38,7 @@ import scoreLightDefault from '../assets/icons/score_entry_light.png';
 import scoreLightActive from '../assets/icons/score_entry_light_active.png';
 
 const SidebarIcon: React.FC<{
-  Icon: React.ComponentType<{ className?: string; size?: number; strokeWidth?: number; fill?: string; style?: React.CSSProperties }>; 
+  Icon: React.ComponentType<{ className?: string; size?: number; strokeWidth?: number; fill?: string; style?: React.CSSProperties }>;
   active?: boolean;
 }> = ({ Icon, active = false }) => (
   <Icon
@@ -68,25 +69,26 @@ const AssetSidebarIcon: React.FC<{
   size = 18,
   theme = 'light',
 }) => {
-  const source = active
-    ? (darkActiveSrc ?? lightActiveSrc ?? darkSrc)
-    : (theme === 'dark' ? darkSrc : lightSrc);
+    const source = active
+      ? (theme === 'dark' ? (darkActiveSrc ?? darkSrc) : (lightActiveSrc ?? lightSrc))
+      : (theme === 'dark' ? darkSrc : lightSrc);
 
-  return (
-    <img
-      src={source}
-      alt={alt}
-      style={{
-        width: size,
-        height: size,
-        objectFit: 'contain',
-        display: 'block',
-        background: 'transparent',
-        opacity: active ? 1 : 0.9,
-      }}
-    />
-  );
-};
+    return (
+      <img
+        src={source}
+        alt={alt}
+        className={`sidebar-asset-icon ${active ? 'active' : ''}`}
+        style={{
+          width: size,
+          height: size,
+          objectFit: 'contain',
+          display: 'block',
+          background: 'transparent',
+          opacity: active ? 1 : 0.9,
+        }}
+      />
+    );
+  };
 
 export const DashboardLayout: React.FC = () => {
   const { user, logout } = useAuth();
@@ -143,31 +145,31 @@ export const DashboardLayout: React.FC = () => {
     const isDark = theme === 'dark';
     if (riskLevel === 'high') {
       return {
-        background: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
-        border: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FECACA',
-        label: isDark ? '#FDA4AF' : '#991B1B',
-        text: isDark ? '#FECDD3' : '#7F1D1D',
+        background: isDark ? 'rgba(244, 63, 94, 0.12)' : '#FFF1F2',
+        border: isDark ? 'rgba(244, 63, 94, 0.28)' : '#FECDD3',
+        label: isDark ? '#FDA4AF' : '#E11D48',
+        text: isDark ? '#FDA4AF' : '#9F1239',
         button: '#E11D48',
-        acknowledged: isDark ? '#FDA4AF' : '#DC2626',
+        acknowledged: isDark ? '#FB7185' : '#BE123C',
       };
     }
     if (riskLevel === 'medium') {
       return {
         background: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FFFBEB',
-        border: isDark ? 'rgba(245, 158, 11, 0.25)' : '#FDE68A',
-        label: isDark ? '#FCD34D' : '#92400E',
-        text: isDark ? '#FDE68A' : '#78350F',
+        border: isDark ? 'rgba(245, 158, 11, 0.28)' : '#FDE68A',
+        label: isDark ? '#FCD34D' : '#D97706',
+        text: isDark ? '#FDE68A' : '#92400E',
         button: '#D97706',
         acknowledged: isDark ? '#FBBF24' : '#B45309',
       };
     }
     return {
-      background: isDark ? 'rgba(46, 158, 68, 0.12)' : '#E6F4E7',
-      border: isDark ? 'rgba(46, 158, 68, 0.25)' : '#A3DBA6',
-      label: isDark ? '#68D391' : '#046307',
-      text: isDark ? '#A3DBA6' : '#034E05',
-      button: '#046307',
-      acknowledged: isDark ? '#48BB78' : '#035206',
+      background: isDark ? 'rgba(16, 185, 129, 0.12)' : '#ECFDF5',
+      border: isDark ? 'rgba(16, 185, 129, 0.28)' : '#A7F3D0',
+      label: isDark ? '#6EE7B7' : '#059669',
+      text: isDark ? '#A7F3D0' : '#065F46',
+      button: '#059669',
+      acknowledged: isDark ? '#34D399' : '#047857',
     };
   };
 
@@ -223,8 +225,8 @@ export const DashboardLayout: React.FC = () => {
     // Derive the correct risk level from the student's computed tier
     const studentRiskLevel: AcademicRisk['risk_level'] =
       acknowledgingStudent.riskTier === 'High' ? 'high'
-      : acknowledgingStudent.riskTier === 'Medium' ? 'medium'
-      : 'low';
+        : acknowledgingStudent.riskTier === 'Medium' ? 'medium'
+          : 'low';
     try {
       if (existingRiskId) {
         await academicService.updateAcademicRisk(existingRiskId, { details: noteText, resolved: true });
@@ -282,6 +284,14 @@ export const DashboardLayout: React.FC = () => {
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--surface-bg)', overflow: 'hidden', fontFamily: 'var(--font-body)' }}>
 
+      {/* ── Tutor Greeting Intro (Chat Bubble + Flying Mascot) ───── */}
+      <TutorGreetingIntro
+        user={user}
+        isTutor={user?.role === 'tutor'}
+        sidebarLogoId="sidebar-brand-logo"
+        sidebarTextId="sidebar-brand-text"
+      />
+
       {/* ── Sidebar ───────────────────────────────────── */}
       <aside
         style={{
@@ -312,7 +322,8 @@ export const DashboardLayout: React.FC = () => {
           }}
         >
           <div
-            className="transition-transform duration-300 ease-out group-hover:-translate-y-1 group-hover:scale-110 will-change-transform cursor-pointer select-none"
+            id="sidebar-brand-logo"
+            className="transition-transform duration-300 ease-out group-hover:-translate-y-1 group-hover:scale-110 will-change-transform select-none"
             style={{
               width: '32px',
               height: '32px',
@@ -341,7 +352,11 @@ export const DashboardLayout: React.FC = () => {
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div
+            id="sidebar-brand-text"
+            className="will-change-transform select-none"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
             <div
               style={{
                 fontFamily: 'var(--font-heading)',
@@ -787,10 +802,7 @@ export const DashboardLayout: React.FC = () => {
                     >
                       <div>
                         <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                          Academic Risk Alerts
-                        </p>
-                        <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          Students requiring intervention
+                          ACADEMIC RISK ALERTS
                         </p>
                       </div>
                       <button
@@ -918,18 +930,18 @@ export const DashboardLayout: React.FC = () => {
                       ) : studentNotes.map((note) => {
                         const colors = studentNoteStyle(note.risk_level);
                         return (
-                        <div key={note.id} style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: '12px', padding: '0.875rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
-                            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: colors.label, textTransform: 'uppercase' }}>{note.risk_level_display} risk</span>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{new Date(note.date_created).toLocaleDateString()}</span>
+                          <div key={note.id} style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: '12px', padding: '0.875rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '0.68rem', fontWeight: 800, color: colors.label, textTransform: 'uppercase' }}>{note.risk_level_display} risk</span>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{new Date(note.date_created).toLocaleDateString()}</span>
+                            </div>
+                            <p style={{ margin: '0.55rem 0 0', fontSize: '0.82rem', color: colors.text, lineHeight: 1.45 }}>{note.details}</p>
+                            {note.student_acknowledged ? (
+                              <p style={{ margin: '0.65rem 0 0', fontSize: '0.75rem', fontWeight: 700, color: colors.acknowledged }}>Acknowledged</p>
+                            ) : (
+                              <button type="button" onClick={() => acknowledgeStudentNote(note.id)} style={{ marginTop: '0.65rem', border: 'none', borderRadius: '7px', padding: '6px 10px', background: colors.button, color: '#fff', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Acknowledge</button>
+                            )}
                           </div>
-                          <p style={{ margin: '0.55rem 0 0', fontSize: '0.82rem', color: colors.text, lineHeight: 1.45 }}>{note.details}</p>
-                          {note.student_acknowledged ? (
-                            <p style={{ margin: '0.65rem 0 0', fontSize: '0.75rem', fontWeight: 700, color: colors.acknowledged }}>Acknowledged</p>
-                          ) : (
-                            <button type="button" onClick={() => acknowledgeStudentNote(note.id)} style={{ marginTop: '0.65rem', border: 'none', borderRadius: '7px', padding: '6px 10px', background: colors.button, color: '#fff', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Acknowledge</button>
-                          )}
-                        </div>
                         );
                       })}
                     </div>

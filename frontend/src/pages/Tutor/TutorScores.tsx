@@ -77,10 +77,7 @@ const AVATAR_COLORS = [
   'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700', 'bg-sky-100 text-sky-700',
 ];
 const avatarColor = (name: string) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
-const getInitials = (name: string) => {
-  const p = (name || '').trim().split(' ');
-  return p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : (name || '??').slice(0, 2).toUpperCase();
-};
+import { getStudentInitials as getInitials } from '../../utils/studentFormatters';
 
 const formatDateStr = (dateStr: string) => {
   const d = new Date(dateStr + 'T00:00:00');
@@ -655,43 +652,71 @@ export const TutorScores: React.FC = () => {
   };
 
   if (isLoading) return (
-    <div className="flex flex-col space-y-6 max-w-6xl mx-auto animate-pulse">
-      {/* Filter controls skeleton */}
-      <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-5 flex flex-wrap items-center gap-3">
-        <div className="h-9 w-32 rounded-xl bg-gray-200" />
-        <div className="h-9 w-32 rounded-xl bg-gray-200" />
-        <div className="h-9 w-32 rounded-xl bg-gray-200" />
-        <div className="ml-auto h-9 w-36 rounded-xl bg-gray-200" />
-      </div>
-      {/* Score entry panel skeleton */}
-      <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-          <div className="space-y-1.5">
-            <div className="h-4 w-40 rounded bg-gray-200" />
-            <div className="h-3 w-56 rounded bg-gray-100" />
+    <div className="flex flex-col space-y-6 max-w-6xl mx-auto">
+      {/* Header controls skeleton */}
+      <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-pulse">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
+          <div className="space-y-2">
+            <div className="h-4 w-40 rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="h-3 w-28 rounded bg-gray-100 dark:bg-gray-800" />
           </div>
-          <div className="h-8 w-28 rounded-xl bg-gray-200" />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-32 rounded-xl bg-gray-200 dark:bg-gray-700" />
+          <div className="h-9 w-28 rounded-xl bg-gray-200 dark:bg-gray-700" />
+        </div>
+      </div>
+
+      {/* Filter controls skeleton */}
+      <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-5 flex flex-wrap items-center gap-3 animate-pulse">
+        <div className="h-9 w-32 rounded-xl bg-gray-200 dark:bg-gray-700" />
+        <div className="h-9 w-32 rounded-xl bg-gray-200 dark:bg-gray-700" />
+        <div className="h-9 w-32 rounded-xl bg-gray-200 dark:bg-gray-700" />
+        <div className="ml-auto h-9 w-36 rounded-xl bg-gray-200 dark:bg-gray-700" />
+      </div>
+
+      {/* Score entry panel skeleton */}
+      <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-6 space-y-4 animate-pulse">
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
+          <div className="space-y-1.5">
+            <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="h-3 w-56 rounded bg-gray-100 dark:bg-gray-800" />
+          </div>
+          <div className="h-8 w-28 rounded-xl bg-gray-200 dark:bg-gray-700" />
         </div>
         {/* Student rows */}
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="flex items-center gap-4 py-2">
-            <div className="w-8 h-8 rounded-xl bg-gray-200 shrink-0" />
-            <div className="h-4 flex-1 rounded bg-gray-200" />
-            <div className="h-8 w-24 rounded-xl bg-gray-100" />
-            <div className="h-8 w-24 rounded-xl bg-gray-100" />
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="flex items-center gap-4 py-2 border-b border-gray-50 dark:border-gray-900/50">
+            <div className="w-8 h-8 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
+            <div className="h-4 flex-1 rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="h-8 w-24 rounded-xl bg-gray-100 dark:bg-gray-800" />
+            <div className="h-8 w-24 rounded-xl bg-gray-100 dark:bg-gray-800" />
           </div>
         ))}
       </div>
     </div>
   );
+
   if (error) return (
-    <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 rounded-2xl p-4">
-      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" /> {error}
+    <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm max-w-6xl mx-auto">
+      <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+      <div>
+        <p className="text-sm font-bold">Failed to load scores</p>
+        <p className="text-xs mt-0.5 text-rose-700 dark:text-rose-300">{error}</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
+        >
+          Retry
+        </button>
+      </div>
     </div>
   );
 
   return (
-    <div className="flex flex-col space-y-6 max-w-6xl mx-auto">
+    <div className="flex flex-col space-y-6 max-w-6xl mx-auto data-loaded-content">
 
       {/* ── Score Entry Form ───────────────────────────────────────── */}
       {showAddEntry && (

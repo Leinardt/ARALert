@@ -27,6 +27,45 @@ export const getRiskAvatarClass = (riskTier?: string | null): string => {
   }
 };
 
+export const getRiskBadgeClass = (riskTier?: string | null): string => {
+  switch (riskTier?.toLowerCase()) {
+    case 'high':
+      return 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60';
+    case 'medium':
+    case 'moderate':
+      return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60';
+    case 'low':
+    default:
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60';
+  }
+};
+
+export const getRiskCardClass = (riskTier?: string | null): string => {
+  switch (riskTier?.toLowerCase()) {
+    case 'high':
+      return 'bg-rose-50/70 border-rose-200 dark:bg-rose-950/20 dark:border-rose-800/50';
+    case 'medium':
+    case 'moderate':
+      return 'bg-amber-50/70 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800/50';
+    case 'low':
+    default:
+      return 'bg-emerald-50/70 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800/50';
+  }
+};
+
+export const getRiskColorHex = (riskTier?: string | null): string => {
+  switch (riskTier?.toLowerCase()) {
+    case 'high':
+      return '#E11D48';
+    case 'medium':
+    case 'moderate':
+      return '#D97706';
+    case 'low':
+    default:
+      return '#059669';
+  }
+};
+
 const toArray = <T>(value: unknown): T[] => {
   if (Array.isArray(value)) return value as T[];
   if (value && typeof value === 'object' && Array.isArray((value as any).results)) {

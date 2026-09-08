@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { academicService } from '../../services/academicService';
 import type { Attendance } from '../../types';
 import {
@@ -296,28 +296,29 @@ export const StaffAttendanceScanner: React.FC = () => {
   };
 
   // ── Data fetching ──────────────────────────────────────────────
-  useEffect(() => {
-    const fetchAttendanceLogs = async () => {
-      if (!user) return;
-      setLogsLoading(true);
-      setLogsError(null);
-      try {
-        const logs = isPrincipalMonitor
-          ? await academicService.getAttendanceHistory()
-          : await academicService.getAttendanceHistory({ user_id: user.id });
-        const visibleLogs = isPrincipalMonitor
-          ? logs.filter((log) => ['tutor', 'faculty'].includes(log.role))
-          : logs;
-        setAttendanceLogs(visibleLogs);
-      } catch (err: any) {
-        console.error(err);
-        setLogsError('Failed to load DTR history.');
-      } finally {
-        setLogsLoading(false);
-      }
-    };
-    fetchAttendanceLogs();
+  const fetchAttendanceLogs = useCallback(async () => {
+    if (!user) return;
+    setLogsLoading(true);
+    setLogsError(null);
+    try {
+      const logs = isPrincipalMonitor
+        ? await academicService.getAttendanceHistory()
+        : await academicService.getAttendanceHistory({ user_id: user.id });
+      const visibleLogs = isPrincipalMonitor
+        ? logs.filter((log) => ['tutor', 'faculty'].includes(log.role))
+        : logs;
+      setAttendanceLogs(visibleLogs);
+    } catch (err: any) {
+      console.error(err);
+      setLogsError('Failed to load DTR history.');
+    } finally {
+      setLogsLoading(false);
+    }
   }, [user, isPrincipalMonitor]);
+
+  useEffect(() => {
+    fetchAttendanceLogs();
+  }, [fetchAttendanceLogs]);
 
   // ── Camera initialization ──────────────────────────────────────
   useEffect(() => {
@@ -403,8 +404,112 @@ export const StaffAttendanceScanner: React.FC = () => {
   };
 
   /* ─────────────────────────── render ─────────────────────────── */
+  if (logsLoading && attendanceLogs.length === 0) {
+    return (
+      <div className="space-y-6 max-w-6xl mx-auto">
+        {/* Status Strip Skeleton */}
+        {!isPrincipalMonitor && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse rounded-2xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-2.5 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Main Grid Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* LEFT: Scanner Card Skeleton */}
+          <div className="lg:col-span-7">
+            <div className="h-full rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-6 space-y-6 animate-pulse">
+              <div className="flex justify-between items-center pb-4 border-b border-gray-100 dark:border-gray-800">
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32" />
+                  <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-48" />
+                </div>
+              </div>
+              <div className="min-h-[340px] sm:min-h-[380px] rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-800 flex items-center justify-center p-6">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-16 h-16 rounded-2xl bg-gray-200 dark:bg-gray-700" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-40" />
+                  <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-56" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT: Feed / Recent Scans Skeleton */}
+          <div className="lg:col-span-5">
+            <div className="h-full rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-6 space-y-4 animate-pulse">
+              <div className="flex justify-between items-center pb-4 border-b border-gray-100 dark:border-gray-800">
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-28" />
+                  <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-36" />
+                </div>
+              </div>
+              <div className="space-y-2.5">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 dark:border-gray-800">
+                    <div className="w-9 h-9 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
+                    <div className="space-y-1.5 flex-1">
+                      <div className="h-3.5 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+                      <div className="h-2.5 bg-gray-100 dark:bg-gray-800 rounded w-1/4" />
+                    </div>
+                    <div className="w-16 h-6 rounded-full bg-gray-100 dark:bg-gray-800" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* DTR Table Skeleton */}
+        <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-6 space-y-4 animate-pulse">
+          <div className="flex justify-between items-center pb-4 border-b border-gray-100 dark:border-gray-800">
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-36" />
+              <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-20" />
+            </div>
+            <div className="flex gap-2">
+              <div className="h-8 w-24 bg-gray-100 dark:bg-gray-800 rounded-xl" />
+              <div className="h-8 w-20 bg-gray-100 dark:bg-gray-800 rounded-xl" />
+            </div>
+          </div>
+          <div className="space-y-3 pt-2">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-12 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (logsError && attendanceLogs.length === 0) {
+    return (
+      <div className="max-w-md mx-auto py-16 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-center justify-center mx-auto mb-4 text-rose-500">
+          <AlertCircle className="w-7 h-7" />
+        </div>
+        <h3 className="text-base font-bold text-gray-900 dark:text-white mb-1">Failed to Load DTR</h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">{logsError}</p>
+        <button
+          onClick={fetchAttendanceLogs}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--brand)] text-white text-xs font-semibold hover:bg-[var(--brand-dark)] transition-colors cursor-pointer"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 max-w-6xl mx-auto" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+    <div className="space-y-6 max-w-6xl mx-auto data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
       {/* ── Export button (principal only) ───────────────────────── */}
       {isPrincipalMonitor && (
@@ -454,19 +559,15 @@ export const StaffAttendanceScanner: React.FC = () => {
           </div>
 
           {/* Today's DTR Status */}
-          <div className={`flex items-center gap-4 p-4 rounded-2xl border shadow-sm ${
-            todayLog ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'
-          }`}>
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-              todayLog ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
-            }`}>
+          <div className="flex items-center gap-3.5 p-4 rounded-2xl border border-gray-200 bg-white dark:bg-[#111111] dark:border-slate-800 shadow-sm">
+            <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center shrink-0">
               <ClipboardCheck className="w-5 h-5" />
             </div>
             <div>
-              <p className={`text-[10px] uppercase tracking-widest font-bold mb-0.5 ${todayLog ? 'text-emerald-600' : 'text-amber-600'}`}>
+              <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 dark:text-slate-500 mb-0.5">
                 Today's DTR Status
               </p>
-              <p className={`text-sm font-bold ${todayLog ? 'text-emerald-900' : 'text-amber-900'}`}>
+              <p className="text-sm font-bold text-gray-900 dark:text-slate-100">
                 {todayLog
                   ? `DTR logged at ${formatDtrTime(todayLog.time_in)}`
                   : 'No DTR log yet today'}

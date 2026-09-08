@@ -260,11 +260,18 @@ class Student(models.Model):
         verbose_name_plural = 'Students'
 
     def get_full_name(self) -> str:
-        parts = [self.stu_fname.upper().strip()]
+        fn = self.stu_fname.upper().strip() if self.stu_fname else ''
+        ln = self.stu_lname.upper().strip() if self.stu_lname else ''
+        mi = ''
         if self.stu_mname and self.stu_mname.strip():
-            parts.append(f'{self.stu_mname.strip()[0].upper()}.')
-        parts.append(self.stu_lname.upper().strip())
-        return ' '.join(p for p in parts if p)
+            mi = f'{self.stu_mname.strip()[0].upper()}.'
+        if ln and fn:
+            return f"{ln}, {fn} {mi}".strip() if mi else f"{ln}, {fn}".strip()
+        elif ln:
+            return ln
+        elif fn:
+            return f"{fn} {mi}".strip() if mi else fn
+        return ''
 
     def __str__(self):
         return f'{self.get_full_name()} (LRN: {self.lrn})'

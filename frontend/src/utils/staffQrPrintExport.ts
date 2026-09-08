@@ -143,9 +143,9 @@ export const exportStaffQrPrintFile = async ({
     ? 'The system assigns your DTR punch automatically based on scan time.'
     : 'Use this code only for the indicated DTR punch above.', LONG_BOND_WIDTH / 2, 1465);
 
-  context.fillStyle = '#ECFDF3';
+  context.fillStyle = '#EBF3FC';
   context.fillRect(145, 1545, LONG_BOND_WIDTH - 290, 170);
-  context.fillStyle = '#166534';
+  context.fillStyle = '#0052B7';
   context.font = 'bold 30px Arial';
   const expiryLabel = expiresAt
     ? `Valid until: ${new Date(expiresAt).toLocaleString()}`

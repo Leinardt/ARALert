@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
@@ -13,11 +14,9 @@ import {
   Smile,
   Meh,
   Frown,
+  X,
 } from 'lucide-react';
 import { computeStudentRiskRows, type StudentRiskRow, getRiskAvatarClass } from '../../utils/analyticsHelpers';
-import dashboardDarkActive from '../../assets/icons/dashboard_dark_active.png';
-import clockDark from '../../assets/icons/dtrlog_dark.png';
-import clockLight from '../../assets/icons/dtrlog_light.png';
 
 interface TutorChartPoint {
   label: string;
@@ -28,17 +27,49 @@ interface TutorChartPoint {
 }
 
 const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[] }> = ({ data }) => {
+  const containerRef = React.useRef<HTMLDivElement>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 260 });
 
-  const width = 800;
-  const height = 160;
-  const paddingLeft = 22;
-  const paddingRight = 6;
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setDimensions({
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+        });
+      }
+    };
+
+    updateSize();
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          setDimensions({
+            width: Math.round(width),
+            height: Math.round(height),
+          });
+        }
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const { width, height } = dimensions;
+  const paddingLeft = 24;
+  const paddingRight = 10;
   const paddingTop = 15;
-  const paddingBottom = 28;
+  const paddingBottom = 26;
 
-  const chartW = width - paddingLeft - paddingRight;
-  const chartH = height - paddingTop - paddingBottom;
+  const chartW = Math.max(10, width - paddingLeft - paddingRight);
+  const chartH = Math.max(10, height - paddingTop - paddingBottom);
 
   const points = data.map((d, idx) => {
     const x = paddingLeft + (idx * chartW) / (data.length - 1 || 1);
@@ -65,12 +96,12 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[] }> = ({ data }) 
     : '';
 
   return (
-    <div className="relative w-full h-full">
+    <div ref={containerRef} className="relative w-full h-full">
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
         <defs>
           <linearGradient id="tutorChartFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#16A34A" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#16A34A" stopOpacity="0.01" />
+            <stop offset="0%" stopColor="#0052B7" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#0052B7" stopOpacity="0.01" />
           </linearGradient>
           <filter id="tutorChartGlow" x="-20%" y="-30%" width="140%" height="160%">
             <feGaussianBlur stdDeviation="3" result="blur" />
@@ -91,20 +122,20 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[] }> = ({ data }) 
           );
         })}
 
-        {/* Milestone guide lines (Lighter Green) */}
+        {/* Milestone guide lines (Lighter Accent) */}
         {points.map((p, idx) => {
           if (p.assessmentLabels.length === 0) return null;
 
           return (
             <g key={`milestone-${idx}`}>
               <title>{p.assessmentLabels.join(', ')}</title>
-              {/* Subtle vertical reference line in lighter green */}
+              {/* Subtle vertical reference line */}
               <line
                 x1={p.x}
                 y1={paddingTop}
                 x2={p.x}
-                y2={height - paddingBottom}
-                stroke="#54D947"
+                y2={paddingTop + chartH}
+                stroke="#38BDF8"
                 strokeWidth="1"
                 strokeDasharray="3 3"
                 opacity="0.35"
@@ -118,7 +149,7 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[] }> = ({ data }) 
           <text
             key={`label-${idx}`}
             x={p.x}
-            y={height - 4}
+            y={height - 5}
             className="fill-slate-500 font-semibold text-[8px]"
             textAnchor="middle"
             style={{ whiteSpace: 'nowrap' }}
@@ -127,26 +158,26 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[] }> = ({ data }) 
           </text>
         ))}
 
-        {/* Medium-Green Trend Line & Area */}
+        {/* Royal Blue Trend Line & Area (#0052B7) */}
         {points.length > 0 && (
           <>
             <path d={areaD} fill="url(#tutorChartFill)" />
-            <path d={pathD} fill="none" stroke="#16A34A" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.28" filter="url(#tutorChartGlow)" />
-            <path d={pathD} fill="none" stroke="#16A34A" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={pathD} fill="none" stroke="#0052B7" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.28" filter="url(#tutorChartGlow)" />
+            <path d={pathD} fill="none" stroke="#0052B7" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />
           </>
         )}
 
         {/* Data point markers */}
         {points.map((p, idx) => (
-          <circle key={`data-dot-${idx}`} cx={p.x} cy={p.y} r="3.5" fill="#16A34A" stroke="#DCFCE7" strokeWidth="1.5" />
+          <circle key={`data-dot-${idx}`} cx={p.x} cy={p.y} r="3.5" fill="#0052B7" stroke="#B6D4F8" strokeWidth="1.5" />
         ))}
 
-        {/* BOSY/MOSY/EOSY milestone dots (Lighter Green than line) */}
+        {/* BOSY/MOSY/EOSY milestone dots */}
         {points.map((p, idx) => (
           p.assessmentLabels.length > 0 && (
             <g key={`milestone-dot-${idx}`}>
-              <circle cx={p.x} cy={p.y} r="8.5" fill="#54D947" opacity="0.45" filter="url(#tutorChartGlow)" />
-              <circle cx={p.x} cy={p.y} r="4.5" fill="#54D947" stroke="#DCFCE7" strokeWidth="2" />
+              <circle cx={p.x} cy={p.y} r="8.5" fill="#38BDF8" opacity="0.45" filter="url(#tutorChartGlow)" />
+              <circle cx={p.x} cy={p.y} r="4.5" fill="#0284C7" stroke="#BAE6FD" strokeWidth="2" />
             </g>
           )
         ))}
@@ -154,9 +185,9 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[] }> = ({ data }) 
         {/* Vertical line and dots on hover */}
         {hoveredIdx !== null && points[hoveredIdx] && (
           <g>
-            <line x1={points[hoveredIdx].x} y1={paddingTop} x2={points[hoveredIdx].x} y2={paddingTop + chartH} stroke="#16A34A" strokeWidth="1.5" strokeDasharray="2 2" opacity="0.7" />
-            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill="#16A34A" />
-            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="8" fill="#16A34A" opacity="0.25" />
+            <line x1={points[hoveredIdx].x} y1={paddingTop} x2={points[hoveredIdx].x} y2={paddingTop + chartH} stroke="#0052B7" strokeWidth="1.5" strokeDasharray="2 2" opacity="0.7" />
+            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill="#0052B7" />
+            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="8" fill="#0052B7" opacity="0.25" />
           </g>
         )}
 
@@ -175,17 +206,17 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[] }> = ({ data }) 
       {hoveredIdx !== null && points[hoveredIdx] && (
         <div
           className={`absolute z-10 min-w-[160px] bg-slate-900/95 text-white p-3 rounded-xl shadow-xl text-left pointer-events-none border border-slate-700/50 text-[11px] leading-normal font-medium ${hoveredIdx === 0 ? 'left-2' : hoveredIdx === points.length - 1 ? 'right-2' : '-translate-x-1/2'}`}
-          style={{ left: hoveredIdx === 0 || hoveredIdx === points.length - 1 ? undefined : `${(points[hoveredIdx].x / width) * 100}%`, top: `${Math.max(2, (points[hoveredIdx].y / height) * 100 - 55)}%` }}
+          style={{ left: hoveredIdx === 0 || hoveredIdx === points.length - 1 ? undefined : `${(points[hoveredIdx].x / width) * 100}%`, top: `${Math.max(4, (points[hoveredIdx].y / height) * 100 - 45)}%` }}
         >
-          <div className="font-extrabold text-[10px] uppercase text-[#16A34A]">{points[hoveredIdx].label}</div>
+          <div className="font-extrabold text-[10px] uppercase text-[#60A5FA]">{points[hoveredIdx].label}</div>
           <div className="whitespace-nowrap text-[9px] text-slate-300">{points[hoveredIdx].dateRange}</div>
           <div className="flex items-baseline gap-1 mt-1">
-            <span className="text-sm font-extrabold text-[#16A34A]">{points[hoveredIdx].value}%</span>
+            <span className="text-sm font-extrabold text-[#60A5FA]">{points[hoveredIdx].value}%</span>
             <span className="text-[9px] text-slate-400">Class Average</span>
           </div>
           {points[hoveredIdx].assessmentLabels.length > 0 && (
-            <div className="mt-1.5 bg-[#54D947]/20 border border-[#54D947]/40 text-[#54D947] px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5 shadow-[0_0_8px_rgba(84,217,71,0.25)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#54D947] shadow-[0_0_6px_rgba(84,217,71,0.8)] inline-block" />
+            <div className="mt-1.5 bg-[#0284C7]/20 border border-[#0284C7]/40 text-[#38BDF8] px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5 shadow-[0_0_8px_rgba(2,132,199,0.25)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#38BDF8] shadow-[0_0_6px_rgba(56,189,248,0.8)] inline-block" />
               <span className="uppercase tracking-wider">{points[hoveredIdx].assessmentLabels.join(', ')}</span>
             </div>
           )}
@@ -215,10 +246,7 @@ const AVATAR_COLORS = [
   'bg-sky-100 text-sky-700',
 ];
 const avatarColor = (name: string) => AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
-const getInitials = (name: string) => {
-  const p = name.trim().split(' ');
-  return p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : name.slice(0, 2).toUpperCase();
-};
+import { getStudentInitials as getInitials } from '../../utils/studentFormatters';
 
 // ─── Main Component ─────────────────────────────────────────────────────────────
 export const TutorHome: React.FC = () => {
@@ -398,47 +426,42 @@ export const TutorHome: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="space-y-5">
-        {/* Header skeleton */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-5 animate-pulse">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
-            <div className="space-y-2">
-              <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-700" />
-              <div className="h-5 w-48 rounded bg-gray-200 dark:bg-gray-700" />
-            </div>
-          </div>
-          <div className="h-10 w-36 rounded-2xl bg-gray-200 dark:bg-gray-700" />
-        </div>
+      <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3.5">
         {/* KPI Cards skeleton */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 shrink-0">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm animate-pulse space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
-                <div className="h-3 w-24 rounded bg-gray-200 dark:bg-gray-700" />
+            <div key={i} className="rounded-2xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 shadow-sm animate-pulse flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
+              <div className="space-y-1.5 flex-1">
+                <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-700" />
+                <div className="h-7 w-16 rounded bg-gray-200 dark:bg-gray-700" />
               </div>
-              <div className="h-8 w-16 rounded bg-gray-200 dark:bg-gray-700" />
-              <div className="h-2.5 w-28 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
           ))}
         </div>
         {/* Content rows skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {[1, 2].map((i) => (
-            <div key={i} className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm p-6 animate-pulse space-y-4">
-              <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-700" />
-              {[1, 2, 3].map((j) => (
-                <div key={j} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="h-3 w-3/4 rounded bg-gray-200 dark:bg-gray-700" />
-                    <div className="h-2.5 w-1/2 rounded bg-gray-100 dark:bg-gray-800" />
-                  </div>
-                </div>
+        <div className="grid gap-4 lg:grid-cols-4 items-stretch flex-1 min-h-0">
+          <div className="lg:col-span-3 rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm p-5 animate-pulse flex flex-col justify-between">
+            <div className="h-4 w-48 rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="flex-1 my-4 rounded-2xl bg-gray-100 dark:bg-gray-800/60" />
+            <div className="grid grid-cols-4 gap-3">
+              {[1, 2, 3, 4].map((j) => (
+                <div key={j} className="h-12 rounded-xl bg-gray-100 dark:bg-gray-800" />
               ))}
             </div>
-          ))}
+          </div>
+          <div className="lg:col-span-1 rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm p-5 animate-pulse space-y-4">
+            <div className="h-4 w-36 rounded bg-gray-200 dark:bg-gray-700" />
+            {[1, 2, 3, 4, 5].map((j) => (
+              <div key={j} className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 w-3/4 rounded bg-gray-200 dark:bg-gray-700" />
+                  <div className="h-2.5 w-1/2 rounded bg-gray-100 dark:bg-gray-800" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -460,46 +483,15 @@ export const TutorHome: React.FC = () => {
   }
 
   return (
-    <div className="space-y-5">
-      {/* ── Page Header ───────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-5">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--brand)] flex items-center justify-center shadow-md shrink-0">
-            <img src={dashboardDarkActive} alt="" className="h-6 w-6 object-contain" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">Tutor Portal</p>
-            <h1 className="text-xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">
-              {greeting}, {user?.first_name || user?.full_name || 'Tutor'}!
-            </h1>
-          </div>
-        </div>
-        <Link
-          to="/staff/scan"
-          className="group relative flex items-center justify-between gap-3.5 rounded-2xl border border-[var(--brand-border)]/50 bg-[var(--brand-light)]/40 hover:bg-[var(--brand-light)]/70 hover:border-[var(--brand-border)] px-4.5 py-2.5 shadow-xs transition-all duration-200 hover:shadow-sm dark:hover:shadow-[0_2px_14px_-2px_var(--brand-glow)] shrink-0"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center shrink-0">
-              <img src={clockLight} alt="" className="h-5.5 w-5.5 object-contain dark:hidden" />
-              <img src={clockDark} alt="" className="hidden h-5.5 w-5.5 object-contain dark:block" />
-            </div>
-            <span className="text-sm font-bold text-gray-900 dark:text-slate-100 group-hover:text-[var(--brand-dark)] dark:group-hover:text-[var(--brand)] transition-colors">
-              DTR Log
-            </span>
-          </div>
-          <ChevronRight className="h-4 w-4 text-gray-900 transition-all duration-200 group-hover:text-black group-hover:translate-x-0.5 shrink-0" />
-        </Link>
-      </div>
-
+    <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3.5 data-loaded-content">
       {/* ── KPI Cards ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 shrink-0">
         {[
           {
             label: 'My Students',
             to: '/tutor/students',
             value: totalStudents,
             suffix: '',
-            sub: 'Assigned students',
             iconBg: 'bg-slate-100 border-slate-200 dark:bg-slate-800/80 dark:border-slate-700/70',
             icon: Users,
             iconColor: 'text-slate-800 dark:text-slate-100',
@@ -510,7 +502,6 @@ export const TutorHome: React.FC = () => {
             to: '/tutor/analytics?tab=attendance',
             value: attendance.length === 0 ? '—' : `${avgAttendance}%`,
             suffix: '',
-            sub: 'Students average attendance',
             icon: attendanceMood.icon,
             iconBg: attendanceMood.iconBg,
             iconColor: attendanceMood.iconColor,
@@ -521,7 +512,6 @@ export const TutorHome: React.FC = () => {
             to: '/tutor/analytics?tab=score',
             value: grades.length === 0 ? '—' : `${avgScore}%`,
             suffix: '',
-            sub: `Students average score`,
             icon: scoreMood.icon,
             iconBg: scoreMood.iconBg,
             iconColor: scoreMood.iconColor,
@@ -532,7 +522,6 @@ export const TutorHome: React.FC = () => {
             to: '/tutor/analytics',
             value: highRiskStudents.length,
             suffix: '',
-            sub: 'Students needing intervention',
             icon: ShieldAlert,
             iconBg: 'bg-rose-50 dark:bg-rose-950/50 border-rose-100 dark:border-rose-900',
             iconColor: 'text-rose-500',
@@ -546,7 +535,7 @@ export const TutorHome: React.FC = () => {
             <Link
               key={card.label}
               to={card.to}
-              className="group flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] dark:border-[#1A1A1A] dark:bg-[#0A0A0A] dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_var(--brand-glow)]"
+              className="group flex items-center gap-3.5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] dark:border-[#1A1A1A] dark:bg-[#0A0A0A] dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_var(--brand-glow)]"
             >
               <div className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 ${card.iconBg}`}>
                 {iconImage ? (
@@ -565,7 +554,6 @@ export const TutorHome: React.FC = () => {
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-gray-900 dark:text-slate-100">{card.label}</p>
                 <p className={`text-2xl font-extrabold mt-0.5 ${card.valueColor}`}>{card.value}</p>
-                <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{card.sub}</p>
               </div>
             </Link>
           );
@@ -573,13 +561,13 @@ export const TutorHome: React.FC = () => {
       </div>
 
       {/* ── Performance Trend + Risk ───────────────────────────────── */}
-      <div className="grid gap-5 lg:grid-cols-4 items-start">
+      <div className="grid gap-4 lg:grid-cols-4 items-stretch flex-1 min-h-0">
 
         {/* Chart */}
-        <div className="lg:col-span-3 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl shadow-sm px-4 py-6 sm:px-5 space-y-6 h-[28rem]">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="lg:col-span-3 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl shadow-sm px-4 py-4 sm:px-6 sm:py-5 flex flex-col h-full min-h-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0 pb-1">
             <div>
-              <h3 className="whitespace-nowrap text-sm font-bold text-gray-900 dark:text-slate-100 mt-0.5">STUDENTS PERFORMANCE TREND CHART</h3>
+              <h3 className="whitespace-nowrap text-base font-bold text-gray-900 dark:text-slate-100 mt-0.5">STUDENTS PERFORMANCE TREND CHART</h3>
               <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
                 {trendFilter === 'day' ? 'Daily' : trendFilter === 'month' ? 'Monthly' : 'Weekly'} performance trend
               </p>
@@ -587,12 +575,12 @@ export const TutorHome: React.FC = () => {
             <div className="flex flex-wrap items-center gap-3">
               {last4WeeksData.length > 0 && (
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#16A34A] inline-block shadow-xs" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#0052B7] inline-block shadow-xs" />
                   <span>Class Attendance + Score Average</span>
                 </div>
               )}
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#54D947] inline-block ring-2 ring-[#54D947]/30 shadow-xs" />
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#38BDF8] inline-block ring-2 ring-[#38BDF8]/30 shadow-xs" />
                 <span>{tutorMilestone}</span>
               </div>
               <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5 sm:ml-1">
@@ -612,22 +600,30 @@ export const TutorHome: React.FC = () => {
           </div>
 
           {last4WeeksData.length === 0 ? (
-            <div className="h-44 border border-dashed border-gray-200 dark:border-[#2A2A2A] rounded-2xl flex flex-col items-center justify-center text-center p-4 gap-2">
+            <div className="flex-1 min-h-[14rem] border border-dashed border-gray-200 dark:border-[#2A2A2A] rounded-2xl flex flex-col items-center justify-center text-center p-4 gap-2 my-auto">
               <TrendingUp className="w-8 h-8 text-gray-300 dark:text-slate-600" />
               <p className="text-sm font-semibold text-gray-500 dark:text-slate-300">No performance data yet</p>
               <p className="text-xs text-gray-400 dark:text-slate-500">Assessments logged for your students will display here.</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="relative h-56 sm:h-62 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-2xl px-4 py-1.5 sm:px-6 sm:py-2.5">
+            <div className="flex-1 flex flex-col min-h-0 gap-3 mt-2">
+              <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-2xl px-4 py-2 sm:px-6 sm:py-2.5">
                 <InteractiveTutorChart data={last4WeeksData} />
               </div>
 
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-2">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1 shrink-0">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
                   {[
-                    { label: 'Highest', value: `${highestScore}%`, color: 'text-emerald-600' },
-                    { label: 'Lowest', value: `${lowestScore}%`, color: 'text-rose-600' },
+                    {
+                      label: 'Highest',
+                      value: `${highestScore}%`,
+                      color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : highestScore >= 81 ? 'text-emerald-600' : highestScore >= 75 ? 'text-amber-500' : 'text-rose-500',
+                    },
+                    {
+                      label: 'Lowest',
+                      value: `${lowestScore}%`,
+                      color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : lowestScore >= 81 ? 'text-emerald-600' : lowestScore >= 75 ? 'text-amber-500' : 'text-rose-500',
+                    },
                   ].map((stat) => (
                     <div key={stat.label} className="bg-gray-50 dark:bg-[#111111] p-2 rounded-2xl border border-gray-100 dark:border-[#1A1A1A] text-center">
                       <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">{stat.label}</p>
@@ -661,16 +657,13 @@ export const TutorHome: React.FC = () => {
         </div>
 
         {/* At-Risk panel */}
-        <div className="lg:col-span-1">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl shadow-sm overflow-hidden h-[28rem] flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="lg:col-span-1 h-full min-h-0">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl shadow-sm overflow-hidden h-full flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
               <div>
                 <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mt-0.5 flex items-center gap-2">
                   TOP STUDENTS AT-RISK
                 </h3>
-                <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
-                  High and medium risk students
-                </p>
               </div>
               <div>
                 <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
@@ -694,8 +687,8 @@ export const TutorHome: React.FC = () => {
                     key={s.student.id}
                     to={`/tutor/students/${s.student.id}`}
                     className={`flex items-center justify-between gap-3 rounded-2xl border p-3 transition-colors group ${s.riskTier === 'High'
-                        ? 'border-rose-100 dark:border-rose-900 bg-rose-50/70 dark:bg-rose-950/40 hover:bg-rose-100/70 dark:hover:bg-rose-950/70'
-                        : 'border-amber-100 dark:border-amber-900 bg-amber-50/70 dark:bg-amber-950/40 hover:bg-amber-100/70 dark:hover:bg-amber-950/70'
+                      ? 'border-rose-100 dark:border-rose-900 bg-rose-50/70 dark:bg-rose-950/40 hover:bg-rose-100/70 dark:hover:bg-rose-950/70'
+                      : 'border-amber-100 dark:border-amber-900 bg-amber-50/70 dark:bg-amber-950/40 hover:bg-amber-100/70 dark:hover:bg-amber-950/70'
                       }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">

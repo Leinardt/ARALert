@@ -42,10 +42,7 @@ const AVATAR_COLORS = [
   'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700', 'bg-sky-100 text-sky-700',
 ];
 const avatarColor = (name: string) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
-const getInitials = (name: string) => {
-  const p = (name || '').trim().split(' ');
-  return p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : (name || '??').slice(0, 2).toUpperCase();
-};
+import { getStudentInitials as getInitials } from '../../utils/studentFormatters';
 
 /** Trim trailing decimal zeros: 100.00 → 100, 99.57 → 99.57, 99.5 → 99.5 */
 const smartPct = (n: number): string => parseFloat(n.toFixed(2)).toString();
@@ -98,9 +95,9 @@ const getAralBadge = (level?: string | null) => {
 
 const getRiskBadge = (tier?: string | null) => {
   switch (tier?.toLowerCase()) {
-    case 'high':   return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">High Risk</span>;
-    case 'medium': return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">Medium Risk</span>;
-    default:       return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Low Risk</span>;
+    case 'high':   return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60">High Risk</span>;
+    case 'medium': return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60">Medium Risk</span>;
+    default:       return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60">Low Risk</span>;
   }
 };
 
@@ -487,51 +484,51 @@ export const TutorStudentProfile: React.FC = () => {
     return (
       <div className="space-y-6 max-w-6xl mx-auto animate-pulse" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
         {/* Back button skeleton */}
-        <div className="h-5 w-44 rounded bg-gray-200" />
+        <div className="h-5 w-44 rounded-xl bg-gray-200 dark:bg-gray-700" />
         {/* Header card skeleton */}
-        <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6">
+        <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-6">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gray-200 shrink-0" />
+            <div className="w-16 h-16 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
             <div className="space-y-2.5 flex-1">
-              <div className="h-6 w-48 rounded bg-gray-200" />
-              <div className="h-3.5 w-32 rounded bg-gray-100" />
+              <div className="h-6 w-48 rounded bg-gray-200 dark:bg-gray-700" />
+              <div className="h-3.5 w-32 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
           </div>
         </div>
         {/* Tab nav skeleton */}
-        <div className="flex w-full rounded-2xl bg-gray-100 p-1 gap-1">
+        <div className="flex w-full rounded-2xl bg-gray-100 dark:bg-[#141414] p-1 gap-1">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex-1 h-9 rounded-xl bg-gray-200" />
+            <div key={i} className="flex-1 h-9 rounded-xl bg-gray-200 dark:bg-gray-700" />
           ))}
         </div>
         {/* KPI containers skeleton */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm flex items-center gap-4">
-              <div className="w-11 h-11 rounded-2xl bg-gray-200 shrink-0" />
+            <div key={i} className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm flex items-center gap-4">
+              <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
               <div className="space-y-2 flex-1">
-                <div className="h-2.5 w-24 rounded bg-gray-200" />
-                <div className="h-7 w-16 rounded bg-gray-200" />
-                <div className="h-2.5 w-36 rounded bg-gray-100" />
+                <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-700" />
+                <div className="h-7 w-16 rounded bg-gray-200 dark:bg-gray-700" />
+                <div className="h-2.5 w-36 rounded bg-gray-100 dark:bg-gray-800" />
               </div>
             </div>
           ))}
         </div>
         {/* Table card skeleton */}
-        <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+        <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-6 space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
             <div className="space-y-1.5">
-              <div className="h-4 w-40 rounded bg-gray-200" />
-              <div className="h-3 w-24 rounded bg-gray-100" />
+              <div className="h-4 w-40 rounded bg-gray-200 dark:bg-gray-700" />
+              <div className="h-3 w-24 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
-            <div className="h-8 w-28 rounded-xl bg-gray-200" />
+            <div className="h-8 w-28 rounded-xl bg-gray-200 dark:bg-gray-700" />
           </div>
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-4 py-1">
-              <div className="h-4 w-28 rounded bg-gray-200" />
-              <div className="h-4 w-16 rounded bg-gray-100" />
-              <div className="h-4 w-20 rounded bg-gray-100" />
-              <div className="h-4 flex-1 rounded bg-gray-100" />
+            <div key={i} className="flex items-center gap-4 py-1 border-b border-gray-50 dark:border-gray-900/50">
+              <div className="h-4 w-28 rounded bg-gray-200 dark:bg-gray-700" />
+              <div className="h-4 w-16 rounded bg-gray-100 dark:bg-gray-800" />
+              <div className="h-4 w-20 rounded bg-gray-100 dark:bg-gray-800" />
+              <div className="h-4 flex-1 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
           ))}
         </div>
@@ -541,11 +538,11 @@ export const TutorStudentProfile: React.FC = () => {
 
   if (error || !profile) {
     return (
-      <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 p-5 rounded-2xl">
-        <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm max-w-6xl mx-auto">
+        <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-bold">Failed to load profile</p>
-          <p className="text-xs text-red-700 mt-0.5">{error || 'Profile not found.'}</p>
+          <p className="text-sm font-bold">Failed to load student profile</p>
+          <p className="text-xs text-rose-700 dark:text-rose-300 mt-0.5">{error || 'Profile not found.'}</p>
           <Link to="/tutor/students" className="inline-flex items-center gap-1 mt-3 text-xs font-bold text-[var(--brand)] hover:underline">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Assigned Students
           </Link>
@@ -555,7 +552,7 @@ export const TutorStudentProfile: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+    <div className="space-y-6 max-w-6xl mx-auto data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
       {/* ── Top Navigation & Actions ─────────────────────────────── */}
       <div className="flex items-center justify-between">
         <Link

@@ -155,6 +155,17 @@ export const academicService = {
     return response.data;
   },
 
+  getActiveAttendanceSession: async (sessionType: 'student' | 'staff' = 'student'): Promise<AttendanceSession | null> => {
+    try {
+      const response = await api.get<{ session: AttendanceSession | null }>('/academics/attendance/session/', {
+        params: { session_type: sessionType }
+      });
+      return response.data?.session || null;
+    } catch {
+      return null;
+    }
+  },
+
   closeAttendanceSession: async (sessionId: string): Promise<{ message: string; session: AttendanceSession }> => {
     const response = await api.post<{ message: string; session: AttendanceSession }>(`/academics/attendance/session/${sessionId}/close/`);
     return response.data;

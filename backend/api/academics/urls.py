@@ -13,6 +13,7 @@ from .views import (
     AttendanceHistoryView,
     AttendanceManualLogView,
     AttendanceScanView,
+    AttendanceSessionCloseView,
     AttendanceSessionCreateView,
     GradeDetailView,
     GradeListCreateView,
@@ -35,6 +36,7 @@ urlpatterns = [
 
     # Attendance
     path('attendance/session/', AttendanceSessionCreateView.as_view(), name='attendance-session-create'),
+    path('attendance/session/<uuid:session_id>/close/', AttendanceSessionCloseView.as_view(), name='attendance-session-close'),
     path('attendance/scan/', AttendanceScanView.as_view(), name='attendance-scan'),
     path('attendance/manual/', AttendanceManualLogView.as_view(), name='attendance-manual'),
     path('attendance/history/', AttendanceHistoryView.as_view(), name='attendance-history'),

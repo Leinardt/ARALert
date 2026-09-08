@@ -22,10 +22,7 @@ const AVATAR_COLORS = [
   'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700', 'bg-sky-100 text-sky-700',
 ];
 const avatarColor = (name: string) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
-const getInitials = (name: string) => {
-  const p = (name || '').trim().split(' ');
-  return p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : (name || '??').slice(0, 2).toUpperCase();
-};
+import { getStudentInitials as getInitials } from '../../utils/studentFormatters';
 
 /* ─── Component ────────────────────────────────────────────────── */
 export const TutorStudentDirectory: React.FC = () => {
@@ -128,8 +125,73 @@ export const TutorStudentDirectory: React.FC = () => {
     );
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+        {/* Top KPI cards skeleton */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm animate-pulse flex items-center gap-4"
+            >
+              <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
+              <div className="space-y-2 flex-1">
+                <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-700" />
+                <div className="h-7 w-16 rounded bg-gray-200 dark:bg-gray-700" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Directory Table Card skeleton */}
+        <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm animate-pulse p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 dark:border-gray-800">
+            <div className="space-y-1.5">
+              <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-700" />
+              <div className="h-3 w-56 rounded bg-gray-100 dark:bg-gray-800" />
+            </div>
+            <div className="h-9 w-64 rounded-xl bg-gray-200 dark:bg-gray-700" />
+          </div>
+
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="flex items-center gap-4 py-2.5 border-b border-gray-50 dark:border-gray-900/50">
+              <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 shrink-0" />
+              <div className="space-y-1.5 flex-1">
+                <div className="h-3.5 w-36 rounded bg-gray-200 dark:bg-gray-700" />
+                <div className="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800" />
+              </div>
+              <div className="h-4 w-20 rounded bg-gray-100 dark:bg-gray-800 hidden md:block" />
+              <div className="h-6 w-16 rounded-full bg-gray-200 dark:bg-gray-700" />
+              <div className="h-8 w-8 rounded-xl bg-gray-200 dark:bg-gray-700" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm">
+        <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-bold">Failed to load student directory</p>
+          <p className="text-xs mt-0.5 text-rose-700 dark:text-rose-300">{error}</p>
+          <button
+            type="button"
+            onClick={fetchData}
+            className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+    <div className="space-y-6 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm flex items-center gap-4">
@@ -162,15 +224,7 @@ export const TutorStudentDirectory: React.FC = () => {
       </div>
 
       {/* ── States ────────────────────────────────────────────────── */}
-      {isLoading ? (
-        <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-8 space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-11 bg-gray-100 rounded-xl animate-pulse" />)}
-        </div>
-      ) : error ? (
-        <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-2xl p-5">
-          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" /> {error}
-        </div>
-      ) : students.length === 0 ? (
+      {students.length === 0 ? (
         <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-10 text-center space-y-3">
           <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center mx-auto">
             <Users className="w-8 h-8 text-gray-300" />

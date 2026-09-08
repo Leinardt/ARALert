@@ -364,8 +364,28 @@ class AttendanceSessionCreateView(APIView):
     """
     POST /api/academics/attendance/session/
     Generate a QR attendance session.
+    GET /api/academics/attendance/session/
+    Retrieve currently active session for the authenticated user.
     """
     permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        session_type = request.query_params.get('session_type', 'student')
+
+        session = ApiAttendanceSession.objects.filter(
+            creator=user,
+            session_type=session_type,
+            is_active=True,
+            expires_at__gt=timezone.now(),
+        ).order_by('-expires_at').first()
+
+        if not session:
+            return Response({'session': None}, status=status.HTTP_200_OK)
+
+        return Response({
+            'session': AttendanceSessionSerializer(session).data
+        }, status=status.HTTP_200_OK)
 
     def post(self, request):
         user               = request.user
@@ -394,6 +414,13 @@ class AttendanceSessionCreateView(APIView):
         else:
             return Response({'error': 'Invalid session_type.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Deactivate any previous active sessions for this user and session_type
+        ApiAttendanceSession.objects.filter(
+            creator=user,
+            session_type=session_type,
+            is_active=True
+        ).update(is_active=False)
+
         aral_activity = None
         if aral_activity_id:
             aral_activity = get_object_or_404(ApiAralActivity, id=aral_activity_id)
@@ -408,6 +435,31 @@ class AttendanceSessionCreateView(APIView):
             is_active    = True,
         )
         return Response(AttendanceSessionSerializer(session).data, status=status.HTTP_201_CREATED)
+
+
+class AttendanceSessionCloseView(APIView):
+    """
+    POST /api/academics/attendance/session/<uuid:session_id>/close/
+    Close an active attendance session.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, session_id):
+        try:
+            session = ApiAttendanceSession.objects.get(id=session_id)
+        except (ApiAttendanceSession.DoesNotExist, ValueError):
+            return Response({'error': 'Invalid session ID.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if session.creator != request.user and not request.user.is_superuser:
+            return Response({'error': 'You do not have permission to close this session.'}, status=status.HTTP_403_FORBIDDEN)
+
+        session.is_active = False
+        session.save(update_fields=['is_active'])
+
+        return Response({
+            'message': 'Attendance session closed successfully.',
+            'session': AttendanceSessionSerializer(session).data,
+        }, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------------------------
