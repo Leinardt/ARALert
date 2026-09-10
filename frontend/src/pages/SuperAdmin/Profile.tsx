@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import type { User } from '../../types';
+import { getUserInitial, getUserAvatarColorResolved } from '../../utils/studentFormatters';
 import {
   Mail,
   Calendar,
@@ -11,6 +12,15 @@ import {
   Save,
   Info,
 } from 'lucide-react';
+
+/**
+ * Format ARAL level string (e.g. 'basic' -> 'Basic').
+ */
+const formatAralLevel = (level: string | null | undefined): string => {
+  if (!level) return 'Basic';
+  return level.charAt(0).toUpperCase() + level.slice(1).toLowerCase();
+};
+
 
 /**
  * Format string to Title Case (normal typography with first letter of each word capitalized).
@@ -166,6 +176,8 @@ export const Profile: React.FC = () => {
     transition: 'border-color 0.2s',
   };
 
+  const avatarColor = getUserAvatarColorResolved(localUser);
+
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
@@ -174,26 +186,20 @@ export const Profile: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
             <div
+              className={`flex items-center justify-center font-extrabold overflow-hidden${avatarColor.kind === 'class' ? ` ${avatarColor.value}` : ''}`}
               style={{
                 width: '76px',
                 height: '76px',
                 borderRadius: '22px',
-                background: 'var(--brand)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
                 fontFamily: 'var(--font-heading)',
-                fontWeight: 800,
                 fontSize: '2rem',
-                overflow: 'hidden',
-                boxShadow: '0 8px 20px rgba(9, 115, 55, 0.3)',
+                ...(avatarColor.kind === 'style' ? avatarColor.value : {}),
               }}
             >
               {localUser.avatar ? (
                 <img src={localUser.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                (localUser.first_name?.[0] || localUser.username[0]).toUpperCase()
+                getUserInitial(localUser)
               )}
             </div>
 
@@ -202,13 +208,36 @@ export const Profile: React.FC = () => {
               <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
                 {formatSystemDisplayName(localUser)}
               </h1>
-              <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <Mail size={14} /> {localUser.email}
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+              {localUser.role === 'student' ? (
+                <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-muted)' }}>LRN:</span>
+                  <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>{localUser.lrn || '—'}</span>
+                </p>
+              ) : (
+                <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Mail size={14} /> {localUser.email}
+                </p>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--brand-light)', color: 'var(--brand-dark)', border: '1px solid var(--brand-border)' }}>
                   {localUser.is_superuser ? 'SuperAdmin' : localUser.role?.toUpperCase() || 'USER'}
                 </span>
+                {(localUser.role === 'student' || localUser.role === 'tutor') && (
+                  <>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/80">
+                      ARAL {formatAralLevel(localUser.aral_level).toUpperCase()}
+                    </span>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider border ${
+                      (localUser.subject || 'Reading') === 'Reading'
+                        ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/80'
+                        : (localUser.subject || 'Reading') === 'Science'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/80'
+                        : 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800/80'
+                    }`}>
+                      {localUser.subject || 'Reading'}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -362,11 +391,19 @@ export const Profile: React.FC = () => {
             </div>
           </div>
 
-          {/* Email / Member Since */}
+          {/* Email (or LRN for students) / Member Since */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Email Address</label>
-              <input type="email" value={localUser.email} readOnly disabled style={readonlyStyle} />
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                {localUser.role === 'student' ? 'Learner Reference Number (LRN)' : 'Email Address'}
+              </label>
+              <input
+                type={localUser.role === 'student' ? 'text' : 'email'}
+                value={localUser.role === 'student' ? (localUser.lrn || '—') : localUser.email}
+                readOnly
+                disabled
+                style={readonlyStyle}
+              />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -382,7 +419,63 @@ export const Profile: React.FC = () => {
             </div>
           </div>
 
-          
+          {/* Tutor Academic Assignment: ARAL Level & Subject Assigned */}
+          {localUser.role === 'tutor' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  ARAL Level Assigned
+                </label>
+                <input
+                  value={formatAralLevel(localUser.aral_level)}
+                  readOnly
+                  disabled
+                  style={readonlyStyle}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  ARAL Subject Assigned
+                </label>
+                <input
+                  value={localUser.subject || 'Reading'}
+                  readOnly
+                  disabled
+                  style={readonlyStyle}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Student Academic Information */}
+          {localUser.role === 'student' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  ARAL Level
+                </label>
+                <input
+                  value={formatAralLevel(localUser.aral_level)}
+                  readOnly
+                  disabled
+                  style={readonlyStyle}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  Subject
+                </label>
+                <input
+                  value={localUser.subject || 'Reading'}
+                  readOnly
+                  disabled
+                  style={readonlyStyle}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

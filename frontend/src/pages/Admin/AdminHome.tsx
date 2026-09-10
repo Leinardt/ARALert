@@ -315,19 +315,19 @@ export const AdminHome: React.FC = () => {
                 </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600">High Risk</p>
-                  <p className="text-lg font-extrabold text-rose-600 mt-1">{riskSummary?.high ?? 0}</p>
+                <div className="rounded-xl p-3 border risk-card-high">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-risk-high">High Risk</p>
+                  <p className="text-lg font-extrabold text-risk-high mt-1">{riskSummary?.high ?? 0}</p>
                   <p className="text-[10px] text-gray-400 mt-0.5">Urgent support</p>
                 </div>
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600">Med Risk</p>
-                  <p className="text-lg font-extrabold text-amber-600 mt-1">{riskSummary?.medium ?? 0}</p>
+                <div className="rounded-xl p-3 border risk-card-medium">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-risk-medium">Med Risk</p>
+                  <p className="text-lg font-extrabold text-risk-medium mt-1">{riskSummary?.medium ?? 0}</p>
                   <p className="text-[10px] text-gray-400 mt-0.5">Monitoring</p>
                 </div>
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Low Risk</p>
-                  <p className="text-lg font-extrabold text-emerald-600 mt-1">{riskSummary?.low ?? 0}</p>
+                <div className="rounded-xl p-3 border risk-card-low">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-risk-low">Low Risk</p>
+                  <p className="text-lg font-extrabold text-risk-low mt-1">{riskSummary?.low ?? 0}</p>
                   <p className="text-[10px] text-gray-400 mt-0.5">On track</p>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">

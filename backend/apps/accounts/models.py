@@ -105,6 +105,21 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name='Assigned Tutor',
     )
 
+    class Subject(models.TextChoices):
+        READING = 'Reading', 'Reading'
+        SCIENCE = 'Science', 'Science'
+        MATH    = 'Math',    'Math'
+
+    # Subject handled by the tutor (Reading, Science, or Math)
+    subject = models.CharField(
+        max_length=20,
+        choices=Subject.choices,
+        null=True,
+        blank=True,
+        verbose_name='Assigned Subject',
+        help_text='Subject handled by the tutor (Reading, Science, or Math).',
+    )
+
     # Tutor-customisable grading weights (only used if role='tutor')
     assessment_weight   = models.IntegerField(default=50, verbose_name='Assessment Weight (%)')
     weekly_tasks_weight = models.IntegerField(default=30, verbose_name='Weekly Tasks Weight (%)')

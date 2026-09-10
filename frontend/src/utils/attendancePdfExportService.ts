@@ -154,7 +154,7 @@ export const exportAttendanceToPdf = async (
     const weekVal = data.weekNumber || '1';
     const weekValW = pdf.getTextWidth(weekVal);
     const weekLineStart = marginX + weekLabelW;
-    const weekPad = 8;
+    const weekPad = 12;
     const weekValX = weekLineStart + weekPad;
     const weekLineEnd = weekValX + weekValW + weekPad;
 
@@ -167,7 +167,7 @@ export const exportAttendanceToPdf = async (
     const dateVal = data.dateStr || '_______';
     const dateLabelW = pdf.getTextWidth('DATE:  ');
     const dateValW = pdf.getTextWidth(dateVal);
-    const datePad = 8;
+    const datePad = 12;
     const totalDateBlockW = dateLabelW + dateValW + datePad * 2;
     const dateStartBlockX = pageWidth - marginX - totalDateBlockW;
 

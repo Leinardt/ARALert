@@ -68,22 +68,23 @@ export interface GetPrincipalDashboardParams {
 export const academicService = {
   // Grades
   getGrades: async (params: GetGradesParams = {}): Promise<Grade[]> => {
-    const response = await api.get<Grade[] | { results: Grade[] }>('/academics/grades/', { params });
+    const response = await api.get<Grade[] | { results: Grade[]; next?: string | null }>('/academics/grades/', { params });
     const data = response.data as any;
     if (Array.isArray(data)) return data;
 
     const grades = [...(data?.results ?? [])];
     let page = 1;
-    while (data?.next) {
+    let next = data?.next;
+    while (next) {
       page += 1;
-      const nextResponse = await api.get<Grade[] | { results: Grade[] }>('/academics/grades/', { params: { ...params, page } });
+      const nextResponse = await api.get<Grade[] | { results: Grade[]; next?: string | null }>('/academics/grades/', { params: { ...params, page } });
       const nextData = nextResponse.data as any;
       if (Array.isArray(nextData)) {
         grades.push(...nextData);
         break;
       }
       grades.push(...(nextData?.results ?? []));
-      if (!nextData?.next) break;
+      next = nextData?.next;
     }
     return grades;
   },
@@ -189,9 +190,25 @@ export const academicService = {
   },
 
   getAttendanceHistory: async (params: GetAttendanceParams = {}): Promise<Attendance[]> => {
-    const response = await api.get<Attendance[] | { results: Attendance[] }>('/academics/attendance/history/', { params });
+    const response = await api.get<Attendance[] | { results: Attendance[]; next?: string | null }>('/academics/attendance/history/', { params });
     const data = response.data as any;
-    return Array.isArray(data) ? data : (data?.results ?? []);
+    if (Array.isArray(data)) return data;
+
+    const records = [...(data?.results ?? [])];
+    let page = 1;
+    let next = data?.next;
+    while (next) {
+      page += 1;
+      const nextRes = await api.get<Attendance[] | { results: Attendance[]; next?: string | null }>('/academics/attendance/history/', { params: { ...params, page } });
+      const nextData = nextRes.data as any;
+      if (Array.isArray(nextData)) {
+        records.push(...nextData);
+        break;
+      }
+      records.push(...(nextData?.results ?? []));
+      next = nextData?.next;
+    }
+    return records;
   },
 
   updateAttendance: async (id: number, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>): Promise<Attendance> => {

@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
 import type { StudentAcademicProfile, Grade, Attendance } from '../../types';
-import { getRiskAvatarClass } from '../../utils/analyticsHelpers';
 import {
   ArrowLeft,
   GraduationCap,
@@ -37,12 +36,7 @@ import {
 } from 'lucide-react';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
-const AVATAR_COLORS = [
-  'bg-blue-100 text-blue-700', 'bg-violet-100 text-violet-700', 'bg-emerald-100 text-emerald-700',
-  'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700', 'bg-sky-100 text-sky-700',
-];
-const avatarColor = (name: string) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
-import { getStudentInitials as getInitials } from '../../utils/studentFormatters';
+import { getStudentInitials as getInitials, getStudentAvatarColor as avatarColor } from '../../utils/studentFormatters';
 
 /** Trim trailing decimal zeros: 100.00 → 100, 99.57 → 99.57, 99.5 → 99.5 */
 const smartPct = (n: number): string => parseFloat(n.toFixed(2)).toString();
@@ -95,9 +89,9 @@ const getAralBadge = (level?: string | null) => {
 
 const getRiskBadge = (tier?: string | null) => {
   switch (tier?.toLowerCase()) {
-    case 'high':   return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60">High Risk</span>;
-    case 'medium': return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60">Medium Risk</span>;
-    default:       return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60">Low Risk</span>;
+    case 'high':   return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-high">High Risk</span>;
+    case 'medium': return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-medium">Medium Risk</span>;
+    default:       return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-low">Low Risk</span>;
   }
 };
 
@@ -130,6 +124,7 @@ export const TutorStudentProfile: React.FC = () => {
   }, [profile]);
 
   const [studentGrades, setStudentGrades] = useState<Grade[]>([]);
+  const studentFirstName = profile?.student?.first_name || profile?.student?.name?.trim().split(' ')[0] || 'Student';
 
   const { passedCount, failedCount, calculatedAvgScore } = useMemo(() => {
     if (studentGrades.length === 0) {
@@ -156,99 +151,109 @@ export const TutorStudentProfile: React.FC = () => {
     };
   }, [studentGrades, scoreAvg]);
 
-  const scoreMood = useMemo(() => {
+  const hasScoreData = useMemo(() => {
     const takenGrades = studentGrades.filter(
       (g) => g.remarks?.trim().toLowerCase() !== 'not taken'
     );
-    if (takenGrades.length === 0 && (!profile?.grade_details || profile.grade_details.length === 0)) {
+    return takenGrades.length > 0 || (profile?.grade_details && profile.grade_details.length > 0);
+  }, [studentGrades, profile]);
+
+  const scoreMood = useMemo(() => {
+    // No-data state: neutral grey — not orange, which would imply a known medium risk
+    if (!hasScoreData) {
       return {
-        icon: Meh,
-        cardBg: 'bg-amber-50 border-amber-200',
-        iconBg: 'bg-amber-100 border-amber-200',
-        iconColor: 'text-amber-600',
-        textColor: 'text-amber-600',
-        valueColor: 'text-amber-500',
-        descColor: 'text-amber-500',
+        icon: Smile,
+        cardBg: 'bg-gray-50 border-gray-200 dark:bg-[#111111] dark:border-[#1A1A1A]',
+        iconBg: 'bg-gray-100 border-gray-200 dark:bg-gray-800 dark:border-gray-700',
+        iconColor: 'text-gray-400 dark:text-slate-500',
+        textColor: 'text-gray-400 dark:text-slate-500',
+        valueColor: 'text-gray-400 dark:text-slate-500',
+        descColor: 'text-gray-400 dark:text-slate-500',
       };
     }
     if (calculatedAvgScore >= 81) {
       return {
         icon: Smile,
-        cardBg: 'bg-emerald-50 border-emerald-200',
-        iconBg: 'bg-emerald-100 border-emerald-200',
-        iconColor: 'text-emerald-600',
-        textColor: 'text-emerald-600',
-        valueColor: 'text-emerald-600',
-        descColor: 'text-emerald-500',
+        cardBg: 'risk-card-low',
+        iconBg: 'risk-badge-low',
+        iconColor: 'text-risk-low',
+        textColor: 'text-risk-low',
+        valueColor: 'text-risk-low',
+        descColor: 'text-risk-low',
       };
     }
     if (calculatedAvgScore >= 75) {
       return {
         icon: Meh,
-        cardBg: 'bg-amber-50 border-amber-200',
-        iconBg: 'bg-amber-100 border-amber-200',
-        iconColor: 'text-amber-600',
-        textColor: 'text-amber-600',
-        valueColor: 'text-amber-500',
-        descColor: 'text-amber-500',
+        cardBg: 'risk-card-medium',
+        iconBg: 'risk-badge-medium',
+        iconColor: 'text-risk-medium',
+        textColor: 'text-risk-medium',
+        valueColor: 'text-risk-medium',
+        descColor: 'text-risk-medium',
       };
     }
     return {
       icon: Frown,
-      cardBg: 'bg-rose-50 border-rose-200',
-      iconBg: 'bg-rose-100 border-rose-200',
-      iconColor: 'text-rose-600',
-      textColor: 'text-rose-600',
-      valueColor: 'text-rose-500',
-      descColor: 'text-rose-500',
+      cardBg: 'risk-card-high',
+      iconBg: 'risk-badge-high',
+      iconColor: 'text-risk-high',
+      textColor: 'text-risk-high',
+      valueColor: 'text-risk-high',
+      descColor: 'text-risk-high',
     };
-  }, [calculatedAvgScore, studentGrades, profile]);
+  }, [calculatedAvgScore, hasScoreData]);
+
+  const hasAttendanceData = useMemo(() => {
+    if (!profile) return false;
+    return (profile.attendance.present + profile.attendance.late + profile.attendance.absent) > 0;
+  }, [profile]);
 
   const attendanceMood = useMemo(() => {
-    const totalLogs = profile ? (profile.attendance.present + profile.attendance.late + profile.attendance.absent) : 0;
-    if (totalLogs === 0) {
+    // No-data state: neutral grey — not orange, which would imply a known medium risk
+    if (!hasAttendanceData) {
       return {
-        icon: Meh,
-        cardBg: 'bg-amber-50 border-amber-200',
-        iconBg: 'bg-amber-100 border-amber-200',
-        iconColor: 'text-amber-600',
-        textColor: 'text-amber-600',
-        valueColor: 'text-amber-500',
-        descColor: 'text-amber-500',
+        icon: Smile,
+        cardBg: 'bg-gray-50 border-gray-200 dark:bg-[#111111] dark:border-[#1A1A1A]',
+        iconBg: 'bg-gray-100 border-gray-200 dark:bg-gray-800 dark:border-gray-700',
+        iconColor: 'text-gray-400 dark:text-slate-500',
+        textColor: 'text-gray-400 dark:text-slate-500',
+        valueColor: 'text-gray-400 dark:text-slate-500',
+        descColor: 'text-gray-400 dark:text-slate-500',
       };
     }
     if (attendanceRate >= 81) {
       return {
         icon: Smile,
-        cardBg: 'bg-emerald-50 border-emerald-200',
-        iconBg: 'bg-emerald-100 border-emerald-200',
-        iconColor: 'text-emerald-600',
-        textColor: 'text-emerald-600',
-        valueColor: 'text-emerald-600',
-        descColor: 'text-emerald-500',
+        cardBg: 'risk-card-low',
+        iconBg: 'risk-badge-low',
+        iconColor: 'text-risk-low',
+        textColor: 'text-risk-low',
+        valueColor: 'text-risk-low',
+        descColor: 'text-risk-low',
       };
     }
     if (attendanceRate >= 75) {
       return {
         icon: Meh,
-        cardBg: 'bg-amber-50 border-amber-200',
-        iconBg: 'bg-amber-100 border-amber-200',
-        iconColor: 'text-amber-600',
-        textColor: 'text-amber-600',
-        valueColor: 'text-amber-500',
-        descColor: 'text-amber-500',
+        cardBg: 'risk-card-medium',
+        iconBg: 'risk-badge-medium',
+        iconColor: 'text-risk-medium',
+        textColor: 'text-risk-medium',
+        valueColor: 'text-risk-medium',
+        descColor: 'text-risk-medium',
       };
     }
     return {
       icon: Frown,
-      cardBg: 'bg-rose-50 border-rose-200',
-      iconBg: 'bg-rose-100 border-rose-200',
-      iconColor: 'text-rose-600',
-      textColor: 'text-rose-600',
-      valueColor: 'text-rose-500',
-      descColor: 'text-rose-500',
+      cardBg: 'risk-card-high',
+      iconBg: 'risk-badge-high',
+      iconColor: 'text-risk-high',
+      textColor: 'text-risk-high',
+      valueColor: 'text-risk-high',
+      descColor: 'text-risk-high',
     };
-  }, [attendanceRate, profile]);
+  }, [attendanceRate, hasAttendanceData]);
 
   // Modals state
   const [showGradeModal, setShowGradeModal] = useState(false);
@@ -482,11 +487,11 @@ export const TutorStudentProfile: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-6xl mx-auto animate-pulse" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <div className="space-y-6 max-w-6xl mx-auto skeleton-container animate-pulse" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
         {/* Back button skeleton */}
         <div className="h-5 w-44 rounded-xl bg-gray-200 dark:bg-gray-700" />
         {/* Header card skeleton */}
-        <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-6">
+        <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-6 skeleton-row-1">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
             <div className="space-y-2.5 flex-1">
@@ -502,7 +507,7 @@ export const TutorStudentProfile: React.FC = () => {
           ))}
         </div>
         {/* KPI containers skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 skeleton-row-2">
           {[1, 2, 3].map((i) => (
             <div key={i} className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm flex items-center gap-4">
               <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
@@ -515,7 +520,7 @@ export const TutorStudentProfile: React.FC = () => {
           ))}
         </div>
         {/* Table card skeleton */}
-        <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-6 space-y-4">
+        <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-6 space-y-4 skeleton-row-3">
           <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
             <div className="space-y-1.5">
               <div className="h-4 w-40 rounded bg-gray-200 dark:bg-gray-700" />
@@ -568,7 +573,7 @@ export const TutorStudentProfile: React.FC = () => {
       <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 space-y-5">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
           <div className="flex items-center gap-4">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-extrabold shadow-sm shrink-0 ${getRiskAvatarClass(riskTier)}`}>
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center text-xl font-extrabold shadow-sm shrink-0 ${avatarColor(profile.student.name)}`}>
               {getInitials(profile.student.name)}
             </div>
             <div>
@@ -582,7 +587,12 @@ export const TutorStudentProfile: React.FC = () => {
       </div>
 
       {/* ── Tab Navigation ─────────────────────────────────────────── */}
-      <div className="flex w-full rounded-2xl bg-gray-100 p-1" role="tablist" aria-label="Student profile view">
+      <div
+        className="flex w-full rounded-2xl bg-gray-100 p-1 no-arrive-animation"
+        role="tablist"
+        aria-label="Student profile view"
+        style={{ animation: 'none', transform: 'none', opacity: 1 }}
+      >
         {([
           ['overall', 'Overall'],
           ['attendance', 'Attendance'],
@@ -642,34 +652,34 @@ export const TutorStudentProfile: React.FC = () => {
 
               <div className={`rounded-3xl border p-5 shadow-sm flex items-center gap-4 ${
                 riskTier === 'High'
-                  ? 'bg-rose-50 border-rose-200'
+                  ? 'risk-card-high'
                   : riskTier === 'Medium'
-                  ? 'bg-amber-50 border-amber-200'
-                  : 'bg-emerald-50 border-emerald-200'
+                  ? 'risk-card-medium'
+                  : 'risk-card-low'
               }`}>
                 <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${
                   riskTier === 'High'
-                    ? 'bg-rose-100 border-rose-200 text-rose-600'
+                    ? 'risk-badge-high text-risk-high'
                     : riskTier === 'Medium'
-                    ? 'bg-amber-100 border-amber-200 text-amber-600'
-                    : 'bg-emerald-100 border-emerald-200 text-emerald-600'
+                    ? 'risk-badge-medium text-risk-medium'
+                    : 'risk-badge-low text-risk-low'
                 }`}>
                   <ShieldAlert className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
                   <p className={`text-[11px] font-bold uppercase tracking-wider ${
                     riskTier === 'High'
-                      ? 'text-rose-600'
+                      ? 'text-risk-high'
                       : riskTier === 'Medium'
-                      ? 'text-amber-600'
-                      : 'text-emerald-600'
+                      ? 'text-risk-medium'
+                      : 'text-risk-low'
                   }`}>RISK LEVEL</p>
                   <p className={`text-2xl font-extrabold mt-0.5 ${
                     riskTier === 'High'
-                      ? 'text-rose-900'
+                      ? 'text-risk-high'
                       : riskTier === 'Medium'
-                      ? 'text-amber-900'
-                      : 'text-emerald-900'
+                      ? 'text-risk-medium'
+                      : 'text-risk-low'
                   }`}>
                     {riskTier}
                   </p>
@@ -694,11 +704,11 @@ export const TutorStudentProfile: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
                     <tr className="divide-x divide-gray-100 transition-colors hover:bg-gray-50/80 text-center">
-                      <td className="px-6 py-4 font-normal text-emerald-600">
+                      <td className={`px-6 py-4 font-normal ${attendanceRate >= 81 ? 'text-risk-low' : attendanceRate >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
                         {smartPct(attendanceRate)}%
                       </td>
-                      <td className="px-6 py-4 font-normal text-gray-700">
-                        {smartPct(scoreAvg)}%
+                      <td className={`px-6 py-4 font-normal ${calculatedAvgScore >= 81 ? 'text-risk-low' : calculatedAvgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                        {smartPct(calculatedAvgScore)}%
                       </td>
                       <td className="px-6 py-4 font-normal text-indigo-600">
                         {smartPct(compositeScore)}%
@@ -723,7 +733,7 @@ export const TutorStudentProfile: React.FC = () => {
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">TOTAL PRESENT</p>
                   <p className="text-2xl font-extrabold text-emerald-900 mt-0.5">{profile.attendance.present}</p>
-                  <p className="mt-0.5 text-xs font-medium text-gray-500">Student's total present records</p>
+                  <p className="mt-0.5 text-xs font-medium text-gray-500">{studentFirstName}'s total present records</p>
                 </div>
               </div>
               <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-sm flex items-center gap-4">
@@ -733,7 +743,7 @@ export const TutorStudentProfile: React.FC = () => {
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">TOTAL ABSENT</p>
                   <p className="text-2xl font-extrabold text-rose-900 mt-0.5">{profile.attendance.absent}</p>
-                  <p className="mt-0.5 text-xs font-medium text-gray-500">Student's total absent records</p>
+                  <p className="mt-0.5 text-xs font-medium text-gray-500">{studentFirstName}'s total absent records</p>
                 </div>
               </div>
               <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm flex items-center gap-4 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
@@ -742,8 +752,10 @@ export const TutorStudentProfile: React.FC = () => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE ATTENDANCE RATE</p>
-                  <p className={`text-2xl font-extrabold mt-0.5 ${attendanceMood.valueColor}`}>{smartPct(attendanceRate)}%</p>
-                  <p className="mt-0.5 text-xs font-medium text-gray-500">Student's average attendance rate</p>
+                  <p className={`text-2xl font-extrabold mt-0.5 ${attendanceMood.valueColor}`}>
+                    {hasAttendanceData ? `${smartPct(attendanceRate)}%` : '—'}
+                  </p>
+                  <p className="mt-0.5 text-xs font-medium text-gray-500">{studentFirstName}'s average attendance rate</p>
                 </div>
               </div>
             </div>
@@ -765,7 +777,7 @@ export const TutorStudentProfile: React.FC = () => {
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">TOTAL PASSED</p>
                   <p className="text-2xl font-extrabold text-emerald-900 mt-0.5">{passedCount}</p>
-                  <p className="mt-0.5 text-xs font-medium text-gray-500">Student's total passed score records</p>
+                  <p className="mt-0.5 text-xs font-medium text-gray-500">{studentFirstName}'s total passed score records</p>
                 </div>
               </div>
               <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-sm flex items-center gap-4">
@@ -775,7 +787,7 @@ export const TutorStudentProfile: React.FC = () => {
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">TOTAL FAILED</p>
                   <p className="text-2xl font-extrabold text-rose-900 mt-0.5">{failedCount}</p>
-                  <p className="mt-0.5 text-xs font-medium text-gray-500">Student's total failed score records</p>
+                  <p className="mt-0.5 text-xs font-medium text-gray-500">{studentFirstName}'s total failed score records</p>
                 </div>
               </div>
               <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm flex items-center gap-4 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
@@ -784,8 +796,10 @@ export const TutorStudentProfile: React.FC = () => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE SCORE</p>
-                  <p className={`text-2xl font-extrabold mt-0.5 ${scoreMood.valueColor}`}>{smartPct(calculatedAvgScore)}%</p>
-                  <p className="mt-0.5 text-xs font-medium text-gray-500">Student's average score</p>
+                  <p className={`text-2xl font-extrabold mt-0.5 ${scoreMood.valueColor}`}>
+                    {hasScoreData ? `${smartPct(calculatedAvgScore)}%` : '—'}
+                  </p>
+                  <p className="mt-0.5 text-xs font-medium text-gray-500">{studentFirstName}'s average score</p>
                 </div>
               </div>
             </div>
@@ -1322,10 +1336,10 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
 
   const weekLabel = (mondayStr: string) => {
     const mon = new Date(mondayStr + 'T00:00:00');
-    const sun = new Date(mon);
-    sun.setDate(mon.getDate() + 6);
+    const fri = new Date(mon);
+    fri.setDate(mon.getDate() + 4);
     const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    return `${fmt(mon)} – ${fmt(sun)}, ${sun.getFullYear()}`;
+    return `${fmt(mon)} – ${fmt(fri)}, ${fri.getFullYear()}`;
   };
 
   // Group by month key "YYYY-MM"
@@ -1513,7 +1527,7 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100">
           <div>
-            <h3 className="font-bold text-gray-900 text-base">Student Score History</h3>
+            <h3 className="font-bold text-gray-900 text-base">SCORES HISTORY</h3>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Loading...</p>
           </div>
         </div>
@@ -1530,7 +1544,7 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100">
           <div>
-            <h3 className="font-bold text-gray-900 text-base">Student Score History</h3>
+            <h3 className="font-bold text-gray-900 text-base">SCORES HISTORY</h3>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">0 RECORDS</p>
           </div>
           {onLogNewGrade && (
@@ -1560,7 +1574,7 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100">
         <div>
-          <h3 className="font-bold text-gray-900 text-base">STUDENT SCORE HISTORY</h3>
+          <h3 className="font-bold text-gray-900 text-base">SCORES HISTORY</h3>
           <p className="mt-0.5 text-xs font-medium text-gray-500">
             {jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length} Record
             {(jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length) !== 1 ? 's' : ''}
@@ -1600,7 +1614,7 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
               className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${
                 jumpDate
                   ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                  : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                  : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
               }`}
               title="Select a specific date from calendar"
               aria-label="Open Calendar"
@@ -1787,10 +1801,10 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
 
   const weekLabel = (mondayStr: string) => {
     const mon = new Date(mondayStr + 'T00:00:00');
-    const sun = new Date(mon);
-    sun.setDate(mon.getDate() + 6);
+    const fri = new Date(mon);
+    fri.setDate(mon.getDate() + 4);
     const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    return `${fmt(mon)} – ${fmt(sun)}, ${sun.getFullYear()}`;
+    return `${fmt(mon)} – ${fmt(fri)}, ${fri.getFullYear()}`;
   };
 
   // Group by month key "YYYY-MM"
@@ -2013,7 +2027,7 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
               className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${
                 jumpDate
                   ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                  : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                  : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
               }`}
               title="Select a specific date from calendar"
               aria-label="Open Calendar"

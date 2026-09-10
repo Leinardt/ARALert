@@ -72,12 +72,7 @@ const blockSymbolKeys = (e: React.KeyboardEvent<HTMLInputElement>) => {
   }
 };
 
-const AVATAR_COLORS = [
-  'bg-blue-100 text-blue-700', 'bg-violet-100 text-violet-700', 'bg-emerald-100 text-emerald-700',
-  'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700', 'bg-sky-100 text-sky-700',
-];
-const avatarColor = (name: string) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
-import { getStudentInitials as getInitials } from '../../utils/studentFormatters';
+import { getStudentInitials as getInitials, buildAvatarColorMap } from '../../utils/studentFormatters';
 
 const formatDateStr = (dateStr: string) => {
   const d = new Date(dateStr + 'T00:00:00');
@@ -93,7 +88,8 @@ const formatDateStr = (dateStr: string) => {
 
 const formatTimeStr = (dateStr: string | null | undefined) => {
   if (!dateStr) return '—';
-  const date = new Date(dateStr);
+  const normalized = dateStr.includes(' ') && !dateStr.includes('T') ? dateStr.replace(' ', 'T') : dateStr;
+  const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 };
@@ -179,6 +175,211 @@ const ScoreCalendarDropdown: React.FC<{
   );
 };
 
+type ScoreSortKey = 'student' | 'score' | 'remark' | 'status' | 'date' | 'time';
+
+interface ScoreEntryTableProps {
+  rows: Grade[];
+  lastSavedBatchId: string | null;
+  lastRowRef: React.RefObject<HTMLTableRowElement | null>;
+  editingGradeId: number | null;
+  editScore: number | '';
+  editStatus: 'Taken' | 'Not';
+  editDate: string;
+  editCalendarGradeId: number | null;
+  editCalendarPosition: { top: number; left: number };
+  grades: Grade[];
+  blockSymbolKeys: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  sanitizeScoreInput: (value: string, maxScore: number) => number | '';
+  setEditScore: (score: number | '') => void;
+  setEditStatus: (status: 'Taken' | 'Not') => void;
+  setEditDate: (date: string) => void;
+  setEditCalendarGradeId: (id: number | null) => void;
+  toggleEditCalendar: (event: React.MouseEvent<HTMLButtonElement>, id: number) => void;
+  startEditingGrade: (grade: Grade) => void;
+  cancelEditingGrade: () => void;
+  saveEditingGrade: () => void;
+  isEditingGrade: boolean;
+  formatDateStr: (dateStr: string) => string;
+  formatTimeStr: (createdStr?: string | null) => string;
+  avatarColor: (name: string) => string;
+}
+
+const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
+  rows,
+  lastSavedBatchId,
+  lastRowRef,
+  editingGradeId,
+  editScore,
+  editStatus,
+  editDate,
+  editCalendarGradeId,
+  editCalendarPosition,
+  grades,
+  blockSymbolKeys,
+  sanitizeScoreInput,
+  setEditScore,
+  setEditStatus,
+  setEditDate,
+  setEditCalendarGradeId,
+  toggleEditCalendar,
+  startEditingGrade,
+  cancelEditingGrade,
+  saveEditingGrade,
+  isEditingGrade,
+  formatDateStr,
+  formatTimeStr,
+  avatarColor,
+}) => {
+  const [sortConfig, setSortConfig] = useState<{ key: ScoreSortKey | null; direction: 'asc' | 'desc' }>({
+    key: null,
+    direction: 'asc',
+  });
+
+  const toggleSort = (key: ScoreSortKey) => {
+    setSortConfig((current) => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const sortedRows = useMemo(() => {
+    if (!sortConfig.key) return rows;
+    const direction = sortConfig.direction === 'asc' ? 1 : -1;
+    const getScoreValue = (grade: Grade) => {
+      const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
+      const scorePercentage = (Number(grade.score) / (Number(grade.total_score) || 100)) * 100;
+      switch (sortConfig.key) {
+        case 'student': return grade.student_name || '';
+        case 'score': return Number(grade.score);
+        case 'remark': return isNotTaken ? 'Not Taken' : scorePercentage >= 70 ? 'Passed' : 'Failed';
+        case 'status': return isNotTaken ? 'Not Taken' : 'Taken';
+        case 'date': return grade.date_logged || '';
+        case 'time': return grade.created_at || '';
+        default: return '';
+      }
+    };
+    const compareValues = (firstValue: string | number, secondValue: string | number) => {
+      if (typeof firstValue === 'number' && typeof secondValue === 'number') return (firstValue - secondValue) * direction;
+      return String(firstValue).localeCompare(String(secondValue), undefined, { numeric: true, sensitivity: 'base' }) * direction;
+    };
+    return [...rows].sort((first, second) => compareValues(getScoreValue(first), getScoreValue(second)));
+  }, [rows, sortConfig]);
+
+  const SortableScoreHeader: React.FC<{ label: string; sortKey: ScoreSortKey }> = ({ label, sortKey }) => {
+    const isActive = sortConfig.key === sortKey;
+    return (
+      <button
+        type="button"
+        onClick={() => toggleSort(sortKey)}
+        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-700 cursor-pointer"
+        aria-label={`Sort by ${label}`}
+      >
+        {label}
+        {isActive ? (
+          sortConfig.direction === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
+        ) : (
+          <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+        )}
+      </button>
+    );
+  };
+
+  return (
+    <table className="min-w-[900px] divide-y divide-gray-100 text-sm font-normal w-full">
+      <thead>
+        <tr className="divide-x divide-gray-100 bg-gray-50">
+          <th className="w-[25%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="STUDENT" sortKey="student" /></th>
+          <th className="w-[14%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="SCORE" sortKey="score" /></th>
+          <th className="w-[16%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="REMARK" sortKey="remark" /></th>
+          <th className="w-[14%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="STATUS" sortKey="status" /></th>
+          <th className="w-[19%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="DATE" sortKey="date" /></th>
+          <th className="w-[8%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="TIME" sortKey="time" /></th>
+          <th className="w-[10%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">ACTIONS</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-gray-100 bg-white">
+        {sortedRows.map((grade) => {
+          const isEditing = editingGradeId === grade.id;
+          const isLastSaved = grade.batch_id === lastSavedBatchId;
+          const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
+          const scorePercentage = (Number(grade.score) / (Number(grade.total_score) || 100)) * 100;
+          return (
+            <tr
+              key={grade.id}
+              ref={isLastSaved ? lastRowRef : undefined}
+              className={`divide-x divide-gray-100 border-t border-gray-100 text-left transition-colors ${isLastSaved ? 'bg-[var(--brand-light)] hover:bg-[var(--brand-light)]' : 'hover:bg-gray-50/80'}`}
+            >
+              <td className="px-4 py-3 font-semibold text-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(grade.student_name || '')}`}>
+                    {getInitials(grade.student_name || '?')}
+                  </div>
+                  <span className="font-bold text-slate-800">{grade.student_name || 'Unknown student'}</span>
+                </div>
+              </td>
+              <td className="px-4 py-3 text-xs text-slate-700">
+                {isEditing ? (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={editScore}
+                    onKeyDown={blockSymbolKeys}
+                    onChange={(event) => setEditScore(sanitizeScoreInput(event.target.value, Number(grade.total_score)))}
+                    className="w-24 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-semibold outline-none focus:border-[var(--brand)]"
+                  />
+                ) : `${grade.score} / ${grade.total_score}`}
+              </td>
+              <td className="px-4 py-3 text-left">
+                <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${isNotTaken ? 'border-gray-200 bg-gray-50 text-gray-400' : scorePercentage >= 70 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
+                  {isNotTaken ? 'Not Taken' : scorePercentage >= 70 ? 'Passed' : 'Failed'}
+                </span>
+              </td>
+              <td className="px-4 py-3 text-left">
+                {isEditing ? (
+                  <select value={editStatus} onChange={(event) => setEditStatus(event.target.value as 'Taken' | 'Not')} className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none focus:border-[var(--brand)]">
+                    <option value="Taken">Taken</option>
+                    <option value="Not">Not Taken</option>
+                  </select>
+                ) : <span className={`text-xs font-medium ${isNotTaken ? 'text-amber-500' : 'text-emerald-600'}`}>{isNotTaken ? 'Not Taken' : 'Taken'}</span>}
+              </td>
+              <td className="px-4 py-3 text-left whitespace-nowrap">
+                {isEditing ? (
+                  <div className="relative inline-block">
+                    <button
+                      type="button"
+                      onClick={(event) => toggleEditCalendar(event, grade.id)}
+                      className="h-9 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700"
+                      style={{ color: editDate ? '#1f2937' : '#9ca3af' }}
+                    >
+                      {editDate || 'Select date'}
+                    </button>
+                    {editCalendarGradeId === grade.id && createPortal(
+                      <ScoreCalendarDropdown
+                        selectedDate={editDate}
+                        onSelectDate={setEditDate}
+                        onClear={() => setEditDate('')}
+                        onClose={() => setEditCalendarGradeId(null)}
+                        loggedDates={new Set(grades.map((entry) => entry.date_logged))}
+                        className="fixed"
+                        style={{ position: 'fixed', top: editCalendarPosition.top, left: editCalendarPosition.left, marginTop: 0, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+                      />,
+                      document.body
+                    )}
+                  </div>
+                ) : <span className="text-xs text-slate-700">{formatDateStr(grade.date_logged)}</span>}
+              </td>
+              <td className="px-4 py-3 text-left text-xs text-slate-700">{formatTimeStr(grade.created_at)}</td>
+              <td className="px-4 py-3 text-center">
+                {isEditing ? <div className="inline-flex items-center gap-1.5"><button type="button" onClick={saveEditingGrade} disabled={isEditingGrade} className="rounded-lg p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50" aria-label="Save score changes" title="Save score changes"><Check className="h-3.5 w-3.5" /></button><button type="button" onClick={cancelEditingGrade} disabled={isEditingGrade} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 disabled:opacity-50" aria-label="Cancel score changes" title="Cancel score changes"><X className="h-3.5 w-3.5" /></button></div> : <button type="button" onClick={() => startEditingGrade(grade)} className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 cursor-pointer" aria-label={`Edit score for ${grade.student_name}`} title="Edit score"><Edit3 className="h-3.5 w-3.5" /></button>}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+};
+
 /* ─── Component ────────────────────────────────────────────────── */
 export const TutorScores: React.FC = () => {
   const { user } = useAuth();
@@ -187,6 +388,8 @@ export const TutorScores: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [gradesLoading, setGradesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const avatarColor = useMemo(() => buildAvatarColorMap(students), [students]);
 
   // Form State
   const [showAddEntry, setShowAddEntry] = useState(false);
@@ -208,8 +411,8 @@ export const TutorScores: React.FC = () => {
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Export modal
-  const [exportModalConfig, setExportModalConfig] = useState<{ isOpen: boolean; mode: 'all' | 'daily' | 'weekly'; targetKey: string }>({
-    isOpen: false, mode: 'all', targetKey: ''
+  const [exportModalConfig, setExportModalConfig] = useState<{ isOpen: boolean; mode: 'all' | 'daily' | 'weekly' | 'monthly'; targetKey: string }>({
+    isOpen: false, mode: 'weekly', targetKey: ''
   });
 
   type ViewMode = 'day' | 'week' | 'month';
@@ -222,11 +425,6 @@ export const TutorScores: React.FC = () => {
   const [studentSortActive, setStudentSortActive] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
   const [scoreStudentSearch, setScoreStudentSearch] = useState('');
-  type ScoreSortKey = 'student' | 'score' | 'remark' | 'status' | 'date' | 'time';
-  const [scoreSortConfig, setScoreSortConfig] = useState<{ key: ScoreSortKey; direction: 'asc' | 'desc' }>({
-    key: 'date',
-    direction: 'desc',
-  });
   const [editingGradeId, setEditingGradeId] = useState<number | null>(null);
   const [editScore, setEditScore] = useState<number | ''>('');
   const [editStatus, setEditStatus] = useState<'Taken' | 'Not'>('Taken');
@@ -307,7 +505,7 @@ export const TutorScores: React.FC = () => {
         .map((student) => ({
           student: student.id,
           component_type: 'assessment' as Grade['component_type'],
-          subject: entryKind === 'daily' ? 'Intervention Activity' : Object.values(levelScoreEntry).find((e) => e.kind === entryKind)?.subject || 'Reading',
+          subject: entryKind === 'daily' ? `${user?.subject || 'Reading'} Intervention Activity` : levelEntry.subject,
           quarter: Math.ceil((new Date().getMonth() + 1) / 3),
           score: Number(entryScores[student.id] || 0),
           total_score: activeTotal,
@@ -325,9 +523,16 @@ export const TutorScores: React.FC = () => {
 
       // ── Attendance-pattern: store batch ID → highlights the DTR row ──
       setLastSavedBatchId(batchId);
-      const titleName = entryKind === 'daily' ? 'Intervention Activity' : Object.values(levelScoreEntry).find((e) => e.kind === entryKind)?.title;
-      setSaveSuccessMsg(`${titleName} scores saved successfully! Progression level evaluated.`);
+      const titleName = entryKind === 'daily' ? 'Intervention Activity' : (Object.values(levelScoreEntry).find((e) => e.kind === entryKind)?.title || assignedPeriod);
+      setSaveSuccessMsg(`${titleName} scores saved and highlighted below.`);
       setShowSuccessModal(true);
+      setTimeout(() => {
+        if (lastRowRef.current) {
+          lastRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (tableContainerRef.current) {
+          tableContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 150);
     } catch (err: any) {
       console.error('Error saving scores:', err);
       const data = err?.response?.data;
@@ -349,14 +554,15 @@ export const TutorScores: React.FC = () => {
 
   const handleDismissSuccessModal = () => {
     setShowSuccessModal(false);
-    setTimeout(() => {
-      if (lastRowRef.current) {
-        lastRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else if (tableContainerRef.current) {
-        tableContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 120);
   };
+
+  useEffect(() => {
+    if (!showSuccessModal) return;
+    const timer = setTimeout(() => {
+      setShowSuccessModal(false);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [showSuccessModal]);
 
   const toggleEditCalendar = (event: React.MouseEvent<HTMLButtonElement>, gradeId: number) => {
     if (editCalendarGradeId === gradeId) {
@@ -424,15 +630,20 @@ export const TutorScores: React.FC = () => {
   }, [isLoading, students.length]);
 
   const safeGrades = useMemo(() => (Array.isArray(grades) ? grades : []), [grades]);
-  const levelEntry = useMemo(
-    () => levelScoreEntry[user?.aral_level && (user.aral_level in levelScoreEntry) ? (user.aral_level as keyof typeof levelScoreEntry) : 'basic'],
-    [user?.aral_level]
-  );
   const assignedPeriod = useMemo<ScorePeriod>(() => {
     if (user?.aral_level === 'summer') return 'BOSY';
     if (user?.aral_level === 'plus') return 'EOSY';
     return 'MOSY';
   }, [user?.aral_level]);
+  const tutorSubject = user?.subject || 'Reading';
+  const levelEntry = useMemo(() => {
+    const base = levelScoreEntry[user?.aral_level && (user.aral_level in levelScoreEntry) ? (user.aral_level as keyof typeof levelScoreEntry) : 'basic'];
+    return {
+      ...base,
+      title: `${assignedPeriod} ${tutorSubject} Score`,
+      subject: `${assignedPeriod} ${tutorSubject}`,
+    };
+  }, [assignedPeriod, tutorSubject, user?.aral_level]);
   const dailyGrades = useMemo(() => safeGrades.filter((grade) => grade.component_type === 'assessment'), [safeGrades]);
   const studentsWithEntries = useMemo(() => new Set(dailyGrades.map((g) => g.student)).size, [dailyGrades]);
   const avgScoreAll = useMemo(() => {
@@ -524,10 +735,10 @@ export const TutorScores: React.FC = () => {
   };
   const weekLabel = (mondayStr: string) => {
     const monday = new Date(`${mondayStr}T00:00:00`);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
     const format = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    return `${format(monday)} – ${format(sunday)}, ${sunday.getFullYear()}`;
+    return `${format(monday)} – ${format(friday)}, ${friday.getFullYear()}`;
   };
   const groupedBatchRows = useMemo(() => {
     if (jumpFilteredBatches !== null || viewMode === 'day') return [];
@@ -556,31 +767,11 @@ export const TutorScores: React.FC = () => {
   }, [filteredBatchRows, scoreStudentSearch]);
   const visibleBatchRows = jumpFilteredBatches ?? searchedBatchRows;
   const visibleScoreRows = useMemo(() => visibleBatchRows.flatMap((batch) => batch.grades), [visibleBatchRows]);
-  const sortedVisibleScoreRows = useMemo(() => {
-    const direction = scoreSortConfig.direction === 'asc' ? 1 : -1;
-    const getScoreValue = (grade: Grade) => {
-      const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
-      const scorePercentage = (Number(grade.score) / (Number(grade.total_score) || 100)) * 100;
-      switch (scoreSortConfig.key) {
-        case 'student': return grade.student_name || '';
-        case 'score': return Number(grade.score);
-        case 'remark': return isNotTaken ? 'Not Taken' : scorePercentage >= 70 ? 'Passed' : 'Failed';
-        case 'status': return isNotTaken ? 'Not Taken' : 'Taken';
-        case 'date': return grade.date_logged || '';
-        case 'time': return grade.created_at || '';
-      }
-    };
-    const compareValues = (firstValue: string | number, secondValue: string | number) => {
-      if (typeof firstValue === 'number' && typeof secondValue === 'number') return (firstValue - secondValue) * direction;
-      return String(firstValue).localeCompare(String(secondValue), undefined, { numeric: true, sensitivity: 'base' }) * direction;
-    };
-    return [...visibleScoreRows].sort((first, second) => compareValues(getScoreValue(first), getScoreValue(second)));
-  }, [scoreSortConfig, visibleScoreRows]);
   const scoreViewGroups = useMemo(() => {
-    if (viewMode === 'day' || jumpDate) return [{ key: 'all', label: '', rows: sortedVisibleScoreRows }];
+    if (viewMode === 'day' || jumpDate) return [{ key: 'all', label: '', rows: visibleScoreRows }];
 
     const groups = new Map<string, Grade[]>();
-    sortedVisibleScoreRows.forEach((grade) => {
+    visibleScoreRows.forEach((grade) => {
       const key = viewMode === 'week' ? getWeekKey(grade.date_logged) : grade.date_logged.slice(0, 7);
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(grade);
@@ -593,27 +784,36 @@ export const TutorScores: React.FC = () => {
         : new Date(`${key}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
       rows,
     }));
-  }, [jumpDate, sortedVisibleScoreRows, viewMode]);
+  }, [jumpDate, visibleScoreRows, viewMode]);
   const dayScoreGroups = useMemo(() => {
-    const groups = new Map<string, Grade[]>();
-    sortedVisibleScoreRows.forEach((grade) => {
-      const key = `${grade.date_logged.slice(0, 10)}|${formatTimeStr(grade.created_at)}`;
+    const groups = new Map<string, { label: string; rows: Grade[]; sortTime: number }>();
+    visibleScoreRows.forEach((grade) => {
+      const timePart = formatTimeStr(grade.created_at);
+      const batchPart = grade.batch_id || `solo-${grade.id}`;
+      // Group by date + batch ID so multiple score batches on the same day are cleanly separated
+      const key = `${grade.date_logged.slice(0, 10)}|${batchPart}`;
       const existing = groups.get(key);
       if (existing) {
-        existing.push(grade);
+        existing.rows.push(grade);
       } else {
-        groups.set(key, [grade]);
+        const label = `${formatDateStr(grade.date_logged)} | ${timePart}`;
+        const sortTime = grade.created_at ? new Date(grade.created_at).getTime() : new Date(`${grade.date_logged}T00:00:00`).getTime();
+        groups.set(key, { label, rows: [grade], sortTime });
       }
     });
-    return Array.from(groups.entries()).map(([key, rows]) => ({
-      key,
-      label: `${formatDateStr(key.split('|')[0])} | ${key.split('|')[1]}`,
-      rows,
-    }));
-  }, [sortedVisibleScoreRows]);
-  const scoreTableGroups = viewMode === 'day'
-    ? dayScoreGroups
-    : [{ key: 'all', label: '', rows: sortedVisibleScoreRows }];
+    return Array.from(groups.entries())
+      .sort(([, a], [, b]) => b.sortTime - a.sortTime)
+      .map(([key, group]) => ({
+        key,
+        label: group.label,
+        rows: group.rows,
+      }));
+  }, [visibleScoreRows]);
+  const scoreTableGroups = useMemo(() => {
+    if (viewMode === 'day') return dayScoreGroups;
+    if (jumpDate) return [{ key: 'jump', label: '', rows: visibleScoreRows }];
+    return scoreViewGroups;
+  }, [dayScoreGroups, jumpDate, scoreViewGroups, viewMode]);
   const loggedScoreDates = useMemo(() => new Set(filteredBatchRows.map((batch) => batch.dateStr)), [filteredBatchRows]);
   const sortedStudents = useMemo(
     () => [...students]
@@ -625,36 +825,10 @@ export const TutorScores: React.FC = () => {
     [students, studentSearch, studentSortDirection]
   );
 
-  const toggleScoreSort = (key: ScoreSortKey) => {
-    setScoreSortConfig((current) => ({
-      key,
-      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
-    }));
-  };
-
-  const SortableScoreHeader: React.FC<{ label: string; sortKey: ScoreSortKey }> = ({ label, sortKey }) => {
-    const isActive = scoreSortConfig.key === sortKey;
-    return (
-      <button
-        type="button"
-        onClick={() => toggleScoreSort(sortKey)}
-        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-700"
-        aria-label={`Sort by ${label}`}
-      >
-        {label}
-        {isActive ? (
-          scoreSortConfig.direction === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
-        ) : (
-          <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
-        )}
-      </button>
-    );
-  };
-
   if (isLoading) return (
-    <div className="flex flex-col space-y-6 max-w-6xl mx-auto">
+    <div className="flex flex-col space-y-6 max-w-6xl mx-auto skeleton-container">
       {/* Header controls skeleton */}
-      <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-pulse">
+      <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-pulse skeleton-row-1">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
           <div className="space-y-2">
@@ -669,7 +843,7 @@ export const TutorScores: React.FC = () => {
       </div>
 
       {/* Filter controls skeleton */}
-      <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-5 flex flex-wrap items-center gap-3 animate-pulse">
+      <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-5 flex flex-wrap items-center gap-3 animate-pulse skeleton-row-2">
         <div className="h-9 w-32 rounded-xl bg-gray-200 dark:bg-gray-700" />
         <div className="h-9 w-32 rounded-xl bg-gray-200 dark:bg-gray-700" />
         <div className="h-9 w-32 rounded-xl bg-gray-200 dark:bg-gray-700" />
@@ -677,7 +851,7 @@ export const TutorScores: React.FC = () => {
       </div>
 
       {/* Score entry panel skeleton */}
-      <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-6 space-y-4 animate-pulse">
+      <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-6 space-y-4 animate-pulse skeleton-row-3">
         <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
           <div className="space-y-1.5">
             <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-700" />
@@ -875,7 +1049,7 @@ export const TutorScores: React.FC = () => {
                         <tr key={student.id} className="divide-x divide-gray-100 transition-colors hover:bg-gray-50/80">
                           <td className="px-4 py-3">
                             <div className="flex min-w-0 items-center gap-2.5">
-                              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[10px] font-bold ${avatarColor(student.full_name || '')}`}>
+                              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${avatarColor(student.full_name || '')}`}>
                                 {getInitials(student.full_name || '?')}
                               </div>
                               <div className="min-w-0">
@@ -947,7 +1121,7 @@ export const TutorScores: React.FC = () => {
         <div className="flex flex-col gap-3 px-6 py-4 border-b border-gray-100 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center">
             <div>
-              <h3 className="text-base font-bold text-gray-900">STUDENT SCORE ENTRIES</h3>
+              <h3 className="text-base font-bold text-gray-900">SCORES HISTORY</h3>
               <p className="mt-0.5 text-xs font-medium text-gray-500">
                 {visibleScoreRows.length} Record{visibleScoreRows.length !== 1 ? 's' : ''}
               </p>
@@ -998,7 +1172,7 @@ export const TutorScores: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowCalendarPopover((previous) => !previous)}
-                className={`flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border p-0 transition-all ${jumpDate ? 'border-[var(--brand)] bg-[var(--brand)] text-white shadow-sm' : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}
+                className={`flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border p-0 transition-all ${jumpDate ? 'border-[var(--brand)] bg-[var(--brand)] text-white shadow-sm' : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'}`}
                 aria-label="Open score calendar"
                 title="Select a specific date from calendar"
               >
@@ -1016,10 +1190,10 @@ export const TutorScores: React.FC = () => {
             </div>
             <button
               type="button"
-              onClick={() => setExportModalConfig({ isOpen: true, mode: 'all', targetKey: '' })}
-              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
+              onClick={() => setExportModalConfig({ isOpen: true, mode: 'weekly', targetKey: '' })}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--brand)] px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-[var(--brand-hover)] active:scale-[0.98] cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5 text-gray-500" />
+              <Download className="w-3.5 h-3.5 text-white" />
               Export Score Sheet
             </button>
           </div>
@@ -1051,115 +1225,43 @@ export const TutorScores: React.FC = () => {
               <p className="text-xs text-gray-400">{jumpDate ? 'Try a different date or clear the filter' : 'Records will appear after logging scores'}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-2 px-2">
-              {viewMode !== 'day' && !jumpDate && (
-                <div className="mb-3 space-y-3">
-                  {scoreViewGroups.map((group) => (
-                    <div key={group.key} className="flex items-center gap-3">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{group.label}</span>
-                      <div className="h-px flex-1 bg-gray-100" />
-                      <span className="text-[11px] font-semibold text-gray-400">{group.rows.length} Record{group.rows.length !== 1 ? 's' : ''}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="overflow-x-auto -mx-2 px-2 space-y-6">
               {scoreTableGroups.map((tableGroup) => (
-                <React.Fragment key={tableGroup.key}>
-                  {viewMode === 'day' && (
-                    <div className="mb-3 mt-4 flex items-center gap-3 first:mt-0">
+                <div key={tableGroup.key} className="space-y-3">
+                  {tableGroup.label && (
+                    <div className="mb-3 flex items-center gap-3">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{tableGroup.label}</span>
                       <div className="h-px flex-1 bg-gray-100" />
                       <span className="text-[11px] font-semibold text-gray-400">{tableGroup.rows.length} Record{tableGroup.rows.length !== 1 ? 's' : ''}</span>
                     </div>
                   )}
-              <table className="min-w-[900px] divide-y divide-gray-100 text-sm font-normal w-full">
-                <thead>
-                  <tr className="divide-x divide-gray-100 bg-gray-50">
-                    <th className="w-[25%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="STUDENT" sortKey="student" /></th>
-                    <th className="w-[14%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="SCORE" sortKey="score" /></th>
-                    <th className="w-[16%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="REMARK" sortKey="remark" /></th>
-                    <th className="w-[14%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="STATUS" sortKey="status" /></th>
-                    <th className="w-[19%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="DATE" sortKey="date" /></th>
-                    <th className="w-[8%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="TIME" sortKey="time" /></th>
-                    <th className="w-[10%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">ACTIONS</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 bg-white">
-                  {tableGroup.rows.map((grade) => {
-                        const isEditing = editingGradeId === grade.id;
-                        const isLastSaved = grade.batch_id === lastSavedBatchId;
-                        const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
-                        const scorePercentage = (Number(grade.score) / (Number(grade.total_score) || 100)) * 100;
-                        return (
-                          <tr
-                            key={grade.id}
-                            ref={isLastSaved ? lastRowRef : undefined}
-                            className={`divide-x divide-gray-100 border-t border-gray-100 text-left transition-colors ${isLastSaved ? 'bg-[var(--brand-light)] hover:bg-[var(--brand-light)]' : 'hover:bg-gray-50/80'}`}
-                          >
-                        <td className="px-4 py-3 font-bold text-slate-800">
-                          {grade.student_name || 'Unknown student'}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-700">
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              value={editScore}
-                              onKeyDown={blockSymbolKeys}
-                              onChange={(event) => setEditScore(sanitizeScoreInput(event.target.value, Number(grade.total_score)))}
-                              className="w-24 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-semibold outline-none focus:border-[var(--brand)]"
-                            />
-                          ) : `${grade.score} / ${grade.total_score}`}
-                        </td>
-                        <td className="px-4 py-3 text-left">
-                          <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${isNotTaken ? 'border-gray-200 bg-gray-50 text-gray-400' : scorePercentage >= 70 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
-                            {isNotTaken ? 'Not Taken' : scorePercentage >= 70 ? 'Passed' : 'Failed'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-left">
-                          {isEditing ? (
-                            <select value={editStatus} onChange={(event) => setEditStatus(event.target.value as 'Taken' | 'Not')} className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none focus:border-[var(--brand)]">
-                              <option value="Taken">Taken</option>
-                              <option value="Not">Not Taken</option>
-                            </select>
-                          ) : <span className={`text-xs font-medium ${isNotTaken ? 'text-amber-500' : 'text-emerald-600'}`}>{isNotTaken ? 'Not Taken' : 'Taken'}</span>}
-                        </td>
-                        <td className="px-4 py-3 text-left whitespace-nowrap">
-                          {isEditing ? (
-                            <div className="relative inline-block">
-                              <button
-                                type="button"
-                                onClick={(event) => toggleEditCalendar(event, grade.id)}
-                                className="h-9 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700"
-                                style={{ color: editDate ? '#1f2937' : '#9ca3af' }}
-                              >
-                                {editDate || 'Select date'}
-                              </button>
-                              {editCalendarGradeId === grade.id && createPortal(
-                                <ScoreCalendarDropdown
-                                  selectedDate={editDate}
-                                  onSelectDate={setEditDate}
-                                  onClear={() => setEditDate('')}
-                                  onClose={() => setEditCalendarGradeId(null)}
-                                  loggedDates={new Set(grades.map((entry) => entry.date_logged))}
-                                  className="fixed"
-                                  style={{ position: 'fixed', top: editCalendarPosition.top, left: editCalendarPosition.left, marginTop: 0, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
-                                />,
-                                document.body
-                              )}
-                            </div>
-                          ) : <span className="text-xs text-slate-700">{formatDateStr(grade.date_logged)}</span>}
-                        </td>
-                        <td className="px-4 py-3 text-left text-xs text-slate-700">{formatTimeStr(grade.created_at)}</td>
-                        <td className="px-4 py-3 text-center">
-                          {isEditing ? <div className="inline-flex items-center gap-1.5"><button type="button" onClick={saveEditingGrade} disabled={isEditingGrade} className="rounded-lg p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50" aria-label="Save score changes" title="Save score changes"><Check className="h-3.5 w-3.5" /></button><button type="button" onClick={cancelEditingGrade} disabled={isEditingGrade} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 disabled:opacity-50" aria-label="Cancel score changes" title="Cancel score changes"><X className="h-3.5 w-3.5" /></button></div> : <button type="button" onClick={() => startEditingGrade(grade)} className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700" aria-label={`Edit score for ${grade.student_name}`} title="Edit score"><Edit3 className="h-3.5 w-3.5" /></button>}
-                        </td>
-                          </tr>
-                        );
-                        })}
-                    </tbody>
-              </table>
-                </React.Fragment>
+                  <ScoreEntryTable
+                    rows={tableGroup.rows}
+                    lastSavedBatchId={lastSavedBatchId}
+                    lastRowRef={lastRowRef}
+                    editingGradeId={editingGradeId}
+                    editScore={editScore}
+                    editStatus={editStatus}
+                    editDate={editDate}
+                    editCalendarGradeId={editCalendarGradeId}
+                    editCalendarPosition={editCalendarPosition}
+                    grades={grades}
+                    blockSymbolKeys={blockSymbolKeys}
+                    sanitizeScoreInput={sanitizeScoreInput}
+                    setEditScore={setEditScore}
+                    setEditStatus={setEditStatus}
+                    setEditDate={setEditDate}
+                    setEditCalendarGradeId={setEditCalendarGradeId}
+                    toggleEditCalendar={toggleEditCalendar}
+                    startEditingGrade={startEditingGrade}
+                    cancelEditingGrade={cancelEditingGrade}
+                    saveEditingGrade={saveEditingGrade}
+                    isEditingGrade={isEditingGrade}
+                    formatDateStr={formatDateStr}
+                    formatTimeStr={formatTimeStr}
+                    avatarColor={avatarColor}
+                  />
+                </div>
               ))}
             </div>
           )}
@@ -1234,37 +1336,36 @@ export const TutorScores: React.FC = () => {
         </div>
       )}
 
-      {/* ── Saved Scores Centered Success Modal ─────────────────────── */}
+      {/* ── Saved Scores Floating Notification Toast ─────────────────────── */}
       {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="relative w-full max-w-sm rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl space-y-4">
-            <div className="flex items-start gap-3.5">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200">
-                <CheckCircle2 className="h-5 w-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base font-bold text-gray-900">Scores Saved Successfully</h3>
-                <p className="mt-1 text-xs font-medium text-gray-600 leading-relaxed">
-                  {saveSuccessMsg || 'Intervention Activity scores saved successfully! Progression level evaluated.'}
-                </p>
-                {lastSavedBatchId && (
-                  <p className="mt-2 text-xs font-bold text-emerald-600 flex items-center gap-1">
-                    ↓ Highlighted below
-                  </p>
-                )}
-              </div>
+        <aside
+          aria-live="polite"
+          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+        >
+          <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-white p-4 shadow-xl shadow-emerald-950/10">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200">
+              <CheckCircle2 className="h-5 w-5" />
             </div>
-            <div className="flex items-center justify-end pt-2">
-              <button
-                type="button"
-                onClick={handleDismissSuccessModal}
-                className="rounded-xl bg-[var(--brand)] px-6 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[var(--brand-dark)]"
-              >
-                OK
-              </button>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-bold text-gray-900">
+                  Scores Saved Successfully
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleDismissSuccessModal}
+                  className="rounded-lg p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition cursor-pointer"
+                  aria-label="Close notification"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-600 leading-relaxed">
+                {saveSuccessMsg || 'Intervention Activity scores saved and highlighted below.'}
+              </p>
             </div>
           </div>
-        </div>
+        </aside>
       )}
     </div>
   );

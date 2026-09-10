@@ -40,6 +40,9 @@ import { TutorAnalytics } from '../pages/Tutor/TutorAnalytics';
 import { StaffAttendanceScanner } from '../pages/Tutor/StaffAttendanceScanner';
 import TutorScores from '../pages/Tutor/TutorScores';
 import { StudentHome } from '../pages/Student/StudentHome';
+import { StudentQRAttendance } from '../pages/Student/StudentQRAttendance';
+import { StudentScores } from '../pages/Student/StudentScores';
+import { StudentAnalytics } from '../pages/Student/StudentAnalytics';
 
 // Error pages
 import { Forbidden403 } from '../pages/errors/Forbidden403';
@@ -93,6 +96,9 @@ export const AppRouter: React.FC = () => {
           <Route path="/admin/students" element={<UserList />} />
           <Route path="/admin/students/create" element={<CreateUser />} />
           <Route path="/admin/students/edit/:id" element={<EditUser />} />
+          <Route path="/admin/tutors" element={<UserList />} />
+          <Route path="/admin/tutors/create" element={<CreateUser />} />
+          <Route path="/admin/tutors/edit/:id" element={<EditUser />} />
           <Route path="/admin/attendance" element={<AdminAttendanceQR />} />
           <Route path="/admin/profile" element={<Profile />} />
           <Route path="/admin/settings" element={<Settings />} />
@@ -166,6 +172,9 @@ export const AppRouter: React.FC = () => {
           }
         >
           <Route path="/student" element={<StudentHome />} />
+          <Route path="/student/attendance" element={<StudentQRAttendance />} />
+          <Route path="/student/scores" element={<StudentScores />} />
+          <Route path="/student/analytics" element={<StudentAnalytics />} />
         </Route>
 
         {/* ── Error routes ──────────────────────────── */}

@@ -17,52 +17,52 @@ export const getRiskTier = (score: number) => {
 export const getRiskAvatarClass = (riskTier?: string | null): string => {
   switch (riskTier?.toLowerCase()) {
     case 'high':
-      return 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800/50';
+      return 'risk-avatar-high';
     case 'medium':
     case 'moderate':
-      return 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/50';
+      return 'risk-avatar-medium';
     case 'low':
     default:
-      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50';
+      return 'risk-avatar-low';
   }
 };
 
 export const getRiskBadgeClass = (riskTier?: string | null): string => {
   switch (riskTier?.toLowerCase()) {
     case 'high':
-      return 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60';
+      return 'risk-badge-high';
     case 'medium':
     case 'moderate':
-      return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60';
+      return 'risk-badge-medium';
     case 'low':
     default:
-      return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60';
+      return 'risk-badge-low';
   }
 };
 
 export const getRiskCardClass = (riskTier?: string | null): string => {
   switch (riskTier?.toLowerCase()) {
     case 'high':
-      return 'bg-rose-50/70 border-rose-200 dark:bg-rose-950/20 dark:border-rose-800/50';
+      return 'risk-card-high';
     case 'medium':
     case 'moderate':
-      return 'bg-amber-50/70 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800/50';
+      return 'risk-card-medium';
     case 'low':
     default:
-      return 'bg-emerald-50/70 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800/50';
+      return 'risk-card-low';
   }
 };
 
 export const getRiskColorHex = (riskTier?: string | null): string => {
   switch (riskTier?.toLowerCase()) {
     case 'high':
-      return '#E11D48';
+      return '#EF4444';
     case 'medium':
     case 'moderate':
-      return '#D97706';
+      return '#F59E0B';
     case 'low':
     default:
-      return '#059669';
+      return '#22C55E';
   }
 };
 

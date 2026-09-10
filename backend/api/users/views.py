@@ -99,7 +99,9 @@ class UserListCreateView(generics.ListCreateAPIView):
 
         if not self.request.user.is_superuser and self.request.user.role == 'admin':
             if not role:
-                queryset = queryset.filter(role='student')
+                queryset = queryset.filter(role__in=['student', 'tutor'])
+            elif role not in ('student', 'tutor'):
+                queryset = queryset.none()
 
         assigned_tutor = self.request.query_params.get('assigned_tutor', '').strip()
         if assigned_tutor:
@@ -107,6 +109,10 @@ class UserListCreateView(generics.ListCreateAPIView):
                 queryset = queryset.filter(assigned_tutor__isnull=True)
             else:
                 queryset = queryset.filter(assigned_tutor_id=assigned_tutor)
+
+        subject = self.request.query_params.get('subject', '').strip()
+        if subject:
+            queryset = queryset.filter(subject__iexact=subject)
 
         search = self.request.query_params.get('search', '').strip()
         if search:
@@ -153,9 +159,9 @@ class UserListCreateView(generics.ListCreateAPIView):
         role = serializer.validated_data.get('role')
         from rest_framework.exceptions import ValidationError
         if not request.user.is_superuser and request.user.role == 'admin':
-            if role != 'student':
+            if role not in ('student', 'tutor'):
                 raise ValidationError(
-                    {'role': 'School Admins can only enroll student accounts.'}
+                    {'role': 'School Admins can only enroll student and tutor accounts.'}
                 )
 
         user = serializer.save()
@@ -197,11 +203,11 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
 
     def perform_update(self, serializer):
         if not self.request.user.is_superuser and self.request.user.role == 'admin':
-            role = serializer.validated_data.get('role')
-            if role and role != 'student':
+            role = serializer.validated_data.get('role', serializer.instance.role)
+            if role and role not in ('student', 'tutor'):
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError(
-                    {'role': 'School Admins can only manage student accounts.'}
+                    {'role': 'School Admins can only manage student and tutor accounts.'}
                 )
         updated_user = serializer.save()
         log_audit_event(

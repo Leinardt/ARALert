@@ -188,6 +188,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     avatar    = serializers.SerializerMethodField()
     faculty_type = serializers.SerializerMethodField()
+    subject = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -195,6 +196,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'id', 'email', 'first_name', 'middle_name', 'last_name',
             'full_name', 'role', 'is_active', 'is_superuser',
             'date_joined', 'last_login', 'avatar', 'lrn', 'faculty_type',
+            'aral_level', 'subject',
         ]
         read_only_fields = fields
 
@@ -212,6 +214,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
             return obj.faculty_profile.fac_type
         except AttributeError:
             return None
+
+    def get_subject(self, obj):
+        if obj.subject:
+            return obj.subject
+        if obj.role == 'student' and obj.assigned_tutor and obj.assigned_tutor.subject:
+            return obj.assigned_tutor.subject
+        return None
 
 
 # ---------------------------------------------------------------------------

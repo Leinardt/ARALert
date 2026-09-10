@@ -4,12 +4,14 @@ import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import {
-  LayoutDashboard, Users, User as UserIcon, LogOut, QrCode, Scan,
+  LayoutDashboard, Users, User as UserIcon, UserCheck, LogOut, QrCode, Scan,
   Award, Bell, ChevronDown, Shield, BookOpen, X, Activity, Moon, Sun,
 } from 'lucide-react';
 import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../utils/analyticsHelpers';
+import { getUserInitial, getUserAvatarColorResolved } from '../utils/studentFormatters';
+
 import type { AcademicRisk } from '../types';
 import { TutorGreetingIntro } from '../components/TutorGreetingIntro';
 import dashboardDarkDefault from '../assets/icons/dashboard_dark.png';
@@ -95,6 +97,8 @@ export const DashboardLayout: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  const navAvatar = getUserAvatarColorResolved(user);
+
 
   const handleLogout = async () => {
     await logout();
@@ -113,13 +117,14 @@ export const DashboardLayout: React.FC = () => {
     if (p.includes('/superadmin/users')) return 'User Management';
     if (p.includes('/admin/students')) return 'Student Directory';
     if (p.includes('/tutor/students')) return 'Assigned Students';
+    if (p.includes('/student/attendance')) return 'QR Attendance';
     if (p.includes('/staff/scan')) return user?.role === 'student' ? 'Scan Attendance QR' : 'DTR Log';
     if (p.includes('/admin/attendance')) return 'Staff QR Generator';
     if (p.includes('/tutor/attendance')) return 'QR Attendance';
     if (p.includes('/profile')) return user?.role === 'tutor' ? 'Tutor Profile' : 'Profile';
     if (p.includes('/settings')) return 'System Settings';
     if (p.includes('/analytics')) return 'Data Analytics';
-    if (p.includes('/scores')) return 'Score Entry';
+    if (p.includes('/scores')) return user?.role === 'student' ? 'Scores' : 'Score Entry';
     return 'Dashboard';
   };
 
@@ -142,34 +147,33 @@ export const DashboardLayout: React.FC = () => {
     `sidebar-item ${active ? 'active' : ''}`;
 
   const studentNoteStyle = (riskLevel: AcademicRisk['risk_level']) => {
-    const isDark = theme === 'dark';
     if (riskLevel === 'high') {
       return {
-        background: isDark ? 'rgba(244, 63, 94, 0.12)' : '#FFF1F2',
-        border: isDark ? 'rgba(244, 63, 94, 0.28)' : '#FECDD3',
-        label: isDark ? '#FDA4AF' : '#E11D48',
-        text: isDark ? '#FDA4AF' : '#9F1239',
-        button: '#E11D48',
-        acknowledged: isDark ? '#FB7185' : '#BE123C',
+        background: 'var(--risk-high-bg)',
+        border: 'var(--risk-high-border)',
+        label: 'var(--risk-high-text)',
+        text: 'var(--risk-high-text)',
+        button: '#EF4444',
+        acknowledged: '#EF4444',
       };
     }
     if (riskLevel === 'medium') {
       return {
-        background: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FFFBEB',
-        border: isDark ? 'rgba(245, 158, 11, 0.28)' : '#FDE68A',
-        label: isDark ? '#FCD34D' : '#D97706',
-        text: isDark ? '#FDE68A' : '#92400E',
-        button: '#D97706',
-        acknowledged: isDark ? '#FBBF24' : '#B45309',
+        background: 'var(--risk-medium-bg)',
+        border: 'var(--risk-medium-border)',
+        label: 'var(--risk-medium-text)',
+        text: 'var(--risk-medium-text)',
+        button: '#F59E0B',
+        acknowledged: '#F59E0B',
       };
     }
     return {
-      background: isDark ? 'rgba(16, 185, 129, 0.12)' : '#ECFDF5',
-      border: isDark ? 'rgba(16, 185, 129, 0.28)' : '#A7F3D0',
-      label: isDark ? '#6EE7B7' : '#059669',
-      text: isDark ? '#A7F3D0' : '#065F46',
-      button: '#059669',
-      acknowledged: isDark ? '#34D399' : '#047857',
+      background: 'var(--risk-low-bg)',
+      border: 'var(--risk-low-border)',
+      label: 'var(--risk-low-text)',
+      text: 'var(--risk-low-text)',
+      button: '#22C55E',
+      acknowledged: '#22C55E',
     };
   };
 
@@ -284,10 +288,10 @@ export const DashboardLayout: React.FC = () => {
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--surface-bg)', overflow: 'hidden', fontFamily: 'var(--font-body)' }}>
 
-      {/* ── Tutor Greeting Intro (Chat Bubble + Flying Mascot) ───── */}
+      {/* ── Tutor / Student Greeting Intro (Chat Bubble + Flying Mascot) ───── */}
       <TutorGreetingIntro
         user={user}
-        isTutor={user?.role === 'tutor'}
+        isTutor={user?.role === 'tutor' || user?.role === 'student'}
         sidebarLogoId="sidebar-brand-logo"
         sidebarTextId="sidebar-brand-text"
       />
@@ -441,6 +445,13 @@ export const DashboardLayout: React.FC = () => {
                 <SidebarIcon Icon={Users} active={isActivePrefix('/admin/students')} />
                 Student Directory
               </Link>
+              <Link
+                to="/admin/tutors"
+                className={navLinkClass(isActivePrefix('/admin/tutors'))}
+              >
+                <SidebarIcon Icon={UserCheck} active={isActivePrefix('/admin/tutors')} />
+                Tutors Directory
+              </Link>
               <Link to="/admin/attendance" className={navLinkClass(isActive('/admin/attendance'))}>
                 <AssetSidebarIcon
                   darkSrc={qrDarkDefault}
@@ -505,19 +516,6 @@ export const DashboardLayout: React.FC = () => {
                 Score Entry
               </Link>
 
-              <Link to="/tutor/analytics" className={navLinkClass(isActive('/tutor/analytics'))}>
-                <AssetSidebarIcon
-                  darkSrc={analyticsDarkDefault}
-                  darkActiveSrc={analyticsDarkActive}
-                  lightSrc={analyticsLightDefault}
-                  lightActiveSrc={analyticsLightActive}
-                  active={isActive('/tutor/analytics')}
-                  alt="Data Analytics"
-                  size={18}
-                  theme={theme}
-                />
-                Data Analytics
-              </Link>
 
               <Link to="/tutor/students" className={navLinkClass(isActive('/tutor/students'))}>
                 <AssetSidebarIcon
@@ -620,7 +618,6 @@ export const DashboardLayout: React.FC = () => {
           {/* Student nav */}
           {user?.role === 'student' && (
             <>
-              <span className="sidebar-section-label">Student</span>
               <Link to="/student" className={navLinkClass(isActive('/student'))}>
                 <AssetSidebarIcon
                   darkSrc={dashboardDarkDefault}
@@ -628,24 +625,40 @@ export const DashboardLayout: React.FC = () => {
                   lightSrc={dashboardLightDefault}
                   lightActiveSrc={dashboardLightActive}
                   active={isActive('/student')}
-                  alt="My Dashboard"
+                  alt="Dashboard"
                   size={18}
                   theme={theme}
                 />
-                My Dashboard
+                Dashboard
               </Link>
-              <Link to="/staff/scan" className={navLinkClass(isActive('/staff/scan'))}>
+              <Link to="/student/scores" className={navLinkClass(isActive('/student/scores'))}>
+                <AssetSidebarIcon
+                  darkSrc={scoreDarkDefault}
+                  darkActiveSrc={scoreDarkActive}
+                  lightSrc={scoreLightDefault}
+                  lightActiveSrc={scoreLightActive}
+                  active={isActive('/student/scores')}
+                  alt="Scores"
+                  size={18}
+                  theme={theme}
+                />
+                Scores
+              </Link>
+
+              <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0', boxShadow: 'inset 0 1px 0 var(--slate-200)' }} />
+
+              <Link to="/student/attendance" className={navLinkClass(isActive('/student/attendance'))}>
                 <AssetSidebarIcon
                   darkSrc={clockDarkDefault}
                   darkActiveSrc={clockDarkActive}
                   lightSrc={clockLightDefault}
                   lightActiveSrc={clockLightActive}
-                  active={isActive('/staff/scan')}
-                  alt="Scan Attendance"
+                  active={isActive('/student/attendance')}
+                  alt="QR Attendance"
                   size={18}
                   theme={theme}
                 />
-                Scan Attendance QR
+                QR Attendance
               </Link>
             </>
           )}
@@ -830,21 +843,21 @@ export const DashboardLayout: React.FC = () => {
                     {/* Risk list body */}
                     <div style={{ maxHeight: '380px', overflowY: 'auto', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       {/* High risk */}
-                      <div style={{ background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)', borderRadius: '12px', padding: '0.875rem' }}>
+                      <div style={{ background: 'var(--risk-high-bg)', border: '1px solid var(--risk-high-border)', borderRadius: '12px', padding: '0.875rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                           <div>
-                            <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: theme === 'dark' ? '#F87171' : '#991B1B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>High Risk</p>
+                            <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: 'var(--risk-high-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>High Risk</p>
                           </div>
-                          <span style={{ background: theme === 'dark' ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2', color: theme === 'dark' ? '#FCA5A5' : '#991B1B', fontSize: '0.7rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: `1px solid ${theme === 'dark' ? 'rgba(239, 68, 68, 0.4)' : '#FECACA'}` }}>
+                          <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.7rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid var(--risk-high-border)' }}>
                             {highRiskStudents.length}
                           </span>
                         </div>
                         {highRiskStudents.length === 0 ? (
-                          <p style={{ fontSize: '0.8rem', color: theme === 'dark' ? '#F87171' : '#EF4444', margin: 0 }}>No high-risk students detected.</p>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>No high-risk students detected.</p>
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             {highRiskStudents.map((row) => (
-                              <div key={`high-${row.student.id}`} style={{ background: 'var(--surface-card)', border: `1px solid ${theme === 'dark' ? 'rgba(239, 68, 68, 0.35)' : '#FECACA'}`, borderRadius: '10px', padding: '0.65rem 0.75rem' }}>
+                              <div key={`high-${row.student.id}`} style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '10px', padding: '0.65rem 0.75rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
                                   <div>
                                     <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{row.student.full_name}</p>
@@ -857,7 +870,7 @@ export const DashboardLayout: React.FC = () => {
                                       </div>
                                     )}
                                   </div>
-                                  <span style={{ background: theme === 'dark' ? 'rgba(239, 68, 68, 0.25)' : '#FEE2E2', color: theme === 'dark' ? '#FCA5A5' : '#991B1B', fontSize: '0.62rem', fontWeight: 800, borderRadius: '6px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0 }}>HIGH</span>
+                                  <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.62rem', fontWeight: 800, borderRadius: '6px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0, border: '1px solid var(--risk-high-border)' }}>HIGH</span>
                                 </div>
                                 <button
                                   type="button"
@@ -978,21 +991,15 @@ export const DashboardLayout: React.FC = () => {
                   />
                 ) : (
                   <div
+                    className={`flex items-center justify-center shrink-0 rounded-[9px] font-extrabold text-[0.9rem]${navAvatar.kind === 'class' ? ` ${navAvatar.value}` : ''}`}
                     style={{
                       width: '32px',
                       height: '32px',
-                      borderRadius: '9px',
-                      background: 'var(--brand)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#fff',
                       fontFamily: 'var(--font-heading)',
-                      fontWeight: 800,
-                      fontSize: '0.9rem',
+                      ...(navAvatar.kind === 'style' ? navAvatar.value : {}),
                     }}
                   >
-                    {user?.first_name ? user.first_name[0].toUpperCase() : 'U'}
+                    {getUserInitial(user)}
                   </div>
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
@@ -1187,6 +1194,7 @@ export const DashboardLayout: React.FC = () => {
         </div>,
         document.body
       )}
+
     </div>
   );
 };

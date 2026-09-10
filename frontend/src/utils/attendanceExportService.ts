@@ -297,7 +297,8 @@ export const exportAttendanceToExcel = async (data: AttendanceExportData) => {
   r10Left.value = {
     richText: [
       { text: 'WEEK:  ', font: { name: fontMain, size: 9.5, bold: true, color: colorSlate900 } },
-      { text: `  ${data.weekNumber || '1'}  `, font: { name: fontMain, size: 9.5, bold: true, underline: true, color: colorSlate900 } },
+      { text: `\u00A0\u00A0\u00A0\u00A0${data.weekNumber || '1'}\u00A0\u00A0\u00A0\u00A0`, font: { name: fontMain, size: 9.5, bold: true, underline: true, color: colorSlate900 } },
+      { text: '\u200B', font: { name: fontMain, size: 9.5 } },
     ],
   };
   r10Left.alignment = { horizontal: 'left', vertical: 'middle' };
@@ -316,7 +317,8 @@ export const exportAttendanceToExcel = async (data: AttendanceExportData) => {
   r10Right.value = {
     richText: [
       { text: 'DATE:  ', font: { name: fontMain, size: 9.5, bold: true, color: colorSlate900 } },
-      { text: `  ${data.dateStr || '_______'}  `, font: { name: fontMain, size: 9.5, bold: true, underline: true, color: colorSlate900 } },
+      { text: `\u00A0\u00A0\u00A0\u00A0${data.dateStr || '_______'}\u00A0\u00A0\u00A0\u00A0`, font: { name: fontMain, size: 9.5, bold: true, underline: true, color: colorSlate900 } },
+      { text: '\u200B', font: { name: fontMain, size: 9.5 } },
     ],
   };
   r10Right.alignment = { horizontal: 'right', vertical: 'middle' };

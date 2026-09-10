@@ -230,7 +230,7 @@ class GradeListCreateView(generics.ListCreateAPIView):
         if user.role != 'tutor' and not user.is_superuser:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('Only tutors can log grades.')
-        grade = serializer.save(tutor=user)
+        grade = serializer.save(tutor=user, created_at=timezone.now())
         if grade.student:
             evaluate_student_aral_progression(grade.student)
 

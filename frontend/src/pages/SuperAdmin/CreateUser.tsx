@@ -19,6 +19,7 @@ const createUserSchema = z.object({
   lrn: z.string().optional(),
   assigned_tutor: z.string().optional().nullable(),
   aral_level: z.string().optional(),
+  subject: z.string().optional(),
 }).refine((data) => {
   if (data.role === 'student') {
     return !!data.lrn && /^\d{12}$/.test(data.lrn);
@@ -55,6 +56,7 @@ export const CreateUser: React.FC = () => {
       lrn: '',
       assigned_tutor: '',
       aral_level: 'basic',
+      subject: 'Reading',
     },
   });
 
@@ -80,14 +82,15 @@ export const CreateUser: React.FC = () => {
     try {
       const payload = {
         ...data,
-        role: isAdminView ? 'student' : data.role,
+        role: isAdminView ? data.role : data.role,
         first_name: data.first_name.toUpperCase().trim(),
         middle_name: data.middle_name ? data.middle_name.toUpperCase().trim() : '',
         last_name: data.last_name.toUpperCase().trim(),
         assigned_tutor: data.role === 'student' && data.assigned_tutor ? data.assigned_tutor : null,
+        subject: data.role === 'tutor' ? data.subject || 'Reading' : null,
       };
       await userService.createUser(payload);
-      navigate(currentUser?.is_superuser ? '/superadmin/users' : '/admin/students');
+      navigate(currentUser?.is_superuser ? '/superadmin/users' : data.role === 'tutor' ? '/admin/tutors' : '/admin/students');
     } catch (error: any) {
       console.error(error);
       const errorsPayload = error.response?.data;
@@ -140,7 +143,7 @@ export const CreateUser: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {!isAdminView && (
+          {!isAdminView ? (
             <div>
               <label htmlFor="role" className="mb-1 block text-sm font-semibold text-gray-700">
                 System Role <span className="text-red-500">*</span>
@@ -156,12 +159,19 @@ export const CreateUser: React.FC = () => {
                 <option value="admin">School Admin</option>
               </select>
             </div>
-          )}
-
-          {isAdminView && (
-            <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-blue-900">
-              <p className="font-semibold">Student enrollment only</p>
-              <p className="mt-1 text-blue-800">This form is limited to student account creation for admins. Staff role options are not available here.</p>
+          ) : (
+            <div>
+              <label htmlFor="role" className="mb-1 block text-sm font-semibold text-gray-700">
+                Account Type <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="role"
+                {...register('role')}
+                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:border-[var(--brand)] focus:outline-none focus:ring-[var(--brand)]"
+              >
+                <option value="student">Student</option>
+                <option value="tutor">Tutor</option>
+              </select>
             </div>
           )}
 
@@ -220,7 +230,7 @@ export const CreateUser: React.FC = () => {
             </div>
           </div>
 
-          {!isAdminView && selectedRole !== 'student' && (
+          {selectedRole !== 'student' && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="email" className="mb-1 block text-sm font-semibold text-gray-700">
@@ -243,25 +253,41 @@ export const CreateUser: React.FC = () => {
               </div>
 
               {selectedRole === 'tutor' && (
-                <div>
-                  <label htmlFor="aral_level" className="mb-1 block text-sm font-semibold text-gray-700">
-                    ARAL Level <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="aral_level"
-                    {...register('aral_level')}
-                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:border-[var(--brand)] focus:outline-none focus:ring-[var(--brand)]"
-                  >
-                    <option value="basic">ARAL Basic</option>
-                    <option value="plus">ARAL Plus</option>
-                    <option value="summer">ARAL Summer</option>
-                  </select>
-                </div>
+                <>
+                  <div>
+                    <label htmlFor="aral_level" className="mb-1 block text-sm font-semibold text-gray-700">
+                      ARAL Level <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="aral_level"
+                      {...register('aral_level')}
+                      className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:border-[var(--brand)] focus:outline-none focus:ring-[var(--brand)]"
+                    >
+                      <option value="basic">ARAL Basic</option>
+                      <option value="plus">ARAL Plus</option>
+                      <option value="summer">ARAL Summer</option>
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label htmlFor="subject" className="mb-1 block text-sm font-semibold text-gray-700">
+                      Assigned Subject <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="subject"
+                      {...register('subject')}
+                      className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium shadow-sm focus:border-[var(--brand)] focus:outline-none focus:ring-[var(--brand)]"
+                    >
+                      <option value="Reading">Reading</option>
+                      <option value="Science">Science</option>
+                      <option value="Math">Math</option>
+                    </select>
+                  </div>
+                </>
               )}
             </div>
           )}
 
-          {(selectedRole === 'student' || isAdminView) && (
+          {selectedRole === 'student' && (
             <div className="space-y-4 border-t border-gray-100 pt-2">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>

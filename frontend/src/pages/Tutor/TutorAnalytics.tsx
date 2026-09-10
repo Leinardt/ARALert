@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Attendance, Grade, User } from '../../types';
+import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
 
 interface ExtendedRiskRow extends StudentRiskRow {
   absentCount: number;
@@ -59,26 +60,38 @@ const buildTrendPoints = (
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const dayMs = 24 * 60 * 60 * 1000;
   const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  const periodCount = filter === 'day' ? 7 : 6;
-  const periods = Array.from({ length: periodCount }, (_, index) => {
-    const offset = periodCount - 1 - index;
-    let start: Date;
-    let end: Date;
-    let label: string;
-    if (filter === 'month') {
-      start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-      end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
-      label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
-    } else {
-      const periodLength = filter === 'day' ? 1 : 7;
-      start = new Date(startOfToday.getTime() - (filter === 'day' ? offset : offset * 7 + 6) * dayMs);
-      end = new Date(start.getTime() + periodLength * dayMs);
-      label = filter === 'day'
-        ? start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-        : `${formatDate(start)} - ${formatDate(new Date(end.getTime() - dayMs))}`;
-    }
-    return { start, end, label, dateKey: start.toISOString().slice(0, 10) };
-  });
+
+  let periods: { start: Date; end: Date; label: string; dateKey: string }[];
+  if (filter === 'day') {
+    const schoolDays = getRecentSchoolWeekdays(10, now);
+    periods = schoolDays.map((d) => {
+      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
+      return { start, end, label: formatDate(start), dateKey: start.toISOString().slice(0, 10) };
+    });
+  } else {
+    const periodCount = 6;
+    periods = Array.from({ length: periodCount }, (_, index) => {
+      const offset = periodCount - 1 - index;
+      let start: Date;
+      let end: Date;
+      let label: string;
+      if (filter === 'month') {
+        start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+        end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
+        label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+      } else {
+        const dayOfWeek = now.getDay();
+        const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const currentWeekMon = new Date(startOfToday.getTime() + diffToMon * dayMs);
+        start = new Date(currentWeekMon.getTime() - offset * 7 * dayMs);
+        const fri = new Date(start.getTime() + 4 * dayMs);
+        end = new Date(start.getTime() + 5 * dayMs);
+        label = `${formatDate(start)} – ${formatDate(fri)}`;
+      }
+      return { start, end, label, dateKey: start.toISOString().slice(0, 10) };
+    });
+  }
 
   const points = periods.map((period) => {
     let point: TrendPoint | null = null;
@@ -134,26 +147,38 @@ const buildRiskTrendPoints = (
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const dayMs = 24 * 60 * 60 * 1000;
   const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  const periodCount = filter === 'day' ? 7 : 6;
-  const periods = Array.from({ length: periodCount }, (_, index) => {
-    const offset = periodCount - 1 - index;
-    let start: Date;
-    let end: Date;
-    let label: string;
-    if (filter === 'month') {
-      start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-      end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
-      label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
-    } else {
-      const periodLength = filter === 'day' ? 1 : 7;
-      start = new Date(startOfToday.getTime() - (filter === 'day' ? offset : offset * 7 + 6) * dayMs);
-      end = new Date(start.getTime() + periodLength * dayMs);
-      label = filter === 'day'
-        ? start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-        : `${formatDate(start)} - ${formatDate(new Date(end.getTime() - dayMs))}`;
-    }
-    return { start, end, label, dateKey: start.toISOString().slice(0, 10) };
-  });
+
+  let periods: { start: Date; end: Date; label: string; dateKey: string }[];
+  if (filter === 'day') {
+    const schoolDays = getRecentSchoolWeekdays(10, now);
+    periods = schoolDays.map((d) => {
+      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
+      return { start, end, label: formatDate(start), dateKey: start.toISOString().slice(0, 10) };
+    });
+  } else {
+    const periodCount = 6;
+    periods = Array.from({ length: periodCount }, (_, index) => {
+      const offset = periodCount - 1 - index;
+      let start: Date;
+      let end: Date;
+      let label: string;
+      if (filter === 'month') {
+        start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+        end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
+        label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+      } else {
+        const dayOfWeek = now.getDay();
+        const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const currentWeekMon = new Date(startOfToday.getTime() + diffToMon * dayMs);
+        start = new Date(currentWeekMon.getTime() - offset * 7 * dayMs);
+        const fri = new Date(start.getTime() + 4 * dayMs);
+        end = new Date(start.getTime() + 5 * dayMs);
+        label = `${formatDate(start)} – ${formatDate(fri)}`;
+      }
+      return { start, end, label, dateKey: start.toISOString().slice(0, 10) };
+    });
+  }
 
   const points = periods.map((period) => {
     const periodGrades = grades.filter((grade) => (
@@ -315,9 +340,9 @@ const RiskTrendChart: React.FC<{ data: RiskTrendPoint[]; total: number; isSingle
     ? [0, 1]
     : Array.from({ length: maxValue / 5 + 1 }, (_, index) => index * 5);
   const series = [
-    { key: 'high' as const, color: '#E11D48', label: 'High Risk' },
-    { key: 'medium' as const, color: '#D97706', label: 'Medium Risk' },
-    { key: 'low' as const, color: '#059669', label: 'Low Risk' },
+    { key: 'high' as const, color: '#EF4444', label: 'High Risk' },
+    { key: 'medium' as const, color: '#F59E0B', label: 'Medium Risk' },
+    { key: 'low' as const, color: '#22C55E', label: 'Low Risk' },
   ];
   const barWidth = Math.max(18, Math.min(72, (chartWidth / data.length) * 0.65));
   const getBarX = (index: number) => paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1 || 1);
@@ -348,29 +373,21 @@ const RiskTrendChart: React.FC<{ data: RiskTrendPoint[]; total: number; isSingle
   );
 };
 
-const AVATAR_COLORS = [
-  'bg-blue-100 text-blue-700',
-  'bg-violet-100 text-violet-700',
-  'bg-emerald-100 text-emerald-700',
-  'bg-amber-100 text-amber-700',
-  'bg-rose-100 text-rose-700',
-  'bg-sky-100 text-sky-700',
-];
-const avatarColor = (name: string) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
-import { getStudentInitials as getInitials } from '../../utils/studentFormatters';
+import { getStudentInitials as getInitials, buildAvatarColorMap } from '../../utils/studentFormatters';
+
 
 const getTierCls = (tier: string) => {
   switch (tier) {
-    case 'Low': return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800';
-    case 'Medium': return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800';
-    default: return 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800';
+    case 'Low': return 'badge-risk-low';
+    case 'Medium': return 'badge-risk-medium';
+    default: return 'badge-risk-high';
   }
 };
 
 const getCompositeScoreCls = (tier: string) => {
-  if (tier === 'High') return 'text-rose-600 dark:text-rose-400 font-semibold';
-  if (tier === 'Medium') return 'text-amber-600 dark:text-amber-400 font-semibold';
-  return 'text-emerald-600 dark:text-emerald-400 font-semibold';
+  if (tier === 'High') return 'text-risk-high font-semibold';
+  if (tier === 'Medium') return 'text-risk-medium font-semibold';
+  return 'text-risk-low font-semibold';
 };
 
 const riskTierOrder: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
@@ -474,11 +491,13 @@ const getAralBadge = (level?: string | null) => {
 
 export const TutorAnalytics: React.FC = () => {
   const { user } = useAuth();
+
   const [rows, setRows] = useState<ExtendedRiskRow[]>([]);
   const [grades, setGrades] = useState<Grade[]>([]);
   const [attendanceLogs, setAttendanceLogs] = useState<Attendance[]>([]);
   const [riskCounts, setRiskCounts] = useState({ high: 0, moderate: 0, low: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const showSkeleton = isLoading;
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState<AnalyticsTab>(() => {
@@ -500,17 +519,22 @@ export const TutorAnalytics: React.FC = () => {
   const [scoreSortField, setScoreSortField] = useState<ScoreDetailSortField | null>(null);
   const [scoreSortAsc, setScoreSortAsc] = useState(true);
 
+  const avatarColor = useMemo(
+    () => buildAvatarColorMap(rows.map((r) => r.student)),
+    [rows]
+  );
+
   const fetchAnalytics = async () => {
     if (!user) return;
     setIsLoading(true);
     setError(null);
     try {
       const [studentsResponse, grades, attendanceLogs] = await Promise.all([
-        userService.getUsers({ role: 'student', assigned_tutor: user.id }),
+        userService.getAllUsers({ role: 'student', assigned_tutor: user.id }),
         academicService.getGrades(),
         academicService.getAttendanceHistory(),
       ]);
-      const students = Array.isArray(studentsResponse.results) ? studentsResponse.results : Array.isArray(studentsResponse) ? (studentsResponse as any) : [];
+      const students = Array.isArray(studentsResponse) ? studentsResponse : [];
       const safeAttendance = Array.isArray(attendanceLogs) ? attendanceLogs : [];
       const baseRows = computeStudentRiskRows(students, grades, safeAttendance);
 
@@ -618,24 +642,24 @@ export const TutorAnalytics: React.FC = () => {
     if (avgAttendance >= 81) {
       return {
         icon: Smile,
-        iconBg: 'bg-emerald-50 border-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-800/60',
-        iconColor: 'text-emerald-500',
-        valueColor: 'text-emerald-600',
+        iconBg: 'risk-card-low',
+        iconColor: 'text-risk-low',
+        valueColor: 'text-risk-low',
       };
     }
     if (avgAttendance >= 75) {
       return {
         icon: Meh,
-        iconBg: 'bg-amber-50 border-amber-100 dark:bg-amber-950/40 dark:border-amber-800/60',
-        iconColor: 'text-amber-500',
-        valueColor: 'text-amber-500',
+        iconBg: 'risk-card-medium',
+        iconColor: 'text-risk-medium',
+        valueColor: 'text-risk-medium',
       };
     }
     return {
       icon: Frown,
-      iconBg: 'bg-rose-50 border-rose-100 dark:bg-rose-950/40 dark:border-rose-800/60',
-      iconColor: 'text-rose-500',
-      valueColor: 'text-rose-500',
+      iconBg: 'risk-card-high',
+      iconColor: 'text-risk-high',
+      valueColor: 'text-risk-high',
     };
   }, [avgAttendance, attendanceLogs.length]);
   const scoreSummary = useMemo(() => {
@@ -664,24 +688,24 @@ export const TutorAnalytics: React.FC = () => {
     if (avgScore >= 81) {
       return {
         icon: Smile,
-        iconBg: 'bg-emerald-50 border-emerald-100',
-        iconColor: 'text-emerald-500',
-        valueColor: 'text-emerald-600',
+        iconBg: 'risk-card-low',
+        iconColor: 'text-risk-low',
+        valueColor: 'text-risk-low',
       };
     }
     if (avgScore >= 70) {
       return {
         icon: Meh,
-        iconBg: 'bg-amber-50 border-amber-100',
-        iconColor: 'text-amber-500',
-        valueColor: 'text-amber-500',
+        iconBg: 'risk-card-medium',
+        iconColor: 'text-risk-medium',
+        valueColor: 'text-risk-medium',
       };
     }
     return {
       icon: Frown,
-      iconBg: 'bg-rose-50 border-rose-100',
-      iconColor: 'text-rose-500',
-      valueColor: 'text-rose-500',
+      iconBg: 'risk-card-high',
+      iconColor: 'text-risk-high',
+      valueColor: 'text-risk-high',
     };
   }, [avgScore, grades]);
   const attendanceDetails = useMemo(() => rows.map((row) => {
@@ -735,90 +759,14 @@ export const TutorAnalytics: React.FC = () => {
     </th>
   );
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-        {/* Tab switcher skeleton */}
-        <div className="flex w-full rounded-2xl bg-gray-100 dark:bg-[#111111] p-1 gap-1 animate-pulse">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex-1 h-9 rounded-xl bg-gray-200 dark:bg-gray-700" />
-          ))}
-        </div>
-
-        {/* 3 Summary KPI Cards skeleton */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm animate-pulse flex items-center gap-4"
-            >
-              <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
-              <div className="space-y-2 flex-1">
-                <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-700" />
-                <div className="h-7 w-14 rounded bg-gray-200 dark:bg-gray-700" />
-                <div className="h-2.5 w-36 rounded bg-gray-100 dark:bg-gray-800" />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Chart card skeleton */}
-        <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-6 shadow-sm animate-pulse space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
-            <div className="space-y-1.5">
-              <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-700" />
-              <div className="h-3 w-56 rounded bg-gray-100 dark:bg-gray-800" />
-            </div>
-            <div className="h-8 w-32 rounded-xl bg-gray-200 dark:bg-gray-700" />
-          </div>
-          <div className="h-52 w-full rounded-2xl bg-gray-100 dark:bg-[#141414]" />
-        </div>
-
-        {/* Table card skeleton */}
-        <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-6 shadow-sm animate-pulse space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-gray-800">
-            <div className="space-y-1.5">
-              <div className="h-4 w-48 rounded bg-gray-200 dark:bg-gray-700" />
-              <div className="h-3 w-32 rounded bg-gray-100 dark:bg-gray-800" />
-            </div>
-            <div className="h-9 w-64 rounded-xl bg-gray-200 dark:bg-gray-700" />
-          </div>
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-4 py-2 border-b border-gray-50 dark:border-gray-900/50">
-              <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 shrink-0" />
-              <div className="h-3.5 w-40 rounded bg-gray-200 dark:bg-gray-700" />
-              <div className="h-3.5 w-20 rounded bg-gray-100 dark:bg-gray-800" />
-              <div className="h-3.5 w-24 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm">
-        <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-bold">Failed to load analytics</p>
-          <p className="text-xs mt-0.5 text-rose-700 dark:text-rose-300">{error}</p>
-          <button
-            type="button"
-            onClick={fetchAnalytics}
-            className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-
-      <div className="flex w-full rounded-2xl bg-gray-100 p-1 dark:bg-[#111111]" role="tablist" aria-label="Analytics view">
+    <div className="space-y-6" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      {/* ── View Tab Switcher (Permanent, never pops or flashes on load) ── */}
+      <div
+        className="flex w-full rounded-2xl bg-gray-100 p-1 gap-1 dark:bg-[#111111]"
+        role="tablist"
+        aria-label="Analytics view"
+      >
         {([
           ['overall', 'Overall'],
           ['attendance', 'Attendance'],
@@ -830,372 +778,479 @@ export const TutorAnalytics: React.FC = () => {
             role="tab"
             aria-selected={activeAnalyticsTab === tab}
             onClick={() => setActiveAnalyticsTab(tab)}
-            className={`flex-1 rounded-xl px-4 py-2.5 text-xs font-bold uppercase transition-all ${activeAnalyticsTab === tab ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-gray-400 opacity-60 hover:bg-white/60 hover:text-gray-600 hover:opacity-100 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-slate-300'}`}
+            className={`flex-1 h-9 rounded-xl px-4 flex items-center justify-center text-xs font-bold uppercase transition-all ${
+              activeAnalyticsTab === tab
+                ? 'bg-[var(--brand)] text-white shadow-sm'
+                : 'text-gray-400 opacity-60 hover:bg-white/60 hover:text-gray-600 hover:opacity-100 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-slate-300'
+            }`}
           >
             {label}
           </button>
         ))}
       </div>
 
-      {/* ── Risk Summary Cards ─────────────────────────────────────── */}
-      {activeAnalyticsTab === 'overall' && <>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="relative rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-sm flex items-center gap-4">
-          <div className="absolute right-4 top-4">
-            <RiskRangeInfo range="Composite score is below 70%" />
+      {showSkeleton ? (
+        <div className="space-y-6 skeleton-container">
+          {/* 3 Summary KPI Cards skeleton */}
+          <div className="grid gap-4 sm:grid-cols-3 skeleton-row-1">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm min-h-[114px] flex items-center gap-4 animate-pulse"
+              >
+                <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="h-3 w-20 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
+                  <div className="h-8 w-14 rounded bg-gray-200 dark:bg-gray-800" />
+                  <div className="h-3 w-44 rounded bg-gray-100 dark:bg-gray-800/60 mt-2" />
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
-            <ShieldAlert className="w-5 h-5 text-rose-600" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1 text-rose-600">
-              <p className="text-[11px] font-bold uppercase tracking-wider">High Risk</p>
+
+          {/* Chart card skeleton */}
+          <div className="w-full rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-6 shadow-sm animate-pulse skeleton-row-2">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+              <div className="space-y-1.5">
+                <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800" />
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="h-4 w-44 rounded bg-gray-100 dark:bg-gray-800 hidden sm:block" />
+                <div className="h-8 w-24 rounded-xl bg-gray-100 dark:bg-gray-800" />
+                <div className="h-8 w-28 rounded-xl bg-gray-100 dark:bg-gray-800" />
+              </div>
             </div>
-            <p className="text-3xl font-extrabold text-rose-900 mt-0.5">{riskCounts.high}</p>
-            <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students needing immediate intervention</p>
+            <div className="mt-6">
+              <div className="h-[228px] w-full rounded-2xl bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A]" />
+            </div>
+          </div>
+
+          {/* Table card skeleton */}
+          <div className="space-y-2 skeleton-row-3">
+            {activeAnalyticsTab === 'overall' && (
+              <div className="h-4 w-48 rounded bg-gray-100 dark:bg-gray-800/60" />
+            )}
+            <div className="w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A] animate-pulse">
+              {/* Table toolbar */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+                <div className="space-y-1">
+                  <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800" />
+                  <div className="h-3 w-28 rounded bg-gray-100 dark:bg-gray-800" />
+                </div>
+                <div className="h-9 w-64 rounded-xl bg-gray-100 dark:bg-gray-800" />
+              </div>
+
+              {/* Table header bar */}
+              <div className="bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-4 py-3 flex items-center justify-between">
+                <div className="h-3 w-24 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-3 w-20 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-3 w-28 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-3 w-24 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-3 w-20 rounded bg-gray-200 dark:bg-gray-800" />
+              </div>
+
+              {/* Table rows */}
+              <div className="divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-gray-200 dark:bg-gray-800 shrink-0" />
+                    <div className="space-y-1">
+                      <div className="h-3.5 w-36 rounded bg-gray-200 dark:bg-gray-800" />
+                      <div className="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800" />
+                    </div>
+                    <div className="h-5 w-16 rounded-full bg-gray-100 dark:bg-gray-800 ml-8" />
+                    <div className="h-3.5 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
+                    <div className="h-3.5 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
+                    <div className="h-3.5 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
-
-        <div className="relative rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm flex items-center gap-4">
-          <div className="absolute right-4 top-4">
-            <RiskRangeInfo range="Composite score is between 70% to 85%" />
-          </div>
-          <div className="w-11 h-11 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-5 h-5 text-amber-600" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1 text-amber-600">
-              <p className="text-[11px] font-bold uppercase tracking-wider">Medium Risk</p>
-            </div>
-            <p className="text-3xl font-extrabold text-amber-900 mt-0.5">{riskCounts.moderate}</p>
-            <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students requiring monitoring</p>
-          </div>
-        </div>
-
-        <div className="relative rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm flex items-center gap-4">
-          <div className="absolute right-4 top-4">
-            <RiskRangeInfo range="Composite score is between 86% to 100%" />
-          </div>
-          <div className="w-11 h-11 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
-            <Award className="w-5 h-5 text-emerald-600" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1 text-emerald-600">
-              <p className="text-[11px] font-bold uppercase tracking-wider">Low Risk</p>
-            </div>
-            <p className="text-3xl font-extrabold text-emerald-900 mt-0.5">{riskCounts.low}</p>
-            <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students performing well</p>
-          </div>
-        </div>
-      </div>
-
-      <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm" aria-labelledby="risk-overview-heading">
-        <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+      ) : error ? (
+        <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm">
+          <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
           <div>
-            <h3 id="risk-overview-heading" className="text-sm font-bold uppercase text-gray-900">RISK LEVEL TREND CHART</h3>
-            <p className="mt-0.5 text-xs font-medium text-gray-500">
-              {riskTrendFilter === 'day' ? 'Daily' : riskTrendFilter === 'month' ? 'Monthly' : 'Weekly'} risk level distribution
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600">
-              <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-rose-500 shadow-xs" />High Risk</span>
-              <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500 shadow-xs" />Medium Risk</span>
-              <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-xs" />Low Risk</span>
-            </div>
-            <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-              <StudentRiskFilter rows={rows} value={riskScope} onChange={setRiskScope} />
-            </label>
-            <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-0.5" role="group" aria-label="Filter risk chart by time period">
-              {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                <button key={filter} type="button" onClick={() => setRiskTrendFilter(filter)} className={`cursor-pointer rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${riskTrendFilter === filter ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                  {filter}
-                </button>
-              ))}
-            </div>
+            <p className="text-sm font-bold">Failed to load analytics</p>
+            <p className="text-xs mt-0.5 text-rose-700 dark:text-rose-300">{error}</p>
+            <button
+              type="button"
+              onClick={fetchAnalytics}
+              className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
+            >
+              Retry
+            </button>
           </div>
         </div>
-        <div className="mt-5">
-          <div className="relative rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5">
-            <RiskTrendChart data={riskTrend} total={riskScopedRows.length} isSingleStudent={riskScope !== 'all'} />
-          </div>
-        </div>
-      </section>
-      </>}
+      ) : (
+        <div key={`analytics-loaded-${activeAnalyticsTab}`} className="space-y-6 data-loaded-content">
+          {/* ── Overall Tab Content ── */}
+          {activeAnalyticsTab === 'overall' && (
+            <>
+              {/* ── Risk Summary Cards ─────────────────────────────────────── */}
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="relative rounded-3xl border risk-card-high p-5 shadow-sm min-h-[114px] flex items-center gap-4">
+                  <div className="absolute right-4 top-4">
+                    <RiskRangeInfo range="Composite score is below 70%" />
+                  </div>
+                  <div className="w-11 h-11 rounded-2xl border risk-badge-high flex items-center justify-center shrink-0">
+                    <ShieldAlert className="w-5 h-5 text-risk-high" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1 text-risk-high">
+                      <p className="text-[11px] font-bold uppercase tracking-wider">High Risk</p>
+                    </div>
+                    <p className="text-3xl font-extrabold text-risk-high mt-0.5">{riskCounts.high}</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students needing immediate intervention</p>
+                  </div>
+                </div>
 
-      {/* ── Class Trends ───────────────────────────────────────────── */}
-      {activeAnalyticsTab === 'attendance' && (
-        <div className="grid w-full gap-4 sm:grid-cols-3">
-          <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm flex items-center gap-4">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
-              <Check className="w-5 h-5 text-emerald-600" strokeWidth={3} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Present</p>
-              <p className="text-3xl font-extrabold text-emerald-900 mt-0.5">{attendanceSummary.present}</p>
-              <p className="mt-0.5 text-[11px] font-medium text-gray-500">Total records marked present</p>
-            </div>
-          </div>
-          <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-sm flex items-center gap-4">
-            <div className="w-11 h-11 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
-              <X className="w-5 h-5 text-rose-600" strokeWidth={3} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Absent</p>
-              <p className="text-3xl font-extrabold text-rose-900 mt-0.5">{attendanceSummary.absent}</p>
-              <p className="mt-0.5 text-[11px] font-medium text-gray-500">Total records marked absent</p>
-            </div>
-          </div>
-          <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm flex items-center gap-4 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-            <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${attendanceMood.iconBg}`}>
-              <attendanceMood.icon className={`w-5 h-5 ${attendanceMood.iconColor}`} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Attendance</p>
-              <p className={`text-3xl font-extrabold mt-0.5 ${attendanceMood.valueColor}`}>
-                {attendanceLogs.length === 0 ? '—' : `${smartPct(avgAttendance)}%`}
-              </p>
-              <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Class average attendance rate</p>
-            </div>
-          </div>
-        </div>
-      )}
-      {activeAnalyticsTab === 'score' && (
-        <div className="grid w-full gap-4 sm:grid-cols-3">
-          <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm flex items-center gap-4">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
-              <Check className="w-5 h-5 text-emerald-600" strokeWidth={3} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Passed</p>
-              <p className="text-3xl font-extrabold text-emerald-900 mt-0.5">{scoreSummary.passed}</p>
-              <p className="mt-0.5 text-[11px] font-medium text-gray-500">Total records marked passed</p>
-            </div>
-          </div>
-          <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-sm flex items-center gap-4">
-            <div className="w-11 h-11 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
-              <X className="w-5 h-5 text-rose-600" strokeWidth={3} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Failed</p>
-              <p className="text-3xl font-extrabold text-rose-900 mt-0.5">{scoreSummary.failed}</p>
-              <p className="mt-0.5 text-[11px] font-medium text-gray-500">Total records marked failed</p>
-            </div>
-          </div>
-          <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm flex items-center gap-4 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-            <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${scoreMood.iconBg}`}>
-              <scoreMood.icon className={`w-5 h-5 ${scoreMood.iconColor}`} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Score</p>
-              <p className={`text-3xl font-extrabold mt-0.5 ${scoreMood.valueColor}`}>
-                {grades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? '—' : `${smartPct(avgScore)}%`}
-              </p>
-              <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Class average score rate</p>
-            </div>
-          </div>
-        </div>
-      )}
-      <div className={`space-y-4 ${activeAnalyticsTab === 'overall' ? 'hidden' : ''}`}>
-        {activeAnalyticsTab === 'attendance' && <>
-        <div className="w-full rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-          <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS ATTENDANCE RATE TREND CHART</h3>
-              <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
-                {attendanceFilter === 'day' ? 'Daily' : attendanceFilter === 'month' ? 'Monthly' : 'Weekly'} attendance trend
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
-                <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-xs" />Attendance Rate</span>
-              </div>
-              <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                <StudentRiskFilter rows={rows} value={attendanceScope} onChange={setAttendanceScope} />
-              </label>
-              <div className="flex rounded-xl bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Attendance trend period">
-                {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                  <button key={filter} type="button" onClick={() => setAttendanceFilter(filter)} className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${attendanceFilter === filter ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
-                    {filter}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="relative mt-6 h-56 w-full rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
-            <TrendChart data={attendanceTrend} color="#0052B7" emptyLabel="No attendance trend data" />
-          </div>
-        </div>
-        <div className="w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-          <div className="overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100">
-              <div>
-                <h3 className="text-base font-bold text-gray-900">STUDENT ATTENDANCE DETAILS</h3>
-                <p className="mt-0.5 text-xs font-medium text-gray-500">{attendanceDetails.length} Students</p>
-              </div>
-              <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="search" aria-label="Search attendance students" placeholder="Search Student Name" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10" />
+                <div className="relative rounded-3xl border risk-card-medium p-5 shadow-sm min-h-[114px] flex items-center gap-4">
+                  <div className="absolute right-4 top-4">
+                    <RiskRangeInfo range="Composite score is between 70% to 85%" />
+                  </div>
+                  <div className="w-11 h-11 rounded-2xl border risk-badge-medium flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-5 h-5 text-risk-medium" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1 text-risk-medium">
+                      <p className="text-[11px] font-bold uppercase tracking-wider">Medium Risk</p>
+                    </div>
+                    <p className="text-3xl font-extrabold text-risk-medium mt-0.5">{riskCounts.moderate}</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students requiring monitoring</p>
+                  </div>
+                </div>
+
+                <div className="relative rounded-3xl border risk-card-low p-5 shadow-sm min-h-[114px] flex items-center gap-4">
+                  <div className="absolute right-4 top-4">
+                    <RiskRangeInfo range="Composite score is between 86% to 100%" />
+                  </div>
+                  <div className="w-11 h-11 rounded-2xl border risk-badge-low flex items-center justify-center shrink-0">
+                    <Award className="w-5 h-5 text-risk-low" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1 text-risk-low">
+                      <p className="text-[11px] font-bold uppercase tracking-wider">Low Risk</p>
+                    </div>
+                    <p className="text-3xl font-extrabold text-risk-low mt-0.5">{riskCounts.low}</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students performing well</p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-[900px] w-full divide-y divide-gray-100 text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                <thead><tr className="divide-x divide-gray-100 bg-gray-50"><SortHeader field="student" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Student</SortHeader><SortHeader field="aralLevel" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>ARAL Level</SortHeader><SortHeader field="present" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Present</SortHeader><SortHeader field="absent" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Absent</SortHeader><SortHeader field="attendanceAverage" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Average Attendance Rate</SortHeader></tr></thead>
-                <tbody className="divide-y divide-gray-100 bg-white">{attendanceDetails.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : attendanceDetails.map((row) => <tr key={row.student.id} className="divide-x divide-gray-100 transition-colors hover:bg-gray-50/80"><td className="px-4 py-3.5 font-semibold text-gray-900">{row.student.full_name}</td><td className="px-4 py-3.5">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3.5 font-normal text-emerald-600">{row.present}</td><td className="px-4 py-3.5 font-normal text-rose-600">{row.absent}</td><td className="px-4 py-3.5 font-normal text-gray-700">{smartPct(row.attendanceAverage)}%</td></tr>)}</tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        </>}
 
-        {activeAnalyticsTab === 'score' && <>
-        <div className="w-full rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-          <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS AVERAGE SCORE TREND CHART</h3>
-              <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
-                {scoreFilter === 'day' ? 'Daily' : scoreFilter === 'month' ? 'Monthly' : 'Weekly'} score trend
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
-                <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0052B7] shadow-xs" />Average Score</span>
-              </div>
-              <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                <StudentRiskFilter rows={rows} value={scoreScope} onChange={setScoreScope} />
-              </label>
-              <div className="flex rounded-xl bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Score trend period">
-                {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                  <button key={filter} type="button" onClick={() => setScoreFilter(filter)} className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${scoreFilter === filter ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
-                    {filter}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="relative mt-6 h-56 w-full rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
-            <TrendChart data={scoreTrend} color="#0052B7" emptyLabel="No score trend data" />
-          </div>
-        </div>
-        <div className="w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-          <div className="overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100">
-              <div>
-                <h3 className="text-base font-bold text-gray-900">STUDENT SCORE DETAILS</h3>
-                <p className="mt-0.5 text-xs font-medium text-gray-500">{scoreDetails.length} Students</p>
-              </div>
-              <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="search" aria-label="Search score students" placeholder="Search Student Name" value={scoreSearch} onChange={(event) => setScoreSearch(event.target.value)} className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10" />
+              {/* ── Risk Level Trend Chart ── */}
+              <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]" aria-labelledby="risk-overview-heading">
+                <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+                  <div>
+                    <h3 id="risk-overview-heading" className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">RISK LEVEL TREND CHART</h3>
+                    <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
+                      {riskTrendFilter === 'day' ? 'Daily' : riskTrendFilter === 'month' ? 'Monthly' : 'Weekly'} risk level distribution
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#EF4444' }} />High Risk</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#F59E0B' }} />Medium Risk</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#22C55E' }} />Low Risk</span>
+                    </div>
+                    <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      <StudentRiskFilter rows={rows} value={riskScope} onChange={setRiskScope} />
+                    </label>
+                    <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Filter risk chart by time period">
+                      {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
+                        <button key={filter} type="button" onClick={() => setRiskTrendFilter(filter)} className={`cursor-pointer rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${riskTrendFilter === filter ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
+                          {filter}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-[900px] w-full divide-y divide-gray-100 text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                <thead><tr className="divide-x divide-gray-100 bg-gray-50"><SortHeader field="student" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Student</SortHeader><SortHeader field="aralLevel" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>ARAL Level</SortHeader><SortHeader field="passed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Passed</SortHeader><SortHeader field="failed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Failed</SortHeader><SortHeader field="scoreAverage" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Average Score</SortHeader></tr></thead>
-                <tbody className="divide-y divide-gray-100 bg-white">{scoreDetails.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : scoreDetails.map((row) => <tr key={row.student.id} className="divide-x divide-gray-100 transition-colors hover:bg-gray-50/80"><td className="px-4 py-3.5 font-semibold text-gray-900">{row.student.full_name}</td><td className="px-4 py-3.5">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3.5 font-normal text-emerald-600">{row.passed}</td><td className="px-4 py-3.5 font-normal text-rose-600">{row.failed}</td><td className="px-4 py-3.5 font-normal text-gray-700">{smartPct(row.scoreAverage)}%</td></tr>)}</tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        </>}
-      </div>
+                <div className="mt-6">
+                  <div className="relative rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+                    <RiskTrendChart data={riskTrend} total={riskScopedRows.length} isSingleStudent={riskScope !== 'all'} />
+                  </div>
+                </div>
+              </section>
 
-      {/* ── Analytics Table ────────────────────────────────────────── */}
-      {activeAnalyticsTab === 'overall' && (<>
-      <div className="flex items-center gap-2 px-1 text-xs text-gray-500" style={{ fontFamily: 'var(--font-body)' }}>
-        <RiskCalculationInfo />
-      </div>
-      <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
-        {/* Table toolbar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div>
-              <h3 className="text-base font-bold text-gray-900">STUDENT PERFORMANCE DETAILS</h3>
-              <p className="mt-0.5 text-xs font-medium text-gray-500">{filteredAndSortedRows.length} Students</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="search"
-                placeholder="Search Student Name"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10"
-              />
-            </div>
-          </div>
-        </div>
-
-        {isLoading ? (
-          <div className="p-8 space-y-2">
-            {[1,2,3,4,5].map((i) => <div key={i} className="h-14 bg-gray-100 rounded-2xl animate-pulse" />)}
-          </div>
-        ) : error ? (
-          <div className="flex items-start gap-3 m-6 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-2xl p-4">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" /> {error}
-          </div>
-        ) : filteredAndSortedRows.length === 0 ? (
-          <div className="py-16 text-center space-y-2">
-            <Users className="w-10 h-10 mx-auto text-gray-200" />
-            <p className="text-sm font-semibold text-gray-500">No students found</p>
-            <p className="text-xs text-gray-400">Try adjusting your search criteria.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-[900px] divide-y divide-gray-100 text-sm font-normal w-full" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-              <thead>
-                <tr className="divide-x divide-gray-100 bg-gray-50">
-                  <SortHeader field="student">Student</SortHeader>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">ARAL Level</th>
-                  <SortHeader field="attendanceRate">Average Attendance Rate</SortHeader>
-                  <SortHeader field="scoreAvg">Average Score</SortHeader>
-                  <SortHeader field="compositeScore">COMPOSITE SCORE</SortHeader>
-                  <SortHeader field="riskTier">Risk Level</SortHeader>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {filteredAndSortedRows.map((row) => (
-                  <tr key={row.student.id} className="divide-x divide-gray-100 transition-colors hover:bg-gray-50/80">
-                    <td className="px-4 py-3.5 align-middle">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(row.student.full_name || '')}`}>
-                          {getInitials(row.student.full_name || '?')}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-gray-900">{row.student.full_name}</div>
-                          <div className="text-xs text-gray-400 font-normal">LRN: {row.student.lrn || 'N/A'}</div>
-                        </div>
+              {/* ── Student Performance Details Table ── */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 px-1 text-xs text-gray-500" style={{ fontFamily: 'var(--font-body)' }}>
+                  <RiskCalculationInfo />
+                </div>
+                <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">STUDENT PERFORMANCE DETAILS</h3>
+                        <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{filteredAndSortedRows.length} Students</p>
                       </div>
-                    </td>
-                    <td className="px-4 py-3.5 align-middle">{getAralBadge(row.student.aral_level)}</td>
-                    <td className="px-4 py-3.5 align-middle font-normal text-gray-700">
-                      {smartPct(row.attendanceRate)}%
-                    </td>
-                    <td className="px-4 py-3.5 align-middle font-normal text-gray-700">{smartPct(row.scoreAvg)}%</td>
-                    <td className="px-4 py-3.5 align-middle">
-                      <span className={`text-sm font-normal ${getCompositeScoreCls(row.riskTier)}`}>
-                        {smartPct(row.compositeScore)}%
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 align-middle">
-                      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold border ${getTierCls(row.riskTier)}`}>
-                        {row.riskTier}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-      </>)}
+                    </div>
+                    <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="search"
+                          placeholder="Search Student Name"
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
+                          className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {filteredAndSortedRows.length === 0 ? (
+                    <div className="py-16 text-center space-y-2">
+                      <Users className="w-10 h-10 mx-auto text-gray-200" />
+                      <p className="text-sm font-semibold text-gray-500">No students found</p>
+                      <p className="text-xs text-gray-400">Try adjusting your search criteria.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-[900px] divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal w-full" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                        <thead>
+                          <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
+                            <SortHeader field="student">Student</SortHeader>
+                            <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">ARAL Level</th>
+                            <SortHeader field="attendanceRate">Average Attendance Rate</SortHeader>
+                            <SortHeader field="scoreAvg">Average Score</SortHeader>
+                            <SortHeader field="compositeScore">COMPOSITE SCORE</SortHeader>
+                            <SortHeader field="riskTier">Risk Level</SortHeader>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+                          {filteredAndSortedRows.map((row) => (
+                            <tr key={row.student.id} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5">
+                              <td className="px-4 py-3.5 align-middle">
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(row.student.full_name || '')}`}>
+                                    {getInitials(row.student.full_name || '?')}
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold text-gray-900 dark:text-slate-100">{row.student.full_name}</div>
+                                    <div className="text-xs text-gray-400 font-normal">LRN: {row.student.lrn || 'N/A'}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3.5 align-middle">{getAralBadge(row.student.aral_level)}</td>
+                              <td className="px-4 py-3.5 align-middle font-normal text-gray-700 dark:text-slate-300">
+                                {smartPct(row.attendanceRate)}%
+                              </td>
+                              <td className="px-4 py-3.5 align-middle font-normal text-gray-700 dark:text-slate-300">{smartPct(row.scoreAvg)}%</td>
+                              <td className="px-4 py-3.5 align-middle">
+                                <span className={`text-sm font-normal ${getCompositeScoreCls(row.riskTier)}`}>
+                                  {smartPct(row.compositeScore)}%
+                                </span>
+                              </td>
+                              <td className="px-4 py-3.5 align-middle">
+                                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold border ${getTierCls(row.riskTier)}`}>
+                                  {row.riskTier}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── Attendance Tab Content ── */}
+          {activeAnalyticsTab === 'attendance' && (
+            <>
+              {/* 3 Attendance Summary Cards */}
+              <div className="grid w-full gap-4 sm:grid-cols-3">
+                <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm min-h-[114px] flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
+                    <Check className="w-5 h-5 text-emerald-600" strokeWidth={3} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Present</p>
+                    <p className="text-3xl font-extrabold text-emerald-900 mt-0.5">{attendanceSummary.present}</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Total records marked present</p>
+                  </div>
+                </div>
+                <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-sm min-h-[114px] flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
+                    <X className="w-5 h-5 text-rose-600" strokeWidth={3} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Absent</p>
+                    <p className="text-3xl font-extrabold text-rose-900 mt-0.5">{attendanceSummary.absent}</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Total records marked absent</p>
+                  </div>
+                </div>
+                <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm min-h-[114px] flex items-center gap-4 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                  <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${attendanceMood.iconBg}`}>
+                    <attendanceMood.icon className={`w-5 h-5 ${attendanceMood.iconColor}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Attendance</p>
+                    <p className={`text-3xl font-extrabold mt-0.5 ${attendanceMood.valueColor}`}>
+                      {attendanceLogs.length === 0 ? '—' : `${smartPct(avgAttendance)}%`}
+                    </p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Class average attendance rate</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Attendance Trend Chart */}
+              <div className="w-full rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+                  <div>
+                    <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS ATTENDANCE RATE TREND CHART</h3>
+                    <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
+                      {attendanceFilter === 'day' ? 'Daily' : attendanceFilter === 'month' ? 'Monthly' : 'Weekly'} attendance trend
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#22C55E' }} />Attendance Rate</span>
+                    </div>
+                    <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      <StudentRiskFilter rows={rows} value={attendanceScope} onChange={setAttendanceScope} />
+                    </label>
+                    <div className="flex rounded-xl bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Attendance trend period">
+                      {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
+                        <button key={filter} type="button" onClick={() => setAttendanceFilter(filter)} className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${attendanceFilter === filter ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
+                          {filter}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="relative mt-6 h-56 w-full rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+                  <TrendChart data={attendanceTrend} color="#0052B7" emptyLabel="No attendance trend data" />
+                </div>
+              </div>
+
+              {/* Student Attendance Details Table */}
+              <div className="w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                <div className="overflow-hidden">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">STUDENT ATTENDANCE DETAILS</h3>
+                      <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{attendanceDetails.length} Students</p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input type="search" aria-label="Search attendance students" placeholder="Search Student Name" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                      <thead><tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]"><SortHeader field="student" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Student</SortHeader><SortHeader field="aralLevel" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>ARAL Level</SortHeader><SortHeader field="present" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Present</SortHeader><SortHeader field="absent" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Absent</SortHeader><SortHeader field="attendanceAverage" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Average Attendance Rate</SortHeader></tr></thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{attendanceDetails.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : attendanceDetails.map((row) => <tr key={row.student.id} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3.5 font-semibold text-gray-900 dark:text-slate-100">{row.student.full_name}</td><td className="px-4 py-3.5">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3.5 font-normal text-emerald-600">{row.present}</td><td className="px-4 py-3.5 font-normal text-rose-600">{row.absent}</td><td className="px-4 py-3.5 font-normal text-gray-700 dark:text-slate-300">{smartPct(row.attendanceAverage)}%</td></tr>)}</tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── Score Tab Content ── */}
+          {activeAnalyticsTab === 'score' && (
+            <>
+              {/* 3 Score Summary Cards */}
+              <div className="grid w-full gap-4 sm:grid-cols-3">
+                <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm min-h-[114px] flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
+                    <Check className="w-5 h-5 text-emerald-600" strokeWidth={3} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Passed</p>
+                    <p className="text-3xl font-extrabold text-emerald-900 mt-0.5">{scoreSummary.passed}</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Total records marked passed</p>
+                  </div>
+                </div>
+                <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-sm min-h-[114px] flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
+                    <X className="w-5 h-5 text-rose-600" strokeWidth={3} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Failed</p>
+                    <p className="text-3xl font-extrabold text-rose-900 mt-0.5">{scoreSummary.failed}</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Total records marked failed</p>
+                  </div>
+                </div>
+                <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm min-h-[114px] flex items-center gap-4 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                  <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${scoreMood.iconBg}`}>
+                    <scoreMood.icon className={`w-5 h-5 ${scoreMood.iconColor}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Score</p>
+                    <p className={`text-3xl font-extrabold mt-0.5 ${scoreMood.valueColor}`}>
+                      {grades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? '—' : `${smartPct(avgScore)}%`}
+                    </p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Class average score rate</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Score Trend Chart */}
+              <div className="w-full rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+                  <div>
+                    <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS AVERAGE SCORE TREND CHART</h3>
+                    <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
+                      {scoreFilter === 'day' ? 'Daily' : scoreFilter === 'month' ? 'Monthly' : 'Weekly'} score trend
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0052B7] shadow-xs" />Average Score</span>
+                    </div>
+                    <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      <StudentRiskFilter rows={rows} value={scoreScope} onChange={setScoreScope} />
+                    </label>
+                    <div className="flex rounded-xl bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Score trend period">
+                      {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
+                        <button key={filter} type="button" onClick={() => setScoreFilter(filter)} className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${scoreFilter === filter ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
+                          {filter}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="relative mt-6 h-56 w-full rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+                  <TrendChart data={scoreTrend} color="#0052B7" emptyLabel="No score trend data" />
+                </div>
+              </div>
+
+              {/* Student Score Details Table */}
+              <div className="w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                <div className="overflow-hidden">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">STUDENT SCORE DETAILS</h3>
+                      <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{scoreDetails.length} Students</p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input type="search" aria-label="Search score students" placeholder="Search Student Name" value={scoreSearch} onChange={(event) => setScoreSearch(event.target.value)} className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                      <thead><tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]"><SortHeader field="student" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Student</SortHeader><SortHeader field="aralLevel" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>ARAL Level</SortHeader><SortHeader field="passed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Passed</SortHeader><SortHeader field="failed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Failed</SortHeader><SortHeader field="scoreAverage" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Average Score</SortHeader></tr></thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{scoreDetails.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : scoreDetails.map((row) => <tr key={row.student.id} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3.5 font-semibold text-gray-900 dark:text-slate-100">{row.student.full_name}</td><td className="px-4 py-3.5">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3.5 font-normal text-emerald-600">{row.passed}</td><td className="px-4 py-3.5 font-normal text-rose-600">{row.failed}</td><td className="px-4 py-3.5 font-normal text-gray-700 dark:text-slate-300">{smartPct(row.scoreAverage)}%</td></tr>)}</tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };

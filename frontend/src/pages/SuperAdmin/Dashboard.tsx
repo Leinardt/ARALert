@@ -177,9 +177,9 @@ export const Dashboard: React.FC = () => {
             <StatCard
               label="Faculty"
               value={stats.faculty}
-              icon={<BookOpen className="w-5 h-5 text-emerald-500" />}
-              accentBg="bg-emerald-50"
-              accentBorder="border-emerald-100"
+              icon={<BookOpen className="w-5 h-5 text-violet-600" />}
+              accentBg="bg-violet-50"
+              accentBorder="border-violet-100"
               delay={350}
             />
             <StatCard

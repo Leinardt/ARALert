@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { userService, UserActivityItem } from '../../services/userService';
 import type { User } from '../../types';
 import {
@@ -11,6 +11,8 @@ import { useAuth } from '../../hooks/useAuth';
 
 export const UserList: React.FC = () => {
   const { user: currentUser } = useAuth();
+  const location = useLocation();
+  const isTutorsPath = location.pathname.includes('/tutors');
   const [users, setUsers] = useState<User[]>([]);
   const [tutors, setTutors] = useState<User[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -22,6 +24,7 @@ export const UserList: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [assignedTutorFilter, setAssignedTutorFilter] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('');
   const [ordering, setOrdering] = useState('-date_joined');
   const [page, setPage] = useState(1);
 
@@ -39,12 +42,14 @@ export const UserList: React.FC = () => {
   const fetchUsers = async () => {
     setIsLoading(true);
     setError(null);
+    const effectiveRole = isTutorsPath ? 'tutor' : (roleFilter || undefined);
     try {
       const data = await userService.getUsers({
         search: search || undefined,
-        role: roleFilter || undefined,
+        role: effectiveRole,
         status: statusFilter || undefined,
         assigned_tutor: assignedTutorFilter || undefined,
+        subject: subjectFilter || undefined,
         ordering,
         page,
       });
@@ -71,7 +76,7 @@ export const UserList: React.FC = () => {
   useEffect(() => {
     fetchUsers();
     fetchTutorsList();
-  }, [roleFilter, statusFilter, assignedTutorFilter, ordering, page]);
+  }, [roleFilter, statusFilter, assignedTutorFilter, subjectFilter, ordering, page, isTutorsPath]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,7 +168,7 @@ export const UserList: React.FC = () => {
     });
   };
 
-  const isStudentList = !currentUser?.is_superuser || roleFilter === 'student';
+  const isStudentList = (!currentUser?.is_superuser && !isTutorsPath) || roleFilter === 'student';
   const studentUsersOnPage = users.filter(u => u.role === 'student');
   const showTutorColumn = isStudentList || studentUsersOnPage.length > 0;
 
@@ -173,12 +178,14 @@ export const UserList: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
         <div>
           <h2 className="text-lg font-bold text-gray-900">
-            {currentUser?.is_superuser ? 'User Management System' : 'Student Directory'}
+            {currentUser?.is_superuser ? 'User Management System' : isTutorsPath ? 'Tutors Directory' : 'Student Directory'}
           </h2>
           <p className="text-sm text-gray-500">
             {currentUser?.is_superuser
               ? 'Pre-register staff accounts, assign roles, inspect full login/logout timelines, and manage student tutors.'
-              : 'Enroll student accounts, assign tutors, and inspect student activity timelines.'}
+              : isTutorsPath
+                ? 'View and manage tutors, assign academic subjects (Reading, Science, Math), and inspect tutor activity.'
+                : 'Enroll student accounts, assign tutors, and inspect student activity timelines.'}
           </p>
         </div>
 
@@ -194,11 +201,11 @@ export const UserList: React.FC = () => {
           )}
 
           <Link
-            to={currentUser?.is_superuser ? '/superadmin/users/create' : '/admin/students/create'}
+            to={currentUser?.is_superuser ? '/superadmin/users/create' : isTutorsPath ? '/admin/tutors/create' : '/admin/students/create'}
             className="inline-flex items-center bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4 mr-2" />
-            {currentUser?.is_superuser ? 'Create User Account' : 'Enroll Student'}
+            {currentUser?.is_superuser ? 'Create User Account' : isTutorsPath ? 'Add Tutor' : 'Enroll Student'}
           </Link>
         </div>
       </div>
@@ -279,6 +286,22 @@ export const UserList: React.FC = () => {
                 {tutors.map((t) => (
                   <option key={t.id} value={t.id}>{t.full_name || `${t.first_name} ${t.last_name}`}</option>
                 ))}
+              </select>
+            </div>
+          )}
+
+          {(isTutorsPath || roleFilter === 'tutor' || (currentUser?.is_superuser && roleFilter === '')) && (
+            <div className="flex items-center space-x-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">Subject:</label>
+              <select
+                value={subjectFilter}
+                onChange={(e) => { setSubjectFilter(e.target.value); setPage(1); }}
+                className="border border-gray-300 rounded-lg text-sm px-3 py-1.5 focus:outline-none focus:ring-[var(--brand)] focus:border-[var(--brand)] bg-white"
+              >
+                <option value="">All Subjects</option>
+                <option value="Reading">Reading</option>
+                <option value="Science">Science</option>
+                <option value="Math">Math</option>
               </select>
             </div>
           )}
@@ -369,16 +392,27 @@ export const UserList: React.FC = () => {
                       </td>
 
                       <td className="py-3 px-4">
-                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          u.role === 'admin' ? 'bg-purple-100 text-purple-800' :
-                          u.role === 'principal' ? 'bg-blue-100 text-blue-800' :
-                          u.role === 'faculty' ? 'bg-amber-100 text-amber-800' :
-                          u.role === 'tutor' ? 'bg-emerald-100 text-emerald-800' :
-                          u.role === 'student' ? 'bg-teal-100 text-teal-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {u.role ? u.role.toUpperCase() : 'SUPERADMIN'}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            u.role === 'admin' ? 'bg-purple-100 text-purple-800' :
+                            u.role === 'principal' ? 'bg-blue-100 text-blue-800' :
+                            u.role === 'faculty' ? 'bg-violet-100 text-violet-800' :
+                            u.role === 'tutor' ? 'bg-indigo-100 text-indigo-800' :
+                            u.role === 'student' ? 'bg-sky-100 text-sky-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {u.role ? u.role.toUpperCase() : 'SUPERADMIN'}
+                          </span>
+                          {u.role === 'tutor' && u.subject && (
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold border ${
+                              u.subject === 'Reading' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                              u.subject === 'Science' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              'bg-cyan-50 text-cyan-700 border-cyan-200'
+                            }`}>
+                              {u.subject}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {showTutorColumn && (
@@ -427,7 +461,7 @@ export const UserList: React.FC = () => {
 
                       <td className="py-3 px-4 text-right space-x-2">
                         <Link
-                          to={currentUser?.is_superuser ? `/superadmin/users/edit/${u.id}` : `/admin/students/edit/${u.id}`}
+                          to={currentUser?.is_superuser ? `/superadmin/users/edit/${u.id}` : isTutorsPath ? `/admin/tutors/edit/${u.id}` : `/admin/students/edit/${u.id}`}
                           className="text-gray-600 hover:text-gray-900 inline-block p-1"
                           title="Edit User"
                         >

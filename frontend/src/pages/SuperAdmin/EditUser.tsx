@@ -20,6 +20,7 @@ const editUserSchema = z.object({
   is_active: z.boolean(),
   assigned_tutor: z.string().optional().nullable(),
   aral_level: z.string().optional(),
+  subject: z.string().optional(),
 }).refine((data) => {
   if (data.role === 'student') {
     return !!data.lrn && /^\d{12}$/.test(data.lrn);
@@ -74,6 +75,7 @@ export const EditUser: React.FC = () => {
           is_active: userData.is_active,
           assigned_tutor: userData.assigned_tutor || '',
           aral_level: userData.aral_level || 'basic',
+          subject: userData.subject || 'Reading',
         });
       } catch (err) {
         console.error(err);
@@ -96,9 +98,10 @@ export const EditUser: React.FC = () => {
         middle_name: data.middle_name ? data.middle_name.toUpperCase().trim() : '',
         last_name: data.last_name.toUpperCase().trim(),
         assigned_tutor: data.role === 'student' && data.assigned_tutor ? data.assigned_tutor : null,
+        subject: data.role === 'tutor' ? data.subject || 'Reading' : null,
       };
       await userService.updateUser(id, payload);
-      navigate(currentUser?.is_superuser ? '/superadmin/users' : '/admin/students');
+      navigate(currentUser?.is_superuser ? '/superadmin/users' : data.role === 'tutor' ? '/admin/tutors' : '/admin/students');
     } catch (error: any) {
       console.error(error);
       const errorsPayload = error.response?.data;
@@ -200,16 +203,28 @@ export const EditUser: React.FC = () => {
               </div>
 
               {selectedRole === 'tutor' && (
-                <div>
-                  <label htmlFor="aral_level" className="block text-sm font-semibold text-gray-700">ARAL Level</label>
-                  <select id="aral_level" {...register('aral_level')}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] sm:text-sm bg-white font-medium"
-                  >
-                    <option value="basic">ARAL Basic</option>
-                    <option value="plus">ARAL Plus</option>
-                    <option value="summer">ARAL Summer</option>
-                  </select>
-                </div>
+                <>
+                  <div>
+                    <label htmlFor="aral_level" className="block text-sm font-semibold text-gray-700">ARAL Level</label>
+                    <select id="aral_level" {...register('aral_level')}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] sm:text-sm bg-white font-medium"
+                    >
+                      <option value="basic">ARAL Basic</option>
+                      <option value="plus">ARAL Plus</option>
+                      <option value="summer">ARAL Summer</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="subject" className="block text-sm font-semibold text-gray-700">Assigned Subject</label>
+                    <select id="subject" {...register('subject')}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] sm:text-sm bg-white font-medium"
+                    >
+                      <option value="Reading">Reading</option>
+                      <option value="Science">Science</option>
+                      <option value="Math">Math</option>
+                    </select>
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -229,7 +244,10 @@ export const EditUser: React.FC = () => {
                     <option value="student">Student</option>
                   </>
                 ) : (
-                  <option value="student">Student</option>
+                  <>
+                    <option value="student">Student</option>
+                    <option value="tutor">Tutor</option>
+                  </>
                 )}
               </select>
               {errors.role && <p className="mt-1 text-xs text-red-600">{errors.role.message}</p>}

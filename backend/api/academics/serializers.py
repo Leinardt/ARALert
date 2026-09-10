@@ -27,9 +27,9 @@ class GradeSerializer(serializers.ModelSerializer):
             'id', 'student', 'student_name', 'tutor', 'tutor_name',
             'subject', 'quarter', 'score', 'total_score',
             'component_type', 'component_type_display',
-            'remarks', 'date_logged', 'batch_id',
+            'remarks', 'date_logged', 'batch_id', 'created_at',
         ]
-        read_only_fields = ['id', 'student_name', 'tutor_name', 'component_type_display']
+        read_only_fields = ['id', 'student_name', 'tutor_name', 'component_type_display', 'created_at']
 
     def get_student_name(self, obj):
         return obj.student.get_full_name() if obj.student_id else ''

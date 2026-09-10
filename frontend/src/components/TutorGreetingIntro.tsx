@@ -14,6 +14,8 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
   sidebarLogoId = 'sidebar-brand-logo',
   sidebarTextId = 'sidebar-brand-text',
 }) => {
+  const isStudent = user?.role === 'student';
+  const isAllowed = isTutor || isStudent;
   const [phase, setPhase] = useState<'idle' | 'centered' | 'flying' | 'completed'>('idle');
   const [bubbleVisible, setBubbleVisible] = useState(false);
   const [flightCoords, setFlightCoords] = useState<{
@@ -34,8 +36,8 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
   const timeGreeting =
     period === 'morning' ? 'Good morning' : period === 'afternoon' ? 'Good afternoon' : 'Good evening';
 
-  const firstName = user?.first_name || user?.full_name?.trim().split(' ')[0] || 'Tutor';
-  const fullGreeting = `${timeGreeting}, tutor ${firstName}! Welcome back!`;
+  const firstName = user?.first_name || user?.full_name?.trim().split(' ')[0] || (isStudent ? 'Student' : 'Tutor');
+  const greetingRolePrefix = isStudent ? '' : 'tutor ';
 
   const triggerDismissalRef = useRef<() => void>(() => {});
 
@@ -159,7 +161,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
 
   // Auto-open on first login per morning, afternoon, or evening
   useEffect(() => {
-    if (!isTutor || !user) return;
+    if (!isAllowed || !user) return;
 
     const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
     const storageKey = `aralert_greeting_${user.id}_${todayStr}_${period}`;
@@ -187,7 +189,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
     return () => {
       clearTimeout(mountTimer);
     };
-  }, [isTutor, user?.id, period, sidebarLogoId, sidebarTextId, startIntro]);
+  }, [isAllowed, user?.id, period, sidebarLogoId, sidebarTextId, startIntro]);
 
   // Clean up timer on unmount and ensure sidebar logo and text are restored
   useEffect(() => {
@@ -241,7 +243,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
               <img
                 src="/src/assets/ARALert_Logo_LIGHT.png"
                 alt="ARALert Mascot Logo"
-                className="w-full h-full object-contain filter drop-shadow-[0_12px_28px_rgba(0,82,183,0.4)]"
+                className="w-full h-full object-contain filter drop-shadow-[0_12px_28px_var(--brand-glow)]"
                 style={{ backfaceVisibility: 'hidden', transform: 'translateZ(0)' }}
               />
             </div>
@@ -271,7 +273,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
 
               {/* Dynamic Greeting Message Only (Guaranteed Single Line) */}
               <p className="text-base sm:text-lg font-bold text-gray-900 dark:text-slate-100 leading-normal tracking-tight whitespace-nowrap">
-                {timeGreeting}, tutor{' '}
+                {timeGreeting}, {greetingRolePrefix}
                 <span className="text-[var(--brand)] dark:text-blue-400 font-extrabold">
                   {firstName}
                 </span>
@@ -317,7 +319,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
               width: '100%',
               height: '100%',
               objectFit: 'contain',
-              filter: 'drop-shadow(0 4px 12px rgba(0,82,183,0.3))',
+              filter: 'drop-shadow(0 4px 12px var(--brand-glow))',
               backfaceVisibility: 'hidden',
               transform: 'translateZ(0)',
             }}

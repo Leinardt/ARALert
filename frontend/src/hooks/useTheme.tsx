@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { syncFaviconWithTheme } from '../utils/faviconSync';
 
 type ThemeMode = 'light' | 'dark';
 
@@ -40,6 +41,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     root.classList.toggle('dark', theme === 'dark');
     window.localStorage.setItem('theme', theme);
+    syncFaviconWithTheme();
 
     // Force style recalculation (reflow)
     const _ = window.getComputedStyle(css).opacity;

@@ -26,7 +26,7 @@ class UserListSerializer(serializers.ModelSerializer):
             'username', 'email', 'role', 'lrn', 'status', 'is_active',
             'date_joined', 'last_login', 'has_logged_in',
             'assigned_tutor', 'assigned_tutor_name', 'assessment_weight', 'weekly_tasks_weight',
-            'attendance_weight', 'aral_level'
+            'attendance_weight', 'aral_level', 'subject'
         ]
 
     def get_full_name(self, obj):
@@ -63,7 +63,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             'first_name', 'middle_name', 'last_name', 'username', 'email',
             'role', 'lrn', 'is_active',
             'assigned_tutor', 'assessment_weight', 'weekly_tasks_weight', 'attendance_weight',
-            'aral_level'
+            'aral_level', 'subject'
         ]
 
     def validate_role(self, value):
@@ -133,7 +133,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         fields = [
             'first_name', 'middle_name', 'last_name', 'email', 'role',
             'is_active', 'assigned_tutor', 'assessment_weight',
-            'weekly_tasks_weight', 'attendance_weight', 'aral_level', 'lrn'
+            'weekly_tasks_weight', 'attendance_weight', 'aral_level', 'lrn', 'subject'
         ]
 
     def update(self, instance, validated_data):

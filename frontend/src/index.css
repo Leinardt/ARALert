@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
+@import "./theme.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -32,18 +33,9 @@ html {
   --font-body: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
 
   --sidebar-icon-color: #0F172A;
-  --sidebar-icon-active-color: #0052B7;
+  --sidebar-icon-active-color: var(--brand);
 
-  /* ── Core Brand / ARALert Deep Royal Blue Palette (#0052B7) ── */
-  --brand:         #0052B7;
-  --brand-hover:   #004397;
-  --brand-dark:    #003678;
-  --brand-darker:  #002553;
-  --brand-light:   #EBF3FC;
-  --brand-lighter: #F2F7FD;
-  --brand-border:  #B4D3F9;
-  --brand-text:    #0052B7;
-  --brand-glow:    rgba(0, 82, 183, 0.25);
+  /* Note: Core Brand Palette & dynamic derivatives are centralized in ./theme.css */
 
   /* ── Accent Amber Palette ── */
   --yellow-accent:        #F59E0B;
@@ -77,50 +69,47 @@ html {
   --text-muted:     #64748B;
   --text-disabled:  #94A3B8;
 
-  /* ── Semantic Colors ── */
-  --color-success: #059669;
-  --color-warning: #D97706;
-  --color-danger:  #E11D48;
-  --color-info:    #0052B7;
+  /* ── Semantic Colors & Academic Risk Hierarchy ── */
+  --color-success: var(--risk-low);
+  --color-warning: var(--risk-medium);
+  --color-danger:  var(--risk-high);
+  --color-info:    var(--brand);
 
-  --color-success-bg: #ECFDF5;
-  --color-warning-bg: #FFFBEB;
-  --color-danger-bg:  #FFF1F2;
-  --color-info-bg:    #EBF3FC;
+  --color-success-bg: var(--risk-low-bg);
+  --color-warning-bg: var(--risk-medium-bg);
+  --color-danger-bg:  var(--risk-high-bg);
+  --color-info-bg:    var(--brand-light);
 
-  --color-success-border: #A7F3D0;
-  --color-warning-border: #FDE68A;
-  --color-danger-border:  #FECDD3;
-  --color-info-border:    #B4D3F9;
+  --color-success-border: var(--risk-low-border);
+  --color-warning-border: var(--risk-medium-border);
+  --color-danger-border:  var(--risk-high-border);
+  --color-info-border:    var(--brand-border);
 
   /* ── Academic Risk Hierarchy (Harmonized with #0052B7) ── */
-  --risk-low:            #059669;
-  --risk-low-bg:         #ECFDF5;
-  --risk-low-border:     #A7F3D0;
-  --risk-low-text:       #065F46;
-  --risk-low-badge-bg:   #D1FAE5;
+  --risk-low:            #22C55E;
+  --risk-low-bg:         color-mix(in srgb, var(--risk-low) 14%, #FFFFFF);
+  --risk-low-border:     color-mix(in srgb, var(--risk-low) 38%, #FFFFFF);
+  --risk-low-text:       color-mix(in srgb, var(--risk-low) 60%, #064E3B);
+  --risk-low-badge-bg:   color-mix(in srgb, var(--risk-low) 22%, #FFFFFF);
 
-  --risk-medium:         #D97706;
-  --risk-medium-bg:      #FFFBEB;
-  --risk-medium-border:  #FDE68A;
-  --risk-medium-text:    #92400E;
-  --risk-medium-badge-bg:#FEF3C7;
+  --risk-medium:         #F59E0B;
+  --risk-medium-bg:      color-mix(in srgb, var(--risk-medium) 14%, #FFFFFF);
+  --risk-medium-border:  color-mix(in srgb, var(--risk-medium) 38%, #FFFFFF);
+  --risk-medium-text:    color-mix(in srgb, var(--risk-medium) 65%, #78350F);
+  --risk-medium-badge-bg:color-mix(in srgb, var(--risk-medium) 22%, #FFFFFF);
 
-  --risk-high:           #E11D48;
-  --risk-high-bg:        #FFF1F2;
-  --risk-high-border:    #FECDD3;
-  --risk-high-text:      #9F1239;
-  --risk-high-badge-bg:  #FFE4E6;
+  --risk-high:           #EF4444;
+  --risk-high-bg:        color-mix(in srgb, var(--risk-high) 14%, #FFFFFF);
+  --risk-high-border:    color-mix(in srgb, var(--risk-high) 38%, #FFFFFF);
+  --risk-high-text:      color-mix(in srgb, var(--risk-high) 65%, #881337);
+  --risk-high-badge-bg:  color-mix(in srgb, var(--risk-high) 22%, #FFFFFF);
 
   /* ── Sidebar Palette ── */
   --sidebar-bg:         #FFFFFF;
   --sidebar-border:     #E2E8F0;
   --sidebar-item:       #475569;
   --sidebar-item-hover: #F1F5F9;
-  --sidebar-active-bg:  linear-gradient(135deg, rgba(238, 246, 255, 0.85) 0%, rgba(219, 234, 254, 0.6) 100%);
-  --sidebar-active-border: rgba(0, 82, 183, 0.18);
-  --sidebar-active-glow: 0 4px 16px -2px rgba(0, 82, 183, 0.12), inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
-  --sidebar-active-text: #0052B7;
+  --sidebar-active-text: var(--brand);
   --sidebar-heading:    #94A3B8;
 
   /* ── Glassmorphism ── */
@@ -134,7 +123,6 @@ html {
   --shadow-md:  0 8px 24px rgba(15,23,42,0.08);
   --shadow-lg:  0 20px 48px rgba(15,23,42,0.10);
   --shadow-xl:  0 32px 64px rgba(15,23,42,0.14);
-  --shadow-brand: 0 12px 32px -4px rgba(0, 82, 183, 0.32);
   --shadow-yellow: 0 8px 20px -4px rgba(245, 158, 11, 0.35);
 }
 
@@ -144,16 +132,7 @@ html {
   --sidebar-icon-color: #FFFFFF;
   --sidebar-icon-active-color: #FFFFFF;
 
-  /* ── Core Brand Royal Blue in Dark Mode (Exact Match to Light Mode #0052B7) ── */
-  --brand:         #0052B7;
-  --brand-hover:   #004397;
-  --brand-dark:    #003678;
-  --brand-darker:  #002553;
-  --brand-light:   #EBF3FC;
-  --brand-lighter: #F2F7FD;
-  --brand-border:  #B4D3F9;
-  --brand-text:    #0052B7;
-  --brand-glow:    rgba(0, 82, 183, 0.25);
+  /* Note: Dark mode brand adaptations are centralized in ./theme.css */
 
   --yellow-accent:        #FBBF24;
   --yellow-hover:         #F59E0B;
@@ -186,47 +165,45 @@ html {
   --text-muted:     #A1A1AA;
   --text-disabled:  #71717A;
 
-  --color-success: #34D399;
-  --color-warning: #FBBF24;
-  --color-danger:  #FB7185;
-  --color-info:    #0052B7;
+  --color-success: var(--risk-low);
+  --color-warning: var(--risk-medium);
+  --color-danger:  var(--risk-high);
+  --color-info:    var(--brand);
 
-  --color-success-bg: rgba(16, 185, 129, 0.12);
-  --color-warning-bg: rgba(245, 158, 11, 0.12);
-  --color-danger-bg:  rgba(244, 63, 94, 0.12);
-  --color-info-bg:    #EBF3FC;
+  --color-success-bg: var(--risk-low-bg);
+  --color-warning-bg: var(--risk-medium-bg);
+  --color-danger-bg:  var(--risk-high-bg);
+  --color-info-bg:    var(--brand-light);
 
-  --color-success-border: rgba(16, 185, 129, 0.28);
-  --color-warning-border: rgba(245, 158, 11, 0.28);
-  --color-danger-border:  rgba(244, 63, 94, 0.28);
-  --color-info-border:    #B4D3F9;
+  --color-success-border: var(--risk-low-border);
+  --color-warning-border: var(--risk-medium-border);
+  --color-danger-border:  var(--risk-high-border);
+  --color-info-border:    var(--brand-border);
 
   /* ── Academic Risk Hierarchy in Dark Mode ── */
-  --risk-low:            #34D399;
-  --risk-low-bg:         rgba(16, 185, 129, 0.12);
-  --risk-low-border:     rgba(16, 185, 129, 0.28);
-  --risk-low-text:       #6EE7B7;
-  --risk-low-badge-bg:   rgba(16, 185, 129, 0.20);
+  --risk-low:            #22C55E;
+  --risk-low-bg:         color-mix(in srgb, var(--risk-low) 18%, #141414);
+  --risk-low-border:     color-mix(in srgb, var(--risk-low) 38%, #262626);
+  --risk-low-text:       color-mix(in srgb, var(--risk-low) 88%, #FFFFFF);
+  --risk-low-badge-bg:   color-mix(in srgb, var(--risk-low) 24%, #141414);
 
-  --risk-medium:         #FBBF24;
-  --risk-medium-bg:      rgba(245, 158, 11, 0.12);
-  --risk-medium-border:  rgba(245, 158, 11, 0.28);
-  --risk-medium-text:    #FCD34D;
-  --risk-medium-badge-bg:rgba(245, 158, 11, 0.20);
+  --risk-medium:         #F59E0B;
+  --risk-medium-bg:      color-mix(in srgb, var(--risk-medium) 18%, #141414);
+  --risk-medium-border:  color-mix(in srgb, var(--risk-medium) 38%, #262626);
+  --risk-medium-text:    color-mix(in srgb, var(--risk-medium) 88%, #FFFFFF);
+  --risk-medium-badge-bg:color-mix(in srgb, var(--risk-medium) 24%, #141414);
 
-  --risk-high:           #FB7185;
-  --risk-high-bg:        rgba(244, 63, 94, 0.12);
-  --risk-high-border:    rgba(244, 63, 94, 0.28);
-  --risk-high-text:      #FDA4AF;
-  --risk-high-badge-bg:  rgba(244, 63, 94, 0.20);
+  --risk-high:           #EF4444;
+  --risk-high-bg:        color-mix(in srgb, var(--risk-high) 18%, #141414);
+  --risk-high-border:    color-mix(in srgb, var(--risk-high) 38%, #262626);
+  --risk-high-text:      color-mix(in srgb, var(--risk-high) 88%, #FFFFFF);
+  --risk-high-badge-bg:  color-mix(in srgb, var(--risk-high) 24%, #141414);
 
   --sidebar-bg:         #000000;
   --sidebar-border:     #1F1F1F;
   --sidebar-item:       #A1A1AA;
   --sidebar-item-hover: #181818;
-  --sidebar-active-bg:  linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(0, 82, 183, 0.28) 50%, rgba(0, 82, 183, 0.12) 100%);
   --sidebar-active-border: rgba(255, 255, 255, 0.14);
-  --sidebar-active-glow: 0 4px 16px -2px rgba(0, 82, 183, 0.25), inset 0 1px 0 0 rgba(255, 255, 255, 0.20);
   --sidebar-active-text: #FFFFFF;
   --sidebar-heading:    #71717A;
 
@@ -459,42 +436,47 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
 
 /* Skeletons are already there statically with zero entry animation */
 .skeleton-container,
+.skeleton-container *,
 .skeleton-card,
+.skeleton-card *,
+.skeleton-row-1,
+.skeleton-row-2,
+.skeleton-row-3,
+.skeleton-row-4,
 [class*="animate-pulse"] {
-  animation: none !important;
   transform: none !important;
+  opacity: 1 !important;
 }
 
-/* Real data content cards glide up smoothly when data is ready */
-.data-loaded-content > *,
-.content-arrive-up,
-.stat-card,
-.dashboard-card,
-main > div:not(.animate-pulse) > .space-y-5 > div:not(.animate-pulse),
-main > div:not(.animate-pulse) > .space-y-6 > div:not(.animate-pulse) {
+/* Static loaded elements with zero entry animation (e.g. tab bars that replace skeleton tabs instantly) */
+[role="tablist"],
+.no-arrive-animation {
+  animation: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+/* Real data content cards glide up smoothly ONLY when data is ready */
+.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):not(.skeleton-container):not([class*="skeleton-row-"]):not([class*="animate-pulse"]),
+.content-arrive-up {
   animation: data-container-arrive-up 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 
 /* Stagger real data tiers from top to bottom */
-.data-loaded-content > *:nth-child(1),
-main > div:not(.animate-pulse) > .space-y-5 > *:nth-child(1):not(.animate-pulse) {
+.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):nth-child(1) {
   animation-delay: 0.04s;
 }
-.data-loaded-content > *:nth-child(2),
-main > div:not(.animate-pulse) > .space-y-5 > *:nth-child(2):not(.animate-pulse) {
+.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):nth-child(2) {
   animation-delay: 0.14s;
 }
-.data-loaded-content > *:nth-child(3),
-main > div:not(.animate-pulse) > .space-y-5 > *:nth-child(3):not(.animate-pulse) {
+.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):nth-child(3) {
   animation-delay: 0.24s;
 }
-.data-loaded-content > *:nth-child(4),
-main > div:not(.animate-pulse) > .space-y-5 > *:nth-child(4):not(.animate-pulse) {
+.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):nth-child(4) {
   animation-delay: 0.34s;
 }
-.data-loaded-content > *:nth-child(5),
-main > div:not(.animate-pulse) > .space-y-5 > *:nth-child(5):not(.animate-pulse) {
+.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):nth-child(5) {
   animation-delay: 0.44s;
 }
 
@@ -506,13 +488,13 @@ main > div:not(.animate-pulse) > .space-y-5 > *:nth-child(5):not(.animate-pulse)
 /* ── True Top-to-Bottom Downward Hollow Wipe (Direct on Elements) ── */
 @keyframes fb-hollow-wipe-down {
   0% {
-    background-position: 0% 180%;
+    background-position: 0% 100%;
   }
-  38% {
-    background-position: 0% -120%;
+  26% {
+    background-position: 0% 0%;
   }
-  38.001%, 100% {
-    background-position: 0% 180%;
+  26.001%, 100% {
+    background-position: 0% 100%;
   }
 }
 
@@ -543,16 +525,16 @@ main > div:not(.animate-pulse) > .space-y-5 > *:nth-child(5):not(.animate-pulse)
   background-image: linear-gradient(
     180deg,
     #E4E6EB 0%,
-    #E4E6EB 20%,
-    #F8F9FA 50%,
-    #E4E6EB 80%,
+    #E4E6EB 35%,
+    #FFFFFF 50%,
+    #E4E6EB 65%,
     #E4E6EB 100%
   ) !important;
-  background-size: 100% 300% !important;
+  background-size: 100% 400% !important;
   background-repeat: no-repeat !important;
   box-shadow: inset 0 1.5px 2.5px rgba(0, 0, 0, 0.08), inset 0 -0.5px 1px rgba(255, 255, 255, 0.6) !important;
   border-radius: var(--radius-md);
-  animation: fb-hollow-wipe-down 4.5s cubic-bezier(0.25, 1, 0.5, 1) infinite !important;
+  animation: fb-hollow-wipe-down 3.8s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
 }
 
 .dark .skeleton,
@@ -578,110 +560,198 @@ main > div:not(.animate-pulse) > .space-y-5 > *:nth-child(5):not(.animate-pulse)
   background-image: linear-gradient(
     180deg,
     #242526 0%,
-    #242526 20%,
-    #424447 50%,
-    #242526 80%,
+    #242526 35%,
+    #3E4044 50%,
+    #242526 65%,
     #242526 100%
   ) !important;
-  background-size: 100% 300% !important;
+  background-size: 100% 400% !important;
   background-repeat: no-repeat !important;
   box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.65), inset 0 -0.5px 1px rgba(255, 255, 255, 0.04) !important;
-  animation: fb-hollow-wipe-down 4.5s cubic-bezier(0.25, 1, 0.5, 1) infinite !important;
+  animation: fb-hollow-wipe-down 3.8s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
 }
 
 /* ── Unified Top-to-Bottom Wave Across Rows (Cascading Descent) ── */
 
-/* Row 1: Header / Top Section (Starts first at 0.0s) */
+/*
+  CRITICAL: skeleton-row-* classes are the source of truth for animation delay.
+  They must win over any auto nth-child cascade that fires on gap-3.5 / space-y-* parents.
+  Use !important to ensure specificity over the auto-cascade selectors below.
+*/
+
+/* Row 1: Header / Top Section (Starts first at 0.0s) — ALL descendants */
+.skeleton-row-1 [class*="bg-gray-"],
+.skeleton-row-1 [class*="dark:bg-gray-"],
+.skeleton-row-1 [class*="bg-slate-"],
+.skeleton-row-1 .skeleton,
+/* Force every nth-child inside row-1 to 0s so inner gap-3.5 cards don't stagger */
+.skeleton-row-1 > *:nth-child(n) [class*="bg-gray-"],
+.skeleton-row-1 > *:nth-child(n) [class*="dark:bg-gray-"],
+.skeleton-row-1 > *:nth-child(n) [class*="bg-slate-"],
+.skeleton-row-1 > * [class*="bg-gray-"],
+.skeleton-row-1 > * [class*="dark:bg-gray-"],
+.skeleton-row-1 > * [class*="bg-slate-"],
 .space-y-5 > *:nth-child(1) [class*="bg-gray-"],
 .space-y-5 > *:nth-child(1) [class*="dark:bg-gray-"],
 .space-y-5 > *:nth-child(1) [class*="bg-slate-"],
 .space-y-5 > *:nth-child(1) .skeleton,
-.space-y-6 > *:nth-child(1) [class*="bg-gray-"],
-.space-y-6 > *:nth-child(1) [class*="dark:bg-gray-"],
-.space-y-6 > *:nth-child(1) [class*="bg-slate-"],
-.space-y-6 > *:nth-child(1) .skeleton {
+.space-y-6 > *:nth-child(1):not([role="tablist"]) [class*="bg-gray-"],
+.space-y-6 > *:nth-child(1):not([role="tablist"]) [class*="dark:bg-gray-"],
+.space-y-6 > *:nth-child(1):not([role="tablist"]) [class*="bg-slate-"],
+.space-y-6 > *:nth-child(1):not([role="tablist"]) .skeleton,
+.space-y-6 > [role="tablist"] + *:nth-child(2) [class*="bg-gray-"],
+.space-y-6 > [role="tablist"] + *:nth-child(2) [class*="dark:bg-gray-"],
+.space-y-6 > [role="tablist"] + *:nth-child(2) [class*="bg-slate-"],
+.space-y-6 > [role="tablist"] + *:nth-child(2) .skeleton,
+.gap-3\.5 > *:nth-child(1) [class*="bg-gray-"],
+.gap-3\.5 > *:nth-child(1) [class*="dark:bg-gray-"],
+.gap-3\.5 > *:nth-child(1) [class*="bg-slate-"],
+.gap-3\.5 > *:nth-child(1) .skeleton {
   animation-delay: 0s !important;
 }
 
-/* Row 2: Secondary / KPI Section (Descends to Row 2 at 0.55s) */
+/* Row 2: Secondary / Content Section (Descends to Row 2 at 0.80s) */
+.skeleton-row-2 [class*="bg-gray-"],
+.skeleton-row-2 [class*="dark:bg-gray-"],
+.skeleton-row-2 [class*="bg-slate-"],
+.skeleton-row-2 .skeleton,
 .space-y-5 > *:nth-child(2) [class*="bg-gray-"],
 .space-y-5 > *:nth-child(2) [class*="dark:bg-gray-"],
 .space-y-5 > *:nth-child(2) [class*="bg-slate-"],
 .space-y-5 > *:nth-child(2) .skeleton,
-.space-y-6 > *:nth-child(2) [class*="bg-gray-"],
-.space-y-6 > *:nth-child(2) [class*="dark:bg-gray-"],
-.space-y-6 > *:nth-child(2) [class*="bg-slate-"],
-.space-y-6 > *:nth-child(2) .skeleton {
-  animation-delay: 0.55s !important;
+.space-y-6 > *:nth-child(2):not([role="tablist"]) [class*="bg-gray-"],
+.space-y-6 > *:nth-child(2):not([role="tablist"]) [class*="dark:bg-gray-"],
+.space-y-6 > *:nth-child(2):not([role="tablist"]) [class*="bg-slate-"],
+.space-y-6 > *:nth-child(2):not([role="tablist"]) .skeleton,
+.space-y-6 > [role="tablist"] ~ *:nth-child(3) [class*="bg-gray-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(3) [class*="dark:bg-gray-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(3) [class*="bg-slate-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(3) .skeleton,
+.gap-3\.5 > *:nth-child(2) [class*="bg-gray-"],
+.gap-3\.5 > *:nth-child(2) [class*="dark:bg-gray-"],
+.gap-3\.5 > *:nth-child(2) [class*="bg-slate-"],
+.gap-3\.5 > *:nth-child(2) .skeleton {
+  animation-delay: 0.80s !important;
 }
 
-/* Row 3: Content / Grid / Table Section (Descends to Row 3 at 1.10s) */
+/* Row 3: Lower Panels / Tables (Descends to Row 3 at 1.60s) */
+.skeleton-row-3 [class*="bg-gray-"],
+.skeleton-row-3 [class*="dark:bg-gray-"],
+.skeleton-row-3 [class*="bg-slate-"],
+.skeleton-row-3 .skeleton,
 .space-y-5 > *:nth-child(3) [class*="bg-gray-"],
 .space-y-5 > *:nth-child(3) [class*="dark:bg-gray-"],
 .space-y-5 > *:nth-child(3) [class*="bg-slate-"],
 .space-y-5 > *:nth-child(3) .skeleton,
-.space-y-6 > *:nth-child(3) [class*="bg-gray-"],
-.space-y-6 > *:nth-child(3) [class*="dark:bg-gray-"],
-.space-y-6 > *:nth-child(3) [class*="bg-slate-"],
-.space-y-6 > *:nth-child(3) .skeleton {
-  animation-delay: 1.10s !important;
+.space-y-6 > *:nth-child(3):not([role="tablist"]) [class*="bg-gray-"],
+.space-y-6 > *:nth-child(3):not([role="tablist"]) [class*="dark:bg-gray-"],
+.space-y-6 > *:nth-child(3):not([role="tablist"]) [class*="bg-slate-"],
+.space-y-6 > *:nth-child(3):not([role="tablist"]) .skeleton,
+.space-y-6 > [role="tablist"] ~ *:nth-child(4) [class*="bg-gray-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(4) [class*="dark:bg-gray-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(4) [class*="bg-slate-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(4) .skeleton,
+.gap-3\.5 > *:nth-child(3) [class*="bg-gray-"],
+.gap-3\.5 > *:nth-child(3) [class*="dark:bg-gray-"],
+.gap-3\.5 > *:nth-child(3) [class*="bg-slate-"],
+.gap-3\.5 > *:nth-child(3) .skeleton {
+  animation-delay: 1.60s !important;
 }
 
-/* Row 4: Lower Panels / Details (Descends to Row 4 at 1.65s) */
+/* Row 4: Bottom Footers / Sequential Sub-items (Descends at 2.20s) */
+.skeleton-row-4 [class*="bg-gray-"],
+.skeleton-row-4 [class*="dark:bg-gray-"],
+.skeleton-row-4 [class*="bg-slate-"],
+.skeleton-row-4 .skeleton,
 .space-y-5 > *:nth-child(4) [class*="bg-gray-"],
 .space-y-5 > *:nth-child(4) [class*="dark:bg-gray-"],
 .space-y-5 > *:nth-child(4) [class*="bg-slate-"],
 .space-y-5 > *:nth-child(4) .skeleton,
-.space-y-6 > *:nth-child(4) [class*="bg-gray-"],
-.space-y-6 > *:nth-child(4) [class*="dark:bg-gray-"],
-.space-y-6 > *:nth-child(4) [class*="bg-slate-"],
-.space-y-6 > *:nth-child(4) .skeleton {
-  animation-delay: 1.65s !important;
-}
-
-/* Row 5: Bottom Tables / Footers (Completes at 2.20s) */
-.space-y-5 > *:nth-child(5) [class*="bg-gray-"],
-.space-y-5 > *:nth-child(5) [class*="dark:bg-gray-"],
-.space-y-5 > *:nth-child(5) [class*="bg-slate-"],
-.space-y-5 > *:nth-child(5) .skeleton,
-.space-y-6 > *:nth-child(5) [class*="bg-gray-"],
-.space-y-6 > *:nth-child(5) [class*="dark:bg-gray-"],
-.space-y-6 > *:nth-child(5) [class*="bg-slate-"],
-.space-y-6 > *:nth-child(5) .skeleton {
+.space-y-6 > *:nth-child(4):not([role="tablist"]) [class*="bg-gray-"],
+.space-y-6 > *:nth-child(4):not([role="tablist"]) [class*="dark:bg-gray-"],
+.space-y-6 > *:nth-child(4):not([role="tablist"]) [class*="bg-slate-"],
+.space-y-6 > *:nth-child(4):not([role="tablist"]) .skeleton,
+.space-y-6 > [role="tablist"] ~ *:nth-child(5) [class*="bg-gray-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(5) [class*="dark:bg-gray-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(5) [class*="bg-slate-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(5) .skeleton,
+.gap-3\.5 > *:nth-child(4) [class*="bg-gray-"],
+.gap-3\.5 > *:nth-child(4) [class*="dark:bg-gray-"],
+.gap-3\.5 > *:nth-child(4) [class*="bg-slate-"],
+.gap-3\.5 > *:nth-child(4) .skeleton {
   animation-delay: 2.20s !important;
 }
 
-/* Sequential table and directory list rows (Cascading downward) */
-.space-y-2 > *:nth-child(1) [class*="bg-gray-"],
-.space-y-2 > *:nth-child(1),
-.space-y-3 > *:nth-child(1) { animation-delay: 0s !important; }
-.space-y-2 > *:nth-child(2) [class*="bg-gray-"],
-.space-y-2 > *:nth-child(2),
-.space-y-3 > *:nth-child(2) { animation-delay: 0.20s !important; }
-.space-y-2 > *:nth-child(3) [class*="bg-gray-"],
-.space-y-2 > *:nth-child(3),
-.space-y-3 > *:nth-child(3) { animation-delay: 0.40s !important; }
-.space-y-2 > *:nth-child(4) [class*="bg-gray-"],
-.space-y-2 > *:nth-child(4),
-.space-y-3 > *:nth-child(4) { animation-delay: 0.60s !important; }
-.space-y-2 > *:nth-child(5) [class*="bg-gray-"],
-.space-y-2 > *:nth-child(5),
-.space-y-3 > *:nth-child(5) { animation-delay: 0.80s !important; }
-.space-y-2 > *:nth-child(6) [class*="bg-gray-"],
-.space-y-2 > *:nth-child(6),
-.space-y-3 > *:nth-child(6) { animation-delay: 1.00s !important; }
-.space-y-2 > *:nth-child(7) [class*="bg-gray-"],
-.space-y-2 > *:nth-child(7),
-.space-y-3 > *:nth-child(7) { animation-delay: 1.20s !important; }
-.space-y-2 > *:nth-child(8) [class*="bg-gray-"],
-.space-y-2 > *:nth-child(8),
-.space-y-3 > *:nth-child(8) { animation-delay: 1.40s !important; }
-.space-y-2 > *:nth-child(9) [class*="bg-gray-"],
-.space-y-2 > *:nth-child(9),
-.space-y-3 > *:nth-child(9) { animation-delay: 1.60s !important; }
-.space-y-2 > *:nth-child(10) [class*="bg-gray-"],
-.space-y-2 > *:nth-child(10),
-.space-y-3 > *:nth-child(10) { animation-delay: 1.80s !important; }
+/* Sequential table and directory list rows (Cascading downward inside tables/cards) */
+.divide-y > *:nth-child(1) [class*="bg-gray-"],
+.divide-y > *:nth-child(1) [class*="dark:bg-gray-"],
+tbody > tr:nth-child(1) [class*="bg-gray-"],
+tbody > tr:nth-child(1) [class*="dark:bg-gray-"] { animation-delay: 1.80s !important; }
+
+.divide-y > *:nth-child(2) [class*="bg-gray-"],
+.divide-y > *:nth-child(2) [class*="dark:bg-gray-"],
+tbody > tr:nth-child(2) [class*="bg-gray-"],
+tbody > tr:nth-child(2) [class*="dark:bg-gray-"] { animation-delay: 1.88s !important; }
+
+.divide-y > *:nth-child(3) [class*="bg-gray-"],
+.divide-y > *:nth-child(3) [class*="dark:bg-gray-"],
+tbody > tr:nth-child(3) [class*="bg-gray-"],
+tbody > tr:nth-child(3) [class*="dark:bg-gray-"] { animation-delay: 1.96s !important; }
+
+.divide-y > *:nth-child(4) [class*="bg-gray-"],
+.divide-y > *:nth-child(4) [class*="dark:bg-gray-"],
+tbody > tr:nth-child(4) [class*="bg-gray-"],
+tbody > tr:nth-child(4) [class*="dark:bg-gray-"] { animation-delay: 2.04s !important; }
+
+.divide-y > *:nth-child(5) [class*="bg-gray-"],
+.divide-y > *:nth-child(5) [class*="dark:bg-gray-"],
+tbody > tr:nth-child(5) [class*="bg-gray-"],
+tbody > tr:nth-child(5) [class*="dark:bg-gray-"] { animation-delay: 2.12s !important; }
+
+.divide-y > *:nth-child(6) [class*="bg-gray-"],
+.divide-y > *:nth-child(6) [class*="dark:bg-gray-"],
+tbody > tr:nth-child(6) [class*="bg-gray-"],
+tbody > tr:nth-child(6) [class*="dark:bg-gray-"] { animation-delay: 2.20s !important; }
+
+/*
+  ── Final Override: skeleton-row-* Wins Over All Auto-Cascade Rules ──
+  These selectors are placed LAST so they beat any conflicting !important
+  from the auto nth-child gap-3.5 / space-y-* selectors above.
+  This is critical for layouts like TutorHome where the outer wrapper and
+  inner grid both use gap-3.5 — without this, inner KPI cards get staggered
+  at 0.8s/1.6s/2.2s instead of all starting at 0s.
+*/
+.skeleton-row-1 [class*="bg-gray-"],
+.skeleton-row-1 [class*="dark:bg-gray-"],
+.skeleton-row-1 [class*="bg-slate-"],
+.skeleton-row-1 > * [class*="bg-gray-"],
+.skeleton-row-1 > * [class*="dark:bg-gray-"],
+.skeleton-row-1 > * [class*="bg-slate-"],
+.skeleton-row-1 .skeleton { animation-delay: 0s !important; }
+
+.skeleton-row-2 [class*="bg-gray-"],
+.skeleton-row-2 [class*="dark:bg-gray-"],
+.skeleton-row-2 [class*="bg-slate-"],
+.skeleton-row-2 > * [class*="bg-gray-"],
+.skeleton-row-2 > * [class*="dark:bg-gray-"],
+.skeleton-row-2 > * [class*="bg-slate-"],
+.skeleton-row-2 .skeleton { animation-delay: 0.80s !important; }
+
+.skeleton-row-3 [class*="bg-gray-"],
+.skeleton-row-3 [class*="dark:bg-gray-"],
+.skeleton-row-3 [class*="bg-slate-"],
+.skeleton-row-3 > * [class*="bg-gray-"],
+.skeleton-row-3 > * [class*="dark:bg-gray-"],
+.skeleton-row-3 > * [class*="bg-slate-"],
+.skeleton-row-3 .skeleton { animation-delay: 1.60s !important; }
+
+.skeleton-row-4 [class*="bg-gray-"],
+.skeleton-row-4 [class*="dark:bg-gray-"],
+.skeleton-row-4 [class*="bg-slate-"],
+.skeleton-row-4 > * [class*="bg-gray-"],
+.skeleton-row-4 > * [class*="dark:bg-gray-"],
+.skeleton-row-4 > * [class*="bg-slate-"],
+.skeleton-row-4 .skeleton { animation-delay: 2.20s !important; }
 
 /* ═══════════════════════════════════════════════════════════════
    Button Utilities
@@ -901,11 +971,28 @@ main > div:not(.animate-pulse) > .space-y-5 > *:nth-child(5):not(.animate-pulse)
   text-transform: uppercase;
 }
 
-.badge-green, .badge-risk-low    { background: var(--risk-low-bg); color: var(--risk-low-text); border: 1px solid var(--risk-low-border); }
-.badge-red, .badge-risk-high     { background: var(--risk-high-bg); color: var(--risk-high-text); border: 1px solid var(--risk-high-border); }
-.badge-amber, .badge-risk-medium { background: var(--risk-medium-bg); color: var(--risk-medium-text); border: 1px solid var(--risk-medium-border); }
+.badge-green, .badge-risk-low    { background: var(--risk-low-badge-bg); color: var(--risk-low-text); border: 1px solid var(--risk-low-border); }
+.badge-red, .badge-risk-high     { background: var(--risk-high-badge-bg); color: var(--risk-high-text); border: 1px solid var(--risk-high-border); }
+.badge-amber, .badge-risk-medium { background: var(--risk-medium-badge-bg); color: var(--risk-medium-text); border: 1px solid var(--risk-medium-border); }
 .badge-blue                      { background: var(--color-info-bg); color: var(--brand); border: 1px solid var(--color-info-border); }
 .badge-slate                     { background: var(--slate-100); color: var(--slate-600); border: 1px solid var(--slate-200); }
+
+/* Reusable Global Risk Utilities */
+.risk-card-low    { background-color: var(--risk-low-bg) !important; border-color: var(--risk-low-border) !important; }
+.risk-card-medium { background-color: var(--risk-medium-bg) !important; border-color: var(--risk-medium-border) !important; }
+.risk-card-high   { background-color: var(--risk-high-bg) !important; border-color: var(--risk-high-border) !important; }
+
+.risk-badge-low    { background-color: var(--risk-low-badge-bg) !important; color: var(--risk-low-text) !important; border: 1px solid var(--risk-low-border) !important; }
+.risk-badge-medium { background-color: var(--risk-medium-badge-bg) !important; color: var(--risk-medium-text) !important; border: 1px solid var(--risk-medium-border) !important; }
+.risk-badge-high   { background-color: var(--risk-high-badge-bg) !important; color: var(--risk-high-text) !important; border: 1px solid var(--risk-high-border) !important; }
+
+.risk-avatar-low    { background-color: var(--risk-low-bg) !important; color: var(--risk-low-text) !important; border: 1px solid var(--risk-low-border) !important; }
+.risk-avatar-medium { background-color: var(--risk-medium-bg) !important; color: var(--risk-medium-text) !important; border: 1px solid var(--risk-medium-border) !important; }
+.risk-avatar-high   { background-color: var(--risk-high-bg) !important; color: var(--risk-high-text) !important; border: 1px solid var(--risk-high-border) !important; }
+
+.text-risk-low    { color: var(--risk-low-text) !important; }
+.text-risk-medium { color: var(--risk-medium-text) !important; }
+.text-risk-high   { color: var(--risk-high-text) !important; }
 
 /* ═══════════════════════════════════════════════════════════════
    Alert / Banner Utilities
@@ -928,7 +1015,7 @@ main > div:not(.animate-pulse) > .space-y-5 > *:nth-child(5):not(.animate-pulse)
 .alert-success { background: var(--color-success-bg); color: #166534;  border-color: var(--color-success-border); }
 .alert-error   { background: var(--color-danger-bg);  color: #991B1B; border-color: var(--color-danger-border);  }
 .alert-warning { background: var(--color-warning-bg); color: #92400E; border-color: var(--color-warning-border); }
-.alert-info    { background: var(--color-info-bg);    color: #0052B7; border-color: var(--color-info-border);    }
+.alert-info    { background: var(--color-info-bg);    color: var(--brand); border-color: var(--color-info-border);    }
 
 /* ═══════════════════════════════════════════════════════════════
    Dark Sidebar Nav
@@ -1067,6 +1154,40 @@ table thead th {
 }
 
 .data-table tbody tr:last-child td { border-bottom: none; }
+
+/* Table row dividers: in HTML tables, divide-y applies borders to <tr> elements, which browsers
+   suppress in favor of <td> cell borders. These rules ensure every row displays horizontal row lines. */
+tbody.divide-y > tr > td,
+table.divide-y > tbody > tr > td {
+  border-top-width: 1px;
+  border-top-style: solid;
+  border-top-color: #F3F4F6;
+}
+
+tbody.divide-gray-100 > tr > td,
+table.divide-gray-100 > tbody > tr > td {
+  border-top-color: #F3F4F6;
+}
+
+tbody.divide-gray-200 > tr > td,
+table.divide-gray-200 > tbody > tr > td {
+  border-top-color: #E5E7EB;
+}
+
+tbody.divide-slate-100 > tr > td,
+table.divide-slate-100 > tbody > tr > td {
+  border-top-color: var(--slate-100);
+}
+
+tbody.divide-slate-200 > tr > td,
+table.divide-slate-200 > tbody > tr > td {
+  border-top-color: var(--slate-200);
+}
+
+tbody.divide-y > tr:first-child > td,
+table.divide-y > tbody > tr:first-child > td {
+  border-top-width: 0;
+}
 
 /* ═══════════════════════════════════════════════════════════════
    Auth Background Gradient
@@ -1216,10 +1337,29 @@ table thead th {
 .dark .border-slate-300 { border-color: var(--slate-300) !important; }
 
 /* Table and divide */
-.dark .divide-gray-100 > * + * { border-color: var(--slate-200) !important; }
-.dark .divide-gray-200 > * + * { border-color: var(--slate-200) !important; }
-.dark .divide-slate-100 > * + * { border-color: var(--slate-200) !important; }
-.dark .divide-slate-200 > * + * { border-color: var(--slate-200) !important; }
+.dark .divide-gray-100 > * + *,
+.dark .divide-gray-100 > :not(:last-child) { border-color: var(--slate-200) !important; }
+.dark .divide-gray-200 > * + *,
+.dark .divide-gray-200 > :not(:last-child) { border-color: var(--slate-200) !important; }
+.dark .divide-slate-100 > * + *,
+.dark .divide-slate-100 > :not(:last-child) { border-color: var(--slate-200) !important; }
+.dark .divide-slate-200 > * + *,
+.dark .divide-slate-200 > :not(:last-child) { border-color: var(--slate-200) !important; }
+
+/* Table row dividers in Dark Mode */
+.dark tbody.divide-y > tr > td,
+.dark table.divide-y > tbody > tr > td,
+.dark tbody[class*="divide-"] > tr > td,
+.dark table[class*="divide-"] > tbody > tr > td {
+  border-top-color: var(--slate-200) !important;
+}
+
+.dark tbody.divide-y > tr:first-child > td,
+.dark table.divide-y > tbody > tr:first-child > td,
+.dark tbody[class*="divide-"] > tr:first-child > td,
+.dark table[class*="divide-"] > tbody > tr:first-child > td {
+  border-top-width: 0 !important;
+}
 
 .dark .data-table th {
   background-color: var(--surface-muted) !important;
@@ -1307,7 +1447,7 @@ table thead th {
 .dark .bg-white.rounded-2xl { background-color: var(--surface-card) !important; }
 
 /* Selected row in UserList */
-.dark .bg-blue-50\/50 { background-color: rgba(0, 82, 183, 0.10) !important; }
+.dark .bg-blue-50\/50 { background-color: var(--brand-lighter) !important; }
 
 /* Select inputs */
 .dark select {
@@ -1397,11 +1537,11 @@ table thead th {
 }
 
 /* ── Dashboard accent color overrides (indigo, rose, violet, green) ── */
-.dark .bg-indigo-50  { background-color: rgba(0, 82, 183, 0.12) !important; }
-.dark .bg-indigo-100 { background-color: rgba(0, 82, 183, 0.18) !important; }
-.dark .text-indigo-500 { color: #0052B7 !important; }
-.dark .text-indigo-600 { color: #0052B7 !important; }
-.dark .border-indigo-100 { border-color: rgba(0, 82, 183, 0.28) !important; }
+.dark .bg-indigo-50  { background-color: var(--brand-light) !important; }
+.dark .bg-indigo-100 { background-color: color-mix(in srgb, var(--brand) 28%, transparent) !important; }
+.dark .text-indigo-500 { color: var(--brand) !important; }
+.dark .text-indigo-600 { color: var(--brand) !important; }
+.dark .border-indigo-100 { border-color: var(--brand-border) !important; }
 
 .dark .bg-rose-50       { background-color: rgba(244, 63, 94, 0.10) !important; }
 .dark .bg-rose-100      { background-color: rgba(244, 63, 94, 0.14) !important; }
@@ -1432,8 +1572,8 @@ table thead th {
 .dark .hover\:bg-gray-100\/60:hover{ background-color: #181818 !important; }
 .dark .hover\:bg-gray-100\/70:hover{ background-color: #181818 !important; }
 .dark .hover\:bg-gray-200:hover    { background-color: #222222 !important; }
-.dark .hover\:bg-green-100:hover   { background-color: rgba(0, 82, 183, 0.16) !important; }
-.dark .data-table tbody tr:hover td { background: rgba(0, 82, 183, 0.08) !important; }
+.dark .hover\:bg-green-100:hover   { background-color: color-mix(in srgb, var(--brand) 16%, transparent) !important; }
+.dark .data-table tbody tr:hover td { background: color-mix(in srgb, var(--brand) 8%, transparent) !important; }
 
 /* Text color on hover in Dark Mode (prevent disappearing on dark bg) */
 .dark .hover\:text-gray-600:hover  { color: #E4E4E7 !important; }
@@ -1473,7 +1613,7 @@ table thead th {
 
 /* Secondary Button Hover in Dark Mode */
 .dark .btn-secondary:hover {
-  background: rgba(0, 82, 183, 0.14) !important;
+  background: color-mix(in srgb, var(--brand) 14%, transparent) !important;
   border-color: var(--brand-border) !important;
   color: #FFFFFF !important;
 }

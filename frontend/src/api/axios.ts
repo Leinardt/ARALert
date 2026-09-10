@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { timeService } from '../services/timeService';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -8,8 +9,9 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// ── Request interceptor — attach access token ──────────────────────────────
+// ── Request interceptor — attach access token & measure start time ──────────
 api.interceptors.request.use((config) => {
+  (config as any)._requestStartMonotonic = typeof performance !== 'undefined' ? performance.now() : 0;
   const accessToken = localStorage.getItem('access_token');
   if (accessToken) {
     config.headers = config.headers || {};
@@ -24,10 +26,25 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ── Response interceptor — handle 401 Unauthorized ────────────────────────
+// ── Response interceptor — server time sync & 401 Unauthorized handling ────
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const serverTimestampStr = response.headers?.['x-server-timestamp'];
+    if (serverTimestampStr) {
+      const serverTimestampMs = parseInt(serverTimestampStr, 10);
+      const startMono = (response.config as any)?._requestStartMonotonic || 0;
+      const endMono = typeof performance !== 'undefined' ? performance.now() : 0;
+      const latency = startMono > 0 ? Math.max(0, endMono - startMono) : 0;
+      timeService.syncFromHeader(serverTimestampMs, latency);
+    }
+    return response;
+  },
   (error) => {
+    const serverTimestampStr = error.response?.headers?.['x-server-timestamp'];
+    if (serverTimestampStr) {
+      const serverTimestampMs = parseInt(serverTimestampStr, 10);
+      timeService.syncFromHeader(serverTimestampMs);
+    }
     if (error.response?.status === 401) {
       // Clear all auth state and redirect to login with an expiry notice
       localStorage.removeItem('access_token');

@@ -8,6 +8,7 @@ export interface GetUsersParams {
   ordering?: string;
   page?: number;
   assigned_tutor?: string;
+  subject?: string;
 }
 
 export interface GetUsersResponse {

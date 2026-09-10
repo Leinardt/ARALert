@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
+import { timeService } from '../../services/timeService';
 import {
   Clock,
   UserCheck,
@@ -75,19 +76,33 @@ const formatTimeString = (value: string | null | undefined): string => {
   return value;
 };
 
-import { getStudentInitials as getInitials } from '../../utils/studentFormatters';
+const timeToMinutes = (timeStr: string | null | undefined): number | null => {
+  if (!timeStr) return null;
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+};
 
-const AVATAR_COLORS = [
-  'bg-blue-100 text-blue-700',
-  'bg-violet-100 text-violet-700',
-  'bg-emerald-100 text-emerald-700',
-  'bg-amber-100 text-amber-700',
-  'bg-rose-100 text-rose-700',
-  'bg-sky-100 text-sky-700',
-];
+const SESSION_TIMES_STORAGE_KEY = 'aralert_session_launch_times';
+const getStoredSessionTimes = (): Record<string, string> => {
+  try {
+    const raw = localStorage.getItem(SESSION_TIMES_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+const storeSessionTime = (sessionId: string, timeStr: string) => {
+  try {
+    const current = getStoredSessionTimes();
+    current[sessionId] = timeStr;
+    localStorage.setItem(SESSION_TIMES_STORAGE_KEY, JSON.stringify(current));
+  } catch {
+    // Ignore localStorage errors
+  }
+};
 
-const avatarColor = (name: string) =>
-  AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
+import { getStudentInitials as getInitials, getStudentAvatarColor as avatarColor } from '../../utils/studentFormatters';
 
 const formatDateKey = (year: number, month: number, day: number) => {
   const m = String(month + 1).padStart(2, '0');
@@ -201,15 +216,14 @@ const CustomCalendarDropdown: React.FC<{
                 onSelectDate(cellDateKey);
                 onClose();
               }}
-              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                isSelected
+              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-lg text-xs font-semibold transition-all cursor-pointer ${isSelected
                   ? 'bg-[var(--brand)] text-white font-bold shadow-sm'
                   : isToday
-                  ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
-                  : hasLogs
-                  ? 'bg-slate-100 text-slate-800 font-semibold hover:bg-slate-200'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
+                    ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
+                    : hasLogs
+                      ? 'bg-slate-100 text-slate-800 font-semibold hover:bg-slate-200'
+                      : 'text-slate-600 hover:bg-slate-100'
+                }`}
             >
               <span>{dayNum}</span>
               {hasLogs && !isSelected && (
@@ -287,18 +301,20 @@ const AttendanceTable: React.FC<{
   const [pickerPosition, setPickerPosition] = useState({ top: 0, left: 0 });
   const pickerAnchorRef = useRef<HTMLButtonElement | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({
-    key: 'date',
-    direction: 'desc',
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey | null; direction: 'asc' | 'desc' }>({
+    key: null,
+    direction: 'asc',
   });
 
   const sortedLogs = useMemo(() => {
+    if (!sortConfig.key) return logs;
     const getSortValue = (log: Attendance) => {
       switch (sortConfig.key) {
         case 'student': return log.user_name || '';
         case 'date': return log.date || '';
         case 'time': return log.time_in || '';
         case 'status': return log.status_display || log.status || '';
+        default: return '';
       }
     };
 
@@ -402,7 +418,7 @@ const AttendanceTable: React.FC<{
     <div className="overflow-x-auto -mx-2 px-2">
       <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-slate-700 text-sm">
         <thead>
-        <tr className="divide-x divide-gray-100 dark:divide-slate-700 bg-gray-50 dark:bg-slate-900">
+          <tr className="divide-x divide-gray-100 dark:divide-slate-700 bg-gray-50 dark:bg-slate-900">
             <th className="w-[32%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="STUDENT" sortKey="student" /></th>
             <th className="w-[25%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="DATE" sortKey="date" /></th>
             <th className="w-[18%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="TIME" sortKey="time" /></th>
@@ -415,7 +431,7 @@ const AttendanceTable: React.FC<{
             <tr key={log.id} className="group divide-x divide-gray-100 dark:divide-slate-700 transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800">
               <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-100">
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(log.user_name || '')}`}>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(log.user_name || '')}`}>
                     {getInitials(log.user_name || '?')}
                   </div>
                   {log.user_name}
@@ -428,16 +444,16 @@ const AttendanceTable: React.FC<{
                       {editDate || 'Select date'}
                     </button>
                     {openPicker === 'date' && createPortal(
-                        <CustomCalendarDropdown
-                          selectedDate={editDate}
-                          onSelectDate={setEditDate}
-                          onClear={() => setEditDate('')}
-                          onClose={() => setOpenPicker(null)}
-                          loggedDates={new Set(logs.map((attendance) => attendance.date))}
-                          className="fixed"
-                          style={{ position: 'fixed', top: pickerPosition.top, left: pickerPosition.left, marginTop: 0 }}
-                        />,
-                        document.body
+                      <CustomCalendarDropdown
+                        selectedDate={editDate}
+                        onSelectDate={setEditDate}
+                        onClear={() => setEditDate('')}
+                        onClose={() => setOpenPicker(null)}
+                        loggedDates={new Set(logs.map((attendance) => attendance.date))}
+                        className="fixed"
+                        style={{ position: 'fixed', top: pickerPosition.top, left: pickerPosition.left, marginTop: 0 }}
+                      />,
+                      document.body
                     )}
                   </div>
                 ) : formatDateString(log.date)}
@@ -468,16 +484,16 @@ const AttendanceTable: React.FC<{
                         </div>
                       </div>,
                       document.body
-                      )}
+                    )}
                   </div>
                 ) : formatTimeString(log.time_in)}
               </td>
               <td className="px-4 py-3">
                 {editingId === log.id ? (
                   <select value={editStatus} onChange={(event) => setEditStatus(event.target.value as Attendance['status'])} className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none focus:border-[var(--brand)]">
-                      <option value="present">Present</option>
-                      <option value="late">Late</option>
-                      <option value="absent">Absent</option>
+                    <option value="present">Present</option>
+                    <option value="late">Late</option>
+                    <option value="absent">Absent</option>
                   </select>
                 ) : (
                   statusBadge(log.status, log.status_display)
@@ -530,6 +546,7 @@ export const TutorQRGenerator: React.FC = () => {
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
+  const [sessionLaunchTimes, setSessionLaunchTimes] = useState<Record<string, string>>(() => getStoredSessionTimes());
 
   // Confirmation alert modal state
   const [confirmAction, setConfirmAction] = useState<{
@@ -545,7 +562,7 @@ export const TutorQRGenerator: React.FC = () => {
     message: '',
     confirmText: '',
     confirmStyle: 'brand',
-    onConfirm: () => {},
+    onConfirm: () => { },
   });
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -623,12 +640,13 @@ export const TutorQRGenerator: React.FC = () => {
 
   // ── Polling & Timer helpers ────────────────────────────────────
   const calcRemainingSeconds = (targetSession: AttendanceSession, localExpiresAt?: number) => {
+    const currentMs = timeService.nowMs();
     if (localExpiresAt && localExpiresAt > 0) {
-      const diff = Math.floor((localExpiresAt - Date.now()) / 1000);
+      const diff = Math.floor((localExpiresAt - currentMs) / 1000);
       return Math.max(0, diff);
     }
     if (targetSession.expires_at) {
-      const diff = Math.floor((new Date(targetSession.expires_at).getTime() - Date.now()) / 1000);
+      const diff = Math.floor((new Date(targetSession.expires_at).getTime() - currentMs) / 1000);
       return Math.max(0, diff);
     }
     return Math.max(0, targetSession.time_left || 0);
@@ -636,7 +654,7 @@ export const TutorQRGenerator: React.FC = () => {
 
   const startPolling = useCallback((sessionId: string) => {
     if (pollRef.current) clearInterval(pollRef.current);
-    const todayStr = new Date().toLocaleDateString('en-CA');
+    const todayStr = timeService.todayStr();
     const fetchLogs = async () => {
       try {
         const logs = await academicService.getAttendanceHistory({ date: todayStr });
@@ -669,7 +687,7 @@ export const TutorQRGenerator: React.FC = () => {
         }
 
         if (targetSession.id) {
-          void academicService.closeAttendanceSession(targetSession.id).catch(() => {});
+          void academicService.closeAttendanceSession(targetSession.id).catch(() => { });
         }
 
         setSession((curr) => (curr ? { ...curr, is_active: false, time_left: 0 } : null));
@@ -719,7 +737,7 @@ export const TutorQRGenerator: React.FC = () => {
             : calcRemainingSeconds(activeSession);
 
           if (remaining > 0) {
-            const localExpiresAt = Date.now() + remaining * 1000;
+            const localExpiresAt = timeService.nowMs() + remaining * 1000;
             setSession(activeSession);
             setTimeLeft(remaining);
 
@@ -775,7 +793,11 @@ export const TutorQRGenerator: React.FC = () => {
       setTimeLeft(remaining);
       setScannedStudents([]);
 
-      const localExpiresAt = Date.now() + remaining * 1000;
+      const launchTime = formatTimeString(new Date().toTimeString().slice(0, 5));
+      storeSessionTime(newSession.id, launchTime);
+      setSessionLaunchTimes((prev) => ({ ...prev, [newSession.id]: launchTime }));
+
+      const localExpiresAt = timeService.nowMs() + remaining * 1000;
       const storageKey = getStorageKey(user?.id);
       if (storageKey) {
         localStorage.setItem(
@@ -895,9 +917,9 @@ export const TutorQRGenerator: React.FC = () => {
 
   const weekLabel = (mondayStr: string) => {
     const mon = new Date(mondayStr + 'T00:00:00');
-    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    const fri = new Date(mon); fri.setDate(mon.getDate() + 4);
     const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    return `${fmt(mon)} – ${fmt(sun)}, ${sun.getFullYear()}`;
+    return `${fmt(mon)} – ${fmt(fri)}, ${fri.getFullYear()}`;
   };
 
   // Group by month key "YYYY-MM"
@@ -929,31 +951,129 @@ export const TutorQRGenerator: React.FC = () => {
 
   const timeGroupedHistory = useMemo((): Group[] => {
     const source = jumpFiltered ?? filteredHistory;
-    const grouped = new Map<string, typeof sortedHistory>();
+    const byDate = new Map<string, typeof sortedHistory>();
     for (const log of source) {
-      const key = `${log.date}|${formatTimeString(log.time_in)}`;
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key)!.push(log);
+      if (!byDate.has(log.date)) byDate.set(log.date, []);
+      byDate.get(log.date)!.push(log);
     }
-    return Array.from(grouped.entries()).map(([key, records]) => {
-      const [date, time] = key.split('|');
-      return {
-        key,
-        label: `${formatDateString(date)} | ${time}`,
-        records,
-      };
-    });
-  }, [filteredHistory, jumpFiltered]);
+
+    const groups: (Group & { sortTime: number })[] = [];
+
+    for (const [date, dateLogs] of byDate.entries()) {
+      const sessionMap = new Map<string, typeof sortedHistory>();
+      const unassociatedWithTime: typeof sortedHistory = [];
+      const unassociatedWithoutTime: typeof sortedHistory = [];
+
+      for (const log of dateLogs) {
+        if (log.session) {
+          if (!sessionMap.has(log.session)) sessionMap.set(log.session, []);
+          sessionMap.get(log.session)!.push(log);
+        } else if (log.time_in) {
+          unassociatedWithTime.push(log);
+        } else {
+          unassociatedWithoutTime.push(log);
+        }
+      }
+
+      // Process explicit sessions (each QR code generation session)
+      for (const [sessionId, sLogs] of sessionMap.entries()) {
+        let sessionTime = sessionLaunchTimes[sessionId] || null;
+        let earliestMin: number | null = null;
+
+        for (const log of sLogs) {
+          const mins = timeToMinutes(log.time_in);
+          if (mins !== null && (earliestMin === null || mins < earliestMin)) {
+            earliestMin = mins;
+            if (!sessionTime) {
+              sessionTime = formatTimeString(log.time_in);
+            }
+          }
+        }
+
+        if (!sessionTime) sessionTime = '—';
+
+        const sortTime = new Date(`${date}T00:00:00`).getTime() + (earliestMin ?? 0) * 60 * 1000;
+
+        groups.push({
+          key: `${date}|${sessionId}`,
+          label: sessionTime !== '—' ? `${formatDateString(date)} | ${sessionTime}` : formatDateString(date),
+          records: sLogs,
+          sortTime,
+        });
+      }
+
+      // Process unassociated records (e.g. manual logs or seeded data)
+      if (unassociatedWithTime.length > 0 || unassociatedWithoutTime.length > 0) {
+        unassociatedWithTime.sort((a, b) => (timeToMinutes(a.time_in) ?? 0) - (timeToMinutes(b.time_in) ?? 0));
+
+        const clusters: {
+          baseMinutes: number;
+          earliestMinutes: number;
+          sessionTime: string;
+          records: typeof sortedHistory;
+        }[] = [];
+
+        for (const log of unassociatedWithTime) {
+          const mins = timeToMinutes(log.time_in) ?? 0;
+          let foundCluster = false;
+          for (const cluster of clusters) {
+            if (Math.abs(mins - cluster.baseMinutes) <= 90) {
+              cluster.records.push(log);
+              if (mins < cluster.earliestMinutes) {
+                cluster.earliestMinutes = mins;
+                cluster.sessionTime = formatTimeString(log.time_in);
+              }
+              foundCluster = true;
+              break;
+            }
+          }
+          if (!foundCluster) {
+            clusters.push({
+              baseMinutes: mins,
+              earliestMinutes: mins,
+              sessionTime: formatTimeString(log.time_in),
+              records: [log],
+            });
+          }
+        }
+
+        // Attach unassociated records without time (e.g. absent) to the primary cluster or fallback
+        if (clusters.length > 0) {
+          clusters[0].records.push(...unassociatedWithoutTime);
+        } else if (unassociatedWithoutTime.length > 0) {
+          clusters.push({
+            baseMinutes: 0,
+            earliestMinutes: 0,
+            sessionTime: '—',
+            records: unassociatedWithoutTime,
+          });
+        }
+
+        clusters.forEach((cluster, idx) => {
+          const key = `${date}|cluster-${idx}`;
+          const sortTime = new Date(`${date}T00:00:00`).getTime() + cluster.earliestMinutes * 60 * 1000;
+          groups.push({
+            key,
+            label: cluster.sessionTime !== '—' ? `${formatDateString(date)} | ${cluster.sessionTime}` : formatDateString(date),
+            records: cluster.records,
+            sortTime,
+          });
+        });
+      }
+    }
+
+    return groups.sort((a, b) => b.sortTime - a.sortTime);
+  }, [filteredHistory, jumpFiltered, sessionLaunchTimes]);
 
   const statusBadge = (status: string, display: string) => {
     const map: Record<string, string> = {
       present: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      late:    'bg-amber-50  text-amber-700  border-amber-200',
-      absent:  'bg-rose-50   text-rose-700   border-rose-200',
+      late: 'bg-amber-50  text-amber-700  border-amber-200',
+      absent: 'bg-rose-50   text-rose-700   border-rose-200',
     };
     const cls = map[status] ?? 'bg-gray-50 text-gray-600 border-gray-200';
-      return (
-        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize ${cls}`}>
+    return (
+      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize ${cls}`}>
         {display || status}
       </span>
     );
@@ -977,11 +1097,10 @@ export const TutorQRGenerator: React.FC = () => {
                 <p className="mt-0.5 text-xs font-medium text-gray-500">Generate attendance QR code</p>
               </div>
               {session && (
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border ${
-                  session.is_active
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border ${session.is_active
                     ? 'bg-[var(--brand-light)] text-[var(--brand)] border-[var(--brand-border)]'
                     : 'bg-red-50 text-red-600 border-red-200'
-                }`}>
+                  }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${session.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-red-400'}`} />
                   {session.is_active ? 'Active' : 'Expired'}
                 </span>
@@ -1004,11 +1123,10 @@ export const TutorQRGenerator: React.FC = () => {
                           key={mins}
                           type="button"
                           onClick={() => setExpiresIn(mins)}
-                          className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                            expiresIn === mins
+                          className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${expiresIn === mins
                               ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
                               : 'bg-white text-gray-600 border-gray-200 hover:border-[var(--brand)] hover:text-[var(--brand)]'
-                          }`}
+                            }`}
                         >
                           {mins}m
                         </button>
@@ -1188,7 +1306,7 @@ export const TutorQRGenerator: React.FC = () => {
                   >
                     <div className="flex items-center gap-3">
                       {/* Avatar */}
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(log.user_name || '')}`}>
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(log.user_name || '')}`}>
                         {getInitials(log.user_name || '?')}
                       </div>
                       <div>
@@ -1244,11 +1362,10 @@ export const TutorQRGenerator: React.FC = () => {
                   id={`qr-view-${mode}`}
                   type="button"
                   onClick={() => { setViewMode(mode); setJumpDate(null); }}
-                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${
-                    viewMode === mode && !jumpDate
+                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
                       ? 'bg-[var(--brand)] text-white shadow-sm'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                  }`}
+                    }`}
                 >
                   {mode}
                 </button>
@@ -1261,11 +1378,10 @@ export const TutorQRGenerator: React.FC = () => {
                 type="button"
                 id="qr-attendance-calendar-btn"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${
-                  jumpDate
+                className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${jumpDate
                     ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                    : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-                }`}
+                    : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
+                  }`}
                 title="Select a specific date from calendar"
                 aria-label="Open Calendar"
               >
@@ -1287,9 +1403,9 @@ export const TutorQRGenerator: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowExportModal(true)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--brand)] px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-[var(--brand-hover)] active:scale-[0.98] cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5 text-gray-500" />
+              <Download className="w-3.5 h-3.5 text-white" />
               Export Attendance Sheet
             </button>
           </div>
@@ -1356,7 +1472,7 @@ export const TutorQRGenerator: React.FC = () => {
                       <div className="h-px flex-1 bg-gray-100" />
                       <span className="text-[11px] font-semibold text-gray-400">{group.records.length} Record{group.records.length !== 1 ? 's' : ''}</span>
                     </div>
-                    <AttendanceTable logs={group.records} statusBadge={statusBadge} avatarColor={avatarColor} getInitials={getInitials} formatDateString={formatDateString} formatTimeString={formatTimeString} onUpdate={handleUpdateAttendance} />
+                    <AttendanceTable key={group.key} logs={group.records} statusBadge={statusBadge} avatarColor={avatarColor} getInitials={getInitials} formatDateString={formatDateString} formatTimeString={formatTimeString} onUpdate={handleUpdateAttendance} />
                   </div>
                 ))}
               </div>
@@ -1372,7 +1488,7 @@ export const TutorQRGenerator: React.FC = () => {
                     <div className="h-px flex-1 bg-gray-100" />
                     <span className="text-[11px] font-semibold text-gray-400">{group.records.length} Record{group.records.length !== 1 ? 's' : ''}</span>
                   </div>
-                  <AttendanceTable logs={group.records} statusBadge={statusBadge} avatarColor={avatarColor} getInitials={getInitials} formatDateString={formatDateString} formatTimeString={formatTimeString} onUpdate={handleUpdateAttendance} />
+                  <AttendanceTable key={group.key} logs={group.records} statusBadge={statusBadge} avatarColor={avatarColor} getInitials={getInitials} formatDateString={formatDateString} formatTimeString={formatTimeString} onUpdate={handleUpdateAttendance} />
                 </div>
               ))}
             </div>
@@ -1394,7 +1510,7 @@ export const TutorQRGenerator: React.FC = () => {
                       <div className="flex-1 h-px bg-gray-100" />
                       <span className="text-[11px] font-semibold text-gray-400">{group.records.length} Record{group.records.length !== 1 ? 's' : ''}</span>
                     </div>
-                    <AttendanceTable logs={group.records} statusBadge={statusBadge} avatarColor={avatarColor} getInitials={getInitials} formatDateString={formatDateString} formatTimeString={formatTimeString} onUpdate={handleUpdateAttendance} />
+                    <AttendanceTable key={group.key} logs={group.records} statusBadge={statusBadge} avatarColor={avatarColor} getInitials={getInitials} formatDateString={formatDateString} formatTimeString={formatTimeString} onUpdate={handleUpdateAttendance} />
                   </div>
                 ))}
               </div>
@@ -1437,11 +1553,10 @@ export const TutorQRGenerator: React.FC = () => {
               <button
                 type="button"
                 onClick={confirmAction.onConfirm}
-                className={`rounded-xl px-4 py-2 text-xs font-bold text-white transition shadow-sm cursor-pointer ${
-                  confirmAction.confirmStyle === 'danger'
+                className={`rounded-xl px-4 py-2 text-xs font-bold text-white transition shadow-sm cursor-pointer ${confirmAction.confirmStyle === 'danger'
                     ? 'bg-rose-600 hover:bg-rose-700'
                     : 'bg-[var(--brand)] hover:bg-[var(--brand-dark)]'
-                }`}
+                  }`}
               >
                 {confirmAction.confirmText}
               </button>

@@ -17,12 +17,33 @@ const getAralBadge = (level?: string | null) => {
   }
 };
 
-const AVATAR_COLORS = [
-  'bg-blue-100 text-blue-700', 'bg-violet-100 text-violet-700', 'bg-emerald-100 text-emerald-700',
-  'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700', 'bg-sky-100 text-sky-700',
-];
-const avatarColor = (name: string) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
-import { getStudentInitials as getInitials } from '../../utils/studentFormatters';
+import { getStudentInitials as getInitials, buildAvatarColorMap } from '../../utils/studentFormatters';
+
+function getDepEdSchoolYearAndQuarter(date: Date = new Date()) {
+  const month = date.getMonth() + 1;
+  const year = date.getFullYear();
+
+  let syStart = year;
+  let syEnd = year + 1;
+  if (month < 7) {
+    syStart = year - 1;
+    syEnd = year;
+  }
+
+  let quarter = 1;
+  if (month >= 8 && month <= 10) quarter = 1;
+  else if (month >= 11 || month === 1) quarter = 2;
+  else if (month >= 2 && month <= 4) quarter = 3;
+  else quarter = 4;
+
+  return {
+    syStart,
+    syEnd,
+    quarter,
+    currentKey: `${syStart}-${syEnd}-Q${quarter}`,
+    displayLabel: `SY ${syStart}–${syEnd} • Q${quarter}`,
+  };
+}
 
 /* ─── Component ────────────────────────────────────────────────── */
 export const TutorStudentDirectory: React.FC = () => {
@@ -36,17 +57,32 @@ export const TutorStudentDirectory: React.FC = () => {
   const [sortField, setSortField] = useState<string>('name');
   const [sortAsc, setSortAsc] = useState(true);
 
+  const currentPeriod = useMemo(() => getDepEdSchoolYearAndQuarter(), []);
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(() => currentPeriod.currentKey);
+
+  const periodOptions = useMemo(() => {
+    const { syStart, syEnd, quarter } = currentPeriod;
+    return [
+      { key: `${syStart}-${syEnd}-Q${quarter}`, label: `SY ${syStart}–${syEnd} • Q${quarter} (Active)` },
+      { key: `${syStart}-${syEnd}-Q1`, label: `SY ${syStart}–${syEnd} • Q1` },
+      { key: `${syStart}-${syEnd}-Q2`, label: `SY ${syStart}–${syEnd} • Q2` },
+      { key: `${syStart}-${syEnd}-Q3`, label: `SY ${syStart}–${syEnd} • Q3` },
+      { key: `${syStart}-${syEnd}-Q4`, label: `SY ${syStart}–${syEnd} • Q4` },
+      { key: `${syStart - 1}-${syStart}-all`, label: `SY ${syStart - 1}–${syStart} (Previous)` },
+    ].filter((opt, idx, arr) => arr.findIndex((x) => x.key === opt.key) === idx);
+  }, [currentPeriod]);
+
   const fetchData = async () => {
     if (!user) return;
     setIsLoading(true);
     setError(null);
     try {
       const [studentData, gradeData, attData] = await Promise.all([
-        userService.getUsers({ role: 'student', assigned_tutor: user.id }),
+        userService.getAllUsers({ role: 'student', assigned_tutor: user.id }),
         academicService.getGrades(),
         academicService.getAttendanceHistory(),
       ]);
-      setStudents(Array.isArray(studentData.results) ? studentData.results : Array.isArray(studentData) ? (studentData as any) : []);
+      setStudents(Array.isArray(studentData) ? studentData : []);
       setGrades(Array.isArray(gradeData) ? gradeData : []);
       setAttendance(Array.isArray(attData) ? attData : []);
     } catch (err) {
@@ -79,10 +115,16 @@ export const TutorStudentDirectory: React.FC = () => {
       }))];
     return subjects.length ? subjects : ['Reading'];
   }, [students, grades]);
-  const directoryAralLevels = useMemo(() => {
-    const levels = [...new Set(students.map((student) => student.aral_level).filter(Boolean))];
-    return levels.length ? levels.map((level) => level!.charAt(0).toUpperCase() + level!.slice(1)) : ['Basic'];
-  }, [students]);
+  const tutorAralLevel = useMemo(() => {
+    if (!user?.aral_level) return 'Basic';
+    const lvl = user.aral_level.toLowerCase();
+    return lvl.charAt(0).toUpperCase() + lvl.slice(1);
+  }, [user?.aral_level]);
+
+  const avatarColor = useMemo(
+    () => buildAvatarColorMap(students.length > 0 ? students : studentRows.map((r) => r.student)),
+    [students, studentRows]
+  );
 
   const handleSort = (field: string) => {
     if (sortField === field) setSortAsc(!sortAsc);
@@ -127,45 +169,50 @@ export const TutorStudentDirectory: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="space-y-6" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <div className="space-y-6 skeleton-container" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
         {/* Top KPI cards skeleton */}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3 skeleton-row-1">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
               className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm animate-pulse flex items-center gap-4"
             >
-              <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
+              <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 shrink-0" />
               <div className="space-y-2 flex-1">
-                <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-700" />
-                <div className="h-7 w-16 rounded bg-gray-200 dark:bg-gray-700" />
+                <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-7 w-16 rounded bg-gray-200 dark:bg-gray-800" />
               </div>
             </div>
           ))}
         </div>
 
         {/* Directory Table Card skeleton */}
-        <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm animate-pulse p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 dark:border-gray-800">
+        <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm animate-pulse skeleton-row-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="space-y-1.5">
-              <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-700" />
-              <div className="h-3 w-56 rounded bg-gray-100 dark:bg-gray-800" />
+              <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="h-3 w-24 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
-            <div className="h-9 w-64 rounded-xl bg-gray-200 dark:bg-gray-700" />
+            <div className="flex items-center gap-2">
+              <div className="h-9 w-52 rounded-xl bg-gray-100 dark:bg-gray-800" />
+              <div className="h-9 w-28 rounded-xl bg-gray-100 dark:bg-gray-800" />
+            </div>
           </div>
 
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="flex items-center gap-4 py-2.5 border-b border-gray-50 dark:border-gray-900/50">
-              <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 shrink-0" />
-              <div className="space-y-1.5 flex-1">
-                <div className="h-3.5 w-36 rounded bg-gray-200 dark:bg-gray-700" />
-                <div className="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800" />
+          <div className="p-6 space-y-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="flex items-center gap-4 py-2.5 border-b border-gray-50 dark:border-gray-900/50">
+                <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 shrink-0" />
+                <div className="space-y-1.5 flex-1">
+                  <div className="h-3.5 w-36 rounded bg-gray-200 dark:bg-gray-800" />
+                  <div className="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800" />
+                </div>
+                <div className="h-4 w-20 rounded bg-gray-100 dark:bg-gray-800 hidden md:block" />
+                <div className="h-6 w-16 rounded-full bg-gray-200 dark:bg-gray-800" />
+                <div className="h-8 w-8 rounded-xl bg-gray-200 dark:bg-gray-800" />
               </div>
-              <div className="h-4 w-20 rounded bg-gray-100 dark:bg-gray-800 hidden md:block" />
-              <div className="h-6 w-16 rounded-full bg-gray-200 dark:bg-gray-700" />
-              <div className="h-8 w-8 rounded-xl bg-gray-200 dark:bg-gray-700" />
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -218,7 +265,7 @@ export const TutorStudentDirectory: React.FC = () => {
           </div>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">ARAL LEVEL</p>
-            <p className="mt-0.5 truncate text-xl font-extrabold text-gray-900 dark:text-slate-100" title={directoryAralLevels.join(', ')}>{directoryAralLevels.join(', ')}</p>
+            <p className="mt-0.5 truncate text-xl font-extrabold text-gray-900 dark:text-slate-100" title={tutorAralLevel}>{tutorAralLevel}</p>
           </div>
         </div>
       </div>
@@ -244,7 +291,24 @@ export const TutorStudentDirectory: React.FC = () => {
             </div>
 
             {/* Controls */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Auto-updating School Year & Quarter Dropdown */}
+              <div className="relative inline-flex items-center">
+                <select
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                  aria-label="Filter by School Year and Quarter"
+                  className="h-9 appearance-none rounded-xl border border-[var(--brand-border)] bg-[var(--brand-light)]/50 pl-3.5 pr-8 text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-[var(--brand-light)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-xs"
+                >
+                  {periodOptions.map((opt) => (
+                    <option key={opt.key} value={opt.key} className="bg-white text-gray-800 font-medium">
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-[var(--brand)] opacity-75" />
+              </div>
+
               <label className="relative flex min-w-52 items-center">
                 <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-gray-400" />
                 <input
@@ -300,7 +364,7 @@ export const TutorStudentDirectory: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 font-semibold text-gray-800">
                           <div className="flex items-center gap-2.5">
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(row.student.full_name || '')}`}>
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(row.student.full_name || '')}`}>
                               {getInitials(row.student.full_name || '?')}
                             </div>
                             <span className="truncate font-semibold text-gray-800">{row.student.full_name}</span>

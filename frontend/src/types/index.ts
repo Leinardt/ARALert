@@ -28,6 +28,7 @@ export interface User {
   weekly_tasks_weight: number;
   attendance_weight: number;
   aral_level?: 'basic' | 'plus' | 'summer' | 'graduated' | null;
+  subject?: 'Reading' | 'Science' | 'Math' | null;
   faculty_type?: string | null;
 }
 
