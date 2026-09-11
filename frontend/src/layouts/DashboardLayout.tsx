@@ -516,6 +516,19 @@ export const DashboardLayout: React.FC = () => {
                 Score Entry
               </Link>
 
+              <Link to="/tutor/analytics" className={navLinkClass(isActive('/tutor/analytics'))}>
+                <AssetSidebarIcon
+                  darkSrc={analyticsDarkDefault}
+                  darkActiveSrc={analyticsDarkActive}
+                  lightSrc={analyticsLightDefault}
+                  lightActiveSrc={analyticsLightActive}
+                  active={isActive('/tutor/analytics')}
+                  alt="Data Analytics"
+                  size={18}
+                  theme={theme}
+                />
+                Data Analytics
+              </Link>
 
               <Link to="/tutor/students" className={navLinkClass(isActive('/tutor/students'))}>
                 <AssetSidebarIcon
