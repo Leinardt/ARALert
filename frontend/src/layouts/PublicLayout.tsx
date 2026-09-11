@@ -44,7 +44,7 @@ export const PublicLayout: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen flex flex-col font-sans bg-[var(--surface-bg)] text-[var(--text-primary)] relative"
+      className="min-h-screen flex flex-col font-sans bg-white dark:bg-black text-slate-900 dark:text-white relative"
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       {/* ── Dynamic Navbar ── */}
@@ -57,15 +57,19 @@ export const PublicLayout: React.FC = () => {
           <header
             className={`pointer-events-auto mx-auto transition-all duration-300 ${
               isScrolled
-                ? 'w-[92%] max-w-5xl bg-white/25 dark:bg-slate-900/35 backdrop-blur-2xl border border-white/40 dark:border-white/15 rounded-2xl px-5 sm:px-6 h-14 shadow-[0_8px_32px_0_rgba(0,0,0,0.18)] flex items-center justify-between text-[var(--text-primary)]'
-                : 'w-full max-w-7xl px-6 sm:px-10 h-18 bg-transparent border-transparent shadow-none flex items-center justify-between text-[var(--text-primary)]'
+                ? 'w-[92%] max-w-5xl bg-white/80 dark:bg-neutral-900/50 backdrop-blur-2xl border border-slate-200/80 dark:border-white/10 rounded-2xl px-5 sm:px-6 h-14 shadow-[0_8px_32px_0_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.5),inset_0_1px_1px_0_rgba(255,255,255,0.12)] flex items-center justify-between text-slate-800 dark:text-white'
+                : 'w-full max-w-7xl px-6 sm:px-10 h-18 bg-transparent border-transparent shadow-none flex items-center justify-between text-slate-900 dark:text-white'
             }`}
           >
             {/* Left: Logo & Brand + "/" Divider + Navigation links */}
             <div className="flex items-center gap-3 sm:gap-4">
               <Link
                 to="/"
-                className="flex items-center gap-2 text-decoration-none group px-2 py-1.5 rounded-xl hover:bg-white/[0.15] dark:hover:bg-white/[0.1] hover:backdrop-blur-md transition-all duration-200"
+                className={`flex items-center gap-2 text-decoration-none group px-2 py-1.5 rounded-xl transition-all duration-200 ${
+                  isScrolled
+                    ? 'hover:bg-slate-100/80 dark:hover:bg-white/[0.08] hover:backdrop-blur-md'
+                    : 'hover:bg-slate-100/80 dark:hover:bg-white/[0.08] hover:backdrop-blur-md'
+                }`}
                 onClick={(e) => handleNavClick(e, 'home')}
               >
                 <img
@@ -76,17 +80,17 @@ export const PublicLayout: React.FC = () => {
                     (e.currentTarget as HTMLImageElement).style.display = 'none';
                   }}
                 />
-                <span className="text-xs sm:text-sm font-semibold tracking-tight text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] dark:text-slate-300 dark:group-hover:text-white transition-colors">
+                <span className="text-xs sm:text-sm font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-[var(--brand)] dark:group-hover:text-blue-400 transition-colors">
                   ARALert
                 </span>
               </Link>
 
               {/* Slash Divider between ARALert and Home */}
-              <span className="text-slate-400/70 dark:text-slate-500/70 font-light text-sm select-none">
+              <span className="font-light text-sm select-none text-slate-300 dark:text-neutral-700">
                 /
               </span>
 
-              {/* Navigation links: Always on the left beside the logo with glassmorphism hover effect */}
+              {/* Navigation links */}
               <nav className="hidden md:flex items-center gap-1">
                 {[
                   { label: 'Home', id: 'home', to: '/#home' },
@@ -98,7 +102,7 @@ export const PublicLayout: React.FC = () => {
                     key={item.id}
                     href={item.to}
                     onClick={(e) => handleNavClick(e, item.id)}
-                    className="text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] dark:text-slate-300 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/[0.12] hover:backdrop-blur-md hover:border hover:border-white/40 dark:hover:border-white/20 hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-transparent transition-all duration-200 cursor-pointer"
+                    className="text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-[var(--brand)] dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-white/[0.08] hover:backdrop-blur-md border border-transparent transition-all duration-200 cursor-pointer"
                   >
                     {item.label}
                   </a>
@@ -112,18 +116,14 @@ export const PublicLayout: React.FC = () => {
                 type="button"
                 onClick={toggleTheme}
                 aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-                className={`w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 shadow-xs ${
-                  isScrolled
-                    ? 'border border-white/30 dark:border-white/10 bg-white/20 dark:bg-white/[0.05] text-[var(--text-secondary)] dark:text-slate-300 hover:text-[var(--text-primary)] dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/[0.1]'
-                    : 'border border-[var(--slate-200)] bg-[var(--surface-card)] text-[var(--text-secondary)] hover:bg-[var(--surface-muted)]'
-                }`}
+                className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 shadow-xs border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-neutral-900/50 backdrop-blur-xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.12] dark:shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.1)]"
               >
                 {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
               </button>
 
               <Link
                 to={isAuthenticated ? getDashboardLink() : '/login'}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-bold text-xs sm:text-sm transition-all duration-150 shadow-xs hover:shadow-md"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white transition-all duration-150 shadow-xs hover:shadow-md hover:-translate-y-0.5"
               >
                 <span>{isAuthenticated ? 'Dashboard' : 'Sign In'}</span>
                 <ArrowRight size={14} />
@@ -133,7 +133,7 @@ export const PublicLayout: React.FC = () => {
         </div>
       ) : (
         /* Standard Header for Login / other public routes */
-        <header className="sticky top-0 z-50 bg-[var(--glass-bg)] backdrop-blur-md border-b border-[var(--slate-200)] shadow-xs">
+        <header className="sticky top-0 z-50 bg-white/80 dark:bg-neutral-900/50 backdrop-blur-2xl border-b border-slate-200/80 dark:border-white/10 shadow-xs dark:shadow-[0_4px_20px_0_rgba(0,0,0,0.5),inset_0_1px_1px_0_rgba(255,255,255,0.08)]">
           <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2.5 text-decoration-none group">
               <img
@@ -152,7 +152,7 @@ export const PublicLayout: React.FC = () => {
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="w-9 h-9 rounded-xl border border-[var(--slate-200)] bg-[var(--surface-card)] text-[var(--text-secondary)] flex items-center justify-center cursor-pointer"
+                className="w-9 h-9 rounded-xl border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-neutral-900/50 backdrop-blur-xl text-slate-700 dark:text-slate-300 flex items-center justify-center cursor-pointer hover:bg-slate-100 dark:hover:bg-white/[0.12] dark:shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.1)]"
               >
                 {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
               </button>
@@ -174,7 +174,7 @@ export const PublicLayout: React.FC = () => {
       </main>
 
       {/* ── Footer ── */}
-      <footer className="bg-[var(--surface-card)] text-[var(--text-secondary)] border-t border-[var(--slate-200)] relative z-10">
+      <footer className="bg-white dark:bg-black text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-neutral-800 relative z-10">
         <div className="max-w-6xl mx-auto px-6 py-12">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
             {/* Col 1: Brand & DepEd Affiliation */}
@@ -185,14 +185,14 @@ export const PublicLayout: React.FC = () => {
                   alt="ARALert logo"
                   className="w-7 h-7 object-contain"
                 />
-                <span className="font-extrabold text-lg text-[var(--text-primary)] tracking-tight">
+                <span className="font-extrabold text-lg text-slate-900 dark:text-white tracking-tight">
                   ARALert
                 </span>
               </div>
-              <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+              <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
                 Student Performance Monitoring &amp; Early Academic Risk Detection system for the Academic Recovery and Accessible Learning (ARAL) initiative.
               </p>
-              <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] pt-1">
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 pt-1">
                 <School className="w-3.5 h-3.5 text-[var(--brand)]" />
                 <span>Palanas National Agriculture High School</span>
               </div>
@@ -200,7 +200,7 @@ export const PublicLayout: React.FC = () => {
 
             {/* Col 2: Navigation Links */}
             <div>
-              <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider mb-3">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-3">
                 Quick Navigation
               </h4>
               <ul className="space-y-2 text-xs font-medium">
@@ -208,7 +208,7 @@ export const PublicLayout: React.FC = () => {
                   <a
                     href="/#home"
                     onClick={(e) => handleNavClick(e, 'home')}
-                    className="hover:text-[var(--brand)] transition-colors"
+                    className="hover:text-[var(--brand)] dark:hover:text-blue-400 transition-colors"
                   >
                     Home
                   </a>
@@ -217,7 +217,7 @@ export const PublicLayout: React.FC = () => {
                   <a
                     href="/#about"
                     onClick={(e) => handleNavClick(e, 'about')}
-                    className="hover:text-[var(--brand)] transition-colors"
+                    className="hover:text-[var(--brand)] dark:hover:text-blue-400 transition-colors"
                   >
                     About ARALert
                   </a>
@@ -226,7 +226,7 @@ export const PublicLayout: React.FC = () => {
                   <a
                     href="/#features"
                     onClick={(e) => handleNavClick(e, 'features')}
-                    className="hover:text-[var(--brand)] transition-colors"
+                    className="hover:text-[var(--brand)] dark:hover:text-blue-400 transition-colors"
                   >
                     Features
                   </a>
@@ -235,7 +235,7 @@ export const PublicLayout: React.FC = () => {
                   <a
                     href="/#faq"
                     onClick={(e) => handleNavClick(e, 'faq')}
-                    className="hover:text-[var(--brand)] transition-colors"
+                    className="hover:text-[var(--brand)] dark:hover:text-blue-400 transition-colors"
                   >
                     FAQ
                   </a>
@@ -245,10 +245,10 @@ export const PublicLayout: React.FC = () => {
 
             {/* Col 3: Institutional Details */}
             <div>
-              <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider mb-3">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-3">
                 School Information
               </h4>
-              <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+              <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
                 Palanas National Agriculture High School<br />
                 Division of Masbate • Region V (Bicol)<br />
                 Dedicated implementation partner for the DepEd ARAL Program.
@@ -257,16 +257,16 @@ export const PublicLayout: React.FC = () => {
 
             {/* Col 4: Portals & Security */}
             <div className="space-y-2">
-              <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider mb-3">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-3">
                 System Access
               </h4>
-              <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+              <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
                 Authorized staff sign in via Google OAuth. Learners access their portal using their registered 12-digit LRN.
               </p>
               <div className="pt-2">
                 <Link
                   to="/login"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--brand)] hover:underline"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--brand)] dark:text-blue-400 hover:underline"
                 >
                   <span>Portal Login</span>
                   <ArrowRight size={12} />
@@ -275,7 +275,7 @@ export const PublicLayout: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-10 pt-6 border-t border-[var(--slate-200)] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[var(--text-muted)]">
+          <div className="mt-10 pt-6 border-t border-slate-200 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
             <p>&copy; {new Date().getFullYear()} ARALert. Palanas National Agriculture High School.</p>
             <p className="text-[11px]">Academic Recovery and Accessible Learning Management System</p>
           </div>
