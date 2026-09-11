@@ -180,24 +180,24 @@ html {
   --color-danger-border:  var(--risk-high-border);
   --color-info-border:    var(--brand-border);
 
-  /* ── Academic Risk Hierarchy in Dark Mode ── */
+  /* ── Solid Clean Academic Risk & Status Hierarchy in Dark Mode (Clean Borderless Outline) ── */
   --risk-low:            #22C55E;
-  --risk-low-bg:         color-mix(in srgb, var(--risk-low) 18%, #141414);
-  --risk-low-border:     color-mix(in srgb, var(--risk-low) 38%, #262626);
-  --risk-low-text:       color-mix(in srgb, var(--risk-low) 88%, #FFFFFF);
-  --risk-low-badge-bg:   color-mix(in srgb, var(--risk-low) 24%, #141414);
+  --risk-low-bg:         #052E16;
+  --risk-low-border:     transparent;
+  --risk-low-text:       #4ADE80;
+  --risk-low-badge-bg:   #064E3B;
 
   --risk-medium:         #F59E0B;
-  --risk-medium-bg:      color-mix(in srgb, var(--risk-medium) 18%, #141414);
-  --risk-medium-border:  color-mix(in srgb, var(--risk-medium) 38%, #262626);
-  --risk-medium-text:    color-mix(in srgb, var(--risk-medium) 88%, #FFFFFF);
-  --risk-medium-badge-bg:color-mix(in srgb, var(--risk-medium) 24%, #141414);
+  --risk-medium-bg:      #451A03;
+  --risk-medium-border:  transparent;
+  --risk-medium-text:    #FBBF24;
+  --risk-medium-badge-bg:#78350F;
 
   --risk-high:           #EF4444;
-  --risk-high-bg:        color-mix(in srgb, var(--risk-high) 18%, #141414);
-  --risk-high-border:    color-mix(in srgb, var(--risk-high) 38%, #262626);
-  --risk-high-text:      color-mix(in srgb, var(--risk-high) 88%, #FFFFFF);
-  --risk-high-badge-bg:  color-mix(in srgb, var(--risk-high) 24%, #141414);
+  --risk-high-bg:        #450A0A;
+  --risk-high-border:    transparent;
+  --risk-high-text:      #F87171;
+  --risk-high-badge-bg:  #881337;
 
   --sidebar-bg:         #000000;
   --sidebar-border:     #1F1F1F;
@@ -1017,6 +1017,11 @@ tbody > tr:nth-child(6) [class*="dark:bg-gray-"] { animation-delay: 2.20s !impor
 .alert-warning { background: var(--color-warning-bg); color: #92400E; border-color: var(--color-warning-border); }
 .alert-info    { background: var(--color-info-bg);    color: var(--brand); border-color: var(--color-info-border);    }
 
+.dark .alert-success { color: #4ADE80 !important; border-color: transparent !important; }
+.dark .alert-error   { color: #F87171 !important; border-color: transparent !important; }
+.dark .alert-warning { color: #FBBF24 !important; border-color: transparent !important; }
+.dark .alert-info    { color: #60A5FA !important; border-color: transparent !important; }
+
 /* ═══════════════════════════════════════════════════════════════
    Dark Sidebar Nav
    ═══════════════════════════════════════════════════════════════ */
@@ -1536,31 +1541,157 @@ table.divide-y > tbody > tr:first-child > td {
   color: var(--text-primary) !important;
 }
 
-/* ── Dashboard accent color overrides (indigo, rose, violet, green) ── */
+/* ── Dashboard solid accent colors in Dark Mode (Red, Orange/Amber, Green/Emerald) ── */
 .dark .bg-indigo-50  { background-color: var(--brand-light) !important; }
 .dark .bg-indigo-100 { background-color: color-mix(in srgb, var(--brand) 28%, transparent) !important; }
 .dark .text-indigo-500 { color: var(--brand) !important; }
 .dark .text-indigo-600 { color: var(--brand) !important; }
 .dark .border-indigo-100 { border-color: var(--brand-border) !important; }
 
-.dark .bg-rose-50       { background-color: rgba(244, 63, 94, 0.10) !important; }
-.dark .bg-rose-100      { background-color: rgba(244, 63, 94, 0.14) !important; }
-.dark .text-rose-400    { color: #FDA4AF !important; }
-.dark .text-rose-500    { color: #FB7185 !important; }
-.dark .text-rose-600    { color: #FDA4AF !important; }
-.dark .text-rose-700    { color: #FECDD3 !important; }
-.dark .border-rose-100  { border-color: rgba(244, 63, 94, 0.25) !important; }
-.dark .border-rose-200  { border-color: rgba(244, 63, 94, 0.25) !important; }
-.dark .border-rose-800  { border-color: rgba(244, 63, 94, 0.25) !important; }
-.dark .bg-rose-950\/40  { background-color: rgba(244, 63, 94, 0.12) !important; }
-.dark .bg-rose-950\/60  { background-color: rgba(244, 63, 94, 0.14) !important; }
+/* Solid Red in Dark Mode (Clean Seamless Outline) */
+.dark .bg-rose-50,
+.dark .bg-rose-100,
+.dark .bg-red-50,
+.dark .bg-red-100,
+.dark .bg-rose-950\/20,
+.dark .bg-rose-950\/30,
+.dark .bg-rose-950\/40,
+.dark .bg-rose-950\/50,
+.dark .bg-rose-950\/60,
+.dark .bg-red-950\/30,
+.dark .bg-red-950\/40 { 
+  background-color: #450A0A !important; 
+  color: #F87171 !important; 
+  border-color: transparent !important;
+}
+.dark .bg-rose-50 *,
+.dark .bg-rose-100 *,
+.dark .bg-red-50 *,
+.dark .bg-red-100 *,
+.dark .bg-rose-950\/20 *,
+.dark .bg-rose-950\/30 *,
+.dark .bg-rose-950\/40 *,
+.dark .bg-rose-950\/50 *,
+.dark .bg-rose-950\/60 *,
+.dark .bg-red-950\/30 *,
+.dark .bg-red-950\/40 * { 
+  color: #F87171 !important; 
+}
+
+/* Standalone Red text on non-colored dark surfaces */
+.dark .text-rose-400,
+.dark .text-rose-500,
+.dark .text-rose-600,
+.dark .text-rose-700,
+.dark .text-red-400,
+.dark .text-red-500,
+.dark .text-red-600,
+.dark .text-red-700,
+.dark .text-rose-200,
+.dark .text-rose-300    { color: #F87171 !important; }
+
+.dark .border-rose-100,
+.dark .border-rose-200,
+.dark .border-rose-800,
+.dark .border-rose-900,
+.dark .border-red-100,
+.dark .border-red-200,
+.dark .border-red-900   { border-color: transparent !important; }
+
+/* Solid Orange / Amber in Dark Mode (Clean Seamless Outline) */
+.dark .bg-amber-50,
+.dark .bg-amber-100,
+.dark .bg-orange-50,
+.dark .bg-orange-100,
+.dark .bg-yellow-50,
+.dark .bg-amber-950\/20,
+.dark .bg-amber-950\/30,
+.dark .bg-amber-950\/40,
+.dark .bg-orange-950\/30,
+.dark .bg-orange-950\/40 { 
+  background-color: #451A03 !important; 
+  color: #FBBF24 !important; 
+  border-color: transparent !important;
+}
+.dark .bg-amber-50 *,
+.dark .bg-amber-100 *,
+.dark .bg-orange-50 *,
+.dark .bg-orange-100 *,
+.dark .bg-yellow-50 *,
+.dark .bg-amber-950\/20 *,
+.dark .bg-amber-950\/30 *,
+.dark .bg-amber-950\/40 *,
+.dark .bg-orange-950\/30 *,
+.dark .bg-orange-950\/40 * { 
+  color: #FBBF24 !important; 
+}
+
+/* Standalone Orange / Amber text on non-colored dark surfaces */
+.dark .text-amber-400,
+.dark .text-amber-500,
+.dark .text-amber-600,
+.dark .text-amber-700,
+.dark .text-orange-400,
+.dark .text-orange-500,
+.dark .text-orange-600,
+.dark .text-orange-700,
+.dark .text-amber-200,
+.dark .text-amber-300   { color: #FBBF24 !important; }
+
+.dark .border-amber-100,
+.dark .border-amber-200,
+.dark .border-amber-800,
+.dark .border-amber-900,
+.dark .border-orange-100,
+.dark .border-orange-200 { border-color: transparent !important; }
+
+/* Solid Green / Emerald in Dark Mode (Clean Seamless Outline) */
+.dark .bg-emerald-50,
+.dark .bg-emerald-100,
+.dark .bg-green-50,
+.dark .bg-green-100,
+.dark .bg-emerald-950\/20,
+.dark .bg-emerald-950\/30,
+.dark .bg-emerald-950\/40,
+.dark .bg-green-950\/30,
+.dark .bg-green-950\/40 { 
+  background-color: #052E16 !important; 
+  color: #4ADE80 !important; 
+  border-color: transparent !important;
+}
+.dark .bg-emerald-50 *,
+.dark .bg-emerald-100 *,
+.dark .bg-green-50 *,
+.dark .bg-green-100 *,
+.dark .bg-emerald-950\/20 *,
+.dark .bg-emerald-950\/30 *,
+.dark .bg-emerald-950\/40 *,
+.dark .bg-green-950\/30 *,
+.dark .bg-green-950\/40 * { 
+  color: #4ADE80 !important; 
+}
+
+/* Standalone Green / Emerald text on non-colored dark surfaces */
+.dark .text-emerald-400,
+.dark .text-emerald-500,
+.dark .text-emerald-600,
+.dark .text-emerald-700,
+.dark .text-green-400,
+.dark .text-green-500,
+.dark .text-green-600,
+.dark .text-green-700,
+.dark .text-emerald-200,
+.dark .text-emerald-300  { color: #4ADE80 !important; }
+
+.dark .border-emerald-100,
+.dark .border-emerald-200,
+.dark .border-emerald-800,
+.dark .border-emerald-900,
+.dark .border-green-100,
+.dark .border-green-200  { border-color: transparent !important; }
 
 .dark .bg-violet-50  { background-color: rgba(168, 85, 247, 0.12) !important; }
 .dark .text-violet-600 { color: #C4B5FD !important; }
-
-.dark .bg-green-50  { background-color: rgba(16, 185, 129, 0.10) !important; }
-.dark .text-green-700 { color: #6EE7B7 !important; }
-.dark .border-green-100 { border-color: rgba(16, 185, 129, 0.25) !important; }
 
 /* Dashboard & Table hover overrides in Dark Mode */
 .dark .hover\:bg-slate-50:hover    { background-color: #141414 !important; }

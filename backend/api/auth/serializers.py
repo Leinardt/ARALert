@@ -211,15 +211,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if obj.role != 'faculty':
             return None
         try:
-            return obj.faculty_profile.fac_type
-        except AttributeError:
+            profile = getattr(obj, 'faculty_profile', None)
+            return profile.fac_type if profile else None
+        except Exception:
             return None
 
     def get_subject(self, obj):
-        if obj.subject:
+        if getattr(obj, 'subject', None):
             return obj.subject
-        if obj.role == 'student' and obj.assigned_tutor and obj.assigned_tutor.subject:
-            return obj.assigned_tutor.subject
+        try:
+            if obj.role == 'student' and getattr(obj, 'assigned_tutor', None):
+                return getattr(obj.assigned_tutor, 'subject', None)
+        except Exception:
+            pass
         return None
 
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
-import { Sun, Moon, ArrowRight, School } from 'lucide-react';
+import { Sun, Moon, ArrowRight, School, Menu, X } from 'lucide-react';
 
 export const PublicLayout: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
@@ -11,6 +11,7 @@ export const PublicLayout: React.FC = () => {
 
   const isLanding = location.pathname === '/';
   const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!isLanding) return;
@@ -29,6 +30,7 @@ export const PublicLayout: React.FC = () => {
   };
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
+    setMobileMenuOpen(false);
     if (location.pathname === '/') {
       e.preventDefault();
       const el = document.getElementById(targetId);
@@ -42,6 +44,13 @@ export const PublicLayout: React.FC = () => {
 
   const logoSrc = '/src/assets/ARALert_Logo_LIGHT.png';
 
+  const navLinks = [
+    { label: 'Home', id: 'home', to: '/#home' },
+    { label: 'About', id: 'about', to: '/#about' },
+    { label: 'Features', id: 'features', to: '/#features' },
+    { label: 'FAQ', id: 'faq', to: '/#faq' },
+  ];
+
   return (
     <div
       className="min-h-screen flex flex-col font-sans bg-white dark:bg-black text-slate-900 dark:text-white relative"
@@ -50,26 +59,22 @@ export const PublicLayout: React.FC = () => {
       {/* ── Dynamic Navbar ── */}
       {isLanding ? (
         <div
-          className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 pointer-events-none ${
-            isScrolled ? 'pt-4' : 'pt-2'
+          className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 pointer-events-none px-3 sm:px-6 ${
+            isScrolled ? 'pt-3 sm:pt-4' : 'pt-2'
           }`}
         >
           <header
             className={`pointer-events-auto mx-auto transition-all duration-300 ${
               isScrolled
-                ? 'w-[92%] max-w-5xl bg-white/80 dark:bg-neutral-900/50 backdrop-blur-2xl border border-slate-200/80 dark:border-white/10 rounded-2xl px-5 sm:px-6 h-14 shadow-[0_8px_32px_0_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.5),inset_0_1px_1px_0_rgba(255,255,255,0.12)] flex items-center justify-between text-slate-800 dark:text-white'
-                : 'w-full max-w-7xl px-6 sm:px-10 h-18 bg-transparent border-transparent shadow-none flex items-center justify-between text-slate-900 dark:text-white'
+                ? 'w-full max-w-5xl bg-white/80 dark:bg-neutral-900/50 backdrop-blur-2xl border border-slate-200/80 dark:border-white/10 rounded-2xl px-4 sm:px-6 h-14 shadow-[0_8px_32px_0_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.5),inset_0_1px_1px_0_rgba(255,255,255,0.12)] flex items-center justify-between text-slate-800 dark:text-white'
+                : 'w-full max-w-7xl px-3 sm:px-6 h-16 sm:h-18 bg-transparent border-transparent shadow-none flex items-center justify-between text-slate-900 dark:text-white'
             }`}
           >
             {/* Left: Logo & Brand + "/" Divider + Navigation links */}
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Link
                 to="/"
-                className={`flex items-center gap-2 text-decoration-none group px-2 py-1.5 rounded-xl transition-all duration-200 ${
-                  isScrolled
-                    ? 'hover:bg-slate-100/80 dark:hover:bg-white/[0.08] hover:backdrop-blur-md'
-                    : 'hover:bg-slate-100/80 dark:hover:bg-white/[0.08] hover:backdrop-blur-md'
-                }`}
+                className="flex items-center gap-2 text-decoration-none group px-2 py-1.5 rounded-xl hover:bg-slate-100/80 dark:hover:bg-white/[0.08] hover:backdrop-blur-md transition-all duration-200"
                 onClick={(e) => handleNavClick(e, 'home')}
               >
                 <img
@@ -85,19 +90,14 @@ export const PublicLayout: React.FC = () => {
                 </span>
               </Link>
 
-              {/* Slash Divider between ARALert and Home */}
-              <span className="font-light text-sm select-none text-slate-300 dark:text-neutral-700">
+              {/* Slash Divider between ARALert and Home (Desktop only) */}
+              <span className="hidden md:inline font-light text-sm select-none text-slate-300 dark:text-neutral-700">
                 /
               </span>
 
-              {/* Navigation links */}
+              {/* Navigation links (Desktop & Tablet landscape) */}
               <nav className="hidden md:flex items-center gap-1">
-                {[
-                  { label: 'Home', id: 'home', to: '/#home' },
-                  { label: 'About', id: 'about', to: '/#about' },
-                  { label: 'Features', id: 'features', to: '/#features' },
-                  { label: 'FAQ', id: 'faq', to: '/#faq' },
-                ].map((item) => (
+                {navLinks.map((item) => (
                   <a
                     key={item.id}
                     href={item.to}
@@ -110,26 +110,67 @@ export const PublicLayout: React.FC = () => {
               </nav>
             </div>
 
-            {/* Right: Dark mode toggle + Sign In / Dashboard button */}
-            <div className="flex items-center gap-3">
+            {/* Right: Dark mode toggle + Sign In / Dashboard button + Mobile Menu Button */}
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={toggleTheme}
                 aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-                className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 shadow-xs border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-neutral-900/50 backdrop-blur-xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.12] dark:shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.1)]"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 shadow-xs border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-neutral-900/50 backdrop-blur-xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.12] dark:shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.1)]"
               >
-                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+                {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
               </button>
 
               <Link
                 to={isAuthenticated ? getDashboardLink() : '/login'}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white transition-all duration-150 shadow-xs hover:shadow-md hover:-translate-y-0.5"
+                className="hidden sm:inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white transition-all duration-150 shadow-xs hover:shadow-md hover:-translate-y-0.5"
               >
                 <span>{isAuthenticated ? 'Dashboard' : 'Sign In'}</span>
                 <ArrowRight size={14} />
               </Link>
+
+              {/* Mobile Hamburger Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+                className="md:hidden w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-neutral-900/50 backdrop-blur-xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              >
+                {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+              </button>
             </div>
           </header>
+
+          {/* Mobile Navigation Dropdown Menu */}
+          {mobileMenuOpen && (
+            <div className="pointer-events-auto mt-2 max-w-5xl mx-auto md:hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="bg-white/95 dark:bg-neutral-950/95 backdrop-blur-2xl border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-2xl space-y-2">
+                <nav className="flex flex-col space-y-1">
+                  {navLinks.map((item) => (
+                    <a
+                      key={item.id}
+                      href={item.to}
+                      onClick={(e) => handleNavClick(e, item.id)}
+                      className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-900 transition-colors"
+                    >
+                      {item.label}
+                    </a>
+                  ))}
+                </nav>
+
+                <div className="pt-2 border-t border-slate-200 dark:border-neutral-800 flex flex-col gap-2">
+                  <Link
+                    to={isAuthenticated ? getDashboardLink() : '/login'}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white shadow-xs"
+                  >
+                    <span>{isAuthenticated ? 'Go to Dashboard' : 'Sign In to Portal'}</span>
+                    <ArrowRight size={15} />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* Standard Header for Login / other public routes */

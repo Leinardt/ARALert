@@ -99,21 +99,21 @@
   --brand-border: color-mix(in srgb, var(--brand) 38%, #262626);
   --brand-glow: color-mix(in srgb, var(--brand) 35%, transparent);
 
-  /* Risk system in Dark Mode */
-  --risk-low-bg:         color-mix(in srgb, var(--risk-low) 18%, #141414);
-  --risk-low-border:     color-mix(in srgb, var(--risk-low) 38%, #262626);
-  --risk-low-text:       color-mix(in srgb, var(--risk-low) 88%, #FFFFFF);
-  --risk-low-badge-bg:   color-mix(in srgb, var(--risk-low) 24%, #141414);
+  /* Solid, Clean Risk & Status System in Dark Mode (Clean Borderless Outline) */
+  --risk-low-bg:         #052E16;
+  --risk-low-border:     transparent;
+  --risk-low-text:       #4ADE80;
+  --risk-low-badge-bg:   #064E3B;
 
-  --risk-medium-bg:      color-mix(in srgb, var(--risk-medium) 18%, #141414);
-  --risk-medium-border:  color-mix(in srgb, var(--risk-medium) 38%, #262626);
-  --risk-medium-text:    color-mix(in srgb, var(--risk-medium) 88%, #FFFFFF);
-  --risk-medium-badge-bg:color-mix(in srgb, var(--risk-medium) 24%, #141414);
+  --risk-medium-bg:      #451A03;
+  --risk-medium-border:  transparent;
+  --risk-medium-text:    #FBBF24;
+  --risk-medium-badge-bg:#78350F;
 
-  --risk-high-bg:        color-mix(in srgb, var(--risk-high) 18%, #141414);
-  --risk-high-border:    color-mix(in srgb, var(--risk-high) 38%, #262626);
-  --risk-high-text:      color-mix(in srgb, var(--risk-high) 88%, #FFFFFF);
-  --risk-high-badge-bg:  color-mix(in srgb, var(--risk-high) 24%, #141414);
+  --risk-high-bg:        #450A0A;
+  --risk-high-border:    transparent;
+  --risk-high-text:      #F87171;
+  --risk-high-badge-bg:  #881337;
 
   /* Dark mode active sidebar gradient incorporating master brand */
   --sidebar-active-bg: linear-gradient(135deg,

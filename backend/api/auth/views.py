@@ -70,62 +70,69 @@ class GoogleLoginView(GenericAPIView):
                             details={'errors': serializer.errors})
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        google_data = serializer.validated_data  # {email, sub, name, given_name, family_name}
-        email = google_data['email']
-        sub   = google_data['sub']
+        try:
+            google_data = serializer.validated_data  # {email, sub, name, given_name, family_name}
+            email = google_data['email']
+            sub   = google_data['sub']
 
-        # ── Strict Pre-Registration Verification (Option A) ───────────────
-        user = User.objects.filter(email__iexact=email).first()
+            # ── Strict Pre-Registration Verification (Option A) ───────────────
+            user = User.objects.filter(email__iexact=email).first()
 
-        if user is None:
-            record_failed_login(client_ip)
-            log_audit_event('GOOGLE_LOGIN_UNREGISTERED_EMAIL', request=request, details={'email': email})
+            if user is None:
+                record_failed_login(client_ip)
+                log_audit_event('GOOGLE_LOGIN_UNREGISTERED_EMAIL', request=request, details={'email': email})
+                return Response(
+                    {
+                        'detail': 'Your account is not registered in ARALert. Please contact your Super Admin to be added to the system.'
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # Clear google_sub from other accounts to prevent unique constraint IntegrityError
+            if sub and user.google_sub != sub:
+                User.objects.filter(google_sub=sub).exclude(pk=user.pk).update(google_sub=None)
+                user.google_sub = sub
+
+            google_fn = google_data.get('given_name', '').strip()
+            google_ln = google_data.get('family_name', '').strip()
+
+            if google_fn and not user.first_name:
+                user.first_name = google_fn
+            if google_ln and not user.last_name:
+                user.last_name = google_ln
+
+            if not user.username:
+                user.username = user.email
+
+            user.save()
+
+            if not user.is_active:
+                return Response(
+                    {'detail': 'Your account has been deactivated. Please contact your administrator.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            clear_login_attempts(client_ip)
+            user.last_login = timezone.now()
+            user.save(update_fields=['last_login'])
+
+            refresh = RefreshToken.for_user(user)
+            log_audit_event('GOOGLE_LOGIN_SUCCESS', user=user, request=request,
+                            details={'role': user.role or 'superadmin'})
+
+            return Response({
+                'access':   str(refresh.access_token),
+                'refresh':  str(refresh),
+                'user':     UserProfileSerializer(user).data,
+                'redirect': _get_redirect_path(user),
+            }, status=status.HTTP_200_OK)
+
+        except Exception as exc:
+            logger.exception("Unexpected error during Google login: %s", exc)
             return Response(
-                {
-                    'detail': 'Your account is not registered in ARALert. Please contact your Super Admin to be added to the system.'
-                },
-                status=status.HTTP_403_FORBIDDEN,
+                {'detail': f'Server error during Google login: {str(exc)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-        # Update Google sub and name fields from Google token if missing
-        update_fields = []
-        if user.google_sub != sub:
-            user.google_sub = sub
-            update_fields.append('google_sub')
-
-        google_fn = google_data.get('given_name', '').strip()
-        google_ln = google_data.get('family_name', '').strip()
-
-        if google_fn and not user.first_name:
-            user.first_name = google_fn
-            update_fields.append('first_name')
-        if google_ln and not user.last_name:
-            user.last_name = google_ln
-            update_fields.append('last_name')
-
-        if update_fields:
-            user.save(update_fields=update_fields)
-
-        if not user.is_active:
-            return Response(
-                {'detail': 'Your account has been deactivated. Please contact your administrator.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        clear_login_attempts(client_ip)
-        user.last_login = timezone.now()
-        user.save(update_fields=['last_login'])
-
-        refresh = RefreshToken.for_user(user)
-        log_audit_event('GOOGLE_LOGIN_SUCCESS', user=user, request=request,
-                        details={'role': user.role or 'superadmin'})
-
-        return Response({
-            'access':   str(refresh.access_token),
-            'refresh':  str(refresh),
-            'user':     UserProfileSerializer(user).data,
-            'redirect': _get_redirect_path(user),
-        }, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------------------------

@@ -122,17 +122,17 @@ export const Landing: React.FC = () => {
           ═══════════════════════════════════════════════════════════════ */}
       <section
         id="home"
-        className="relative min-h-screen flex flex-col justify-center items-center px-6 sm:px-10 lg:px-12 pt-20 pb-12 bg-white dark:bg-black text-slate-900 dark:text-white overflow-hidden border-b border-slate-200/80 dark:border-neutral-800"
+        className="relative min-h-screen flex flex-col justify-center items-center px-4 sm:px-8 lg:px-12 pt-20 sm:pt-24 pb-8 sm:pb-12 bg-white dark:bg-black text-slate-900 dark:text-white overflow-hidden border-b border-slate-200/80 dark:border-neutral-800"
       >
         <div className="max-w-7xl mx-auto w-full flex-1 flex items-center justify-center my-auto">
-          <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center py-4">
+          <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-center py-2 sm:py-4">
             {/* Left Column: Interactive Educational SVG Illustrations */}
             <div className="lg:col-span-6 flex flex-col items-center justify-center order-2 lg:order-1">
               <button
                 type="button"
                 onClick={nextImage}
                 title="Click to switch illustration"
-                className="group relative w-full max-w-lg lg:max-w-xl flex items-center justify-center cursor-pointer select-none focus:outline-none transition-all duration-300"
+                className="group relative w-full max-w-xs sm:max-w-md lg:max-w-xl flex items-center justify-center cursor-pointer select-none focus:outline-none transition-all duration-300"
               >
                 {/* Subtle ambient backlight glow for enhanced contrast in dark mode */}
                 <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-600/20 blur-3xl rounded-full pointer-events-none transition-all duration-500 group-hover:scale-105" />
@@ -140,85 +140,85 @@ export const Landing: React.FC = () => {
                 <img
                   src={HERO_ILLUSTRATIONS[currentImageIndex].src}
                   alt={HERO_ILLUSTRATIONS[currentImageIndex].alt}
-                  className={`relative z-10 w-full h-auto max-h-[480px] lg:max-h-[540px] object-contain drop-shadow-sm dark:drop-shadow-[0_12px_40px_rgba(59,130,246,0.25)] transition-all duration-300 transform group-hover:scale-[1.03] group-active:scale-95 ${
+                  className={`relative z-10 w-full h-auto max-h-[260px] sm:max-h-[380px] lg:max-h-[520px] object-contain drop-shadow-sm dark:drop-shadow-[0_12px_40px_rgba(59,130,246,0.25)] transition-all duration-300 transform group-hover:scale-[1.03] group-active:scale-95 ${
                     isFading ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
                   }`}
                 />
               </button>
             </div>
 
-          {/* Right Column: Hero Content (Centered & Aesthetic) */}
-          <div className="lg:col-span-6 flex flex-col justify-center items-center text-center space-y-6 md:space-y-7 order-1 lg:order-2">
-            {/* Main Hero Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight flex items-center justify-center gap-1 sm:gap-1.5 leading-none select-none max-w-xl mx-auto">
-              <img
-                src={LogoImg}
-                alt="A"
-                className="h-[1.1em] w-auto object-contain inline-block drop-shadow-sm transition-transform duration-200 hover:scale-105 -mt-0.5"
-              />
-              <span className="text-[#0052B7] dark:text-blue-400 font-extrabold tracking-tight">
-                RALert
-              </span>
-            </h1>
+            {/* Right Column: Hero Content (Centered & Aesthetic) */}
+            <div className="lg:col-span-6 flex flex-col justify-center items-center text-center space-y-5 sm:space-y-6 md:space-y-7 order-1 lg:order-2">
+              {/* Main Hero Headline */}
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight flex items-center justify-center gap-1 sm:gap-1.5 leading-none select-none max-w-xl mx-auto">
+                <img
+                  src={LogoImg}
+                  alt="A"
+                  className="h-[1.1em] w-auto object-contain inline-block drop-shadow-sm transition-transform duration-200 hover:scale-105 -mt-0.5"
+                />
+                <span className="text-[#0052B7] dark:text-blue-400 font-extrabold tracking-tight">
+                  RALert
+                </span>
+              </h1>
 
-            {/* Subtitle */}
-            <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed font-normal max-w-lg mx-auto">
-              A Web-Based Student Performance Monitoring and Early Academic Risk Detection System for the ARAL Program of{' '}
-              <span className="text-[#0052B7] dark:text-blue-400 font-semibold">
-                Palanas National Agriculture High School
-              </span>
-              .
-            </p>
+              {/* Subtitle */}
+              <p className="text-sm sm:text-base lg:text-lg text-slate-600 dark:text-slate-300 leading-relaxed font-normal max-w-lg mx-auto px-2 sm:px-0">
+                A Web-Based Student Performance Monitoring and Early Academic Risk Detection System for the ARAL Program of{' '}
+                <span className="text-[#0052B7] dark:text-blue-400 font-semibold">
+                  Palanas National Agriculture High School
+                </span>
+                .
+              </p>
 
-            {/* Primary Action Group */}
-            <div className="flex flex-wrap items-center justify-center gap-3.5 pt-1 w-full">
-              <Link
-                to={isAuthenticated ? getDashboardLink() : '/login'}
-                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-bold rounded-xl transition-all duration-200 text-sm shadow-md hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
-              >
-                <span>{isAuthenticated ? 'Go to Dashboard' : 'Access System Portal'}</span>
-                <ArrowRight className="w-4 h-4 text-white" />
-              </Link>
+              {/* Primary Action Group */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 pt-1 w-full max-w-xs sm:max-w-none">
+                <Link
+                  to={isAuthenticated ? getDashboardLink() : '/login'}
+                  className="inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white font-bold rounded-xl transition-all duration-200 text-sm shadow-md hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
+                >
+                  <span>{isAuthenticated ? 'Go to Dashboard' : 'Access System Portal'}</span>
+                  <ArrowRight className="w-4 h-4 text-white" />
+                </Link>
 
-              <a
-                href="#about"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/80 hover:bg-slate-100 dark:bg-neutral-900/80 dark:hover:bg-neutral-900 text-slate-800 dark:text-slate-200 font-semibold backdrop-blur-md text-sm shadow-xs hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-              >
-                <Info className="w-4 h-4 text-[#0052B7] dark:text-blue-400" />
-                <span>Learn About ARALert</span>
-              </a>
-            </div>
-
-            {/* Quick Metrics Ribbon */}
-            <div className="pt-6 border-t border-slate-200 dark:border-neutral-800 grid grid-cols-3 gap-3 sm:gap-4 w-full max-w-lg mx-auto">
-              <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 dark:bg-neutral-900/70 border border-slate-200/80 dark:border-neutral-800 shadow-xs flex flex-col items-center justify-center text-center">
-                <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  <Target className="w-3.5 h-3.5 text-[#0052B7] dark:text-blue-400 shrink-0" />
-                  <span className="truncate">Risk Alerts</span>
-                </div>
-                <p className="mt-1.5 text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">Automated</p>
+                <a
+                  href="#about"
+                  className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-3 sm:py-3.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/80 hover:bg-slate-100 dark:bg-neutral-900/80 dark:hover:bg-neutral-900 text-slate-800 dark:text-slate-200 font-semibold backdrop-blur-md text-sm shadow-xs hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+                >
+                  <Info className="w-4 h-4 text-[#0052B7] dark:text-blue-400" />
+                  <span>Learn About ARALert</span>
+                </a>
               </div>
 
-              <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 dark:bg-neutral-900/70 border border-slate-200/80 dark:border-neutral-800 shadow-xs flex flex-col items-center justify-center text-center">
-                <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  <QrCode className="w-3.5 h-3.5 text-[#0052B7] dark:text-blue-400 shrink-0" />
-                  <span className="truncate">Attendance</span>
+              {/* Quick Metrics Ribbon */}
+              <div className="pt-5 sm:pt-6 border-t border-slate-200 dark:border-neutral-800 grid grid-cols-3 gap-2 sm:gap-4 w-full max-w-lg mx-auto">
+                <div className="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50/80 dark:bg-neutral-900/70 border border-slate-200/80 dark:border-neutral-800 shadow-xs flex flex-col items-center justify-center text-center">
+                  <div className="flex items-center justify-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#0052B7] dark:text-blue-400 shrink-0" />
+                    <span className="truncate">Risk Alerts</span>
+                  </div>
+                  <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm lg:text-base font-extrabold text-slate-900 dark:text-white">Automated</p>
                 </div>
-                <p className="mt-1.5 text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">QR Check-In</p>
-              </div>
 
-              <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 dark:bg-neutral-900/70 border border-slate-200/80 dark:border-neutral-800 shadow-xs flex flex-col items-center justify-center text-center">
-                <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  <Award className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
-                  <span className="truncate">Evaluation</span>
+                <div className="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50/80 dark:bg-neutral-900/70 border border-slate-200/80 dark:border-neutral-800 shadow-xs flex flex-col items-center justify-center text-center">
+                  <div className="flex items-center justify-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <QrCode className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#0052B7] dark:text-blue-400 shrink-0" />
+                    <span className="truncate">Attendance</span>
+                  </div>
+                  <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm lg:text-base font-extrabold text-slate-900 dark:text-white">QR Check-In</p>
                 </div>
-                <p className="mt-1.5 text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">DepEd Metrics</p>
+
+                <div className="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50/80 dark:bg-neutral-900/70 border border-slate-200/80 dark:border-neutral-800 shadow-xs flex flex-col items-center justify-center text-center">
+                  <div className="flex items-center justify-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <Award className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
+                    <span className="truncate">Evaluation</span>
+                  </div>
+                  <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm lg:text-base font-extrabold text-slate-900 dark:text-white">DepEd Metrics</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
       {/* ═══════════════════════════════════════════════════════════════
           2. ABOUT SECTION (Plain White in Light, Plain Black in Dark)
