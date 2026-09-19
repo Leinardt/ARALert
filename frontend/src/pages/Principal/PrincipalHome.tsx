@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import type { Attendance, PrincipalDashboardResponse, PrincipalDashboardTrendPoint } from '../../types';
-import { RefreshCw, Users, GraduationCap, Briefcase, Download, ShieldAlert, AlertTriangle, CheckCircle } from 'lucide-react';
+import { RefreshCw, Users, GraduationCap, Briefcase, Download, Frown, Meh, Smile } from 'lucide-react';
 import { ExportDtrModal } from '../../components/ExportDtrModal';
 
 export const PrincipalHome: React.FC = () => {
@@ -134,7 +134,7 @@ export const PrincipalHome: React.FC = () => {
     {
       label: 'High Risk',
       value: dashboardData?.risk_summary.high ?? '—',
-      icon: ShieldAlert,
+      icon: Frown,
       accentBg: 'risk-card-high',
       accentBorder: 'border-transparent',
       iconClass: 'text-risk-high',
@@ -142,7 +142,7 @@ export const PrincipalHome: React.FC = () => {
     {
       label: 'Medium Risk',
       value: dashboardData?.risk_summary.medium ?? '—',
-      icon: AlertTriangle,
+      icon: Meh,
       accentBg: 'risk-card-medium',
       accentBorder: 'border-transparent',
       iconClass: 'text-risk-medium',
@@ -150,7 +150,7 @@ export const PrincipalHome: React.FC = () => {
     {
       label: 'Low Risk',
       value: dashboardData?.risk_summary.low ?? '—',
-      icon: CheckCircle,
+      icon: Smile,
       accentBg: 'risk-card-low',
       accentBorder: 'border-transparent',
       iconClass: 'text-risk-low',

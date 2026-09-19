@@ -17,9 +17,10 @@ const getAralBadge = (level?: string | null) => {
   }
 };
 
-import { getStudentInitials as getInitials, buildAvatarColorMap } from '../../utils/studentFormatters';
+import { buildAvatarColorMap } from '../../utils/studentFormatters';
+import { matchesSearch } from '../../utils/searchHelpers';
 
-function getDepEdSchoolYearAndQuarter(date: Date = new Date()) {
+function getDepEdSchoolYear(date: Date = new Date()) {
   const month = date.getMonth() + 1;
   const year = date.getFullYear();
 
@@ -30,18 +31,11 @@ function getDepEdSchoolYearAndQuarter(date: Date = new Date()) {
     syEnd = year;
   }
 
-  let quarter = 1;
-  if (month >= 8 && month <= 10) quarter = 1;
-  else if (month >= 11 || month === 1) quarter = 2;
-  else if (month >= 2 && month <= 4) quarter = 3;
-  else quarter = 4;
-
   return {
     syStart,
     syEnd,
-    quarter,
-    currentKey: `${syStart}-${syEnd}-Q${quarter}`,
-    displayLabel: `SY ${syStart}–${syEnd} • Q${quarter}`,
+    currentKey: `${syStart}-${syEnd}`,
+    displayLabel: `SY ${syStart}–${syEnd}`,
   };
 }
 
@@ -57,20 +51,17 @@ export const TutorStudentDirectory: React.FC = () => {
   const [sortField, setSortField] = useState<string>('name');
   const [sortAsc, setSortAsc] = useState(true);
 
-  const currentPeriod = useMemo(() => getDepEdSchoolYearAndQuarter(), []);
-  const [selectedPeriod, setSelectedPeriod] = useState<string>(() => currentPeriod.currentKey);
+  const currentSchoolYear = useMemo(() => getDepEdSchoolYear(), []);
+  const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>(() => currentSchoolYear.currentKey);
 
-  const periodOptions = useMemo(() => {
-    const { syStart, syEnd, quarter } = currentPeriod;
+  const schoolYearOptions = useMemo(() => {
+    const { syStart, syEnd } = currentSchoolYear;
     return [
-      { key: `${syStart}-${syEnd}-Q${quarter}`, label: `SY ${syStart}–${syEnd} • Q${quarter} (Active)` },
-      { key: `${syStart}-${syEnd}-Q1`, label: `SY ${syStart}–${syEnd} • Q1` },
-      { key: `${syStart}-${syEnd}-Q2`, label: `SY ${syStart}–${syEnd} • Q2` },
-      { key: `${syStart}-${syEnd}-Q3`, label: `SY ${syStart}–${syEnd} • Q3` },
-      { key: `${syStart}-${syEnd}-Q4`, label: `SY ${syStart}–${syEnd} • Q4` },
-      { key: `${syStart - 1}-${syStart}-all`, label: `SY ${syStart - 1}–${syStart} (Previous)` },
-    ].filter((opt, idx, arr) => arr.findIndex((x) => x.key === opt.key) === idx);
-  }, [currentPeriod]);
+      { key: `${syStart}-${syEnd}`, label: `SY ${syStart}–${syEnd} (Active)` },
+      { key: `${syStart - 1}-${syStart}`, label: `SY ${syStart - 1}–${syStart} (Previous)` },
+      { key: `${syStart - 2}-${syStart - 1}`, label: `SY ${syStart - 2}–${syStart - 1}` },
+    ];
+  }, [currentSchoolYear]);
 
   const fetchData = async () => {
     if (!user) return;
@@ -134,8 +125,7 @@ export const TutorStudentDirectory: React.FC = () => {
   const filteredAndSorted = useMemo(() => {
     return studentRows
       .filter((r) => {
-        const q = search.toLowerCase();
-        return (r.student.full_name || '').toLowerCase().includes(q) || (r.student.lrn || '').includes(q);
+        return matchesSearch(search, r.student.full_name, r.student.first_name, r.student.last_name, r.student.lrn);
       })
       .sort((a, b) => {
         let valA: any = a.student.full_name;
@@ -292,15 +282,15 @@ export const TutorStudentDirectory: React.FC = () => {
 
             {/* Controls */}
             <div className="flex flex-wrap items-center gap-2.5">
-              {/* Auto-updating School Year & Quarter Dropdown */}
+              {/* Auto-updating School Year Dropdown */}
               <div className="relative inline-flex items-center">
                 <select
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
-                  aria-label="Filter by School Year and Quarter"
+                  value={selectedSchoolYear}
+                  onChange={(e) => setSelectedSchoolYear(e.target.value)}
+                  aria-label="Filter by School Year"
                   className="h-9 appearance-none rounded-xl border border-[var(--brand-border)] bg-[var(--brand-light)]/50 pl-3.5 pr-8 text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-[var(--brand-light)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-xs"
                 >
-                  {periodOptions.map((opt) => (
+                  {schoolYearOptions.map((opt) => (
                     <option key={opt.key} value={opt.key} className="bg-white text-gray-800 font-medium">
                       {opt.label}
                     </option>
@@ -364,8 +354,8 @@ export const TutorStudentDirectory: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 font-semibold text-gray-800">
                           <div className="flex items-center gap-2.5">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(row.student.full_name || '')}`}>
-                              {getInitials(row.student.full_name || '?')}
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${avatarColor(row.student.full_name || '')}`}>
+                              <UserIcon className="w-3.5 h-3.5" />
                             </div>
                             <span className="truncate font-semibold text-gray-800">{row.student.full_name}</span>
                           </div>

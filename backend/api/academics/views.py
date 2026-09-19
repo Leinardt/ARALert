@@ -39,12 +39,12 @@ from .serializers import (
 
 def evaluate_student_aral_progression(student):
     """
-    Automatically evaluates student's MOSY, EOSY, or BOSY/EndLine assessment scores
+    Automatically evaluates student's MOSY, EOSY, or ARAL Summer Assessment scores
     and updates student.aral_level accordingly.
     Rules:
     - Basic level: Evaluated by MOSY score. If pass (>= 28/40) -> Promoted to Plus. If fail -> Retains Basic.
     - Plus level: Evaluated by EOSY score. If pass (>= 28/40) -> Graduated. If fail -> Assigned to Summer.
-    - Summer level: Evaluated by BOSY/EndLine score. If pass (>= 28/40) -> Graduated. If fail -> Retains Summer.
+    - Summer level: Evaluated by ARAL Summer Assessment score. If pass (>= 28/40) -> Graduated. If fail -> Retains Summer.
     """
     curr_level = student.aral_level or 'basic'
     if curr_level == 'graduated':
@@ -63,7 +63,7 @@ def evaluate_student_aral_progression(student):
 
     mosy_grade = grades.filter(Q(subject__icontains='MOSY') | Q(remarks__icontains='MOSY')).order_by('-date_logged').first()
     eosy_grade = grades.filter(Q(subject__icontains='EOSY') | Q(remarks__icontains='EOSY')).order_by('-date_logged').first()
-    endline_grade = grades.filter(Q(subject__icontains='EndLine') | Q(subject__icontains='BOSY') | Q(remarks__icontains='EndLine')).order_by('-date_logged').first()
+    endline_grade = grades.filter(Q(subject__icontains='Summer') | Q(remarks__icontains='Summer') | Q(subject__icontains='EndLine') | Q(subject__icontains='BOSY') | Q(remarks__icontains='EndLine')).order_by('-date_logged').first()
 
     def check_pass(grade_obj):
         if not grade_obj:
@@ -146,26 +146,26 @@ def evaluate_student_aral_progression(student):
     elif curr_level == 'summer':
         if endline_grade:
             target_grade = endline_grade
-            ass_type = 'BOSY/EndLine'
+            ass_type = 'ARAL Summer Assessment'
             passed, pct = check_pass(endline_grade)
             if passed:
                 new_level = 'graduated'
                 status_code = 'GRADUATED'
-                msg = f'Passed BOSY/EndLine with {endline_grade.score}/{endline_grade.total_score or 40} ({pct}%). Graduated from ARAL program!'
+                msg = f'Passed ARAL Summer Assessment with {endline_grade.score}/{endline_grade.total_score or 40} ({pct}%). Graduated from ARAL program!'
             else:
                 new_level = 'summer'
                 status_code = 'RETAINED'
-                msg = f'Did not reach passing score (28/40) on BOSY/EndLine ({endline_grade.score}/{endline_grade.total_score or 40}). Retained in Summer remediation.'
+                msg = f'Did not reach passing score (28/40) on ARAL Summer Assessment ({endline_grade.score}/{endline_grade.total_score or 40}). Retained in Summer remediation.'
         else:
             return {
                 'student_id': str(student.id),
                 'student_name': student.get_full_name(),
                 'previous_level': curr_level,
                 'new_level': curr_level,
-                'assessment_type': 'BOSY/EndLine',
+                'assessment_type': 'ARAL Summer Assessment',
                 'score_percentage': None,
                 'status': 'RETAINED',
-                'message': 'Awaiting BOSY/EndLine assessment entry for remediation evaluation.'
+                'message': 'Awaiting ARAL Summer Assessment entry for remediation evaluation.'
             }
 
     if new_level != curr_level:
@@ -650,14 +650,14 @@ class AttendanceHistoryView(generics.ListAPIView):
         if user_id_param:
             qs = qs.filter(user_id=user_id_param)
 
-        if user.is_superuser or user.role == 'principal':
+        if user.is_superuser or user.role in ('principal', 'admin'):
             return qs
         if user.role == 'student':
             return qs.filter(user=user)
         if user.role == 'tutor':
             assigned_ids = user.assigned_students.values_list('id', flat=True)
             return qs.filter(Q(user=user) | Q(user_id__in=assigned_ids))
-        if user.role in ('faculty', 'admin'):
+        if user.role == 'faculty':
             return qs.filter(user=user)
         return qs.none()
 
@@ -733,9 +733,8 @@ class StudentAcademicProfileView(APIView):
         att_logs     = ApiAttendance.objects.filter(user=student)
         total_days   = att_logs.count()
         present_days = att_logs.filter(status='present').count()
-        late_days    = att_logs.filter(status='late').count()
         absent_days  = att_logs.filter(status='absent').count()
-        att_rate     = round((present_days + late_days) / total_days * 100, 2) if total_days > 0 else 100
+        att_rate     = round(present_days / total_days * 100, 2) if total_days > 0 else 100
 
         # ARAL activities
         activities  = ApiAralActivity.objects.filter(student=student)
@@ -769,7 +768,6 @@ class StudentAcademicProfileView(APIView):
                 'attendance_rate': att_rate,
                 'total_days':      total_days,
                 'present':         present_days,
-                'late':            late_days,
                 'absent':          absent_days,
                 'logs':            AttendanceSerializer(att_logs[:15], many=True).data,
             },
@@ -823,7 +821,7 @@ class PrincipalDashboardView(APIView):
             avg_score  = day_grades.aggregate(Avg('score'))['score__avg'] or 0
             day_att    = ApiAttendance.objects.filter(date=day, role='student')
             total      = day_att.count()
-            present    = day_att.filter(status__in=['present', 'late']).count()
+            present    = day_att.filter(status='present').count()
             att_rate   = round(present / total * 100, 2) if total else 0
             if avg_score or att_rate:
                 trend.append({
@@ -843,7 +841,7 @@ class PrincipalDashboardView(APIView):
                 avg = tg.aggregate(Avg('score'))['score__avg'] or 0
                 ta  = ApiAttendance.objects.filter(tutor=tutor, date=day)
                 tot = ta.count()
-                pre = ta.filter(status__in=['present', 'late']).count()
+                pre = ta.filter(status='present').count()
                 ar  = round(pre / tot * 100, 2) if tot else 0
                 tutor_trend.append({
                     'date':            str(day),
@@ -862,10 +860,10 @@ class PrincipalDashboardView(APIView):
             day       = today - td(days=i)
             t_att     = ApiAttendance.objects.filter(date=day, role='tutor')
             t_tot     = t_att.count()
-            t_pre     = t_att.filter(status__in=['present', 'late']).count()
+            t_pre     = t_att.filter(status='present').count()
             f_att     = ApiAttendance.objects.filter(date=day, role='faculty')
             f_tot     = f_att.count()
-            f_pre     = f_att.filter(status__in=['present', 'late']).count()
+            f_pre     = f_att.filter(status='present').count()
             staff_trend.append({
                 'date':                    str(day),
                 'tutor_attendance_rate':   round(t_pre / t_tot * 100, 2) if t_tot else 0,
@@ -892,12 +890,12 @@ class PrincipalDashboardView(APIView):
 class AralLevelProgressionView(APIView):
     """
     POST /api/academics/level-up/evaluate/
-    Evaluates student ARAL Level Progression based on MOSY, EOSY, and BOSY/EndLine assessment scores.
+    Evaluates student ARAL Level Progression based on MOSY, EOSY, and ARAL Summer Assessment scores.
     Rules:
     - Basic level: Takes MOSY score. If pass (>= 75%) -> Promoted to Plus. If fail -> Retains Basic.
     - Plus level: Takes EOSY score. If pass (>= 75%) -> Graduated. If fail -> Assigned to Summer.
     - Basic level (at EOSY): If fails EOSY -> Assigned to Summer.
-    - Summer level: Takes BOSY/EndLine score. If pass (>= 75%) -> Graduated. If fail -> Retains Summer.
+    - Summer level: Takes ARAL Summer Assessment score. If pass (>= 75%) -> Graduated. If fail -> Retains Summer.
     """
     permission_classes = [permissions.IsAuthenticated]
 

@@ -1,626 +1,709 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../../utils/analyticsHelpers';
 import {
-  ShieldAlert,
   AlertCircle,
-  CheckCircle,
-  TrendingUp,
-  Award,
-  BookOpen,
-  Calendar,
-  Layers,
   Smile,
   Meh,
   Frown,
-  CheckCircle2,
-  Clock,
-  ChevronRight,
-  Sparkles,
+  Info,
+  Users,
 } from 'lucide-react';
-import type { Attendance, Grade } from '../../types';
+import type { Attendance, Grade, User } from '../../types';
 import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
 
 /* ─── Types & Helpers ─────────────────────────────────────────── */
 
-type AnalyticsTab = 'overall' | 'attendance' | 'score';
 type TrendFilter = 'day' | 'week' | 'month';
 
-interface TrendPoint {
+interface RiskTrendPoint {
+  dateKey: string;
   label: string;
-  dateRange: string;
-  compositeValue: number;
-  attendanceValue: number;
-  scoreValue: number;
+  high: number;
+  medium: number;
+  low: number;
 }
 
-const smartPct = (n: number): string => {
-  const fixed2 = n.toFixed(2);
-  return parseFloat(fixed2).toString();
+interface PerformanceRow {
+  student: User;
+  aral_level: string;
+  attendanceRate: number;
+  scoreAvg: number;
+  compositeScore: number;
+  riskTier: string;
+}
+
+/** Show up to 2 decimal places but trim trailing zeros (100.00 → 100, 99.5 → 99.5) */
+const smartPct = (n: number): string => parseFloat(n.toFixed(2)).toString();
+
+const getTierCls = (tier: string) => {
+  switch (tier) {
+    case 'Low':
+      return 'badge-risk-low';
+    case 'Medium':
+      return 'badge-risk-medium';
+    default:
+      return 'badge-risk-high';
+  }
 };
 
-/* ─── Interactive Bézier Trend Chart ─────────────────────────── */
 
-const InteractiveStudentTrendChart: React.FC<{
-  data: TrendPoint[];
-  metric: 'composite' | 'attendance' | 'score';
-}> = ({ data, metric }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 260 });
+const getAttendanceRateCls = (rate: number) => {
+  if (rate >= 81) return 'text-risk-low text-emerald-600 dark:text-emerald-400 font-semibold';
+  if (rate >= 75) return 'text-risk-medium text-amber-600 dark:text-amber-400 font-semibold';
+  return 'text-risk-high text-rose-600 dark:text-rose-400 font-semibold';
+};
 
-  useEffect(() => {
-    const handleResize = () => {
-      if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.clientWidth,
-          height: Math.max(220, containerRef.current.clientHeight),
-        });
-      }
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+const getScoreAvgCls = (score: number) => {
+  if (score >= 81) return 'text-risk-low text-emerald-600 dark:text-emerald-400 font-semibold';
+  if (score >= 70) return 'text-risk-medium text-amber-600 dark:text-amber-400 font-semibold';
+  return 'text-risk-high text-rose-600 dark:text-rose-400 font-semibold';
+};
 
-  const padding = { top: 25, right: 30, bottom: 40, left: 45 };
-  const chartW = Math.max(100, dimensions.width - padding.left - padding.right);
-  const chartH = Math.max(100, dimensions.height - padding.top - padding.bottom);
+const getCompositeScoreCls = (tier: string) => {
+  if (tier === 'High') return 'text-risk-high text-rose-600 dark:text-rose-400 font-semibold';
+  if (tier === 'Medium') return 'text-risk-medium text-amber-600 dark:text-amber-400 font-semibold';
+  return 'text-risk-low text-emerald-600 dark:text-emerald-400 font-semibold';
+};
 
-  const getValue = (p: TrendPoint) => {
-    if (metric === 'attendance') return p.attendanceValue;
-    if (metric === 'score') return p.scoreValue;
-    return p.compositeValue;
-  };
+const RiskRangeInfo: React.FC<{ range: string }> = ({ range }) => (
+  <span className="group relative inline-flex">
+    <button
+      type="button"
+      aria-label={`Show ${range} risk range`}
+      className="cursor-pointer inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-400 opacity-80 transition hover:bg-black/5 hover:text-gray-600 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30"
+    >
+      <Info className="h-3.5 w-3.5" />
+    </button>
+    <span className="pointer-events-none absolute right-full top-1/2 z-20 mr-2 hidden -translate-y-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg group-hover:block group-focus-within:block">
+      {range}
+    </span>
+  </span>
+);
 
-  const points = useMemo(() => {
-    if (data.length === 0) return [];
-    const stepX = data.length > 1 ? chartW / (data.length - 1) : chartW / 2;
+const RiskCalculationInfo: React.FC = () => (
+  <span className="group relative inline-flex items-center gap-2 rounded-full transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/5">
+    <button
+      type="button"
+      aria-label="Show how risk is calculated"
+      className="cursor-pointer text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 outline-none"
+    >
+      HOW RISK LEVEL IS CALCULATED
+    </button>
+    <button
+      type="button"
+      aria-label="Show how risk is calculated"
+      className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-500 dark:text-slate-400 opacity-70 transition hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30"
+    >
+      <Info className="h-3.5 w-3.5" />
+    </button>
+    <span className="pointer-events-none absolute left-full top-1/2 z-20 ml-2 hidden w-max max-w-[calc(100vw-2rem)] -translate-y-1/2 rounded-lg bg-slate-900 px-3 py-1.5 text-left text-xs font-semibold leading-relaxed text-white shadow-lg group-hover:block group-focus-within:block">
+      Risk level is calculated from the composite score of a student. Composite Score = 40% (Attendance Rate) + 60% (Average Score)
+    </span>
+  </span>
+);
 
-    return data.map((d, i) => {
-      const val = Math.max(0, Math.min(100, getValue(d)));
-      const x = padding.left + (data.length > 1 ? i * stepX : chartW / 2);
-      const y = padding.top + chartH - (val / 100) * chartH;
-      return { x, y, data: d, val };
+/* ─── Risk Trend Builders & Stacked Bar Chart Component ───────────── */
+
+const buildRiskTrendPoints = (
+  students: User[],
+  grades: Grade[],
+  attendanceLogs: Attendance[],
+  filter: TrendFilter
+): RiskTrendPoint[] => {
+  const studentIds = new Set(students.map((student) => String(student.id)));
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayMs = 24 * 60 * 60 * 1000;
+  const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+  let periods: { start: Date; end: Date; label: string; dateKey: string }[];
+  if (filter === 'day') {
+    const schoolDays = getRecentSchoolWeekdays(10, now);
+    periods = schoolDays.map((d) => {
+      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
+      return { start, end, label: formatDate(start), dateKey: start.toISOString().slice(0, 10) };
     });
-  }, [data, chartW, chartH, padding.left, padding.top, metric]);
+  } else {
+    const periodCount = 6;
+    periods = Array.from({ length: periodCount }, (_, index) => {
+      const offset = periodCount - 1 - index;
+      let start: Date;
+      let end: Date;
+      let label: string;
+      if (filter === 'month') {
+        start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+        end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
+        label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+      } else {
+        const dayOfWeek = now.getDay();
+        const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const currentWeekMon = new Date(startOfToday.getTime() + diffToMon * dayMs);
+        start = new Date(currentWeekMon.getTime() - offset * 7 * dayMs);
+        const fri = new Date(start.getTime() + 4 * dayMs);
+        end = new Date(start.getTime() + 5 * dayMs);
+        label = `${formatDate(start)} – ${formatDate(fri)}`;
+      }
+      return { start, end, label, dateKey: start.toISOString().slice(0, 10) };
+    });
+  }
 
-  // Smooth SVG cubic Bézier path
-  const pathD = useMemo(() => {
-    if (points.length === 0) return '';
-    if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  const points = periods.map((period) => {
+    const periodGrades = grades.filter((grade) => (
+      studentIds.has(String(grade.student))
+      && (grade.date_logged || grade.created_at)
+      && new Date(`${(grade.date_logged || grade.created_at || '').slice(0, 10)}T00:00:00`) < period.end
+    ));
+    const periodAttendance = attendanceLogs.filter((log) => (
+      studentIds.has(String(log.user))
+      && log.date
+      && new Date(`${log.date.slice(0, 10)}T00:00:00`) < period.end
+    ));
+    if (periodGrades.length === 0 && periodAttendance.length === 0) return { period, point: null };
+    const snapshot = computeStudentRiskRows(students, periodGrades, periodAttendance);
+    return {
+      period,
+      point: {
+        dateKey: period.dateKey,
+        label: period.label,
+        high: snapshot.filter((row) => row.riskTier === 'High').length,
+        medium: snapshot.filter((row) => row.riskTier === 'Medium').length,
+        low: snapshot.filter((row) => row.riskTier === 'Low').length,
+      },
+    };
+  });
 
-    let d = `M ${points[0].x} ${points[0].y}`;
-    for (let i = 0; i < points.length - 1; i++) {
-      const p0 = i > 0 ? points[i - 1] : points[i];
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      const p3 = i !== points.length - 2 ? points[i + 2] : p2;
-
-      const cp1x = p1.x + (p2.x - p0.x) / 6;
-      const cp1y = p1.y + (p2.y - p0.y) / 6;
-      const cp2x = p2.x - (p3.x - p1.x) / 6;
-      const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-      d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+  const firstRecordedPoint = points.find(({ point }) => point !== null)?.point;
+  if (!firstRecordedPoint) {
+    const snapshot = computeStudentRiskRows(students, [], []);
+    const defaultPoint = {
+      high: snapshot.filter((row) => row.riskTier === 'High').length,
+      medium: snapshot.filter((row) => row.riskTier === 'Medium').length,
+      low: snapshot.filter((row) => row.riskTier === 'Low').length,
+    };
+    return periods.map((period) => ({
+      dateKey: period.dateKey,
+      label: period.label,
+      ...defaultPoint,
+    }));
+  }
+  let lastPoint = firstRecordedPoint;
+  return points.map(({ period, point }) => {
+    if (point) {
+      lastPoint = point;
+      return point;
     }
-    return d;
-  }, [points]);
+    return { dateKey: period.dateKey, label: period.label, high: lastPoint.high, medium: lastPoint.medium, low: lastPoint.low };
+  });
+};
 
-  // Area fill under curve
-  const areaD = useMemo(() => {
-    if (!pathD || points.length === 0) return '';
-    const bottomY = padding.top + chartH;
-    const firstX = points[0].x;
-    const lastX = points[points.length - 1].x;
-    return `${pathD} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
-  }, [pathD, points, padding.top, chartH]);
+const RiskTrendChart: React.FC<{
+  data: RiskTrendPoint[];
+  total: number;
+  isSingleStudent: boolean;
+  studentName?: string;
+}> = ({ data, total, isSingleStudent, studentName }) => {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const width = 800;
+  const height = 160;
+  const paddingLeft = 48;
+  const paddingRight = 6;
+  const paddingTop = 15;
+  const paddingBottom = 28;
+  const chartWidth = width - paddingLeft - paddingRight;
+  const chartHeight = height - paddingTop - paddingBottom;
+  const maxValue = isSingleStudent ? 1 : Math.max(5, Math.ceil(total / 5) * 5);
+  const axisSteps = isSingleStudent
+    ? [0, 1]
+    : Array.from({ length: maxValue / 5 + 1 }, (_, index) => index * 5);
+  const series = [
+    { key: 'high' as const, color: '#EF4444', label: 'High Risk' },
+    { key: 'medium' as const, color: '#F59E0B', label: 'Medium Risk' },
+    { key: 'low' as const, color: '#22C55E', label: 'Low Risk' },
+  ];
+  const barWidth = Math.max(18, Math.min(72, (chartWidth / data.length) * 0.65));
+  const getBarX = (index: number) => paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1 || 1);
 
-  const yTicks = [100, 75, 50, 25, 0];
+  if (data.length === 0) {
+    return (
+      <div className="flex h-52 items-center justify-center text-xs text-gray-400 dark:text-slate-500">
+        No risk trend data
+      </div>
+    );
+  }
 
   return (
-    <div ref={containerRef} className="relative w-full h-full min-h-[16rem] select-none">
-      <svg className="w-full h-full overflow-visible">
-        <defs>
-          <linearGradient id="studentChartGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="var(--brand)" stopOpacity="0.0" />
-          </linearGradient>
-        </defs>
-
-        {/* Grid lines & Y-axis labels */}
-        {yTicks.map((tick) => {
-          const y = padding.top + chartH - (tick / 100) * chartH;
+    <div className="relative select-none">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+        className="h-52 w-full overflow-visible"
+        role="img"
+        aria-label="Risk level trend chart"
+      >
+        {axisSteps.map((value) => {
+          const y = paddingTop + chartHeight - (value / maxValue) * chartHeight;
           return (
-            <g key={tick}>
+            <g key={value}>
               <line
-                x1={padding.left}
+                x1={paddingLeft}
                 y1={y}
-                x2={padding.left + chartW}
+                x2={width - paddingRight}
                 y2={y}
-                stroke="currentColor"
-                className="text-gray-100 dark:text-[#1F1F1F]"
-                strokeDasharray="4 4"
+                stroke="var(--slate-200)"
+                strokeWidth="0.5"
+                strokeDasharray="3 3"
+                opacity="0.6"
               />
               <text
-                x={padding.left - 10}
-                y={y + 4}
+                x={paddingLeft - 12}
+                y={y + 3}
                 textAnchor="end"
-                className="text-[10px] font-bold fill-gray-400 dark:fill-slate-500"
+                className="fill-slate-400 font-semibold text-[8px]"
               >
-                {tick}%
+                {value}
               </text>
             </g>
           );
         })}
-
-        {/* Area fill */}
-        {areaD && <path d={areaD} fill="url(#studentChartGrad)" />}
-
-        {/* Line curve */}
-        {pathD && (
-          <path
-            d={pathD}
-            fill="none"
-            stroke="var(--brand)"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        )}
-
-        {/* Data points */}
-        {points.map((p, idx) => {
-          const isHovered = hoveredIdx === idx;
-          return (
-            <g key={idx} className="cursor-pointer">
-              <circle
-                cx={p.x}
-                cy={p.y}
-                r={isHovered ? 6 : 4}
-                fill="var(--brand)"
-                stroke="#ffffff"
-                strokeWidth={isHovered ? 3 : 2}
-                className="transition-all duration-150 drop-shadow-sm"
+        {data.map((point, index) => {
+          const x = getBarX(index);
+          let currentBottom = paddingTop + chartHeight;
+          const bars = [...series].reverse().map((item) => {
+            const barHeight = (point[item.key] / maxValue) * chartHeight;
+            currentBottom -= barHeight;
+            return (
+              <rect
+                key={item.key}
+                x={x - barWidth / 2}
+                y={currentBottom}
+                width={barWidth}
+                height={barHeight}
+                fill={item.color}
+                fillOpacity="0.82"
+                stroke="white"
+                strokeWidth="1.25"
+                strokeOpacity="0.8"
               />
-              {/* Invisible large touch target */}
-              <circle
-                cx={p.x}
-                cy={p.y}
-                r={16}
+            );
+          });
+          return (
+            <g
+              key={point.dateKey}
+              onMouseEnter={() => setHoveredIdx(index)}
+              onMouseLeave={() => setHoveredIdx(null)}
+            >
+              <text x={x} y={height - 4} textAnchor="middle" className="fill-slate-500 font-semibold text-[8px]">
+                {point.label}
+              </text>
+              {bars}
+              <rect
+                x={x - barWidth / 2}
+                y={paddingTop}
+                width={barWidth}
+                height={chartHeight}
                 fill="transparent"
-                onMouseEnter={() => setHoveredIdx(idx)}
-                onMouseLeave={() => setHoveredIdx(null)}
+                className="cursor-pointer"
               />
             </g>
           );
         })}
-
-        {/* X-axis labels */}
-        {points.map((p, idx) => (
-          <text
-            key={`label-${idx}`}
-            x={p.x}
-            y={padding.top + chartH + 20}
-            textAnchor="middle"
-            className="text-[10px] font-semibold fill-gray-500 dark:fill-slate-400"
-          >
-            {p.data.label}
-          </text>
-        ))}
+        {hoveredIdx !== null && data[hoveredIdx] && (
+          <rect
+            x={getBarX(hoveredIdx) - barWidth / 2}
+            y={paddingTop}
+            width={barWidth}
+            height={chartHeight}
+            fill="none"
+            stroke="#0052B7"
+            strokeWidth="1.5"
+            opacity="0.8"
+          />
+        )}
       </svg>
+      {hoveredIdx !== null && data[hoveredIdx] && (() => {
+        const barX = getBarX(hoveredIdx);
+        const barLeftPct = ((barX - barWidth / 2) / width) * 100;
+        const barRightPct = ((barX + barWidth / 2) / width) * 100;
+        const isNearRight = barRightPct > 75;
+        const gapPx = 14;
 
-      {/* Floating Tooltip */}
-      {hoveredIdx !== null && points[hoveredIdx] && (
-        <div
-          className="absolute pointer-events-none z-20 px-3 py-2 rounded-xl bg-gray-900/95 dark:bg-black/95 text-white shadow-xl backdrop-blur-xs border border-gray-800 text-center transition-all duration-150 -translate-x-1/2 -translate-y-full"
-          style={{
-            left: `${points[hoveredIdx].x}px`,
-            top: `${points[hoveredIdx].y - 12}px`,
-          }}
-        >
-          <p className="text-[10px] font-medium text-gray-300">{points[hoveredIdx].data.dateRange}</p>
-          <p className="text-xs font-extrabold text-[var(--brand-glow)] mt-0.5">
-            {smartPct(points[hoveredIdx].val)}%
-          </p>
-        </div>
-      )}
+        return (
+          <div
+            className="pointer-events-none absolute z-10 min-w-[150px] max-w-[260px] rounded-xl border border-slate-700/50 bg-slate-900/95 p-3 text-left text-[11px] leading-normal text-white shadow-xl backdrop-blur-xs"
+            style={{
+              left: isNearRight ? `calc(${barLeftPct}% - ${gapPx}px)` : `calc(${barRightPct}% + ${gapPx}px)`,
+              top: '50%',
+              transform: isNearRight ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
+            }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-extrabold uppercase text-slate-300">{data[hoveredIdx].label}</span>
+              {isSingleStudent && studentName && (
+                <span className="text-[9.5px] font-semibold text-slate-300 truncate max-w-[140px]" title={studentName}>
+                  {studentName}
+                </span>
+              )}
+            </div>
+            {series.map((item) => (
+              <div key={item.key} className="mt-1 flex items-center justify-between gap-4">
+                <span style={{ color: item.color }}>{item.label}</span>
+                <span className="font-bold">{data[hoveredIdx][item.key]}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 };
 
-/* ─── Main Component ──────────────────────────────────────────── */
+/* ─── Main StudentAnalytics Component ─────────────────────────── */
 
 export const StudentAnalytics: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<AnalyticsTab>('overall');
   const [trendFilter, setTrendFilter] = useState<TrendFilter>('week');
   const [grades, setGrades] = useState<Grade[]>([]);
   const [attendanceLogs, setAttendanceLogs] = useState<Attendance[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load student records
+  // Fetch Student Records
+  const fetchStudentData = async () => {
+    if (!user) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [gradesData, attData] = await Promise.all([
+        academicService.getGrades({ student_id: String(user.id) }),
+        academicService.getAttendanceHistory({ user_id: user.id }),
+      ]);
+
+      const myGrades = Array.isArray(gradesData)
+        ? gradesData.filter((g) => String(g.student) === String(user.id))
+        : [];
+      const myAtt = Array.isArray(attData)
+        ? attData.filter((a) => String(a.user) === String(user.id))
+        : [];
+
+      setGrades(myGrades);
+      setAttendanceLogs(myAtt);
+    } catch (err: any) {
+      console.error('Failed to load student analytics:', err);
+      setError(err?.response?.data?.detail || 'Failed to load student analytics data.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let cancelled = false;
-    const loadData = async () => {
-      if (!user) return;
-      setLoading(true);
-      try {
-        const [gradesData, attData] = await Promise.all([
-          academicService.getGrades({ student_id: String(user.id) }),
-          academicService.getAttendanceHistory({ user_id: user.id }),
-        ]);
-
-        if (!cancelled) {
-          // Strict student isolation
-          const myGrades = gradesData.filter((g) => String(g.student) === String(user.id));
-          const myAtt = attData.filter((a) => String(a.user) === String(user.id));
-          setGrades(myGrades);
-          setAttendanceLogs(myAtt);
-        }
-      } catch (err) {
-        console.error('Failed to load student analytics:', err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    loadData();
-    return () => {
-      cancelled = true;
-    };
+    fetchStudentData();
   }, [user]);
 
-  // Compute student risk row using the stakeholder-validated formula
+  // Compute student risk row using the stakeholder-validated 30/50/20 formula
   const riskRow: StudentRiskRow | null = useMemo(() => {
     if (!user) return null;
     const rows = computeStudentRiskRows([user], grades, attendanceLogs);
     return rows[0] || null;
   }, [user, grades, attendanceLogs]);
 
-  // Dynamic Risk Card config matching StudentHome.tsx
   const studentRiskTier = riskRow?.riskTier || 'Low';
-  const riskConfig = useMemo(() => {
-    switch (studentRiskTier.toLowerCase()) {
-      case 'high':
-        return {
-          containerClass: 'risk-card-high border-risk-high',
-          iconColor: 'text-risk-high',
-          valueColor: 'text-risk-high',
-          text: 'HIGH',
-          Icon: ShieldAlert,
-        };
-      case 'medium':
-      case 'moderate':
-        return {
-          containerClass: 'risk-card-medium border-risk-medium',
-          iconColor: 'text-risk-medium',
-          valueColor: 'text-risk-medium',
-          text: 'MEDIUM',
-          Icon: AlertCircle,
-        };
-      case 'low':
-      default:
-        return {
-          containerClass: 'risk-card-low border-risk-low',
-          iconColor: 'text-risk-low',
-          valueColor: 'text-risk-low',
-          text: 'LOW',
-          Icon: CheckCircle,
-        };
-    }
-  }, [studentRiskTier]);
 
-  // Attendance metrics
-  const attendanceMetrics = useMemo(() => {
-    const total = attendanceLogs.length;
-    if (total === 0) return { rate: 100, present: 0, late: 0, absent: 0, total: 0 };
-    const present = attendanceLogs.filter((a) => a.status === 'present').length;
-    const late = attendanceLogs.filter((a) => a.status === 'late').length;
-    const absent = attendanceLogs.filter((a) => a.status === 'absent').length;
-    const rate = ((present + late) / total) * 100;
-    return { rate, present, late, absent, total };
-  }, [attendanceLogs]);
+  // ── Risk Trend Points Generation (Specific to this student) ─────────
 
-  // Score metrics
-  const scoreMetrics = useMemo(() => {
-    const total = grades.length;
-    if (total === 0) return { avg: 100, passed: 0, failed: 0, total: 0, activities: 0, milestones: 0 };
-    let sumPct = 0;
-    let passed = 0;
-    let activities = 0;
-    let milestones = 0;
+  const riskTrend = useMemo(() => {
+    if (!user) return [];
+    return buildRiskTrendPoints([user], grades, attendanceLogs, trendFilter);
+  }, [user, grades, attendanceLogs, trendFilter]);
 
-    grades.forEach((g) => {
-      const max = g.total_score || 100;
-      const pct = max > 0 ? (g.score / max) * 100 : 0;
-      sumPct += pct;
-      if (pct >= 70) passed++;
-      if (g.component_type === 'assessment' || (g as any).period) milestones++;
-      else activities++;
-    });
+  // ── Performance Details Table Rows ──────────────────────────────────
 
-    const avg = sumPct / total;
-    const failed = total - passed;
-    return { avg, passed, failed, total, activities, milestones };
-  }, [grades]);
-
-  // Trend points generation (Day / Week / Month)
-  const trendPoints: TrendPoint[] = useMemo(() => {
-    const now = new Date();
-    const dayMs = 24 * 60 * 60 * 1000;
-    const formatDate = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-
-    let periods: { start: Date; end: Date; label: string; dateRange: string }[];
-
-    if (trendFilter === 'day') {
-      const schoolDays = getRecentSchoolWeekdays(10, now);
-      periods = schoolDays.map((d) => {
-        const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-        const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
-        return { start, end, label: formatDate(start), dateRange: start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) };
-      });
-    } else if (trendFilter === 'month') {
-      const count = 6;
-      periods = Array.from({ length: count }, (_, idx) => {
-        const offset = count - 1 - idx;
-        const start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-        const end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
-        return {
-          start,
-          end,
-          label: start.toLocaleDateString(undefined, { month: 'short' }),
-          dateRange: start.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
-        };
-      });
-    } else {
-      // week
-      const count = 6;
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const dayOfWeek = now.getDay();
-      const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      const currentWeekMon = new Date(startOfToday.getTime() + diffToMon * dayMs);
-
-      periods = Array.from({ length: count }, (_, idx) => {
-        const offset = count - 1 - idx;
-        const start = new Date(currentWeekMon.getTime() - offset * 7 * dayMs);
-        const fri = new Date(start.getTime() + 4 * dayMs);
-        const end = new Date(start.getTime() + 5 * dayMs);
-        return {
-          start,
-          end,
-          label: `${formatDate(start)}`,
-          dateRange: `${formatDate(start)} – ${formatDate(fri)}`,
-        };
-      });
-    }
-
-    return periods.map((p) => {
-      // Filter attendance in period
-      const attInPeriod = attendanceLogs.filter((a) => {
-        if (!a.date) return false;
-        const d = new Date(`${a.date}T00:00:00`);
-        return d >= p.start && d < p.end;
-      });
-      const attRate =
-        attInPeriod.length > 0
-          ? (attInPeriod.filter((a) => a.status === 'present' || a.status === 'late').length / attInPeriod.length) * 100
-          : 100;
-
-      // Filter grades in period
-      const gradesInPeriod = grades.filter((g) => {
-        const dStr = g.date_logged || g.created_at;
-        if (!dStr) return false;
-        const d = new Date(dStr.slice(0, 10) + 'T00:00:00');
-        return d >= p.start && d < p.end;
-      });
-      const scoreRate =
-        gradesInPeriod.length > 0
-          ? gradesInPeriod.reduce((acc, g) => acc + (g.score / (g.total_score || 100)) * 100, 0) / gradesInPeriod.length
-          : 85;
-
-      const composite = attRate * 0.4 + scoreRate * 0.6;
-
-      return {
-        label: p.label,
-        dateRange: p.dateRange,
-        compositeValue: composite,
-        attendanceValue: attRate,
-        scoreValue: scoreRate,
-      };
-    });
-  }, [trendFilter, attendanceLogs, grades]);
+  const performanceRows: PerformanceRow[] = useMemo(() => {
+    if (!user || !riskRow) return [];
+    return [
+      {
+        student: user,
+        aral_level: user.aral_level || 'basic',
+        attendanceRate: riskRow.attendanceRate,
+        scoreAvg: riskRow.scoreAvg,
+        compositeScore: riskRow.compositeScore,
+        riskTier: riskRow.riskTier,
+      },
+    ];
+  }, [user, riskRow]);
 
   const studentFirstName = user?.first_name || user?.full_name?.trim().split(' ')[0] || 'Student';
 
-  if (loading) {
-    return (
-      <div className="space-y-6 skeleton-container">
-        {/* Tabs skeleton */}
-        <div className="flex bg-gray-100 dark:bg-[#111111] rounded-2xl p-1 w-fit gap-1 animate-pulse">
-          <div className="h-8 w-36 rounded-xl bg-gray-200 dark:bg-gray-800" />
-          <div className="h-8 w-36 rounded-xl bg-transparent" />
-          <div className="h-8 w-32 rounded-xl bg-transparent" />
-        </div>
+  // ── Loading Skeleton ────────────────────────────────────────────────
 
-        {/* 4 KPI Cards skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 skeleton-row-1">
-          {[1, 2, 3, 4].map((i) => (
+  if (isLoading) {
+    return (
+      <div
+        className="space-y-6 skeleton-container"
+        style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+      >
+        {/* 3 Summary KPI Cards Skeleton */}
+        <div className="grid gap-4 sm:grid-cols-3 skeleton-row-1">
+          {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="flex items-center gap-3.5 rounded-2xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 shadow-sm animate-pulse"
+              className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm min-h-[114px] flex items-center gap-4 animate-pulse"
             >
-              <div className="w-11 h-11 rounded-xl bg-gray-200 dark:bg-gray-800 shrink-0 border border-gray-100 dark:border-gray-800" />
+              <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-800 shrink-0" />
               <div className="flex-1 min-w-0">
-                <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
-                <div className="h-6 w-16 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-3 w-24 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
+                <div className="h-7 w-16 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-2.5 w-36 rounded bg-gray-100 dark:bg-gray-800/60 mt-2" />
               </div>
             </div>
           ))}
         </div>
 
-        {/* Trend Curve Card skeleton */}
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl p-6 shadow-sm flex flex-col min-h-[26rem] animate-pulse skeleton-row-2">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
-            <div>
-              <div className="h-4 w-64 rounded bg-gray-200 dark:bg-gray-800" />
-              <div className="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800/80 mt-1.5" />
+        {/* Chart Card Skeleton */}
+        <div className="w-full rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-6 shadow-sm animate-pulse skeleton-row-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <div className="space-y-1.5">
+              <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
-            <div className="h-8 w-36 rounded-xl bg-gray-100 dark:bg-gray-800" />
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-28 rounded-xl bg-gray-100 dark:bg-gray-800" />
+            </div>
           </div>
-          <div className="flex-1 mt-6 rounded-2xl bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] flex items-center justify-center">
-            <div className="w-12 h-12 rounded-full bg-gray-200/50 dark:bg-gray-800/50" />
+          <div className="mt-6">
+            <div className="h-52 w-full rounded-2xl bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A]" />
           </div>
         </div>
 
-        {/* Split Bottom cards skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 skeleton-row-3">
-          <div className="lg:col-span-6 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl p-6 shadow-sm space-y-4 animate-pulse">
-            <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
-            <div className="space-y-3 pt-2">
-              <div className="h-2.5 rounded bg-gray-100 dark:bg-gray-800 w-full" />
-              <div className="h-2.5 rounded bg-gray-100 dark:bg-gray-800 w-full" />
-              <div className="h-2.5 rounded bg-gray-100 dark:bg-gray-800 w-full" />
-            </div>
-          </div>
-          <div className="lg:col-span-6 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl p-6 shadow-sm space-y-4 animate-pulse">
-            <div className="h-4 w-40 rounded bg-gray-200 dark:bg-gray-800" />
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              {[1, 2, 3, 4].map((k) => (
-                <div key={k} className="h-16 rounded-2xl bg-gray-100 dark:bg-gray-800/70" />
-              ))}
-            </div>
+        {/* Bottom Table Skeleton */}
+        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl p-6 shadow-sm space-y-4 animate-pulse">
+          <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
+          <div className="space-y-3 pt-2">
+            {[1, 2, 3].map((k) => (
+              <div key={k} className="h-12 rounded-2xl bg-gray-100 dark:bg-gray-800/70" />
+            ))}
           </div>
         </div>
       </div>
     );
   }
 
+  // ── Error View ──────────────────────────────────────────────────────
+
+  if (error) {
+    return (
+      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm">
+        <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-bold">Failed to load analytics</p>
+          <p className="text-xs mt-0.5 text-rose-700 dark:text-rose-300">{error}</p>
+          <button
+            type="button"
+            onClick={fetchStudentData}
+            className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {/* ── Tabs Navigation ─────────────────────────────────────────── */}
-      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-2xl p-1 w-fit gap-1 shadow-2xs">
-        <button
-          type="button"
-          onClick={() => setActiveTab('overall')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-            activeTab === 'overall'
-              ? 'bg-white dark:bg-[#1C1C1C] text-gray-900 dark:text-slate-100 shadow-sm'
-              : 'text-gray-500 hover:text-gray-800 dark:hover:text-slate-200'
-          }`}
-        >
-          Overall Performance
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('attendance')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-            activeTab === 'attendance'
-              ? 'bg-white dark:bg-[#1C1C1C] text-gray-900 dark:text-slate-100 shadow-sm'
-              : 'text-gray-500 hover:text-gray-800 dark:hover:text-slate-200'
-          }`}
-        >
-          Attendance Analytics
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('score')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-            activeTab === 'score'
-              ? 'bg-white dark:bg-[#1C1C1C] text-gray-900 dark:text-slate-100 shadow-sm'
-              : 'text-gray-500 hover:text-gray-800 dark:hover:text-slate-200'
-          }`}
-        >
-          Score Analytics
-        </button>
-      </div>
-
-      {/* ── Top KPI Stat Cards ─────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Composite Rating */}
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
-          <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-[var(--brand)] dark:text-sky-400 flex items-center justify-center shrink-0">
-            <TrendingUp className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">Composite Rating</p>
-            <p className="text-xl font-extrabold text-[var(--brand)] dark:text-sky-400 mt-0.5">
-              {riskRow ? `${smartPct(riskRow.compositeScore)}%` : '—'}
-            </p>
-          </div>
-        </div>
-
-        {/* Attendance Consistency */}
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
-          <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">Attendance Rate</p>
-            <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
-              {smartPct(attendanceMetrics.rate)}%
-            </p>
-          </div>
-        </div>
-
-        {/* Score Average */}
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
-          <div className="w-11 h-11 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-            <Award className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">Average Score</p>
-            <p className="text-xl font-extrabold text-purple-600 dark:text-purple-400 mt-0.5">
-              {smartPct(scoreMetrics.avg)}%
-            </p>
-          </div>
-        </div>
-
-        {/* Dynamic Risk Level */}
+    <div
+      className="space-y-6 data-loaded-content"
+      style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+    >
+      {/* ── 3 Risk Level Summary Cards (Active is colored, others inactive gray) ── */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        {/* 1. HIGH RISK CARD */}
         <div
-          className={`border rounded-2xl p-4 flex items-center gap-3.5 shadow-sm transition-all duration-300 ${riskConfig.containerClass}`}
+          className={`relative rounded-3xl border p-5 shadow-sm min-h-[114px] flex items-center gap-4 transition-all duration-300 ${
+            studentRiskTier === 'High'
+              ? 'risk-card-high'
+              : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#0A0A0A] opacity-60'
+          }`}
         >
-          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${riskConfig.iconColor}`}>
-            <riskConfig.Icon className="w-6 h-6" />
+          <div className="absolute right-4 top-4">
+            <RiskRangeInfo range="Composite score is below 70%" />
           </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
-              {studentFirstName}'s Risk Level
+          <div
+            className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${
+              studentRiskTier === 'High'
+                ? 'risk-badge-high'
+                : 'bg-gray-100 dark:bg-[#1A1A1A] border-gray-200 dark:border-[#262626]'
+            }`}
+          >
+            <Frown
+              className={`w-5 h-5 ${
+                studentRiskTier === 'High'
+                  ? 'text-risk-high'
+                  : 'text-gray-400 dark:text-slate-500'
+              }`}
+            />
+          </div>
+          <div className="min-w-0">
+            {studentRiskTier === 'High' && (
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-white truncate">
+                {studentFirstName}'S RISK LEVEL
+              </p>
+            )}
+            <p
+              className={`text-2xl font-extrabold mt-0.5 ${
+                studentRiskTier === 'High'
+                  ? 'text-risk-high'
+                  : 'text-gray-400 dark:text-slate-500'
+              }`}
+            >
+              HIGH RISK
             </p>
-            <p className={`text-xl font-extrabold mt-0.5 ${riskConfig.valueColor}`}>
-              {riskConfig.text}
+            <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-300">
+              Students needing immediate intervention
+            </p>
+          </div>
+        </div>
+
+        {/* 2. MEDIUM RISK CARD */}
+        <div
+          className={`relative rounded-3xl border p-5 shadow-sm min-h-[114px] flex items-center gap-4 transition-all duration-300 ${
+            studentRiskTier === 'Medium'
+              ? 'risk-card-medium'
+              : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#0A0A0A] opacity-60'
+          }`}
+        >
+          <div className="absolute right-4 top-4">
+            <RiskRangeInfo range="Composite score is between 70% to 85%" />
+          </div>
+          <div
+            className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${
+              studentRiskTier === 'Medium'
+                ? 'risk-badge-medium'
+                : 'bg-gray-100 dark:bg-[#1A1A1A] border-gray-200 dark:border-[#262626]'
+            }`}
+          >
+            <Meh
+              className={`w-5 h-5 ${
+                studentRiskTier === 'Medium'
+                  ? 'text-risk-medium'
+                  : 'text-gray-400 dark:text-slate-500'
+              }`}
+            />
+          </div>
+          <div className="min-w-0">
+            {studentRiskTier === 'Medium' && (
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-white truncate">
+                {studentFirstName}'S RISK LEVEL
+              </p>
+            )}
+            <p
+              className={`text-2xl font-extrabold mt-0.5 ${
+                studentRiskTier === 'Medium'
+                  ? 'text-risk-medium'
+                  : 'text-gray-400 dark:text-slate-500'
+              }`}
+            >
+              MEDIUM RISK
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-300">
+              Students requiring monitoring
+            </p>
+          </div>
+        </div>
+
+        {/* 3. LOW RISK CARD */}
+        <div
+          className={`relative rounded-3xl border p-5 shadow-sm min-h-[114px] flex items-center gap-4 transition-all duration-300 ${
+            studentRiskTier === 'Low'
+              ? 'risk-card-low'
+              : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#0A0A0A] opacity-60'
+          }`}
+        >
+          <div className="absolute right-4 top-4">
+            <RiskRangeInfo range="Composite score is between 86% to 100%" />
+          </div>
+          <div
+            className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${
+              studentRiskTier === 'Low'
+                ? 'risk-badge-low'
+                : 'bg-gray-100 dark:bg-[#1A1A1A] border-gray-200 dark:border-[#262626]'
+            }`}
+          >
+            <Smile
+              className={`w-5 h-5 ${
+                studentRiskTier === 'Low'
+                  ? 'text-risk-low'
+                  : 'text-gray-400 dark:text-slate-500'
+              }`}
+            />
+          </div>
+          <div className="min-w-0">
+            {studentRiskTier === 'Low' && (
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-white truncate">
+                {studentFirstName}'S RISK LEVEL
+              </p>
+            )}
+            <p
+              className={`text-2xl font-extrabold mt-0.5 ${
+                studentRiskTier === 'Low'
+                  ? 'text-risk-low'
+                  : 'text-gray-400 dark:text-slate-500'
+              }`}
+            >
+              LOW RISK
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-300">
+              Students performing well
             </p>
           </div>
         </div>
       </div>
 
-      {/* ── Interactive Trend Curve ────────────────────────────────── */}
-      <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl p-6 shadow-sm flex flex-col min-h-[26rem]">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+      {/* ── Risk Level Trend Chart ── */}
+      <section
+        className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]"
+        aria-labelledby="risk-overview-heading"
+      >
+        <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
           <div>
-            <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
-              {activeTab === 'overall'
-                ? `${studentFirstName}'S PERFORMANCE TREND CHART`
-                : activeTab === 'attendance'
-                ? 'Attendance Consistency Trend'
-                : 'Assessment Score Trend'}
+            <h3
+              id="risk-overview-heading"
+              className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100"
+            >
+              RISK LEVEL TREND CHART
             </h3>
-            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-              {trendFilter === 'day' ? 'Daily School Weekdays' : trendFilter === 'month' ? 'Monthly Timeline' : 'Weekly Periods'}
-            </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-1 gap-0.5">
-              {(['day', 'week', 'month'] as const).map((filter) => (
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#EF4444' }} />
+                High Risk
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#F59E0B' }} />
+                Medium Risk
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#22C55E' }} />
+                Low Risk
+              </span>
+            </div>
+            <div
+              className="flex items-center gap-1 rounded-xl bg-gray-100 p-0.5 dark:bg-[#111111]"
+              role="group"
+              aria-label="Filter risk chart by time period"
+            >
+              {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                 <button
                   key={filter}
                   type="button"
                   onClick={() => setTrendFilter(filter)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition cursor-pointer ${
+                  className={`cursor-pointer rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${
                     trendFilter === filter
                       ? 'bg-[var(--brand)] text-white shadow-sm'
-                      : 'text-gray-500 hover:text-gray-800 dark:hover:text-slate-200'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                   }`}
                 >
                   {filter}
@@ -630,169 +713,84 @@ export const StudentAnalytics: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 mt-4">
-          <InteractiveStudentTrendChart
-            data={trendPoints}
-            metric={activeTab === 'overall' ? 'composite' : activeTab === 'attendance' ? 'attendance' : 'score'}
-          />
+        <div className="mt-6">
+          <div className="relative rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+            <RiskTrendChart
+              data={riskTrend}
+              total={1}
+              isSingleStudent={true}
+              studentName={user?.full_name || studentFirstName}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Student Performance Details Table (Replaces Component Weights) ── */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 px-1 pb-1 text-xs text-gray-500" style={{ fontFamily: 'var(--font-body)' }}>
+          <RiskCalculationInfo />
+        </div>
+        <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 uppercase">
+              {studentFirstName}'S PERFORMANCE DETAILS
+            </h3>
+          </div>
+
+          {performanceRows.length === 0 ? (
+            <div className="py-16 text-center space-y-2">
+              <Users className="w-10 h-10 mx-auto text-gray-200 dark:text-gray-700" />
+              <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No records found</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-[900px] divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal w-full" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                <thead>
+                  <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">STUDENT</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">AVERAGE ATTENDANCE RATE</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">AVERAGE SCORE</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">COMPOSITE SCORE</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">RISK LEVEL</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+                  {performanceRows.map((row) => (
+                    <tr key={row.student.id} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5">
+                      <td className="px-4 py-3.5 align-middle">
+                        <div>
+                          <div className="font-semibold text-gray-900 dark:text-slate-100">{row.student.full_name}</div>
+                          <div className="text-xs text-gray-400 dark:text-slate-500 font-mono">LRN: {row.student.lrn || 'N/A'}</div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 align-middle">
+                        <span className={`text-sm font-normal ${getAttendanceRateCls(row.attendanceRate)}`}>
+                          {smartPct(row.attendanceRate)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 align-middle">
+                        <span className={`text-sm font-normal ${getScoreAvgCls(row.scoreAvg)}`}>
+                          {smartPct(row.scoreAvg)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 align-middle">
+                        <span className={`text-sm font-normal ${getCompositeScoreCls(row.riskTier)}`}>
+                          {smartPct(row.compositeScore)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 align-middle">
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold border ${getTierCls(row.riskTier)}`}>
+                          {row.riskTier}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* ── Tab Specific Content ───────────────────────────────────── */}
-      {activeTab === 'overall' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Academic Weight Contribution (Stakeholder Validated 30/50/20 Breakdown) */}
-          <div className="lg:col-span-6 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl p-6 shadow-sm">
-            <div className="flex items-center justify-between pb-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-              <h4 className="text-sm font-bold text-gray-900 dark:text-slate-100">Evaluation Component Weights</h4>
-              <span className="text-xs font-semibold text-[var(--brand)] dark:text-sky-400">ARAL Standard</span>
-            </div>
-
-            <div className="mt-5 space-y-4">
-              {/* Quarterly Assessment: 50% */}
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="font-bold text-gray-700 dark:text-slate-300">Quarterly Assessment (BOSY/MOSY/EOSY)</span>
-                  <span className="font-extrabold text-[var(--brand)]">50% Weight</span>
-                </div>
-                <div className="h-2.5 w-full bg-gray-100 dark:bg-[#1A1A1A] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[var(--brand)] rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, scoreMetrics.avg)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Weekly Tasks: 30% */}
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="font-bold text-gray-700 dark:text-slate-300">Weekly Activities & Tasks</span>
-                  <span className="font-extrabold text-sky-500">30% Weight</span>
-                </div>
-                <div className="h-2.5 w-full bg-gray-100 dark:bg-[#1A1A1A] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-sky-500 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, scoreMetrics.avg)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Attendance: 20% */}
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="font-bold text-gray-700 dark:text-slate-300">Attendance & Participation</span>
-                  <span className="font-extrabold text-emerald-500">20% Weight</span>
-                </div>
-                <div className="h-2.5 w-full bg-gray-100 dark:bg-[#1A1A1A] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, attendanceMetrics.rate)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-5 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
-              Your composite score is computed using the validated 30% weekly tasks, 50% quarterly milestones, and 20% attendance model.
-            </p>
-          </div>
-
-          {/* Academic Profile & Summary */}
-          <div className="lg:col-span-6 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl p-6 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between pb-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-                <h4 className="text-sm font-bold text-gray-900 dark:text-slate-100">Learning Summary</h4>
-                <span className="text-xs font-semibold text-gray-400 dark:text-slate-500">Current Academic Year</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 mt-4">
-                <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A]">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">ARAL Level</p>
-                  <p className="text-sm font-extrabold text-gray-900 dark:text-slate-100 mt-0.5 capitalize">
-                    {user?.aral_level || 'Basic'}
-                  </p>
-                </div>
-                <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A]">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">Assigned Subject</p>
-                  <p className="text-sm font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">
-                    {user?.subject || 'Reading'}
-                  </p>
-                </div>
-                <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A]">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">Total Scans</p>
-                  <p className="text-sm font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">
-                    {attendanceMetrics.total} Sessions
-                  </p>
-                </div>
-                <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A]">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">Tests Completed</p>
-                  <p className="text-sm font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">
-                    {scoreMetrics.total} Items
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-gray-100 dark:border-[#1A1A1A] flex items-center justify-between text-xs text-gray-400 dark:text-slate-500">
-              <span>LRN: {user?.lrn || '—'}</span>
-              <span>Keep up the consistent effort!</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'attendance' && (
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl p-6 shadow-sm">
-          <div className="flex items-center justify-between pb-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-            <h4 className="text-sm font-bold text-gray-900 dark:text-slate-100">Attendance Logged Breakdown</h4>
-            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              {attendanceMetrics.present} of {attendanceMetrics.total} Present
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-            <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40">
-              <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">Present</p>
-              <p className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-400 mt-1">{attendanceMetrics.present}</p>
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-500 mt-0.5">On time arrivals</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40">
-              <p className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">Late</p>
-              <p className="text-2xl font-extrabold text-amber-700 dark:text-amber-400 mt-1">{attendanceMetrics.late}</p>
-              <p className="text-[11px] text-amber-600 dark:text-amber-500 mt-0.5">Arrivals after schedule</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/40">
-              <p className="text-xs font-bold text-rose-800 dark:text-rose-300 uppercase tracking-wider">Absent</p>
-              <p className="text-2xl font-extrabold text-rose-700 dark:text-rose-400 mt-1">{attendanceMetrics.absent}</p>
-              <p className="text-[11px] text-rose-600 dark:text-rose-500 mt-0.5">Unexcused missed sessions</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'score' && (
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl p-6 shadow-sm">
-          <div className="flex items-center justify-between pb-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-            <h4 className="text-sm font-bold text-gray-900 dark:text-slate-100">Assessment Mastery Breakdown</h4>
-            <span className="text-xs font-semibold text-purple-600 dark:text-purple-400">
-              {scoreMetrics.passed} of {scoreMetrics.total} Passed
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-            <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40">
-              <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">Passed (70%+)</p>
-              <p className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-400 mt-1">{scoreMetrics.passed}</p>
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-500 mt-0.5">Met ARAL mastery benchmark</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/40">
-              <p className="text-xs font-bold text-rose-800 dark:text-rose-300 uppercase tracking-wider">Needs Support (&lt;70%)</p>
-              <p className="text-2xl font-extrabold text-rose-700 dark:text-rose-400 mt-1">{scoreMetrics.failed}</p>
-              <p className="text-[11px] text-rose-600 dark:text-rose-500 mt-0.5">Benefiting from tutor guidance</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

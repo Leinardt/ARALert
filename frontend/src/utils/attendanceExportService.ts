@@ -47,25 +47,71 @@ const getExcelColumnLetter = (colNum: number): string => {
   return letter;
 };
 
+export const formatAttendanceDateHeader = (dateKey?: string, dayNum?: number | string): string => {
+  if (dateKey) {
+    const parts = dateKey.split('-');
+    if (parts.length === 3) {
+      const [y, m, day] = parts;
+      return `${m.padStart(2, '0')}/${day.padStart(2, '0')}/${y}`;
+    }
+  }
+  if (dayNum !== undefined && dayNum !== null) {
+    const str = String(dayNum);
+    if (str.includes('/')) return str;
+  }
+  return String(dayNum || '');
+};
+
+/**
+ * Builds the standardised attendance export filename.
+ * Format: ATTENDANCE_SHEET_{GRADE_SECTION}_{DATE_OR_RANGE}_{PAPERSIZE}.{ext}
+ * e.g.   ATTENDANCE_SHEET_GRADE-8-MANGO_09_15_2026-09_19_2026_LETTER.xlsx
+ */
+export const buildAttendanceFilename = (
+  data: Pick<AttendanceExportData, 'gradeSection' | 'dateStr' | 'paperSize'>,
+  ext: 'xlsx' | 'docx' | 'pdf'
+): string => {
+  // Normalise grade-section: uppercase, collapse whitespace → hyphens
+  const section = (data.gradeSection || 'CLASS')
+    .toUpperCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^A-Z0-9_\-]/g, '');
+
+  // Normalise date/date-range:
+  //   "09/15/2026"                   → "09_15_2026"
+  //   "09/15/2026 - 09/19/2026"      → "09_15_2026-09_19_2026"
+  const date = (data.dateStr || 'DATE')
+    .trim()
+    .replace(/\s*-\s*/g, '-') // collapse " - " to "-"
+    .replace(/\//g, '_');     // replace "/" with "_"
+
+  const paperLabel =
+    data.paperSize === 'folio' ? 'LONG' :
+    data.paperSize === 'letter' ? 'SHORT' : 'A4';
+
+  return `ATTENDANCE_SHEET_${section}_${date}_${paperLabel}.${ext}`;
+};
+
 export const exportAttendanceToExcel = async (data: AttendanceExportData) => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Student Attendance Record');
 
-  // Page setup with formal academic margins (1.0 inch / 25.4 mm on all sides)
+  // Page setup with calibrated margins and 1-page fit
   const paperCode: any = data.paperSize === 'letter' ? 1 : data.paperSize === 'folio' ? 14 : 9;
   worksheet.pageSetup = {
     orientation: 'portrait',
     paperSize: paperCode,
     fitToPage: true,
     fitToWidth: 1,
-    fitToHeight: 0,
+    fitToHeight: data.students.length > 25 ? 0 : 1,
     margins: {
-      left: 1.0,
-      right: 1.0,
-      top: 1.0,
-      bottom: 1.0,
-      header: 0.5,
-      footer: 0.5,
+      left: 0.4,
+      right: 0.4,
+      top: 0.5,
+      bottom: 0.4,
+      header: 0.2,
+      footer: 0.2,
     },
   };
 
@@ -327,110 +373,66 @@ export const exportAttendanceToExcel = async (data: AttendanceExportData) => {
   const row11 = worksheet.getRow(11);
   row11.height = 14;
 
-  // 12 & 13. Table Headers
-  // # Column (Row 12:13 merged)
-  worksheet.mergeCells('A12:A13');
+  // 12. Table Headers (Single clean row, no redundant date range row)
+  const row12 = worksheet.getRow(12);
+  row12.height = 22;
+
+  // # Column
   const cellA12 = worksheet.getCell('A12');
   cellA12.value = '#';
   cellA12.alignment = { horizontal: 'center', vertical: 'middle' };
   cellA12.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
   cellA12.border = tableBorder;
   cellA12.fill = headerFill;
-  worksheet.getCell('A13').border = tableBorder;
-  worksheet.getCell('A13').fill = headerFill;
 
-  // NAME OF THE STUDENTS (Row 12:13 merged)
-  worksheet.mergeCells('B12:B13');
+  // NAME OF THE STUDENTS
   const cellB12 = worksheet.getCell('B12');
   cellB12.value = 'NAME OF THE STUDENTS';
   cellB12.alignment = { horizontal: 'left', vertical: 'middle' };
   cellB12.font = { name: fontMain, size: 10, bold: true, color: colorSlate900 };
   cellB12.border = tableBorder;
   cellB12.fill = headerFill;
-  worksheet.getCell('B13').border = tableBorder;
-  worksheet.getCell('B13').fill = headerFill;
 
-  if (totalDayCols === 1) {
-    // Daily mode: Single merged cell for date (Row 12:13 merged)
-    worksheet.mergeCells('C12:C13');
-    const dCell = worksheet.getCell('C12');
-    dCell.value = data.weeks[0]?.label || 'DATE';
-    dCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    dCell.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
-    dCell.border = tableBorder;
-    dCell.fill = headerFill;
-    worksheet.getCell('C13').border = tableBorder;
-    worksheet.getCell('C13').fill = headerFill;
-  } else {
-    // Multi-week / multi-day: Week Date Ranges on Row 12
-    let currentDayCol = 3;
-    data.weeks.forEach((week) => {
-      const startColLetter = getExcelColumnLetter(currentDayCol);
-      const endColLetter = getExcelColumnLetter(currentDayCol + week.days.length - 1);
-      worksheet.mergeCells(`${startColLetter}12:${endColLetter}12`);
-      const wCell = worksheet.getCell(`${startColLetter}12`);
-      wCell.value = week.label;
-      wCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      wCell.font = { name: fontMain, size: 9, bold: true, color: colorSlate900 };
-      wCell.fill = headerFill;
+  // Day columns
+  let dayColIndex = 3;
+  allDays.forEach((day) => {
+    const colLetter = getExcelColumnLetter(dayColIndex);
+    const cell = worksheet.getCell(`${colLetter}12`);
+    cell.value = totalDayCols <= 1 ? formatAttendanceDateHeader(day.dateKey, day.dayNum) : (Number(day.dayNum) || day.dayNum);
+    cell.font = { name: fontMain, size: totalDayCols > 5 ? 7.5 : 9, bold: true, color: colorSlate900 };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.border = tableBorder;
+    cell.fill = headerFill;
+    dayColIndex++;
+  });
 
-      for (let c = currentDayCol; c < currentDayCol + week.days.length; c++) {
-        const cLetter = getExcelColumnLetter(c);
-        worksheet.getCell(`${cLetter}12`).border = tableBorder;
-        worksheet.getCell(`${cLetter}12`).fill = headerFill;
-      }
-      currentDayCol += week.days.length;
-    });
-
-    // Row 13: Normal Upright Day Numbers
-    const row13 = worksheet.getRow(13);
-    row13.height = 20;
-
-    let dayColIndex = 3;
-    allDays.forEach((day) => {
-      const colLetter = getExcelColumnLetter(dayColIndex);
-      const cell = worksheet.getCell(`${colLetter}13`);
-      cell.value = Number(day.dayNum) || day.dayNum;
-      cell.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.border = tableBorder;
-      cell.fill = whiteFill;
-      dayColIndex++;
-    });
-  }
-
-  // SIGNATURE (Row 12:13 merged)
-  worksheet.mergeCells(`${lastColLetter}12:${lastColLetter}13`);
+  // SIGNATURE Column
   const sigCell12 = worksheet.getCell(`${lastColLetter}12`);
   sigCell12.value = 'SIGNATURE';
   sigCell12.alignment = { horizontal: 'center', vertical: 'middle' };
   sigCell12.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
   sigCell12.border = tableBorder;
   sigCell12.fill = headerFill;
-  worksheet.getCell(`${lastColLetter}13`).border = tableBorder;
-  worksheet.getCell(`${lastColLetter}13`).fill = headerFill;
 
-  worksheet.getRow(12).height = 20;
-  worksheet.getRow(13).height = 18;
-
-  // 14. Student Rows
-  let currentRow = 14;
+  // 13. Student Rows
+  let currentRow = 13;
+  const totalStudents = Math.max(data.students.length, 1);
   data.students.forEach((student, index) => {
     const sRow = worksheet.getRow(currentRow);
-    sRow.height = 19;
+    sRow.height = totalStudents > 22 ? 17 : 18.5;
 
     // Index
     const cIdx = worksheet.getCell(`A${currentRow}`);
     cIdx.value = index + 1;
     cIdx.alignment = { horizontal: 'center', vertical: 'middle' };
-    cIdx.font = { name: fontMain, size: 9.5, color: colorSlate900 };
+    cIdx.font = { name: fontMain, size: totalStudents > 22 ? 8.5 : 9.5, color: colorSlate900 };
     cIdx.border = tableBorder;
 
     // Student Name (Single line, uppercase, bold matching preview)
     const cName = worksheet.getCell(`B${currentRow}`);
     cName.value = student.name.toUpperCase();
     cName.alignment = { horizontal: 'left', vertical: 'middle', wrapText: false };
-    cName.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
+    cName.font = { name: fontMain, size: totalStudents > 22 ? 8.5 : 9.5, bold: true, color: colorSlate900 };
     cName.border = tableBorder;
 
     // Day Cells
@@ -439,15 +441,9 @@ export const exportAttendanceToExcel = async (data: AttendanceExportData) => {
       const cDay = worksheet.getCell(`${colLetter}${currentRow}`);
       const rawStatus = student.statusByDate[day.dateKey] || '';
 
-      if (rawStatus === 'P') {
+      if (rawStatus === 'P' || rawStatus === 'present') {
         cDay.value = '/';
-        cDay.font = { name: fontMain, size: 10.5, bold: true, color: { argb: 'FF047857' } }; // emerald-700
-      } else if (rawStatus === 'L') {
-        cDay.value = '/';
-        cDay.font = { name: fontMain, size: 10.5, bold: true, color: { argb: 'FFB45309' } }; // amber-700
-      } else if (rawStatus === 'A') {
-        cDay.value = 'X';
-        cDay.font = { name: fontMain, size: 10, bold: true, color: { argb: 'FFBE123C' } }; // rose-700
+        cDay.font = { name: fontMain, size: 10.5, bold: true, color: colorSlate900 };
       } else {
         cDay.value = '';
       }
@@ -583,7 +579,7 @@ export const exportAttendanceToExcel = async (data: AttendanceExportData) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  const fileName = `Student_Attendance_Register_${data.gradeSection.replace(/\s+/g, '_')}_${data.dateStr.replace(/[\/\s:]/g, '_')}.xlsx`;
+  const fileName = buildAttendanceFilename(data, 'xlsx');
   link.setAttribute('download', fileName);
   document.body.appendChild(link);
   link.click();

@@ -28,12 +28,16 @@ interface AuditResponse {
 // ── Action badge styles ────────────────────────────────────────────────────────
 const ACTION_META: Record<string, { color: string; bg: string; border: string; icon: React.ReactNode; category: string }> = {
   LOGIN_SUCCESS:                        { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <LogIn size={12} />,       category: 'auth' },
+  GOOGLE_LOGIN_SUCCESS:                 { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <LogIn size={12} />,       category: 'auth' },
   STUDENT_LOGIN_SUCCESS:                { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <LogIn size={12} />,       category: 'auth' },
   LOGOUT_SUCCESS:                       { color: '#1E40AF', bg: '#EFF6FF', border: '#BFDBFE', icon: <LogOut size={12} />,      category: 'auth' },
   LOGIN_FAILED:                         { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={12}/>, category: 'security' },
   STUDENT_LOGIN_FAILED:                 { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={12}/>, category: 'security' },
+  GOOGLE_LOGIN_INVALID_TOKEN:           { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={12}/>, category: 'security' },
+  GOOGLE_LOGIN_UNREGISTERED_EMAIL:      { color: '#92400E', bg: '#FEF3C7', border: '#FDE68A', icon: <AlertTriangle size={12}/>, category: 'security' },
   LOGIN_RATE_LIMITED:                   { color: '#92400E', bg: '#FEF3C7', border: '#FDE68A', icon: <AlertTriangle size={12}/>, category: 'security' },
   STUDENT_LOGIN_RATE_LIMITED:           { color: '#92400E', bg: '#FEF3C7', border: '#FDE68A', icon: <AlertTriangle size={12}/>, category: 'security' },
+  GOOGLE_LOGIN_RATE_LIMITED:            { color: '#92400E', bg: '#FEF3C7', border: '#FDE68A', icon: <AlertTriangle size={12}/>, category: 'security' },
   LOGIN_MFA_CHALLENGE_ISSUED:           { color: '#1E40AF', bg: '#EFF6FF', border: '#BFDBFE', icon: <Shield size={12} />,      category: 'auth' },
   MFA_OTP_SUCCESS:                      { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <Shield size={12} />,      category: 'auth' },
   MFA_OTP_FAILED:                       { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={12}/>, category: 'security' },
@@ -50,6 +54,12 @@ const ACTION_META: Record<string, { color: string; bg: string; border: string; i
   USER_UPDATED:                         { color: '#1E40AF', bg: '#EFF6FF', border: '#BFDBFE', icon: <UserCog size={12} />,     category: 'admin' },
   USER_DEACTIVATED:                     { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <UserCog size={12} />,     category: 'admin' },
   USER_ACTIVATED:                       { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <UserCog size={12} />,     category: 'admin' },
+  BULK_TUTOR_ASSIGNED:                  { color: '#0284C7', bg: '#F0F9FF', border: '#BAE6FD', icon: <UserCog size={12} />,     category: 'admin' },
+  STUDENT_EDIT_REQUEST_CREATED:         { color: '#D97706', bg: '#FFFBEB', border: '#FDE68A', icon: <UserCog size={12} />,     category: 'admin' },
+  STUDENT_EDIT_REQUEST_APPROVED:        { color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', icon: <CheckCircle2 size={12}/>, category: 'admin' },
+  STUDENT_EDIT_REQUEST_REJECTED:        { color: '#DC2626', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={12}/>, category: 'admin' },
+  ALLOWED_EMAIL_ADDED:                  { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <CheckCircle2 size={12}/>, category: 'admin' },
+  ALLOWED_EMAIL_REMOVED:                { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={12}/>, category: 'admin' },
 };
 
 const getMeta = (action: string) =>
@@ -155,10 +165,10 @@ export const AuditLog: React.FC = () => {
             </div>
             <div>
               <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                Audit Trail
+                Audit Log
               </h1>
               <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                {data ? `${data.count.toLocaleString()} total security events recorded` : 'Tamper-evident log of all system events'}
+                {data ? `${data.count.toLocaleString()} total system and administrative events recorded` : 'Tamper-evident log of administrative actions, authentication attempts, and system activity'}
               </p>
             </div>
           </div>

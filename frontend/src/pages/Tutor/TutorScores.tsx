@@ -5,6 +5,8 @@ import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
 import type { Grade, User } from '../../types';
 import { ExportScoreModal } from '../../components/ExportScoreModal';
+import { getScoreDescription } from '../../utils/sessionDescriptionHelpers';
+import { matchesSearch } from '../../utils/searchHelpers';
 import {
   BookOpen,
   TrendingUp,
@@ -26,17 +28,17 @@ import {
   Check,
   Sparkles,
   Layers,
+  User as UserIcon,
 } from 'lucide-react';
 
 /* ─── Constants & Helpers ──────────────────────────────────────── */
 type ScoreEntryKind = 'daily' | 'mosy' | 'eosy' | 'endline';
-type ScorePeriod = 'BOSY' | 'MOSY' | 'EOSY';
-type ScoreTypeFilter = 'all' | 'activity' | 'milestone';
+type ScorePeriod = 'ARAL Summer Assessment' | 'MOSY' | 'EOSY';
 
 const levelScoreEntry = {
-  basic:  { kind: 'mosy'    as const, buttonLabel: 'Add MOSY Score Entry', title: 'MOSY Reading Score (Q1/Q2)', subject: 'MOSY Reading' },
-  plus:   { kind: 'eosy'    as const, buttonLabel: 'Add EOSY Score Entry', title: 'EOSY Reading Score (Q3/Q4)', subject: 'EOSY Reading' },
-  summer: { kind: 'endline' as const, buttonLabel: 'Add BOSY Score Entry', title: 'BOSY Reading Score (Summer)', subject: 'BOSY Reading' },
+  basic: { kind: 'mosy' as const, buttonLabel: 'Add MOSY Score Entry', title: 'MOSY Reading Score (Q1/Q2)', subject: 'MOSY Reading' },
+  plus: { kind: 'eosy' as const, buttonLabel: 'Add EOSY Score Entry', title: 'EOSY Reading Score (Q3/Q4)', subject: 'EOSY Reading' },
+  summer: { kind: 'endline' as const, buttonLabel: 'Add ARAL Summer Assessment Entry', title: 'ARAL Summer Assessment', subject: 'ARAL Summer Assessment' },
 };
 
 const generateUuid = () =>
@@ -47,7 +49,7 @@ const generateUuid = () =>
   });
 
 const scoreColor = (pct: number) => pct >= 70 ? 'text-emerald-600' : pct >= 60 ? 'text-amber-500' : 'text-rose-500';
-const scoreBg    = (pct: number) => pct >= 70 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : pct >= 60 ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-rose-50 border-rose-200 text-rose-700';
+const scoreBg = (pct: number) => pct >= 70 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : pct >= 60 ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-rose-50 border-rose-200 text-rose-700';
 
 const sanitizeScoreInput = (rawVal: string, maxVal?: number): number | '' => {
   const digitsOnly = rawVal.replace(/\D/g, '');
@@ -72,7 +74,7 @@ const blockSymbolKeys = (e: React.KeyboardEvent<HTMLInputElement>) => {
   }
 };
 
-import { getStudentInitials as getInitials, buildAvatarColorMap } from '../../utils/studentFormatters';
+import { buildAvatarColorMap } from '../../utils/studentFormatters';
 
 const formatDateStr = (dateStr: string) => {
   const d = new Date(dateStr + 'T00:00:00');
@@ -157,9 +159,8 @@ const ScoreCalendarDropdown: React.FC<{
               key={dateKey}
               type="button"
               onClick={() => { onSelectDate(dateKey); onClose(); }}
-              className={`relative mx-auto flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold ${
-                isSelected ? 'bg-[var(--brand)] text-white shadow-sm' : dateKey === today ? 'border border-[var(--brand)] text-[var(--brand)]' : hasRecords ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'text-slate-600 hover:bg-slate-100'
-              }`}
+              className={`relative mx-auto flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold ${isSelected ? 'bg-[var(--brand)] text-white shadow-sm' : dateKey === today ? 'border border-[var(--brand)] text-[var(--brand)]' : hasRecords ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'text-slate-600 hover:bg-slate-100'
+                }`}
             >
               {day}
               {hasRecords && !isSelected && <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-[var(--brand)]" />}
@@ -175,7 +176,7 @@ const ScoreCalendarDropdown: React.FC<{
   );
 };
 
-type ScoreSortKey = 'student' | 'score' | 'remark' | 'status' | 'date' | 'time';
+type ScoreSortKey = 'student' | 'description' | 'score' | 'remark' | 'status' | 'date' | 'time';
 
 interface ScoreEntryTableProps {
   rows: Grade[];
@@ -250,6 +251,7 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
       const scorePercentage = (Number(grade.score) / (Number(grade.total_score) || 100)) * 100;
       switch (sortConfig.key) {
         case 'student': return grade.student_name || '';
+        case 'description': return getScoreDescription(grade);
         case 'score': return Number(grade.score);
         case 'remark': return isNotTaken ? 'Not Taken' : scorePercentage >= 70 ? 'Passed' : 'Failed';
         case 'status': return isNotTaken ? 'Not Taken' : 'Taken';
@@ -285,39 +287,44 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
   };
 
   return (
-    <table className="min-w-[900px] divide-y divide-gray-100 text-sm font-normal w-full">
+    <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-slate-700 text-sm">
       <thead>
-        <tr className="divide-x divide-gray-100 bg-gray-50">
-          <th className="w-[25%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="STUDENT" sortKey="student" /></th>
-          <th className="w-[14%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="SCORE" sortKey="score" /></th>
-          <th className="w-[16%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="REMARK" sortKey="remark" /></th>
-          <th className="w-[14%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="STATUS" sortKey="status" /></th>
-          <th className="w-[19%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="DATE" sortKey="date" /></th>
-          <th className="w-[8%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableScoreHeader label="TIME" sortKey="time" /></th>
-          <th className="w-[10%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">ACTIONS</th>
+        <tr className="divide-x divide-gray-100 dark:divide-slate-700 bg-gray-50 dark:bg-slate-900">
+          <th className="w-[22%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="STUDENT" sortKey="student" /></th>
+          <th className="w-[18%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="DESCRIPTION" sortKey="description" /></th>
+          <th className="w-[10%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="SCORE" sortKey="score" /></th>
+          <th className="w-[12%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="REMARK" sortKey="remark" /></th>
+          <th className="w-[10%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="STATUS" sortKey="status" /></th>
+          <th className="w-[14%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="DATE" sortKey="date" /></th>
+          <th className="w-[8%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="TIME" sortKey="time" /></th>
+          <th className="w-[6%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">ACTIONS</th>
         </tr>
       </thead>
-      <tbody className="divide-y divide-gray-100 bg-white">
+      <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-700 dark:bg-slate-900">
         {sortedRows.map((grade) => {
           const isEditing = editingGradeId === grade.id;
           const isLastSaved = grade.batch_id === lastSavedBatchId;
           const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
           const scorePercentage = (Number(grade.score) / (Number(grade.total_score) || 100)) * 100;
+          const descriptionVal = getScoreDescription(grade);
           return (
             <tr
               key={grade.id}
               ref={isLastSaved ? lastRowRef : undefined}
-              className={`divide-x divide-gray-100 border-t border-gray-100 text-left transition-colors ${isLastSaved ? 'bg-[var(--brand-light)] hover:bg-[var(--brand-light)]' : 'hover:bg-gray-50/80'}`}
+              className={`group divide-x divide-gray-100 dark:divide-slate-700 border-t border-gray-100 dark:border-slate-700 text-left transition-colors ${isLastSaved ? 'bg-[var(--brand-light)] hover:bg-[var(--brand-light)]' : 'hover:bg-gray-50/80 dark:hover:bg-slate-800'}`}
             >
-              <td className="px-4 py-3 font-semibold text-slate-800">
-                <div className="flex items-center gap-2.5">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarColor(grade.student_name || '')}`}>
-                    {getInitials(grade.student_name || '?')}
-                  </div>
-                  <span className="font-bold text-slate-800">{grade.student_name || 'Unknown student'}</span>
-                </div>
+              <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
+                {grade.student_name || 'Unknown student'}
               </td>
-              <td className="px-4 py-3 text-xs text-slate-700">
+              <td className="px-4 py-3 text-left whitespace-nowrap">
+                <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${descriptionVal !== 'Intervention Activity'
+                    ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
+                    : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                  }`}>
+                  {descriptionVal}
+                </span>
+              </td>
+              <td className="px-4 py-3 text-xs text-gray-700 dark:text-slate-300 whitespace-nowrap">
                 {isEditing ? (
                   <input
                     type="text"
@@ -325,24 +332,28 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                     value={editScore}
                     onKeyDown={blockSymbolKeys}
                     onChange={(event) => setEditScore(sanitizeScoreInput(event.target.value, Number(grade.total_score)))}
-                    className="w-24 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-semibold outline-none focus:border-[var(--brand)]"
+                    className="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-semibold outline-none focus:border-[var(--brand)]"
                   />
                 ) : `${grade.score} / ${grade.total_score}`}
               </td>
-              <td className="px-4 py-3 text-left">
-                <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${isNotTaken ? 'border-gray-200 bg-gray-50 text-gray-400' : scorePercentage >= 70 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
+              <td className="px-4 py-3 text-left whitespace-nowrap">
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${isNotTaken ? 'border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400' : scorePercentage >= 70 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'}`}>
                   {isNotTaken ? 'Not Taken' : scorePercentage >= 70 ? 'Passed' : 'Failed'}
                 </span>
               </td>
-              <td className="px-4 py-3 text-left">
+              <td className="px-4 py-3 text-left whitespace-nowrap">
                 {isEditing ? (
                   <select value={editStatus} onChange={(event) => setEditStatus(event.target.value as 'Taken' | 'Not')} className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none focus:border-[var(--brand)]">
                     <option value="Taken">Taken</option>
                     <option value="Not">Not Taken</option>
                   </select>
-                ) : <span className={`text-xs font-medium ${isNotTaken ? 'text-amber-500' : 'text-emerald-600'}`}>{isNotTaken ? 'Not Taken' : 'Taken'}</span>}
+                ) : (
+                  <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${isNotTaken ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'}`}>
+                    {isNotTaken ? 'Not Taken' : 'Taken'}
+                  </span>
+                )}
               </td>
-              <td className="px-4 py-3 text-left whitespace-nowrap">
+              <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
                 {isEditing ? (
                   <div className="relative inline-block">
                     <button
@@ -366,11 +377,24 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                       document.body
                     )}
                   </div>
-                ) : <span className="text-xs text-slate-700">{formatDateStr(grade.date_logged)}</span>}
+                ) : formatDateStr(grade.date_logged)}
               </td>
-              <td className="px-4 py-3 text-left text-xs text-slate-700">{formatTimeStr(grade.created_at)}</td>
-              <td className="px-4 py-3 text-center">
-                {isEditing ? <div className="inline-flex items-center gap-1.5"><button type="button" onClick={saveEditingGrade} disabled={isEditingGrade} className="rounded-lg p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50" aria-label="Save score changes" title="Save score changes"><Check className="h-3.5 w-3.5" /></button><button type="button" onClick={cancelEditingGrade} disabled={isEditingGrade} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 disabled:opacity-50" aria-label="Cancel score changes" title="Cancel score changes"><X className="h-3.5 w-3.5" /></button></div> : <button type="button" onClick={() => startEditingGrade(grade)} className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 cursor-pointer" aria-label={`Edit score for ${grade.student_name}`} title="Edit score"><Edit3 className="h-3.5 w-3.5" /></button>}
+              <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">{formatTimeStr(grade.created_at)}</td>
+              <td className="px-4 py-3 text-center whitespace-nowrap">
+                {isEditing ? (
+                  <div className="inline-flex items-center gap-1.5">
+                    <button type="button" onClick={saveEditingGrade} disabled={isEditingGrade} className="rounded-lg p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50" aria-label="Save score changes" title="Save score changes">
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                    <button type="button" onClick={cancelEditingGrade} disabled={isEditingGrade} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 disabled:opacity-50" aria-label="Cancel score changes" title="Cancel score changes">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => startEditingGrade(grade)} className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 cursor-pointer" aria-label={`Edit score for ${grade.student_name}`} title="Edit score">
+                    <Edit3 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </td>
             </tr>
           );
@@ -420,7 +444,6 @@ export const TutorScores: React.FC = () => {
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
   const [showEntryCalendarPopover, setShowEntryCalendarPopover] = useState(false);
-  const [scoreTypeFilter, setScoreTypeFilter] = useState<ScoreTypeFilter>('all');
   const [studentSortDirection, setStudentSortDirection] = useState<'asc' | 'desc'>('desc');
   const [studentSortActive, setStudentSortActive] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
@@ -631,13 +654,20 @@ export const TutorScores: React.FC = () => {
 
   const safeGrades = useMemo(() => (Array.isArray(grades) ? grades : []), [grades]);
   const assignedPeriod = useMemo<ScorePeriod>(() => {
-    if (user?.aral_level === 'summer') return 'BOSY';
+    if (user?.aral_level === 'summer') return 'ARAL Summer Assessment';
     if (user?.aral_level === 'plus') return 'EOSY';
     return 'MOSY';
   }, [user?.aral_level]);
   const tutorSubject = user?.subject || 'Reading';
   const levelEntry = useMemo(() => {
     const base = levelScoreEntry[user?.aral_level && (user.aral_level in levelScoreEntry) ? (user.aral_level as keyof typeof levelScoreEntry) : 'basic'];
+    if (user?.aral_level === 'summer') {
+      return {
+        ...base,
+        title: 'ARAL Summer Assessment',
+        subject: 'ARAL Summer Assessment',
+      };
+    }
     return {
       ...base,
       title: `${assignedPeriod} ${tutorSubject} Score`,
@@ -694,8 +724,8 @@ export const TutorScores: React.FC = () => {
       const taken = row.grades.filter((g) => g.remarks !== 'Not Taken');
       row.avgPct = taken.length > 0
         ? Math.round(
-            (taken.reduce((acc, g) => acc + (Number(g.score) / (Number(g.total_score) || 100)) * 100, 0) / taken.length) * 10
-          ) / 10
+          (taken.reduce((acc, g) => acc + (Number(g.score) / (Number(g.total_score) || 100)) * 100, 0) / taken.length) * 10
+        ) / 10
         : 0;
     });
 
@@ -704,24 +734,13 @@ export const TutorScores: React.FC = () => {
     );
   }, [dailyGrades]);
 
-  const filteredBatchRows = useMemo(() => {
-    if (scoreTypeFilter === 'all') return batchRows;
-    return batchRows.filter((batch) => {
-      const subject = batch.subject.toUpperCase();
-      const isMilestone = subject.includes('BOSY') || subject.includes('MOSY') || subject.includes('EOSY') || subject.includes('ENDLINE');
-      if (scoreTypeFilter === 'activity') return !isMilestone;
-      return assignedPeriod === 'BOSY'
-        ? subject.includes('BOSY') || subject.includes('ENDLINE')
-        : subject.includes(assignedPeriod);
-    });
-  }, [assignedPeriod, batchRows, scoreTypeFilter]);
+  const filteredBatchRows = batchRows;
 
   const jumpFilteredBatches = useMemo(
     () => {
-      const searchTerm = scoreStudentSearch.trim().toLowerCase();
-      const studentFilteredRows = searchTerm
-        ? filteredBatchRows.filter((batch) => batch.grades.some((grade) => (grade.student_name || '').toLowerCase().includes(searchTerm)))
-        : filteredBatchRows;
+      const studentFilteredRows = filteredBatchRows.filter((batch) =>
+        batch.grades.some((grade) => matchesSearch(scoreStudentSearch, grade.student_name, grade.subject))
+      );
       return jumpDate ? studentFilteredRows.filter((batch) => batch.dateStr === jumpDate) : null;
     },
     [filteredBatchRows, jumpDate, scoreStudentSearch]
@@ -742,10 +761,9 @@ export const TutorScores: React.FC = () => {
   };
   const groupedBatchRows = useMemo(() => {
     if (jumpFilteredBatches !== null || viewMode === 'day') return [];
-    const searchTerm = scoreStudentSearch.trim().toLowerCase();
-    const studentFilteredRows = searchTerm
-      ? filteredBatchRows.filter((batch) => batch.grades.some((grade) => (grade.student_name || '').toLowerCase().includes(searchTerm)))
-      : filteredBatchRows;
+    const studentFilteredRows = filteredBatchRows.filter((batch) =>
+      batch.grades.some((grade) => matchesSearch(scoreStudentSearch, grade.student_name, grade.subject))
+    );
     const groups = new Map<string, typeof filteredBatchRows>();
     studentFilteredRows.forEach((batch) => {
       const key = viewMode === 'week' ? getWeekKey(batch.dateStr) : batch.dateStr.slice(0, 7);
@@ -760,10 +778,9 @@ export const TutorScores: React.FC = () => {
   }, [filteredBatchRows, jumpFilteredBatches, scoreStudentSearch, viewMode]);
 
   const searchedBatchRows = useMemo(() => {
-    const searchTerm = scoreStudentSearch.trim().toLowerCase();
-    return searchTerm
-      ? filteredBatchRows.filter((batch) => batch.grades.some((grade) => (grade.student_name || '').toLowerCase().includes(searchTerm)))
-      : filteredBatchRows;
+    return filteredBatchRows.filter((batch) =>
+      batch.grades.some((grade) => matchesSearch(scoreStudentSearch, grade.student_name, grade.subject))
+    );
   }, [filteredBatchRows, scoreStudentSearch]);
   const visibleBatchRows = jumpFilteredBatches ?? searchedBatchRows;
   const visibleScoreRows = useMemo(() => visibleBatchRows.flatMap((batch) => batch.grades), [visibleBatchRows]);
@@ -817,7 +834,7 @@ export const TutorScores: React.FC = () => {
   const loggedScoreDates = useMemo(() => new Set(filteredBatchRows.map((batch) => batch.dateStr)), [filteredBatchRows]);
   const sortedStudents = useMemo(
     () => [...students]
-      .filter((student) => (student.full_name || '').toLowerCase().includes(studentSearch.trim().toLowerCase()))
+      .filter((student) => matchesSearch(studentSearch, student.full_name, student.first_name, student.last_name, student.lrn))
       .sort((firstStudent, secondStudent) => {
         const comparison = (firstStudent.full_name || '').localeCompare(secondStudent.full_name || '');
         return studentSortDirection === 'asc' ? comparison : -comparison;
@@ -900,11 +917,6 @@ export const TutorScores: React.FC = () => {
               <h3 className="font-bold text-gray-900 text-base uppercase">
                 {entryKind === 'daily' ? 'Add Intervention Activity Scores' : levelEntry.title}
               </h3>
-              <p className="mt-0.5 text-xs font-medium text-gray-500">
-                {entryKind !== 'daily'
-                  ? 'Passing score is above 70% of the total score. Passing will automatically level up or graduate the student'
-                  : "Enter the score earned by each assigned student for the session"}
-              </p>
             </div>
             <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
               <button
@@ -1006,106 +1018,101 @@ export const TutorScores: React.FC = () => {
                   </label>
                 </div>
                 <div className="min-h-0 flex-1 overflow-auto">
-                <table className="min-w-[680px] w-full divide-y divide-gray-100 text-sm">
-                  <thead className="bg-gray-50">
-                    <tr className="divide-x divide-gray-100">
-                      <th aria-sort={studentSortActive ? (studentSortDirection === 'asc' ? 'ascending' : 'descending') : undefined} className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStudentSortActive(true);
-                            setStudentSortDirection((direction) => direction === 'desc' ? 'asc' : 'desc');
-                          }}
-                          className="inline-flex items-center gap-1 text-left transition-colors hover:text-gray-700"
-                          aria-label={`Sort students ${studentSortDirection === 'desc' ? 'ascending' : 'descending'}`}
-                        >
-                          STUDENT
-                          {studentSortActive
-                            ? studentSortDirection === 'desc'
-                              ? <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
-                              : <ChevronUp className="h-3.5 w-3.5 text-gray-400" />
-                            : <ArrowUpDown className="h-3.5 w-3.5 text-gray-400" />}
-                        </button>
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">Score (OUT OF {totalScore || 'Total'})</th>
-                      <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">Preview %</th>
-                      <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
-                    {sortedStudents.map((student) => {
-                      const status = entryStatus[student.id] || 'Taken';
-                      const isNotTaken = status === 'Not';
-                      const rawScore = entryScores[student.id];
-                      const activeTotal = Number(totalScore) || 0;
-                      const pct = isNotTaken
-                        ? 0
-                        : (!isNotTaken && rawScore !== '' && activeTotal > 0
-                          ? Math.round((Number(rawScore) / activeTotal) * 100 * 10) / 10
-                          : null);
-                      const isPassingMilestone = entryKind !== 'daily' && pct !== null && pct >= 70;
+                  <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-slate-800 text-sm">
+                    <thead className="bg-gray-50 dark:bg-slate-900">
+                      <tr className="divide-x divide-gray-100 dark:divide-slate-800">
+                        <th aria-sort={studentSortActive ? (studentSortDirection === 'asc' ? 'ascending' : 'descending') : undefined} className="w-[38%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStudentSortActive(true);
+                              setStudentSortDirection((direction) => direction === 'desc' ? 'asc' : 'desc');
+                            }}
+                            className="inline-flex items-center gap-1 text-left transition-colors hover:text-gray-700 dark:hover:text-slate-200"
+                            aria-label={`Sort students ${studentSortDirection === 'desc' ? 'ascending' : 'descending'}`}
+                          >
+                            STUDENT
+                            {studentSortActive
+                              ? studentSortDirection === 'desc'
+                                ? <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+                                : <ChevronUp className="h-3.5 w-3.5 text-gray-400" />
+                              : <ArrowUpDown className="h-3.5 w-3.5 text-gray-400" />}
+                          </button>
+                        </th>
+                        <th className="w-[24%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">Score (OUT OF {totalScore || 'Total'})</th>
+                        <th className="w-[19%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">Preview %</th>
+                        <th className="w-[19%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                      {sortedStudents.map((student) => {
+                        const status = entryStatus[student.id] || 'Taken';
+                        const isNotTaken = status === 'Not';
+                        const rawScore = entryScores[student.id];
+                        const activeTotal = Number(totalScore) || 0;
+                        const pct = isNotTaken
+                          ? 0
+                          : (!isNotTaken && rawScore !== '' && activeTotal > 0
+                            ? Math.round((Number(rawScore) / activeTotal) * 100 * 10) / 10
+                            : null);
+                        const isPassingMilestone = entryKind !== 'daily' && pct !== null && pct >= 70;
 
-                      return (
-                        <tr key={student.id} className="divide-x divide-gray-100 transition-colors hover:bg-gray-50/80">
-                          <td className="px-4 py-3">
-                            <div className="flex min-w-0 items-center gap-2.5">
-                              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${avatarColor(student.full_name || '')}`}>
-                                {getInitials(student.full_name || '?')}
-                              </div>
+                        return (
+                          <tr key={student.id} className="divide-x divide-gray-100 dark:divide-slate-800 transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800/60">
+                            <td className="px-4 py-3">
                               <div className="min-w-0">
-                                <p className="truncate text-xs font-bold text-gray-900">{student.full_name}</p>
-                                <p className="truncate text-[10px] text-gray-400">LRN: {student.lrn || 'N/A'}</p>
+                                <p className="truncate text-xs font-bold text-gray-900 dark:text-slate-100">{student.full_name}</p>
+                                <p className="truncate text-[10px] text-gray-400 dark:text-slate-500">LRN: {student.lrn || 'N/A'}</p>
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              value={isNotTaken ? 0 : (entryScores[student.id] ?? '')}
-                              onKeyDown={blockSymbolKeys}
-                              onChange={(e) => {
-                                const sanitized = sanitizeScoreInput(e.target.value, activeTotal);
-                                setEntryScores((prev) => ({ ...prev, [student.id]: sanitized }));
-                              }}
-                              placeholder={`0–${activeTotal}`}
-                              disabled={isNotTaken}
-                              className="w-full max-w-[110px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-900 focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 disabled:bg-gray-100 disabled:opacity-60"
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {pct !== null ? (
-                              <div>
-                                <span className={`block text-xs font-extrabold ${scoreColor(pct)}`}>{pct}%</span>
-                                {entryKind !== 'daily' && (
-                                  <span className={`block text-[9px] font-bold ${isPassingMilestone ? 'text-emerald-600' : 'text-rose-500'}`}>
-                                    {isPassingMilestone ? '✓ Pass' : '✕ Fail'}
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-300">0%</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <select
-                              value={status}
-                              onChange={(e) => {
-                                const newStatus = e.target.value as 'Taken' | 'Not';
-                                setEntryStatus((prev) => ({ ...prev, [student.id]: newStatus }));
-                                if (newStatus === 'Not') setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
-                              }}
-                              className="rounded-xl border border-gray-200 bg-white px-2 py-1.5 text-xs font-bold text-gray-700 focus:outline-none cursor-pointer"
-                            >
-                              <option value="Taken">Taken</option>
-                              <option value="Not">Not Taken</option>
-                            </select>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={isNotTaken ? 0 : (entryScores[student.id] ?? '')}
+                                onKeyDown={blockSymbolKeys}
+                                onChange={(e) => {
+                                  const sanitized = sanitizeScoreInput(e.target.value, activeTotal);
+                                  setEntryScores((prev) => ({ ...prev, [student.id]: sanitized }));
+                                }}
+                                placeholder={`0–${activeTotal}`}
+                                disabled={isNotTaken}
+                                className="w-full max-w-[110px] rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold text-gray-900 dark:text-slate-100 focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60"
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {pct !== null ? (
+                                <div>
+                                  <span className={`block text-xs font-extrabold ${scoreColor(pct)}`}>{pct}%</span>
+                                  {entryKind !== 'daily' && (
+                                    <span className={`block text-[9px] font-bold ${isPassingMilestone ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                      {isPassingMilestone ? '✓ Pass' : '✕ Fail'}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-gray-300 dark:text-slate-600">0%</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <select
+                                value={status}
+                                onChange={(e) => {
+                                  const newStatus = e.target.value as 'Taken' | 'Not';
+                                  setEntryStatus((prev) => ({ ...prev, [student.id]: newStatus }));
+                                  if (newStatus === 'Not') setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
+                                }}
+                                className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-xs font-bold text-gray-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                              >
+                                <option value="Taken">Taken</option>
+                                <option value="Not">Not Taken</option>
+                              </select>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
@@ -1121,7 +1128,7 @@ export const TutorScores: React.FC = () => {
         <div className="flex flex-col gap-3 px-6 py-4 border-b border-gray-100 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center">
             <div>
-              <h3 className="text-base font-bold text-gray-900">SCORES HISTORY</h3>
+              <h3 className="text-base font-bold text-gray-900">STUDENTS SCORES HISTORY</h3>
               <p className="mt-0.5 text-xs font-medium text-gray-500">
                 {visibleScoreRows.length} Record{visibleScoreRows.length !== 1 ? 's' : ''}
               </p>
@@ -1151,23 +1158,6 @@ export const TutorScores: React.FC = () => {
                 </button>
               ))}
             </div>
-            <div className="flex h-9 shrink-0 items-center gap-0.5 rounded-xl bg-gray-100 p-0.5" aria-label="Filter score type">
-              {([
-                { value: 'all', label: 'All' },
-                { value: 'activity', label: 'Activity' },
-                { value: 'milestone', label: assignedPeriod },
-              ] as const).map((filter) => (
-                <button
-                  key={filter.value}
-                  type="button"
-                  onClick={() => { setScoreTypeFilter(filter.value); setJumpDate(null); }}
-                  className={`h-8 whitespace-nowrap rounded-lg px-3 text-[10px] font-bold uppercase transition-all ${scoreTypeFilter === filter.value ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                  aria-pressed={scoreTypeFilter === filter.value}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
             <div className="relative inline-flex items-center">
               <button
                 type="button"
@@ -1190,7 +1180,19 @@ export const TutorScores: React.FC = () => {
             </div>
             <button
               type="button"
-              onClick={() => setExportModalConfig({ isOpen: true, mode: 'weekly', targetKey: '' })}
+              onClick={() => {
+                if (jumpDate) {
+                  setExportModalConfig({ isOpen: true, mode: 'daily', targetKey: jumpDate });
+                } else if (viewMode === 'day') {
+                  const todayStr = new Date().toLocaleDateString('en-CA');
+                  setExportModalConfig({ isOpen: true, mode: 'daily', targetKey: todayStr });
+                } else if (viewMode === 'month') {
+                  const monthStr = new Date().toLocaleDateString('en-CA').slice(0, 7);
+                  setExportModalConfig({ isOpen: true, mode: 'monthly', targetKey: monthStr });
+                } else {
+                  setExportModalConfig({ isOpen: true, mode: 'weekly', targetKey: '' });
+                }
+              }}
               className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--brand)] px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-[var(--brand-hover)] active:scale-[0.98] cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-white" />
@@ -1278,12 +1280,18 @@ export const TutorScores: React.FC = () => {
         initialTargetKey={exportModalConfig.targetKey}
       />
 
-      {showMilestoneConfirmation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="relative w-full max-w-sm rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl space-y-4">
+      {showMilestoneConfirmation && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+          style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowMilestoneConfirmation(false); }}
+        >
+          <div className="relative w-full max-w-sm rounded-3xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 animate-fade-in-scale">
             <div>
-              <h3 className="text-base font-bold text-gray-900">Add {assignedPeriod} Score</h3>
-              <p className="mt-2 text-xs leading-relaxed text-gray-500">
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Add {assignedPeriod} Score</h3>
+              <p className="mt-2 text-xs leading-relaxed text-gray-500 dark:text-slate-400">
                 Are you sure you want to add a {assignedPeriod} score?
               </p>
             </div>
@@ -1291,28 +1299,35 @@ export const TutorScores: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowMilestoneConfirmation(false)}
-                className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 transition hover:bg-gray-50"
+                className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={confirmMilestoneEntry}
-                className="rounded-xl bg-(--brand) px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-(--brand-dark)"
+                className="rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer"
               >
                 Add {assignedPeriod}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {showSaveConfirmation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="relative w-full max-w-sm rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl space-y-4">
+      {showSaveConfirmation && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+          style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSaveConfirmation(false); }}
+        >
+          <div className="relative w-full max-w-sm rounded-3xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 animate-fade-in-scale">
             <div>
-              <h3 className="text-base font-bold text-gray-900">Save Scores</h3>
-              <p className="mt-0.5 text-xs font-medium text-gray-500 leading-relaxed">
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Save Scores</h3>
+              <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400 leading-relaxed">
                 Are you sure you want to save {entryKind === 'daily' ? 'these intervention activity scores' : `these ${assignedPeriod} scores`}?
               </p>
             </div>
@@ -1320,20 +1335,21 @@ export const TutorScores: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowSaveConfirmation(false)}
-                className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 transition hover:bg-gray-50"
+                className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={confirmSaveScores}
-                className="rounded-xl bg-(--brand) px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-(--brand-dark)"
+                className="rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer"
               >
                 {entryKind === 'daily' ? 'Save Intervention Activity Scores' : `Save ${assignedPeriod} Scores`}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Saved Scores Floating Notification Toast ─────────────────────── */}

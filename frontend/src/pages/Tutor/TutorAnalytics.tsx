@@ -7,9 +7,6 @@ import {
   Search,
   ArrowUpDown,
   Check,
-  ShieldAlert,
-  Award,
-  AlertTriangle,
   ChevronUp,
   ChevronDown,
   AlertCircle,
@@ -19,10 +16,19 @@ import {
   Smile,
   Meh,
   Frown,
+
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Attendance, Grade, User } from '../../types';
 import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
+import {
+  type EntryDescriptionType,
+  type MilestoneType,
+  getScoreDescription,
+  getAttendanceDescription,
+  getTutorAssignedMilestone,
+} from '../../utils/sessionDescriptionHelpers';
+import { matchesSearch } from '../../utils/searchHelpers';
 
 interface ExtendedRiskRow extends StudentRiskRow {
   absentCount: number;
@@ -37,8 +43,8 @@ interface TrendPoint {
 type TrendFilter = 'day' | 'week' | 'month';
 type AnalyticsTab = 'overall' | 'attendance' | 'score';
 type RiskScope = 'all' | string;
-type AttendanceDetailSortField = 'student' | 'aralLevel' | 'present' | 'absent' | 'attendanceAverage';
-type ScoreDetailSortField = 'student' | 'aralLevel' | 'passed' | 'failed' | 'scoreAverage';
+type AttendanceDetailSortField = 'student' | 'aralLevel' | 'description' | 'present' | 'absent' | 'attendanceAverage';
+type ScoreDetailSortField = 'student' | 'aralLevel' | 'description' | 'passed' | 'failed' | 'scoreAverage';
 
 interface RiskTrendPoint {
   dateKey: string;
@@ -102,7 +108,7 @@ const buildTrendPoints = (
         return date >= period.start && date < period.end;
       });
       if (records.length === 0) return { period, point };
-      const attended = records.filter((log) => log.status === 'present' || log.status === 'late').length;
+      const attended = records.filter((log) => log.status === 'present').length;
       point = { dateKey: period.dateKey, label: period.label, value: Math.round((attended / records.length) * 100) };
       return { period, point };
     }
@@ -221,8 +227,8 @@ const TrendChart: React.FC<{ data: TrendPoint[]; color: string; emptyLabel: stri
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const width = 800;
   const height = 160;
-  const paddingLeft = 22;
-  const paddingRight = 48;
+  const paddingLeft = 48;
+  const paddingRight = 16;
   const paddingTop = 15;
   const paddingBottom = 28;
   const chartWidth = width - paddingLeft - paddingRight;
@@ -249,83 +255,93 @@ const TrendChart: React.FC<{ data: TrendPoint[]; color: string; emptyLabel: stri
   if (data.length === 0) return <div className="flex h-52 items-center justify-center text-xs text-gray-400 dark:text-slate-500">{emptyLabel}</div>;
 
   return (
-    <>
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible" role="img" aria-label="Trend chart">
-      <defs>
-        <linearGradient id="riskChartFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.22" />
-          <stop offset="100%" stopColor={color} stopOpacity="0.01" />
-        </linearGradient>
-        <filter id="riskChartGlow" x="-20%" y="-30%" width="140%" height="160%">
-          <feGaussianBlur stdDeviation="3" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-      {[0, 25, 50, 75, 100].map((value) => {
-        const y = paddingTop + chartHeight - (value / 100) * chartHeight;
-        return (
-          <g key={value}>
-            <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="var(--slate-200)" strokeWidth="0.5" strokeDasharray="3 3" opacity="0.6" />
-            <text x={paddingLeft - 6} y={y + 3} textAnchor="end" className="fill-slate-400 font-semibold text-[8px]">{value}%</text>
+    <div className="relative">
+      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="h-52 w-full overflow-visible" role="img" aria-label="Trend chart">
+        <defs>
+          <linearGradient id="riskChartFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.01" />
+          </linearGradient>
+          <filter id="riskChartGlow" x="-20%" y="-30%" width="140%" height="160%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        {[0, 25, 50, 75, 100].map((value) => {
+          const y = paddingTop + chartHeight - (value / 100) * chartHeight;
+          return (
+            <g key={value}>
+              <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="var(--slate-200)" strokeWidth="0.5" strokeDasharray="3 3" opacity="0.6" />
+              <text x={paddingLeft - 8} y={y + 3} textAnchor="end" className="fill-slate-400 font-semibold text-[8px]">{value}%</text>
+            </g>
+          );
+        })}
+        <path d={areaPath} fill="url(#riskChartFill)" />
+        <path d={path} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.28" filter="url(#riskChartGlow)" />
+        <path d={path} fill="none" stroke={color} strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((point) => (
+          <g key={point.dateKey}>
+            <title>{`${point.label}: ${point.value}%`}</title>
+            <circle cx={point.x} cy={point.y} r="3.5" fill={color} stroke="#DCFCE7" strokeWidth="1.5" />
+            <text x={point.x} y={height - 4} textAnchor="middle" className="fill-slate-500 font-semibold text-[8px]">{point.label}</text>
           </g>
-        );
-      })}
-      <path d={areaPath} fill="url(#riskChartFill)" />
-      <path d={path} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.28" filter="url(#riskChartGlow)" />
-      <path d={path} fill="none" stroke={color} strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />
-      {points.map((point) => (
-        <g key={point.dateKey}>
-          <title>{`${point.label}: ${point.value}%`}</title>
-          <circle cx={point.x} cy={point.y} r="3.5" fill={color} stroke="#DCFCE7" strokeWidth="1.5" />
-          <text x={point.x} y={height - 4} textAnchor="middle" className="fill-slate-500 font-semibold text-[8px]">{point.label}</text>
-        </g>
-      ))}
-      {hoveredIdx !== null && points[hoveredIdx] && (
-        <g>
-          <line x1={points[hoveredIdx].x} y1={paddingTop} x2={points[hoveredIdx].x} y2={paddingTop + chartHeight} stroke={color} strokeWidth="1.5" strokeDasharray="2 2" opacity="0.7" />
-          <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill={color} />
-          <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="8" fill={color} opacity="0.25" />
-        </g>
-      )}
-      {points.map((point, index) => {
-        const step = chartWidth / (data.length - 1 || 1);
-        const xStart = index === 0 ? paddingLeft : point.x - step / 2;
-        const xEnd = index === data.length - 1 ? width - paddingRight : point.x + step / 2;
+        ))}
+        {hoveredIdx !== null && points[hoveredIdx] && (
+          <g>
+            <line x1={points[hoveredIdx].x} y1={paddingTop} x2={points[hoveredIdx].x} y2={paddingTop + chartHeight} stroke={color} strokeWidth="1.5" opacity="0.7" />
+            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill={color} />
+            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="8" fill={color} opacity="0.25" />
+          </g>
+        )}
+        {points.map((point, index) => {
+          const step = chartWidth / (data.length - 1 || 1);
+          const xStart = index === 0 ? paddingLeft : point.x - step / 2;
+          const xEnd = index === data.length - 1 ? width - paddingRight : point.x + step / 2;
+          return (
+            <rect
+              key={`hover-${point.dateKey}`}
+              x={xStart}
+              y={paddingTop}
+              width={xEnd - xStart}
+              height={chartHeight}
+              fill="transparent"
+              className="cursor-pointer"
+              onMouseEnter={() => setHoveredIdx(index)}
+              onMouseLeave={() => setHoveredIdx(null)}
+            />
+          );
+        })}
+      </svg>
+      {hoveredIdx !== null && points[hoveredIdx] && (() => {
+        const p = points[hoveredIdx];
+        const pointXPct = (p.x / width) * 100;
+        const isNearRight = pointXPct > 75;
+        const gapPx = 14;
         return (
-          <rect
-            key={`hover-${point.dateKey}`}
-            x={xStart}
-            y={paddingTop}
-            width={xEnd - xStart}
-            height={chartHeight}
-            fill="transparent"
-            className="cursor-pointer"
-            onMouseEnter={() => setHoveredIdx(index)}
-            onMouseLeave={() => setHoveredIdx(null)}
-          />
+          <div
+            className="pointer-events-none absolute z-10 min-w-[150px] max-w-[260px] rounded-xl border border-slate-700/50 bg-slate-900/95 p-3 text-left text-[11px] leading-normal text-white shadow-xl"
+            style={{
+              left: isNearRight ? `calc(${pointXPct}% - ${gapPx}px)` : `calc(${pointXPct}% + ${gapPx}px)`,
+              top: '50%',
+              transform: isNearRight ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
+            }}
+          >
+            <div className="text-[10px] font-extrabold uppercase text-slate-300">{p.label}</div>
+            <div className="mt-1 flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-sm font-extrabold" style={{ color }}>{p.value}%</span>
+              <span className="text-[10px] font-medium text-slate-300 truncate max-w-[180px]" title={valueLabel}>{valueLabel}</span>
+            </div>
+          </div>
         );
-      })}
-    </svg>
-    {hoveredIdx !== null && points[hoveredIdx] && (
-      <div
-        className="pointer-events-none absolute z-10 min-w-[160px] -translate-x-1/2 rounded-xl border border-slate-700/50 bg-slate-900/95 p-3 text-left text-[11px] leading-normal text-white shadow-xl"
-        style={{ left: `${(points[hoveredIdx].x / width) * 100}%`, top: `${Math.max(2, (points[hoveredIdx].y / height) * 100 - 55)}%` }}
-      >
-        <div className="text-[10px] font-extrabold uppercase" style={{ color }}>{points[hoveredIdx].label}</div>
-        <div className="mt-1 flex items-baseline gap-1">
-          <span className="text-sm font-extrabold" style={{ color }}>{points[hoveredIdx].value}%</span>
-          <span className="text-[9px] text-slate-400">{valueLabel}</span>
-        </div>
-      </div>
-    )}
-    </>
+      })()}
+    </div>
   );
 };
 
-const RiskTrendChart: React.FC<{ data: RiskTrendPoint[]; total: number; isSingleStudent: boolean }> = ({ data, total, isSingleStudent }) => {
+const RiskTrendChart: React.FC<{ data: RiskTrendPoint[]; total: number; isSingleStudent: boolean; studentName?: string }> = ({ data, total, isSingleStudent, studentName }) => {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const width = 800;
   const height = 160;
@@ -351,7 +367,7 @@ const RiskTrendChart: React.FC<{ data: RiskTrendPoint[]; total: number; isSingle
 
   return (
     <div className="relative">
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-52 w-full overflow-visible" role="img" aria-label="Risk level trend chart">
+      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="h-52 w-full overflow-visible" role="img" aria-label="Risk level trend chart">
         {axisSteps.map((value) => {
           const y = paddingTop + chartHeight - (value / maxValue) * chartHeight;
           return <g key={value}><line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="var(--slate-200)" strokeWidth="0.5" strokeDasharray="3 3" opacity="0.6" /><text x={paddingLeft - 12} y={y + 3} textAnchor="end" className="fill-slate-400 font-semibold text-[8px]">{value}</text></g>;
@@ -366,14 +382,45 @@ const RiskTrendChart: React.FC<{ data: RiskTrendPoint[]; total: number; isSingle
           });
           return <g key={point.dateKey} onMouseEnter={() => setHoveredIdx(index)} onMouseLeave={() => setHoveredIdx(null)}><text x={x} y={height - 4} textAnchor="middle" className="fill-slate-500 font-semibold text-[8px]">{point.label}</text>{bars}<rect x={x - barWidth / 2} y={paddingTop} width={barWidth} height={chartHeight} fill="transparent" className="cursor-pointer" /></g>;
         })}
-        {hoveredIdx !== null && data[hoveredIdx] && <rect x={getBarX(hoveredIdx) - barWidth / 2} y={paddingTop} width={barWidth} height={chartHeight} fill="none" stroke="#0052B7" strokeWidth="1.5" strokeDasharray="2 2" opacity="0.8" />}
+        {hoveredIdx !== null && data[hoveredIdx] && <rect x={getBarX(hoveredIdx) - barWidth / 2} y={paddingTop} width={barWidth} height={chartHeight} fill="none" stroke="#0052B7" strokeWidth="1.5" opacity="0.8" />}
       </svg>
-      {hoveredIdx !== null && data[hoveredIdx] && <div className="pointer-events-none absolute z-10 min-w-[150px] -translate-x-1/2 rounded-xl border border-slate-700/50 bg-slate-900/95 p-3 text-left text-[11px] leading-normal text-white shadow-xl" style={{ left: `${(getBarX(hoveredIdx) / width) * 100}%`, top: '0' }}><div className="text-[10px] font-extrabold uppercase text-slate-300">{data[hoveredIdx].label}</div>{series.map((item) => <div key={item.key} className="mt-1 flex items-center justify-between gap-4"><span style={{ color: item.color }}>{item.label}</span><span className="font-bold">{data[hoveredIdx][item.key]}</span></div>)}</div>}
+      {hoveredIdx !== null && data[hoveredIdx] && (() => {
+        const barX = getBarX(hoveredIdx);
+        const barLeftPct = ((barX - barWidth / 2) / width) * 100;
+        const barRightPct = ((barX + barWidth / 2) / width) * 100;
+        const isNearRight = barRightPct > 75;
+        const gapPx = 14;
+
+        return (
+          <div
+            className="pointer-events-none absolute z-10 min-w-[150px] max-w-[260px] rounded-xl border border-slate-700/50 bg-slate-900/95 p-3 text-left text-[11px] leading-normal text-white shadow-xl"
+            style={{
+              left: isNearRight ? `calc(${barLeftPct}% - ${gapPx}px)` : `calc(${barRightPct}% + ${gapPx}px)`,
+              top: '50%',
+              transform: isNearRight ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
+            }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-extrabold uppercase text-slate-300">{data[hoveredIdx].label}</span>
+              {isSingleStudent && studentName && (
+                <span className="text-[9.5px] font-semibold text-slate-300 truncate max-w-[140px]" title={studentName}>
+                  {studentName}
+                </span>
+              )}
+            </div>
+            {series.map((item) => (
+              <div key={item.key} className="mt-1 flex items-center justify-between gap-4">
+                <span style={{ color: item.color }}>{item.label}</span>
+                <span className="font-bold">{data[hoveredIdx][item.key]}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 };
 
-import { getStudentInitials as getInitials, buildAvatarColorMap } from '../../utils/studentFormatters';
 
 
 const getTierCls = (tier: string) => {
@@ -388,6 +435,18 @@ const getCompositeScoreCls = (tier: string) => {
   if (tier === 'High') return 'text-risk-high font-semibold';
   if (tier === 'Medium') return 'text-risk-medium font-semibold';
   return 'text-risk-low font-semibold';
+};
+
+const getAttendanceRateCls = (rate: number) => {
+  if (rate >= 81) return 'text-risk-low font-semibold';
+  if (rate >= 75) return 'text-risk-medium font-semibold';
+  return 'text-risk-high font-semibold';
+};
+
+const getScoreAvgCls = (score: number) => {
+  if (score >= 81) return 'text-risk-low font-semibold';
+  if (score >= 75) return 'text-risk-medium font-semibold';
+  return 'text-risk-high font-semibold';
 };
 
 const riskTierOrder: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
@@ -497,7 +556,6 @@ export const TutorAnalytics: React.FC = () => {
   const [attendanceLogs, setAttendanceLogs] = useState<Attendance[]>([]);
   const [riskCounts, setRiskCounts] = useState({ high: 0, moderate: 0, low: 0 });
   const [isLoading, setIsLoading] = useState(true);
-  const showSkeleton = isLoading;
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState<AnalyticsTab>(() => {
@@ -512,6 +570,8 @@ export const TutorAnalytics: React.FC = () => {
   const [riskTrendFilter, setRiskTrendFilter] = useState<TrendFilter>('week');
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [scoreSearch, setScoreSearch] = useState('');
+  const [attendanceDescFilter, setAttendanceDescFilter] = useState<'all' | 'Intervention Activity' | 'milestone'>('all');
+  const [scoreDescFilter, setScoreDescFilter] = useState<'all' | 'Intervention Activity' | 'milestone'>('all');
   const [sortField, setSortField] = useState<keyof ExtendedRiskRow | null>(null);
   const [sortAsc, setSortAsc] = useState(true);
   const [attendanceSortField, setAttendanceSortField] = useState<AttendanceDetailSortField | null>(null);
@@ -519,10 +579,11 @@ export const TutorAnalytics: React.FC = () => {
   const [scoreSortField, setScoreSortField] = useState<ScoreDetailSortField | null>(null);
   const [scoreSortAsc, setScoreSortAsc] = useState(true);
 
-  const avatarColor = useMemo(
-    () => buildAvatarColorMap(rows.map((r) => r.student)),
-    [rows]
-  );
+  const assignedMilestone = useMemo<MilestoneType>(() => {
+    return getTutorAssignedMilestone(user?.aral_level);
+  }, [user?.aral_level]);
+
+
 
   const fetchAnalytics = async () => {
     if (!user) return;
@@ -575,8 +636,7 @@ export const TutorAnalytics: React.FC = () => {
   const filteredAndSortedRows = useMemo(() => {
     return rows
       .filter((r) => {
-        const q = search.toLowerCase();
-        return (r.student.full_name || '').toLowerCase().includes(q) || (r.student.lrn || '').includes(q);
+        return matchesSearch(search, r.student.full_name, r.student.first_name, r.student.last_name, r.student.lrn);
       })
       .sort((a, b) => {
         if (sortField === null || sortField === 'riskTier') {
@@ -614,16 +674,29 @@ export const TutorAnalytics: React.FC = () => {
   const riskScopedRows = useMemo(() => (
     riskScope === 'all' ? rows : rows.filter((row) => String(row.student.id) === riskScope)
   ), [rows, riskScope]);
+  const selectedRiskStudent = useMemo(() => (
+    riskScope === 'all' ? null : rows.find((row) => String(row.student.id) === riskScope)?.student || null
+  ), [rows, riskScope]);
+  const selectedAttendanceStudent = useMemo(() => (
+    attendanceScope === 'all' ? null : rows.find((row) => String(row.student.id) === attendanceScope)?.student || null
+  ), [rows, attendanceScope]);
+  const selectedScoreStudent = useMemo(() => (
+    scoreScope === 'all' ? null : rows.find((row) => String(row.student.id) === scoreScope)?.student || null
+  ), [rows, scoreScope]);
   const riskTrend = useMemo(() => buildRiskTrendPoints(
     riskScopedRows.map((row) => row.student),
     grades,
     attendanceLogs,
     riskTrendFilter
   ), [riskScopedRows, grades, attendanceLogs, riskTrendFilter]);
-  const attendanceSummary = useMemo(() => ({
-    present: attendanceLogs.filter((log) => log.status === 'present').length,
-    absent: attendanceLogs.filter((log) => log.status === 'absent').length,
-  }), [attendanceLogs]);
+  const attendanceSummary = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayLogs = attendanceLogs.filter((log) => log.date && log.date.slice(0, 10) === todayStr);
+    return {
+      present: todayLogs.filter((log) => log.status === 'present').length,
+      absent: todayLogs.filter((log) => log.status === 'absent').length,
+    };
+  }, [attendanceLogs]);
 
   const avgAttendance = useMemo(() => {
     if (rows.length === 0) return 0;
@@ -663,7 +736,12 @@ export const TutorAnalytics: React.FC = () => {
     };
   }, [avgAttendance, attendanceLogs.length]);
   const scoreSummary = useMemo(() => {
-    const scoreRecords = grades.filter((grade) => grade.component_type !== 'attendance' && grade.remarks !== 'Not Taken');
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const scoreRecords = grades.filter((grade) =>
+      grade.component_type !== 'attendance' &&
+      grade.remarks !== 'Not Taken' &&
+      grade.date_logged && grade.date_logged.slice(0, 10) === todayStr
+    );
     return {
       passed: scoreRecords.filter((grade) => Number(grade.total_score) > 0 && (Number(grade.score) / Number(grade.total_score)) >= 0.7).length,
       failed: scoreRecords.filter((grade) => Number(grade.total_score) > 0 && (Number(grade.score) / Number(grade.total_score)) < 0.7).length,
@@ -708,37 +786,140 @@ export const TutorAnalytics: React.FC = () => {
       valueColor: 'text-risk-high',
     };
   }, [avgScore, grades]);
-  const attendanceDetails = useMemo(() => rows.map((row) => {
-    const studentLogs = attendanceLogs.filter((log) => String(log.user) === String(row.student.id));
-    const present = studentLogs.filter((log) => log.status === 'present').length;
-    const absent = studentLogs.filter((log) => log.status === 'absent').length;
-    const attended = studentLogs.filter((log) => log.status === 'present' || log.status === 'late').length;
-    return { ...row, present, absent, attendanceAverage: studentLogs.length ? (attended / studentLogs.length) * 100 : 0 };
-  }).filter((row) => row.student.full_name.toLowerCase().includes(attendanceSearch.toLowerCase()))
-    .sort((firstRow, secondRow) => {
-      if (attendanceSortField === null) return 0;
-      const firstValue = attendanceSortField === 'student' ? firstRow.student.full_name : attendanceSortField === 'aralLevel' ? firstRow.student.aral_level || '' : (firstRow as unknown as Record<string, string | number>)[attendanceSortField];
-      const secondValue = attendanceSortField === 'student' ? secondRow.student.full_name : attendanceSortField === 'aralLevel' ? secondRow.student.aral_level || '' : (secondRow as unknown as Record<string, string | number>)[attendanceSortField];
-      if (typeof firstValue === 'string' && typeof secondValue === 'string') return attendanceSortAsc ? firstValue.localeCompare(secondValue) : secondValue.localeCompare(firstValue);
-      return attendanceSortAsc ? Number(firstValue) - Number(secondValue) : Number(secondValue) - Number(firstValue);
-    }), [rows, attendanceLogs, attendanceSearch, attendanceSortField, attendanceSortAsc]);
-  const scoreDetails = useMemo(() => rows.map((row) => {
-    const studentGrades = grades.filter((grade) => String(grade.student) === String(row.student.id) && grade.component_type !== 'attendance' && grade.remarks !== 'Not Taken');
-    const percentages = studentGrades.filter((grade) => Number(grade.total_score) > 0).map((grade) => (Number(grade.score) / Number(grade.total_score)) * 100);
-    return {
-      ...row,
-      passed: percentages.filter((percentage) => percentage >= 70).length,
-      failed: percentages.filter((percentage) => percentage < 70).length,
-      scoreAverage: percentages.length ? percentages.reduce((sum, percentage) => sum + percentage, 0) / percentages.length : 0,
-    };
-  }).filter((row) => row.student.full_name.toLowerCase().includes(scoreSearch.toLowerCase()))
-    .sort((firstRow, secondRow) => {
-      if (scoreSortField === null) return 0;
-      const firstValue = scoreSortField === 'student' ? firstRow.student.full_name : scoreSortField === 'aralLevel' ? firstRow.student.aral_level || '' : (firstRow as unknown as Record<string, string | number>)[scoreSortField];
-      const secondValue = scoreSortField === 'student' ? secondRow.student.full_name : scoreSortField === 'aralLevel' ? secondRow.student.aral_level || '' : (secondRow as unknown as Record<string, string | number>)[scoreSortField];
-      if (typeof firstValue === 'string' && typeof secondValue === 'string') return scoreSortAsc ? firstValue.localeCompare(secondValue) : secondValue.localeCompare(firstValue);
-      return scoreSortAsc ? Number(firstValue) - Number(secondValue) : Number(secondValue) - Number(firstValue);
-    }), [rows, grades, scoreSearch, scoreSortField, scoreSortAsc]);
+  const attendanceDetails = useMemo(() => {
+    const list: (ExtendedRiskRow & {
+      description: EntryDescriptionType;
+      present: number;
+      absent: number;
+      attendanceAverage: number;
+    })[] = [];
+
+    rows.forEach((row) => {
+      const allStudentLogs = attendanceLogs.filter((log) => String(log.user) === String(row.student.id));
+
+      const typesToGenerate: EntryDescriptionType[] = attendanceDescFilter === 'all'
+        ? ['Intervention Activity', assignedMilestone]
+        : attendanceDescFilter === 'milestone'
+        ? [assignedMilestone]
+        : ['Intervention Activity'];
+
+      typesToGenerate.forEach((desc) => {
+        const studentLogs = allStudentLogs.filter((log) => {
+          const logDesc = getAttendanceDescription(log);
+          if (desc === 'Intervention Activity') return logDesc === 'Intervention Activity';
+          return logDesc !== 'Intervention Activity';
+        });
+        if (attendanceDescFilter === 'all' && desc !== 'Intervention Activity' && studentLogs.length === 0) {
+          return;
+        }
+        const present = studentLogs.filter((log) => log.status === 'present').length;
+        const absent = studentLogs.filter((log) => log.status === 'absent').length;
+        const attended = studentLogs.filter((log) => log.status === 'present').length;
+        list.push({
+          ...row,
+          description: desc,
+          present,
+          absent,
+          attendanceAverage: studentLogs.length ? (attended / studentLogs.length) * 100 : 0,
+        });
+      });
+    });
+
+    return list
+      .filter((row) => matchesSearch(attendanceSearch, row.student.full_name, row.student.first_name, row.student.last_name, row.student.lrn, row.description))
+      .sort((firstRow, secondRow) => {
+        if (attendanceSortField === null) return 0;
+        const firstValue =
+          attendanceSortField === 'student'
+            ? firstRow.student.full_name
+            : attendanceSortField === 'aralLevel'
+            ? firstRow.student.aral_level || ''
+            : attendanceSortField === 'description'
+            ? firstRow.description
+            : (firstRow as unknown as Record<string, string | number>)[attendanceSortField];
+        const secondValue =
+          attendanceSortField === 'student'
+            ? secondRow.student.full_name
+            : attendanceSortField === 'aralLevel'
+            ? secondRow.student.aral_level || ''
+            : attendanceSortField === 'description'
+            ? secondRow.description
+            : (secondRow as unknown as Record<string, string | number>)[attendanceSortField];
+        if (typeof firstValue === 'string' && typeof secondValue === 'string') {
+          return attendanceSortAsc ? firstValue.localeCompare(secondValue) : secondValue.localeCompare(firstValue);
+        }
+        return attendanceSortAsc ? Number(firstValue) - Number(secondValue) : Number(secondValue) - Number(firstValue);
+      });
+  }, [rows, attendanceLogs, attendanceSearch, attendanceDescFilter, attendanceSortField, attendanceSortAsc]);
+
+  const scoreDetails = useMemo(() => {
+    const list: (ExtendedRiskRow & {
+      description: EntryDescriptionType;
+      passed: number;
+      failed: number;
+      scoreAverage: number;
+    })[] = [];
+
+    rows.forEach((row) => {
+      const allStudentGrades = grades.filter(
+        (grade) => String(grade.student) === String(row.student.id) && grade.component_type !== 'attendance' && grade.remarks !== 'Not Taken'
+      );
+
+      const typesToGenerate: EntryDescriptionType[] = scoreDescFilter === 'all'
+        ? ['Intervention Activity', assignedMilestone]
+        : scoreDescFilter === 'milestone'
+        ? [assignedMilestone]
+        : ['Intervention Activity'];
+
+      typesToGenerate.forEach((desc) => {
+        const studentGrades = allStudentGrades.filter((grade) => {
+          const gradeDesc = getScoreDescription(grade);
+          if (desc === 'Intervention Activity') return gradeDesc === 'Intervention Activity';
+          return gradeDesc !== 'Intervention Activity';
+        });
+        if (scoreDescFilter === 'all' && desc !== 'Intervention Activity' && studentGrades.length === 0) {
+          return;
+        }
+        const percentages = studentGrades
+          .filter((grade) => Number(grade.total_score) > 0)
+          .map((grade) => (Number(grade.score) / Number(grade.total_score)) * 100);
+
+        list.push({
+          ...row,
+          description: desc,
+          passed: percentages.filter((percentage) => percentage >= 70).length,
+          failed: percentages.filter((percentage) => percentage < 70).length,
+          scoreAverage: percentages.length ? percentages.reduce((sum, percentage) => sum + percentage, 0) / percentages.length : 0,
+        });
+      });
+    });
+
+    return list
+      .filter((row) => matchesSearch(scoreSearch, row.student.full_name, row.student.first_name, row.student.last_name, row.student.lrn, row.description))
+      .sort((firstRow, secondRow) => {
+        if (scoreSortField === null) return 0;
+        const firstValue =
+          scoreSortField === 'student'
+            ? firstRow.student.full_name
+            : scoreSortField === 'aralLevel'
+            ? firstRow.student.aral_level || ''
+            : scoreSortField === 'description'
+            ? firstRow.description
+            : (firstRow as unknown as Record<string, string | number>)[scoreSortField];
+        const secondValue =
+          scoreSortField === 'student'
+            ? secondRow.student.full_name
+            : scoreSortField === 'aralLevel'
+            ? secondRow.student.aral_level || ''
+            : scoreSortField === 'description'
+            ? secondRow.description
+            : (secondRow as unknown as Record<string, string | number>)[scoreSortField];
+        if (typeof firstValue === 'string' && typeof secondValue === 'string') {
+          return scoreSortAsc ? firstValue.localeCompare(secondValue) : secondValue.localeCompare(firstValue);
+        }
+        return scoreSortAsc ? Number(firstValue) - Number(secondValue) : Number(secondValue) - Number(firstValue);
+      });
+  }, [rows, grades, scoreSearch, scoreDescFilter, scoreSortField, scoreSortAsc]);
   const handleDetailSort = <Field extends string>(field: Field, currentField: Field | null, setField: React.Dispatch<React.SetStateAction<Field | null>>, setAscending: React.Dispatch<React.SetStateAction<boolean>>, ascending: boolean) => {
     if (currentField === field) setAscending(!ascending);
     else { setField(field); setAscending(true); }
@@ -759,9 +940,116 @@ export const TutorAnalytics: React.FC = () => {
     </th>
   );
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6 skeleton-container" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+        {/* ── View Tab Switcher Skeleton ── */}
+        <div className="flex w-full rounded-2xl bg-gray-100 dark:bg-[#111111] p-1 gap-1 animate-pulse skeleton-row-1">
+          <div className="h-9 flex-1 rounded-xl bg-gray-200 dark:bg-gray-800" />
+          <div className="h-9 flex-1 rounded-xl bg-gray-200 dark:bg-gray-800" />
+          <div className="h-9 flex-1 rounded-xl bg-gray-200 dark:bg-gray-800" />
+        </div>
+
+        {/* ── 3 Summary KPI Cards Skeleton ── */}
+        <div className="grid gap-4 sm:grid-cols-3 skeleton-row-1">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm min-h-[114px] flex items-center gap-4 animate-pulse"
+            >
+              <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="h-3 w-20 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
+                <div className="h-8 w-14 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-3 w-44 rounded bg-gray-100 dark:bg-gray-800/60 mt-2" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Chart Card Skeleton ── */}
+        <div className="w-full rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-6 shadow-sm animate-pulse skeleton-row-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <div className="space-y-1.5">
+              <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800" />
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-4 w-44 rounded bg-gray-100 dark:bg-gray-800 hidden sm:block" />
+              <div className="h-8 w-24 rounded-xl bg-gray-100 dark:bg-gray-800" />
+              <div className="h-8 w-28 rounded-xl bg-gray-100 dark:bg-gray-800" />
+            </div>
+          </div>
+          <div className="mt-6">
+            <div className="h-[228px] w-full rounded-2xl bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A]" />
+          </div>
+        </div>
+
+        {/* ── Table Card Skeleton ── */}
+        <div className="space-y-2 skeleton-row-3">
+          <div className="w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A] animate-pulse">
+            {/* Table toolbar */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+              <div className="space-y-1">
+                <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-3 w-28 rounded bg-gray-100 dark:bg-gray-800" />
+              </div>
+              <div className="h-9 w-64 rounded-xl bg-gray-100 dark:bg-gray-800" />
+            </div>
+
+            {/* Table header bar */}
+            <div className="bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-4 py-3 flex items-center justify-between">
+              <div className="h-3 w-24 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="h-3 w-20 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="h-3 w-28 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="h-3 w-24 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="h-3 w-20 rounded bg-gray-200 dark:bg-gray-800" />
+            </div>
+
+            {/* Table rows */}
+            <div className="divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+                  <div className="w-9 h-9 rounded-xl bg-gray-200 dark:bg-gray-800 shrink-0" />
+                  <div className="space-y-1">
+                    <div className="h-3.5 w-36 rounded bg-gray-200 dark:bg-gray-800" />
+                    <div className="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800" />
+                  </div>
+                  <div className="h-5 w-16 rounded-full bg-gray-100 dark:bg-gray-800 ml-8" />
+                  <div className="h-3.5 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
+                  <div className="h-3.5 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
+                  <div className="h-3.5 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm">
+        <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-bold">Failed to load analytics</p>
+          <p className="text-xs mt-0.5 text-rose-700 dark:text-rose-300">{error}</p>
+          <button
+            type="button"
+            onClick={fetchAnalytics}
+            className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-      {/* ── View Tab Switcher (Permanent, never pops or flashes on load) ── */}
+    <div className="space-y-6 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      {/* ── View Tab Switcher ── */}
       <div
         className="flex w-full rounded-2xl bg-gray-100 p-1 gap-1 dark:bg-[#111111]"
         role="tablist"
@@ -788,104 +1076,6 @@ export const TutorAnalytics: React.FC = () => {
           </button>
         ))}
       </div>
-
-      {showSkeleton ? (
-        <div className="space-y-6 skeleton-container">
-          {/* 3 Summary KPI Cards skeleton */}
-          <div className="grid gap-4 sm:grid-cols-3 skeleton-row-1">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm min-h-[114px] flex items-center gap-4 animate-pulse"
-              >
-                <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="h-3 w-20 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
-                  <div className="h-8 w-14 rounded bg-gray-200 dark:bg-gray-800" />
-                  <div className="h-3 w-44 rounded bg-gray-100 dark:bg-gray-800/60 mt-2" />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Chart card skeleton */}
-          <div className="w-full rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-6 shadow-sm animate-pulse skeleton-row-2">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
-              <div className="space-y-1.5">
-                <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800" />
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="h-4 w-44 rounded bg-gray-100 dark:bg-gray-800 hidden sm:block" />
-                <div className="h-8 w-24 rounded-xl bg-gray-100 dark:bg-gray-800" />
-                <div className="h-8 w-28 rounded-xl bg-gray-100 dark:bg-gray-800" />
-              </div>
-            </div>
-            <div className="mt-6">
-              <div className="h-[228px] w-full rounded-2xl bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A]" />
-            </div>
-          </div>
-
-          {/* Table card skeleton */}
-          <div className="space-y-2 skeleton-row-3">
-            {activeAnalyticsTab === 'overall' && (
-              <div className="h-4 w-48 rounded bg-gray-100 dark:bg-gray-800/60" />
-            )}
-            <div className="w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A] animate-pulse">
-              {/* Table toolbar */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
-                <div className="space-y-1">
-                  <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800" />
-                  <div className="h-3 w-28 rounded bg-gray-100 dark:bg-gray-800" />
-                </div>
-                <div className="h-9 w-64 rounded-xl bg-gray-100 dark:bg-gray-800" />
-              </div>
-
-              {/* Table header bar */}
-              <div className="bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-4 py-3 flex items-center justify-between">
-                <div className="h-3 w-24 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-3 w-20 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-3 w-28 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-3 w-24 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-3 w-20 rounded bg-gray-200 dark:bg-gray-800" />
-              </div>
-
-              {/* Table rows */}
-              <div className="divide-y divide-gray-100 dark:divide-[#1A1A1A]">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex items-center gap-4 px-4 py-3.5">
-                    <div className="w-9 h-9 rounded-xl bg-gray-200 dark:bg-gray-800 shrink-0" />
-                    <div className="space-y-1">
-                      <div className="h-3.5 w-36 rounded bg-gray-200 dark:bg-gray-800" />
-                      <div className="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800" />
-                    </div>
-                    <div className="h-5 w-16 rounded-full bg-gray-100 dark:bg-gray-800 ml-8" />
-                    <div className="h-3.5 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
-                    <div className="h-3.5 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
-                    <div className="h-3.5 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : error ? (
-        <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm">
-          <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-bold">Failed to load analytics</p>
-            <p className="text-xs mt-0.5 text-rose-700 dark:text-rose-300">{error}</p>
-            <button
-              type="button"
-              onClick={fetchAnalytics}
-              className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div key={`analytics-loaded-${activeAnalyticsTab}`} className="space-y-6 data-loaded-content">
           {/* ── Overall Tab Content ── */}
           {activeAnalyticsTab === 'overall' && (
             <>
@@ -896,14 +1086,14 @@ export const TutorAnalytics: React.FC = () => {
                     <RiskRangeInfo range="Composite score is below 70%" />
                   </div>
                   <div className="w-11 h-11 rounded-2xl border risk-badge-high flex items-center justify-center shrink-0">
-                    <ShieldAlert className="w-5 h-5 text-risk-high" />
+                    <Frown className="w-5 h-5 text-risk-high" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-high">
                       <p className="text-[11px] font-bold uppercase tracking-wider">High Risk</p>
                     </div>
                     <p className="text-3xl font-extrabold text-risk-high mt-0.5">{riskCounts.high}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students needing immediate intervention</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Students needing immediate intervention</p>
                   </div>
                 </div>
 
@@ -912,14 +1102,14 @@ export const TutorAnalytics: React.FC = () => {
                     <RiskRangeInfo range="Composite score is between 70% to 85%" />
                   </div>
                   <div className="w-11 h-11 rounded-2xl border risk-badge-medium flex items-center justify-center shrink-0">
-                    <AlertTriangle className="w-5 h-5 text-risk-medium" />
+                    <Meh className="w-5 h-5 text-risk-medium" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-medium">
                       <p className="text-[11px] font-bold uppercase tracking-wider">Medium Risk</p>
                     </div>
                     <p className="text-3xl font-extrabold text-risk-medium mt-0.5">{riskCounts.moderate}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students requiring monitoring</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Students requiring monitoring</p>
                   </div>
                 </div>
 
@@ -928,14 +1118,14 @@ export const TutorAnalytics: React.FC = () => {
                     <RiskRangeInfo range="Composite score is between 86% to 100%" />
                   </div>
                   <div className="w-11 h-11 rounded-2xl border risk-badge-low flex items-center justify-center shrink-0">
-                    <Award className="w-5 h-5 text-risk-low" />
+                    <Smile className="w-5 h-5 text-risk-low" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-low">
                       <p className="text-[11px] font-bold uppercase tracking-wider">Low Risk</p>
                     </div>
                     <p className="text-3xl font-extrabold text-risk-low mt-0.5">{riskCounts.low}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students performing well</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Students performing well</p>
                   </div>
                 </div>
               </div>
@@ -945,9 +1135,6 @@ export const TutorAnalytics: React.FC = () => {
                 <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
                     <h3 id="risk-overview-heading" className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">RISK LEVEL TREND CHART</h3>
-                    <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
-                      {riskTrendFilter === 'day' ? 'Daily' : riskTrendFilter === 'month' ? 'Monthly' : 'Weekly'} risk level distribution
-                    </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
@@ -969,14 +1156,14 @@ export const TutorAnalytics: React.FC = () => {
                 </div>
                 <div className="mt-6">
                   <div className="relative rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
-                    <RiskTrendChart data={riskTrend} total={riskScopedRows.length} isSingleStudent={riskScope !== 'all'} />
+                    <RiskTrendChart data={riskTrend} total={riskScopedRows.length} isSingleStudent={riskScope !== 'all'} studentName={selectedRiskStudent?.full_name} />
                   </div>
                 </div>
               </section>
 
               {/* ── Student Performance Details Table ── */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 px-1 text-xs text-gray-500" style={{ fontFamily: 'var(--font-body)' }}>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-1 pb-1 text-xs text-gray-500" style={{ fontFamily: 'var(--font-body)' }}>
                   <RiskCalculationInfo />
                 </div>
                 <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
@@ -1024,21 +1211,22 @@ export const TutorAnalytics: React.FC = () => {
                           {filteredAndSortedRows.map((row) => (
                             <tr key={row.student.id} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5">
                               <td className="px-4 py-3.5 align-middle">
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(row.student.full_name || '')}`}>
-                                    {getInitials(row.student.full_name || '?')}
-                                  </div>
-                                  <div>
-                                    <div className="font-semibold text-gray-900 dark:text-slate-100">{row.student.full_name}</div>
-                                    <div className="text-xs text-gray-400 font-normal">LRN: {row.student.lrn || 'N/A'}</div>
-                                  </div>
+                                <div>
+                                  <div className="font-semibold text-gray-900 dark:text-slate-100">{row.student.full_name}</div>
+                                  <div className="text-xs text-gray-400 font-normal">LRN: {row.student.lrn || 'N/A'}</div>
                                 </div>
                               </td>
                               <td className="px-4 py-3.5 align-middle">{getAralBadge(row.student.aral_level)}</td>
-                              <td className="px-4 py-3.5 align-middle font-normal text-gray-700 dark:text-slate-300">
-                                {smartPct(row.attendanceRate)}%
+                              <td className="px-4 py-3.5 align-middle">
+                                <span className={`text-sm font-normal ${getAttendanceRateCls(row.attendanceRate)}`}>
+                                  {smartPct(row.attendanceRate)}%
+                                </span>
                               </td>
-                              <td className="px-4 py-3.5 align-middle font-normal text-gray-700 dark:text-slate-300">{smartPct(row.scoreAvg)}%</td>
+                              <td className="px-4 py-3.5 align-middle">
+                                <span className={`text-sm font-normal ${getScoreAvgCls(row.scoreAvg)}`}>
+                                  {smartPct(row.scoreAvg)}%
+                                </span>
+                              </td>
                               <td className="px-4 py-3.5 align-middle">
                                 <span className={`text-sm font-normal ${getCompositeScoreCls(row.riskTier)}`}>
                                   {smartPct(row.compositeScore)}%
@@ -1070,9 +1258,9 @@ export const TutorAnalytics: React.FC = () => {
                     <Check className="w-5 h-5 text-emerald-600" strokeWidth={3} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Present</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Present Today</p>
                     <p className="text-3xl font-extrabold text-emerald-900 mt-0.5">{attendanceSummary.present}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Total records marked present</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students marked present today</p>
                   </div>
                 </div>
                 <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-sm min-h-[114px] flex items-center gap-4">
@@ -1080,9 +1268,9 @@ export const TutorAnalytics: React.FC = () => {
                     <X className="w-5 h-5 text-rose-600" strokeWidth={3} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Absent</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Absent Today</p>
                     <p className="text-3xl font-extrabold text-rose-900 mt-0.5">{attendanceSummary.absent}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Total records marked absent</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students marked absent today</p>
                   </div>
                 </div>
                 <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm min-h-[114px] flex items-center gap-4 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
@@ -1104,13 +1292,10 @@ export const TutorAnalytics: React.FC = () => {
                 <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
                     <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS ATTENDANCE RATE TREND CHART</h3>
-                    <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
-                      {attendanceFilter === 'day' ? 'Daily' : attendanceFilter === 'month' ? 'Monthly' : 'Weekly'} attendance trend
-                    </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
-                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#22C55E' }} />Attendance Rate</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0052B7] shadow-xs" />Attendance Rate</span>
                     </div>
                     <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
                       <StudentRiskFilter rows={rows} value={attendanceScope} onChange={setAttendanceScope} />
@@ -1125,7 +1310,7 @@ export const TutorAnalytics: React.FC = () => {
                   </div>
                 </div>
                 <div className="relative mt-6 h-56 w-full rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
-                  <TrendChart data={attendanceTrend} color="#0052B7" emptyLabel="No attendance trend data" />
+                  <TrendChart data={attendanceTrend} color="#0052B7" emptyLabel="No attendance trend data" valueLabel={selectedAttendanceStudent ? selectedAttendanceStudent.full_name : 'Class Average Attendance'} />
                 </div>
               </div>
 
@@ -1138,6 +1323,27 @@ export const TutorAnalytics: React.FC = () => {
                       <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{attendanceDetails.length} Students</p>
                     </div>
                     <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
+                      {/* Description Filter */}
+                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5 shrink-0">
+                        {([
+                          ['all', 'All'],
+                          ['Intervention Activity', 'Intervention'],
+                          ['milestone', assignedMilestone],
+                        ] as const).map(([val, label]) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setAttendanceDescFilter(val)}
+                            className={`rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                              attendanceDescFilter === val
+                                ? 'bg-[var(--brand)] text-white shadow-sm'
+                                : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                       <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input type="search" aria-label="Search attendance students" placeholder="Search Student Name" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10" />
@@ -1146,8 +1352,8 @@ export const TutorAnalytics: React.FC = () => {
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                      <thead><tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]"><SortHeader field="student" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Student</SortHeader><SortHeader field="aralLevel" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>ARAL Level</SortHeader><SortHeader field="present" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Present</SortHeader><SortHeader field="absent" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Absent</SortHeader><SortHeader field="attendanceAverage" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Average Attendance Rate</SortHeader></tr></thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{attendanceDetails.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : attendanceDetails.map((row) => <tr key={row.student.id} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3.5 font-semibold text-gray-900 dark:text-slate-100">{row.student.full_name}</td><td className="px-4 py-3.5">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3.5 font-normal text-emerald-600">{row.present}</td><td className="px-4 py-3.5 font-normal text-rose-600">{row.absent}</td><td className="px-4 py-3.5 font-normal text-gray-700 dark:text-slate-300">{smartPct(row.attendanceAverage)}%</td></tr>)}</tbody>
+                      <thead><tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]"><SortHeader field="student" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Student</SortHeader><SortHeader field="aralLevel" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>ARAL Level</SortHeader><SortHeader field="description" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>DESCRIPTION</SortHeader><SortHeader field="present" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Present</SortHeader><SortHeader field="absent" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Absent</SortHeader><SortHeader field="attendanceAverage" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Average Attendance Rate</SortHeader></tr></thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{attendanceDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : attendanceDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3.5 font-semibold text-gray-900 dark:text-slate-100">{row.student.full_name}</td><td className="px-4 py-3.5">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3.5 text-left"><span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${row.description !== 'Intervention Activity' ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300' : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{row.description}</span></td><td className="px-4 py-3.5 font-normal text-emerald-600">{row.present}</td><td className="px-4 py-3.5 font-normal text-rose-600">{row.absent}</td><td className="px-4 py-3.5 font-normal"><span className={`text-sm font-normal ${getAttendanceRateCls(row.attendanceAverage)}`}>{smartPct(row.attendanceAverage)}%</span></td></tr>)}</tbody>
                     </table>
                   </div>
                 </div>
@@ -1165,9 +1371,9 @@ export const TutorAnalytics: React.FC = () => {
                     <Check className="w-5 h-5 text-emerald-600" strokeWidth={3} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Passed</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Passed Today</p>
                     <p className="text-3xl font-extrabold text-emerald-900 mt-0.5">{scoreSummary.passed}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Total records marked passed</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Assessments scored ≥ 70% today</p>
                   </div>
                 </div>
                 <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-sm min-h-[114px] flex items-center gap-4">
@@ -1175,9 +1381,9 @@ export const TutorAnalytics: React.FC = () => {
                     <X className="w-5 h-5 text-rose-600" strokeWidth={3} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Failed</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Failed Today</p>
                     <p className="text-3xl font-extrabold text-rose-900 mt-0.5">{scoreSummary.failed}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Total records marked failed</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Assessments scored &lt; 70% today</p>
                   </div>
                 </div>
                 <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm min-h-[114px] flex items-center gap-4 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
@@ -1199,9 +1405,6 @@ export const TutorAnalytics: React.FC = () => {
                 <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
                     <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS AVERAGE SCORE TREND CHART</h3>
-                    <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
-                      {scoreFilter === 'day' ? 'Daily' : scoreFilter === 'month' ? 'Monthly' : 'Weekly'} score trend
-                    </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
@@ -1220,7 +1423,7 @@ export const TutorAnalytics: React.FC = () => {
                   </div>
                 </div>
                 <div className="relative mt-6 h-56 w-full rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
-                  <TrendChart data={scoreTrend} color="#0052B7" emptyLabel="No score trend data" />
+                  <TrendChart data={scoreTrend} color="#0052B7" emptyLabel="No score trend data" valueLabel={selectedScoreStudent ? selectedScoreStudent.full_name : 'Class Average Score'} />
                 </div>
               </div>
 
@@ -1233,6 +1436,27 @@ export const TutorAnalytics: React.FC = () => {
                       <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{scoreDetails.length} Students</p>
                     </div>
                     <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
+                      {/* Description Filter */}
+                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5 shrink-0">
+                        {([
+                          ['all', 'All'],
+                          ['Intervention Activity', 'Intervention'],
+                          ['milestone', assignedMilestone],
+                        ] as const).map(([val, label]) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setScoreDescFilter(val)}
+                            className={`rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                              scoreDescFilter === val
+                                ? 'bg-[var(--brand)] text-white shadow-sm'
+                                : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                       <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input type="search" aria-label="Search score students" placeholder="Search Student Name" value={scoreSearch} onChange={(event) => setScoreSearch(event.target.value)} className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10" />
@@ -1241,16 +1465,14 @@ export const TutorAnalytics: React.FC = () => {
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                      <thead><tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]"><SortHeader field="student" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Student</SortHeader><SortHeader field="aralLevel" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>ARAL Level</SortHeader><SortHeader field="passed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Passed</SortHeader><SortHeader field="failed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Failed</SortHeader><SortHeader field="scoreAverage" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Average Score</SortHeader></tr></thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{scoreDetails.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : scoreDetails.map((row) => <tr key={row.student.id} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3.5 font-semibold text-gray-900 dark:text-slate-100">{row.student.full_name}</td><td className="px-4 py-3.5">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3.5 font-normal text-emerald-600">{row.passed}</td><td className="px-4 py-3.5 font-normal text-rose-600">{row.failed}</td><td className="px-4 py-3.5 font-normal text-gray-700 dark:text-slate-300">{smartPct(row.scoreAverage)}%</td></tr>)}</tbody>
+                      <thead><tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]"><SortHeader field="student" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Student</SortHeader><SortHeader field="aralLevel" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>ARAL Level</SortHeader><SortHeader field="description" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>DESCRIPTION</SortHeader><SortHeader field="passed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Passed</SortHeader><SortHeader field="failed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Failed</SortHeader><SortHeader field="scoreAverage" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Average Score</SortHeader></tr></thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{scoreDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : scoreDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3.5 font-semibold text-gray-900 dark:text-slate-100">{row.student.full_name}</td><td className="px-4 py-3.5">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3.5 text-left"><span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${row.description !== 'Intervention Activity' ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300' : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{row.description}</span></td><td className="px-4 py-3.5 font-normal text-emerald-600">{row.passed}</td><td className="px-4 py-3.5 font-normal text-rose-600">{row.failed}</td><td className="px-4 py-3.5 font-normal"><span className={`text-sm font-normal ${getScoreAvgCls(row.scoreAverage)}`}>{smartPct(row.scoreAverage)}%</span></td></tr>)}</tbody>
                     </table>
                   </div>
                 </div>
               </div>
             </>
           )}
-        </div>
-      )}
     </div>
   );
 };

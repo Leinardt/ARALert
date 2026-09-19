@@ -1,5 +1,5 @@
 import api from '../api/axios';
-import type { User, UserStats } from '../types';
+import type { User, UserStats, StudentEditRequest, CreateStudentEditRequestPayload } from '../types';
 
 export interface GetUsersParams {
   search?: string;
@@ -9,6 +9,7 @@ export interface GetUsersParams {
   page?: number;
   assigned_tutor?: string;
   subject?: string;
+  aral_level?: string;
 }
 
 export interface GetUsersResponse {
@@ -113,5 +114,27 @@ export const userService = {
   getStaff: async (): Promise<User[]> => {
     const response = await api.get<GetUsersResponse>('/users/', { params: { role: 'staff' } });
     return response.data.results;
+  },
+
+  getStudentEditRequests: async (params?: { status?: string; student_id?: string }): Promise<{ count: number; pending_count: number; results: StudentEditRequest[] }> => {
+    const response = await api.get<{ count: number; pending_count: number; results: StudentEditRequest[] }>('/users/student-edit-requests/', { params });
+    return response.data;
+  },
+
+  createStudentEditRequest: async (payload: CreateStudentEditRequestPayload): Promise<StudentEditRequest> => {
+    const response = await api.post<StudentEditRequest>('/users/student-edit-requests/', payload);
+    return response.data;
+  },
+
+  reviewStudentEditRequest: async (
+    id: string,
+    action: 'approve' | 'reject',
+    rejection_reason?: string
+  ): Promise<{ detail: string; request: StudentEditRequest }> => {
+    const response = await api.patch<{ detail: string; request: StudentEditRequest }>(
+      `/users/student-edit-requests/${id}/review/`,
+      { action, rejection_reason }
+    );
+    return response.data;
   },
 };

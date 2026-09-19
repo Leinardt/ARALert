@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useTheme } from '../hooks/useTheme';
-import { Sun, Moon, ArrowRight, School, Menu, X } from 'lucide-react';
+import { ArrowRight, School, Menu, X } from 'lucide-react';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 export const PublicLayout: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
 
   const isLanding = location.pathname === '/';
@@ -112,14 +111,7 @@ export const PublicLayout: React.FC = () => {
 
             {/* Right: Dark mode toggle + Sign In / Dashboard button + Mobile Menu Button */}
             <div className="flex items-center gap-2 sm:gap-3">
-              <button
-                type="button"
-                onClick={toggleTheme}
-                aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 shadow-xs border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-neutral-900/50 backdrop-blur-xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.12] dark:shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.1)]"
-              >
-                {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-              </button>
+              <ThemeToggle className="w-8 h-8 sm:w-9 sm:h-9" size={15} />
 
               <Link
                 to={isAuthenticated ? getDashboardLink() : '/login'}
@@ -190,13 +182,7 @@ export const PublicLayout: React.FC = () => {
               </span>
             </Link>
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={toggleTheme}
-                className="w-9 h-9 rounded-xl border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-neutral-900/50 backdrop-blur-xl text-slate-700 dark:text-slate-300 flex items-center justify-center cursor-pointer hover:bg-slate-100 dark:hover:bg-white/[0.12] dark:shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.1)]"
-              >
-                {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-              </button>
+              <ThemeToggle className="w-9 h-9" size={16} />
               <Link
                 to={isAuthenticated ? getDashboardLink() : '/login'}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--brand)] text-white font-bold text-xs sm:text-sm"

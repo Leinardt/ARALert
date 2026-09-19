@@ -22,6 +22,16 @@
      ─────────────────────────────────────────────────────────────────────────── */
   --brand: #0052B7;
 
+  /* ── 🎨 MASTER CONTAINER & SURFACE SYSTEM ───────────────────────────────────
+     Master light-mode tokens for canvas background vs elevated container cards:
+       - Background Canvas:  #FFFFFF (Pure White)
+       - Top Bar / Sidebar:  #FFFFFF (Pure White)
+       - Containers / Cards: #FFFFFF (Pure White)
+     ─────────────────────────────────────────────────────────────────────────── */
+  --surface-bg: #FFFFFF;
+  --surface-card: #FFFFFF;
+  --container-bg: #FFFFFF;
+
   /* ── 🪄 AUTOMATIC DYNAMIC DERIVATIVES (Standard CSS color-mix) ───────────────
      These dynamically adapt whenever --brand changes. You do NOT need to edit
      these unless you want custom non-standard ratios.
@@ -101,17 +111,17 @@
 
   /* Solid, Clean Risk & Status System in Dark Mode (Clean Borderless Outline) */
   --risk-low-bg:         #052E16;
-  --risk-low-border:     transparent;
+  --risk-low-border:     color-mix(in srgb, var(--risk-low) 30%, transparent);
   --risk-low-text:       #4ADE80;
   --risk-low-badge-bg:   #064E3B;
 
   --risk-medium-bg:      #451A03;
-  --risk-medium-border:  transparent;
+  --risk-medium-border:  color-mix(in srgb, var(--risk-medium) 30%, transparent);
   --risk-medium-text:    #FBBF24;
   --risk-medium-badge-bg:#78350F;
 
   --risk-high-bg:        #450A0A;
-  --risk-high-border:    transparent;
+  --risk-high-border:    color-mix(in srgb, var(--risk-high) 30%, transparent);
   --risk-high-text:      #F87171;
   --risk-high-badge-bg:  #881337;
 
@@ -155,4 +165,9 @@
   --color-risk-high-bg: var(--risk-high-bg);
   --color-risk-high-border: var(--risk-high-border);
   --color-risk-high-text: var(--risk-high-text);
+
+  /* Master container and surface utilities */
+  --color-surface-bg: var(--surface-bg);
+  --color-surface-card: var(--surface-card);
+  --color-container-bg: var(--container-bg);
 }

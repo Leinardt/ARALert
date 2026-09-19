@@ -69,7 +69,6 @@ def build_daily_attendance_rates(attendance_qs, start_date, end_date):
         date__range=(start_date, end_date),
     ).values('date').annotate(
         present_count=Count('id', filter=Q(status='present')),
-        late_count=Count('id', filter=Q(status='late')),
         total_count=Count('id'),
     )
 
@@ -77,7 +76,7 @@ def build_daily_attendance_rates(attendance_qs, start_date, end_date):
     for row in summary:
         if row['total_count'] > 0:
             rates[row['date']] = round(
-                ((row['present_count'] + row['late_count']) / row['total_count']) * 100.0,
+                (row['present_count'] / row['total_count']) * 100.0,
                 1,
             )
     return rates
@@ -101,8 +100,8 @@ def build_staff_attendance_trend(start_date, days, staff_attendance_summary):
     """Build per-day tutor/faculty attendance rates."""
     staff_by_date = [
         {
-            'tutor': {'present': 0, 'late': 0, 'absent': 0},
-            'faculty': {'present': 0, 'late': 0, 'absent': 0},
+            'tutor': {'present': 0, 'absent': 0},
+            'faculty': {'present': 0, 'absent': 0},
         }
         for _ in range(days)
     ]
@@ -112,7 +111,7 @@ def build_staff_attendance_trend(start_date, days, staff_attendance_summary):
         if date_index < 0 or date_index >= days:
             continue
         role_key = 'tutor' if row['role'] == 'tutor' else 'faculty'
-        if row['status'] in ('present', 'late', 'absent'):
+        if row['status'] in ('present', 'absent'):
             staff_by_date[date_index][role_key][row['status']] += row['count']
 
     trend = []
@@ -128,7 +127,7 @@ def build_staff_attendance_trend(start_date, days, staff_attendance_summary):
             total = sum(counts.values())
             if total > 0:
                 point[f'{role_key}_attendance_rate'] = round(
-                    ((counts['present'] + counts['late']) / total) * 100.0,
+                    (counts['present'] / total) * 100.0,
                     1,
                 )
         trend.append(point)

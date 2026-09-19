@@ -6,7 +6,6 @@ import { academicService } from '../../services/academicService';
 import type { Attendance, Grade, User } from '../../types';
 import {
   CheckCircle,
-  ShieldAlert,
   ChevronRight,
   AlertCircle,
   Users,
@@ -21,9 +20,11 @@ import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
 
 interface TutorChartPoint {
   label: string;
+  fullDateLabel?: string;
   dateRange: string;
   value: number;
   actualCount: number;
+  attendanceCount?: number;
   assessmentLabels: string[];
 }
 
@@ -173,7 +174,7 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[] }> = ({ data }) 
           <circle key={`data-dot-${idx}`} cx={p.x} cy={p.y} r="3.5" fill="var(--brand)" stroke="#B6D4F8" strokeWidth="1.5" />
         ))}
 
-        {/* BOSY/MOSY/EOSY milestone dots */}
+        {/* Milestone assessment dots */}
         {points.map((p, idx) => (
           p.assessmentLabels.length > 0 && (
             <g key={`milestone-dot-${idx}`}>
@@ -186,7 +187,7 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[] }> = ({ data }) 
         {/* Vertical line and dots on hover */}
         {hoveredIdx !== null && points[hoveredIdx] && (
           <g>
-            <line x1={points[hoveredIdx].x} y1={paddingTop} x2={points[hoveredIdx].x} y2={paddingTop + chartH} stroke="var(--brand)" strokeWidth="1.5" strokeDasharray="2 2" opacity="0.7" />
+            <line x1={points[hoveredIdx].x} y1={paddingTop} x2={points[hoveredIdx].x} y2={paddingTop + chartH} stroke="var(--brand)" strokeWidth="1.5" opacity="0.7" />
             <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill="var(--brand)" />
             <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="8" fill="var(--brand)" opacity="0.25" />
           </g>
@@ -204,35 +205,56 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[] }> = ({ data }) 
       </svg>
 
       {/* Floating Tooltip */}
-      {hoveredIdx !== null && points[hoveredIdx] && (
-        <div
-          className={`absolute z-10 min-w-[160px] bg-slate-900/95 text-white p-3 rounded-xl shadow-xl text-left pointer-events-none border border-slate-700/50 text-[11px] leading-normal font-medium ${hoveredIdx === 0 ? 'left-2' : hoveredIdx === points.length - 1 ? 'right-2' : '-translate-x-1/2'}`}
-          style={{ left: hoveredIdx === 0 || hoveredIdx === points.length - 1 ? undefined : `${(points[hoveredIdx].x / width) * 100}%`, top: `${Math.max(4, (points[hoveredIdx].y / height) * 100 - 45)}%` }}
-        >
-          <div className="font-extrabold text-[10px] uppercase text-[#60A5FA]">{points[hoveredIdx].label}</div>
-          <div className="whitespace-nowrap text-[9px] text-slate-300">{points[hoveredIdx].dateRange}</div>
-          <div className="flex items-baseline gap-1 mt-1">
-            <span
-              className="text-sm font-extrabold"
-              style={{
-                color: points[hoveredIdx].value >= 81 ? '#22C55E' : points[hoveredIdx].value >= 75 ? '#F59E0B' : '#EF4444',
-              }}
-            >
-              {points[hoveredIdx].value}%
-            </span>
-            <span className="text-[9px] text-slate-400">Total Composite Rating</span>
-          </div>
-          {points[hoveredIdx].assessmentLabels.length > 0 && (
-            <div className="mt-1.5 bg-[#0284C7]/20 border border-[#0284C7]/40 text-[#38BDF8] px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5 shadow-[0_0_8px_rgba(2,132,199,0.25)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#38BDF8] shadow-[0_0_6px_rgba(56,189,248,0.8)] inline-block" />
-              <span className="uppercase tracking-wider">{points[hoveredIdx].assessmentLabels.join(', ')}</span>
+      {hoveredIdx !== null && points[hoveredIdx] && (() => {
+        const p = points[hoveredIdx];
+        const pointXPct = (p.x / width) * 100;
+        const isNearRight = pointXPct > 75;
+        const gapPx = 14;
+
+        return (
+          <div
+            className="pointer-events-none absolute z-10 min-w-[160px] rounded-xl border border-slate-700/50 bg-slate-900/95 p-3 text-left text-[11px] font-medium leading-normal text-white shadow-xl"
+            style={{
+              left: isNearRight ? `calc(${pointXPct}% - ${gapPx}px)` : `calc(${pointXPct}% + ${gapPx}px)`,
+              top: '50%',
+              transform: isNearRight ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
+            }}
+          >
+            <div className="font-extrabold text-[11px] text-[#60A5FA] whitespace-nowrap">
+              {p.fullDateLabel || p.label}
             </div>
-          )}
-          <div className="text-[9px] text-slate-400 mt-1 border-t border-slate-800 pt-1">
-            {points[hoveredIdx].actualCount > 0 ? `${points[hoveredIdx].actualCount} scores logged` : 'No scores logged'}
+            <div className="flex items-baseline gap-1 mt-1">
+              <span
+                className="text-sm font-extrabold"
+                style={{
+                  color: p.value >= 81 ? '#22C55E' : p.value >= 75 ? '#F59E0B' : '#EF4444',
+                }}
+              >
+                {p.value}%
+              </span>
+              <span className="text-[9px] text-slate-400">Total Composite Rating</span>
+            </div>
+            {p.assessmentLabels.length > 0 && (
+              <div className="mt-1.5 bg-[#0284C7]/20 border border-[#0284C7]/40 text-[#38BDF8] px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5 shadow-[0_0_8px_rgba(2,132,199,0.25)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#38BDF8] shadow-[0_0_6px_rgba(56,189,248,0.8)] inline-block" />
+                <span className="uppercase tracking-wider">{p.assessmentLabels.join(', ')}</span>
+              </div>
+            )}
+            <div className="text-[9px] text-slate-400 mt-1 border-t border-slate-800 pt-1 space-y-0.5">
+              <div>
+                {p.actualCount > 0
+                  ? `${p.actualCount} ${p.actualCount === 1 ? 'score' : 'scores'} logged`
+                  : 'No scores logged'}
+              </div>
+              <div>
+                {(p.attendanceCount ?? 0) > 0
+                  ? `${p.attendanceCount} attendance record${p.attendanceCount === 1 ? '' : 's'} logged`
+                  : 'No attendance records logged'}
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
@@ -245,7 +267,7 @@ function computeStudentStats(students: User[], grades: Grade[], attendanceLogs: 
   return computeStudentRiskRows(students, grades, attendanceLogs);
 }
 
-import { getStudentInitials as getInitials, getStudentAvatarColor as avatarColor } from '../../utils/studentFormatters';
+import { getStudentAvatarColor as avatarColor } from '../../utils/studentFormatters';
 
 
 // ─── Main Component ─────────────────────────────────────────────────────────────
@@ -332,7 +354,7 @@ export const TutorHome: React.FC = () => {
   const tutorMilestone = useMemo(() => {
     const level = (user?.aral_level || 'basic').toLowerCase();
     if (level === 'plus') return 'EOSY';
-    if (level === 'summer') return 'BOSY';
+    if (level === 'summer') return 'ARAL Summer Assessment';
     return 'MOSY'; // for basic
   }, [user?.aral_level]);
 
@@ -350,10 +372,12 @@ export const TutorHome: React.FC = () => {
 
     let periods: {
       label: string;
+      fullDateLabel?: string;
       dateRange: string;
       start: Date;
       end: Date;
       scores: number[];
+      attendanceCount: number;
       assessmentLabels: Set<string>;
     }[];
 
@@ -362,28 +386,35 @@ export const TutorHome: React.FC = () => {
       periods = schoolDays.map((d) => {
         const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
         const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
-        const weekdayName = start.toLocaleDateString(undefined, { weekday: 'short' });
+        const weekdayName = start.toLocaleDateString('en-US', { weekday: 'long' });
+        const monthFull = start.toLocaleDateString('en-US', { month: 'long' });
+        const dayNum = start.getDate();
+        const year = start.getFullYear();
         const label = formatDate(start);
-        const dateRange = `${weekdayName}, ${formatDate(start)}, ${start.getFullYear()}`;
+        const fullDateLabel = `${monthFull} ${dayNum}, ${year} | ${weekdayName}`;
         return {
           label,
-          dateRange,
+          fullDateLabel,
+          dateRange: fullDateLabel,
           start,
           end,
           scores: [] as number[],
+          attendanceCount: 0,
           assessmentLabels: new Set<string>(),
         };
       });
     } else {
       const periodCount = 6;
       periods = Array.from({ length: periodCount }).map((_, index) => {
-        let start: Date, end: Date, label: string, dateRange: string;
+        let start: Date, end: Date, label: string, fullDateLabel: string;
         if (trendFilter === 'month') {
           const offset = periodCount - 1 - index;
           start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
           end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
           label = formatMonth(start);
-          dateRange = label;
+          const monthFull = start.toLocaleDateString('en-US', { month: 'long' });
+          const year = start.getFullYear();
+          fullDateLabel = `${monthFull} ${year}`;
         } else {
           // week (5 school weekdays: Mon–Fri)
           const offset = periodCount - 1 - index;
@@ -394,14 +425,24 @@ export const TutorHome: React.FC = () => {
           const fri = new Date(start.getTime() + 4 * oneDay);
           end = new Date(start.getTime() + 5 * oneDay);
           label = `${formatDate(start)} – ${formatDate(fri)}`;
-          dateRange = `${formatDate(start)} – ${formatDate(fri)}, ${fri.getFullYear()}`;
+          const startMonth = start.toLocaleDateString('en-US', { month: 'long' });
+          const friMonth = fri.toLocaleDateString('en-US', { month: 'long' });
+          const startDay = start.getDate();
+          const friDay = fri.getDate();
+          const friYear = fri.getFullYear();
+          const rangeText = startMonth === friMonth
+            ? `${startMonth} ${startDay}–${friDay}, ${friYear}`
+            : `${startMonth} ${startDay} – ${friMonth} ${friDay}, ${friYear}`;
+          fullDateLabel = `${rangeText} | Monday – Friday`;
         }
         return {
           label,
-          dateRange,
+          fullDateLabel,
+          dateRange: fullDateLabel,
           start,
           end,
           scores: [] as number[],
+          attendanceCount: 0,
           assessmentLabels: new Set<string>(),
         };
       });
@@ -417,12 +458,29 @@ export const TutorHome: React.FC = () => {
           const scorePercent = g.total_score > 0 ? (g.score / g.total_score) * 100 : g.score;
           p.scores.push(scorePercent);
           const assessmentText = `${g.subject} ${g.remarks ?? ''}`.toUpperCase();
-          if (assessmentText.includes(tutorMilestone)) {
+          if (assessmentText.includes(tutorMilestone.toUpperCase())) {
             p.assessmentLabels.add(tutorMilestone);
-          } else if (assessmentText.includes('BOSY') || assessmentText.includes('MOSY') || assessmentText.includes('EOSY')) {
-            const matched = ['BOSY', 'MOSY', 'EOSY'].find((m) => assessmentText.includes(m));
-            if (matched) p.assessmentLabels.add(matched);
+          } else if (assessmentText.includes('ARAL SUMMER') || assessmentText.includes('SUMMER') || assessmentText.includes('BOSY')) {
+            p.assessmentLabels.add('ARAL Summer Assessment');
+          } else if (assessmentText.includes('MOSY')) {
+            p.assessmentLabels.add('MOSY');
+          } else if (assessmentText.includes('EOSY')) {
+            p.assessmentLabels.add('EOSY');
           }
+          break;
+        }
+      }
+    });
+
+    attendance.forEach((att) => {
+      if (!studentIds.has(String(att.user))) return;
+      const dateStr = att.date ? att.date.slice(0, 10) : '';
+      if (!dateStr) return;
+      const attDate = new Date(`${dateStr}T00:00:00`);
+      if (isNaN(attDate.getTime())) return;
+      for (const p of periods) {
+        if (attDate >= p.start && attDate < p.end) {
+          p.attendanceCount += 1;
           break;
         }
       }
@@ -430,9 +488,11 @@ export const TutorHome: React.FC = () => {
 
     const points = periods.map((p) => ({
       label: p.label,
+      fullDateLabel: p.fullDateLabel,
       dateRange: p.dateRange,
       value: p.scores.length > 0 ? Math.round(p.scores.reduce((a, b) => a + b, 0) / p.scores.length) : null,
       count: p.scores.length,
+      attendanceCount: p.attendanceCount,
       assessmentLabels: Array.from(p.assessmentLabels),
     }));
 
@@ -441,9 +501,17 @@ export const TutorHome: React.FC = () => {
     let lastValid = 70;
     return points.map((p) => {
       if (p.value !== null) lastValid = p.value;
-      return { label: p.label, dateRange: p.dateRange, value: p.value !== null ? p.value : lastValid, actualCount: p.count, assessmentLabels: p.assessmentLabels };
+      return {
+        label: p.label,
+        fullDateLabel: p.fullDateLabel,
+        dateRange: p.dateRange,
+        value: p.value !== null ? p.value : lastValid,
+        actualCount: p.count,
+        attendanceCount: p.attendanceCount,
+        assessmentLabels: p.assessmentLabels,
+      };
     });
-  }, [students, grades, trendFilter]);
+  }, [students, grades, attendance, trendFilter]);
 
   const highestScore = useMemo(() => last4WeeksData.length === 0 ? 0 : Math.max(...last4WeeksData.map((d) => d.value)), [last4WeeksData]);
   const lowestScore = useMemo(() => last4WeeksData.length === 0 ? 0 : Math.min(...last4WeeksData.map((d) => d.value)), [last4WeeksData]);
@@ -514,15 +582,17 @@ export const TutorHome: React.FC = () => {
               <div className="h-4 w-36 rounded bg-gray-200 dark:bg-gray-800" />
               <div className="h-5 w-7 rounded-full bg-rose-100 dark:bg-rose-950/40" />
             </div>
-            <div className="p-3 sm:p-4 space-y-2.5 flex-1 min-h-0 overflow-y-auto skeleton-row-3">
-              {[1, 2, 3, 4].map((j) => (
-                <div key={j} className="p-3 rounded-2xl border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111] flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-gray-200 dark:bg-gray-800 shrink-0" />
-                  <div className="flex-1 min-w-0">
+            <div className="p-2.5 sm:p-3 space-y-1.5 flex-1 min-h-0 overflow-y-auto skeleton-row-3">
+              {[1, 2, 3, 4, 5].map((j) => (
+                <div key={j} className="px-3 py-1.5 rounded-xl border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111] flex flex-col justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="h-3 w-28 rounded bg-gray-200 dark:bg-gray-800" />
-                    <div className="h-2.5 w-16 rounded bg-gray-100 dark:bg-gray-800 mt-1.5" />
+                    <div className="h-3.5 w-10 rounded-full bg-rose-100 dark:bg-rose-950/50 shrink-0" />
                   </div>
-                  <div className="h-5 w-12 rounded-full bg-rose-100 dark:bg-rose-950/50 shrink-0" />
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <div className="h-2.5 w-20 rounded bg-gray-100 dark:bg-gray-800" />
+                    <div className="h-2.5 w-8 rounded bg-gray-200 dark:bg-gray-800" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -587,7 +657,7 @@ export const TutorHome: React.FC = () => {
             to: '/tutor/analytics',
             value: highRiskStudents.length,
             suffix: '',
-            icon: ShieldAlert,
+            icon: Frown,
             iconBg: 'risk-card-high',
             iconColor: 'text-risk-high',
             valueColor: 'text-risk-high',
@@ -633,14 +703,11 @@ export const TutorHome: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0 pb-3.5 sm:pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div>
               <h3 className="whitespace-nowrap text-base font-bold text-gray-900 dark:text-slate-100 mt-0.5">STUDENTS PERFORMANCE TREND CHART</h3>
-              <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
-                {trendFilter === 'day' ? 'Daily' : trendFilter === 'month' ? 'Monthly' : 'Weekly'} performance trend
-              </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300">
                 <span className="h-2.5 w-2.5 rounded-full bg-[var(--brand)] inline-block shadow-xs" />
-                <span>Total Composite Rating of All Students</span>
+                <span>Total composite rating of all students</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
                 <span className="h-2.5 w-2.5 rounded-full bg-[#38BDF8] inline-block ring-2 ring-[#38BDF8]/30 shadow-xs" />
@@ -727,7 +794,7 @@ export const TutorHome: React.FC = () => {
         {/* At-Risk panel */}
         <div className="lg:col-span-1 h-full min-h-0">
           <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl shadow-sm overflow-hidden h-full flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 sm:px-5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
               <div>
                 <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mt-0.5 flex items-center gap-2">
                   TOP STUDENTS AT-RISK
@@ -740,11 +807,11 @@ export const TutorHome: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-3 space-y-2 flex-1 min-h-0 overflow-y-auto">
+            <div className="p-2.5 sm:p-3 space-y-1.5 flex-1 min-h-0 overflow-y-auto">
               {atRiskStudents.length === 0 ? (
                 <div className="flex flex-col items-center justify-center text-center py-8 px-4 gap-2">
                   <div className="w-12 h-12 rounded-2xl risk-card-low flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-risk-low" />
+                    <Smile className="w-6 h-6 text-risk-low" />
                   </div>
                   <p className="text-sm font-semibold text-gray-700 dark:text-slate-300">All students on track</p>
                   <p className="text-xs text-gray-400 dark:text-slate-500">No high or medium risk students.</p>
@@ -754,26 +821,29 @@ export const TutorHome: React.FC = () => {
                   <Link
                     key={s.student.id}
                     to={`/tutor/students/${s.student.id}`}
-                    className={`flex items-center gap-2.5 rounded-2xl border p-2.5 transition-colors group ${s.riskTier === 'High'
+                    state={{ from: 'dashboard' }}
+                    className={`block rounded-xl border px-3 py-1.5 transition-colors group ${s.riskTier === 'High'
                       ? 'risk-card-high'
                       : 'risk-card-medium'
                       }`}
                   >
-                    <div className={`w-7.5 h-7.5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${avatarColor(s.student.full_name || '')}`}>
-                      {getInitials(s.student.full_name || '?')}
-                    </div>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0">
                       <div className="flex items-center justify-between gap-1.5">
                         <span className="font-semibold text-xs text-gray-800 dark:text-slate-200 truncate block leading-tight">
                           {s.student.full_name}
                         </span>
-                        <span className={`px-1.5 py-0.5 rounded-full text-[8.5px] font-bold shrink-0 border ${s.riskTier === 'High' ? 'risk-badge-high' : 'risk-badge-medium'}`}>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-bold shrink-0 border leading-none ${s.riskTier === 'High' ? 'risk-badge-high' : 'risk-badge-medium'}`}>
                           {s.riskTier.toUpperCase()}
                         </span>
                       </div>
-                      <span className="text-gray-400 dark:text-slate-500 text-[8px] block whitespace-nowrap leading-tight mt-0.5">
-                        Composite Rating: <span className="font-bold text-gray-600 dark:text-slate-300">{s.compositeScore.toFixed(1)}%</span>
-                      </span>
+                      <div className="mt-1 flex items-center justify-between gap-1">
+                        <span className="text-gray-500 dark:text-slate-400 text-[10.5px] font-normal leading-tight">
+                          Composite Rating:
+                        </span>
+                        <span className="text-xs font-normal text-gray-900 dark:text-slate-100 leading-tight">
+                          {s.compositeScore.toFixed(1)}%
+                        </span>
+                      </div>
                     </div>
                   </Link>
                 ))

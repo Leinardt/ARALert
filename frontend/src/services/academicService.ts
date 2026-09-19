@@ -182,7 +182,7 @@ export const academicService = {
   logManualAttendance: async (data: {
     student_id: string;
     date?: string;
-    status: 'present' | 'late' | 'absent';
+    status: 'present' | 'absent';
     aral_activity_id?: number;
   }): Promise<{ message: string; attendance: Attendance }> => {
     const response = await api.post<{ message: string; attendance: Attendance }>('/academics/attendance/manual/', data);

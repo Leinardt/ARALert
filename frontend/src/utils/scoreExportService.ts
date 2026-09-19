@@ -35,6 +35,8 @@ export interface ScoreExportData {
   weekNumber?: string;
   dateStr: string;
   paperSize?: 'a4' | 'folio' | 'letter';
+  /** Assessment type prefix: 'MOSY' | 'EOSY' | 'ARAL Summer Assessment'. Omit for plain 'SCORE_SHEET'. */
+  assessmentType?: string;
   tutorName: string;
   tutorTitle: string;
   checkedName: string;
@@ -55,32 +57,97 @@ const getExcelColumnLetter = (colNum: number): string => {
   return letter;
 };
 
+export const formatSessionDateHeader = (dateKey?: string): string => {
+  if (!dateKey) return '';
+  const parts = dateKey.split('-');
+  if (parts.length === 3) {
+    const [y, m, day] = parts;
+    return `${m.padStart(2, '0')}/${day.padStart(2, '0')}/${y}`;
+  }
+  return dateKey;
+};
+
+/**
+ * Builds the standardised score-sheet export filename.
+ * Format: {ASSESSMENT_TYPE_}SCORE_SHEET_{GRADE_SECTION}_{DATE_OR_RANGE}_{PAPERSIZE}.{ext}
+ * e.g.  MOSY_SCORE_SHEET_GRADE-8-MANGO_09_15_2026-09_19_2026_LONG.xlsx
+ *       ARAL_SUMMER_ASSESS_SCORE_SHEET_GRADE-8-MANGO_09_15_2026-09_19_2026_LONG.xlsx
+ *       SCORE_SHEET_GRADE-8-MANGO_09_15_2026_A4.pdf   (no assessment type)
+ */
+export const buildScoreFilename = (
+  data: Pick<ScoreExportData, 'gradeSection' | 'dateStr' | 'paperSize' | 'assessmentType'>,
+  ext: 'xlsx' | 'docx' | 'pdf'
+): string => {
+  // Optional assessment-type prefix (MOSY / EOSY / ARAL_SUMMER_ASSESS)
+  let prefix = '';
+  if (
+    data.assessmentType &&
+    data.assessmentType.trim() !== '' &&
+    !data.assessmentType.toLowerCase().includes('intervention') &&
+    data.assessmentType.toLowerCase() !== 'none'
+  ) {
+    const rawType = data.assessmentType.toUpperCase().trim();
+    if (rawType.includes('SUMMER') || rawType.includes('BOSY') || rawType === 'ARAL_SUMMER_ASSESS') {
+      prefix = 'ARAL_SUMMER_ASSESS_';
+    } else if (rawType.includes('MOSY')) {
+      prefix = 'MOSY_';
+    } else if (rawType.includes('EOSY')) {
+      prefix = 'EOSY_';
+    } else {
+      prefix = `${rawType.replace(/[^A-Z0-9]/g, '_')}_`;
+    }
+  }
+
+  // Normalise grade-section: uppercase, collapse whitespace and hyphens
+  const section = (data.gradeSection || 'CLASS')
+    .toUpperCase()
+    .trim()
+    .replace(/\s*-\s*/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/[^A-Z0-9_\-]/g, '');
+
+  // Normalise date/date-range:
+  //   "09/15/2026"                   → "09_15_2026"
+  //   "09/15/2026 - 09/19/2026"      → "09_15_2026-09_19_2026"
+  const date = (data.dateStr || 'DATE')
+    .trim()
+    .replace(/\s*-\s*/g, '-') // collapse " - " to "-"
+    .replace(/\//g, '_');     // replace "/" with "_"
+
+  const paperLabel =
+    data.paperSize === 'folio' ? 'LONG' :
+    data.paperSize === 'letter' ? 'SHORT' : 'A4';
+
+  return `${prefix}SCORE_SHEET_${section}_${date}_${paperLabel}.${ext}`;
+};
+
 export const exportScoresToExcel = async (data: ScoreExportData) => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Student Score Sheet');
 
-  // Page setup with formal academic margins (1.0 inch / 25.4 mm on all sides)
+  // Page setup with calibrated margins and 1-page fit
   const paperCode: any = data.paperSize === 'letter' ? 1 : data.paperSize === 'folio' ? 14 : 9;
   worksheet.pageSetup = {
     orientation: 'portrait',
     paperSize: paperCode,
     fitToPage: true,
     fitToWidth: 1,
-    fitToHeight: 0,
+    fitToHeight: data.students.length > 25 ? 0 : 1,
     margins: {
-      left: 1.0,
-      right: 1.0,
-      top: 1.0,
-      bottom: 1.0,
-      header: 0.5,
-      footer: 0.5,
+      left: 0.4,
+      right: 0.4,
+      top: 0.5,
+      bottom: 0.4,
+      header: 0.2,
+      footer: 0.2,
     },
   };
 
-  const isDaily = data.weeks?.length === 1 && data.weeks[0].days?.length === 1;
+  const _isMultiWeek = (data.weeks || []).length > 1;
   const allEntryCols = (data.weeks || []).flatMap((w) =>
     (w.days || []).flatMap((d) =>
-      (d.entries && d.entries.length > 0 ? d.entries : [{ entryIndex: 0, label: '1' }]).map((e) => ({
+      (d.entries && d.entries.length > 0 ? d.entries : [{ entryIndex: 0, label: 'Session #1' }]).map((e) => ({
         dateKey: d.dateKey,
         dayNum: d.dayNum,
         entryIndex: e.entryIndex,
@@ -97,19 +164,19 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
   // Column widths definition - proportioned for formal academic printing
   const columnsDef: Array<{ key: string; width: number }> = [
     { key: 'colA', width: totalDayCols <= 1 ? 5.5 : 5 }, // #
-    { key: 'colB', width: totalDayCols <= 1 ? 36 : totalDayCols <= 5 ? 30 : 28 }, // NAME OF THE STUDENTS
+    { key: 'colB', width: totalDayCols <= 1 ? 36 : totalDayCols <= 5 ? 30 : 26 }, // NAME OF THE STUDENTS
   ];
 
-  allEntryCols.forEach((_, idx) => {
+  allEntryCols.forEach((col, idx) => {
     columnsDef.push({
       key: `day_entry_${idx}`,
-      width: totalDayCols <= 1 ? 16 : totalDayCols <= 5 ? 7.5 : 4.5,
+      width: totalDayCols <= 1 ? 16 : totalDayCols <= 5 ? 13 : 11.5,
     });
   });
 
   columnsDef.push({
     key: 'colTotal',
-    width: totalDayCols <= 1 ? 22 : totalDayCols <= 5 ? 18 : 15,
+    width: totalDayCols <= 1 ? 18 : totalDayCols <= 5 ? 15 : 12,
   });
   worksheet.columns = columnsDef;
 
@@ -297,6 +364,9 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
     r9.alignment = { horizontal: 'center', vertical: 'middle' };
     r9.font = fontTaskTitle;
     worksheet.getRow(9).height = 18;
+  } else {
+    worksheet.getRow(9).height = 0.1;
+    worksheet.getRow(9).hidden = true;
   }
 
   // Row 10: Blank spacing below Grade & Section / Task
@@ -341,173 +411,68 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
   const row12 = worksheet.getRow(12);
   row12.height = 6;
 
-  // 13 & 14 (or 13, 14, 15). Table Headers
+  // 13 & 14: 2 Header Rows (Row 13: Date for each session, Row 14: Session #)
+  worksheet.mergeCells('A13:A14');
+  const cellA13 = worksheet.getCell('A13');
+  cellA13.value = '#';
+  cellA13.alignment = { horizontal: 'center', vertical: 'middle' };
+  cellA13.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
+  cellA13.border = tableBorder;
+  cellA13.fill = headerFill;
+  worksheet.getCell('A14').border = tableBorder;
+  worksheet.getCell('A14').fill = headerFill;
+
+  worksheet.mergeCells('B13:B14');
+  const cellB13 = worksheet.getCell('B13');
+  cellB13.value = 'NAME OF THE STUDENTS';
+  cellB13.alignment = { horizontal: 'center', vertical: 'middle' };
+  cellB13.font = { name: fontMain, size: 10, bold: true, color: colorSlate900 };
+  cellB13.border = tableBorder;
+  cellB13.fill = headerFill;
+  worksheet.getCell('B14').border = tableBorder;
+  worksheet.getCell('B14').fill = headerFill;
+
+  // Row 13: Session Date Headers
+  const row13 = worksheet.getRow(13);
+  row13.height = 20;
+  allEntryCols.forEach((col, idx) => {
+    const cLetter = getExcelColumnLetter(3 + idx);
+    const cell = worksheet.getCell(`${cLetter}13`);
+    cell.value = formatSessionDateHeader(col.dateKey);
+    cell.font = { name: fontMain, size: allEntryCols.length > 8 ? 8.5 : 9, bold: true, color: colorSlate900 };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', shrinkToFit: true, wrapText: false };
+    cell.border = tableBorder;
+    cell.fill = headerFill;
+  });
+
+  // Row 14: Session Labels (Session #1, Session #2, ...)
+  const row14 = worksheet.getRow(14);
+  row14.height = 20;
+  allEntryCols.forEach((col, idx) => {
+    const cLetter = getExcelColumnLetter(3 + idx);
+    const cell = worksheet.getCell(`${cLetter}14`);
+    cell.value = col.entryLabel;
+    cell.font = { name: fontMain, size: 9, bold: true, color: colorSlate900 };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', shrinkToFit: true, wrapText: false };
+    cell.border = tableBorder;
+    cell.fill = whiteFill;
+  });
+
+  // TOTAL SCORE (merged 13:14)
+  worksheet.mergeCells(`${lastColLetter}13:${lastColLetter}14`);
+  const totalCell13 = worksheet.getCell(`${lastColLetter}13`);
+  totalCell13.value = 'TOTAL SCORE';
+  totalCell13.alignment = { horizontal: 'center', vertical: 'middle' };
+  totalCell13.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
+  totalCell13.border = tableBorder;
+  totalCell13.fill = headerFill;
+  worksheet.getCell(`${lastColLetter}14`).border = tableBorder;
+  worksheet.getCell(`${lastColLetter}14`).fill = headerFill;
+
   let currentRow = 15;
 
-  if (isDaily) {
-    // Daily mode: 2 header rows (13 & 14)
-    worksheet.mergeCells('A13:A14');
-    const cellA13 = worksheet.getCell('A13');
-    cellA13.value = '#';
-    cellA13.alignment = { horizontal: 'center', vertical: 'middle' };
-    cellA13.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
-    cellA13.border = tableBorder;
-    cellA13.fill = headerFill;
-    worksheet.getCell('A14').border = tableBorder;
-    worksheet.getCell('A14').fill = headerFill;
-
-    worksheet.mergeCells('B13:B14');
-    const cellB13 = worksheet.getCell('B13');
-    cellB13.value = 'NAME OF THE STUDENTS';
-    cellB13.alignment = { horizontal: 'center', vertical: 'middle' };
-    cellB13.font = { name: fontMain, size: 10, bold: true, color: colorSlate900 };
-    cellB13.border = tableBorder;
-    cellB13.fill = headerFill;
-    worksheet.getCell('B14').border = tableBorder;
-    worksheet.getCell('B14').fill = headerFill;
-
-    // Row 13: Date header merged across all entries of this single day
-    const startColLetter = getExcelColumnLetter(3);
-    const endColLetter = getExcelColumnLetter(2 + totalDayCols);
-    worksheet.mergeCells(`${startColLetter}13:${endColLetter}13`);
-    const dCell = worksheet.getCell(`${startColLetter}13`);
-    dCell.value = data.weeks[0]?.label || 'DATE';
-    dCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    dCell.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
-    dCell.border = tableBorder;
-    dCell.fill = headerFill;
-    for (let c = 3; c <= 2 + totalDayCols; c++) {
-      worksheet.getCell(`${getExcelColumnLetter(c)}13`).border = tableBorder;
-      worksheet.getCell(`${getExcelColumnLetter(c)}13`).fill = headerFill;
-    }
-
-    // Row 14: Entry numbers (1, 2, ...) under the date
-    const row14 = worksheet.getRow(14);
-    row14.height = 20;
-    allEntryCols.forEach((col, idx) => {
-      const cLetter = getExcelColumnLetter(3 + idx);
-      const cell = worksheet.getCell(`${cLetter}14`);
-      cell.value = Number(col.entryLabel) || col.entryLabel;
-      cell.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.border = tableBorder;
-      cell.fill = whiteFill;
-    });
-
-    // TOTAL SCORE (merged 13:14)
-    worksheet.mergeCells(`${lastColLetter}13:${lastColLetter}14`);
-    const totalCell13 = worksheet.getCell(`${lastColLetter}13`);
-    totalCell13.value = 'TOTAL SCORE';
-    totalCell13.alignment = { horizontal: 'center', vertical: 'middle' };
-    totalCell13.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
-    totalCell13.border = tableBorder;
-    totalCell13.fill = headerFill;
-    worksheet.getCell(`${lastColLetter}14`).border = tableBorder;
-    worksheet.getCell(`${lastColLetter}14`).fill = headerFill;
-
-    currentRow = 15;
-  } else {
-    // Multi-week / multi-day: 3 Header Rows (13, 14, 15)
-    worksheet.mergeCells('A13:A15');
-    const cellA13 = worksheet.getCell('A13');
-    cellA13.value = '#';
-    cellA13.alignment = { horizontal: 'center', vertical: 'middle' };
-    cellA13.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
-    cellA13.border = tableBorder;
-    cellA13.fill = headerFill;
-    worksheet.getCell('A14').border = tableBorder;
-    worksheet.getCell('A14').fill = headerFill;
-    worksheet.getCell('A15').border = tableBorder;
-    worksheet.getCell('A15').fill = headerFill;
-
-    worksheet.mergeCells('B13:B15');
-    const cellB13 = worksheet.getCell('B13');
-    cellB13.value = 'NAME OF THE STUDENTS';
-    cellB13.alignment = { horizontal: 'center', vertical: 'middle' };
-    cellB13.font = { name: fontMain, size: 10, bold: true, color: colorSlate900 };
-    cellB13.border = tableBorder;
-    cellB13.fill = headerFill;
-    worksheet.getCell('B14').border = tableBorder;
-    worksheet.getCell('B14').fill = headerFill;
-    worksheet.getCell('B15').border = tableBorder;
-    worksheet.getCell('B15').fill = headerFill;
-
-    // Row 13: Week ranges
-    let curCol = 3;
-    data.weeks.forEach((week) => {
-      const weekColsCount = week.days.reduce((sum, d) => sum + (d.entries?.length || 1), 0);
-      const startColLetter = getExcelColumnLetter(curCol);
-      const endColLetter = getExcelColumnLetter(curCol + weekColsCount - 1);
-      worksheet.mergeCells(`${startColLetter}13:${endColLetter}13`);
-      const wCell = worksheet.getCell(`${startColLetter}13`);
-      wCell.value = week.label;
-      wCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      wCell.font = { name: fontMain, size: 9, bold: true, color: colorSlate900 };
-      wCell.fill = headerFill;
-
-      for (let c = curCol; c < curCol + weekColsCount; c++) {
-        worksheet.getCell(`${getExcelColumnLetter(c)}13`).border = tableBorder;
-        worksheet.getCell(`${getExcelColumnLetter(c)}13`).fill = headerFill;
-      }
-      curCol += weekColsCount;
-    });
-
-    // Row 14: Day Numbers (merged over each day's entries)
-    const row14 = worksheet.getRow(14);
-    row14.height = 18;
-    let curDayCol = 3;
-    data.weeks.forEach((week) => {
-      week.days.forEach((day) => {
-        const dayEntriesCount = day.entries?.length || 1;
-        const startDayLetter = getExcelColumnLetter(curDayCol);
-        const endDayLetter = getExcelColumnLetter(curDayCol + dayEntriesCount - 1);
-        if (dayEntriesCount > 1) {
-          worksheet.mergeCells(`${startDayLetter}14:${endDayLetter}14`);
-        }
-        const cell = worksheet.getCell(`${startDayLetter}14`);
-        cell.value = Number(day.dayNum) || day.dayNum;
-        cell.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        cell.border = tableBorder;
-        cell.fill = whiteFill;
-        for (let c = curDayCol; c < curDayCol + dayEntriesCount; c++) {
-          worksheet.getCell(`${getExcelColumnLetter(c)}14`).border = tableBorder;
-          worksheet.getCell(`${getExcelColumnLetter(c)}14`).fill = whiteFill;
-        }
-        curDayCol += dayEntriesCount;
-      });
-    });
-
-    // Row 15: Entry numbers (1, 2, ...) under each day
-    const row15 = worksheet.getRow(15);
-    row15.height = 18;
-    allEntryCols.forEach((col, idx) => {
-      const cLetter = getExcelColumnLetter(3 + idx);
-      const cell = worksheet.getCell(`${cLetter}15`);
-      cell.value = Number(col.entryLabel) || col.entryLabel;
-      cell.font = { name: fontMain, size: 8.5, bold: true, color: colorSlate900 };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.border = tableBorder;
-      cell.fill = whiteFill;
-    });
-
-    // TOTAL SCORE (merged 13:15)
-    worksheet.mergeCells(`${lastColLetter}13:${lastColLetter}15`);
-    const totalCell13 = worksheet.getCell(`${lastColLetter}13`);
-    totalCell13.value = 'TOTAL SCORE';
-    totalCell13.alignment = { horizontal: 'center', vertical: 'middle' };
-    totalCell13.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
-    totalCell13.border = tableBorder;
-    totalCell13.fill = headerFill;
-    worksheet.getCell(`${lastColLetter}14`).border = tableBorder;
-    worksheet.getCell(`${lastColLetter}14`).fill = headerFill;
-    worksheet.getCell(`${lastColLetter}15`).border = tableBorder;
-    worksheet.getCell(`${lastColLetter}15`).fill = headerFill;
-
-    currentRow = 16;
-  }
-
   // Data rows
+  const totalStudents = Math.max(data.students.length, 1);
   data.students.forEach((student, index) => {
     const sRow = worksheet.getRow(currentRow);
     const rowValues: any[] = [index + 1, student.name.toUpperCase()];
@@ -520,12 +485,12 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
     rowValues.push(student.totalScore !== undefined && student.totalScore !== '' ? student.totalScore : '');
 
     sRow.values = rowValues;
-    sRow.height = 20;
+    sRow.height = totalStudents > 22 ? 17 : 18.5;
 
     sRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
       cell.font = {
         name: fontMain,
-        size: 9.5,
+        size: totalStudents > 22 ? 8.5 : 9.5,
         bold: colNumber === 2 || colNumber === totalCols,
         color: colorSlate900,
       };
@@ -543,15 +508,26 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
   // Footer Signatures
   currentRow += 2; // Spacing below table
 
-  // Right Signatory Columns (Prepared by & Noted)
-  const rightStartCol = Math.max(3, totalCols - 2);
-  const rightStartLetter = getExcelColumnLetter(rightStartCol);
+  // Calculate right signature column bounds (target width >= 34 units for generous readable clearance)
+  let rightSigWidth = 0;
+  let rightSigStartCol = totalCols;
+  for (let c = totalCols; c >= 3; c--) {
+    const colW = columnsDef[c - 1]?.width || 10;
+    rightSigWidth += colW;
+    rightSigStartCol = c;
+    if (rightSigWidth >= 34) {
+      break;
+    }
+  }
+  const rightSigStartLetter = getExcelColumnLetter(rightSigStartCol);
 
-  // Prepared by (Tutor)
-  const preparedByLabel = worksheet.getCell(`${rightStartLetter}${currentRow}`);
+  // Prepared by (Tutor) - merged across rightSigStartLetter to lastColLetter
+  worksheet.mergeCells(`${rightSigStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
+  const preparedByLabel = worksheet.getCell(`${rightSigStartLetter}${currentRow}`);
   preparedByLabel.value = 'Prepared by:';
   preparedByLabel.font = { name: fontMain, size: 9.5, italic: true, color: colorSlate900 };
   preparedByLabel.alignment = { horizontal: 'left', vertical: 'middle' };
+  worksheet.getRow(currentRow).height = 18;
 
   // 3 blank rows for physical pen signing clearance
   worksheet.getRow(currentRow + 1).height = 14;
@@ -559,22 +535,22 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
   worksheet.getRow(currentRow + 3).height = 16;
   currentRow += 4;
 
-  worksheet.mergeCells(`${rightStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
-  const tutorCell = worksheet.getCell(`${rightStartLetter}${currentRow}`);
+  worksheet.mergeCells(`${rightSigStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
+  const tutorCell = worksheet.getCell(`${rightSigStartLetter}${currentRow}`);
   tutorCell.value = data.tutorName.toUpperCase();
   tutorCell.font = { name: fontMain, size: 10.5, bold: true, color: colorSlate900 };
-  tutorCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  worksheet.getRow(currentRow).height = 20;
+  tutorCell.alignment = { horizontal: 'center', vertical: 'middle', shrinkToFit: true, wrapText: false };
+  worksheet.getRow(currentRow).height = 22;
 
-  for (let c = rightStartCol; c <= totalCols; c++) {
+  for (let c = rightSigStartCol; c <= totalCols; c++) {
     worksheet.getCell(`${getExcelColumnLetter(c)}${currentRow}`).border = {
       bottom: { style: 'medium', color: colorSlate900 },
     };
   }
 
   currentRow++;
-  worksheet.mergeCells(`${rightStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
-  const tutorTitleCell = worksheet.getCell(`${rightStartLetter}${currentRow}`);
+  worksheet.mergeCells(`${rightSigStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
+  const tutorTitleCell = worksheet.getCell(`${rightSigStartLetter}${currentRow}`);
   tutorTitleCell.value = data.tutorTitle;
   tutorTitleCell.font = { name: fontMain, size: 9, color: colorSlate600 };
   tutorTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -585,13 +561,15 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
   worksheet.getRow(currentRow + 2).height = 16;
   currentRow += 3;
 
-  // Checked (Column B) and Noted (right columns)
-  const checkedLabel = worksheet.getCell(`B${currentRow}`);
+  // Checked (Column A:B merged for ~35 unit width) and Noted (Right columns, width >= 34)
+  worksheet.mergeCells(`A${currentRow}:B${currentRow}`);
+  const checkedLabel = worksheet.getCell(`A${currentRow}`);
   checkedLabel.value = 'Checked:';
   checkedLabel.font = { name: fontMain, size: 9.5, italic: true, color: colorSlate900 };
   checkedLabel.alignment = { horizontal: 'left', vertical: 'middle' };
 
-  const notedLabel = worksheet.getCell(`${rightStartLetter}${currentRow}`);
+  worksheet.mergeCells(`${rightSigStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
+  const notedLabel = worksheet.getCell(`${rightSigStartLetter}${currentRow}`);
   notedLabel.value = 'Noted:';
   notedLabel.font = { name: fontMain, size: 9.5, italic: true, color: colorSlate900 };
   notedLabel.alignment = { horizontal: 'left', vertical: 'middle' };
@@ -603,37 +581,40 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
   worksheet.getRow(currentRow + 3).height = 16;
   currentRow += 4;
 
-  // Checked Name (Column B)
-  const checkedCell = worksheet.getCell(`B${currentRow}`);
+  // Checked Name (in Columns A:B merged for ~35 unit width)
+  worksheet.mergeCells(`A${currentRow}:B${currentRow}`);
+  const checkedCell = worksheet.getCell(`A${currentRow}`);
   checkedCell.value = data.checkedName.toUpperCase();
   checkedCell.font = { name: fontMain, size: 10.5, bold: true, color: colorSlate900 };
-  checkedCell.border = { bottom: { style: 'medium', color: colorSlate900 } };
-  checkedCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  checkedCell.alignment = { horizontal: 'center', vertical: 'middle', shrinkToFit: true, wrapText: false };
+  worksheet.getRow(currentRow).height = 22;
+  worksheet.getCell(`A${currentRow}`).border = { bottom: { style: 'medium', color: colorSlate900 } };
+  worksheet.getCell(`B${currentRow}`).border = { bottom: { style: 'medium', color: colorSlate900 } };
 
-  // Noted Name (right columns)
-  worksheet.mergeCells(`${rightStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
-  const notedCell = worksheet.getCell(`${rightStartLetter}${currentRow}`);
+  // Noted Name (in right columns merged for width >= 34 units)
+  worksheet.mergeCells(`${rightSigStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
+  const notedCell = worksheet.getCell(`${rightSigStartLetter}${currentRow}`);
   notedCell.value = data.notedName.toUpperCase();
   notedCell.font = { name: fontMain, size: 10.5, bold: true, color: colorSlate900 };
-  notedCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  worksheet.getRow(currentRow).height = 20;
-
-  for (let c = rightStartCol; c <= totalCols; c++) {
+  notedCell.alignment = { horizontal: 'center', vertical: 'middle', shrinkToFit: true, wrapText: false };
+  worksheet.getRow(currentRow).height = 22;
+  for (let c = rightSigStartCol; c <= totalCols; c++) {
     worksheet.getCell(`${getExcelColumnLetter(c)}${currentRow}`).border = {
       bottom: { style: 'medium', color: colorSlate900 },
     };
   }
 
   currentRow++;
-  // Checked Title
-  const checkedTitleCell = worksheet.getCell(`B${currentRow}`);
+  // Checked Title (Columns A:B merged)
+  worksheet.mergeCells(`A${currentRow}:B${currentRow}`);
+  const checkedTitleCell = worksheet.getCell(`A${currentRow}`);
   checkedTitleCell.value = data.checkedTitle;
   checkedTitleCell.font = { name: fontMain, size: 9, color: colorSlate600 };
   checkedTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
-  // Noted Title
-  worksheet.mergeCells(`${rightStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
-  const notedTitleCell = worksheet.getCell(`${rightStartLetter}${currentRow}`);
+  // Noted Title (Right columns merged)
+  worksheet.mergeCells(`${rightSigStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
+  const notedTitleCell = worksheet.getCell(`${rightSigStartLetter}${currentRow}`);
   notedTitleCell.value = data.notedTitle;
   notedTitleCell.font = { name: fontMain, size: 9, color: colorSlate600 };
   notedTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -651,7 +632,7 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  const fileName = `${data.subjectTitle.replace(/\s+/g, '_')}_Score_Sheet_${data.gradeSection.replace(/\s+/g, '_')}.xlsx`;
+  const fileName = buildScoreFilename(data, 'xlsx');
   link.setAttribute('download', fileName);
   document.body.appendChild(link);
   link.click();

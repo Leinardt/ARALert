@@ -101,7 +101,15 @@ export const EditUser: React.FC = () => {
         subject: data.role === 'tutor' ? data.subject || 'Reading' : null,
       };
       await userService.updateUser(id, payload);
-      navigate(currentUser?.is_superuser ? '/superadmin/users' : data.role === 'tutor' ? '/admin/tutors' : '/admin/students');
+      navigate(
+        currentUser?.is_superuser
+          ? '/superadmin/users'
+          : data.role === 'tutor'
+          ? '/admin/tutors'
+          : data.role === 'faculty'
+          ? '/admin/faculty'
+          : '/admin/students'
+      );
     } catch (error: any) {
       console.error(error);
       const errorsPayload = error.response?.data;
@@ -131,7 +139,7 @@ export const EditUser: React.FC = () => {
           className="text-gray-500 hover:text-[var(--brand)] inline-flex items-center text-sm font-semibold transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-1.5" />
-          Back to {currentUser?.is_superuser ? 'Directory' : 'Student Directory'}
+          Back to {currentUser?.is_superuser || currentUser?.role === 'admin' ? 'User Management' : 'Student Directory'}
         </Link>
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4">{fetchError}</div>
       </div>
@@ -145,7 +153,7 @@ export const EditUser: React.FC = () => {
         className="text-slate-500 hover:text-blue-700 inline-flex items-center text-sm font-semibold transition-colors"
       >
         <ArrowLeft className="w-4 h-4 mr-1.5" />
-        Back to {currentUser?.is_superuser ? 'Directory' : 'Student Directory'}
+        Back to {currentUser?.is_superuser || currentUser?.role === 'admin' ? 'User Management' : 'Student Directory'}
       </Link>
 
       <div className="bg-white p-8 sm:p-10 rounded-2xl border border-slate-200 shadow-md">

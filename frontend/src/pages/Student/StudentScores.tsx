@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
-import type { Grade } from '../../types';
+import type { Grade, User } from '../../types';
 import {
   CalendarDays,
   Calendar,
@@ -16,7 +16,9 @@ import {
   Meh,
   Frown,
   AlertCircle,
+  BookOpen,
 } from 'lucide-react';
+import { getScoreDescription } from '../../utils/sessionDescriptionHelpers';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 
@@ -25,7 +27,7 @@ const smartPct = (n: number): string => {
   return parseFloat(fixed2).toString();
 };
 
-const formatDateString = (value: string | null) => {
+const formatDateString = (value: string | null | undefined): string => {
   if (!value) return '—';
   const date = new Date(value.includes('T') ? value : `${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
@@ -33,7 +35,7 @@ const formatDateString = (value: string | null) => {
   const month = date.toLocaleDateString('en-US', { month: 'long' });
   const day = date.getDate();
   const year = date.getFullYear();
-  return `${weekday} | ${month} ${day}, ${year}`;
+  return `${month} ${day}, ${year} | ${weekday}`;
 };
 
 const formatTimeString = (value: string | null | undefined): string => {
@@ -174,11 +176,10 @@ const CustomCalendarDropdown: React.FC<{
               key={key}
               type="button"
               onClick={() => onSelectDate(key)}
-              className={`relative py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                isSelected
-                  ? 'bg-[var(--brand)] text-white font-bold'
-                  : 'hover:bg-gray-100 dark:hover:bg-[#1A1A1A] text-gray-700 dark:text-slate-300'
-              }`}
+              className={`relative py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${isSelected
+                ? 'bg-[var(--brand)] text-white font-bold'
+                : 'hover:bg-gray-100 dark:hover:bg-[#1A1A1A] text-gray-700 dark:text-slate-300'
+                }`}
             >
               {d}
               {hasLog && !isSelected && (
@@ -206,17 +207,18 @@ const CustomCalendarDropdown: React.FC<{
 
 /* ─── Main Component ──────────────────────────────────────────── */
 
-type SortKey = 'score' | 'remarks' | 'status' | 'date' | 'time';
+type SortKey = 'student' | 'description' | 'score' | 'remarks' | 'status' | 'date' | 'time';
 type ViewMode = 'day' | 'week' | 'month';
 
 export const StudentScores: React.FC = () => {
   const { user } = useAuth();
   const studentFirstName = user?.first_name || user?.full_name?.trim().split(' ')[0] || 'Student';
+  const studentFullName = user?.full_name || 'STUDENT';
   const [grades, setGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters & Sort States (Copied from TutorStudentProfile Score tab)
+  // Filters & Sort States
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({
     key: 'date',
     direction: 'desc',
@@ -266,7 +268,7 @@ export const StudentScores: React.FC = () => {
     return set;
   }, [grades]);
 
-  // ── Top KPI Stat Calculations (Exact logic from TutorStudentProfile.tsx) ──
+  // ── Top KPI Stat Calculations (Parity with Tutor Student Profile & Analytics) ──
   const { passedCount, failedCount, calculatedAvgScore } = useMemo(() => {
     if (grades.length === 0) {
       return { passedCount: 0, failedCount: 0, calculatedAvgScore: 0 };
@@ -300,7 +302,7 @@ export const StudentScores: React.FC = () => {
     if (!hasScoreData) {
       return {
         icon: Smile,
-        iconBg: 'bg-gray-100 border-gray-200 dark:bg-gray-800 dark:border-gray-700',
+        iconBg: 'bg-gray-100 border-gray-200 dark:bg-[#1A1A1A] dark:border-[#262626]',
         iconColor: 'text-gray-400 dark:text-slate-500',
         valueColor: 'text-gray-400 dark:text-slate-500',
       };
@@ -308,42 +310,45 @@ export const StudentScores: React.FC = () => {
     if (calculatedAvgScore >= 81) {
       return {
         icon: Smile,
-        iconBg: 'risk-badge-low',
-        iconColor: 'text-risk-low',
-        valueColor: 'text-risk-low',
+        iconBg: 'bg-emerald-100 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800/60',
+        iconColor: 'text-emerald-600 dark:text-emerald-400',
+        valueColor: 'text-emerald-600 dark:text-emerald-400',
       };
     }
     if (calculatedAvgScore >= 75) {
       return {
         icon: Meh,
-        iconBg: 'risk-badge-medium',
-        iconColor: 'text-risk-medium',
-        valueColor: 'text-risk-medium',
+        iconBg: 'bg-amber-100 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800/60',
+        iconColor: 'text-amber-600 dark:text-amber-400',
+        valueColor: 'text-amber-600 dark:text-amber-400',
       };
     }
     return {
       icon: Frown,
-      iconBg: 'risk-badge-high',
-      iconColor: 'text-risk-high',
-      valueColor: 'text-risk-high',
+      iconBg: 'bg-rose-100 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800/60',
+      iconColor: 'text-rose-600 dark:text-rose-400',
+      valueColor: 'text-rose-600 dark:text-rose-400',
     };
   }, [calculatedAvgScore, hasScoreData]);
 
-  // ── History Helpers & Grouping (Exact match to TutorStudentProfile.tsx) ──
-  const sortedHistory = useMemo(
-    () => [...grades].sort((a, b) => (b.date_logged > a.date_logged ? 1 : b.date_logged < a.date_logged ? -1 : 0)),
-    [grades]
-  );
+  // ── Filter by search & jumpDate ──
+  const filteredGrades = useMemo(() => {
+    let result = [...grades];
+    if (jumpDate) {
+      result = result.filter((g) => g.date_logged === jumpDate);
+    }
+    return result;
+  }, [grades, jumpDate]);
 
-  const jumpFiltered = useMemo(
-    () => (jumpDate ? sortedHistory.filter((l) => l.date_logged === jumpDate) : null),
-    [sortedHistory, jumpDate]
+  const sortedHistory = useMemo(
+    () => [...filteredGrades].sort((a, b) => (b.date_logged > a.date_logged ? 1 : b.date_logged < a.date_logged ? -1 : 0)),
+    [filteredGrades]
   );
 
   type Group = { key: string; label: string; records: typeof sortedHistory };
 
   const groupedHistory = useMemo((): Group[] => {
-    if (jumpFiltered !== null) return [];
+    if (jumpDate !== null) return [];
     const grouped = new Map<string, typeof sortedHistory>();
     for (const log of sortedHistory) {
       const key = viewMode === 'week' ? getWeekKey(log.date_logged) : getMonthKey(log.date_logged);
@@ -357,10 +362,10 @@ export const StudentScores: React.FC = () => {
         label: viewMode === 'week' ? weekLabel(key) : monthLabel(key),
         records,
       }));
-  }, [sortedHistory, viewMode, jumpFiltered]);
+  }, [sortedHistory, viewMode, jumpDate]);
 
   const timeGroupedHistory = useMemo((): Group[] => {
-    const source = jumpFiltered ?? sortedHistory;
+    const source = sortedHistory;
     const grouped = new Map<string, typeof sortedHistory>();
     for (const log of source) {
       const timeStr = log.created_at ? formatTimeString(log.created_at) : '—';
@@ -376,7 +381,7 @@ export const StudentScores: React.FC = () => {
         records,
       };
     });
-  }, [sortedHistory, jumpFiltered]);
+  }, [sortedHistory]);
 
   const toggleSort = (key: SortKey) => {
     setSortConfig((prev) => ({
@@ -386,6 +391,7 @@ export const StudentScores: React.FC = () => {
   };
 
   const sortRecords = (list: Grade[]) => {
+    if (viewMode === 'day') return list;
     return [...list].sort((a, b) => {
       let aVal: string | number = '';
       let bVal: string | number = '';
@@ -396,7 +402,13 @@ export const StudentScores: React.FC = () => {
       const aNotTaken = a.remarks?.trim().toLowerCase() === 'not taken';
       const bNotTaken = b.remarks?.trim().toLowerCase() === 'not taken';
 
-      if (sortConfig.key === 'score') {
+      if (sortConfig.key === 'student') {
+        aVal = a.student_name || user?.full_name || '';
+        bVal = b.student_name || user?.full_name || '';
+      } else if (sortConfig.key === 'description') {
+        aVal = getScoreDescription(a);
+        bVal = getScoreDescription(b);
+      } else if (sortConfig.key === 'score') {
         aVal = aPct;
         bVal = bPct;
         return sortConfig.direction === 'asc' ? ((aVal as number) - (bVal as number)) : ((bVal as number) - (aVal as number));
@@ -419,6 +431,9 @@ export const StudentScores: React.FC = () => {
   };
 
   const SortableHeader: React.FC<{ label: string; sortKey: SortKey }> = ({ label, sortKey }) => {
+    if (viewMode === 'day') {
+      return <span>{label}</span>;
+    }
     const isActive = sortConfig.key === sortKey;
     return (
       <button
@@ -438,23 +453,29 @@ export const StudentScores: React.FC = () => {
   };
 
   const renderTable = (records: Grade[]) => (
-    <div className="overflow-x-auto rounded-2xl border border-gray-100 dark:border-[#1A1A1A]">
-      <table className="min-w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
+    <div className="overflow-x-auto -mx-2 px-2">
+      <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
         <thead>
           <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+            <th className="w-[22%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+              <SortableHeader label="STUDENT" sortKey="student" />
+            </th>
+            <th className="w-[18%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+              <SortableHeader label="DESCRIPTION" sortKey="description" />
+            </th>
+            <th className="w-[10%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
               <SortableHeader label="SCORE" sortKey="score" />
             </th>
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-              <SortableHeader label="REMARKS" sortKey="remarks" />
+            <th className="w-[12%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+              <SortableHeader label="REMARK" sortKey="remarks" />
             </th>
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+            <th className="w-[10%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
               <SortableHeader label="STATUS" sortKey="status" />
             </th>
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+            <th className="w-[14%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
               <SortableHeader label="DATE" sortKey="date" />
             </th>
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+            <th className="w-[8%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
               <SortableHeader label="TIME" sortKey="time" />
             </th>
           </tr>
@@ -465,41 +486,67 @@ export const StudentScores: React.FC = () => {
             const totalScore = Number(grade.total_score) || 100;
             const scorePct = (Number(grade.score) / totalScore) * 100;
             const isPassed = !isNotTaken && scorePct >= 70;
+            const desc = getScoreDescription(grade);
+            const name = user?.full_name || grade.student_name || 'Student';
 
             return (
               <tr key={grade.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#111111]/80">
-                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-200 whitespace-nowrap text-xs">
-                  <span className="font-bold text-gray-900 dark:text-slate-100">{Number(grade.score).toFixed(2)}</span>
-                  <span className="text-gray-400 dark:text-slate-500 font-normal"> / {Number(grade.total_score || 100).toFixed(2)}</span>
+                {/* STUDENT */}
+                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
+                  {name}
                 </td>
-                <td className="px-4 py-3">
+
+                {/* DESCRIPTION */}
+                <td className="px-4 py-3 text-left whitespace-nowrap">
                   <span
-                    className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${
-                      isNotTaken
-                        ? 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700'
-                        : isPassed
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/40'
-                        : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/40'
+                    className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${
+                      desc !== 'Intervention Activity'
+                        ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
+                        : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
                     }`}
                   >
-                    {isNotTaken ? 'Not Taken' : isPassed ? 'PASSED' : 'FAILED'}
+                    {desc}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+
+                {/* SCORE */}
+                <td className="px-4 py-3 text-xs text-gray-700 dark:text-slate-300 whitespace-nowrap">
+                  {grade.score} / {grade.total_score || 100}
+                </td>
+
+                {/* REMARK */}
+                <td className="px-4 py-3 text-left whitespace-nowrap">
                   <span
-                    className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${
-                      isNotTaken
-                        ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/40'
-                        : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/40'
-                    }`}
+                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${isNotTaken
+                      ? 'border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                      : isPassed
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                        : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                      }`}
                   >
-                    {isNotTaken ? 'NOT TAKEN' : 'TAKEN'}
+                    {isNotTaken ? 'Not Taken' : isPassed ? 'Passed' : 'Failed'}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-200 whitespace-nowrap text-xs">
+
+                {/* STATUS */}
+                <td className="px-4 py-3 text-left whitespace-nowrap">
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${isNotTaken
+                      ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                      }`}
+                  >
+                    {isNotTaken ? 'Not Taken' : 'Taken'}
+                  </span>
+                </td>
+
+                {/* DATE */}
+                <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
                   {formatDateString(grade.date_logged)}
                 </td>
-                <td className="px-4 py-3 text-gray-600 dark:text-slate-400 font-mono text-xs">
+
+                {/* TIME */}
+                <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
                   {grade.created_at ? formatTimeString(grade.created_at) : '—'}
                 </td>
               </tr>
@@ -510,12 +557,12 @@ export const StudentScores: React.FC = () => {
     </div>
   );
 
-  const currentRecordsCount = jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length;
+  const visibleRecordsCount = filteredGrades.length;
 
   if (loading) {
     return (
-      <div className="space-y-6 skeleton-container">
-        {/* KPI containers skeleton (exact match from TutorStudentProfile) */}
+      <div className="space-y-6 skeleton-container" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+        {/* KPI containers skeleton */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 skeleton-row-1">
           {[1, 2, 3].map((i) => (
             <div
@@ -533,8 +580,8 @@ export const StudentScores: React.FC = () => {
         </div>
 
         {/* Score Entries Table skeleton */}
-        <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-6 space-y-4 skeleton-row-2">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm overflow-hidden skeleton-row-2">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="space-y-1.5">
               <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
               <div className="h-3 w-28 rounded bg-gray-100 dark:bg-gray-800" />
@@ -544,17 +591,19 @@ export const StudentScores: React.FC = () => {
               <div className="h-9 w-9 rounded-xl bg-gray-100 dark:bg-gray-800" />
             </div>
           </div>
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 rounded-2xl bg-gray-100 dark:bg-gray-800/60" />
-          ))}
+          <div className="p-4 sm:p-6 space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-14 rounded-2xl bg-gray-100 dark:bg-gray-800/60" />
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 data-loaded-content">
-      {/* ── Top KPI Stat Containers (Exact Match to TutorStudentProfile.tsx) ──── */}
+    <div className="space-y-6 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      {/* ── Top KPI Stat Containers ──────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* TOTAL PASSED */}
         <div className="rounded-3xl border border-emerald-200 bg-emerald-50 dark:border-emerald-800/40 dark:bg-emerald-950/20 p-5 shadow-sm flex items-center gap-4">
@@ -595,16 +644,16 @@ export const StudentScores: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Scores History Container (Exact Match to TutorStudentProfile.tsx) ──── */}
-      <div
-        className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-6 space-y-4 relative"
-      >
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
+      {/* ── Scores History Container ──────────────────────────────────── */}
+      <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm relative">
+        {/* Header & Controls Toolbar */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
           <div>
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">SCORES HISTORY</h3>
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">
+              {studentFirstName}'S SCORES HISTORY
+            </h3>
             <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
-              {currentRecordsCount} Record{currentRecordsCount !== 1 ? 's' : ''}
+              {visibleRecordsCount} Record{visibleRecordsCount !== 1 ? 's' : ''}
             </p>
           </div>
 
@@ -620,11 +669,10 @@ export const StudentScores: React.FC = () => {
                     setViewMode(mode);
                     setJumpDate(null);
                   }}
-                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${
-                    viewMode === mode && !jumpDate
-                      ? 'bg-[var(--brand)] text-white shadow-sm'
-                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                  }`}
+                  className={`h-8 whitespace-nowrap rounded-lg px-3 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
+                    ? 'bg-[var(--brand)] text-white shadow-sm'
+                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                    }`}
                 >
                   {mode}
                 </button>
@@ -636,13 +684,12 @@ export const StudentScores: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${
-                  jumpDate
-                    ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                    : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
-                }`}
+                className={`flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border p-0 transition-all ${jumpDate
+                  ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
+                  : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
+                  }`}
                 title="Select a specific date from calendar"
-                aria-label="Open Calendar"
+                aria-label="Open score calendar"
               >
                 <Calendar className="w-4 h-4" />
               </button>
@@ -668,7 +715,7 @@ export const StudentScores: React.FC = () => {
 
         {/* Jump-to-date active chip */}
         {jumpDate && (
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-100 dark:border-emerald-800/40 bg-emerald-50/60 dark:bg-emerald-950/20">
+          <div className="flex items-center gap-2 px-6 py-2 border-b border-gray-50 dark:border-[#1A1A1A] bg-emerald-50/60 dark:bg-emerald-950/20">
             <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
               {new Date(jumpDate + 'T00:00:00').toLocaleDateString(undefined, {
@@ -679,6 +726,7 @@ export const StudentScores: React.FC = () => {
               })}
             </span>
             <button
+              type="button"
               onClick={() => setJumpDate(null)}
               className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 transition-colors cursor-pointer"
             >
@@ -688,89 +736,95 @@ export const StudentScores: React.FC = () => {
         )}
 
         {/* Content */}
-        {error ? (
-          <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm">
-            <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-bold">Failed to load scores</p>
-              <p className="text-xs mt-0.5 text-rose-700 dark:text-rose-300">{error}</p>
+        <div className="p-4 sm:p-6">
+          {error ? (
+            <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm">
+              <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold">Failed to load scores</p>
+                <p className="text-xs mt-0.5 text-rose-700 dark:text-rose-300">{error}</p>
+              </div>
             </div>
-          </div>
-        ) : jumpFiltered !== null ? (
-          jumpFiltered.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-12 text-center">
-              <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
-              <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No records for this date</p>
-              <p className="text-xs text-gray-400 dark:text-slate-500">Try a different date or clear the filter</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {timeGroupedHistory.map((group) => (
-                <div key={group.key}>
-                  <div className="mb-3 flex items-center gap-3">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-                      {group.label}
-                    </span>
-                    <div className="h-px flex-1 bg-gray-100 dark:bg-[#1A1A1A]" />
-                    <span className="text-[11px] font-semibold text-gray-400 dark:text-slate-500">
-                      {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
-                    </span>
+          ) : jumpDate !== null ? (
+            sortedHistory.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-12 text-center">
+                <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
+                <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No records for this date</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">Try a different date or clear the filter</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {timeGroupedHistory.map((group) => (
+                  <div key={group.key}>
+                    <div className="mb-3 flex items-center gap-3">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+                        {group.label}
+                      </span>
+                      <div className="h-px flex-1 bg-gray-100 dark:bg-[#1A1A1A]" />
+                      <span className="text-[11px] font-semibold text-gray-400 dark:text-slate-500">
+                        {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    {renderTable(sortRecords(group.records))}
                   </div>
-                  {renderTable(sortRecords(group.records))}
-                </div>
-              ))}
-            </div>
-          )
-        ) : viewMode === 'day' ? (
-          sortedHistory.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-12 text-center">
-              <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
-              <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No score records yet</p>
-              <p className="text-xs text-gray-400 dark:text-slate-500">Records will appear once scores are logged for you</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {timeGroupedHistory.map((group) => (
-                <div key={group.key}>
-                  <div className="mb-3 flex items-center gap-3">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-                      {group.label}
-                    </span>
-                    <div className="h-px flex-1 bg-gray-100 dark:bg-[#1A1A1A]" />
-                    <span className="text-[11px] font-semibold text-gray-400 dark:text-slate-500">
-                      {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
-                    </span>
+                ))}
+              </div>
+            )
+          ) : viewMode === 'day' ? (
+            sortedHistory.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-12 text-center">
+                <BookOpen className="w-10 h-10 text-gray-200 dark:text-gray-700" />
+                <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">
+                  No score records yet
+                </p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">
+                  Records will appear once scores are logged for you
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {timeGroupedHistory.map((group) => (
+                  <div key={group.key}>
+                    <div className="mb-3 flex items-center gap-3">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+                        {group.label}
+                      </span>
+                      <div className="h-px flex-1 bg-gray-100 dark:bg-[#1A1A1A]" />
+                      <span className="text-[11px] font-semibold text-gray-400 dark:text-slate-500">
+                        {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    {renderTable(sortRecords(group.records))}
                   </div>
-                  {renderTable(sortRecords(group.records))}
-                </div>
-              ))}
-            </div>
-          )
-        ) : (
-          groupedHistory.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-12 text-center">
-              <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
-              <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No records to display</p>
-            </div>
+                ))}
+              </div>
+            )
           ) : (
-            <div className="space-y-6">
-              {groupedHistory.map((group) => (
-                <div key={group.key}>
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-                      {group.label}
-                    </span>
-                    <div className="flex-1 h-px bg-gray-100 dark:bg-[#1A1A1A]" />
-                    <span className="text-[11px] font-semibold text-gray-400 dark:text-slate-500">
-                      {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
-                    </span>
+            groupedHistory.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-12 text-center">
+                <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
+                <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No records to display</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {groupedHistory.map((group) => (
+                  <div key={group.key}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+                        {group.label}
+                      </span>
+                      <div className="flex-1 h-px bg-gray-100 dark:bg-[#1A1A1A]" />
+                      <span className="text-[11px] font-semibold text-gray-400 dark:text-slate-500">
+                        {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    {renderTable(sortRecords(group.records))}
                   </div>
-                  {renderTable(sortRecords(group.records))}
-                </div>
-              ))}
-            </div>
-          )
-        )}
+                ))}
+              </div>
+            )
+          )}
+        </div>
       </div>
     </div>
   );

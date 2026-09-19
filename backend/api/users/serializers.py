@@ -8,7 +8,7 @@ import uuid
 from django.conf import settings
 from rest_framework import serializers
 
-from apps.accounts.models import User
+from apps.accounts.models import User, StudentEditRequest
 
 
 class UserListSerializer(serializers.ModelSerializer):
@@ -165,3 +165,129 @@ class BulkAssignTutorSerializer(serializers.Serializer):
             except User.DoesNotExist:
                 raise serializers.ValidationError('Selected tutor does not exist or is not a tutor.')
         return None
+
+
+class StudentEditRequestSerializer(serializers.ModelSerializer):
+    """Full detail and list serializer for student edit requests."""
+
+    student_name = serializers.SerializerMethodField()
+    requested_by_name = serializers.SerializerMethodField()
+    reviewed_by_name = serializers.SerializerMethodField()
+
+    current_first_name = serializers.CharField(source='student.first_name', read_only=True)
+    current_middle_name = serializers.CharField(source='student.middle_name', read_only=True)
+    current_last_name = serializers.CharField(source='student.last_name', read_only=True)
+    current_lrn = serializers.CharField(source='student.lrn', read_only=True)
+    current_aral_level = serializers.CharField(source='student.aral_level', read_only=True)
+
+    class Meta:
+        model = StudentEditRequest
+        fields = [
+            'id',
+            'student',
+            'student_name',
+            'current_first_name',
+            'current_middle_name',
+            'current_last_name',
+            'current_lrn',
+            'current_aral_level',
+            'requested_by',
+            'requested_by_name',
+            'proposed_first_name',
+            'proposed_middle_name',
+            'proposed_last_name',
+            'proposed_lrn',
+            'proposed_aral_level',
+            'reason',
+            'status',
+            'reviewed_by',
+            'reviewed_by_name',
+            'rejection_reason',
+            'created_at',
+            'reviewed_at',
+        ]
+
+    def get_student_name(self, obj):
+        return obj.student.get_full_name() if obj.student else ''
+
+    def get_requested_by_name(self, obj):
+        return obj.requested_by.get_full_name() if obj.requested_by else ''
+
+    def get_reviewed_by_name(self, obj):
+        return obj.reviewed_by.get_full_name() if obj.reviewed_by else None
+
+
+class StudentEditRequestCreateSerializer(serializers.ModelSerializer):
+    """Serializer for tutor submission of student edit request."""
+
+    class Meta:
+        model = StudentEditRequest
+        fields = [
+            'student',
+            'proposed_first_name',
+            'proposed_middle_name',
+            'proposed_last_name',
+            'proposed_lrn',
+            'proposed_aral_level',
+            'reason',
+        ]
+
+    def validate_proposed_first_name(self, value):
+        v = value.strip().upper()
+        if not v:
+            raise serializers.ValidationError('Proposed first name cannot be empty.')
+        return v
+
+    def validate_proposed_middle_name(self, value):
+        return value.strip().upper() if value else ''
+
+    def validate_proposed_last_name(self, value):
+        v = value.strip().upper()
+        if not v:
+            raise serializers.ValidationError('Proposed last name cannot be empty.')
+        return v
+
+    def validate_proposed_lrn(self, value):
+        if value:
+            v = str(value).strip()
+            if not v.isdigit() or len(v) != 12:
+                raise serializers.ValidationError('Proposed LRN must be exactly 12 digits.')
+            return v
+        return None
+
+    def validate_reason(self, value):
+        v = value.strip()
+        if not v:
+            raise serializers.ValidationError('A reason for the edit request is required.')
+        return v
+
+    def validate(self, data):
+        student = data.get('student')
+        if student.role != 'student':
+            raise serializers.ValidationError({'student': 'Target user must be a student.'})
+
+        # Check for existing pending request
+        if StudentEditRequest.objects.filter(student=student, status='pending').exists():
+            raise serializers.ValidationError({
+                'student': f'There is already an active pending edit request for {student.get_full_name()}.'
+            })
+
+        proposed_lrn = data.get('proposed_lrn')
+        if proposed_lrn and proposed_lrn != student.lrn:
+            if User.objects.filter(lrn=proposed_lrn, role='student').exclude(id=student.id).exists():
+                raise serializers.ValidationError({'proposed_lrn': 'A student with this LRN already exists.'})
+
+        return data
+
+
+class StudentEditRequestReviewSerializer(serializers.Serializer):
+    """Serializer for admin review (approval / rejection)."""
+
+    action = serializers.ChoiceField(choices=['approve', 'reject'])
+    rejection_reason = serializers.CharField(required=False, allow_blank=True, default='')
+
+    def validate(self, data):
+        if data.get('action') == 'reject' and not data.get('rejection_reason', '').strip():
+            raise serializers.ValidationError({'rejection_reason': 'Please provide a reason for rejecting this request.'})
+        return data
+

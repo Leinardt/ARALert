@@ -30,6 +30,8 @@ export interface User {
   aral_level?: 'basic' | 'plus' | 'summer' | 'graduated' | null;
   subject?: 'Reading' | 'Science' | 'Math' | null;
   faculty_type?: string | null;
+  grade_level?: string | null;
+  section?: string | null;
 }
 
 export interface AralProgressionResult {
@@ -186,7 +188,7 @@ export interface Attendance {
   departure_am: string | null;
   arrival_pm: string | null;
   departure_pm: string | null;
-  status: 'present' | 'late' | 'absent';
+  status: 'present' | 'absent';
   status_display: string;
   tutor: string | null;
   tutor_name: string | null;
@@ -241,3 +243,37 @@ export interface StudentAcademicProfile {
   computed_risk_level?: 'low' | 'medium' | 'high';
 }
 
+export interface StudentEditRequest {
+  id: string;
+  student: string;
+  student_name: string;
+  current_first_name: string;
+  current_middle_name: string;
+  current_last_name: string;
+  current_lrn: string | null;
+  current_aral_level: string;
+  requested_by: string;
+  requested_by_name: string;
+  proposed_first_name: string;
+  proposed_middle_name: string;
+  proposed_last_name: string;
+  proposed_lrn: string | null;
+  proposed_aral_level: 'basic' | 'plus' | 'summer' | 'graduated' | string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewed_by: string | null;
+  reviewed_by_name: string | null;
+  rejection_reason: string;
+  created_at: string;
+  reviewed_at: string | null;
+}
+
+export interface CreateStudentEditRequestPayload {
+  student: string;
+  proposed_first_name: string;
+  proposed_middle_name?: string;
+  proposed_last_name: string;
+  proposed_lrn?: string | null;
+  proposed_aral_level: string;
+  reason: string;
+}

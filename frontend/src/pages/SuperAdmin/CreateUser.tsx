@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -35,10 +35,17 @@ type CreateUserFields = z.infer<typeof createUserSchema>;
 
 export const CreateUser: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user: currentUser } = useAuth();
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tutors, setTutors] = useState<User[]>([]);
+
+  const searchParams = new URLSearchParams(location.search);
+  const requestedRole = searchParams.get('role');
+  const initialRole = (requestedRole === 'student' || requestedRole === 'tutor' || requestedRole === 'faculty' || requestedRole === 'admin' || requestedRole === 'principal')
+    ? requestedRole
+    : (currentUser?.is_superuser ? 'tutor' : 'student');
 
   const {
     register,
@@ -52,7 +59,7 @@ export const CreateUser: React.FC = () => {
       middle_name: '',
       last_name: '',
       email: '',
-      role: currentUser?.is_superuser ? 'tutor' : 'student',
+      role: initialRole,
       lrn: '',
       assigned_tutor: '',
       aral_level: 'basic',
@@ -90,7 +97,15 @@ export const CreateUser: React.FC = () => {
         subject: data.role === 'tutor' ? data.subject || 'Reading' : null,
       };
       await userService.createUser(payload);
-      navigate(currentUser?.is_superuser ? '/superadmin/users' : data.role === 'tutor' ? '/admin/tutors' : '/admin/students');
+      navigate(
+        currentUser?.is_superuser
+          ? '/superadmin/users'
+          : data.role === 'tutor'
+          ? '/admin/tutors'
+          : data.role === 'faculty'
+          ? '/admin/faculty'
+          : '/admin/students'
+      );
     } catch (error: any) {
       console.error(error);
       const errorsPayload = error.response?.data;
@@ -112,7 +127,7 @@ export const CreateUser: React.FC = () => {
           className="inline-flex items-center text-sm font-semibold text-slate-500 transition-colors hover:text-blue-700"
         >
           <ArrowLeft className="mr-1.5 h-4 w-4" />
-          Back to {currentUser?.is_superuser ? 'Directory' : 'Student Directory'}
+          Back to {currentUser?.is_superuser || currentUser?.role === 'admin' ? 'User Management' : 'Student Directory'}
         </Link>
       </div>
 
@@ -123,11 +138,15 @@ export const CreateUser: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl font-extrabold tracking-tight text-slate-900 font-heading">
-              {currentUser?.is_superuser ? 'Pre-Register User Account' : 'Enroll New Student'}
+              {currentUser?.is_superuser ? 'Pre-Register User Account' : 'Enroll New Account'}
             </h2>
             <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
               {isAdminView
-                ? 'Create a student enrollment with the required LRN and tutor assignment details.'
+                ? selectedRole === 'student'
+                  ? 'Create a student enrollment with the required LRN and tutor assignment details.'
+                  : selectedRole === 'tutor'
+                  ? 'Register a tutor with their Google email and assigned ARAL subject.'
+                  : 'Register a faculty member with their Google email.'
                 : selectedRole === 'student'
                   ? 'Enroll a student account with LRN. You can assign a tutor now or set assignment to TBA.'
                   : 'Pre-register a staff account by entering their Google email and role.'}
@@ -171,6 +190,7 @@ export const CreateUser: React.FC = () => {
               >
                 <option value="student">Student</option>
                 <option value="tutor">Tutor</option>
+                <option value="faculty">Faculty</option>
               </select>
             </div>
           )}

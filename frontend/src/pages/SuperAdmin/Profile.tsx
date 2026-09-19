@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import type { User } from '../../types';
-import { getUserInitial, getUserAvatarColorResolved } from '../../utils/studentFormatters';
+import type { User, StudentEditRequest } from '../../types';
+import { userService } from '../../services/userService';
 import {
+  User as UserIcon,
   Mail,
   Calendar,
   CheckCircle2,
@@ -11,6 +12,10 @@ import {
   X,
   Save,
   Info,
+  Clock,
+  AlertTriangle,
+  Send,
+  Eye,
 } from 'lucide-react';
 
 /**
@@ -20,7 +25,6 @@ const formatAralLevel = (level: string | null | undefined): string => {
   if (!level) return 'Basic';
   return level.charAt(0).toUpperCase() + level.slice(1).toLowerCase();
 };
-
 
 /**
  * Format string to Title Case (normal typography with first letter of each word capitalized).
@@ -99,6 +103,8 @@ const SecurityHelpButton: React.FC<{ label: string; description: string }> = ({ 
 export const Profile: React.FC = () => {
   const { user, updateProfile } = useAuth();
   const [localUser, setLocalUser] = useState<User | null>(user);
+
+  // Staff direct editing state
   const [isEditing, setIsEditing] = useState(false);
   const [editFirst, setEditFirst] = useState('');
   const [editMiddle, setEditMiddle] = useState('');
@@ -107,12 +113,67 @@ export const Profile: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setLocalUser(user);
+  // Student Edit Request States
+  const [pendingEditRequest, setPendingEditRequest] = useState<StudentEditRequest | null>(null);
+  const [isEditingStudent, setIsEditingStudent] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showPendingModal, setShowPendingModal] = useState(false);
+  const [isSavingStudent, setIsSavingStudent] = useState(false);
+  const [studentEditError, setStudentEditError] = useState<string | null>(null);
+  const [studentForm, setStudentForm] = useState({
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    lrn: '',
+    aral_level: 'basic' as 'basic' | 'plus' | 'summer' | 'graduated',
+    reason: '',
+  });
+
+  const fetchPendingRequest = useCallback(async () => {
+    if (!user || user.role !== 'student') return;
+    try {
+      const data = await userService.getStudentEditRequests({
+        student_id: user.id,
+        status: 'pending',
+      });
+      if (data.results && data.results.length > 0) {
+        setPendingEditRequest(data.results[0]);
+      } else {
+        setPendingEditRequest(null);
+      }
+    } catch (err) {
+      console.error('Failed to check pending student edit requests', err);
+    }
   }, [user]);
 
+  useEffect(() => {
+    setLocalUser(user);
+    if (user?.role === 'student') {
+      fetchPendingRequest();
+    }
+  }, [user, fetchPendingRequest]);
+
+  // Non-student direct edit handlers
   const handleEditOpen = () => {
     if (!localUser) return;
+    if (localUser.role === 'student') {
+      if (pendingEditRequest) {
+        setShowPendingModal(true);
+        return;
+      }
+      setStudentForm({
+        first_name: localUser.first_name || '',
+        middle_name: localUser.middle_name || '',
+        last_name: localUser.last_name || '',
+        lrn: localUser.lrn || '',
+        aral_level: (localUser.aral_level as any) || 'basic',
+        reason: '',
+      });
+      setStudentEditError(null);
+      setIsEditingStudent(true);
+      return;
+    }
+
     setEditFirst(toTitleCase(localUser.first_name));
     setEditMiddle(toTitleCase(localUser.middle_name));
     setEditLast(toTitleCase(localUser.last_name));
@@ -147,6 +208,53 @@ export const Profile: React.FC = () => {
     }
   };
 
+  // Student request submit (opens confirmation)
+  const handleStudentFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!studentForm.reason.trim()) {
+      setStudentEditError('A reason for the edit request is required.');
+      return;
+    }
+    setStudentEditError(null);
+    setShowConfirmModal(true);
+  };
+
+  // Confirm and create student edit request
+  const handleConfirmSubmitRequest = async () => {
+    if (!localUser) return;
+    setIsSavingStudent(true);
+    setStudentEditError(null);
+
+    try {
+      await userService.createStudentEditRequest({
+        student: localUser.id,
+        proposed_first_name: studentForm.first_name.trim().toUpperCase(),
+        proposed_middle_name: studentForm.middle_name.trim().toUpperCase(),
+        proposed_last_name: studentForm.last_name.trim().toUpperCase(),
+        proposed_lrn: studentForm.lrn.trim() || null,
+        proposed_aral_level: studentForm.aral_level,
+        reason: studentForm.reason.trim(),
+      });
+
+      setShowConfirmModal(false);
+      setIsEditingStudent(false);
+      setMessage('Your profile edit request has been submitted for School Admin and Super Admin review.');
+      await fetchPendingRequest();
+    } catch (err: any) {
+      setShowConfirmModal(false);
+      const errData = err?.response?.data;
+      const msg =
+        errData?.detail ||
+        errData?.reason?.[0] ||
+        errData?.proposed_lrn?.[0] ||
+        errData?.student?.[0] ||
+        'Failed to submit profile edit request.';
+      setStudentEditError(msg);
+    } finally {
+      setIsSavingStudent(false);
+    }
+  };
+
   if (!localUser) {
     return (
       <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -176,8 +284,6 @@ export const Profile: React.FC = () => {
     transition: 'border-color 0.2s',
   };
 
-  const avatarColor = getUserAvatarColorResolved(localUser);
-
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
@@ -186,20 +292,16 @@ export const Profile: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
             <div
-              className={`flex items-center justify-center font-extrabold overflow-hidden${avatarColor.kind === 'class' ? ` ${avatarColor.value}` : ''}`}
+              className="flex items-center justify-center shrink-0 overflow-hidden rounded-2xl bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
               style={{
                 width: '76px',
                 height: '76px',
-                borderRadius: '22px',
-                fontFamily: 'var(--font-heading)',
-                fontSize: '2rem',
-                ...(avatarColor.kind === 'style' ? avatarColor.value : {}),
               }}
             >
               {localUser.avatar ? (
                 <img src={localUser.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                getUserInitial(localUser)
+                <UserIcon size={38} />
               )}
             </div>
 
@@ -244,6 +346,42 @@ export const Profile: React.FC = () => {
         </div>
       </div>
 
+      {/* ── Student Pending Edit Request Notification Banner ── */}
+      {localUser.role === 'student' && pendingEditRequest && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-3xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-900/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 text-amber-700 dark:text-amber-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                PROFILE EDIT REQUEST PENDING REVIEW
+              </h3>
+              <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-0.5 leading-relaxed">
+                You have submitted profile changes on{' '}
+                <span className="font-semibold">
+                  {new Date(pendingEditRequest.created_at).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </span>
+                . Your request has been forwarded to the School Admin and Super Admin for confirmation.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowPendingModal(true)}
+            className="self-start sm:self-center shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            View Request Details
+          </button>
+        </div>
+      )}
+
       {/* ── Profile Details Section ── */}
       <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '2rem', boxShadow: 'var(--shadow-xs)' }}>
 
@@ -253,7 +391,44 @@ export const Profile: React.FC = () => {
             PROFILE INFORMATION
           </h2>
 
-          {!isEditing ? (
+          {localUser.role === 'student' ? (
+            pendingEditRequest ? (
+              <button
+                type="button"
+                onClick={() => setShowPendingModal(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold cursor-pointer transition hover:bg-amber-200"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                Edit Pending Approval
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleEditOpen}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.5rem 1.1rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  background: 'var(--brand)',
+                  color: '#fff',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-body)',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(9, 115, 55, 0.25)',
+                  transition: 'var(--transition-fast)',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-dark, #065f2c)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--brand)'; }}
+              >
+                <Edit3 size={14} />
+                Request Profile Update
+              </button>
+            )
+          ) : !isEditing ? (
             <button
               type="button"
               onClick={handleEditOpen}
@@ -350,7 +525,7 @@ export const Profile: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>First Name</label>
-              {isEditing ? (
+              {isEditing && localUser.role !== 'student' ? (
                 <input
                   value={editFirst}
                   onChange={(e) => setEditFirst(e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
@@ -364,7 +539,7 @@ export const Profile: React.FC = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Middle Name</label>
-              {isEditing ? (
+              {isEditing && localUser.role !== 'student' ? (
                 <input
                   value={editMiddle}
                   onChange={(e) => setEditMiddle(e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
@@ -378,7 +553,7 @@ export const Profile: React.FC = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Last Name</label>
-              {isEditing ? (
+              {isEditing && localUser.role !== 'student' ? (
                 <input
                   value={editLast}
                   onChange={(e) => setEditLast(e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
@@ -419,7 +594,7 @@ export const Profile: React.FC = () => {
             </div>
           </div>
 
-          {/* Tutor Academic Assignment: ARAL Level & Subject Assigned */}
+          {/* Tutor Academic Assignment */}
           {localUser.role === 'tutor' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -497,6 +672,253 @@ export const Profile: React.FC = () => {
             </div>
           </div>
         </section>
+      )}
+
+      {/* ── STUDENT EDIT REQUEST MODAL ─────────────────────────────── */}
+      {isEditingStudent && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <form onSubmit={handleStudentFormSubmit} className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg uppercase">
+                  REQUEST PROFILE UPDATE
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  Proposed changes will be submitted to the Admin & Super Admin for review
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditingStudent(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Notice Banner */}
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-3.5 flex items-start gap-3">
+              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
+                <span className="font-bold">Official Record Verification:</span> Updates to your student profile (name, LRN, or ARAL program level) require verification and confirmation by a School Admin or Super Admin before taking effect.
+              </div>
+            </div>
+
+            {studentEditError && (
+              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs rounded-xl p-3 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                <span>{studentEditError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed First Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={studentForm.first_name}
+                  onChange={(e) => setStudentForm({ ...studentForm, first_name: e.target.value })}
+                  placeholder="e.g. JUAN"
+                  className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] uppercase font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed Middle Name</label>
+                <input
+                  type="text"
+                  value={studentForm.middle_name}
+                  onChange={(e) => setStudentForm({ ...studentForm, middle_name: e.target.value })}
+                  placeholder="e.g. PROTACIO"
+                  className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] uppercase font-semibold"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed Last Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={studentForm.last_name}
+                  onChange={(e) => setStudentForm({ ...studentForm, last_name: e.target.value })}
+                  placeholder="e.g. DELA CRUZ"
+                  className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] uppercase font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed LRN (12 digits)</label>
+                <input
+                  type="text"
+                  maxLength={12}
+                  value={studentForm.lrn}
+                  onChange={(e) => setStudentForm({ ...studentForm, lrn: e.target.value.replace(/\D/g, '') })}
+                  placeholder="12-digit number"
+                  className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed ARAL Program Level *</label>
+              <select
+                value={studentForm.aral_level}
+                onChange={(e) => setStudentForm({ ...studentForm, aral_level: e.target.value as any })}
+                className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] font-semibold cursor-pointer"
+              >
+                <option value="basic">Basic</option>
+                <option value="plus">Plus</option>
+                <option value="summer">Summer</option>
+                <option value="graduated">Graduated</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Reason for Edit Request *</label>
+              <textarea
+                required
+                rows={3}
+                value={studentForm.reason}
+                onChange={(e) => setStudentForm({ ...studentForm, reason: e.target.value })}
+                placeholder="Explain why this profile change is necessary (e.g., PSA birth certificate name spelling correction, LRN typo, or program level change)..."
+                className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] resize-none"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
+              <button
+                type="button"
+                onClick={() => setIsEditingStudent(false)}
+                className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-xl text-xs font-bold cursor-pointer shadow-sm transition-all inline-flex items-center gap-1.5"
+              >
+                <Send className="w-3.5 h-3.5" />
+                Submit Request for Approval
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── CONFIRMATION MODAL BEFORE SUBMISSION ───────────────────── */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-6 max-w-sm w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 animate-fade-in-scale">
+            <div>
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
+                Confirm Edit Request Submission
+              </h3>
+              <p className="mt-2 text-xs leading-relaxed text-gray-500 dark:text-slate-400">
+                Are you sure you want to submit this profile change request? Your proposed details and reason will be sent to the <span className="font-bold text-gray-700 dark:text-slate-300">School Admin</span> and <span className="font-bold text-gray-700 dark:text-slate-300">Super Admin</span> for confirmation and review.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isSavingStudent}
+                onClick={() => setShowConfirmModal(false)}
+                className="rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-4 py-2 text-xs font-bold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSavingStudent}
+                onClick={handleConfirmSubmitRequest}
+                className="rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+              >
+                {isSavingStudent ? 'Submitting...' : 'Yes, Submit Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── PENDING REQUEST DETAILS MODAL ──────────────────────────── */}
+      {showPendingModal && pendingEditRequest && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">Edit Request Pending</h3>
+                  <p className="text-[11px] text-gray-500 dark:text-slate-400">Awaiting Admin or Super Admin review</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPendingModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="bg-slate-50 dark:bg-[#111111] p-3.5 rounded-2xl border border-slate-200 dark:border-[#1A1A1A] space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-slate-400 font-medium">Submitted On:</span>
+                  <span className="font-semibold text-gray-800 dark:text-slate-200">
+                    {new Date(pendingEditRequest.created_at).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-slate-400 font-medium">Status:</span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                    Pending Approval
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="font-bold text-gray-700 dark:text-slate-300 text-xs">Proposed Changes:</h4>
+                <div className="bg-gray-50 dark:bg-[#111111] p-3 rounded-2xl border border-gray-100 dark:border-[#1A1A1A] space-y-1.5 font-mono text-[11px]">
+                  <p className="text-gray-700 dark:text-slate-300">
+                    <span className="text-gray-400 dark:text-slate-500 font-sans">Name: </span>
+                    {pendingEditRequest.proposed_last_name}, {pendingEditRequest.proposed_first_name} {pendingEditRequest.proposed_middle_name || ''}
+                  </p>
+                  <p className="text-gray-700 dark:text-slate-300">
+                    <span className="text-gray-400 dark:text-slate-500 font-sans">LRN: </span>
+                    {pendingEditRequest.proposed_lrn || 'Unchanged'}
+                  </p>
+                  <p className="text-gray-700 dark:text-slate-300">
+                    <span className="text-gray-400 dark:text-slate-500 font-sans">ARAL Level: </span>
+                    {pendingEditRequest.proposed_aral_level ? formatAralLevel(pendingEditRequest.proposed_aral_level) : 'Unchanged'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <h4 className="font-bold text-gray-700 dark:text-slate-300 text-xs">Reason:</h4>
+                <p className="text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-[#111111] p-2.5 rounded-xl border border-gray-100 dark:border-[#1A1A1A] text-xs leading-relaxed italic">
+                  "{pendingEditRequest.reason}"
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setShowPendingModal(false)}
+                className="bg-gray-100 dark:bg-[#141414] hover:bg-gray-200 dark:hover:bg-[#1f1f1f] text-gray-700 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

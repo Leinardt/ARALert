@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import type { AttendanceExportData } from './attendanceExportService';
+import { formatAttendanceDateHeader, buildAttendanceFilename, type AttendanceExportData } from './attendanceExportService';
 import { DEPED_LOGO_BASE64, PNAHS_LOGO_BASE64 } from '../assets/template_logos/logosBase64';
 
 export const exportAttendanceToPdf = async (
@@ -30,14 +30,15 @@ export const exportAttendanceToPdf = async (
   const allDays = data.weeks.flatMap((w) => w.days);
   const totalDayCols = allDays.length;
   const isMonthly = totalDayCols > 5;
+  const totalStudents = Math.max(data.students.length, 1);
 
-  // Margins matching DOCX & Excel - lowered top margin so header is not too high up
-  const marginX = isMonthly ? 36 : 48; // 0.5 in vs 0.67 in
-  const marginTop = isMonthly ? 48 : 60; // 0.67 in vs 0.83 in (formal top margin)
-  const marginBottom = isMonthly ? 36 : 46;
+  // Optimized margins with comfortable top gap above header
+  const marginX = isMonthly ? 32 : 40;
+  const marginTop = isMonthly ? 36 : 42;
+  const marginBottom = isMonthly ? 20 : 22;
   const availWidth = pageWidth - marginX * 2;
 
-  // Table Column Widths matching DOCX exact proportions
+  // Table Column Widths matching exact proportions
   let indexColW: number;
   let nameColW: number;
   let sigColW: number;
@@ -64,52 +65,63 @@ export const exportAttendanceToPdf = async (
     dayColW = remDays / totalDayCols;
   }
 
-  // Generous row heights & font sizes matching formal academic tables (not compact)
-  const headerFontSize = isMonthly ? 8 : 9;
-  const studentFontSize = isMonthly ? 8 : 9.5;
-  const markFontSize = isMonthly ? 8.5 : 10.5;
-  const rowHeight = isMonthly ? 19 : 24; // 24pt gives generous ~7.25pt padding above & below each row
-  const headRow1Height = totalDayCols <= 1 ? 32 : 24;
-  const headRow2Height = 19;
-  const totalHeaderHeight = totalDayCols <= 1 ? headRow1Height : headRow1Height + headRow2Height;
+  // Header row height (single clean header row)
+  const totalHeaderHeight = 20;
+
+  // Signatures vertical budget (expanded with generous 28pt signing clearance & comfortable gap above signatures)
+  const signatureBlockGap = totalStudents > 22 ? 22 : 28;
+  const signaturesRequiredHeight = 96 + signatureBlockGap;
+
+  // Document header height with 1 space gap before week/date is ~100pt
+  const documentHeaderHeight = 100;
+
+  // Calculate available vertical space for student rows
+  const availTableHeight = pageHeight - marginTop - marginBottom - documentHeaderHeight - totalHeaderHeight - signaturesRequiredHeight;
+  // Adaptive row height capped at 20.5pt for small lists, down to ~15pt for 30 students
+  const rowHeight = Math.min(20.5, Math.max(14.5, Math.floor(availTableHeight / totalStudents)));
+
+  // Typography scaled proportionately to guarantee crisp legibility
+  const headerFontSize = isMonthly ? 7.5 : 8.5;
+  const studentFontSize = totalStudents > 22 ? 8.25 : totalStudents > 16 ? 8.75 : 9.5;
+  const markFontSize = totalStudents > 22 ? 9 : 10;
 
   // Helper: Render Header (Logos, Letterhead, Titles, Meta Row)
   const renderDocumentHeader = (startY: number): number => {
     let curY = startY;
 
     // 1. Logos & Letterhead
-    const logoSize = 54; // 54×54 pt crisp vector presentation
+    const logoSize = 40; // 40×40 pt crisp presentation
     const textBlockTop = curY;
 
-    // Measure exact school name width using the exact font and size (Times bold 11pt)
+    // Measure exact school name width using the exact font and size (Times bold 10.5pt)
     pdf.setFont('times', 'bold');
-    pdf.setFontSize(11);
+    pdf.setFontSize(10.5);
     const schoolNameText = data.schoolName.toUpperCase();
     const schoolNameWidth = pdf.getTextWidth(schoolNameText);
 
     // School Letterhead Text Lines
     pdf.setFont('times', 'normal');
-    pdf.setFontSize(9);
+    pdf.setFontSize(8.5);
     pdf.setTextColor(71, 85, 105); // #475569
-    pdf.text(data.division.toUpperCase(), pageWidth / 2, curY + 10, { align: 'center' });
+    pdf.text(data.division.toUpperCase(), pageWidth / 2, curY + 8, { align: 'center' });
 
-    pdf.text(data.district.toUpperCase(), pageWidth / 2, curY + 22, { align: 'center' });
+    pdf.text(data.district.toUpperCase(), pageWidth / 2, curY + 18, { align: 'center' });
 
     pdf.setFont('times', 'bold');
-    pdf.setFontSize(11);
+    pdf.setFontSize(10.5);
     pdf.setTextColor(15, 23, 42); // #0F172A
-    pdf.text(schoolNameText, pageWidth / 2, curY + 36, { align: 'center' });
+    pdf.text(schoolNameText, pageWidth / 2, curY + 30, { align: 'center' });
 
     pdf.setFont('times', 'normal');
-    pdf.setFontSize(8.5);
+    pdf.setFontSize(7.5);
     pdf.setTextColor(100, 116, 139); // #64748B
-    pdf.text(data.schoolAddress, pageWidth / 2, curY + 48, { align: 'center' });
+    pdf.text(data.schoolAddress, pageWidth / 2, curY + 40, { align: 'center' });
 
-    // Logos flanking the school letterhead with a clean 26pt gap (ZERO overlap with PALANAS or SCHOOL)
-    const logoGap = 26;
+    // Logos flanking the school letterhead
+    const logoGap = 20;
     const leftLogoX = pageWidth / 2 - schoolNameWidth / 2 - logoGap - logoSize;
     const rightLogoX = pageWidth / 2 + schoolNameWidth / 2 + logoGap;
-    const logoY = textBlockTop + (50 - logoSize) / 2;
+    const logoY = textBlockTop + (42 - logoSize) / 2;
 
     try {
       if (DEPED_LOGO_BASE64) {
@@ -127,25 +139,27 @@ export const exportAttendanceToPdf = async (
       console.warn('Could not add PNAHS logo to PDF:', e);
     }
 
-    curY += 58;
+    curY += 46;
 
     // 2. Document Title & Grade Section
     pdf.setFont('times', 'bold');
-    pdf.setFontSize(11.5);
+    pdf.setFontSize(11);
     pdf.setTextColor(15, 23, 42);
-    pdf.text(data.subjectTitle.toUpperCase(), pageWidth / 2, curY + 12, { align: 'center' });
+    pdf.text(data.subjectTitle.toUpperCase(), pageWidth / 2, curY + 10, { align: 'center' });
 
-    pdf.setFontSize(10);
+    pdf.setFontSize(9.5);
     pdf.setTextColor(51, 65, 85); // #334155
-    pdf.text(data.gradeSection.toUpperCase(), pageWidth / 2, curY + 26, { align: 'center' });
+    pdf.text(data.gradeSection.toUpperCase(), pageWidth / 2, curY + 22, { align: 'center' });
 
-    // Generous space between Header titles and the WEEK & DATE row (increased to 54)
-    curY += 54;
+    curY += 24;
+
+    // 1 clear space gap between header and the week & date section
+    curY += 16;
 
     // 3. Period Meta Line (WEEK on left, DATE on right with balanced underline)
-    const metaY = curY + 8;
+    const metaY = curY;
     pdf.setFont('times', 'bold');
-    pdf.setFontSize(9.5);
+    pdf.setFontSize(9);
     pdf.setTextColor(15, 23, 42);
 
     // Left: WEEK:  _2_
@@ -154,7 +168,7 @@ export const exportAttendanceToPdf = async (
     const weekVal = data.weekNumber || '1';
     const weekValW = pdf.getTextWidth(weekVal);
     const weekLineStart = marginX + weekLabelW;
-    const weekPad = 12;
+    const weekPad = 10;
     const weekValX = weekLineStart + weekPad;
     const weekLineEnd = weekValX + weekValW + weekPad;
 
@@ -167,7 +181,7 @@ export const exportAttendanceToPdf = async (
     const dateVal = data.dateStr || '_______';
     const dateLabelW = pdf.getTextWidth('DATE:  ');
     const dateValW = pdf.getTextWidth(dateVal);
-    const datePad = 12;
+    const datePad = 10;
     const totalDateBlockW = dateLabelW + dateValW + datePad * 2;
     const dateStartBlockX = pageWidth - marginX - totalDateBlockW;
 
@@ -176,8 +190,7 @@ export const exportAttendanceToPdf = async (
     pdf.text(dateVal, dateValX, metaY);
     pdf.line(dateStartBlockX + dateLabelW, metaY + 2, dateValX + dateValW + datePad, metaY + 2);
 
-    // Comfortable space between WEEK & DATE and the attendance table (increased to 30)
-    curY += 30;
+    curY += 14;
     return curY;
   };
 
@@ -186,86 +199,80 @@ export const exportAttendanceToPdf = async (
     pdf.setDrawColor(30, 41, 59); // #1E293B border
     pdf.setLineWidth(0.5);
 
-    if (totalDayCols <= 1) {
-      // Single-day header
-      let colX = marginX;
-      const cols = [
-        { label: '#', w: indexColW, align: 'center' },
-        { label: 'NAME OF THE STUDENTS', w: nameColW, align: 'center' },
-        { label: data.weeks[0]?.label || 'DATE', w: dayColW, align: 'center' },
-        { label: 'SIGNATURE', w: sigColW, align: 'center' },
-      ];
+    // Single clean header row (no redundant date range row)
+    // #
+    pdf.setFillColor(248, 250, 252);
+    pdf.rect(marginX, tableTopY, indexColW, totalHeaderHeight, 'FD');
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(headerFontSize);
+    pdf.setTextColor(15, 23, 42);
+    pdf.text('#', marginX + indexColW / 2, tableTopY + totalHeaderHeight / 2 + 2.5, { align: 'center' });
 
-      cols.forEach((col) => {
-        pdf.setFillColor(248, 250, 252); // #F8FAFC
-        pdf.rect(colX, tableTopY, col.w, headRow1Height, 'FD');
-        pdf.setFont('times', 'bold');
+    // NAME OF THE STUDENTS
+    const nameX = marginX + indexColW;
+    pdf.setFillColor(248, 250, 252);
+    pdf.rect(nameX, tableTopY, nameColW, totalHeaderHeight, 'FD');
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(headerFontSize);
+    pdf.setTextColor(15, 23, 42);
+    pdf.text('NAME OF THE STUDENTS', nameX + nameColW / 2, tableTopY + totalHeaderHeight / 2 + 2.5, { align: 'center' });
+
+    // Day Columns
+    const renderCenteredFitText = (
+      text: string,
+      x: number,
+      y: number,
+      maxW: number,
+      startSize: number,
+      minSize = 4.5
+    ): void => {
+      let sz = startSize;
+      pdf.setFontSize(sz);
+      while (pdf.getTextWidth(text) > maxW && sz > minSize) {
+        sz -= 0.25;
+        pdf.setFontSize(sz);
+      }
+      pdf.text(text, x, y, { align: 'center' });
+    };
+
+    let dayX = nameX + nameColW;
+    allDays.forEach((day) => {
+      pdf.setFillColor(248, 250, 252);
+      pdf.rect(dayX, tableTopY, dayColW, totalHeaderHeight, 'FD');
+      pdf.setFont('times', 'bold');
+      pdf.setTextColor(15, 23, 42);
+
+      if (totalDayCols <= 1) {
+        const dateText = formatAttendanceDateHeader(day.dateKey, day.dayNum);
+        renderCenteredFitText(
+          dateText,
+          dayX + dayColW / 2,
+          tableTopY + totalHeaderHeight / 2 + 2.5,
+          dayColW - 2,
+          8,
+          4.5
+        );
+      } else {
         pdf.setFontSize(headerFontSize);
-        pdf.setTextColor(15, 23, 42);
-        const textX = colX + col.w / 2;
-        pdf.text(col.label, textX, tableTopY + headRow1Height / 2 + 3, { align: 'center' });
-        colX += col.w;
-      });
-    } else {
-      // Multi-day Header Row 1: Explicit fill before EVERY rect
-      // # (Spans 2 rows) - Centered
-      pdf.setFillColor(248, 250, 252);
-      pdf.rect(marginX, tableTopY, indexColW, totalHeaderHeight, 'FD');
-      pdf.setFont('times', 'bold');
-      pdf.setFontSize(headerFontSize);
-      pdf.setTextColor(15, 23, 42);
-      pdf.text('#', marginX + indexColW / 2, tableTopY + totalHeaderHeight / 2 + 3, { align: 'center' });
+        pdf.text(String(day.dayNum), dayX + dayColW / 2, tableTopY + totalHeaderHeight / 2 + 2.5, { align: 'center' });
+      }
+      dayX += dayColW;
+    });
 
-      // NAME OF THE STUDENTS (Spans 2 rows) - Centered
-      const nameX = marginX + indexColW;
-      pdf.setFillColor(248, 250, 252);
-      pdf.rect(nameX, tableTopY, nameColW, totalHeaderHeight, 'FD');
-      pdf.setFont('times', 'bold');
-      pdf.setFontSize(headerFontSize);
-      pdf.setTextColor(15, 23, 42);
-      pdf.text('NAME OF THE STUDENTS', nameX + nameColW / 2, tableTopY + totalHeaderHeight / 2 + 3, { align: 'center' });
-
-      // Week Ranges
-      let weekX = nameX + nameColW;
-      data.weeks.forEach((week) => {
-        const spanW = dayColW * week.days.length;
-        pdf.setFillColor(248, 250, 252);
-        pdf.rect(weekX, tableTopY, spanW, headRow1Height, 'FD');
-        pdf.setFont('times', 'bold');
-        pdf.setFontSize(isMonthly ? 7.5 : 8.5);
-        pdf.setTextColor(15, 23, 42);
-        pdf.text(week.label, weekX + spanW / 2, tableTopY + headRow1Height / 2 + 3, { align: 'center' });
-        weekX += spanW;
-      });
-
-      // SIGNATURE (Spans 2 rows) - Centered
-      const sigX = marginX + availWidth - sigColW;
-      pdf.setFillColor(248, 250, 252);
-      pdf.rect(sigX, tableTopY, sigColW, totalHeaderHeight, 'FD');
-      pdf.setFont('times', 'bold');
-      pdf.setFontSize(headerFontSize);
-      pdf.setTextColor(15, 23, 42);
-      pdf.text('SIGNATURE', sigX + sigColW / 2, tableTopY + totalHeaderHeight / 2 + 3, { align: 'center' });
-
-      // Multi-day Header Row 2: Day Numbers
-      const row2Y = tableTopY + headRow1Height;
-      let dayX = nameX + nameColW;
-      allDays.forEach((day) => {
-        pdf.setFillColor(255, 255, 255); // White background
-        pdf.rect(dayX, row2Y, dayColW, headRow2Height, 'FD');
-        pdf.setFont('times', 'bold');
-        pdf.setFontSize(headerFontSize);
-        pdf.setTextColor(15, 23, 42);
-        pdf.text(String(day.dayNum), dayX + dayColW / 2, row2Y + headRow2Height / 2 + 3, { align: 'center' });
-        dayX += dayColW;
-      });
-    }
+    // SIGNATURE
+    const sigX = marginX + availWidth - sigColW;
+    pdf.setFillColor(248, 250, 252);
+    pdf.rect(sigX, tableTopY, sigColW, totalHeaderHeight, 'FD');
+    pdf.setFont('times', 'bold');
+    pdf.setFontSize(headerFontSize);
+    pdf.setTextColor(15, 23, 42);
+    pdf.text('SIGNATURE', sigX + sigColW / 2, tableTopY + totalHeaderHeight / 2 + 2.5, { align: 'center' });
   };
 
   // Helper: Render Signatures Block
   const renderSignatures = (sigStartY: number): void => {
     let curY = sigStartY;
-    const colW = 155;
+    const colW = 145;
 
     // Prepared by (Right Aligned)
     const prepX = pageWidth - marginX - colW;
@@ -274,24 +281,25 @@ export const exportAttendanceToPdf = async (
     pdf.setTextColor(15, 23, 42);
     pdf.text('Prepared by:', prepX, curY);
 
-    curY += 26;
+    // Generous 28pt physical pen signing room above the name line
+    curY += 28;
     pdf.setFont('times', 'bold');
     pdf.setFontSize(9.5);
     pdf.setTextColor(15, 23, 42);
     const tutorName = (data.tutorName || 'NYAN JEAN Q. ALCOVINDAS').toUpperCase();
     pdf.text(tutorName, prepX + colW / 2, curY, { align: 'center' });
 
-    pdf.setLineWidth(0.8);
+    pdf.setLineWidth(0.75);
     pdf.setDrawColor(15, 23, 42);
     pdf.line(prepX, curY + 2, prepX + colW, curY + 2);
 
     pdf.setFont('times', 'normal');
-    pdf.setFontSize(8.5);
+    pdf.setFontSize(8);
     pdf.setTextColor(71, 85, 105);
-    pdf.text(data.tutorTitle || 'ARAL TUTOR', prepX + colW / 2, curY + 12, { align: 'center' });
+    pdf.text(data.tutorTitle || 'ARAL TUTOR', prepX + colW / 2, curY + 9, { align: 'center' });
 
-    // Checked by & Noted by Row
-    curY += 28;
+    // Checked by & Noted by Row (generous gap above Checked/Noted fields)
+    curY += totalStudents > 22 ? 22 : 26;
     const checkedX = marginX;
     const notedX = pageWidth - marginX - colW;
 
@@ -304,33 +312,34 @@ export const exportAttendanceToPdf = async (
     // Noted
     pdf.text('Noted:', notedX, curY);
 
-    curY += 26;
+    // Generous 28pt physical pen signing room above the name lines
+    curY += 28;
 
     // Checked Name
     pdf.setFont('times', 'bold');
-    pdf.setFontSize(9.5);
+    pdf.setFontSize(9);
     pdf.setTextColor(15, 23, 42);
     const chkName = (data.checkedName || 'FIRSTNAME M.I. LASTNAME').toUpperCase();
     pdf.text(chkName, checkedX + colW / 2, curY, { align: 'center' });
     pdf.line(checkedX, curY + 2, checkedX + colW, curY + 2);
 
     pdf.setFont('times', 'normal');
-    pdf.setFontSize(8.5);
+    pdf.setFontSize(8);
     pdf.setTextColor(71, 85, 105);
-    pdf.text(data.checkedTitle || 'HT/Asst. to the Principal', checkedX + colW / 2, curY + 12, { align: 'center' });
+    pdf.text(data.checkedTitle || 'HT/Asst. to the Principal', checkedX + colW / 2, curY + 9, { align: 'center' });
 
     // Noted Name
     pdf.setFont('times', 'bold');
-    pdf.setFontSize(9.5);
+    pdf.setFontSize(9);
     pdf.setTextColor(15, 23, 42);
     const ntdName = (data.notedName || 'ANDY TONAMANAKO').toUpperCase();
     pdf.text(ntdName, notedX + colW / 2, curY, { align: 'center' });
-    pdf.line(ntdName ? notedX : notedX, curY + 2, notedX + colW, curY + 2);
+    pdf.line(notedX, curY + 2, notedX + colW, curY + 2);
 
     pdf.setFont('times', 'normal');
-    pdf.setFontSize(8.5);
+    pdf.setFontSize(8);
     pdf.setTextColor(71, 85, 105);
-    pdf.text(data.notedTitle || 'Principal I', notedX + colW / 2, curY + 12, { align: 'center' });
+    pdf.text(data.notedTitle || 'Principal I', notedX + colW / 2, curY + 9, { align: 'center' });
   };
 
   // Build Document
@@ -339,13 +348,9 @@ export const exportAttendanceToPdf = async (
   currentY += totalHeaderHeight;
 
   // Render Student Rows
-  const totalStudents = data.students.length;
-  const signatureBlockGap = 42; // Generous space above PREPARED BY
-  const signaturesRequiredHeight = 110 + signatureBlockGap;
-
   data.students.forEach((student, sIdx) => {
-    // Check if new page is needed
-    if (currentY + rowHeight > pageHeight - marginBottom - (sIdx === totalStudents - 1 ? signaturesRequiredHeight : 20)) {
+    // Only break if genuinely exceeding page boundary
+    if (currentY + rowHeight > pageHeight - marginBottom - (sIdx === totalStudents - 1 ? signaturesRequiredHeight : 15)) {
       pdf.addPage(pageFormat, 'portrait');
       currentY = marginTop;
       renderTableHeaders(currentY);
@@ -354,7 +359,7 @@ export const exportAttendanceToPdf = async (
 
     const rowY = currentY;
 
-    // 1. Fill entire row background with pure WHITE (prevents any dark cell fill)
+    // 1. Fill row background with pure WHITE
     pdf.setFillColor(255, 255, 255);
     pdf.rect(marginX, rowY, availWidth, rowHeight, 'F');
 
@@ -367,16 +372,21 @@ export const exportAttendanceToPdf = async (
     pdf.setFont('times', 'normal');
     pdf.setFontSize(studentFontSize);
     pdf.setTextColor(15, 23, 42);
-    pdf.text(String(sIdx + 1), marginX + indexColW / 2, rowY + rowHeight / 2 + 3.5, { align: 'center' });
+    pdf.text(String(sIdx + 1), marginX + indexColW / 2, rowY + rowHeight / 2 + 2.5, { align: 'center' });
 
     // Student Name (left-aligned with 5pt margin)
     const nameX = marginX + indexColW;
     pdf.rect(nameX, rowY, nameColW, rowHeight, 'S');
     pdf.setFont('times', 'bold');
-    pdf.setFontSize(studentFontSize);
+    let sNameSize = studentFontSize;
+    pdf.setFontSize(sNameSize);
     pdf.setTextColor(15, 23, 42);
     const cleanName = (student.name || '').toUpperCase();
-    pdf.text(cleanName, nameX + 5, rowY + rowHeight / 2 + 3.5, { maxWidth: nameColW - 10 });
+    while (pdf.getTextWidth(cleanName) > nameColW - 10 && sNameSize > 6.5) {
+      sNameSize -= 0.5;
+      pdf.setFontSize(sNameSize);
+    }
+    pdf.text(cleanName, nameX + 5, rowY + rowHeight / 2 + 2.5, { maxWidth: nameColW - 10 });
 
     // Days / Marks
     let dayX = nameX + nameColW;
@@ -384,21 +394,11 @@ export const exportAttendanceToPdf = async (
       pdf.rect(dayX, rowY, dayColW, rowHeight, 'S');
       const status = student.statusByDate?.[day.dateKey];
 
-      if (status === 'P') {
+      if (status === 'P' || status === 'present') {
         pdf.setFont('times', 'bold');
         pdf.setFontSize(markFontSize);
-        pdf.setTextColor(4, 120, 87); // #047857 Emerald Green
-        pdf.text('/', dayX + dayColW / 2, rowY + rowHeight / 2 + 3.5, { align: 'center' });
-      } else if (status === 'L') {
-        pdf.setFont('times', 'bold');
-        pdf.setFontSize(markFontSize);
-        pdf.setTextColor(180, 83, 9); // #B45309 Amber
-        pdf.text('/', dayX + dayColW / 2, rowY + rowHeight / 2 + 3.5, { align: 'center' });
-      } else if (status === 'A') {
-        pdf.setFont('times', 'bold');
-        pdf.setFontSize(markFontSize);
-        pdf.setTextColor(190, 18, 60); // #BE123C Rose Red
-        pdf.text('X', dayX + dayColW / 2, rowY + rowHeight / 2 + 3.5, { align: 'center' });
+        pdf.setTextColor(15, 23, 42); // #0F172A Slate 900
+        pdf.text('/', dayX + dayColW / 2, rowY + rowHeight / 2 + 2.5, { align: 'center' });
       }
       dayX += dayColW;
     });
@@ -410,23 +410,16 @@ export const exportAttendanceToPdf = async (
     currentY += rowHeight;
   });
 
-  // Render Signatures below table with generous space above PREPARED BY
+  // Render Signatures below table
   currentY += signatureBlockGap;
-  if (currentY + 110 > pageHeight - marginBottom) {
+  if (currentY + 92 > pageHeight - marginBottom) {
     pdf.addPage(pageFormat, 'portrait');
-    currentY = marginTop + 20;
+    currentY = marginTop + 10;
   }
   renderSignatures(currentY);
 
   // Generate Filename & Save
-  const cleanSection = (data.gradeSection || 'Class').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const cleanWeek = totalDayCols <= 1
-    ? `Day_${allDays[0]?.dateKey || 'today'}`
-    : isMonthly
-      ? `Month_${allDays[0]?.dateKey?.slice(0, 7) || 'current'}`
-      : `Week_${data.weekNumber || '1'}`;
-  const defaultFilename = `ARALert_Attendance_${cleanSection}_${cleanWeek}_${paper.toUpperCase()}.pdf`;
-  const finalFilename = customFilename || defaultFilename;
+  const finalFilename = customFilename || buildAttendanceFilename(data, 'pdf');
 
   pdf.save(finalFilename);
 };

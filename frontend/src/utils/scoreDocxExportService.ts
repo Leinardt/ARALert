@@ -13,7 +13,7 @@ import {
   VerticalAlign,
   PageOrientation,
 } from 'docx';
-import type { ScoreExportData } from './scoreExportService';
+import { formatSessionDateHeader, buildScoreFilename, type ScoreExportData } from './scoreExportService';
 import { DEPED_LOGO_BASE64, PNAHS_LOGO_BASE64 } from '../assets/template_logos/logosBase64';
 
 function base64ToUint8Array(base64Str: string): Uint8Array {
@@ -53,10 +53,10 @@ const cellBordersNone = {
 };
 
 export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> => {
-  const isDaily = data.weeks?.length === 1 && data.weeks[0].days?.length === 1;
+  const _isMultiWeek = (data.weeks || []).length > 1;
   const allEntryCols = (data.weeks || []).flatMap((w) =>
     (w.days || []).flatMap((d) =>
-      (d.entries && d.entries.length > 0 ? d.entries : [{ entryIndex: 0, label: '1' }]).map((e) => ({
+      (d.entries && d.entries.length > 0 ? d.entries : [{ entryIndex: 0, label: 'Session #1' }]).map((e) => ({
         dateKey: d.dateKey,
         dayNum: d.dayNum,
         entryIndex: e.entryIndex,
@@ -80,9 +80,9 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
     pageHeight = 18720; // 13 in
   }
 
-  // Margins: 0.5 in (720 dxa) for monthly, 0.75 in (1080 dxa) for daily/weekly
-  const marginX = isMonthly ? 720 : 1080;
-  const marginY = isMonthly ? 720 : 1080;
+  // Margins: comfortable top margin (0.5 - 0.55 in) above header, balanced side margins
+  const marginX = isMonthly ? 576 : 720;
+  const marginY = isMonthly ? 720 : 800;
   const availWidth = pageWidth - marginX * 2;
 
   let depedBytes: Uint8Array | null = null;
@@ -99,9 +99,9 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
   }
 
   // 1. Header Table (3 columns: Left Logo, Center Letterhead, Right Logo)
-  const logoColW = isMonthly ? 1300 : 1550;
+  const logoColW = isMonthly ? 1100 : 1300;
   const centerTextColW = availWidth - logoColW * 2;
-  const logoSizePt = isMonthly ? 55 : 65;
+  const logoSizePt = 42;
 
   const headerTable = new Table({
     alignment: AlignmentType.CENTER,
@@ -114,7 +114,7 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
           new TableCell({
             width: { size: logoColW, type: WidthType.DXA },
             borders: cellBordersNone,
-            margins: { top: 0, bottom: 0, left: 0, right: 80 },
+            margins: { top: 0, bottom: 0, left: 0, right: 120 },
             verticalAlign: VerticalAlign.CENTER,
             children: [
               depedBytes
@@ -134,7 +134,7 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
           new TableCell({
             width: { size: centerTextColW, type: WidthType.DXA },
             borders: cellBordersNone,
-            margins: { top: 0, bottom: 0, left: 80, right: 80 },
+            margins: { top: 0, bottom: 0, left: 100, right: 100 },
             verticalAlign: VerticalAlign.CENTER,
             children: [
               new Paragraph({
@@ -191,7 +191,7 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
           new TableCell({
             width: { size: logoColW, type: WidthType.DXA },
             borders: cellBordersNone,
-            margins: { top: 0, bottom: 0, left: 80, right: 0 },
+            margins: { top: 0, bottom: 0, left: 120, right: 0 },
             verticalAlign: VerticalAlign.CENTER,
             children: [
               pnahsBytes
@@ -215,15 +215,14 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
 
   // 2. Title Section
   const titleParagraphs: Paragraph[] = [
-    new Paragraph({ spacing: { before: 180, after: 40 } }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 0, after: 30, line: 240 },
+      spacing: { before: 80, after: 15, line: 220 },
       children: [
         new TextRun({
           text: (data.subjectTitle || 'ARAL PROGRAM SCORE SHEET').toUpperCase(),
           font: 'Times New Roman',
-          size: 23,
+          size: 22, // 11pt
           bold: true,
           color: '0F172A',
         }),
@@ -231,12 +230,12 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 0, after: 30, line: 240 },
+      spacing: { before: 0, after: data.taskTitle ? 15 : 240, line: 220 },
       children: [
         new TextRun({
           text: (data.gradeSection || 'GRADE 8-MANGO').toUpperCase(),
           font: 'Times New Roman',
-          size: 20,
+          size: 19, // 9.5pt
           bold: true,
           color: '334155',
         }),
@@ -248,12 +247,12 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
     titleParagraphs.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 0, after: 30, line: 240 },
+        spacing: { before: 0, after: 240, line: 220 },
         children: [
           new TextRun({
             text: data.taskTitle.toUpperCase(),
             font: 'Times New Roman',
-            size: 18,
+            size: 17, // 8.5pt
             color: '475569',
           }),
         ],
@@ -261,22 +260,18 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
     );
   }
 
-  // 3. Period Row (WEEK # and Date)
-  const metaLeftW = Math.floor(availWidth * 0.5);
-  const metaRightW = availWidth - metaLeftW;
-
+  // 3. Period Meta Line (WEEK on left, DATE on right with underline)
+  const metaHalfW = Math.floor(availWidth / 2);
   const metaTable = new Table({
-    alignment: AlignmentType.CENTER,
     width: { size: availWidth, type: WidthType.DXA },
-    columnWidths: [metaLeftW, metaRightW],
+    columnWidths: [metaHalfW, availWidth - metaHalfW],
     borders: cellBordersNone,
     rows: [
       new TableRow({
         children: [
           new TableCell({
-            width: { size: metaLeftW, type: WidthType.DXA },
+            width: { size: metaHalfW, type: WidthType.DXA },
             borders: cellBordersNone,
-            margins: { top: 0, bottom: 0, left: 20, right: 0 },
             children: [
               new Paragraph({
                 alignment: AlignmentType.LEFT,
@@ -296,19 +291,13 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
                     underline: {},
                     color: '0F172A',
                   }),
-                  new TextRun({
-                    text: '\u200B',
-                    font: 'Times New Roman',
-                    size: 19,
-                  }),
                 ],
               }),
             ],
           }),
           new TableCell({
-            width: { size: metaRightW, type: WidthType.DXA },
+            width: { size: availWidth - metaHalfW, type: WidthType.DXA },
             borders: cellBordersNone,
-            margins: { top: 0, bottom: 0, left: 0, right: 20 },
             children: [
               new Paragraph({
                 alignment: AlignmentType.RIGHT,
@@ -327,11 +316,6 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
                     bold: true,
                     underline: {},
                     color: '0F172A',
-                  }),
-                  new TextRun({
-                    text: '\u200B',
-                    font: 'Times New Roman',
-                    size: 19,
                   }),
                 ],
               }),
@@ -377,254 +361,159 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
     totalW = availWidth - idxW - nameW - dayW * totalDayCols;
   }
 
-  const headerFontSize = isMonthly ? 15 : 18; // 7.5pt vs 9pt
-  const weekFontSize = isMonthly ? 14 : 17;   // 7pt vs 8.5pt
-  const entryFontSize = isMonthly ? 13 : 16;  // 6.5pt vs 8pt
-  const studentFontSize = isMonthly ? 16 : 18; // 8pt vs 9pt
-  const scoreFontSize = isMonthly ? 16 : 19;   // 8pt vs 9.5pt
+  const totalStudents = Math.max(data.students.length, 1);
+  const headerFontSize = isMonthly ? 15 : 17; // 7.5pt vs 8.5pt
+  const dateFontSize = totalDayCols > 10 ? 12 : totalDayCols > 5 ? 14 : isMonthly ? 14 : 16;
+  const sessionLabelFontSize = totalDayCols > 10 ? 12 : totalDayCols > 5 ? 14 : isMonthly ? 14 : 16;
+  const studentFontSize = totalStudents > 22 ? 16 : isMonthly ? 16 : 18; // 8pt vs 9pt
+  const scoreFontSize = totalStudents > 22 ? 16 : isMonthly ? 16 : 18;   // 8pt vs 9pt
 
-  // Generous cell padding so scores and headers never feel compact
+  // Streamlined cell padding so scores and headers never feel cramped
   const headerCellMargins = {
-    top: isMonthly ? 90 : 130,
-    bottom: isMonthly ? 90 : 130,
-    left: isMonthly ? 30 : 60,
-    right: isMonthly ? 30 : 60,
+    top: 50,
+    bottom: 50,
+    left: isMonthly ? 25 : 50,
+    right: isMonthly ? 25 : 50,
   };
 
   const dayHeaderCellMargins = {
-    top: isMonthly ? 70 : 100,
-    bottom: isMonthly ? 70 : 100,
-    left: isMonthly ? 20 : 40,
-    right: isMonthly ? 20 : 40,
+    top: 40,
+    bottom: 40,
+    left: isMonthly ? 15 : 30,
+    right: isMonthly ? 15 : 30,
   };
 
   const dayCellMargins = {
-    top: isMonthly ? 55 : 85,
-    bottom: isMonthly ? 55 : 85,
-    left: isMonthly ? 15 : 35,
-    right: isMonthly ? 15 : 35,
+    top: totalStudents > 22 ? 20 : 35,
+    bottom: totalStudents > 22 ? 20 : 35,
+    left: isMonthly ? 10 : 25,
+    right: isMonthly ? 10 : 25,
   };
 
   const studentCellMargins = {
-    top: isMonthly ? 55 : 85,
-    bottom: isMonthly ? 55 : 85,
-    left: isMonthly ? 50 : 80,
-    right: isMonthly ? 50 : 80,
+    top: totalStudents > 22 ? 20 : 35,
+    bottom: totalStudents > 22 ? 20 : 35,
+    left: 40,
+    right: 40,
   };
 
   const tableRows: TableRow[] = [];
 
-  if (isDaily) {
-    // Daily mode: 2 Header Rows (Date -> Entry numbers 1, 2, ...)
-    const headRow1Cells: TableCell[] = [
-      new TableCell({
-        rowSpan: 2,
-        width: { size: idxW, type: WidthType.DXA },
-        borders: cellBordersAll,
-        shading: { fill: 'F8FAFC' },
-        margins: headerCellMargins,
-        verticalAlign: VerticalAlign.CENTER,
-        children: [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 50, after: 50, line: 240 },
-            children: [new TextRun({ text: '#', font: 'Times New Roman', size: headerFontSize, bold: true, color: '0F172A' })],
-          }),
-        ],
-      }),
-      new TableCell({
-        rowSpan: 2,
-        width: { size: nameW, type: WidthType.DXA },
-        borders: cellBordersAll,
-        shading: { fill: 'F8FAFC' },
-        margins: headerCellMargins,
-        verticalAlign: VerticalAlign.CENTER,
-        children: [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 50, after: 50, line: 240 },
-            children: [new TextRun({ text: 'NAME OF THE STUDENTS', font: 'Times New Roman', size: headerFontSize, bold: true, color: '0F172A' })],
-          }),
-        ],
-      }),
-      new TableCell({
-        columnSpan: totalDayCols,
-        width: { size: dayW * totalDayCols, type: WidthType.DXA },
-        borders: cellBordersAll,
-        shading: { fill: 'F8FAFC' },
-        margins: headerCellMargins,
-        verticalAlign: VerticalAlign.CENTER,
-        children: [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 50, after: 50, line: 240 },
-            children: [new TextRun({ text: data.weeks?.[0]?.label || 'DATE', font: 'Times New Roman', size: headerFontSize, bold: true, color: '0F172A' })],
-          }),
-        ],
-      }),
-      new TableCell({
-        rowSpan: 2,
-        width: { size: totalW, type: WidthType.DXA },
-        borders: cellBordersAll,
-        shading: { fill: 'F8FAFC' },
-        margins: headerCellMargins,
-        verticalAlign: VerticalAlign.CENTER,
-        children: [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 50, after: 50, line: 240 },
-            children: [new TextRun({ text: 'TOTAL SCORE', font: 'Times New Roman', size: headerFontSize, bold: true, color: '0F172A' })],
-          }),
-        ],
-      }),
-    ];
-    tableRows.push(new TableRow({ tableHeader: true, cantSplit: true, children: headRow1Cells }));
+  // 2 Header Rows (Row 1: Session Dates, Row 2: Session Labels)
+  const headRow1Cells: TableCell[] = [
+    new TableCell({
+      rowSpan: 2,
+      width: { size: idxW, type: WidthType.DXA },
+      borders: cellBordersAll,
+      shading: { fill: 'F8FAFC' },
+      margins: headerCellMargins,
+      verticalAlign: VerticalAlign.CENTER,
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 50, after: 50, line: 240 },
+          children: [new TextRun({ text: '#', font: 'Times New Roman', size: headerFontSize, bold: true, color: '0F172A' })],
+        }),
+      ],
+    }),
+    new TableCell({
+      rowSpan: 2,
+      width: { size: nameW, type: WidthType.DXA },
+      borders: cellBordersAll,
+      shading: { fill: 'F8FAFC' },
+      margins: headerCellMargins,
+      verticalAlign: VerticalAlign.CENTER,
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 50, after: 50, line: 240 },
+          children: [new TextRun({ text: 'NAME OF THE STUDENTS', font: 'Times New Roman', size: headerFontSize, bold: true, color: '0F172A' })],
+        }),
+      ],
+    }),
+  ];
 
-    // Row 2: Entry numbers under the date
-    const headRow2Cells: TableCell[] = [];
-    allEntryCols.forEach((col) => {
-      headRow2Cells.push(
-        new TableCell({
-          width: { size: dayW, type: WidthType.DXA },
-          borders: cellBordersAll,
-          shading: { fill: 'FFFFFF' },
-          margins: dayHeaderCellMargins,
-          verticalAlign: VerticalAlign.CENTER,
-          children: [
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              spacing: { before: 30, after: 30, line: 240 },
-              children: [new TextRun({ text: col.entryLabel, font: 'Times New Roman', size: headerFontSize, bold: true, color: '0F172A' })],
-            }),
-          ],
-        })
-      );
-    });
-    tableRows.push(new TableRow({ tableHeader: true, cantSplit: true, children: headRow2Cells }));
-  } else {
-    // Multi-day / Multi-week mode: 3 Header Rows
-    const headRow1Cells: TableCell[] = [
-      new TableCell({
-        rowSpan: 3,
-        width: { size: idxW, type: WidthType.DXA },
-        borders: cellBordersAll,
-        shading: { fill: 'F8FAFC' },
-        margins: headerCellMargins,
-        verticalAlign: VerticalAlign.CENTER,
-        children: [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 50, after: 50, line: 240 },
-            children: [new TextRun({ text: '#', font: 'Times New Roman', size: headerFontSize, bold: true, color: '0F172A' })],
-          }),
-        ],
-      }),
-      new TableCell({
-        rowSpan: 3,
-        width: { size: nameW, type: WidthType.DXA },
-        borders: cellBordersAll,
-        shading: { fill: 'F8FAFC' },
-        margins: headerCellMargins,
-        verticalAlign: VerticalAlign.CENTER,
-        children: [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 50, after: 50, line: 240 },
-            children: [new TextRun({ text: 'NAME OF THE STUDENTS', font: 'Times New Roman', size: headerFontSize, bold: true, color: '0F172A' })],
-          }),
-        ],
-      }),
-    ];
-
-    (data.weeks || []).forEach((week) => {
-      const weekColsCount = week.days.reduce((sum, d) => sum + (d.entries?.length || 1), 0);
-      headRow1Cells.push(
-        new TableCell({
-          columnSpan: weekColsCount,
-          width: { size: dayW * weekColsCount, type: WidthType.DXA },
-          borders: cellBordersAll,
-          shading: { fill: 'F8FAFC' },
-          margins: headerCellMargins,
-          verticalAlign: VerticalAlign.CENTER,
-          children: [
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              spacing: { before: 40, after: 40, line: 240 },
-              children: [new TextRun({ text: week.label, font: 'Times New Roman', size: weekFontSize, bold: true, color: '0F172A' })],
-            }),
-          ],
-        })
-      );
-    });
-
+  allEntryCols.forEach((col) => {
+    let dateText = formatSessionDateHeader(col.dateKey);
+    if (dayW < 450 && col.dateKey) {
+      const parts = col.dateKey.split('-');
+      if (parts.length === 3) {
+        dateText = `${parts[1]}/${parts[2]}`;
+      }
+    }
     headRow1Cells.push(
       new TableCell({
-        rowSpan: 3,
-        width: { size: totalW, type: WidthType.DXA },
+        width: { size: dayW, type: WidthType.DXA },
         borders: cellBordersAll,
         shading: { fill: 'F8FAFC' },
-        margins: headerCellMargins,
+        margins: dayHeaderCellMargins,
         verticalAlign: VerticalAlign.CENTER,
         children: [
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { before: 50, after: 50, line: 240 },
-            children: [new TextRun({ text: 'TOTAL SCORE', font: 'Times New Roman', size: headerFontSize, bold: true, color: '0F172A' })],
+            spacing: { before: 40, after: 40, line: 240 },
+            children: [
+              new TextRun({
+                text: dateText,
+                font: 'Times New Roman',
+                size: dateFontSize,
+                bold: true,
+                color: '0F172A',
+              }),
+            ],
           }),
         ],
       })
     );
+  });
 
-    tableRows.push(new TableRow({ tableHeader: true, cantSplit: true, children: headRow1Cells }));
+  headRow1Cells.push(
+    new TableCell({
+      rowSpan: 2,
+      width: { size: totalW, type: WidthType.DXA },
+      borders: cellBordersAll,
+      shading: { fill: 'F8FAFC' },
+      margins: headerCellMargins,
+      verticalAlign: VerticalAlign.CENTER,
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 50, after: 50, line: 240 },
+          children: [new TextRun({ text: 'TOTAL SCORE', font: 'Times New Roman', size: headerFontSize, bold: true, color: '0F172A' })],
+        }),
+      ],
+    })
+  );
 
-    // Row 2: Day numbers
-    const headRow2Cells: TableCell[] = [];
-    (data.weeks || []).forEach((week) => {
-      week.days.forEach((day) => {
-        const dayEntriesCount = day.entries?.length || 1;
-        headRow2Cells.push(
-          new TableCell({
-            columnSpan: dayEntriesCount,
-            width: { size: dayW * dayEntriesCount, type: WidthType.DXA },
-            borders: cellBordersAll,
-            shading: { fill: 'FFFFFF' },
-            margins: dayHeaderCellMargins,
-            verticalAlign: VerticalAlign.CENTER,
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { before: 30, after: 30, line: 240 },
-                children: [new TextRun({ text: String(day.dayNum), font: 'Times New Roman', size: headerFontSize, bold: true, color: '0F172A' })],
-              }),
-            ],
-          })
-        );
-      });
-    });
-    tableRows.push(new TableRow({ tableHeader: true, cantSplit: true, children: headRow2Cells }));
+  tableRows.push(new TableRow({ tableHeader: true, cantSplit: true, children: headRow1Cells }));
 
-    // Row 3: Entry numbers (1, 2, ...) under each day
-    const headRow3Cells: TableCell[] = [];
-    allEntryCols.forEach((col) => {
-      headRow3Cells.push(
-        new TableCell({
-          width: { size: dayW, type: WidthType.DXA },
-          borders: cellBordersAll,
-          shading: { fill: 'FFFFFF' },
-          margins: dayHeaderCellMargins,
-          verticalAlign: VerticalAlign.CENTER,
-          children: [
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              spacing: { before: 20, after: 20, line: 240 },
-              children: [new TextRun({ text: col.entryLabel, font: 'Times New Roman', size: entryFontSize, bold: true, color: '0F172A' })],
-            }),
-          ],
-        })
-      );
-    });
-    tableRows.push(new TableRow({ tableHeader: true, cantSplit: true, children: headRow3Cells }));
-  }
+  // Row 2: Session labels under each date
+  const headRow2Cells: TableCell[] = [];
+  allEntryCols.forEach((col, idx) => {
+    let labelText = col.entryLabel;
+    if (dayW < 400) {
+      labelText = `S${idx + 1}`;
+    } else if (dayW < 550) {
+      labelText = `S#${idx + 1}`;
+    }
+    headRow2Cells.push(
+      new TableCell({
+        width: { size: dayW, type: WidthType.DXA },
+        borders: cellBordersAll,
+        shading: { fill: 'FFFFFF' },
+        margins: dayHeaderCellMargins,
+        verticalAlign: VerticalAlign.CENTER,
+        children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 30, after: 30, line: 240 },
+            children: [new TextRun({ text: labelText, font: 'Times New Roman', size: sessionLabelFontSize, bold: true, color: '0F172A' })],
+          }),
+        ],
+      })
+    );
+  });
+  tableRows.push(new TableRow({ tableHeader: true, cantSplit: true, children: headRow2Cells }));
 
   // Student rows
   data.students.forEach((student, idx) => {
@@ -637,7 +526,7 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
         children: [
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { before: isMonthly ? 25 : 40, after: isMonthly ? 25 : 40, line: 240 },
+            spacing: { before: 0, after: 0, line: 220 },
             children: [new TextRun({ text: String(idx + 1), font: 'Times New Roman', size: studentFontSize, color: '0F172A' })],
           }),
         ],
@@ -650,7 +539,7 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
         children: [
           new Paragraph({
             alignment: AlignmentType.LEFT,
-            spacing: { before: isMonthly ? 25 : 40, after: isMonthly ? 25 : 40, line: 240 },
+            spacing: { before: 0, after: 0, line: 220 },
             children: [new TextRun({ text: student.name.toUpperCase(), font: 'Times New Roman', size: studentFontSize, bold: true, color: '0F172A' })],
           }),
         ],
@@ -668,7 +557,7 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
-              spacing: { before: isMonthly ? 25 : 40, after: isMonthly ? 25 : 40, line: 240 },
+              spacing: { before: 0, after: 0, line: 220 },
               children: [new TextRun({ text: scoreVal, font: 'Times New Roman', size: scoreFontSize, bold: true, color: '0F172A' })],
             }),
           ],
@@ -686,7 +575,7 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
         children: [
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { before: isMonthly ? 25 : 40, after: isMonthly ? 25 : 40, line: 240 },
+            spacing: { before: 0, after: 0, line: 220 },
             children: [new TextRun({ text: totalVal, font: 'Times New Roman', size: scoreFontSize, bold: true, color: '0F172A' })],
           }),
         ],
@@ -726,13 +615,13 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
     columnWidths: [leftSigW, spacerW, rightSigW],
     borders: cellBordersNone,
     rows: [
-      // Top spacing
+      // Top spacing (comfortable gap between bottom of student table and signature block)
       new TableRow({
         children: [
           new TableCell({
             columnSpan: 3,
             borders: cellBordersNone,
-            children: [new Paragraph({ spacing: { before: 200 } })],
+            children: [new Paragraph({ spacing: { before: totalStudents > 22 ? 300 : 400 } })],
           }),
         ],
       }),
@@ -755,9 +644,9 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
             children: [
               new Paragraph({
                 alignment: AlignmentType.LEFT,
-                children: [new TextRun({ text: 'Prepared by:', font: 'Times New Roman', size: 19, italics: true, color: '0F172A' })],
+                children: [new TextRun({ text: 'Prepared by:', font: 'Times New Roman', size: 17, italics: true, color: '0F172A' })],
               }),
-              new Paragraph({ spacing: { before: 260 } }), // Physical pen signing space
+              new Paragraph({ spacing: { before: totalStudents > 22 ? 360 : 420 } }), // Generous physical pen signing space
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 border: { bottom: signatureBorderBottom },
@@ -765,7 +654,7 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
                   new TextRun({
                     text: (data.tutorName || 'TUTOR FULL NAME').toUpperCase(),
                     font: 'Times New Roman',
-                    size: 21,
+                    size: 19,
                     bold: true,
                     color: '0F172A',
                   }),
@@ -773,12 +662,12 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
               }),
               new Paragraph({
                 alignment: AlignmentType.CENTER,
-                spacing: { before: 40 },
+                spacing: { before: 20 },
                 children: [
                   new TextRun({
-                    text: data.tutorTitle || 'ARAL Tutor',
+                    text: data.tutorTitle || 'Learning Camp Volunteer',
                     font: 'Times New Roman',
-                    size: 18,
+                    size: 16,
                     color: '475569',
                   }),
                 ],
@@ -787,13 +676,13 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
           }),
         ],
       }),
-      // Spacing between Tutor block and Checked/Noted block
+      // Spacing between Tutor block and Checked/Noted block (comfortable gap above Checked/Noted fields)
       new TableRow({
         children: [
           new TableCell({
             columnSpan: 3,
             borders: cellBordersNone,
-            children: [new Paragraph({ spacing: { before: 180 } })],
+            children: [new Paragraph({ spacing: { before: totalStudents > 22 ? 220 : 280 } })],
           }),
         ],
       }),
@@ -806,9 +695,9 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
             children: [
               new Paragraph({
                 alignment: AlignmentType.LEFT,
-                children: [new TextRun({ text: 'Checked:', font: 'Times New Roman', size: 19, italics: true, color: '0F172A' })],
+                children: [new TextRun({ text: 'Checked:', font: 'Times New Roman', size: 17, italics: true, color: '0F172A' })],
               }),
-              new Paragraph({ spacing: { before: 260 } }),
+              new Paragraph({ spacing: { before: totalStudents > 22 ? 360 : 420 } }), // Generous physical pen signing space
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 border: { bottom: signatureBorderBottom },
@@ -816,7 +705,7 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
                   new TextRun({
                     text: (data.checkedName || 'FIRSTNAME M.I. LASTNAME').toUpperCase(),
                     font: 'Times New Roman',
-                    size: 21,
+                    size: 19,
                     bold: true,
                     color: '0F172A',
                   }),
@@ -824,12 +713,12 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
               }),
               new Paragraph({
                 alignment: AlignmentType.CENTER,
-                spacing: { before: 40 },
+                spacing: { before: 20 },
                 children: [
                   new TextRun({
                     text: data.checkedTitle || 'HT/Asst. to the Principal',
                     font: 'Times New Roman',
-                    size: 18,
+                    size: 16,
                     color: '475569',
                   }),
                 ],
@@ -847,9 +736,9 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
             children: [
               new Paragraph({
                 alignment: AlignmentType.LEFT,
-                children: [new TextRun({ text: 'Noted:', font: 'Times New Roman', size: 19, italics: true, color: '0F172A' })],
+                children: [new TextRun({ text: 'Noted:', font: 'Times New Roman', size: 17, italics: true, color: '0F172A' })],
               }),
-              new Paragraph({ spacing: { before: 260 } }),
+              new Paragraph({ spacing: { before: totalStudents > 22 ? 360 : 420 } }), // Generous physical pen signing space
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 border: { bottom: signatureBorderBottom },
@@ -857,7 +746,7 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
                   new TextRun({
                     text: (data.notedName || 'FIRSTNAME M.I. LASTNAME').toUpperCase(),
                     font: 'Times New Roman',
-                    size: 21,
+                    size: 19,
                     bold: true,
                     color: '0F172A',
                   }),
@@ -865,12 +754,12 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
               }),
               new Paragraph({
                 alignment: AlignmentType.CENTER,
-                spacing: { before: 40 },
+                spacing: { before: 20 },
                 children: [
                   new TextRun({
                     text: data.notedTitle || 'Principal I',
                     font: 'Times New Roman',
-                    size: 18,
+                    size: 16,
                     color: '475569',
                   }),
                 ],
@@ -896,7 +785,7 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
             margin: {
               top: marginY,
               right: marginX,
-              bottom: marginY,
+              bottom: isMonthly ? 500 : 540,
               left: marginX,
             },
           },
@@ -904,11 +793,9 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
         children: [
           headerTable,
           ...titleParagraphs,
-          new Paragraph({ spacing: { before: 100, after: 100 } }),
           metaTable,
-          new Paragraph({ spacing: { before: 100, after: 100 } }),
+          new Paragraph({ spacing: { before: 0, after: 40 } }),
           mainTable,
-          new Paragraph({ spacing: { before: 160, after: 80 } }),
           sigBlockTable,
         ],
       },
@@ -916,9 +803,7 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
   });
 
   const blob = await Packer.toBlob(doc);
-  const cleanSection = (data.gradeSection || 'Class').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const cleanWeek = `Week_${data.weekNumber || '1'}`;
-  const fileName = `ARALert_ScoreSheet_${cleanSection}_${cleanWeek}_${paper.toUpperCase()}.docx`;
+  const fileName = buildScoreFilename(data, 'docx');
 
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

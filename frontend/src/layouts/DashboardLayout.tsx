@@ -5,15 +5,16 @@ import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import {
   LayoutDashboard, Users, User as UserIcon, UserCheck, LogOut, QrCode, Scan,
-  Award, Bell, ChevronDown, Shield, BookOpen, X, Activity, Moon, Sun,
+  Award, Bell, ChevronDown, Shield, BookOpen, X, FileText, Moon, Sun,
 } from 'lucide-react';
 import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../utils/analyticsHelpers';
-import { getUserInitial, getUserAvatarColorResolved } from '../utils/studentFormatters';
 
 import type { AcademicRisk } from '../types';
 import { TutorGreetingIntro } from '../components/TutorGreetingIntro';
+import { ThemeToggle } from '../components/ThemeToggle';
+import { StudentEditRequestsModal } from '../components/StudentEditRequestsModal';
 import dashboardDarkDefault from '../assets/icons/dashboard_dark.png';
 import dashboardDarkActive from '../assets/icons/dashboard_dark_active.png';
 import dashboardLightDefault from '../assets/icons/dashboard_light.png';
@@ -97,7 +98,6 @@ export const DashboardLayout: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const navAvatar = getUserAvatarColorResolved(user);
 
 
   const handleLogout = async () => {
@@ -113,13 +113,13 @@ export const DashboardLayout: React.FC = () => {
 
   const getPageTitle = () => {
     const p = location.pathname;
-    if (p.includes('/audit-logs')) return 'Audit Trail';
+    if (p.includes('/audit-logs')) return 'Audit Log';
     if (p.includes('/superadmin/users')) return 'User Management';
-    if (p.includes('/admin/students')) return 'Student Directory';
+    if (p.includes('/admin/students') || p.includes('/admin/tutors') || p.includes('/admin/faculty') || p.includes('/admin/users')) return 'User Management';
     if (p.includes('/tutor/students')) return 'Assigned Students';
     if (p.includes('/student/attendance')) return 'QR Attendance';
     if (p.includes('/staff/scan')) return user?.role === 'student' ? 'Scan Attendance QR' : 'DTR Log';
-    if (p.includes('/admin/attendance')) return 'Staff QR Generator';
+    if (p.includes('/admin/attendance')) return 'QR Attendance';
     if (p.includes('/tutor/attendance')) return 'QR Attendance';
     if (p.includes('/profile')) return user?.role === 'tutor' ? 'Tutor Profile' : 'Profile';
     if (p.includes('/settings')) return 'System Settings';
@@ -139,6 +139,12 @@ export const DashboardLayout: React.FC = () => {
   const [acknowledgedRiskIds, setAcknowledgedRiskIds] = useState<Record<string, number>>({});
   const [studentNotes, setStudentNotes] = useState<AcademicRisk[]>([]);
   const [showStudentNotes, setShowStudentNotes] = useState(false);
+  const [pendingEditRequestsCount, setPendingEditRequestsCount] = useState<number>(0);
+  const [showEditRequestsModal, setShowEditRequestsModal] = useState<boolean>(false);
+  const [isBellRinging, setIsBellRinging] = useState<boolean>(false);
+  const [bellRingKey, setBellRingKey] = useState<number>(0);
+  const [isEditBellRinging, setIsEditBellRinging] = useState<boolean>(false);
+  const [editBellRingKey, setEditBellRingKey] = useState<number>(0);
 
   const isActive = (path: string) => location.pathname === path;
   const isActivePrefix = (prefix: string) => location.pathname.startsWith(prefix);
@@ -280,9 +286,21 @@ export const DashboardLayout: React.FC = () => {
     }
   };
 
+  const fetchPendingEditRequests = async () => {
+    if (user?.role === 'admin' || user?.is_superuser) {
+      try {
+        const data = await userService.getStudentEditRequests({ status: 'pending' });
+        setPendingEditRequestsCount(data.pending_count ?? data.results.length);
+      } catch (err) {
+        console.error('Failed to load pending student edit requests', err);
+      }
+    }
+  };
+
   useEffect(() => { fetchRiskStudents(); }, [user]);
   useEffect(() => { if (!showRiskList) return; fetchRiskStudents(); }, [showRiskList]);
   useEffect(() => { fetchStudentNotes(); }, [user]);
+  useEffect(() => { fetchPendingEditRequests(); }, [user, location.pathname]);
   useEffect(() => { setProfileMenuOpen(false); }, [location.pathname]);
 
   return (
@@ -415,8 +433,8 @@ export const DashboardLayout: React.FC = () => {
                 to="/superadmin/audit-logs"
                 className={navLinkClass(isActivePrefix('/superadmin/audit-logs'))}
               >
-                <SidebarIcon Icon={Activity} active={isActivePrefix('/superadmin/audit-logs')} />
-                Audit Trail
+                <SidebarIcon Icon={FileText} active={isActivePrefix('/superadmin/audit-logs')} />
+                Audit Log
               </Link>
             </>
           )}
@@ -424,7 +442,6 @@ export const DashboardLayout: React.FC = () => {
           {/* Admin nav */}
           {user?.role === 'admin' && (
             <>
-              <span className="sidebar-section-label">Admin Panel</span>
               <Link to="/admin" className={navLinkClass(isActive('/admin'))}>
                 <AssetSidebarIcon
                   darkSrc={dashboardDarkDefault}
@@ -440,18 +457,30 @@ export const DashboardLayout: React.FC = () => {
               </Link>
               <Link
                 to="/admin/students"
-                className={navLinkClass(isActivePrefix('/admin/students'))}
+                className={navLinkClass(isActivePrefix('/admin/students') || isActivePrefix('/admin/tutors') || isActivePrefix('/admin/faculty') || isActivePrefix('/admin/users'))}
               >
-                <SidebarIcon Icon={Users} active={isActivePrefix('/admin/students')} />
-                Student Directory
+                <AssetSidebarIcon
+                  darkSrc={studentsDarkDefault}
+                  darkActiveSrc={studentsDarkActive}
+                  lightSrc={studentsLightDefault}
+                  lightActiveSrc={studentsLightActive}
+                  active={isActivePrefix('/admin/students') || isActivePrefix('/admin/tutors') || isActivePrefix('/admin/faculty') || isActivePrefix('/admin/users')}
+                  alt="User Management"
+                  size={18}
+                  theme={theme}
+                />
+                User Management
               </Link>
               <Link
-                to="/admin/tutors"
-                className={navLinkClass(isActivePrefix('/admin/tutors'))}
+                to="/admin/audit-logs"
+                className={navLinkClass(isActivePrefix('/admin/audit-logs'))}
               >
-                <SidebarIcon Icon={UserCheck} active={isActivePrefix('/admin/tutors')} />
-                Tutors Directory
+                <SidebarIcon Icon={FileText} active={isActivePrefix('/admin/audit-logs')} />
+                Audit Log
               </Link>
+
+              <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0', boxShadow: 'inset 0 1px 0 var(--slate-200)' }} />
+
               <Link to="/admin/attendance" className={navLinkClass(isActive('/admin/attendance'))}>
                 <AssetSidebarIcon
                   darkSrc={qrDarkDefault}
@@ -459,11 +488,11 @@ export const DashboardLayout: React.FC = () => {
                   lightSrc={qrLightDefault}
                   lightActiveSrc={qrLightActive}
                   active={isActive('/admin/attendance')}
-                  alt="Staff QR Generator"
+                  alt="QR Attendance"
                   size={18}
                   theme={theme}
                 />
-                Staff QR Generator
+                QR Attendance
               </Link>
             </>
           )}
@@ -644,6 +673,20 @@ export const DashboardLayout: React.FC = () => {
                 />
                 Dashboard
               </Link>
+              <Link to="/student/analytics" className={navLinkClass(isActive('/student/analytics'))}>
+                <AssetSidebarIcon
+                  darkSrc={analyticsDarkDefault}
+                  darkActiveSrc={analyticsDarkActive}
+                  lightSrc={analyticsLightDefault}
+                  lightActiveSrc={analyticsLightActive}
+                  active={isActive('/student/analytics')}
+                  alt="Data Analytics"
+                  size={18}
+                  theme={theme}
+                />
+                Data Analytics
+              </Link>
+
               <Link to="/student/scores" className={navLinkClass(isActive('/student/scores'))}>
                 <AssetSidebarIcon
                   darkSrc={scoreDarkDefault}
@@ -716,35 +759,108 @@ export const DashboardLayout: React.FC = () => {
 
           {/* Right controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', position: 'relative' }}>
-            <button
-              type="button"
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '12px',
-                border: '1px solid var(--slate-200)',
-                background: 'var(--surface-muted)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: 'var(--text-secondary)',
-                transition: 'var(--transition-fast)',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand-dark)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-            >
-              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
+            <ThemeToggle />
+
+            {/* Edit Requests Bell (School Admin & Super Admin) */}
+            {(user?.role === 'admin' || user?.is_superuser) && (
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditRequestsModal(true);
+                    setIsEditBellRinging(true);
+                    setEditBellRingKey((prev) => prev + 1);
+                  }}
+                  aria-label="EDIT REQUESTS"
+                  title={
+                    pendingEditRequestsCount > 0
+                      ? `${pendingEditRequestsCount} EDIT REQUEST(S) Pending Review`
+                      : 'EDIT REQUESTS'
+                  }
+                  style={{
+                    position: 'relative',
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: pendingEditRequestsCount > 0 ? 'rgba(245, 158, 11, 0.12)' : 'var(--surface-muted)',
+                    border: pendingEditRequestsCount > 0 ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid var(--slate-200)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: pendingEditRequestsCount > 0 ? '#D97706' : 'var(--text-secondary)',
+                    transition: 'var(--transition-fast)',
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.transform = 'scale(0.93)';
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = pendingEditRequestsCount > 0 ? 'rgba(245, 158, 11, 0.2)' : 'var(--brand-light)';
+                    e.currentTarget.style.color = pendingEditRequestsCount > 0 ? '#B45309' : 'var(--brand-dark)';
+                    e.currentTarget.style.borderColor = pendingEditRequestsCount > 0 ? '#F59E0B' : 'var(--brand-border)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.background = pendingEditRequestsCount > 0 ? 'rgba(245, 158, 11, 0.12)' : 'var(--surface-muted)';
+                    e.currentTarget.style.color = pendingEditRequestsCount > 0 ? '#D97706' : 'var(--text-secondary)';
+                    e.currentTarget.style.borderColor = pendingEditRequestsCount > 0 ? '1px solid rgba(245, 158, 11, 0.45)' : 'var(--slate-200)';
+                  }}
+                >
+                  <span
+                    key={editBellRingKey}
+                    className={isEditBellRinging ? 'animate-bell-shake' : ''}
+                    onAnimationEnd={() => setIsEditBellRinging(false)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transformOrigin: 'top center',
+                    }}
+                  >
+                    <Bell size={17} />
+                  </span>
+                  {pendingEditRequestsCount > 0 && (
+                    <span
+                      className="animate-badge-pulse"
+                      style={{
+                        position: 'absolute',
+                        top: '-4px',
+                        right: '-4px',
+                        minWidth: '18px',
+                        height: '18px',
+                        padding: '0 4px',
+                        borderRadius: '99px',
+                        background: '#F59E0B',
+                        color: '#fff',
+                        fontSize: '10px',
+                        fontWeight: 800,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '2px solid #fff',
+                        boxShadow: '0 0 10px rgba(245, 158, 11, 0.5)',
+                      }}
+                    >
+                      {pendingEditRequestsCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
 
             {/* Notification Bell (tutor only) */}
             {user?.role === 'tutor' && (
               <div style={{ position: 'relative' }}>
                 <button
                   type="button"
-                  onClick={() => setShowRiskList((prev) => !prev)}
+                  onClick={() => {
+                    setShowRiskList((prev) => !prev);
+                    setIsBellRinging(true);
+                    setBellRingKey((prev) => prev + 1);
+                  }}
                   aria-label="Risk alerts"
                   style={{
                     position: 'relative',
@@ -760,18 +876,37 @@ export const DashboardLayout: React.FC = () => {
                     color: 'var(--text-secondary)',
                     transition: 'var(--transition-fast)',
                   }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.transform = 'scale(0.93)';
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'var(--brand-light)';
                     e.currentTarget.style.color = 'var(--brand-dark)';
                     e.currentTarget.style.borderColor = 'var(--brand-border)';
                   }}
                   onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
                     e.currentTarget.style.background = 'var(--surface-muted)';
                     e.currentTarget.style.color = 'var(--text-secondary)';
                     e.currentTarget.style.borderColor = 'var(--slate-200)';
                   }}
                 >
-                  <Bell size={17} />
+                  <span
+                    key={bellRingKey}
+                    className={isBellRinging ? 'animate-bell-shake' : ''}
+                    onAnimationEnd={() => setIsBellRinging(false)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transformOrigin: 'top center',
+                    }}
+                  >
+                    <Bell size={17} />
+                  </span>
                   {highRiskCount > 0 && (
                     <span
                       className="animate-badge-pulse"
@@ -828,7 +963,7 @@ export const DashboardLayout: React.FC = () => {
                     >
                       <div>
                         <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                          ACADEMIC RISK ALERTS
+                          HIGH RISK STUDENTS ALERT
                         </p>
                       </div>
                       <button
@@ -871,20 +1006,30 @@ export const DashboardLayout: React.FC = () => {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             {highRiskStudents.map((row) => (
                               <div key={`high-${row.student.id}`} style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '10px', padding: '0.65rem 0.75rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                  <div>
-                                    <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{row.student.full_name}</p>
-                                    <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                      Score: {parseFloat(row.compositeScore.toFixed(2)).toString()}% · Attendance: {parseFloat(row.attendanceRate.toFixed(2)).toString()}%
-                                    </p>
-                                    {acknowledgedNotes[row.student.id] && (
-                                      <div style={{ marginTop: '6px' }}>
-                                        <p style={{ margin: '2px 0 0', fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{acknowledgedNotes[row.student.id]}</p>
-                                      </div>
-                                    )}
+                                <Link
+                                  to={`/tutor/students/${row.student.id}`}
+                                  state={{ from: 'dashboard' }}
+                                  onClick={() => setShowRiskList(false)}
+                                  style={{ textDecoration: 'none', display: 'block' }}
+                                  className="group"
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                    <div>
+                                      <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }} className="group-hover:text-[var(--brand)] transition-colors">
+                                        {row.student.full_name}
+                                      </p>
+                                      <p style={{ margin: '3px 0 0', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                                        Composite Rating: <span style={{ fontWeight: 500, color: 'var(--risk-high-text)' }}>{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
+                                      </p>
+                                      {acknowledgedNotes[row.student.id] && (
+                                        <div style={{ marginTop: '6px' }}>
+                                          <p style={{ margin: '2px 0 0', fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{acknowledgedNotes[row.student.id]}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.62rem', fontWeight: 800, borderRadius: '6px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0, border: '1px solid var(--risk-high-border)' }}>HIGH</span>
                                   </div>
-                                  <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.62rem', fontWeight: 800, borderRadius: '6px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0, border: '1px solid var(--risk-high-border)' }}>HIGH</span>
-                                </div>
+                                </Link>
                                 <button
                                   type="button"
                                   onClick={() => handleAcknowledgeInitiate(row)}
@@ -922,20 +1067,78 @@ export const DashboardLayout: React.FC = () => {
               <div style={{ position: 'relative' }}>
                 <button
                   type="button"
-                  onClick={() => setShowStudentNotes((visible) => !visible)}
+                  onClick={() => {
+                    setShowStudentNotes((visible) => !visible);
+                    setIsBellRinging(true);
+                    setBellRingKey((prev) => prev + 1);
+                  }}
                   aria-label="Tutor notes"
                   style={{
-                    position: 'relative', width: '38px', height: '38px', borderRadius: '10px',
-                    background: 'var(--surface-muted)', border: '1px solid var(--slate-200)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                    color: 'var(--text-secondary)', transition: 'var(--transition-fast)',
+                    position: 'relative',
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: 'var(--surface-muted)',
+                    border: '1px solid var(--slate-200)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary)',
+                    transition: 'var(--transition-fast)',
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand-dark)'; e.currentTarget.style.borderColor = 'var(--brand-border)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--slate-200)'; }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.transform = 'scale(0.93)';
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--brand-light)';
+                    e.currentTarget.style.color = 'var(--brand-dark)';
+                    e.currentTarget.style.borderColor = 'var(--brand-border)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.background = 'var(--surface-muted)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.borderColor = 'var(--slate-200)';
+                  }}
                 >
-                  <Bell size={17} />
+                  <span
+                    key={bellRingKey}
+                    className={isBellRinging ? 'animate-bell-shake' : ''}
+                    onAnimationEnd={() => setIsBellRinging(false)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transformOrigin: 'top center',
+                    }}
+                  >
+                    <Bell size={17} />
+                  </span>
                   {studentNotes.filter((note) => !note.student_acknowledged).length > 0 && (
-                    <span className="animate-badge-pulse" style={{ position: 'absolute', top: '-4px', right: '-4px', minWidth: '18px', height: '18px', padding: '0 4px', borderRadius: '99px', background: '#EF4444', color: '#fff', fontSize: '10px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>
+                    <span
+                      className="animate-badge-pulse"
+                      style={{
+                        position: 'absolute',
+                        top: '-4px',
+                        right: '-4px',
+                        minWidth: '18px',
+                        height: '18px',
+                        padding: '0 4px',
+                        borderRadius: '99px',
+                        background: '#EF4444',
+                        color: '#fff',
+                        fontSize: '10px',
+                        fontWeight: 800,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '2px solid #fff',
+                      }}
+                    >
                       {studentNotes.filter((note) => !note.student_acknowledged).length}
                     </span>
                   )}
@@ -943,16 +1146,35 @@ export const DashboardLayout: React.FC = () => {
 
                 {showStudentNotes && (
                   <div className="animate-fade-in-scale" style={{ position: 'absolute', right: 0, top: 'calc(100% + 10px)', width: '360px', background: 'var(--surface-card)', border: '1px solid var(--slate-200)', borderRadius: '18px', boxShadow: 'var(--shadow-xl)', zIndex: 50, overflow: 'hidden' }}>
-                    <div style={{ padding: '1rem 1.25rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-200)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                    <div style={{ padding: '1rem 1.25rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-200)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div>
-                        <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>Tutor Notes</p>
-                        <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Messages and support reminders from your tutor.</p>
+                        <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>TUTOR NOTES</p>
                       </div>
-                      <button type="button" onClick={() => setShowStudentNotes(false)} aria-label="Close tutor notes" style={{ width: '28px', height: '28px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={15} /></button>
+                      <button
+                        type="button"
+                        onClick={() => setShowStudentNotes(false)}
+                        aria-label="Close tutor notes"
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: 'transparent',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          color: 'var(--text-muted)',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <X size={15} />
+                      </button>
                     </div>
                     <div style={{ maxHeight: '380px', overflowY: 'auto', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       {studentNotes.length === 0 ? (
-                        <p style={{ margin: 0, padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>No tutor notes right now.</p>
+                        <p style={{ margin: 0, padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>No current tutor notes.</p>
                       ) : studentNotes.map((note) => {
                         const colors = studentNoteStyle(note.risk_level);
                         return (
@@ -1004,15 +1226,13 @@ export const DashboardLayout: React.FC = () => {
                   />
                 ) : (
                   <div
-                    className={`flex items-center justify-center shrink-0 rounded-[9px] font-extrabold text-[0.9rem]${navAvatar.kind === 'class' ? ` ${navAvatar.value}` : ''}`}
+                    className="flex items-center justify-center shrink-0 rounded-[9px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
                     style={{
                       width: '32px',
                       height: '32px',
-                      fontFamily: 'var(--font-heading)',
-                      ...(navAvatar.kind === 'style' ? navAvatar.value : {}),
                     }}
                   >
-                    {getUserInitial(user)}
+                    <UserIcon size={16} />
                   </div>
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
@@ -1206,6 +1426,15 @@ export const DashboardLayout: React.FC = () => {
           </form>
         </div>,
         document.body
+      )}
+
+      {/* Student Edit Requests Review Modal (Admin & SuperAdmin) */}
+      {(user?.role === 'admin' || user?.is_superuser) && (
+        <StudentEditRequestsModal
+          isOpen={showEditRequestsModal}
+          onClose={() => setShowEditRequestsModal(false)}
+          onRequestReviewed={fetchPendingEditRequests}
+        />
       )}
 
     </div>

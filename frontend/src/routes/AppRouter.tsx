@@ -93,13 +93,18 @@ export const AppRouter: React.FC = () => {
           }
         >
           <Route path="/admin" element={<AdminHome />} />
+          <Route path="/admin/users" element={<UserList />} />
           <Route path="/admin/students" element={<UserList />} />
           <Route path="/admin/students/create" element={<CreateUser />} />
           <Route path="/admin/students/edit/:id" element={<EditUser />} />
           <Route path="/admin/tutors" element={<UserList />} />
           <Route path="/admin/tutors/create" element={<CreateUser />} />
           <Route path="/admin/tutors/edit/:id" element={<EditUser />} />
+          <Route path="/admin/faculty" element={<UserList />} />
+          <Route path="/admin/faculty/create" element={<CreateUser />} />
+          <Route path="/admin/faculty/edit/:id" element={<EditUser />} />
           <Route path="/admin/attendance" element={<AdminAttendanceQR />} />
+          <Route path="/admin/audit-logs" element={<AuditLog />} />
           <Route path="/admin/profile" element={<Profile />} />
           <Route path="/admin/settings" element={<Settings />} />
         </Route>

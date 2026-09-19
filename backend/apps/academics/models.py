@@ -761,7 +761,6 @@ class ApiAttendance(models.Model):
 
     class Status(models.TextChoices):
         PRESENT = 'present', 'Present'
-        LATE    = 'late',    'Late'
         ABSENT  = 'absent',  'Absent'
 
     user          = models.ForeignKey(

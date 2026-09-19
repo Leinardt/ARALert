@@ -277,3 +277,70 @@ class AuditLog(models.Model):
     def __str__(self):
         actor = self.username or (str(self.user) if self.user else 'Anonymous')
         return f'[{self.timestamp:%Y-%m-%d %H:%M:%S}] {self.action} by {actor}'
+
+
+class StudentEditRequest(models.Model):
+    """
+    Formal change request for student identity and program level information.
+    Submitted by tutors and approved/rejected by School Admin or Super Admin.
+    Prevents unauthorized or fraudulent alterations of student records.
+    """
+
+    class Status(models.TextChoices):
+        PENDING  = 'pending',  'Pending'
+        APPROVED = 'approved', 'Approved'
+        REJECTED = 'rejected', 'Rejected'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='edit_requests',
+        limit_choices_to={'role': 'student'},
+        verbose_name='Student',
+    )
+    requested_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='requested_student_edits',
+        verbose_name='Requested By (Tutor)',
+    )
+    proposed_first_name = models.CharField(max_length=100, verbose_name='Proposed First Name')
+    proposed_middle_name = models.CharField(max_length=100, blank=True, default='', verbose_name='Proposed Middle Name')
+    proposed_last_name = models.CharField(max_length=100, verbose_name='Proposed Last Name')
+    proposed_lrn = models.CharField(max_length=12, blank=True, null=True, verbose_name='Proposed LRN')
+    proposed_aral_level = models.CharField(
+        max_length=15,
+        choices=User.AralLevel.choices,
+        default=User.AralLevel.BASIC,
+        verbose_name='Proposed ARAL Level',
+    )
+    reason = models.TextField(blank=True, default='', verbose_name='Reason for Edit Request')
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+        verbose_name='Status',
+    )
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_student_edits',
+        verbose_name='Reviewed By',
+    )
+    rejection_reason = models.TextField(blank=True, default='', verbose_name='Rejection Reason')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'student_edit_requests'
+        ordering = ['-created_at']
+        verbose_name = 'Student Edit Request'
+        verbose_name_plural = 'Student Edit Requests'
+
+    def __str__(self):
+        return f'Edit Request for {self.student.get_full_name()} ({self.status}) by {self.requested_by.get_full_name()}'
+

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { academicService } from '../../services/academicService';
 import type { Attendance } from '../../types';
 import {
-  Camera,
   Keyboard,
   CheckCircle2,
   AlertCircle,
@@ -16,8 +15,6 @@ import {
   ArrowUpDown,
   X,
   Play,
-  Download,
-  Search,
   Users,
   UserCheck,
   Check,
@@ -28,8 +25,10 @@ import {
 } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useAuth } from '../../hooks/useAuth';
-import { ExportAttendanceModal } from '../../components/ExportAttendanceModal';
-import { getStudentInitials as getInitials, getStudentAvatarColor as avatarColor } from '../../utils/studentFormatters';
+import {
+  getAttendanceDescription,
+  getTutorAssignedMilestone,
+} from '../../utils/sessionDescriptionHelpers';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 
@@ -43,7 +42,7 @@ const formatDateString = (value: string | null | undefined): string => {
   const month = date.toLocaleDateString('en-US', { month: 'long' });
   const day = date.getDate();
   const year = date.getFullYear();
-  return `${weekday} | ${month} ${day}, ${year}`;
+  return `${month} ${day}, ${year} | ${weekday}`;
 };
 
 const formatTimeString = (value: string | null | undefined): string => {
@@ -101,7 +100,7 @@ const monthLabel = (key: string) => {
   return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 };
 
-/* ─── Calendar Dropdown ───────────────────────────────────────── */
+/* ─── Custom Calendar Dropdown (Exact Match to TutorQRGenerator) ── */
 
 const CustomCalendarDropdown: React.FC<{
   selectedDate: string | null;
@@ -110,7 +109,8 @@ const CustomCalendarDropdown: React.FC<{
   onClose: () => void;
   loggedDates: Set<string>;
   className?: string;
-}> = ({ selectedDate, onSelectDate, onClear, onClose, loggedDates, className }) => {
+  style?: React.CSSProperties;
+}> = ({ selectedDate, onSelectDate, onClear, onClose, loggedDates, className, style }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [viewDate, setViewDate] = useState(() => {
     if (selectedDate) {
@@ -132,92 +132,131 @@ const CustomCalendarDropdown: React.FC<{
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
-  const monthName = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  const firstDayIndex = new Date(year, month, 1).getDay();
+  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
+
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthName = viewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-  const handlePrevMonth = () => setViewDate(new Date(year, month - 1, 1));
-  const handleNextMonth = () => setViewDate(new Date(year, month + 1, 1));
+  const calendarCells = [];
+  for (let i = 0; i < firstDayOfWeek; i++) {
+    calendarCells.push(null);
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    calendarCells.push(d);
+  }
+
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   return (
     <div
       ref={dropdownRef}
-      className={`absolute z-50 mt-2 p-4 w-72 rounded-2xl bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] shadow-xl text-gray-800 dark:text-slate-200 ${className || ''}`}
-      style={{ top: '100%', right: 0 }}
+      className={`${className || 'absolute right-0 top-full mt-2'} z-[60] w-72 rounded-2xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans select-none text-gray-800 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-150`}
+      style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif", ...style }}
     >
-      <div className="flex items-center justify-between mb-3">
+      {/* Month & Navigation */}
+      <div className="flex items-center justify-between pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
         <button
           type="button"
-          onClick={handlePrevMonth}
-          className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#1A1A1A] text-gray-500 hover:text-gray-900 dark:hover:text-slate-100 cursor-pointer"
+          onClick={prevMonth}
+          className="rounded-lg p-1.5 hover:bg-gray-100 dark:hover:bg-[#1A1A1A] text-gray-600 dark:text-slate-300 transition cursor-pointer"
+          aria-label="Previous Month"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="text-xs font-bold text-gray-900 dark:text-slate-100">{monthName}</span>
+        <span className="font-bold text-xs text-gray-900 dark:text-slate-100 tracking-wide">{monthName}</span>
         <button
           type="button"
-          onClick={handleNextMonth}
-          className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#1A1A1A] text-gray-500 hover:text-gray-900 dark:hover:text-slate-100 cursor-pointer"
+          onClick={nextMonth}
+          className="rounded-lg p-1.5 hover:bg-gray-100 dark:hover:bg-[#1A1A1A] text-gray-600 dark:text-slate-300 transition cursor-pointer"
+          aria-label="Next Month"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center mb-1">
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-          <span key={i} className="text-[10px] font-bold text-gray-400 dark:text-slate-500">
-            {day}
-          </span>
-        ))}
+      {/* Weekdays */}
+      <div className="grid grid-cols-7 gap-1 text-center font-bold text-gray-400 dark:text-slate-500 py-2 text-[10px] uppercase tracking-wider">
+        <span>Su</span>
+        <span>Mo</span>
+        <span>Tu</span>
+        <span>We</span>
+        <span>Th</span>
+        <span>Fr</span>
+        <span>Sa</span>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center">
-        {Array.from({ length: firstDayIndex }).map((_, i) => (
-          <span key={`empty-${i}`} />
-        ))}
-        {Array.from({ length: daysInMonth }).map((_, i) => {
-          const d = i + 1;
-          const key = formatDateKey(year, month, d);
-          const isSelected = selectedDate === key;
-          const hasLog = loggedDates.has(key);
+      {/* Day Numbers */}
+      <div className="grid grid-cols-7 gap-1">
+        {calendarCells.map((dayNum, idx) => {
+          if (dayNum === null) {
+            return <div key={`empty-${idx}`} className="h-7 w-7" />;
+          }
+
+          const cellDateKey = formatDateKey(year, month, dayNum);
+          const isSelected = selectedDate === cellDateKey;
+          const isToday = todayStr === cellDateKey;
+          const hasLogs = loggedDates.has(cellDateKey);
 
           return (
             <button
-              key={key}
+              key={cellDateKey}
               type="button"
-              onClick={() => onSelectDate(key)}
-              className={`relative py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+              onClick={() => {
+                onSelectDate(cellDateKey);
+                onClose();
+              }}
+              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 isSelected
-                  ? 'bg-[var(--brand)] text-white font-bold'
-                  : 'hover:bg-gray-100 dark:hover:bg-[#1A1A1A] text-gray-700 dark:text-slate-300'
+                  ? 'bg-[var(--brand)] text-white font-bold shadow-sm'
+                  : isToday
+                  ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
+                  : hasLogs
+                  ? 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-800 dark:text-slate-200 font-semibold hover:bg-gray-200 dark:hover:bg-[#222222]'
+                  : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
               }`}
             >
-              {d}
-              {hasLog && !isSelected && (
-                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[var(--brand)]" />
+              <span>{dayNum}</span>
+              {hasLogs && !isSelected && (
+                <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-[var(--brand)]" />
               )}
             </button>
           );
         })}
       </div>
 
-      {selectedDate && (
-        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-[#1A1A1A] flex justify-end">
+      {/* Footer shortcut buttons */}
+      <div className="mt-3 flex items-center justify-between pt-2 border-t border-gray-100 dark:border-[#1A1A1A] text-[11px] font-semibold">
+        <button
+          type="button"
+          onClick={() => {
+            onSelectDate(todayStr);
+            onClose();
+          }}
+          className="text-[var(--brand)] dark:text-sky-400 hover:underline cursor-pointer"
+        >
+          Today
+        </button>
+        {selectedDate && (
           <button
             type="button"
-            onClick={onClear}
-            className="text-xs font-semibold text-rose-500 hover:text-rose-600 cursor-pointer"
+            onClick={() => {
+              onClear();
+              onClose();
+            }}
+            className="text-gray-400 dark:text-slate-500 hover:text-red-500 transition cursor-pointer"
           >
-            Clear Selection
+            Clear
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
 
-/* ─── Main Component ──────────────────────────────────────────── */
+/* ─── Main StudentQRAttendance Component ──────────────────────── */
 
 export const StudentQRAttendance: React.FC = () => {
   const { user } = useAuth();
@@ -234,8 +273,6 @@ export const StudentQRAttendance: React.FC = () => {
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showExportModal, setShowExportModal] = useState(false);
 
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
@@ -249,7 +286,7 @@ export const StudentQRAttendance: React.FC = () => {
   }, []);
 
   // Sort state
-  type SortKey = 'date' | 'time' | 'status';
+  type SortKey = 'student' | 'description' | 'date' | 'time' | 'status';
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({
     key: 'date',
     direction: 'desc',
@@ -267,11 +304,10 @@ export const StudentQRAttendance: React.FC = () => {
   // ── Stat Containers Metrics ──────────────────────────────────
   const { totalPresent, totalAbsent, attendanceRate, hasAttendanceData } = useMemo(() => {
     const presentCount = attendanceLogs.filter((l) => l.status === 'present').length;
-    const lateCount = attendanceLogs.filter((l) => l.status === 'late').length;
     const absentCount = attendanceLogs.filter((l) => l.status === 'absent').length;
     const total = attendanceLogs.length;
     const hasData = total > 0;
-    const rate = hasData ? Number((((presentCount + lateCount) / total) * 100).toFixed(2)) : 100;
+    const rate = hasData ? Number(((presentCount / total) * 100).toFixed(2)) : 100;
     return {
       totalPresent: presentCount,
       totalAbsent: absentCount,
@@ -287,9 +323,7 @@ export const StudentQRAttendance: React.FC = () => {
         cardBg: 'bg-gray-50 border-gray-200 dark:bg-[#111111] dark:border-[#1A1A1A]',
         iconBg: 'bg-gray-100 border-gray-200 dark:bg-gray-800 dark:border-gray-700',
         iconColor: 'text-gray-400 dark:text-slate-500',
-        textColor: 'text-gray-400 dark:text-slate-500',
         valueColor: 'text-gray-400 dark:text-slate-500',
-        descColor: 'text-gray-400 dark:text-slate-500',
       };
     }
     if (attendanceRate >= 81) {
@@ -298,9 +332,7 @@ export const StudentQRAttendance: React.FC = () => {
         cardBg: 'risk-card-low',
         iconBg: 'risk-badge-low',
         iconColor: 'text-risk-low',
-        textColor: 'text-risk-low',
         valueColor: 'text-risk-low',
-        descColor: 'text-risk-low',
       };
     }
     if (attendanceRate >= 75) {
@@ -309,9 +341,7 @@ export const StudentQRAttendance: React.FC = () => {
         cardBg: 'risk-card-medium',
         iconBg: 'risk-badge-medium',
         iconColor: 'text-risk-medium',
-        textColor: 'text-risk-medium',
         valueColor: 'text-risk-medium',
-        descColor: 'text-risk-medium',
       };
     }
     return {
@@ -319,33 +349,14 @@ export const StudentQRAttendance: React.FC = () => {
       cardBg: 'risk-card-high',
       iconBg: 'risk-badge-high',
       iconColor: 'text-risk-high',
-      textColor: 'text-risk-high',
       valueColor: 'text-risk-high',
-      descColor: 'text-risk-high',
     };
   }, [attendanceRate, hasAttendanceData]);
 
-  // Attendance history helpers with live search
+  // Attendance history helpers
   const sortedHistory = useMemo(() => {
-    let list = [...attendanceLogs].sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      list = list.filter((log) => {
-        const dStr = formatDateString(log.date).toLowerCase();
-        const tStr = formatTimeString(log.time_in).toLowerCase();
-        const sStr = (log.status_display || log.status).toLowerCase();
-        const aStr = (log.aral_activity_title || '').toLowerCase();
-        return (
-          dStr.includes(q) ||
-          tStr.includes(q) ||
-          sStr.includes(q) ||
-          aStr.includes(q) ||
-          (log.date && log.date.toLowerCase().includes(q))
-        );
-      });
-    }
-    return list;
-  }, [attendanceLogs, searchQuery]);
+    return [...attendanceLogs].sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
+  }, [attendanceLogs]);
 
   const jumpFiltered = useMemo(
     () => (jumpDate ? sortedHistory.filter((l) => l.date === jumpDate) : null),
@@ -374,7 +385,8 @@ export const StudentQRAttendance: React.FC = () => {
     const source = jumpFiltered ?? sortedHistory;
     const grouped = new Map<string, Attendance[]>();
     for (const log of source) {
-      const key = `${log.date}|${formatTimeString(log.time_in)}`;
+      const timeStr = log.time_in ? formatTimeString(log.time_in) : '—';
+      const key = `${log.date}|${timeStr}`;
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key)!.push(log);
     }
@@ -396,10 +408,17 @@ export const StudentQRAttendance: React.FC = () => {
   };
 
   const sortRecords = (list: Attendance[]) => {
+    if (viewMode === 'day') return list;
     return [...list].sort((a, b) => {
       let aVal = '';
       let bVal = '';
-      if (sortConfig.key === 'date') {
+      if (sortConfig.key === 'student') {
+        aVal = user?.full_name || '';
+        bVal = user?.full_name || '';
+      } else if (sortConfig.key === 'description') {
+        aVal = getAttendanceDescription(a);
+        bVal = getAttendanceDescription(b);
+      } else if (sortConfig.key === 'date') {
         aVal = a.date;
         bVal = b.date;
       } else if (sortConfig.key === 'time') {
@@ -415,6 +434,9 @@ export const StudentQRAttendance: React.FC = () => {
   };
 
   const SortableHeader: React.FC<{ label: string; sortKey: SortKey }> = ({ label, sortKey }) => {
+    if (viewMode === 'day') {
+      return <span>{label}</span>;
+    }
     const isActive = sortConfig.key === sortKey;
     return (
       <button
@@ -434,45 +456,71 @@ export const StudentQRAttendance: React.FC = () => {
   };
 
   const renderTable = (records: Attendance[]) => (
-    <div className="overflow-x-auto rounded-2xl border border-gray-100 dark:border-[#1A1A1A]">
-      <table className="min-w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
+    <div className="overflow-x-auto -mx-2 px-2">
+      <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
         <thead>
           <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+            <th className="w-[28%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+              <SortableHeader label="STUDENT" sortKey="student" />
+            </th>
+            <th className="w-[22%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+              <SortableHeader label="DESCRIPTION" sortKey="description" />
+            </th>
+            <th className="w-[18%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
               <SortableHeader label="DATE" sortKey="date" />
             </th>
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+            <th className="w-[14%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
               <SortableHeader label="TIME" sortKey="time" />
             </th>
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+            <th className="w-[18%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
               <SortableHeader label="STATUS" sortKey="status" />
             </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
-          {records.map((log) => (
-            <tr key={log.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#111111]/80">
-              <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-200 whitespace-nowrap text-xs">
-                {formatDateString(log.date)}
-              </td>
-              <td className="px-4 py-3 text-gray-600 dark:text-slate-400 font-mono text-xs">
-                {log.time_in ? formatTimeString(log.time_in) : '—'}
-              </td>
-              <td className="px-4 py-3">
-                <span
-                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${
-                    log.status === 'present'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/40'
-                      : log.status === 'late'
-                      ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/40'
-                      : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/40'
-                  }`}
-                >
-                  {log.status_display || log.status}
-                </span>
-              </td>
-            </tr>
-          ))}
+          {records.map((log) => {
+            const isPresent = log.status === 'present';
+            const desc = getAttendanceDescription(log);
+            const isMilestone = desc !== 'Intervention Activity';
+            return (
+              <tr
+                key={log.id}
+                className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#111111]/80"
+              >
+                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
+                  {user?.full_name || studentFirstName}
+                </td>
+                <td className="px-4 py-3 text-left whitespace-nowrap">
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${
+                      isMilestone
+                        ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
+                        : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                    }`}
+                  >
+                    {desc}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
+                  {formatDateString(log.date)}
+                </td>
+                <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
+                  {log.time_in ? formatTimeString(log.time_in) : '—'}
+                </td>
+                <td className="px-4 py-3 text-left whitespace-nowrap">
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${
+                      isPresent
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                        : 'bg-rose-50 text-rose-700 border-rose-200 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                    }`}
+                  >
+                    {log.status_display || (isPresent ? 'Present' : 'Absent')}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -629,26 +677,18 @@ export const StudentQRAttendance: React.FC = () => {
     >
       {/* ── Main Grid (Exact Match to TutorQRGenerator.tsx) ───────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* ── LEFT: Attendance Scanner Card (Exact Match to TutorQRGenerator.tsx) ── */}
+        {/* ── LEFT: Attendance Scanner Card ── */}
         <div className="lg:col-span-7">
           <div className="h-full rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm overflow-hidden flex flex-col justify-between">
             {/* Card Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h2 className="text-base font-bold text-gray-900 dark:text-slate-100 mt-0.5">ATTENDANCE SCANNER</h2>
-                <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
-                  Scan tutor's QR code or enter session token
-                </p>
+                <h2 className="text-base font-bold text-gray-900 dark:text-slate-100 uppercase">SCAN QR CODE</h2>
               </div>
-
-              <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border bg-[var(--brand-light)] text-[var(--brand)] border-[var(--brand-border)]">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Scanner Active
-              </span>
             </div>
 
             {/* Card Body */}
-            <div className="p-6 flex flex-col gap-5 flex-1 justify-between">
+            <div className="p-6 flex flex-col items-center gap-5 flex-1 justify-between">
               {/* Notification Banner */}
               {scanResult && (
                 <div
@@ -676,115 +716,99 @@ export const StudentQRAttendance: React.FC = () => {
                 </div>
               )}
 
-              {/* Viewport Frame with Corner Scan Brackets (Exact Match to TutorQRGenerator) */}
-              <div className="mx-auto w-full max-w-sm">
-                <div className="relative flex min-h-[300px] items-center justify-center rounded-3xl border-2 border-dashed border-gray-200 dark:border-slate-700 bg-gray-50/70 dark:bg-[#111111]/60 p-4 overflow-hidden">
-                  {/* Corner scan-frame decorations */}
-                  <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-md" />
-                  <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-md" />
-                  <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-md" />
-                  <span className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[var(--brand)] rounded-br-md" />
+              {/* Viewport Frame with Corner Scan Brackets (Matching StaffAttendanceScanner) */}
+              <div className="w-full">
+                <div className="relative flex min-h-[340px] sm:min-h-[380px] w-full items-center justify-center rounded-3xl border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#111111]/60 p-6 overflow-hidden">
+                  {/* Scan frame corners */}
+                  <span className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-lg z-10" />
+                  <span className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-lg z-10" />
+                  <span className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-lg z-10" />
+                  <span className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-[var(--brand)] rounded-br-lg z-10" />
 
-                  <div className="w-full flex flex-col items-center justify-center">
-                    <div
-                      id="student-qr-reader"
-                      className="w-full max-w-[264px] rounded-2xl overflow-hidden border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-md"
-                    />
+                  <div className="w-full max-w-md mx-auto space-y-3">
                     {cameraError && (
-                      <div className="mt-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
+                      <div className="flex items-start gap-2.5 rounded-2xl border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30 p-4 text-xs text-red-700 dark:text-red-300">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
                         <span>{cameraError}</span>
                       </div>
                     )}
+                    <div
+                      id="student-qr-reader"
+                      className="w-full font-mono text-xs text-white overflow-hidden rounded-2xl"
+                    />
                     {!isCameraActive && (
-                      <button
-                        type="button"
-                        onClick={restartScanner}
-                        className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--brand)] text-white text-xs font-bold hover:bg-[var(--brand-dark)] transition cursor-pointer shadow-sm"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        <span>Scan Again</span>
-                      </button>
+                      <div className="flex justify-center pt-2">
+                        <button
+                          type="button"
+                          onClick={restartScanner}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--brand)] text-white text-xs font-bold hover:bg-[var(--brand-dark)] transition cursor-pointer shadow-sm"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Scan Again</span>
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Manual Input Container Under QR Scan (Directly Under QR Scan Instead of Header Button) */}
-              <div className="mx-auto w-full max-w-sm space-y-4">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleScanSubmit(manualCode);
-                  }}
-                  className="rounded-2xl border border-gray-100 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] p-4 space-y-3"
-                >
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 dark:text-slate-300 mb-2">
-                      <Keyboard className="w-3.5 h-3.5 inline mr-1.5 text-gray-400" />
-                      Manual Session Code
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={manualCode}
-                        onChange={(e) => setManualCode(e.target.value)}
-                        placeholder="e.g. ARAL-2026-XXXX"
-                        className="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#0A0A0A] text-xs text-gray-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
-                      />
-                      <button
-                        type="submit"
-                        disabled={!manualCode.trim() || isSubmitting}
-                        className="px-4 py-2.5 rounded-xl bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0"
-                      >
-                        <Play className="w-3.5 h-3.5" />
-                        <span>{isSubmitting ? 'Verifying...' : 'Submit'}</span>
-                      </button>
+              {/* Manual Input Container (Matching StaffAttendanceScanner) */}
+              <div className="w-full">
+                <div className="rounded-2xl border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">MANUAL ENTRY</h3>
                     </div>
-                    <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-2">
-                      Enter the session token displayed on your tutor's screen if unable to scan.
-                    </p>
                   </div>
-                </form>
-
-                {/* Session meta info matching TutorQRGenerator layout */}
-                <div className="space-y-1.5 px-1">
-                  <div className="flex items-center justify-between text-xs py-1 border-b border-gray-100 dark:border-[#1A1A1A]">
-                    <span className="font-semibold text-gray-500 dark:text-slate-400">Live Clock:</span>
-                    <span className="text-xs font-mono font-bold text-gray-900 dark:text-slate-100">
-                      {currentDateTime.toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        hour12: true,
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs py-1">
-                    <span className="font-semibold text-gray-500 dark:text-slate-400">Student LRN:</span>
-                    <span className="text-xs font-mono font-bold text-gray-900 dark:text-slate-100 select-all tracking-wider">
-                      {user?.lrn || 'N/A'}
-                    </span>
-                  </div>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleScanSubmit(manualCode);
+                    }}
+                    className="space-y-2"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Enter session token / code..."
+                      value={manualCode}
+                      onChange={(e) => setManualCode(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-[#262626] rounded-xl text-xs bg-white dark:bg-[#0A0A0A] font-mono text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] transition-colors"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!manualCode.trim() || isSubmitting}
+                      className="w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Verifying...</span>
+                        </>
+                      ) : (
+                        'Submit Session Code'
+                      )}
+                    </button>
+                  </form>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ── RIGHT: Student Attendance Feed (Exact Match to TutorQRGenerator) ── */}
+        {/* ── RIGHT: Student Attendance Feed ── */}
         <div className="lg:col-span-5">
           <div className="flex h-full min-h-[480px] flex-col rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm overflow-hidden">
             {/* Feed Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">STUDENT ATTENDANCE FEED</h3>
-                <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">QR code scans</p>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">
+                  {studentFirstName}'S RECENT SCANS
+                </h3>
               </div>
-
-              <div className="flex items-center gap-1.5 bg-[var(--brand-light)] border border-[var(--brand-border)] rounded-full px-3 py-1.5">
-                <Users className="w-3.5 h-3.5 text-[var(--brand)]" />
-                <span className="text-xs font-bold text-[var(--brand)]">{recentScans.length} Checked In</span>
+              <div>
+                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
+                  {recentScans.length}
+                </span>
               </div>
             </div>
 
@@ -797,9 +821,8 @@ export const StudentQRAttendance: React.FC = () => {
                       key={i}
                       className="h-14 bg-gray-50 dark:bg-[#111111] rounded-2xl animate-pulse flex items-center px-4 gap-3"
                     >
-                      <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 shrink-0" />
                       <div className="h-3.5 bg-gray-200 dark:bg-gray-800 rounded w-1/3" />
-                      <div className="h-5 w-16 rounded-full bg-gray-200 dark:bg-gray-800 ml-auto" />
+                      <div className="h-5 w-24 rounded-full bg-gray-200 dark:bg-gray-800 ml-auto" />
                     </div>
                   ))}
                 </div>
@@ -810,7 +833,7 @@ export const StudentQRAttendance: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center whitespace-nowrap">
-                      Students that scan the QR code appears here
+                      Your QR check-in records will appear here
                     </p>
                   </div>
                   <p className="text-[11px] text-gray-300 dark:text-slate-500 font-medium">
@@ -823,28 +846,15 @@ export const StudentQRAttendance: React.FC = () => {
                     key={log.id}
                     className="flex items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-[#111111] hover:bg-gray-100/60 dark:hover:bg-[#161616] rounded-2xl border border-gray-100 dark:border-[#1A1A1A] transition-colors"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {/* Avatar */}
-                      <div
-                        className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(
-                          user?.full_name || studentFirstName
-                        )}`}
-                      >
-                        {getInitials(user?.full_name || studentFirstName)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-gray-800 dark:text-slate-100 leading-tight truncate">
-                          {user?.full_name || studentFirstName}
-                        </p>
-                        <p className="text-[11px] text-gray-400 dark:text-slate-400">
-                          LRN: {user?.lrn || 'N/A'}
-                        </p>
-                      </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-gray-800 dark:text-slate-100 leading-tight truncate">
+                        {user?.full_name || studentFirstName}
+                      </p>
                     </div>
                     <div className="text-right shrink-0">
                       <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-100 dark:border-emerald-800/40">
                         <CheckCircle2 className="w-3 h-3" />
-                        {log.time_in ? formatTimeString(log.time_in) : 'Logged'}
+                        {log.date ? `${formatDateString(log.date)} | ` : ''}{log.time_in ? formatTimeString(log.time_in) : 'Logged'}
                       </span>
                     </div>
                   </div>
@@ -896,12 +906,14 @@ export const StudentQRAttendance: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Attendance History (Exact Match to TutorQRGenerator.tsx) ──── */}
+      {/* ── Attendance History ──── */}
       <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm relative">
-        {/* Section Header with Live Search, Pills, Calendar, and Export */}
+        {/* Section Header with Pills and Calendar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
           <div>
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">STUDENT ATTENDANCE HISTORY</h3>
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">
+              {studentFirstName}'S ATTENDANCE HISTORY
+            </h3>
             <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
               {currentRecordsCount} Record{currentRecordsCount !== 1 ? 's' : ''}
             </p>
@@ -909,19 +921,6 @@ export const StudentQRAttendance: React.FC = () => {
 
           {/* Controls */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Live Search Input */}
-            <label className="relative flex min-w-52 items-center">
-              <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-gray-400 dark:text-slate-500" />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search Attendance Logs"
-                aria-label="Search attendance history"
-                className="h-9 w-full rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] pl-9 pr-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] focus:ring-2 focus:ring-[var(--brand)]/10"
-              />
-            </label>
-
             {/* View Mode Toggle */}
             <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5">
               {(['day', 'week', 'month'] as const).map((mode) => (
@@ -933,7 +932,7 @@ export const StudentQRAttendance: React.FC = () => {
                     setViewMode(mode);
                     setJumpDate(null);
                   }}
-                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                  className={`h-8 whitespace-nowrap rounded-lg px-3 text-[10px] font-bold uppercase transition-all cursor-pointer ${
                     viewMode === mode && !jumpDate
                       ? 'bg-[var(--brand)] text-white shadow-sm'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
@@ -950,13 +949,13 @@ export const StudentQRAttendance: React.FC = () => {
                 type="button"
                 id="student-attendance-calendar-btn"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${
+                className={`flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border p-0 transition-all ${
                   jumpDate
                     ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
                     : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
                 }`}
                 title="Select a specific date from calendar"
-                aria-label="Open Calendar"
+                aria-label="Open score calendar"
               >
                 <Calendar className="w-4 h-4" />
               </button>
@@ -977,16 +976,6 @@ export const StudentQRAttendance: React.FC = () => {
                 />
               )}
             </div>
-
-            {/* Export Attendance Sheet Button (Exact Match to TutorQRGenerator) */}
-            <button
-              type="button"
-              onClick={() => setShowExportModal(true)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--brand)] px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-[var(--brand-hover)] active:scale-[0.98] cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5 text-white" />
-              <span>Export Attendance Sheet</span>
-            </button>
           </div>
         </div>
 
@@ -1038,10 +1027,10 @@ export const StudentQRAttendance: React.FC = () => {
               <div className="flex flex-col items-center gap-2 py-12 text-center">
                 <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
                 <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">
-                  {searchQuery.trim() ? 'No matching attendance records' : 'No records for this date'}
+                  No records for this date
                 </p>
                 <p className="text-xs text-gray-400 dark:text-slate-500">
-                  {searchQuery.trim() ? 'Try clearing search or changing date' : 'Try a different date or clear the filter'}
+                  Try a different date or clear the filter
                 </p>
               </div>
             ) : (
@@ -1067,10 +1056,10 @@ export const StudentQRAttendance: React.FC = () => {
               <div className="flex flex-col items-center gap-2 py-12 text-center">
                 <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
                 <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">
-                  {searchQuery.trim() ? 'No matching attendance records' : 'No attendance records yet'}
+                  No attendance records yet
                 </p>
                 <p className="text-xs text-gray-400 dark:text-slate-500">
-                  {searchQuery.trim() ? 'Try a different search keyword' : 'Records will appear once attendance is logged for you'}
+                  Records will appear once attendance is logged for you
                 </p>
               </div>
             ) : (
@@ -1095,7 +1084,7 @@ export const StudentQRAttendance: React.FC = () => {
             <div className="flex flex-col items-center gap-2 py-12 text-center">
               <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
               <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">
-                {searchQuery.trim() ? 'No matching attendance records' : 'No records to display'}
+                No records to display
               </p>
             </div>
           ) : (
@@ -1118,15 +1107,6 @@ export const StudentQRAttendance: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* ── Attendance Export Modal ─────────────────────────────── */}
-      <ExportAttendanceModal
-        isOpen={showExportModal}
-        onClose={() => setShowExportModal(false)}
-        currentUser={user}
-        students={user ? [user] : []}
-        attendanceLogs={attendanceLogs}
-      />
     </div>
   );
 };

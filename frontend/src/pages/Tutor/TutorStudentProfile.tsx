@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
-import type { StudentAcademicProfile, Grade, Attendance } from '../../types';
+import type { StudentAcademicProfile, Grade, Attendance, StudentEditRequest } from '../../types';
 import {
   ArrowLeft,
   GraduationCap,
@@ -22,7 +22,6 @@ import {
   Sliders,
   TrendingUp,
   Layers,
-  ShieldAlert,
   ArrowUpDown,
   ChevronUp,
   ChevronDown,
@@ -36,7 +35,7 @@ import {
 } from 'lucide-react';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
-import { getStudentInitials as getInitials, getStudentAvatarColor as avatarColor } from '../../utils/studentFormatters';
+import { getStudentAvatarColor as avatarColor } from '../../utils/studentFormatters';
 
 /** Trim trailing decimal zeros: 100.00 → 100, 99.57 → 99.57, 99.5 → 99.5 */
 const smartPct = (n: number): string => parseFloat(n.toFixed(2)).toString();
@@ -80,24 +79,28 @@ const formatTimeString = (value: string | null | undefined): string => {
 
 const getAralBadge = (level?: string | null) => {
   switch (level) {
-    case 'plus':      return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">Plus</span>;
-    case 'summer':    return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">Summer</span>;
+    case 'plus': return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">Plus</span>;
+    case 'summer': return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">Summer</span>;
     case 'graduated': return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Graduated</span>;
-    default:          return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Basic</span>;
+    default: return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Basic</span>;
   }
 };
 
 const getRiskBadge = (tier?: string | null) => {
   switch (tier?.toLowerCase()) {
-    case 'high':   return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-high">High Risk</span>;
-    case 'medium': return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-medium">Medium Risk</span>;
-    default:       return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-low">Low Risk</span>;
+    case 'high': return <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-high"><Frown className="w-3.5 h-3.5" />High Risk</span>;
+    case 'medium': return <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-medium"><Meh className="w-3.5 h-3.5" />Medium Risk</span>;
+    default: return <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-low"><Smile className="w-3.5 h-3.5" />Low Risk</span>;
   }
 };
 
 /* ─── Main Component ───────────────────────────────────────────── */
 export const TutorStudentProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const isFromDashboard = location.state?.from === 'dashboard';
+  const backPath = isFromDashboard ? '/tutor' : '/tutor/students';
+  const backLabel = isFromDashboard ? 'Back to Home Dashboard' : 'Back to Assigned Students';
   const [profile, setProfile] = useState<StudentAcademicProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -256,19 +259,9 @@ export const TutorStudentProfile: React.FC = () => {
   }, [attendanceRate, hasAttendanceData]);
 
   // Modals state
-  const [showGradeModal, setShowGradeModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showRiskModal, setShowRiskModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
-
-  // Form states
-  const [gradeForm, setGradeForm] = useState({
-    subject: '',
-    quarter: 1,
-    score: '',
-    component_type: 'assessment' as 'assessment' | 'weekly_task' | 'attendance',
-    remarks: ''
-  });
 
   const [activityForm, setActivityForm] = useState({
     title: '',
@@ -284,18 +277,22 @@ export const TutorStudentProfile: React.FC = () => {
 
   const [attendanceForm, setAttendanceForm] = useState({
     date: new Date().toLocaleDateString('en-CA'),
-    status: 'present' as 'present' | 'late' | 'absent',
+    status: 'present' as 'present' | 'absent',
     aral_activity_id: ''
   });
 
+  const [pendingEditRequest, setPendingEditRequest] = useState<StudentEditRequest | null>(null);
+  const [showPendingModal, setShowPendingModal] = useState(false);
   const [isEditingStudent, setIsEditingStudent] = useState(false);
   const [studentForm, setStudentForm] = useState({
     first_name: '',
+    middle_name: '',
     last_name: '',
     username: '',
     email: '',
     lrn: '',
-    aral_level: 'basic'
+    aral_level: 'basic',
+    reason: '',
   });
   const [isEvaluatingLevel, setIsEvaluatingLevel] = useState(false);
   const [levelEvalMessage, setLevelEvalMessage] = useState<string | null>(null);
@@ -323,19 +320,23 @@ export const TutorStudentProfile: React.FC = () => {
   const fetchProfile = async () => {
     if (!id) return;
     try {
-      const [data, gradesData] = await Promise.all([
+      const [data, gradesData, editReqData] = await Promise.all([
         academicService.getStudentProfile(id),
         academicService.getGrades({ student_id: id }).catch(() => [] as Grade[]),
+        userService.getStudentEditRequests({ student_id: id, status: 'pending' }).catch(() => ({ results: [] })),
       ]);
       setProfile(data);
       setStudentGrades(gradesData);
+      setPendingEditRequest(editReqData.results && editReqData.results.length > 0 ? editReqData.results[0] : null);
       setStudentForm({
-        first_name: data.student.first_name,
-        last_name: data.student.last_name,
-        username: data.student.username,
-        email: data.student.email,
+        first_name: data.student.first_name || '',
+        middle_name: '',
+        last_name: data.student.last_name || '',
+        username: data.student.username || '',
+        email: data.student.email || '',
         lrn: data.student.lrn || '',
-        aral_level: data.student.aral_level || 'basic'
+        aral_level: data.student.aral_level || 'basic',
+        reason: '',
       });
     } catch (err) {
       console.error(err);
@@ -349,25 +350,6 @@ export const TutorStudentProfile: React.FC = () => {
     fetchProfile();
   }, [id]);
 
-  const handleAddGrade = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!id || !gradeForm.subject || !gradeForm.score) return;
-    try {
-      await academicService.createGrade({
-        student: id,
-        subject: gradeForm.subject,
-        quarter: Number(gradeForm.quarter),
-        score: Number(gradeForm.score),
-        component_type: gradeForm.component_type,
-        remarks: gradeForm.remarks || null
-      });
-      setShowGradeModal(false);
-      setGradeForm({ subject: '', quarter: 1, score: '', component_type: 'assessment', remarks: '' });
-      fetchProfile();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to add grade.');
-    }
-  };
 
   const handleDeleteGrade = async (gradeId: number) => {
     if (!window.confirm('Are you sure you want to delete this grade?')) return;
@@ -462,24 +444,28 @@ export const TutorStudentProfile: React.FC = () => {
     }
   };
 
-  const handleSaveStudentDetails = async () => {
+  const handleSubmitStudentEditRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!profile) return;
     setIsSavingStudent(true);
     setStudentEditError(null);
 
     try {
-      await userService.updateUser(profile.student.id, {
-        first_name: studentForm.first_name,
-        last_name: studentForm.last_name,
-        username: studentForm.username,
-        email: studentForm.email,
-        lrn: studentForm.lrn || null,
-        aral_level: studentForm.aral_level
+      await userService.createStudentEditRequest({
+        student: profile.student.id,
+        proposed_first_name: studentForm.first_name.trim().toUpperCase(),
+        proposed_middle_name: studentForm.middle_name.trim().toUpperCase(),
+        proposed_last_name: studentForm.last_name.trim().toUpperCase(),
+        proposed_lrn: studentForm.lrn.trim() || null,
+        proposed_aral_level: studentForm.aral_level,
+        reason: studentForm.reason.trim(),
       });
       setIsEditingStudent(false);
       await fetchProfile();
     } catch (err: any) {
-      setStudentEditError(err?.response?.data?.detail || 'Failed to save student details.');
+      const errData = err?.response?.data;
+      const msg = errData?.detail || errData?.reason?.[0] || errData?.proposed_lrn?.[0] || errData?.student?.[0] || 'Failed to submit student edit request.';
+      setStudentEditError(msg);
     } finally {
       setIsSavingStudent(false);
     }
@@ -548,8 +534,8 @@ export const TutorStudentProfile: React.FC = () => {
         <div>
           <p className="text-sm font-bold">Failed to load student profile</p>
           <p className="text-xs text-rose-700 dark:text-rose-300 mt-0.5">{error || 'Profile not found.'}</p>
-          <Link to="/tutor/students" className="inline-flex items-center gap-1 mt-3 text-xs font-bold text-[var(--brand)] hover:underline">
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to Assigned Students
+          <Link to={backPath} className="inline-flex items-center gap-1 mt-3 text-xs font-bold text-[var(--brand)] hover:underline">
+            <ArrowLeft className="w-3.5 h-3.5" /> {backLabel}
           </Link>
         </div>
       </div>
@@ -561,11 +547,11 @@ export const TutorStudentProfile: React.FC = () => {
       {/* ── Top Navigation & Actions ─────────────────────────────── */}
       <div className="flex items-center justify-between">
         <Link
-          to="/tutor/students"
+          to={backPath}
           className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-[var(--brand)] transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Assigned Students
+          {backLabel}
         </Link>
       </div>
 
@@ -573,8 +559,8 @@ export const TutorStudentProfile: React.FC = () => {
       <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 space-y-5">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
           <div className="flex items-center gap-4">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center text-xl font-extrabold shadow-sm shrink-0 ${avatarColor(profile.student.name)}`}>
-              {getInitials(profile.student.name)}
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-sm shrink-0 ${avatarColor(profile.student.name)}`}>
+              <User className="w-8 h-8" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{profile.student.name}</h1>
@@ -582,6 +568,36 @@ export const TutorStudentProfile: React.FC = () => {
                 LRN: <span className="font-mono font-bold text-gray-700">{profile.student.lrn || 'N/A'}</span>
               </p>
             </div>
+          </div>
+
+          {/* Action buttons: Edit Student Details / Pending Status */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {pendingEditRequest && (
+              <button
+                type="button"
+                onClick={() => setShowPendingModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition shadow-xs cursor-pointer"
+              >
+                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                <span>Edit Request Pending Approval</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                if (pendingEditRequest) {
+                  setShowPendingModal(true);
+                } else {
+                  setIsEditingStudent(true);
+                  setStudentEditError(null);
+                }
+              }}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border border-gray-200 hover:border-[var(--brand)] hover:bg-[var(--brand-light)] text-gray-700 hover:text-[var(--brand-dark)] transition shadow-xs cursor-pointer"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>{pendingEditRequest ? 'View Pending Request' : 'Edit Student Details'}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -606,11 +622,10 @@ export const TutorStudentProfile: React.FC = () => {
               role="tab"
               aria-selected={isActive}
               onClick={() => setActiveTab(tabKey)}
-              className={`flex-1 rounded-xl py-2.5 px-3 text-xs font-bold uppercase flex items-center justify-center transition-all cursor-pointer ${
-                isActive
-                  ? 'bg-[var(--brand)] text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`flex-1 rounded-xl py-2.5 px-3 text-xs font-bold uppercase flex items-center justify-center transition-all cursor-pointer ${isActive
+                ? 'bg-[var(--brand)] text-white shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
             >
               <span>{label}</span>
             </button>
@@ -650,37 +665,39 @@ export const TutorStudentProfile: React.FC = () => {
                 </div>
               </div>
 
-              <div className={`rounded-3xl border p-5 shadow-sm flex items-center gap-4 ${
-                riskTier === 'High'
-                  ? 'risk-card-high'
-                  : riskTier === 'Medium'
+              <div className={`rounded-3xl border p-5 shadow-sm flex items-center gap-4 ${riskTier === 'High'
+                ? 'risk-card-high'
+                : riskTier === 'Medium'
                   ? 'risk-card-medium'
                   : 'risk-card-low'
-              }`}>
-                <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${
-                  riskTier === 'High'
-                    ? 'risk-badge-high text-risk-high'
-                    : riskTier === 'Medium'
+                }`}>
+                <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${riskTier === 'High'
+                  ? 'risk-badge-high text-risk-high'
+                  : riskTier === 'Medium'
                     ? 'risk-badge-medium text-risk-medium'
                     : 'risk-badge-low text-risk-low'
-                }`}>
-                  <ShieldAlert className="w-5 h-5" />
+                  }`}>
+                  {riskTier === 'High' ? (
+                    <Frown className="w-5 h-5" />
+                  ) : riskTier === 'Medium' ? (
+                    <Meh className="w-5 h-5" />
+                  ) : (
+                    <Smile className="w-5 h-5" />
+                  )}
                 </div>
                 <div className="min-w-0">
-                  <p className={`text-[11px] font-bold uppercase tracking-wider ${
-                    riskTier === 'High'
-                      ? 'text-risk-high'
-                      : riskTier === 'Medium'
+                  <p className={`text-[11px] font-bold uppercase tracking-wider ${riskTier === 'High'
+                    ? 'text-risk-high'
+                    : riskTier === 'Medium'
                       ? 'text-risk-medium'
                       : 'text-risk-low'
-                  }`}>RISK LEVEL</p>
-                  <p className={`text-2xl font-extrabold mt-0.5 ${
-                    riskTier === 'High'
-                      ? 'text-risk-high'
-                      : riskTier === 'Medium'
+                    }`}>RISK LEVEL</p>
+                  <p className={`text-2xl font-extrabold mt-0.5 ${riskTier === 'High'
+                    ? 'text-risk-high'
+                    : riskTier === 'Medium'
                       ? 'text-risk-medium'
                       : 'text-risk-low'
-                  }`}>
+                    }`}>
                     {riskTier}
                   </p>
                 </div>
@@ -809,106 +826,10 @@ export const TutorStudentProfile: React.FC = () => {
               studentId={id!}
               reloadTrigger={profile}
               onGradesLoaded={(loadedGrades) => setStudentGrades(loadedGrades)}
-              onLogNewGrade={() => setShowGradeModal(true)}
             />
           </div>
         )}
       </div>
-
-      {/* ── GRADE MODAL ────────────────────────────────────────────── */}
-      {showGradeModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleAddGrade} className="bg-white rounded-3xl p-6 max-w-md w-full border border-gray-200 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="font-bold text-gray-900 text-lg">Log Academic Grade</h3>
-              <button type="button" onClick={() => setShowGradeModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Subject</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Mathematics"
-                  value={gradeForm.subject}
-                  onChange={(e) => setGradeForm({ ...gradeForm, subject: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Quarter</label>
-                <select
-                  value={gradeForm.quarter}
-                  onChange={(e) => setGradeForm({ ...gradeForm, quarter: Number(e.target.value) })}
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]"
-                >
-                  <option value={1}>1st Quarter</option>
-                  <option value={2}>2nd Quarter</option>
-                  <option value={3}>3rd Quarter</option>
-                  <option value={4}>4th Quarter</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Score (0-100)</label>
-                <input
-                  type="number"
-                  required
-                  min={0}
-                  max={100}
-                  step={0.01}
-                  value={gradeForm.score}
-                  onChange={(e) => setGradeForm({ ...gradeForm, score: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Component Type</label>
-                <select
-                  value={gradeForm.component_type}
-                  onChange={(e) => setGradeForm({ ...gradeForm, component_type: e.target.value as any })}
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]"
-                >
-                  <option value="assessment">Assessment</option>
-                  <option value="weekly_task">Weekly Task</option>
-                  <option value="attendance">Attendance</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Remarks (Optional)</label>
-              <textarea
-                value={gradeForm.remarks}
-                onChange={(e) => setGradeForm({ ...gradeForm, remarks: e.target.value })}
-                placeholder="Optional notes regarding this score..."
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] h-20 resize-none"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={() => setShowGradeModal(false)}
-                className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-2xl text-xs font-bold hover:bg-gray-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-2xl text-xs font-bold cursor-pointer shadow-sm transition-all"
-              >
-                Save Grade
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       {/* ── ARAL ACTIVITY MODAL ────────────────────────────────────── */}
       {showActivityModal && (
@@ -1070,7 +991,6 @@ export const TutorStudentProfile: React.FC = () => {
                 className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]"
               >
                 <option value="present">Present</option>
-                <option value="late">Late</option>
                 <option value="absent">Absent</option>
               </select>
             </div>
@@ -1107,6 +1027,201 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ── STUDENT EDIT REQUEST MODAL ─────────────────────────────── */}
+      {isEditingStudent && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <form onSubmit={handleSubmitStudentEditRequest} className="bg-white rounded-3xl p-6 max-w-lg w-full border border-gray-200 shadow-2xl space-y-4 my-8">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div>
+                <h3 className="font-bold text-gray-900 text-lg">EDIT STUDENT DETAILS</h3>
+              </div>
+              <button type="button" onClick={() => setIsEditingStudent(false)} className="text-gray-400 hover:text-gray-600 p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Integrity Notice Banner */}
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-3">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-900 leading-relaxed">
+                <span className="font-bold">Official Record Protection:</span> Changes to student identity or program levels require approval from a School Admin or Super Admin before taking effect to prevent unauthorized edits.
+              </div>
+            </div>
+
+            {studentEditError && (
+              <div className="bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl p-3 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{studentEditError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Proposed First Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={studentForm.first_name}
+                  onChange={(e) => setStudentForm({ ...studentForm, first_name: e.target.value })}
+                  placeholder="e.g. JUAN"
+                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] uppercase font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Proposed Middle Name</label>
+                <input
+                  type="text"
+                  value={studentForm.middle_name}
+                  onChange={(e) => setStudentForm({ ...studentForm, middle_name: e.target.value })}
+                  placeholder="e.g. PROTACIO"
+                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] uppercase font-semibold"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Proposed Last Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={studentForm.last_name}
+                  onChange={(e) => setStudentForm({ ...studentForm, last_name: e.target.value })}
+                  placeholder="e.g. DELA CRUZ"
+                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] uppercase font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Proposed LRN (12 digits)</label>
+                <input
+                  type="text"
+                  maxLength={12}
+                  value={studentForm.lrn}
+                  onChange={(e) => setStudentForm({ ...studentForm, lrn: e.target.value.replace(/\D/g, '') })}
+                  placeholder="12-digit number"
+                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Proposed ARAL Program Level *</label>
+              <select
+                value={studentForm.aral_level}
+                onChange={(e) => setStudentForm({ ...studentForm, aral_level: e.target.value as any })}
+                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] font-semibold"
+              >
+                <option value="basic">Basic</option>
+                <option value="plus">Plus</option>
+                <option value="summer">Summer</option>
+                <option value="graduated">Graduated</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Reason for Edit Request *</label>
+              <textarea
+                required
+                rows={3}
+                value={studentForm.reason}
+                onChange={(e) => setStudentForm({ ...studentForm, reason: e.target.value })}
+                placeholder="Explain why this student detail change is necessary (e.g., PSA birth certificate name spelling correction, LRN typo correction, or program reclassification)..."
+                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] resize-none"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setIsEditingStudent(false)}
+                className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-2xl text-xs font-bold hover:bg-gray-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSavingStudent}
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-2xl text-xs font-bold cursor-pointer shadow-sm transition-all disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {isSavingStudent ? 'Submitting Request...' : 'Submit Request for Approval'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── PENDING REQUEST DETAILS MODAL ──────────────────────────── */}
+      {showPendingModal && pendingEditRequest && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full border border-gray-200 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base">Edit Request Pending</h3>
+                  <p className="text-[11px] text-gray-500">Awaiting Admin or Super Admin review</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setShowPendingModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">Requested By:</span>
+                  <span className="font-bold text-gray-800">{pendingEditRequest.requested_by_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">Submitted:</span>
+                  <span className="font-bold text-gray-800">{new Date(pendingEditRequest.created_at).toLocaleDateString()}</span>
+                </div>
+              </div>
+
+              <div className="border border-gray-100 rounded-2xl p-3.5 space-y-2">
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Proposed Changes</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-gray-400 block text-[10px]">Proposed Name:</span>
+                    <span className="font-bold text-gray-800">
+                      {pendingEditRequest.proposed_last_name}, {pendingEditRequest.proposed_first_name} {pendingEditRequest.proposed_middle_name}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 block text-[10px]">Proposed LRN:</span>
+                    <span className="font-mono font-bold text-gray-800">{pendingEditRequest.proposed_lrn || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 block text-[10px]">Proposed Level:</span>
+                    <span className="font-bold text-indigo-600 capitalize">{pendingEditRequest.proposed_aral_level}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-amber-50/70 border border-amber-100 rounded-2xl p-3 space-y-1">
+                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Tutor Reason:</span>
+                <p className="text-gray-700 italic text-xs">"{pendingEditRequest.reason}"</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setShowPendingModal(false)}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-2xl text-xs font-bold transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -1227,15 +1342,14 @@ const CustomCalendarDropdown: React.FC<{
                 onSelectDate(cellDateKey);
                 onClose();
               }}
-              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                isSelected
-                  ? 'bg-[var(--brand)] text-white font-bold shadow-sm'
-                  : isToday
+              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-lg text-xs font-semibold transition-all cursor-pointer ${isSelected
+                ? 'bg-[var(--brand)] text-white font-bold shadow-sm'
+                : isToday
                   ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
                   : hasLogs
-                  ? 'bg-slate-100 text-slate-800 font-semibold hover:bg-slate-200'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
+                    ? 'bg-slate-100 text-slate-800 font-semibold hover:bg-slate-200'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
             >
               <span>{dayNum}</span>
               {hasLogs && !isSelected && (
@@ -1280,10 +1394,9 @@ interface ScoreProps {
   studentId: string;
   reloadTrigger: any;
   onGradesLoaded?: (grades: Grade[]) => void;
-  onLogNewGrade?: () => void;
 }
 
-const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGradesLoaded, onLogNewGrade }) => {
+const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGradesLoaded }) => {
   const [grades, setGrades] = useState<Grade[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -1483,24 +1596,22 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
                 </td>
                 <td className="px-4 py-3">
                   <span
-                    className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${
-                      isNotTaken
-                        ? 'bg-gray-50 text-gray-500 border-gray-200'
-                        : isPassed
+                    className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${isNotTaken
+                      ? 'bg-gray-50 text-gray-500 border-gray-200'
+                      : isPassed
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : 'bg-rose-50 text-rose-700 border-rose-200'
-                    }`}
+                      }`}
                   >
                     {isNotTaken ? 'Not Taken' : isPassed ? 'Passed' : 'Failed'}
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   <span
-                    className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${
-                      isNotTaken
-                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    }`}
+                    className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${isNotTaken
+                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      }`}
                   >
                     {isNotTaken ? 'Not Taken' : 'Taken'}
                   </span>
@@ -1547,15 +1658,6 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
             <h3 className="font-bold text-gray-900 text-base">SCORES HISTORY</h3>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">0 RECORDS</p>
           </div>
-          {onLogNewGrade && (
-            <button
-              onClick={onLogNewGrade}
-              className="inline-flex items-center gap-1.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Log Grade</span>
-            </button>
-          )}
         </div>
         <div className="flex flex-col items-center gap-2 py-12 text-center">
           <CalendarDays className="w-10 h-10 text-gray-200" />
@@ -1594,11 +1696,10 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
                   setViewMode(mode);
                   setJumpDate(null);
                 }}
-                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${
-                  viewMode === mode && !jumpDate
-                    ? 'bg-[var(--brand)] text-white shadow-sm'
-                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                }`}
+                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
+                  ? 'bg-[var(--brand)] text-white shadow-sm'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                  }`}
               >
                 {mode}
               </button>
@@ -1611,11 +1712,10 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
               type="button"
               id="student-score-calendar-btn"
               onClick={() => setShowCalendarPopover((prev) => !prev)}
-              className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${
-                jumpDate
-                  ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                  : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
-              }`}
+              className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${jumpDate
+                ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
+                : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
+                }`}
               title="Select a specific date from calendar"
               aria-label="Open Calendar"
             >
@@ -1632,16 +1732,6 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
               />
             )}
           </div>
-
-          {onLogNewGrade && (
-            <button
-              onClick={onLogNewGrade}
-              className="inline-flex items-center gap-1.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Log Grade</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -1923,13 +2013,10 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
               </td>
               <td className="px-4 py-3">
                 <span
-                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${
-                    log.status === 'present'
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : log.status === 'late'
-                      ? 'bg-amber-50 text-amber-700 border-amber-200'
-                      : 'bg-rose-50 text-rose-700 border-rose-200'
-                  }`}
+                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${log.status === 'present'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                    }`}
                 >
                   {log.status_display || log.status}
                 </span>
@@ -2007,11 +2094,10 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
                   setViewMode(mode);
                   setJumpDate(null);
                 }}
-                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${
-                  viewMode === mode && !jumpDate
-                    ? 'bg-[var(--brand)] text-white shadow-sm'
-                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                }`}
+                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
+                  ? 'bg-[var(--brand)] text-white shadow-sm'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                  }`}
               >
                 {mode}
               </button>
@@ -2024,11 +2110,10 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
               type="button"
               id="student-attendance-calendar-btn"
               onClick={() => setShowCalendarPopover((prev) => !prev)}
-              className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${
-                jumpDate
-                  ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                  : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
-              }`}
+              className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${jumpDate
+                ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
+                : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
+                }`}
               title="Select a specific date from calendar"
               aria-label="Open Calendar"
             >

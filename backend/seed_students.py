@@ -106,13 +106,9 @@ def seed_students():
     att_count = 0
 
     for idx, student in enumerate(created_students):
-        # Day 1 attendance: 18 present, 2 late
-        if idx in (3, 12):
-            status1 = 'late'
-            time_in_1 = datetime.time(8, 25, 0)
-        else:
-            status1 = 'present'
-            time_in_1 = datetime.time(8, 0, 0)
+        # Day 1 attendance: 20 present
+        status1 = 'present'
+        time_in_1 = datetime.time(8, 0, 0)
 
         ApiAttendance.objects.create(
             user=student,
@@ -127,11 +123,8 @@ def seed_students():
         )
         att_count += 1
 
-        # Day 2 attendance: 18 present, 1 late, 1 absent
-        if idx == 7:
-            status2 = 'late'
-            time_in_2 = datetime.time(8, 20, 0)
-        elif idx == 15:
+        # Day 2 attendance: 19 present, 1 absent
+        if idx == 15:
             status2 = 'absent'
             time_in_2 = None
         else:

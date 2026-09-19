@@ -15,6 +15,9 @@ import {
   ClipboardList,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown,
   X,
   UserCheck,
   Play,
@@ -177,6 +180,7 @@ const CustomCalendarDropdown: React.FC<{
 /* ─────────────────────────── component ─────────────────────────── */
 export const StaffAttendanceScanner: React.FC = () => {
   const { user } = useAuth();
+  const tutorFirstName = user?.first_name || user?.full_name?.trim().split(' ')[0] || 'TUTOR';
   const [scanMode, setScanMode] = useState<'none' | 'camera' | 'text'>('none');
   const [manualCode, setManualCode] = useState('');
   const [scanResult, setScanResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -257,6 +261,91 @@ export const StaffAttendanceScanner: React.FC = () => {
     }
     return [...rows].sort((a, b) => b.date.localeCompare(a.date));
   }, [dtrRows, jumpDate, todayStr, viewMode]);
+
+  // ── Sort state & DTR sorting ──────────────────────────────────
+  type SortKey = 'tutor' | 'date' | 'time_in' | 'time_out' | 'undertime' | 'status';
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({
+    key: 'date',
+    direction: 'desc',
+  });
+
+  const toggleSort = (key: SortKey) => {
+    setSortConfig((current) => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const sortedDtrRows = useMemo(() => {
+    if (!sortConfig.key) return filteredDtrRows;
+
+    return [...filteredDtrRows].sort((a, b) => {
+      let result = 0;
+      switch (sortConfig.key) {
+        case 'tutor':
+          result = (a.user_name || '').localeCompare(b.user_name || '', undefined, {
+            numeric: true,
+            sensitivity: 'base',
+          });
+          break;
+        case 'date':
+          result = (a.date || '').localeCompare(b.date || '');
+          break;
+        case 'time_in':
+          result = (a.time_in || '').localeCompare(b.time_in || '');
+          break;
+        case 'time_out':
+          result = (a.time_out || '').localeCompare(b.time_out || '');
+          break;
+        case 'undertime': {
+          const aMins = timeToMinutes(a.time_out);
+          const bMins = timeToMinutes(b.time_out);
+          const aDiff = aMins !== null && aMins < TUTOR_TIME_OUT_MINS ? TUTOR_TIME_OUT_MINS - aMins : 0;
+          const bDiff = bMins !== null && bMins < TUTOR_TIME_OUT_MINS ? TUTOR_TIME_OUT_MINS - bMins : 0;
+          result = aDiff - bDiff;
+          break;
+        }
+        case 'status': {
+          const stA = getTutorStatus(timeToMinutes(a.time_in), timeToMinutes(a.time_out));
+          const stB = getTutorStatus(timeToMinutes(b.time_in), timeToMinutes(b.time_out));
+          result = stA.localeCompare(stB);
+          break;
+        }
+        default:
+          result = 0;
+      }
+      return sortConfig.direction === 'asc' ? result : -result;
+    });
+  }, [filteredDtrRows, sortConfig]);
+
+  const SortableHeader: React.FC<{ label: string; sortKey: SortKey; align?: 'left' | 'center' }> = ({
+    label,
+    sortKey,
+    align = 'left',
+  }) => {
+    const isActive = sortConfig.key === sortKey;
+    return (
+      <button
+        type="button"
+        onClick={() => toggleSort(sortKey)}
+        className={`inline-flex items-center gap-1.5 transition-colors hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer ${
+          align === 'center' ? 'justify-center w-full' : ''
+        }`}
+        aria-label={`Sort by ${label}`}
+      >
+        <span>{label}</span>
+        {isActive ? (
+          sortConfig.direction === 'asc' ? (
+            <ChevronUp className="w-3.5 h-3.5" />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5" />
+          )
+        ) : (
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-50" />
+        )}
+      </button>
+    );
+  };
 
   // ── Scanner helpers ────────────────────────────────────────────
   const stopScanner = async () => {
@@ -587,10 +676,9 @@ export const StaffAttendanceScanner: React.FC = () => {
           <div className="h-full rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden">
 
             {/* Card Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100">
               <div>
-                <h2 className="text-base font-bold text-gray-900 mt-0.5">SCAN QR CODE</h2>
-                <p className="mt-0.5 text-xs font-medium text-gray-500">Scan the QR code provided by the school admin</p>
+                <h2 className="text-base font-bold text-gray-900">SCAN QR CODE</h2>
               </div>
               {scanResult && (
                 <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border ${
@@ -690,8 +778,7 @@ export const StaffAttendanceScanner: React.FC = () => {
                 <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-base font-bold text-gray-900 mt-0.5">MANUAL ENTRY</h3>
-                      <p className="mt-0.5 text-xs font-medium text-gray-500">36-character UUID from the QR code generated by the school admin</p>
+                      <h3 className="text-base font-bold text-gray-900">MANUAL ENTRY</h3>
                     </div>
                   </div>
                   <form onSubmit={handleManualSubmit} className="space-y-2">
@@ -729,17 +816,15 @@ export const StaffAttendanceScanner: React.FC = () => {
           <div className="flex h-full min-h-[480px] flex-col rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden">
 
             {/* Feed header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100">
               <div>
-                <h3 className="font-bold text-gray-900 text-base">RECENT SCAN LOG</h3>
-                <p className="mt-0.5 text-xs font-medium text-gray-500">Tutor's recent QR code scans</p>
+                <h3 className="font-bold text-gray-900 text-base uppercase">{tutorFirstName}'S RECENT SCANS</h3>
               </div>
-              {recentScans.length > 0 && (
-                <div className="flex items-center gap-1.5 bg-[var(--brand-light)] border border-[var(--brand-border)] rounded-full px-3 py-1.5">
-                  <UserCheck className="w-3.5 h-3.5 text-[var(--brand)]" />
-                  <span className="text-xs font-bold text-[var(--brand)]">{recentScans.length} Scans</span>
-                </div>
-              )}
+              <div>
+                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
+                  {recentScans.length}
+                </span>
+              </div>
             </div>
 
             {/* Feed list */}
@@ -758,31 +843,26 @@ export const StaffAttendanceScanner: React.FC = () => {
                   const timeInMins = timeToMinutes(log.time_in);
                   const timeOutMins = timeToMinutes(log.time_out);
                   const st = getTutorStatus(timeInMins, timeOutMins);
+                  const timeDisplay = log.time_out ? formatDtrTime(log.time_out) : log.time_in ? formatDtrTime(log.time_in) : 'Logged';
                   return (
                     <div
                       key={log.id}
                       className="flex items-center justify-between gap-3 p-3 bg-gray-50 hover:bg-gray-100/60 rounded-2xl border border-gray-100 transition-colors"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-[var(--brand-light)] border border-[var(--brand-border)] flex items-center justify-center shrink-0">
-                          <ScanLine className="w-4 h-4 text-[var(--brand)]" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-gray-800 leading-tight">
-                            {log.user_name || 'Tutor'}
-                          </p>
-                          <p className="text-[11px] text-gray-400">{log.date}</p>
-                        </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-gray-800 leading-tight truncate">
+                          {log.user_name || user?.full_name || tutorFirstName}
+                        </p>
                       </div>
                       <div className="text-right shrink-0 space-y-0.5">
                         <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
                           st === 'Completed' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' :
                           st === 'Late' ? 'text-amber-700 bg-amber-50 border-amber-100' :
                           st === 'Early Out' ? 'text-rose-700 bg-rose-50 border-rose-100' :
-                          'text-gray-400 bg-gray-50 border-gray-100'
+                          'text-emerald-700 bg-emerald-50 border-emerald-100'
                         }`}>
                           <CheckCircle2 className="w-3 h-3" />
-                          {st === '—' ? (log.time_in ? formatDtrTime(log.time_in) : 'Logged') : st}
+                          {log.date ? `${formatDateString(log.date)} | ` : ''}{timeDisplay}
                         </span>
                       </div>
                     </div>
@@ -802,7 +882,7 @@ export const StaffAttendanceScanner: React.FC = () => {
           <div>
             <div className="flex items-center gap-3">
               <div>
-                <h3 className="font-bold text-gray-900 text-base">TUTOR DTR HISTORY</h3>
+                <h3 className="font-bold text-gray-900 text-base uppercase">{tutorFirstName}'S DTR HISTORY</h3>
                 <p className="mt-0.5 text-xs font-medium text-gray-500">
                   {filteredDtrRows.length} Record{filteredDtrRows.length !== 1 ? 's' : ''}
                 </p>
@@ -902,28 +982,28 @@ export const StaffAttendanceScanner: React.FC = () => {
                   <tr className="bg-gray-50">
                     {isPrincipalMonitor && (
                       <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                        Tutor
+                        <SortableHeader label="TUTOR" sortKey="tutor" />
                       </th>
                     )}
                     <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                      Date
+                      <SortableHeader label="DATE" sortKey="date" />
                     </th>
                     <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                      Time In
+                      <SortableHeader label="TIME IN" sortKey="time_in" align="center" />
                     </th>
                     <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                      Time Out
+                      <SortableHeader label="TIME OUT" sortKey="time_out" align="center" />
                     </th>
                     <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                      Undertime
+                      <SortableHeader label="UNDERTIME" sortKey="undertime" align="center" />
                     </th>
                     <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                      Status
+                      <SortableHeader label="STATUS" sortKey="status" align="center" />
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
-                  {filteredDtrRows.map((log) => {
+                  {sortedDtrRows.map((log) => {
                     // Derive effective time in / out for tutors
                     // Use time_in / time_out directly (tutor DTR uses these fields)
                     const legacyIn = timeToMinutes(log.time_in);

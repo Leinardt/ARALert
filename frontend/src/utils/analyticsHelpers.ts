@@ -116,8 +116,7 @@ export const computeStudentRiskRows = (
     const attendanceRecords = attendanceByStudent.get(student.id) ?? [];
     const totalDays = attendanceRecords.length;
     const presentDays = attendanceRecords.filter((record: Attendance) => record.status === 'present').length;
-    const lateDays = attendanceRecords.filter((record: Attendance) => record.status === 'late').length;
-    const attendanceRate = totalDays > 0 ? Number((((presentDays + lateDays) / totalDays) * 100).toFixed(2)) : 100;
+    const attendanceRate = totalDays > 0 ? Number(((presentDays / totalDays) * 100).toFixed(2)) : 100;
 
     const scoreData = scoreTotals.get(student.id);
     const scoreAvg = scoreData?.count ? Number((scoreData.totalPercent / scoreData.count).toFixed(2)) : 100;

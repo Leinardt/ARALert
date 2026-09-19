@@ -71,8 +71,9 @@ export const getAttendanceWeeksForMonth = (
     if (dayOfWeek >= 1 && dayOfWeek <= 5) {
       const mStr = String(month + 1).padStart(2, '0');
       const dStr = String(d).padStart(2, '0');
+      const dateKey = `${year}-${mStr}-${dStr}`;
       days.push({
-        dateKey: `${year}-${mStr}-${dStr}`,
+        dateKey,
         dayNum: String(d),
         dayName: dayNames[dayOfWeek - 1],
       });
@@ -197,13 +198,13 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
       className="p-3 sm:p-3.5 text-xs select-none"
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
-      <div className="flex items-center justify-between pb-2.5 pt-0.5 border-b border-slate-100">
-        <span className="font-bold text-slate-900 text-xs tracking-wide">{monthName}</span>
+      <div className="flex items-center justify-between pb-2.5 pt-0.5 border-b border-slate-100 dark:border-[#1A1A1A]">
+        <span className="font-bold text-slate-900 dark:text-slate-100 text-xs tracking-wide">{monthName}</span>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={prevMonth}
-            className="flex items-center justify-center w-6 h-6 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-bold transition cursor-pointer"
+            className="flex items-center justify-center w-6 h-6 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-bold transition cursor-pointer"
             aria-label="Previous Month"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
@@ -211,7 +212,7 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
           <button
             type="button"
             onClick={nextMonth}
-            className="flex items-center justify-center w-6 h-6 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-bold transition cursor-pointer"
+            className="flex items-center justify-center w-6 h-6 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-bold transition cursor-pointer"
             aria-label="Next Month"
           >
             <ChevronRight className="w-3.5 h-3.5" />
@@ -219,7 +220,7 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 sm:gap-1.5 text-center font-bold text-slate-400 py-2 text-[10px] uppercase tracking-wider">
+      <div className="grid grid-cols-7 gap-1 sm:gap-1.5 text-center font-bold text-slate-400 dark:text-slate-500 py-2 text-[10px] uppercase tracking-wider">
         <span>Su</span>
         <span>Mo</span>
         <span>Tu</span>
@@ -261,29 +262,38 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
               }}
               title={cell.isCurrentMonth ? cell.cellDateKey : `${cell.cellDateKey} (Adjacent month)`}
               className={`relative flex flex-col items-center justify-center h-8.5 sm:h-9 rounded-lg transition text-[11px] cursor-pointer ${isDaySelected
-                ? 'bg-[var(--brand-light)] text-[var(--brand-darker)] font-bold border border-[var(--brand-border)] shadow-xs'
+                ? 'bg-[var(--brand)] text-white font-bold shadow-xs border border-[var(--brand)]'
                 : isWeekSelected
                   ? cell.isCurrentMonth
-                    ? 'bg-[var(--brand-light)] text-[var(--brand-darker)] font-bold border border-[var(--brand-border)]'
-                    : 'bg-[var(--brand-light)]/50 text-[var(--brand-darker)]/85 font-semibold border border-dashed border-[var(--brand-border)]/70'
+                    ? 'bg-[var(--brand)] text-white font-bold shadow-xs border border-[var(--brand)]'
+                    : 'bg-[var(--brand)]/60 text-white/90 dark:bg-[var(--brand)]/40 dark:text-white/90 font-semibold border border-dashed border-[var(--brand)]/60'
                   : isMonthSelected
-                    ? 'bg-[var(--brand-light)]/70 text-[var(--brand-darker)] font-semibold border border-[var(--brand-border)]/50 hover:bg-[var(--brand-light)]'
+                    ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-[var(--brand)]/30 dark:text-white font-semibold border border-[var(--brand-border)]/60 hover:bg-[var(--brand-light)] dark:hover:bg-[var(--brand)]/40'
                     : hasLoggedData
                       ? cell.isCurrentMonth
-                        ? 'bg-slate-100 text-slate-900 font-semibold hover:bg-slate-200'
-                        : 'bg-slate-50/80 text-slate-400 font-medium hover:bg-slate-100 hover:text-slate-600'
+                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold hover:bg-slate-200 dark:hover:bg-slate-700'
+                        : 'bg-slate-50/80 dark:bg-slate-900/60 text-slate-400 dark:text-slate-500 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-300'
                       : cell.isCurrentMonth
-                        ? 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 hover:text-slate-900'
-                        : 'text-slate-300 dark:text-slate-600 font-normal hover:text-slate-500 hover:bg-slate-50/60'
+                        ? 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                        : 'text-slate-300 dark:text-slate-600 font-normal hover:text-slate-500 dark:hover:text-slate-400 hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
                 }`}
             >
-              <span className={`text-[11px] ${!cell.isCurrentMonth && !isDaySelected && !isWeekSelected ? 'opacity-80' : ''}`}>
+              <span className={`text-[11px] ${!cell.isCurrentMonth && !isDaySelected && !isWeekSelected && !isMonthSelected ? 'opacity-80' : ''}`}>
                 {cell.dayNum}
               </span>
               {hasLoggedData && (
                 <span
-                  className={`absolute bottom-1 h-1 w-1 rounded-full ${cell.isCurrentMonth ? 'bg-[var(--brand)]' : 'bg-[var(--brand)]/40'
-                    }`}
+                  className={`absolute bottom-1 h-1 w-1 rounded-full ${
+                    isDaySelected || (isWeekSelected && cell.isCurrentMonth)
+                      ? 'bg-white'
+                      : isWeekSelected && !cell.isCurrentMonth
+                        ? 'bg-white/80'
+                        : isMonthSelected
+                          ? 'bg-[var(--brand)] dark:bg-white'
+                          : cell.isCurrentMonth
+                            ? 'bg-[var(--brand)] dark:bg-blue-400'
+                            : 'bg-[var(--brand)]/40 dark:bg-blue-400/40'
+                  }`}
                 />
               )}
             </button>
@@ -291,12 +301,12 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
         })}
       </div>
 
-      <div className="mt-2.5 flex items-center justify-between text-[9.5px] text-slate-500 pt-2 border-t border-slate-100">
+      <div className="mt-2.5 flex items-center justify-between text-[9.5px] text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-[#1A1A1A]">
         <div className="flex items-center gap-1 font-medium">
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] inline-block" />
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] dark:bg-blue-400 inline-block" />
           <span>Has attendance record</span>
         </div>
-        <span className="text-[9px] text-slate-400 italic">
+        <span className="text-[9px] text-slate-400 dark:text-slate-500 italic">
           {exportMode === 'weekly' ? 'Mon – Fri week' : exportMode === 'monthly' ? 'Full month' : 'Daily view'}
         </span>
       </div>
@@ -489,7 +499,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
       return [
         {
           label: formatNumericDate(dateObj),
-          days: [{ dateKey: targetDate, dayNum: String(d) }],
+          days: [{ dateKey: targetDate, dayNum: formatNumericDate(dateObj) }],
         },
       ];
     }
@@ -501,8 +511,9 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
       const days = [];
       for (let i = 0; i < 5; i++) {
         const cur = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i);
+        const dateKey = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
         days.push({
-          dateKey: `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`,
+          dateKey,
           dayNum: String(cur.getDate()),
         });
       }
@@ -575,7 +586,6 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
         );
         if (dayLog) {
           if (dayLog.status === 'present') statusByDate[day.dateKey] = 'P';
-          else if (dayLog.status === 'late') statusByDate[day.dateKey] = 'L';
           else if (dayLog.status === 'absent') statusByDate[day.dateKey] = 'A';
         }
       });
@@ -629,11 +639,11 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-2 sm:p-4 md:p-6 backdrop-blur-sm"
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
-      <div className="relative w-full max-w-[96vw] 2xl:max-w-[1640px] h-[95vh] max-h-[95vh] rounded-3xl bg-white shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
+      <div className="relative w-full max-w-[96vw] 2xl:max-w-[1640px] h-[95vh] max-h-[95vh] rounded-3xl bg-white dark:bg-[#0A0A0A] shadow-2xl border border-slate-200 dark:border-[#1A1A1A] flex flex-col overflow-hidden">
         {/* Fixed Top Header (Solid Opaque, Non-scrollable) */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200 px-5 py-2.5 sm:py-3 flex-shrink-0 bg-white z-20">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200 dark:border-[#1A1A1A] px-5 py-2.5 sm:py-3 flex-shrink-0 bg-white dark:bg-[#0A0A0A] z-20">
           <div>
-            <h3 className="text-base sm:text-lg font-bold text-slate-900">EXPORT STUDENT ATTENDANCE SHEET</h3>
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">EXPORT STUDENT ATTENDANCE SHEET</h3>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -646,7 +656,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-slate-200 bg-slate-50 p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer"
+              className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition cursor-pointer"
               aria-label="Close modal"
             >
               <X className="w-4 h-4" />
@@ -658,139 +668,139 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
         <div ref={scrollBodyRef} className="flex-1 overflow-y-auto px-4 sm:px-5 py-2.5 space-y-2.5 scroll-smooth">
           {/* Header Settings Form - Displayed at the Top */}
           {showSettings && (
-            <div ref={settingsRef} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5 space-y-6 text-xs animate-in fade-in duration-150 shadow-xs">
+            <div ref={settingsRef} className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#0E0E0E] p-4 sm:p-5 space-y-6 text-xs animate-in fade-in duration-150 shadow-xs">
               {/* Section 1: HEADER */}
               <div className="pb-1">
                 <div className="mb-4">
-                  <span className="font-bold text-slate-800 uppercase tracking-wider text-sm">
+                  <span className="font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider text-sm">
                     HEADER
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-slate-700 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">DIVISION</label>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">DIVISION</label>
                     <input
                       type="text"
                       value={division}
                       onChange={(e) => setDivision(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900 outline-none focus:border-[var(--brand)] text-xs"
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-700 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">DISTRICT</label>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">DISTRICT</label>
                     <input
                       type="text"
                       value={district}
                       onChange={(e) => setDistrict(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900 outline-none focus:border-[var(--brand)] text-xs"
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-700 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">SCHOOL NAME</label>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">SCHOOL NAME</label>
                     <input
                       type="text"
                       value={schoolName}
                       onChange={(e) => setSchoolName(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900 outline-none focus:border-[var(--brand)] text-xs"
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-700 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">SCHOOL ADDRESS</label>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">SCHOOL ADDRESS</label>
                     <input
                       type="text"
                       value={schoolAddress}
                       onChange={(e) => setSchoolAddress(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900 outline-none focus:border-[var(--brand)] text-xs"
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-700 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">DOCUMENT TITLE</label>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">DOCUMENT TITLE</label>
                     <input
                       type="text"
                       value={subjectTitle}
                       onChange={(e) => setSubjectTitle(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900 outline-none focus:border-[var(--brand)] text-xs"
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-700 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">GRADE &amp; SECTION</label>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">GRADE &amp; SECTION</label>
                     <input
                       type="text"
                       value={gradeSection}
                       onChange={(e) => setGradeSection(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900 outline-none focus:border-[var(--brand)] text-xs"
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Section 2: WEEK & DATE (sectioned line) */}
-              <div className="pt-5 border-t border-slate-200 pb-1">
+              <div className="pt-5 border-t border-slate-200 dark:border-[#1A1A1A] pb-1">
                 <div className="mb-4">
-                  <span className="font-bold text-slate-800 uppercase tracking-wider text-sm">
+                  <span className="font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider text-sm">
                     WEEK &amp; DATE
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-4">
                   <div className="w-full sm:w-36">
-                    <label className="block text-slate-700 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">WEEK NUMBER</label>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">WEEK NUMBER</label>
                     <input
                       type="text"
                       value={weekNumber}
                       onChange={(e) => setWeekNumber(e.target.value)}
                       placeholder="1, 2, 3..."
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900 outline-none focus:border-[var(--brand)] text-xs"
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
                     />
                   </div>
                   <div className="w-full sm:w-72">
-                    <label className="block text-slate-700 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">DATE</label>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">DATE</label>
                     <input
                       type="text"
                       value={dateStr}
                       onChange={(e) => setDateStr(e.target.value)}
                       placeholder="MM/DD/YYYY or Date Range"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900 outline-none focus:border-[var(--brand)] text-xs"
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Section 3: SIGNATURES (sectioned line) */}
-              <div className="pt-5 border-t border-slate-200 pb-2">
+              <div className="pt-5 border-t border-slate-200 dark:border-[#1A1A1A] pb-2">
                 <div className="mb-4">
-                  <span className="font-bold text-slate-800 uppercase tracking-wider text-sm">
+                  <span className="font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider text-sm">
                     SIGNATURES
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-slate-700 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">PREPARED BY (TUTOR NAME)</label>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">PREPARED BY (TUTOR NAME)</label>
                     <input
                       type="text"
                       value={tutorName}
                       onChange={(e) => setTutorName(e.target.value)}
                       placeholder="TUTOR FULL NAME"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900 outline-none focus:border-[var(--brand)] text-xs"
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-700 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">CHECKED BY (HT / ASST. NAME)</label>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">CHECKED BY (HT / ASST. NAME)</label>
                     <input
                       type="text"
                       value={checkedName}
                       onChange={(e) => setCheckedName(e.target.value)}
                       placeholder="FIRSTNAME M.I. LASTNAME"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900 outline-none focus:border-[var(--brand)] text-xs"
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-700 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">NOTED BY (PRINCIPAL NAME)</label>
+                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1.5 text-[11px]">NOTED BY (PRINCIPAL NAME)</label>
                     <input
                       type="text"
                       value={notedName}
                       onChange={(e) => setNotedName(e.target.value)}
                       placeholder="FIRSTNAME M.I. LASTNAME"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-900 outline-none focus:border-[var(--brand)] text-xs"
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
                     />
                   </div>
                 </div>
@@ -800,43 +810,16 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
 
           {/* Two-Column Body: Left (Controls + Calendar), Right (Fixed-Size Paper Sheet Preview) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-            {/* Left Column: Paper Size, Week Count & Calendar Picker */}
+            {/* Left Column: Date Filter Bar, Calendar Picker & Paper Size */}
             <div className="lg:col-span-4 xl:col-span-3 2xl:col-span-3 space-y-2 lg:sticky lg:top-0">
-              {/* Paper Size Selector */}
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5 space-y-1.5 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Paper Size</span>
-                  <span className="text-[10px] font-bold text-[var(--brand)]">
-                    {PAPER_CONFIG[paperSize].label}
-                  </span>
-                </div>
-                <div className="flex bg-white dark:bg-[#111111] border border-slate-200 rounded-xl p-0.5 gap-1 shadow-2xs">
-                  {(['letter', 'a4', 'folio'] as const).map((sizeKey) => (
-                    <button
-                      key={sizeKey}
-                      type="button"
-                      onClick={() => setPaperSize(sizeKey)}
-                      title={PAPER_CONFIG[sizeKey].label}
-                      className={`flex-1 rounded-lg h-7 py-1 px-1.5 text-[11px] font-bold uppercase transition-all cursor-pointer text-center whitespace-nowrap flex items-center justify-center ${paperSize === sizeKey
-                        ? 'bg-[var(--brand)] text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
-                    >
-                      {sizeKey === 'letter' ? 'Short' : sizeKey === 'a4' ? 'A4' : 'Long'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Date Filter Bar */}
               {/* Connected Date Filter & Calendar Container */}
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden text-xs">
+              <div className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm overflow-hidden text-xs">
                 {/* Connected Filter Bar Header */}
-                <div className="bg-slate-50/80 border-b border-slate-200 p-2.5 space-y-1.5">
+                <div className="bg-slate-50/80 dark:bg-[#0E0E0E] border-b border-slate-200 dark:border-[#1A1A1A] p-2.5 space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">SELECT DATE</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">SELECT DATE</span>
                   </div>
-                  <div className="flex bg-white dark:bg-[#111111] border border-slate-200 rounded-xl p-0.5 gap-1 shadow-2xs">
+                  <div className="flex bg-white dark:bg-[#141414] border border-slate-200 dark:border-slate-800 rounded-xl p-0.5 gap-1 shadow-2xs">
                     {(['daily', 'weekly', 'monthly'] as const).map((mode) => (
                       <button
                         key={mode}
@@ -862,7 +845,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                         }}
                         className={`flex-1 rounded-lg h-7 py-1 px-1.5 text-[11px] font-bold uppercase transition-all cursor-pointer text-center whitespace-nowrap flex items-center justify-center ${exportMode === mode
                           ? 'bg-[var(--brand)] text-white shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                       >
                         {mode === 'daily' ? 'Day' : mode === 'weekly' ? 'Week' : 'Month'}
@@ -872,19 +855,19 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
 
                   <div className="flex items-center justify-between text-xs font-medium text-slate-600 px-1 pt-3">
                     <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-[10px] uppercase font-bold text-slate-400">WEEK:</span>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">WEEK:</span>
                       <input
                         type="text"
                         value={weekNumber}
                         onChange={(e) => setWeekNumber(e.target.value)}
-                        className="w-5 py-0.5 text-left font-bold text-slate-800 bg-transparent border-0 p-0 text-xs focus:outline-none cursor-text"
+                        className="w-5 py-0.5 text-left font-bold text-slate-800 dark:text-slate-100 bg-transparent border-0 p-0 text-xs focus:outline-none cursor-text"
                         title="Edit Week Number"
                         placeholder="1"
                       />
                     </div>
                     <div className="flex items-center gap-1 shrink-0" title={dateStr}>
-                      <span className="text-[10px] uppercase font-bold text-slate-400">DATE:</span>
-                      <span className="text-[10.5px] font-bold text-slate-900 whitespace-nowrap">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">DATE:</span>
+                      <span className="text-[10.5px] font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">
                         {dateStr}
                       </span>
                     </div>
@@ -913,12 +896,38 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                   loggedDatesCount={loggedDatesCount}
                 />
               </div>
+
+              {/* Paper Size Selector */}
+              <div className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-slate-50/80 dark:bg-[#0E0E0E] p-2.5 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Paper Size</span>
+                  <span className="text-[10px] font-bold text-[var(--brand)] dark:text-blue-400">
+                    {PAPER_CONFIG[paperSize].label}
+                  </span>
+                </div>
+                <div className="flex bg-white dark:bg-[#141414] border border-slate-200 dark:border-slate-800 rounded-xl p-0.5 gap-1 shadow-2xs">
+                  {(['letter', 'a4', 'folio'] as const).map((sizeKey) => (
+                    <button
+                      key={sizeKey}
+                      type="button"
+                      onClick={() => setPaperSize(sizeKey)}
+                      title={PAPER_CONFIG[sizeKey].label}
+                      className={`flex-1 rounded-lg h-7 py-1 px-1.5 text-[11px] font-bold uppercase transition-all cursor-pointer text-center whitespace-nowrap flex items-center justify-center ${paperSize === sizeKey
+                        ? 'bg-[var(--brand)] text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                    >
+                      {sizeKey === 'letter' ? 'Short' : sizeKey === 'a4' ? 'A4' : 'Long'}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Right Column: Physical Paper Sheet Preview */}
             <div className="lg:col-span-8 xl:col-span-9 2xl:col-span-9 flex flex-col min-w-0">
               {/* Paper Workspace Canvas */}
-              <div className="rounded-2xl border border-slate-200 bg-slate-100/90 dark:bg-slate-900/40 p-4 sm:p-6 overflow-x-auto flex flex-col items-center shadow-inner">
+              <div className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-slate-100/90 dark:bg-[#111111] p-4 sm:p-6 overflow-x-auto flex flex-col items-center shadow-inner">
                 {/* Physical Sheet Card with Fixed Proportions */}
                 <div
                   ref={printRef}
@@ -927,8 +936,21 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                     width: PAPER_CONFIG[paperSize].width,
                     minHeight: PAPER_CONFIG[paperSize].minHeight,
                     fontFamily: "'Times New Roman', Times, Georgia, serif",
+                    colorScheme: 'light',
+                    backgroundColor: '#ffffff',
+                    color: '#0f172a',
+                    ['--slate-50' as any]: '#F8FAFC',
+                    ['--slate-100' as any]: '#F1F5F9',
+                    ['--slate-200' as any]: '#E2E8F0',
+                    ['--slate-300' as any]: '#CBD5E1',
+                    ['--slate-400' as any]: '#94A3B8',
+                    ['--slate-500' as any]: '#64748B',
+                    ['--slate-600' as any]: '#475569',
+                    ['--slate-700' as any]: '#334155',
+                    ['--slate-800' as any]: '#1E293B',
+                    ['--slate-900' as any]: '#0F172A',
                   }}
-                  className={`bg-white shadow-xl border border-slate-300 ${exportMode === 'monthly'
+                  className={`export-paper-sheet bg-white shadow-xl border border-slate-300 ${exportMode === 'monthly'
                     ? 'pt-20 pb-20 px-8 sm:px-10'
                     : 'pt-20 pb-20 px-12 sm:px-16'
                     } text-slate-900 font-serif transition-all duration-200 flex-shrink-0`}
@@ -968,7 +990,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                   </div>
 
                   {/* Period Meta Row with WEEK: on the left and DATE: on the right */}
-                  <div className="flex justify-between items-center text-xs font-bold mt-4 sm:mt-5 mb-3 px-1 text-slate-900">
+                  <div className="flex justify-between items-center text-xs font-bold mt-6 sm:mt-7 mb-3 px-1 text-slate-900">
                     <div className="inline-flex items-center gap-1.5">
                       <span>WEEK:</span>
                       <div className="inline-flex flex-col items-center min-w-[50px]">
@@ -988,67 +1010,37 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                   {/* DepEd Multi-Week Attendance Register Table */}
                   <table className="w-full border-collapse border border-slate-800 text-xs table-fixed">
                     <thead>
-                      {/* Row 1: Top Header (Week Date Ranges with border below and single line) */}
                       <tr className="bg-slate-50 text-slate-900">
                         <th
-                          rowSpan={2}
                           className="border border-slate-800 px-0.5 py-2.5 text-center font-bold text-[10px] bg-slate-50 uppercase whitespace-nowrap align-middle"
                           style={{ width: colWidths.index }}
                         >
                           #
                         </th>
                         <th
-                          rowSpan={2}
                           className="border border-slate-800 px-2 py-2.5 text-center font-bold text-[10.5px] bg-slate-50 uppercase tracking-wide whitespace-nowrap align-middle"
                           style={{ width: colWidths.name }}
                         >
                           NAME OF THE STUDENTS
                         </th>
-                        {exportMode === 'daily' ? (
+                        {allDays.map((day) => (
                           <th
-                            rowSpan={2}
-                            className="border border-slate-800 px-2 py-2.5 text-center font-bold text-[10px] bg-slate-50 whitespace-nowrap uppercase align-middle"
+                            key={`day-head-${day.dateKey}`}
+                            className={`border border-slate-800 py-2.5 text-center font-bold bg-slate-50 text-slate-900 whitespace-nowrap align-middle ${allDays.length > 5 ? 'text-[9.5px]' : 'text-[10.5px]'
+                              }`}
                             style={{ width: colWidths.day }}
+                            title={day.dateKey}
                           >
-                            {weeks[0]?.label || 'DATE'}
+                            {day.dayNum}
                           </th>
-                        ) : (
-                          weeks.map((week, wIdx) => (
-                            <th
-                              key={`week-head-${wIdx}`}
-                              colSpan={week.days.length}
-                              className={`border border-slate-800 px-0.5 py-2 text-center font-bold bg-slate-50 whitespace-nowrap align-middle ${allDays.length > 5 ? 'text-[9px]' : 'text-[10px]'
-                                }`}
-                            >
-                              {week.label}
-                            </th>
-                          ))
-                        )}
+                        ))}
                         <th
-                          rowSpan={2}
                           className="border border-slate-800 px-1 py-2.5 text-center font-bold text-[10px] bg-slate-50 uppercase whitespace-nowrap align-middle"
                           style={{ width: colWidths.sig }}
                         >
                           SIGNATURE
                         </th>
                       </tr>
-
-                      {/* Row 2: Normal Upright Numbers on each cell (not rendered for daily mode) */}
-                      {exportMode !== 'daily' && (
-                        <tr className="bg-white text-slate-900 border-b border-slate-800 h-7">
-                          {allDays.map((day) => (
-                            <th
-                              key={`day-head-${day.dateKey}`}
-                              className={`border border-slate-800 py-1.5 text-center font-bold bg-white text-slate-900 whitespace-nowrap align-middle ${allDays.length > 5 ? 'text-[9.5px]' : 'text-[10.5px]'
-                                }`}
-                              style={{ width: colWidths.day }}
-                              title={day.dateKey}
-                            >
-                              {day.dayNum}
-                            </th>
-                          ))}
-                        </tr>
-                      )}
                     </thead>
                     <tbody>
                       {sortedStudents.length === 0 ? (
@@ -1066,13 +1058,13 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                           return (
                             <tr key={student.id} className="hover:bg-slate-50">
                               <td
-                                className="border border-slate-800 px-0.5 py-1 text-center font-medium text-[10.5px] whitespace-nowrap"
+                                className={`border border-slate-800 px-0.5 text-center font-medium text-[10.5px] whitespace-nowrap ${sortedStudents.length > 20 ? 'py-0.5' : 'py-1'}`}
                                 style={{ width: colWidths.index }}
                               >
                                 {idx + 1}
                               </td>
                               <td
-                                className={`border border-slate-800 px-1.5 py-1 font-semibold uppercase text-slate-900 whitespace-nowrap overflow-hidden text-ellipsis ${allDays.length > 5 ? 'text-[10px]' : 'text-[10.5px]'
+                                className={`border border-slate-800 px-1.5 font-semibold uppercase text-slate-900 whitespace-nowrap overflow-hidden text-ellipsis ${sortedStudents.length > 20 ? 'py-0.5' : 'py-1'} ${allDays.length > 5 ? 'text-[10px]' : 'text-[10.5px]'
                                   }`}
                                 style={{ width: colWidths.name }}
                               >
@@ -1087,13 +1079,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                                 if (dayLog) {
                                   if (dayLog.status === 'present') {
                                     mark = '/';
-                                    colorClass = 'text-emerald-700 font-bold';
-                                  } else if (dayLog.status === 'late') {
-                                    mark = '/';
-                                    colorClass = 'text-amber-700 font-bold';
-                                  } else if (dayLog.status === 'absent') {
-                                    mark = 'X';
-                                    colorClass = 'text-rose-700 font-bold';
+                                    colorClass = 'text-slate-900 font-bold';
                                   }
                                 }
                                 return (
@@ -1107,7 +1093,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                                   </td>
                                 );
                               })}
-                              <td className="border border-slate-800 px-2 py-1 text-center font-mono text-xs" style={{ width: colWidths.sig }}></td>
+                              <td className={`border border-slate-800 px-2 text-center font-mono text-xs ${sortedStudents.length > 20 ? 'py-0.5' : 'py-1'}`} style={{ width: colWidths.sig }}></td>
                             </tr>
                           );
                         })
@@ -1116,10 +1102,10 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                   </table>
 
                   {/* Footer Signatures matching formal academic spacing */}
-                  <div className="mt-10 space-y-7 text-xs text-slate-900">
+                  <div className={`text-xs text-slate-900 ${sortedStudents.length > 20 ? 'mt-8 space-y-5' : 'mt-10 space-y-7'}`}>
                     <div className="flex justify-end">
                       <div className="text-center w-64">
-                        <p className="italic text-left mb-8">Prepared by:</p>
+                        <p className={`italic text-left ${sortedStudents.length > 20 ? 'mb-8' : 'mb-10'}`}>Prepared by:</p>
                         <div className="inline-flex flex-col items-center min-w-[190px] max-w-[240px]">
                           <span className="font-bold uppercase tracking-wide text-slate-900 pb-1 text-center">
                             {tutorName || (currentUser?.full_name || 'TUTOR NAME')}
@@ -1130,9 +1116,9 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-start pt-4">
+                    <div className="flex justify-between items-start pt-5 sm:pt-6">
                       <div className="text-center w-60">
-                        <p className="italic text-left mb-8">Checked:</p>
+                        <p className={`italic text-left ${sortedStudents.length > 20 ? 'mb-8' : 'mb-10'}`}>Checked:</p>
                         <div className="inline-flex flex-col items-center min-w-[190px] max-w-[240px]">
                           <span className="font-bold uppercase tracking-wide text-slate-900 pb-1 text-center">
                             {checkedName}
@@ -1143,7 +1129,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                       </div>
 
                       <div className="text-center w-60">
-                        <p className="italic text-left mb-8">Noted:</p>
+                        <p className={`italic text-left ${sortedStudents.length > 20 ? 'mb-8' : 'mb-10'}`}>Noted:</p>
                         <div className="inline-flex flex-col items-center min-w-[190px] max-w-[240px]">
                           <span className="font-bold uppercase tracking-wide text-slate-900 pb-1 text-center">
                             {notedName}
@@ -1161,11 +1147,11 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
         </div>
 
         {/* Fixed, 100% Solid Opaque Footer for Save/Export Buttons */}
-        <div className="flex-shrink-0 bg-white border-t border-slate-200 px-5 py-2.5 flex flex-col sm:flex-row items-center justify-end gap-2 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+        <div className="flex-shrink-0 bg-white dark:bg-[#0A0A0A] border-t border-slate-200 dark:border-[#1A1A1A] px-5 py-2.5 flex flex-col sm:flex-row items-center justify-end gap-2 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+            className="w-full sm:w-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
           >
             Cancel
           </button>
