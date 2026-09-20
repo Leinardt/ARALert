@@ -82,7 +82,10 @@ class UserListCreateView(generics.ListCreateAPIView):
     def get_permissions(self):
         if self.request.method == 'POST':
             return [IsAdmin()]
-        return [IsAdmin() if not self.request.user.role == 'tutor' else IsTutor()]
+        user = getattr(self.request, 'user', None)
+        if user and user.is_authenticated and getattr(user, 'role', None) == 'tutor':
+            return [IsTutor()]
+        return [IsAdmin()]
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -91,16 +94,19 @@ class UserListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         queryset = User.objects.filter(is_superuser=False)
+        user = getattr(self.request, 'user', None)
+        if not user or not user.is_authenticated:
+            return queryset.none()
 
-        if not self.request.user.is_superuser and self.request.user.role == 'tutor':
+        if not user.is_superuser and getattr(user, 'role', None) == 'tutor':
             role = self.request.query_params.get('role', '').strip()
             if role == 'principal':
                 return queryset.filter(role='principal', is_active=True)
-            return queryset.filter(assigned_tutor=self.request.user, role='student')
+            return queryset.filter(assigned_tutor=user, role='student')
 
         role = self.request.query_params.get('role', '').strip()
 
-        if not self.request.user.is_superuser and self.request.user.role == 'admin':
+        if not user.is_superuser and getattr(user, 'role', None) == 'admin':
             if not role:
                 queryset = queryset.filter(role__in=['student', 'tutor', 'faculty'])
             elif role not in ('student', 'tutor', 'faculty'):
@@ -197,14 +203,18 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
     lookup_field = 'id'
 
     def get_permissions(self):
-        if self.request.user.role == 'tutor':
+        user = getattr(self.request, 'user', None)
+        if user and user.is_authenticated and getattr(user, 'role', None) == 'tutor':
             return [IsTutor()]
         return [IsAdmin()]
 
     def get_queryset(self):
         queryset = User.objects.filter(is_superuser=False)
-        if self.request.user.role == 'tutor':
-            queryset = queryset.filter(role='student', assigned_tutor=self.request.user)
+        user = getattr(self.request, 'user', None)
+        if not user or not user.is_authenticated:
+            return queryset.none()
+        if getattr(user, 'role', None) == 'tutor':
+            queryset = queryset.filter(role='student', assigned_tutor=user)
         return queryset
 
     def get_serializer_class(self):
@@ -450,11 +460,12 @@ class StudentEditRequestListCreateView(APIView):
         queryset = StudentEditRequest.objects.select_related('student', 'requested_by', 'reviewed_by').all()
 
         if not user.is_superuser:
-            if user.role == 'tutor':
+            role = getattr(user, 'role', None)
+            if role == 'tutor':
                 queryset = queryset.filter(requested_by=user)
-            elif user.role == 'student':
+            elif role == 'student':
                 queryset = queryset.filter(student=user)
-            elif user.role == 'admin':
+            elif role == 'admin':
                 # School Admin sees all requests in their school
                 pass
             else:
@@ -469,7 +480,8 @@ class StudentEditRequestListCreateView(APIView):
             queryset = queryset.filter(student_id=student_id)
 
         serializer = StudentEditRequestSerializer(queryset, many=True)
-        pending_count = StudentEditRequest.objects.filter(status='pending').count() if (user.is_superuser or user.role == 'admin') else queryset.filter(status='pending').count()
+        is_admin_or_super = user.is_superuser or getattr(user, 'role', None) == 'admin'
+        pending_count = StudentEditRequest.objects.filter(status='pending').count() if is_admin_or_super else queryset.filter(status='pending').count()
 
         return Response({
             'count': queryset.count(),
@@ -479,7 +491,8 @@ class StudentEditRequestListCreateView(APIView):
 
     def post(self, request):
         user = request.user
-        if user.role not in ('tutor', 'student') and not user.is_superuser:
+        role = getattr(user, 'role', None)
+        if role not in ('tutor', 'student') and not user.is_superuser:
             return Response(
                 {'detail': 'Only tutors and students can submit student edit requests.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -489,7 +502,7 @@ class StudentEditRequestListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
 
         student = serializer.validated_data['student']
-        if user.role == 'tutor' and student.assigned_tutor != user:
+        if role == 'tutor' and student.assigned_tutor != user:
             return Response(
                 {'detail': 'You can only submit edit requests for students assigned to you.'},
                 status=status.HTTP_403_FORBIDDEN

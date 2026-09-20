@@ -338,7 +338,10 @@ export const AdminHome: React.FC = () => {
           userService.getStats(),
           userService.getAllUsers({ role: 'tutor' }),
           userService.getAllUsers({ role: 'student' }),
-          academicService.getGrades(),
+          academicService.getGrades().catch((err) => {
+            console.warn('Could not load grades for admin dashboard:', err);
+            return [] as Grade[];
+          }),
           academicService.getAttendanceHistory().catch(() => [] as Attendance[]),
         ]);
 
@@ -545,6 +548,7 @@ export const AdminHome: React.FC = () => {
   const totalStudentsCount = stats?.students ?? students.length;
   const totalTutorsCount = stats?.tutors ?? tutors.length;
   const totalFacultyCount = stats?.faculty ?? 0;
+  const totalPrincipalsCount = stats?.principals ?? 0;
 
   // ── Stakeholder-Validated Overall Metrics Calculations ───────────────────────
   const studentRiskRows = useMemo(() => {
@@ -721,7 +725,7 @@ export const AdminHome: React.FC = () => {
   return (
     <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3.5 data-loaded-content">
       {/* ── Top Containers Row 1: Total Counts (Neutral Black / White Styling) ──────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 shrink-0">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 shrink-0">
         {/* Card 1: TOTAL CURRENT STUDENTS */}
         <Link
           to="/admin/students"
@@ -742,7 +746,7 @@ export const AdminHome: React.FC = () => {
 
         {/* Card 2: TOTAL CURRENT TUTORS */}
         <Link
-          to="/admin/students"
+          to="/admin/tutors"
           className="group flex items-center gap-3.5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] dark:border-[#1A1A1A] dark:bg-[#0A0A0A] dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_var(--brand-glow)]"
         >
           <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 bg-slate-100 border-slate-200 text-slate-800 dark:bg-slate-800/80 dark:border-slate-700/70 dark:text-slate-100">
@@ -759,22 +763,42 @@ export const AdminHome: React.FC = () => {
         </Link>
 
         {/* Card 3: TOTAL CURRENT FACULTY MEMBERS */}
-        <div
-          className="group flex items-center gap-3.5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md dark:border-[#1A1A1A] dark:bg-[#0A0A0A]"
+        <Link
+          to="/admin/faculty"
+          className="group flex items-center gap-3.5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] dark:border-[#1A1A1A] dark:bg-[#0A0A0A] dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_var(--brand-glow)]"
         >
           <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 bg-slate-100 border-slate-200 text-slate-800 dark:bg-slate-800/80 dark:border-slate-700/70 dark:text-slate-100">
             <Users className="w-5 h-5 text-slate-800 dark:text-slate-100" />
           </div>
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-900 dark:text-slate-100 truncate">
-              TOTAL CURRENT FACULTY MEMBERS
+              TOTAL CURRENT FACULTY
             </p>
             <p className="text-2xl font-extrabold mt-0.5 text-gray-900 dark:text-slate-100">
               {totalFacultyCount}
             </p>
           </div>
-        </div>
+        </Link>
+
+        {/* Card 4: TOTAL CURRENT PRINCIPALS */}
+        <Link
+          to="/admin/principals"
+          className="group flex items-center gap-3.5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] dark:border-[#1A1A1A] dark:bg-[#0A0A0A] dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_var(--brand-glow)]"
+        >
+          <div className="w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 bg-slate-100 border-slate-200 text-slate-800 dark:bg-slate-800/80 dark:border-slate-700/70 dark:text-slate-100">
+            <Briefcase className="w-5 h-5 text-slate-800 dark:text-slate-100" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-900 dark:text-slate-100 truncate">
+              TOTAL CURRENT PRINCIPALS
+            </p>
+            <p className="text-2xl font-extrabold mt-0.5 text-gray-900 dark:text-slate-100">
+              {totalPrincipalsCount}
+            </p>
+          </div>
+        </Link>
       </div>
+
 
       {/* ── Top Containers Row 2: Overall Program Averages ────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 shrink-0">

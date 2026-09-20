@@ -32,13 +32,23 @@ class GradeSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'student_name', 'tutor_name', 'component_type_display', 'created_at']
 
     def get_student_name(self, obj):
-        return obj.student.get_full_name() if obj.student_id else ''
+        try:
+            return obj.student.get_full_name() if obj.student else ''
+        except Exception:
+            return ''
 
     def get_tutor_name(self, obj):
-        return obj.tutor.get_full_name() if obj.tutor_id else None
+        try:
+            return obj.tutor.get_full_name() if obj.tutor else None
+        except Exception:
+            return None
 
     def get_component_type_display(self, obj):
-        return obj.get_component_type_display()
+        try:
+            return obj.get_component_type_display()
+        except Exception:
+            return getattr(obj, 'component_type', '') or ''
+
 
 
 class AralActivitySerializer(serializers.ModelSerializer):

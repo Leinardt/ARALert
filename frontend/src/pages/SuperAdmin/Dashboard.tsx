@@ -1,211 +1,283 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { userService } from '../../services/userService';
 import type { UserStats } from '../../types';
 import {
-  Users,
-  UserCheck,
-  UserX,
-  Briefcase,
-  GraduationCap,
+  ArrowUpRight,
   Shield,
-  BookOpen,
   Award,
-  LinkIcon,
+  BookOpen,
+  Users,
+  GraduationCap,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
-
-interface StatCardProps {
-  label: string;
-  value: number | string;
-  subtitle?: string;
-  icon: React.ReactNode;
-  accentBg: string;
-  accentBorder: string;
-  delay?: number;
-}
-
-const StatCard: React.FC<StatCardProps> = ({
-  label,
-  value,
-  subtitle,
-  icon,
-  accentBg,
-  accentBorder,
-  delay = 0,
-}) => (
-  <div
-    className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 flex items-center gap-4 animate-fade-in-up"
-    style={{ animationDelay: `${delay}ms` }}
-  >
-    <div
-      className={`w-11 h-11 rounded-xl ${accentBg} border ${accentBorder} flex items-center justify-center shrink-0`}
-    >
-      {icon}
-    </div>
-    <div className="min-w-0">
-      <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{label}</p>
-      <p className="text-2xl font-extrabold text-gray-900 mt-0.5">{value}</p>
-      {subtitle && <p className="text-xs text-gray-500 mt-0.5 truncate">{subtitle}</p>}
-    </div>
-  </div>
-);
 
 export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const data = await userService.getStats();
-        setStats(data);
-      } catch (err: unknown) {
-        console.error('Failed to load dashboard stats', err);
-        setError('Unable to load dashboard statistics.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const loadStats = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await userService.getStats();
+      setStats(data);
+    } catch (err: unknown) {
+      console.error('Failed to load dashboard stats', err);
+      setError('Unable to load dashboard statistics.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadStats();
   }, []);
-
-  const today = new Date().toLocaleDateString('en-PH', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
 
   const staffTotal = stats
     ? stats.admins + stats.principals + stats.faculty + stats.tutors
     : 0;
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3 animate-fade-in-up">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-gray-400">System Overview</p>
-          <h1 className="mt-0.5 text-2xl font-extrabold text-gray-900">SuperAdmin Dashboard</h1>
-          <p className="text-xs text-gray-500 mt-1">{today}</p>
-        </div>
-        <div className="inline-flex items-center gap-2 rounded-xl bg-indigo-50 border border-indigo-100 px-3.5 py-2 text-sm font-semibold text-indigo-600 shrink-0">
-          <Shield className="w-4 h-4" />
-          System Administrator
-        </div>
-      </div>
+  const activeRate = stats && stats.total_users > 0
+    ? Math.round((stats.active_users / stats.total_users) * 100)
+    : 0;
 
+  const rolesBreakdown = stats
+    ? [
+        { label: 'Administrators', count: stats.admins, icon: Shield, color: 'text-violet-600 dark:text-violet-400' },
+        { label: 'Principals', count: stats.principals, icon: Award, color: 'text-amber-600 dark:text-amber-400' },
+        { label: 'Faculty Members', count: stats.faculty, icon: BookOpen, color: 'text-blue-600 dark:text-blue-400' },
+        { label: 'Tutors', count: stats.tutors, icon: Users, color: 'text-indigo-600 dark:text-indigo-400' },
+        { label: 'Students', count: stats.students, icon: GraduationCap, color: 'text-emerald-600 dark:text-emerald-400' },
+      ]
+    : [];
+
+  return (
+    <div className="space-y-4">
+      {/* ── Loading State ─────────────────────────────────────────────────── */}
       {isLoading ? (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex items-center justify-center py-20">
-          <div className="flex flex-col items-center gap-3 text-gray-400">
-            <div className="w-10 h-10 border-4 border-[var(--brand)] border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm font-semibold text-gray-600">Loading statistics…</p>
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c111c] p-12 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3 text-slate-400 dark:text-slate-500">
+            <div className="w-7 h-7 border-2 border-[var(--brand)] border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Loading platform overview…</p>
           </div>
         </div>
       ) : error ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-rose-700 shadow-sm">
-          <p className="text-sm font-bold">{error}</p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="mt-3 px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition"
-          >
-            Retry
-          </button>
+        <div className="rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/20 p-4 flex items-start gap-3 text-rose-800 dark:text-rose-200">
+          <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-rose-900 dark:text-rose-200">Failed to load statistics</p>
+            <p className="text-xs text-rose-700 dark:text-rose-300 mt-0.5">{error}</p>
+            <button
+              type="button"
+              onClick={loadStats}
+              className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-md border border-rose-300 dark:border-rose-800 bg-white dark:bg-rose-900/40 text-rose-700 dark:text-rose-200 text-xs font-medium hover:bg-rose-100/60 dark:hover:bg-rose-900/60 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Retry
+            </button>
+          </div>
         </div>
       ) : stats ? (
         <>
-          {/* Primary Stats — Top row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <StatCard
-              label="Total Users"
-              value={stats.total_users}
-              subtitle={`Active: ${stats.active_users} · Inactive: ${stats.inactive_users}`}
-              icon={<Users className="w-5 h-5 text-indigo-500" />}
-              accentBg="bg-indigo-50"
-              accentBorder="border-indigo-100"
-              delay={50}
-            />
-            <StatCard
-              label="Active Users"
-              value={stats.active_users}
-              subtitle="Currently active accounts"
-              icon={<UserCheck className="w-5 h-5 text-emerald-500" />}
-              accentBg="bg-emerald-50"
-              accentBorder="border-emerald-100"
-              delay={100}
-            />
-            <StatCard
-              label="Total Staff"
-              value={staffTotal}
-              subtitle={`Admins ${stats.admins} · Principals ${stats.principals}`}
-              icon={<Briefcase className="w-5 h-5 text-amber-600" />}
-              accentBg="bg-amber-50"
-              accentBorder="border-amber-100"
-              delay={150}
-            />
-            <StatCard
-              label="Students"
-              value={stats.students}
-              subtitle={`Assigned: ${stats.assigned_students} · Unassigned: ${stats.unassigned_students}`}
-              icon={<GraduationCap className="w-5 h-5 text-indigo-500" />}
-              accentBg="bg-indigo-50"
-              accentBorder="border-indigo-100"
-              delay={200}
-            />
+          {/* ── 1 + 3 Tile Layout (Compact & Balanced) ────────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
+            {/* ── Primary Tile — System Overview (Compact, 42% width) ──────── */}
+            <div className="lg:col-span-5 rounded-lg border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#0c111c] p-4 flex flex-col justify-between transition-colors">
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    System Overview
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    Active
+                  </span>
+                </div>
+
+                <div className="my-2.5">
+                  <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Total Registered Users
+                  </p>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <span className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                      {stats.total_users.toLocaleString()}
+                    </span>
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      ({activeRate}% active)
+                    </span>
+                  </div>
+                  {/* Micro active indicator bar */}
+                  <div className="mt-2 h-1 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex">
+                    <div className="bg-[var(--brand)]" style={{ width: `${activeRate}%` }} />
+                    <div className="bg-slate-300 dark:bg-slate-700" style={{ width: `${100 - activeRate}%` }} />
+                  </div>
+                  <div className="flex items-center justify-between mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                    <span>{stats.active_users.toLocaleString()} active</span>
+                    <span>{stats.inactive_users.toLocaleString()} inactive</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                <span>
+                  Staff: <strong className="font-semibold text-slate-800 dark:text-slate-200">{staffTotal}</strong>
+                  <span className="mx-1.5 text-slate-300 dark:text-slate-700">•</span>
+                  Students: <strong className="font-semibold text-slate-800 dark:text-slate-200">{stats.students}</strong>
+                </span>
+                <Link
+                  to="/superadmin/users"
+                  className="inline-flex items-center gap-0.5 font-semibold text-[var(--brand)] hover:underline"
+                >
+                  <span>Directory</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </Link>
+              </div>
+            </div>
+
+            {/* ── 3 Secondary Tiles (58% width, stacked compactly) ────────── */}
+            <div className="lg:col-span-7 flex flex-col gap-2 justify-between">
+              {/* Secondary 1 — User Management */}
+              <div className="rounded-lg border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#0c111c] p-2.5 sm:p-3 flex items-center justify-between gap-3 transition-colors">
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    User Management
+                  </span>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                    <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+                      {stats.total_users.toLocaleString()}
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Total Users</span>
+                    <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      <strong className="font-semibold text-slate-700 dark:text-slate-300">{stats.inactive_users.toLocaleString()}</strong> pending / inactive
+                    </span>
+                  </div>
+                </div>
+                <Link
+                  to="/superadmin/users"
+                  className="text-xs font-semibold text-[var(--brand)] hover:underline inline-flex items-center gap-1 shrink-0"
+                >
+                  <span>Manage Users</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              {/* Secondary 2 — Organizations */}
+              <div className="rounded-lg border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#0c111c] p-2.5 sm:p-3 flex items-center justify-between gap-3 transition-colors">
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Organizations
+                  </span>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                    <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+                      1
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Active Organization</span>
+                    <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      ARAL Intervention Program
+                    </span>
+                  </div>
+                </div>
+                <Link
+                  to="/superadmin/users"
+                  className="text-xs font-semibold text-[var(--brand)] hover:underline inline-flex items-center gap-1 shrink-0"
+                >
+                  <span>Manage</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              {/* Secondary 3 — System Settings */}
+              <div className="rounded-lg border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#0c111c] p-2.5 sm:p-3 flex items-center justify-between gap-3 transition-colors">
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    System Settings
+                  </span>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                    <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+                      5
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Configured Roles</span>
+                    <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      RBAC, MFA & Audit
+                    </span>
+                  </div>
+                </div>
+                <Link
+                  to="/superadmin/audit-logs"
+                  className="text-xs font-semibold text-[var(--brand)] hover:underline inline-flex items-center gap-1 shrink-0"
+                >
+                  <span>Security & Audit</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </Link>
+              </div>
+            </div>
           </div>
 
-          {/* Role Breakdown — Second row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <StatCard
-              label="Admins"
-              value={stats.admins}
-              icon={<Shield className="w-5 h-5 text-violet-600" />}
-              accentBg="bg-violet-50"
-              accentBorder="border-indigo-100"
-              delay={250}
-            />
-            <StatCard
-              label="Principals"
-              value={stats.principals}
-              icon={<Award className="w-5 h-5 text-amber-600" />}
-              accentBg="bg-amber-50"
-              accentBorder="border-amber-100"
-              delay={300}
-            />
-            <StatCard
-              label="Faculty"
-              value={stats.faculty}
-              icon={<BookOpen className="w-5 h-5 text-violet-600" />}
-              accentBg="bg-violet-50"
-              accentBorder="border-violet-100"
-              delay={350}
-            />
-            <StatCard
-              label="Tutors"
-              value={stats.tutors}
-              icon={<Users className="w-5 h-5 text-indigo-500" />}
-              accentBg="bg-indigo-50"
-              accentBorder="border-indigo-100"
-              delay={400}
-            />
-          </div>
+          {/* ── Compact Account Distribution (Clean, Hairline-Divided) ───────── */}
+          <section className="rounded-lg border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#0c111c] p-4 transition-colors">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Account Distribution by Role
+                </h2>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                  Breakdown across registered access tiers
+                </p>
+              </div>
+              <Link
+                to="/superadmin/users"
+                className="text-xs font-semibold text-[var(--brand)] hover:underline inline-flex items-center gap-1"
+              >
+                <span>View All Accounts</span>
+                <ArrowUpRight className="w-3 h-3" />
+              </Link>
+            </div>
 
-          {/* Summary footer */}
-          <div
-            className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-center gap-3 text-sm text-gray-600 animate-fade-in-up"
-            style={{ animationDelay: '450ms' }}
-          >
-            <LinkIcon className="w-4 h-4 text-[var(--brand)]" />
-            <span>
-              <span className="font-semibold text-gray-900">{stats.assigned_students}</span> students assigned to tutors
-              <span className="mx-2 text-gray-300">·</span>
-              <span className="font-semibold text-gray-900">{stats.unassigned_students}</span> unassigned
-              <span className="mx-2 text-gray-300">·</span>
-              <span className="font-semibold text-gray-900">{stats.inactive_users}</span> inactive accounts
-            </span>
-          </div>
+            <div className="divide-y divide-slate-100 dark:divide-slate-800/70">
+              {rolesBreakdown.map((role) => {
+                const percentage = stats.total_users > 0
+                  ? Math.round((role.count / stats.total_users) * 100)
+                  : 0;
+                const IconComponent = role.icon;
+
+                return (
+                  <div
+                    key={role.label}
+                    className="py-2.5 flex items-center justify-between gap-4 text-xs hover:bg-slate-50/50 dark:hover:bg-slate-800/30 px-1 rounded transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <IconComponent className={`w-3.5 h-3.5 shrink-0 ${role.color}`} />
+                      <span className="font-medium text-slate-800 dark:text-slate-200 truncate">
+                        {role.label}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-4 shrink-0">
+                      <div className="w-24 hidden sm:block">
+                        <div className="h-1 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                          <div
+                            className="h-full bg-slate-400 dark:bg-slate-600 rounded-full"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 w-10 text-right">
+                        {percentage}%
+                      </span>
+                      <span className="font-semibold text-slate-900 dark:text-white min-w-[2.5rem] text-right">
+                        {role.count.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
         </>
       ) : null}
     </div>

@@ -163,12 +163,12 @@ export const Login: React.FC = () => {
   return (
     <div
       style={{
-        minHeight: 'calc(100vh - 64px)',
+        minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '64px 20px 96px',
+        padding: '100px 20px 80px',
         boxSizing: 'border-box',
       }}
     >

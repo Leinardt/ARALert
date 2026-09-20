@@ -103,6 +103,9 @@ export const AppRouter: React.FC = () => {
           <Route path="/admin/faculty" element={<UserList />} />
           <Route path="/admin/faculty/create" element={<CreateUser />} />
           <Route path="/admin/faculty/edit/:id" element={<EditUser />} />
+          <Route path="/admin/principals" element={<UserList />} />
+          <Route path="/admin/principals/create" element={<CreateUser />} />
+          <Route path="/admin/principals/edit/:id" element={<EditUser />} />
           <Route path="/admin/attendance" element={<AdminAttendanceQR />} />
           <Route path="/admin/audit-logs" element={<AuditLog />} />
           <Route path="/admin/profile" element={<Profile />} />

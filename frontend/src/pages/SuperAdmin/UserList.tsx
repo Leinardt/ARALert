@@ -40,7 +40,7 @@ const getSubjectBadge = (subject?: string | null) => {
   return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800">{subject}</span>;
 };
 
-type AccountTab = 'student' | 'tutor' | 'faculty';
+type AccountTab = 'student' | 'tutor' | 'faculty' | 'principal';
 
 export const UserList: React.FC = () => {
   const { user: currentUser } = useAuth();
@@ -51,6 +51,7 @@ export const UserList: React.FC = () => {
   const initialTab = useMemo<AccountTab>(() => {
     if (location.pathname.includes('/tutors')) return 'tutor';
     if (location.pathname.includes('/faculty')) return 'faculty';
+    if (location.pathname.includes('/principals')) return 'principal';
     return 'student';
   }, [location.pathname]);
 
@@ -87,6 +88,8 @@ export const UserList: React.FC = () => {
       setActiveTab('tutor');
     } else if (location.pathname.includes('/faculty') && activeTab !== 'faculty') {
       setActiveTab('faculty');
+    } else if (location.pathname.includes('/principals') && activeTab !== 'principal') {
+      setActiveTab('principal');
     } else if (location.pathname.includes('/students') && activeTab !== 'student') {
       setActiveTab('student');
     }
@@ -102,7 +105,11 @@ export const UserList: React.FC = () => {
     setSelectedIds([]);
 
     if (location.pathname.startsWith('/admin/')) {
-      const targetPath = newTab === 'student' ? '/admin/students' : newTab === 'tutor' ? '/admin/tutors' : '/admin/faculty';
+      const targetPath =
+        newTab === 'student' ? '/admin/students' :
+        newTab === 'tutor' ? '/admin/tutors' :
+        newTab === 'principal' ? '/admin/principals' :
+        '/admin/faculty';
       navigate(targetPath, { replace: true });
     }
   };
@@ -269,18 +276,21 @@ export const UserList: React.FC = () => {
     }
     if (activeTab === 'student') return '/admin/students/create?role=student';
     if (activeTab === 'tutor') return '/admin/tutors/create?role=tutor';
+    if (activeTab === 'principal') return '/admin/principals/create?role=principal';
     return '/admin/faculty/create?role=faculty';
   };
 
   const getCreateLabel = () => {
     if (activeTab === 'student') return 'Enroll Student';
     if (activeTab === 'tutor') return 'Add Tutor';
+    if (activeTab === 'principal') return 'Add Principal';
     return 'Add Faculty';
   };
 
   const getSearchPlaceholder = () => {
     if (activeTab === 'student') return 'Search Student Name, LRN...';
     if (activeTab === 'tutor') return 'Search Tutor Name, Email...';
+    if (activeTab === 'principal') return 'Search Principal Name, Email...';
     return 'Search Faculty Name, Email...';
   };
 
@@ -296,6 +306,7 @@ export const UserList: React.FC = () => {
           ['student', 'STUDENTS'],
           ['tutor', 'TUTORS'],
           ['faculty', 'FACULTY'],
+          ['principal', 'PRINCIPALS'],
         ] as const).map(([tabRole, label]) => (
           <button
             key={tabRole}
@@ -325,7 +336,9 @@ export const UserList: React.FC = () => {
                 ? 'STUDENTS DIRECTORY'
                 : activeTab === 'tutor'
                   ? 'TUTORS DIRECTORY'
-                  : 'FACULTY DIRECTORY'}
+                  : activeTab === 'principal'
+                    ? 'PRINCIPALS DIRECTORY'
+                    : 'FACULTY DIRECTORY'}
             </h3>
             <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
               {totalCount} Registered Account{totalCount !== 1 ? 's' : ''}

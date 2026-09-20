@@ -115,7 +115,7 @@ export const DashboardLayout: React.FC = () => {
     const p = location.pathname;
     if (p.includes('/audit-logs')) return 'Audit Log';
     if (p.includes('/superadmin/users')) return 'User Management';
-    if (p.includes('/admin/students') || p.includes('/admin/tutors') || p.includes('/admin/faculty') || p.includes('/admin/users')) return 'User Management';
+    if (p.includes('/admin/students') || p.includes('/admin/tutors') || p.includes('/admin/faculty') || p.includes('/admin/principals') || p.includes('/admin/users')) return 'User Management';
     if (p.includes('/tutor/students')) return 'Assigned Students';
     if (p.includes('/student/attendance')) return 'QR Attendance';
     if (p.includes('/staff/scan')) return user?.role === 'student' ? 'Scan Attendance QR' : 'DTR Log';
@@ -457,14 +457,14 @@ export const DashboardLayout: React.FC = () => {
               </Link>
               <Link
                 to="/admin/students"
-                className={navLinkClass(isActivePrefix('/admin/students') || isActivePrefix('/admin/tutors') || isActivePrefix('/admin/faculty') || isActivePrefix('/admin/users'))}
+                className={navLinkClass(isActivePrefix('/admin/students') || isActivePrefix('/admin/tutors') || isActivePrefix('/admin/faculty') || isActivePrefix('/admin/principals') || isActivePrefix('/admin/users'))}
               >
                 <AssetSidebarIcon
                   darkSrc={studentsDarkDefault}
                   darkActiveSrc={studentsDarkActive}
                   lightSrc={studentsLightDefault}
                   lightActiveSrc={studentsLightActive}
-                  active={isActivePrefix('/admin/students') || isActivePrefix('/admin/tutors') || isActivePrefix('/admin/faculty') || isActivePrefix('/admin/users')}
+                  active={isActivePrefix('/admin/students') || isActivePrefix('/admin/tutors') || isActivePrefix('/admin/faculty') || isActivePrefix('/admin/principals') || isActivePrefix('/admin/users')}
                   alt="User Management"
                   size={18}
                   theme={theme}

@@ -667,9 +667,26 @@ class ApiGrade(models.Model):
     class Meta:
         db_table = 'api_grade'
         managed  = False
+        ordering = ['-date_logged', '-id']
 
     def __str__(self):
         return f'{self.student} – {self.subject} Q{self.quarter}: {self.score}'
+
+
+# Ensure unmanaged api_grade table has created_at column if missing (e.g. SQLite legacy DB)
+try:
+    from django.db import connection
+    if 'api_grade' in connection.introspection.table_names():
+        with connection.cursor() as _cur:
+            if connection.vendor == 'sqlite':
+                _cur.execute("PRAGMA table_info(api_grade)")
+                _cols = [row[1] for row in _cur.fetchall()]
+                if _cols and 'created_at' not in _cols:
+                    _cur.execute("ALTER TABLE api_grade ADD COLUMN created_at datetime")
+                    _cur.execute("UPDATE api_grade SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
+except Exception:
+    pass
+
 
 
 class ApiAralActivity(models.Model):

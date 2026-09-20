@@ -115,6 +115,17 @@ export const Landing: React.FC = () => {
     return () => clearInterval(timer);
   }, [currentImageIndex]);
 
+  // Handle hash scrolling when arriving from other pages
+  useEffect(() => {
+    if (window.location.hash) {
+      const id = window.location.hash.replace('#', '');
+      const el = document.getElementById(id);
+      if (el) {
+        setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 120);
+      }
+    }
+  }, []);
+
   return (
     <div className="relative min-h-screen bg-white dark:bg-black text-slate-900 dark:text-white transition-colors duration-200">
       {/* ═══════════════════════════════════════════════════════════════
@@ -189,32 +200,7 @@ export const Landing: React.FC = () => {
                 </a>
               </div>
 
-              {/* Quick Metrics Ribbon */}
-              <div className="pt-5 sm:pt-6 border-t border-slate-200 dark:border-neutral-800 grid grid-cols-3 gap-2 sm:gap-4 w-full max-w-lg mx-auto">
-                <div className="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50/80 dark:bg-neutral-900/70 border border-slate-200/80 dark:border-neutral-800 shadow-xs flex flex-col items-center justify-center text-center">
-                  <div className="flex items-center justify-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#0052B7] dark:text-blue-400 shrink-0" />
-                    <span className="truncate">Risk Alerts</span>
-                  </div>
-                  <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm lg:text-base font-extrabold text-slate-900 dark:text-white">Automated</p>
-                </div>
-
-                <div className="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50/80 dark:bg-neutral-900/70 border border-slate-200/80 dark:border-neutral-800 shadow-xs flex flex-col items-center justify-center text-center">
-                  <div className="flex items-center justify-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    <QrCode className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#0052B7] dark:text-blue-400 shrink-0" />
-                    <span className="truncate">Attendance</span>
-                  </div>
-                  <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm lg:text-base font-extrabold text-slate-900 dark:text-white">QR Check-In</p>
-                </div>
-
-                <div className="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50/80 dark:bg-neutral-900/70 border border-slate-200/80 dark:border-neutral-800 shadow-xs flex flex-col items-center justify-center text-center">
-                  <div className="flex items-center justify-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    <Award className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
-                    <span className="truncate">Evaluation</span>
-                  </div>
-                  <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm lg:text-base font-extrabold text-slate-900 dark:text-white">DepEd Metrics</p>
-                </div>
-              </div>
+              
             </div>
           </div>
         </div>
