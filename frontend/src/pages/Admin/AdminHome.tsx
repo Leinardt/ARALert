@@ -621,50 +621,58 @@ export const AdminHome: React.FC = () => {
     return 0;
   }, [overallAttendanceRate, overallAvgScore]);
 
+  // ── Status Border Helpers (Border-primary with subtle glass background) ──────
+  const getScoreBorderBadge = (score: number) => {
+    if (score >= 80) {
+      return 'border border-emerald-500/70 dark:border-emerald-400/80 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+    }
+    if (score >= 75) {
+      return 'border border-amber-500/70 dark:border-amber-400/80 bg-amber-500/10 text-amber-700 dark:text-amber-300';
+    }
+    return 'border border-rose-500/70 dark:border-rose-400/80 bg-rose-500/10 text-rose-700 dark:text-rose-300';
+  };
+
+  const getTrendBadge = (dir: 'up' | 'down' | 'stable') => {
+    if (dir === 'up') {
+      return {
+        text: 'Improving',
+        className: 'border border-emerald-500/70 dark:border-emerald-400/80 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+      };
+    }
+    if (dir === 'down') {
+      return {
+        text: 'Declining',
+        className: 'border border-rose-500/70 dark:border-rose-400/80 bg-rose-500/10 text-rose-700 dark:text-rose-300',
+      };
+    }
+    return {
+      text: 'Stable',
+      className: 'border border-slate-300 dark:border-zinc-700 bg-slate-100/60 dark:bg-zinc-800/60 text-slate-700 dark:text-slate-300',
+    };
+  };
+
+  const trendBadge = getTrendBadge(trendDir);
+
   // ─── Loading Skeleton ────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3 shrink-0 skeleton-container">
-        {/* Count tiles skeleton - Row 1 */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3.5 animate-pulse">
-              <div className="h-2 w-20 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
-              <div className="h-7 w-12 rounded bg-gray-200 dark:bg-gray-800" />
-            </div>
-          ))}
+        {/* Unified Top Bar Skeleton */}
+        <div className="rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 shrink-0 animate-pulse">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="h-2 w-16 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-6 w-12 rounded bg-gray-200 dark:bg-gray-800" />
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* KPI tiles skeleton - Row 2 */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3.5 animate-pulse">
-              <div className="h-2 w-28 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
-              <div className="h-7 w-16 rounded bg-gray-200 dark:bg-gray-800" />
-            </div>
-          ))}
-        </div>
-
-        {/* Chart card skeleton */}
-        <div className="flex-1 min-h-0 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-6 sm:py-5 flex flex-col animate-pulse">
-          <div className="flex items-center justify-between gap-3 shrink-0 pb-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-            <div className="h-4 w-48 sm:w-60 rounded bg-gray-200 dark:bg-gray-800" />
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="h-8 w-36 sm:w-44 rounded-md bg-gray-100 dark:bg-gray-800" />
-              <div className="h-8 w-24 sm:w-28 rounded-md bg-gray-100 dark:bg-gray-800" />
-            </div>
-          </div>
-          <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3.5 sm:mt-4">
-            <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-sm" />
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 shrink-0">
-              {[1, 2, 3, 4].map((j) => (
-                <div key={j} className="bg-gray-50 dark:bg-[#111111] p-2 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
-                  <div className="h-2.5 w-14 rounded bg-gray-200 dark:bg-gray-800 mx-auto" />
-                  <div className="h-5 w-16 rounded bg-gray-200 dark:bg-gray-800 mx-auto mt-1" />
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Chart Skeleton */}
+        <div className="flex-1 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-xl p-4 flex flex-col animate-pulse">
+          <div className="h-5 w-48 rounded bg-gray-200 dark:bg-gray-800 mb-4" />
+          <div className="flex-1 bg-gray-50 dark:bg-[#111111] rounded-lg" />
         </div>
       </div>
     );
@@ -673,7 +681,7 @@ export const AdminHome: React.FC = () => {
   // ─── Error State ─────────────────────────────────────────────────────────────
   if (error) {
     return (
-      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-lg p-4">
+      <div className="flex items-start gap-3 bg-rose-50/50 dark:bg-rose-950/30 border border-rose-300 dark:border-rose-900/60 text-rose-800 dark:text-rose-200 rounded-xl p-4">
         <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-bold">Failed to load admin dashboard</p>
@@ -681,7 +689,7 @@ export const AdminHome: React.FC = () => {
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
+            className="mt-3 px-4 py-1.5 border border-rose-500/70 bg-rose-500/10 text-rose-700 dark:text-rose-300 rounded-lg text-xs font-bold hover:bg-rose-500/20 transition cursor-pointer"
           >
             Retry
           </button>
@@ -692,90 +700,91 @@ export const AdminHome: React.FC = () => {
 
   // ─── Main Render ─────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3 data-loaded-content">
-      {/* ── Row 1: Count Tiles (icon-free, number-first) ───────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
-        <Link
-          to="/admin/students"
-          className="group rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3.5 transition-colors hover:border-[var(--brand)] dark:hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
-        >
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate">Students</p>
-          <p className="text-2xl font-extrabold mt-1 text-gray-900 dark:text-slate-100">{totalStudentsCount}</p>
-        </Link>
+    <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[32rem] gap-3 data-loaded-content">
+      {/* ── Unified Institutional & Operational Health Panel ───────────────── */}
+      <div className="rounded-xl border border-slate-200 dark:border-zinc-800/90 bg-white dark:bg-[#0A0A0A] p-3.5 sm:p-4 shrink-0">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-0 lg:divide-x lg:divide-slate-200/80 dark:lg:divide-zinc-800/80">
+          {/* Institutional Directory Links (7 cols) */}
+          <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0 sm:divide-x sm:divide-slate-200/60 dark:sm:divide-zinc-800/60 lg:pr-4">
+            <Link
+              to="/admin/students"
+              className="group px-3 py-1 sm:first:pl-0 sm:last:pr-0 transition-colors rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-900/60 focus-visible:outline-none"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Students</p>
+              <p className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5 group-hover:text-[var(--brand)] transition-colors">
+                {totalStudentsCount}
+              </p>
+            </Link>
 
-        <Link
-          to="/admin/tutors"
-          className="group rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3.5 transition-colors hover:border-[var(--brand)] dark:hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
-        >
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate">Tutors</p>
-          <p className="text-2xl font-extrabold mt-1 text-gray-900 dark:text-slate-100">{totalTutorsCount}</p>
-        </Link>
+            <Link
+              to="/admin/tutors"
+              className="group px-3 py-1 sm:last:pr-0 transition-colors rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-900/60 focus-visible:outline-none"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Tutors</p>
+              <p className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5 group-hover:text-[var(--brand)] transition-colors">
+                {totalTutorsCount}
+              </p>
+            </Link>
 
-        <Link
-          to="/admin/faculty"
-          className="group rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3.5 transition-colors hover:border-[var(--brand)] dark:hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
-        >
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate">Faculty</p>
-          <p className="text-2xl font-extrabold mt-1 text-gray-900 dark:text-slate-100">{totalFacultyCount}</p>
-        </Link>
+            <Link
+              to="/admin/faculty"
+              className="group px-3 py-1 sm:last:pr-0 transition-colors rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-900/60 focus-visible:outline-none"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Faculty</p>
+              <p className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5 group-hover:text-[var(--brand)] transition-colors">
+                {totalFacultyCount}
+              </p>
+            </Link>
 
-        <Link
-          to="/admin/principals"
-          className="group rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3.5 transition-colors hover:border-[var(--brand)] dark:hover:border-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
-        >
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate">Principals</p>
-          <p className="text-2xl font-extrabold mt-1 text-gray-900 dark:text-slate-100">{totalPrincipalsCount}</p>
-        </Link>
+            <Link
+              to="/admin/principals"
+              className="group px-3 py-1 sm:last:pr-0 transition-colors rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-900/60 focus-visible:outline-none"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Principals</p>
+              <p className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5 group-hover:text-[var(--brand)] transition-colors">
+                {totalPrincipalsCount}
+              </p>
+            </Link>
+          </div>
+
+          {/* Academic Health KPIs (5 cols) */}
+          <div className="lg:col-span-5 grid grid-cols-3 gap-2 sm:gap-0 sm:divide-x sm:divide-slate-200/60 dark:sm:divide-zinc-800/60 lg:pl-4">
+            <div className="px-3 py-1 sm:first:pl-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 truncate" title="Overall Attendance Rate">
+                {tutorFirstName ? `${tutorFirstName}'s Attendance` : 'Attendance'}
+              </p>
+              <p className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5">
+                {!hasAttendanceData ? '—' : `${overallAttendanceRate}%`}
+              </p>
+            </div>
+
+            <div className="px-3 py-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 truncate" title="Average Assessment Score">
+                {tutorFirstName ? `${tutorFirstName}'s Avg` : 'Avg Score'}
+              </p>
+              <p className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5">
+                {!hasScoreData ? '—' : `${overallAvgScore}%`}
+              </p>
+            </div>
+
+            <div className="px-3 py-1 sm:last:pr-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 truncate" title="Overall Composite Rating">
+                Composite
+              </p>
+              <p className="text-xl sm:text-2xl font-extrabold text-[#0052B7] dark:text-blue-400 mt-0.5">
+                {!hasAttendanceData && !hasScoreData ? '—' : `${overallCompositeScore}%`}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* ── Row 2: Performance KPI Tiles (number-first, colored text indicators) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0">
-        {/* Attendance Rate */}
-        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3.5">
-          <p
-            className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate"
-            title={tutorFirstName ? `${tutorFirstName}'s class — Attendance Rate` : 'Overall Attendance Rate'}
-          >
-            {tutorFirstName ? `${tutorFirstName}'s class — Attendance` : 'Attendance Rate'}
-          </p>
-          <p className="text-2xl font-extrabold mt-1 text-gray-900 dark:text-slate-100">
-            {!hasAttendanceData ? '—' : `${overallAttendanceRate}%`}
-          </p>
-        </div>
-
-        {/* Average Score */}
-        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3.5">
-          <p
-            className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate"
-            title={tutorFirstName ? `${tutorFirstName}'s class — Avg Score` : 'Overall Average Score'}
-          >
-            {tutorFirstName ? `${tutorFirstName}'s class — Avg Score` : 'Average Score'}
-          </p>
-          <p className="text-2xl font-extrabold mt-1 text-gray-900 dark:text-slate-100">
-            {!hasScoreData ? '—' : `${overallAvgScore}%`}
-          </p>
-        </div>
-
-        {/* Composite Score */}
-        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3.5">
-          <p
-            className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate"
-            title={tutorFirstName ? `${tutorFirstName}'s class — Composite` : 'Overall Composite Score'}
-          >
-            {tutorFirstName ? `${tutorFirstName}'s class — Composite` : 'Composite Score'}
-          </p>
-          <p className="text-2xl font-extrabold mt-1 text-gray-900 dark:text-slate-100">
-            {!hasAttendanceData && !hasScoreData ? '—' : `${overallCompositeScore}%`}
-          </p>
-        </div>
-      </div>
-
-      {/* ── ARAL Program Performance Trend Chart ──────────────────── */}
-      <div className="flex-1 min-h-0 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-6 sm:py-5 flex flex-col">
-        {/* Header Controls (Responsive) */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shrink-0 pb-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+      {/* ── ARAL Performance Trend Chart (Full Width) ───────────────────── */}
+      <div className="flex-1 flex flex-col bg-white dark:bg-[#0A0A0A] border border-slate-200 dark:border-zinc-800/90 rounded-xl p-4 min-h-[380px] lg:min-h-0">
+        {/* Header Controls */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shrink-0 pb-3 border-b border-slate-100 dark:border-zinc-800/80 min-w-0">
           <div className="min-w-0 flex-shrink">
-            <h3 className="truncate text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">
+            <h3 className="truncate text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight">
               {selectedTutorObj
                 ? `${selectedTutorObj.full_name.toUpperCase()}'S CLASS PERFORMANCE TREND`
                 : 'ARAL PROGRAM PERFORMANCE TREND CHART'}
@@ -783,8 +792,8 @@ export const AdminHome: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 shrink-0 w-full sm:w-auto justify-between sm:justify-end">
-            {/* Legend */}
-            <div className="hidden lg:flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 whitespace-nowrap">
+            {/* Legend Indicator */}
+            <div className="hidden xl:flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">
               <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block" />
               <span>Composite rating</span>
             </div>
@@ -796,7 +805,7 @@ export const AdminHome: React.FC = () => {
                 value={selectedTutorId}
                 onChange={(e) => setSelectedTutorId(e.target.value)}
                 style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
-                className="h-8 px-3 pr-7 rounded-md text-xs font-bold bg-gray-50 border border-gray-200 text-gray-800 cursor-pointer outline-none transition focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] dark:bg-[#111111] dark:border-[#222222] dark:text-slate-200 max-w-[150px] xs:max-w-[200px] sm:max-w-[250px] md:max-w-[340px] truncate"
+                className="h-8 px-3 pr-7 rounded-lg text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-800 cursor-pointer outline-none transition focus:border-[var(--brand)] dark:bg-zinc-900 dark:border-zinc-800 dark:text-slate-200 max-w-[150px] xs:max-w-[200px] sm:max-w-[250px] md:max-w-[320px] truncate"
               >
                 <option value="all" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                   ALL TUTORS
@@ -820,16 +829,16 @@ export const AdminHome: React.FC = () => {
               </select>
             </div>
 
-            {/* Granularity Filter (Day / Week / Month) */}
-            <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0">
+            {/* Granularity Filter Tabs (Border-only active state, no solid fills) */}
+            <div className="flex bg-slate-100 dark:bg-zinc-900 rounded-lg p-0.5 gap-1 shrink-0 border border-slate-200/60 dark:border-zinc-800/80">
               {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                 <button
                   key={filter}
                   type="button"
                   onClick={() => setTrendFilter(filter)}
-                  className={`rounded-sm px-2.5 sm:px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${trendFilter === filter
-                    ? 'bg-[var(--brand)] text-white'
-                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                  className={`rounded-md px-2.5 sm:px-3 py-1 text-[11px] font-semibold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${trendFilter === filter
+                    ? 'border border-[#0052B7] dark:border-blue-400 bg-[#0052B7]/10 dark:bg-blue-500/15 text-[#0052B7] dark:text-blue-300 shadow-xs'
+                    : 'border border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                 >
                   {filter}
@@ -839,55 +848,70 @@ export const AdminHome: React.FC = () => {
           </div>
         </div>
 
-        {/* Chart Canvas & Metric Cards */}
-        <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3.5 sm:mt-4">
-          <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-sm px-4 py-2 sm:px-6 sm:py-2.5">
+        {/* Chart Canvas */}
+        <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3">
+          <div className="relative flex-1 min-h-[220px] w-full bg-slate-50/50 dark:bg-[#0e0e0e] border border-slate-100 dark:border-zinc-800/60 rounded-lg px-4 py-2 sm:px-6 sm:py-2.5">
             {chartTrendData.length > 0 ? (
               <InteractiveAdminPerformanceChart data={chartTrendData} />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 select-none">
-                <BarChart2 className="w-8 h-8 text-gray-200 dark:text-gray-700" />
-                <p className="text-xs font-semibold text-gray-400 dark:text-slate-500">
+                <BarChart2 className="w-8 h-8 text-slate-300 dark:text-zinc-700" />
+                <p className="text-xs font-semibold text-slate-400 dark:text-zinc-500">
                   No student assessment records found for this selection
                 </p>
-                <p className="text-[11px] text-gray-300 dark:text-slate-600">
+                <p className="text-[11px] text-slate-400 dark:text-zinc-600">
                   Data will appear once scores are logged by tutors for their classes
                 </p>
               </div>
             )}
           </div>
 
-          {/* Quick Metrics Bar below chart */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 shrink-0">
-            <div className="bg-gray-50 dark:bg-[#111111] p-2.5 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
-              <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">Highest</p>
-              <p className={`text-lg font-extrabold mt-0.5 ${chartTrendData.length === 0 ? 'text-gray-400 dark:text-slate-500' : highestScore >= 81 ? 'text-risk-low' : highestScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
-                {chartTrendData.length === 0 ? '—' : `${highestScore}%`}
-              </p>
-            </div>
-            <div className="bg-gray-50 dark:bg-[#111111] p-2.5 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
-              <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">Lowest</p>
-              <p className={`text-lg font-extrabold mt-0.5 ${chartTrendData.length === 0 ? 'text-gray-400 dark:text-slate-500' : lowestScore >= 81 ? 'text-risk-low' : lowestScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
-                {chartTrendData.length === 0 ? '—' : `${lowestScore}%`}
-              </p>
-            </div>
-            <div className="bg-gray-50 dark:bg-[#111111] p-2.5 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
-              <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">Trend</p>
-              <div className="mt-0.5">
+          {/* Integrated Chart Summary Footer */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0 sm:divide-x sm:divide-slate-200/70 dark:sm:divide-zinc-800/80 pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 shrink-0">
+            <div className="px-3 py-0.5 text-center sm:text-left">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Highest Score</p>
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 mt-1">
                 {chartTrendData.length === 0 ? (
-                  <span className="text-lg font-extrabold text-gray-400 dark:text-slate-500">—</span>
-                ) : trendDir === 'up' ? (
-                  <span className="text-lg font-extrabold text-risk-low">Improving</span>
-                ) : trendDir === 'down' ? (
-                  <span className="text-lg font-extrabold text-risk-high">Declining</span>
+                  <span className="text-base font-bold text-slate-400 dark:text-zinc-500">—</span>
                 ) : (
-                  <span className="text-lg font-extrabold text-gray-500 dark:text-slate-400">Stable</span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${getScoreBorderBadge(highestScore)}`}>
+                    {highestScore}%
+                  </span>
                 )}
               </div>
             </div>
-            <div className="bg-gray-50 dark:bg-[#111111] p-2.5 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
-              <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">Learners</p>
-              <p className="text-lg font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">{filteredStudents.length}</p>
+
+            <div className="px-3 py-0.5 text-center sm:text-left">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Lowest Score</p>
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 mt-1">
+                {chartTrendData.length === 0 ? (
+                  <span className="text-base font-bold text-slate-400 dark:text-zinc-500">—</span>
+                ) : (
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${getScoreBorderBadge(lowestScore)}`}>
+                    {lowestScore}%
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="px-3 py-0.5 text-center sm:text-left">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Cohort Trend</p>
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 mt-1">
+                {chartTrendData.length === 0 ? (
+                  <span className="text-base font-bold text-slate-400 dark:text-zinc-500">—</span>
+                ) : (
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${trendBadge.className}`}>
+                    {trendBadge.text}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="px-3 py-0.5 text-center sm:text-left">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Active Learners</p>
+              <p className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                {filteredStudents.length}
+              </p>
             </div>
           </div>
         </div>

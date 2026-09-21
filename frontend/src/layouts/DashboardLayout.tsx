@@ -6,7 +6,7 @@ import { useTheme } from '../hooks/useTheme';
 import {
   LayoutDashboard, Users, User as UserIcon, UserCheck, LogOut, QrCode, Scan,
   Award, Bell, ChevronDown, Shield, BookOpen, X, FileText, Moon, Sun,
-  PanelLeftClose, Menu,
+  PanelLeftClose, PanelLeftOpen, Menu,
 } from 'lucide-react';
 import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
@@ -171,7 +171,7 @@ export const DashboardLayout: React.FC = () => {
   const isActivePrefix = (prefix: string) => location.pathname.startsWith(prefix);
 
   const navLinkClass = (active: boolean, collapsed: boolean = isSidebarCollapsed) =>
-    `sidebar-item ${active ? 'active' : ''} ${collapsed ? 'justify-center !px-0' : ''}`;
+    `sidebar-item ${active ? 'active' : ''} ${collapsed ? 'justify-center !p-0 w-10 h-10 mx-auto' : ''}`;
 
   const studentNoteStyle = (riskLevel: AcademicRisk['risk_level']) => {
     if (riskLevel === 'high') {
@@ -697,6 +697,7 @@ export const DashboardLayout: React.FC = () => {
       >
         {/* Brand Header */}
         <div
+          className="group/header"
           style={{
             padding: isSidebarCollapsed ? '0 0.5rem' : '0 1rem 0 1.25rem',
             minHeight: '64px',
@@ -710,106 +711,61 @@ export const DashboardLayout: React.FC = () => {
           }}
         >
           {isSidebarCollapsed ? (
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              className="group relative flex items-center justify-center p-2 rounded-lg cursor-pointer transition-all duration-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 active:scale-95 focus:outline-none"
-              title="Click to expand sidebar"
-              aria-label="Click to expand sidebar"
-            >
+            /* Collapsed State: Show the ARALert logo. On hover, expand button smoothly overlays/replaces it in that same position */
+            <div className="relative w-10 h-10 flex items-center justify-center">
+              {/* ARALert logo image (shown when collapsed) */}
               <div
                 id="sidebar-brand-logo"
-                className="transition-transform duration-200 group-hover:scale-110 will-change-transform select-none"
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                className="w-8 h-8 flex items-center justify-center select-none transition-all duration-200 ease-in-out opacity-100 scale-100 group-hover/header:opacity-0 group-hover/header:scale-75 pointer-events-none"
               >
                 <img
                   src="/src/assets/ARALert_Logo_LIGHT.png"
                   alt="ARALert"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'contain',
-                    display: 'block',
-                  }}
+                  className="w-full h-full object-contain block"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 />
               </div>
-            </button>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <Link
-                to={user?.is_superuser ? '/superadmin' : user?.role ? `/${user.role}` : '/'}
-                className="group"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  textDecoration: 'none',
-                  minWidth: 0,
-                }}
-                title="ARALert"
-              >
-                <div
-                  id="sidebar-brand-logo"
-                  className="transition-transform duration-300 ease-out group-hover:-translate-y-0.5 group-hover:scale-105 will-change-transform select-none"
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    flexShrink: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transformOrigin: 'center center',
-                    backfaceVisibility: 'hidden',
-                    WebkitBackfaceVisibility: 'hidden',
-                    transform: 'translateZ(0)',
-                  }}
-                >
-                  <img
-                    src="/src/assets/ARALert_Logo_LIGHT.png"
-                    alt="ARALert"
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'contain',
-                      display: 'block',
-                      backfaceVisibility: 'hidden',
-                      WebkitBackfaceVisibility: 'hidden',
-                      transform: 'translateZ(0)',
-                    }}
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                  />
-                </div>
-                <div
-                  id="sidebar-brand-text"
-                  className="will-change-transform select-none"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                >
-                  <div
-                    style={{
-                      fontFamily: 'var(--font-heading)',
-                      fontWeight: 700,
-                      fontSize: '1.1rem',
-                      color: 'var(--brand)',
-                      letterSpacing: '-0.02em',
-                      lineHeight: 1.1,
-                    }}
-                  >
-                    ARALert
-                  </div>
-                </div>
-              </Link>
 
+              {/* Expand sidebar button (smoothly replaces logo on hover in original position) */}
               <button
                 type="button"
                 onClick={toggleSidebar}
-                className="p-1.5 rounded-md border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0"
+                className="absolute inset-0 flex items-center justify-center rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 text-slate-600 hover:text-[var(--brand)] dark:text-slate-300 dark:hover:text-blue-400 shadow-xs transition-all duration-200 ease-in-out opacity-0 scale-75 group-hover/header:opacity-100 group-hover/header:scale-100 cursor-pointer focus:outline-none focus:opacity-100 focus:scale-100"
+                title="Expand sidebar"
+                aria-label="Expand sidebar"
+              >
+                <PanelLeftOpen size={18} strokeWidth={2.1} />
+              </button>
+            </div>
+          ) : (
+            /* Expanded State: Show only the word ARALert (no logo); collapse button on the right in its original position, smoothly revealed on hover */
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <Link
+                to={user?.is_superuser ? '/superadmin' : user?.role ? `/${user.role}` : '/'}
+                className="group/brand flex items-center no-underline min-w-0"
+                title="ARALert"
+              >
+                <div
+                  id="sidebar-brand-text"
+                  style={{
+                    fontFamily: 'var(--font-heading)',
+                    fontWeight: 700,
+                    fontSize: '1.15rem',
+                    color: 'var(--brand)',
+                    letterSpacing: '-0.02em',
+                    lineHeight: 1.1,
+                  }}
+                  className="select-none truncate"
+                >
+                  ARALert
+                </div>
+              </Link>
+
+              {/* Collapse button in original right-side position; smoothly appears on hover without layout shift */}
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="p-1.5 rounded-md border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-opacity duration-200 opacity-0 group-hover/header:opacity-100 focus:opacity-100 cursor-pointer shrink-0"
                 title="Collapse sidebar"
                 aria-label="Collapse sidebar"
               >

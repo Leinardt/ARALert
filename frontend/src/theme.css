@@ -88,11 +88,9 @@
   --shadow-brand: 0 12px 32px -4px color-mix(in srgb, var(--brand) 32%, transparent);
 
   /* ── Derived Sidebar & Navigation Accent States ──────────────────────────── */
-  --sidebar-active-bg: linear-gradient(135deg,
-      color-mix(in srgb, var(--brand) 8%, #FFFFFF) 0%,
-      color-mix(in srgb, var(--brand) 18%, #FFFFFF) 100%);
-  --sidebar-active-border: color-mix(in srgb, var(--brand) 20%, transparent);
-  --sidebar-active-glow: 0 4px 16px -2px color-mix(in srgb, var(--brand) 14%, transparent), inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+  --sidebar-active-bg: rgba(0, 82, 183, 0.08);
+  --sidebar-active-border: rgba(0, 82, 183, 0.35);
+  --sidebar-active-glow: 0 1px 3px rgba(0, 82, 183, 0.08);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -125,12 +123,10 @@
   --risk-high-text:      #F87171;
   --risk-high-badge-bg:  #881337;
 
-  /* Dark mode active sidebar gradient incorporating master brand */
-  --sidebar-active-bg: linear-gradient(135deg,
-      rgba(255, 255, 255, 0.08) 0%,
-      color-mix(in srgb, var(--brand) 30%, transparent) 50%,
-      color-mix(in srgb, var(--brand) 14%, transparent) 100%);
-  --sidebar-active-glow: 0 4px 16px -2px color-mix(in srgb, var(--brand) 30%, transparent), inset 0 1px 0 0 rgba(255, 255, 255, 0.20);
+  /* Dark mode active sidebar solid blue accent and border (NO gradients) */
+  --sidebar-active-bg: rgba(59, 130, 246, 0.14);
+  --sidebar-active-border: rgba(96, 165, 250, 0.60);
+  --sidebar-active-glow: 0 0 10px rgba(59, 130, 246, 0.12);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

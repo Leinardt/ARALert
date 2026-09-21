@@ -114,10 +114,10 @@ export const PublicLayout: React.FC = () => {
             {(!isLoginPage || isAuthenticated) && (
               <Link
                 to={isAuthenticated ? getDashboardLink() : '/login'}
-                className="hidden sm:inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white transition-all duration-150 shadow-xs hover:shadow-md hover:-translate-y-0.5"
+                className="glass-btn group hidden sm:inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl font-semibold text-xs sm:text-sm"
               >
                 <span>{isAuthenticated ? 'Dashboard' : 'Sign In'}</span>
-                <ArrowRight size={14} />
+                <ArrowRight size={14} className="text-slate-500 dark:text-slate-400 group-hover:text-[#0052B7] dark:group-hover:text-blue-300 transition-colors duration-200" />
               </Link>
             )}
 
@@ -126,7 +126,7 @@ export const PublicLayout: React.FC = () => {
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-              className="md:hidden w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-neutral-900/50 backdrop-blur-xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              className="glass-btn md:hidden w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center cursor-pointer"
             >
               {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
@@ -155,10 +155,10 @@ export const PublicLayout: React.FC = () => {
                   <Link
                     to={isAuthenticated ? getDashboardLink() : '/login'}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white shadow-xs"
+                    className="glass-btn group w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm"
                   >
                     <span>{isAuthenticated ? 'Go to Dashboard' : 'Sign In to Portal'}</span>
-                    <ArrowRight size={15} />
+                    <ArrowRight size={15} className="text-slate-500 dark:text-slate-400 group-hover:text-[#0052B7] dark:group-hover:text-blue-300 transition-colors duration-200" />
                   </Link>
                 </div>
               )}

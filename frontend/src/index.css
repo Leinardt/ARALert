@@ -29,6 +29,172 @@ html, body {
   max-width: 100vw;
 }
 
+/* ── Scroll-triggered Entrance Animations (Replay on Revisit) ── */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+  will-change: opacity, transform;
+}
+
+.scroll-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.scroll-reveal.revealed.scroll-delay-100 {
+  transition-delay: 100ms;
+}
+
+.scroll-reveal.revealed.scroll-delay-200 {
+  transition-delay: 200ms;
+}
+
+.scroll-reveal.revealed.scroll-delay-300 {
+  transition-delay: 300ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Glassmorphism Interactive Buttons & Border Hover Effects
+   ═══════════════════════════════════════════════════════════════ */
+.glass-btn {
+  background-color: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-btn:hover {
+  border-color: #0052B7;
+  color: #0052B7;
+  transform: translateY(-1.5px);
+  box-shadow: 0 2px 8px rgba(0, 82, 183, 0.12);
+}
+
+.glass-btn:focus-visible {
+  outline: none;
+  border-color: #0052B7;
+  box-shadow: 0 0 0 3px rgba(0, 82, 183, 0.2);
+}
+
+.glass-btn:active {
+  transform: translateY(0);
+  border-color: #004294;
+}
+
+/* Glass Card Option Buttons */
+.glass-card-btn {
+  background-color: rgba(248, 250, 252, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-btn:hover {
+  border-color: #0052B7;
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(0, 82, 183, 0.1);
+}
+
+.glass-card-btn:hover .card-title {
+  color: #0052B7;
+}
+
+.glass-card-btn:focus-visible {
+  outline: none;
+  border-color: #0052B7;
+  box-shadow: 0 0 0 3px rgba(0, 82, 183, 0.2);
+}
+
+.glass-card-btn:active {
+  transform: translateY(0);
+  border-color: #004294;
+}
+
+/* ── Dark Mode States (Visible High-Contrast Blue Border with Subtle Glow) ── */
+.dark .glass-btn,
+:where(.dark, .dark *) .glass-btn {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  box-shadow: none;
+}
+
+.dark .glass-btn:hover,
+:where(.dark, .dark *) .glass-btn:hover {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: #60a5fa !important;
+  color: #93c5fd !important;
+  transform: translateY(-1.5px);
+  box-shadow: 0 0 12px rgba(96, 165, 250, 0.3), inset 0 0 0 1px rgba(96, 165, 250, 0.2) !important;
+}
+
+.dark .glass-btn:focus-visible,
+:where(.dark, .dark *) .glass-btn:focus-visible {
+  outline: none;
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.35), 0 0 10px rgba(96, 165, 250, 0.25) !important;
+}
+
+.dark .glass-btn:active,
+:where(.dark, .dark *) .glass-btn:active {
+  transform: translateY(0);
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 6px rgba(96, 165, 250, 0.2) !important;
+}
+
+.dark .glass-card-btn,
+:where(.dark, .dark *) .glass-card-btn {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+.dark .glass-card-btn:hover,
+:where(.dark, .dark *) .glass-card-btn:hover {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border-color: #60a5fa !important;
+  transform: translateY(-1.5px);
+  box-shadow: 0 0 14px rgba(96, 165, 250, 0.28), inset 0 0 0 1px rgba(96, 165, 250, 0.2) !important;
+}
+
+.dark .glass-card-btn:hover .card-title,
+:where(.dark, .dark *) .glass-card-btn:hover .card-title {
+  color: #93c5fd !important;
+}
+
+.dark .glass-card-btn:focus-visible,
+:where(.dark, .dark *) .glass-card-btn:focus-visible {
+  outline: none;
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.35) !important;
+}
+
+.dark .glass-card-btn:active,
+:where(.dark, .dark *) .glass-card-btn:active {
+  transform: translateY(0);
+  border-color: #3b82f6 !important;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    :root
    ═══════════════════════════════════════════════════════════════ */
@@ -115,7 +281,8 @@ html, body {
   --sidebar-border:     #E2E8F0;
   --sidebar-item:       #475569;
   --sidebar-item-hover: #F1F5F9;
-  --sidebar-active-text: var(--brand);
+  --sidebar-active-border: rgba(0, 82, 183, 0.35);
+  --sidebar-active-text: #0052B7;
   --sidebar-heading:    #94A3B8;
 
   /* ── Glassmorphism ── */
@@ -210,8 +377,8 @@ html, body {
   --sidebar-border:     #1F1F1F;
   --sidebar-item:       #A1A1AA;
   --sidebar-item-hover: #181818;
-  --sidebar-active-border: rgba(255, 255, 255, 0.14);
-  --sidebar-active-text: #FFFFFF;
+  --sidebar-active-border: rgba(96, 165, 250, 0.60);
+  --sidebar-active-text: #93C5FD;
   --sidebar-heading:    #71717A;
 
   --glass-bg:     rgba(0, 0, 0, 0.90);
