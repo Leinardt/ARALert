@@ -124,15 +124,15 @@ const CustomCalendarDropdown: React.FC<{
   return (
     <div
       ref={dropdownRef}
-      className={`${className || 'absolute right-0 top-full mt-2'} z-[60] w-72 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xl select-none text-slate-800`}
+      className={`${className || 'absolute right-0 top-full mt-2'} z-[60] w-72 rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-xl select-none text-slate-800 dark:text-slate-100`}
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
-      <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-        <button type="button" onClick={prevMonth} className="rounded-lg p-1.5 hover:bg-slate-100 text-slate-600 transition cursor-pointer" aria-label="Previous Month">
+      <div className="flex items-center justify-between pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <button type="button" onClick={prevMonth} className="rounded-md p-1.5 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] text-slate-600 dark:text-slate-400 transition cursor-pointer" aria-label="Previous Month">
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="font-bold text-xs text-slate-900 tracking-wide">{monthName}</span>
-        <button type="button" onClick={nextMonth} className="rounded-lg p-1.5 hover:bg-slate-100 text-slate-600 transition cursor-pointer" aria-label="Next Month">
+        <span className="font-bold text-xs text-slate-900 dark:text-slate-100 tracking-wide">{monthName}</span>
+        <button type="button" onClick={nextMonth} className="rounded-md p-1.5 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] text-slate-600 dark:text-slate-400 transition cursor-pointer" aria-label="Next Month">
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
@@ -151,14 +151,14 @@ const CustomCalendarDropdown: React.FC<{
               key={cellDateKey}
               type="button"
               onClick={() => { onSelectDate(cellDateKey); onClose(); }}
-              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 isSelected
-                  ? 'bg-[var(--brand)] text-white font-bold shadow-sm'
+                  ? 'bg-[var(--brand)] text-white font-bold'
                   : isToday
                   ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
                   : hasLogs
-                  ? 'bg-slate-100 text-slate-800 font-semibold hover:bg-slate-200'
-                  : 'text-slate-600 hover:bg-slate-100'
+                  ? 'bg-slate-100 dark:bg-[#1A1A1A] text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-200 dark:hover:bg-[#222222]'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1A1A1A]'
               }`}
             >
               <span>{dayNum}</span>
@@ -167,7 +167,7 @@ const CustomCalendarDropdown: React.FC<{
           );
         })}
       </div>
-      <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] font-semibold">
+      <div className="mt-3 flex items-center justify-between pt-2 border-t border-gray-100 dark:border-[#1A1A1A] text-[11px] font-semibold">
         <button type="button" onClick={() => { onSelectDate(todayStr); onClose(); }} className="text-[var(--brand)] hover:underline cursor-pointer">Today</button>
         {selectedDate && (
           <button type="button" onClick={() => { onClear(); onClose(); }} className="text-slate-400 hover:text-red-500 transition cursor-pointer">Clear</button>
@@ -606,7 +606,7 @@ export const StaffAttendanceScanner: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowDtrExportModal(true)}
-            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--brand)] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[var(--brand-dark)] shrink-0"
+            className="inline-flex items-center gap-2 rounded-md bg-[var(--brand)] px-4 py-2 text-sm font-bold text-white transition hover:bg-[var(--brand-dark)] shrink-0 cursor-pointer"
           >
             <Download className="w-4 h-4" />
             Export DTR
@@ -618,8 +618,8 @@ export const StaffAttendanceScanner: React.FC = () => {
       {!isPrincipalMonitor && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Current Date */}
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-2xl p-4 shadow-sm flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/70 flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
+          <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-md bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#222222] flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
               <Calendar className="w-5 h-5" />
             </div>
             <div>
@@ -633,8 +633,8 @@ export const StaffAttendanceScanner: React.FC = () => {
           </div>
 
           {/* Current Time */}
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-2xl p-4 shadow-sm flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/70 flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
+          <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-md bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#222222] flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
               <Clock className="w-5 h-5" />
             </div>
             <div>
@@ -648,8 +648,8 @@ export const StaffAttendanceScanner: React.FC = () => {
           </div>
 
           {/* Today's DTR Status */}
-          <div className="flex items-center gap-3.5 p-4 rounded-2xl border border-gray-200 bg-white dark:bg-[#111111] dark:border-slate-800 shadow-sm">
-            <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-3.5 p-4 rounded-md border border-gray-200 bg-white dark:bg-[#111111] dark:border-[#1A1A1A]">
+            <div className="w-10 h-10 rounded-md bg-slate-100 dark:bg-[#1A1A1A] text-slate-700 dark:text-slate-300 flex items-center justify-center shrink-0">
               <ClipboardCheck className="w-5 h-5" />
             </div>
             <div>
@@ -666,25 +666,23 @@ export const StaffAttendanceScanner: React.FC = () => {
         </div>
       )}
 
-
-
       {/* ── Main Grid ────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
         {/* ── LEFT: Scanner Card ────────────────────────────────── */}
         <div className="lg:col-span-7">
-          <div className="h-full rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="h-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden">
 
             {/* Card Header */}
-            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100">
+            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h2 className="text-base font-bold text-gray-900">SCAN QR CODE</h2>
+                <h2 className="text-base font-bold text-gray-900 dark:text-slate-100">SCAN QR CODE</h2>
               </div>
               {scanResult && (
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border ${
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border ${
                   scanResult.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-rose-50 text-rose-600 border-rose-200'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border-rose-200 dark:border-rose-900'
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${scanResult.type === 'success' ? 'bg-emerald-500' : 'bg-rose-400'}`} />
                   {scanResult.type === 'success' ? 'Logged' : 'Error'}
@@ -696,13 +694,13 @@ export const StaffAttendanceScanner: React.FC = () => {
 
               {/* Scan result banner */}
               {scanResult && (
-                <div className={`w-full flex items-start gap-3 p-4 rounded-2xl border text-left ${
+                <div className={`w-full flex items-start gap-3 p-3.5 rounded-md border text-left ${
                   scanResult.type === 'success'
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : 'bg-rose-50 border-rose-200 text-rose-800'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+                    : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200'
                 }`}>
                   {scanResult.type === 'success' ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                   ) : (
                     <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
                   )}
@@ -717,35 +715,35 @@ export const StaffAttendanceScanner: React.FC = () => {
 
               {/* QR Display / Scanner box */}
               <div className="w-full">
-                <div className="relative flex min-h-[340px] sm:min-h-[380px] w-full items-center justify-center rounded-3xl border-2 border-dashed border-gray-200 bg-gray-50/70 p-6 overflow-hidden">
+                <div className="relative flex min-h-[340px] sm:min-h-[380px] w-full items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-6 overflow-hidden">
 
                   {/* Scan frame corners (when camera active) */}
                   {scanMode === 'camera' && (
                     <>
-                      <span className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-lg z-10" />
-                      <span className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-lg z-10" />
-                      <span className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-lg z-10" />
-                      <span className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-[var(--brand)] rounded-br-lg z-10" />
+                      <span className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-xs z-10" />
+                      <span className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-xs z-10" />
+                      <span className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-xs z-10" />
+                      <span className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-[var(--brand)] rounded-br-xs z-10" />
                     </>
                   )}
 
                   {scanMode === 'camera' ? (
                     <div className="w-full max-w-md mx-auto space-y-3">
                       {cameraError ? (
-                        <div className="flex items-start gap-2.5 rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-700">
+                        <div className="flex items-start gap-2.5 rounded-md border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 p-3 text-xs text-red-700 dark:text-red-300">
                           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
                           {cameraError}
                         </div>
                       ) : null}
-                      <div id="staff-qr-reader" className="w-full font-mono text-xs text-white overflow-hidden rounded-2xl" />
+                      <div id="staff-qr-reader" className="w-full font-mono text-xs text-white overflow-hidden rounded-md" />
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-4 py-10">
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl border-2 border-dashed border-gray-200 bg-white flex items-center justify-center shadow-sm">
-                        <Camera className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300 stroke-[1.5]" />
+                      <div className="w-16 h-16 rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] flex items-center justify-center">
+                        <Camera className="w-8 h-8 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
                       </div>
                       <div className="text-center space-y-1">
-                        <p className="text-xs font-medium text-gray-400 max-w-[240px]">
+                        <p className="text-xs font-medium text-gray-400 dark:text-slate-400 max-w-[240px]">
                           Press "Start Camera" to scan QR code here
                         </p>
                       </div>
@@ -758,7 +756,7 @@ export const StaffAttendanceScanner: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => { setScanResult(null); setScanMode('camera'); }}
-                    className="mt-4 w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-3.5 rounded-2xl text-sm font-bold shadow-sm transition-all cursor-pointer"
+                    className="mt-4 w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-3 rounded-md text-sm font-bold transition-all cursor-pointer"
                   >
                     Start Camera
                   </button>
@@ -766,7 +764,7 @@ export const StaffAttendanceScanner: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => { void stopScanner(); setScanMode('none'); }}
-                    className="mt-4 w-full flex items-center justify-center gap-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 py-3.5 rounded-2xl text-sm font-bold transition-all cursor-pointer"
+                    className="mt-4 w-full flex items-center justify-center gap-2 border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#161616] hover:bg-gray-50 dark:hover:bg-[#222222] text-gray-700 dark:text-slate-200 py-3 rounded-md text-sm font-bold transition-all cursor-pointer"
                   >
                     Stop Scanner
                   </button>
@@ -775,10 +773,10 @@ export const StaffAttendanceScanner: React.FC = () => {
 
               {/* Manual Session ID Entry */}
               <div className="w-full">
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50/60 dark:bg-[#161616] p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-base font-bold text-gray-900">MANUAL ENTRY</h3>
+                      <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">MANUAL ENTRY</h3>
                     </div>
                   </div>
                   <form onSubmit={handleManualSubmit} className="space-y-2">
@@ -787,12 +785,12 @@ export const StaffAttendanceScanner: React.FC = () => {
                       placeholder="Enter session ID (e.g. 550e8400-e29b-41d4-a716...)"
                       value={manualCode}
                       onChange={(e) => setManualCode(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] focus:bg-white transition-colors"
+                      className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-xs bg-white dark:bg-[#111111] text-gray-800 dark:text-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] transition-colors"
                     />
                     <button
                       type="submit"
                       disabled={isSubmitting || !manualCode.trim()}
-                      className="w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2 rounded-md text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSubmitting ? (
                         <>
@@ -813,12 +811,12 @@ export const StaffAttendanceScanner: React.FC = () => {
 
         {/* ── RIGHT: Recent Scan Log ────────────────────────────── */}
         <div className="lg:col-span-5">
-          <div className="flex h-full min-h-[480px] flex-col rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="flex h-full min-h-[480px] flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden">
 
             {/* Feed header */}
-            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100">
+            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h3 className="font-bold text-gray-900 text-base uppercase">{tutorFirstName}'S RECENT SCANS</h3>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">{tutorFirstName}'S RECENT SCANS</h3>
               </div>
               <div>
                 <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
@@ -831,10 +829,10 @@ export const StaffAttendanceScanner: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {recentScans.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-3 min-h-[280px]">
-                  <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center">
-                    <UserCheck className="w-8 h-8 text-gray-300 stroke-[1.5]" />
+                  <div className="w-14 h-14 rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] flex items-center justify-center">
+                    <UserCheck className="w-7 h-7 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
                   </div>
-                  <p className="text-xs font-medium text-gray-400 text-center whitespace-nowrap">
+                  <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center whitespace-nowrap">
                     Your recent QR scans will appear here
                   </p>
                 </div>
@@ -847,19 +845,19 @@ export const StaffAttendanceScanner: React.FC = () => {
                   return (
                     <div
                       key={log.id}
-                      className="flex items-center justify-between gap-3 p-3 bg-gray-50 hover:bg-gray-100/60 rounded-2xl border border-gray-100 transition-colors"
+                      className="flex items-center justify-between gap-3 p-3 bg-gray-50/60 dark:bg-[#161616] hover:bg-gray-100/60 dark:hover:bg-[#1a1a1a] rounded-md border border-gray-100 dark:border-[#1A1A1A] transition-colors"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-gray-800 leading-tight truncate">
+                        <p className="text-xs font-bold text-gray-800 dark:text-slate-200 leading-tight truncate">
                           {log.user_name || user?.full_name || tutorFirstName}
                         </p>
                       </div>
                       <div className="text-right shrink-0 space-y-0.5">
-                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
-                          st === 'Completed' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' :
-                          st === 'Late' ? 'text-amber-700 bg-amber-50 border-amber-100' :
-                          st === 'Early Out' ? 'text-rose-700 bg-rose-50 border-rose-100' :
-                          'text-emerald-700 bg-emerald-50 border-emerald-100'
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
+                          st === 'Completed' ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800' :
+                          st === 'Late' ? 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-amber-100 dark:border-amber-800' :
+                          st === 'Early Out' ? 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-100 dark:border-rose-800' :
+                          'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800'
                         }`}>
                           <CheckCircle2 className="w-3 h-3" />
                           {log.date ? `${formatDateString(log.date)} | ` : ''}{timeDisplay}
@@ -875,15 +873,15 @@ export const StaffAttendanceScanner: React.FC = () => {
       </div>
 
       {/* ── TUTOR DTR HISTORY Table ──────────────────────────────── */}
-      <div className="rounded-3xl border border-gray-200 bg-white shadow-sm relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
         {/* Section header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
           <div>
             <div className="flex items-center gap-3">
               <div>
-                <h3 className="font-bold text-gray-900 text-base uppercase">{tutorFirstName}'S DTR HISTORY</h3>
-                <p className="mt-0.5 text-xs font-medium text-gray-500">
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">{tutorFirstName}'S DTR HISTORY</h3>
+                <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
                   {filteredDtrRows.length} Record{filteredDtrRows.length !== 1 ? 's' : ''}
                 </p>
               </div>
@@ -893,17 +891,17 @@ export const StaffAttendanceScanner: React.FC = () => {
           {/* Controls */}
           <div className="flex flex-wrap items-center gap-2">
             {/* View mode toggle */}
-            <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+            <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5">
               {(['day', 'week', 'month'] as const).map((mode) => (
                 <button
                   key={mode}
                   id={`dtr-view-${mode}`}
                   type="button"
                   onClick={() => { setViewMode(mode); setJumpDate(null); }}
-                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                  className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
                     viewMode === mode && !jumpDate
-                      ? 'bg-[var(--brand)] text-white shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'bg-[var(--brand)] text-white'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                   }`}
                 >
                   {mode}
@@ -917,10 +915,10 @@ export const StaffAttendanceScanner: React.FC = () => {
                 type="button"
                 id="dtr-calendar-btn"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${
+                className={`p-2 rounded-md border transition-all flex items-center justify-center cursor-pointer ${
                   jumpDate
-                    ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                    : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                    ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
+                    : 'border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#222222]'
                 }`}
                 title="Select a specific date from calendar"
                 aria-label="Open Calendar"
@@ -942,14 +940,14 @@ export const StaffAttendanceScanner: React.FC = () => {
 
         {/* Jump-to-date active chip */}
         {jumpDate && (
-          <div className="flex items-center gap-2 px-6 py-2 border-b border-gray-50 bg-emerald-50/60">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="text-xs font-semibold text-emerald-700">
+          <div className="flex items-center gap-2 px-6 py-2 border-b border-gray-100 dark:border-[#1A1A1A] bg-emerald-50/60 dark:bg-emerald-950/20">
+            <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
               {new Date(jumpDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
             </span>
             <button
               onClick={() => setJumpDate(null)}
-              className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-800 transition-colors cursor-pointer"
+              className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline transition-colors cursor-pointer"
             >
               <X className="w-3 h-3" /> Clear
             </button>
@@ -961,48 +959,48 @@ export const StaffAttendanceScanner: React.FC = () => {
           {logsLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-11 bg-gray-100 rounded-xl animate-pulse" />
+                <div key={i} className="h-10 bg-gray-100 dark:bg-[#1A1A1A] rounded-md animate-pulse" />
               ))}
             </div>
           ) : logsError ? (
-            <div className="flex items-start gap-2.5 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-start gap-2.5 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-md p-4">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
               {logsError}
             </div>
           ) : filteredDtrRows.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
-              <CalendarDays className="w-10 h-10 text-gray-200" />
-              <p className="text-sm font-semibold text-gray-500">No DTR records found</p>
-              <p className="text-xs text-gray-400">Records will appear after scanning QR codes</p>
+              <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
+              <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No DTR records found</p>
+              <p className="text-xs text-gray-400 dark:text-slate-500">Records will appear after scanning QR codes</p>
             </div>
           ) : (
             <div className="overflow-x-auto -mx-2 px-2">
-              <table className="min-w-[600px] w-full divide-y divide-gray-100 text-sm">
+              <table className="min-w-[600px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
                 <thead>
-                  <tr className="bg-gray-50">
+                  <tr className="bg-gray-50 dark:bg-[#151515]">
                     {isPrincipalMonitor && (
-                      <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
                         <SortableHeader label="TUTOR" sortKey="tutor" />
                       </th>
                     )}
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                    <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
                       <SortableHeader label="DATE" sortKey="date" />
                     </th>
-                    <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                    <th className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
                       <SortableHeader label="TIME IN" sortKey="time_in" align="center" />
                     </th>
-                    <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                    <th className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
                       <SortableHeader label="TIME OUT" sortKey="time_out" align="center" />
                     </th>
-                    <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                    <th className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
                       <SortableHeader label="UNDERTIME" sortKey="undertime" align="center" />
                     </th>
-                    <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                    <th className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
                       <SortableHeader label="STATUS" sortKey="status" align="center" />
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 bg-white">
+                <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
                   {sortedDtrRows.map((log) => {
                     // Derive effective time in / out for tutors
                     // Use time_in / time_out directly (tutor DTR uses these fields)
@@ -1018,25 +1016,25 @@ export const StaffAttendanceScanner: React.FC = () => {
                     void legacyIn; void legacyOut;
 
                     return (
-                      <tr key={`${log.user}-${log.date}`} className="hover:bg-gray-50/80 transition-colors">
+                      <tr key={`${log.user}-${log.date}`} className="hover:bg-gray-50/80 dark:hover:bg-[#151515] transition-colors">
                         {isPrincipalMonitor && (
-                          <td className="px-4 py-3 text-left font-semibold text-slate-800 whitespace-nowrap">
+                          <td className="px-4 py-2.5 text-left font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap">
                             {log.user_name || 'Unknown Tutor'}
                           </td>
                         )}
-                        <td className="px-4 py-3 text-left text-slate-600 whitespace-nowrap text-xs font-medium">
+                        <td className="px-4 py-2.5 text-left text-slate-600 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
                           {formatDateString(log.date)}
                         </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs text-slate-700 whitespace-nowrap">
+                        <td className="px-4 py-2.5 text-center font-mono text-xs text-slate-700 dark:text-slate-200 whitespace-nowrap">
                           {formatDtrTime(effectiveIn)}
                         </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs text-slate-700 whitespace-nowrap">
+                        <td className="px-4 py-2.5 text-center font-mono text-xs text-slate-700 dark:text-slate-200 whitespace-nowrap">
                           {formatDtrTime(effectiveOut)}
                         </td>
-                        <td className="px-4 py-3 text-center text-xs text-slate-500 whitespace-nowrap">
+                        <td className="px-4 py-2.5 text-center text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
                           {undertime}
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-2.5 text-center">
                           {statusBadge(st)}
                         </td>
                       </tr>

@@ -5,9 +5,6 @@ import { academicService } from '../../services/academicService';
 import type { Attendance, Grade, StudentAcademicProfile } from '../../types';
 import {
   AlertCircle,
-  Smile,
-  Meh,
-  Frown,
   BarChart2,
 } from 'lucide-react';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
@@ -421,62 +418,13 @@ export const StudentHome: React.FC = () => {
     return currentStudentAttendance.length > 0 || hasScoreData;
   }, [currentStudentAttendance, hasScoreData]);
 
-  const getAverageMood = (value: number, hasData: boolean) => {
-    if (!hasData) {
-      return {
-        icon: Smile,
-        iconBg: 'bg-gray-100 border-gray-200 dark:bg-gray-800/80 dark:border-gray-700/70',
-        iconColor: 'text-gray-400 dark:text-slate-500',
-        valueColor: 'text-gray-400 dark:text-slate-500',
-      };
-    }
-    if (value >= 81) return { icon: Smile, iconBg: 'risk-card-low', iconColor: 'text-risk-low', valueColor: 'text-risk-low' };
-    if (value >= 70) return { icon: Meh, iconBg: 'risk-card-medium', iconColor: 'text-risk-medium', valueColor: 'text-risk-medium' };
-    return { icon: Frown, iconBg: 'risk-card-high', iconColor: 'text-risk-high', valueColor: 'text-risk-high' };
-  };
-
-  const attendanceMood = getAverageMood(avgAttendance, currentStudentAttendance.length > 0);
-  const scoreMood = getAverageMood(avgScore, hasScoreData);
-  const compositeMood = getAverageMood(compositeRating, hasCompositeData);
-
   // Student Milestone
   const studentMilestone = useMemo(() => {
     return getTutorAssignedMilestone(user?.aral_level);
   }, [user?.aral_level]);
 
-  // Student Risk Tier & Dynamic Card Styling
+  // Student Risk Tier
   const studentRiskTier = studentStat?.riskTier || (profile?.computed_risk_level === 'high' ? 'High' : profile?.computed_risk_level === 'medium' ? 'Medium' : 'Low');
-
-  const riskCardConfig = useMemo(() => {
-    if (studentRiskTier === 'High') {
-      return {
-        icon: Frown,
-        cardBg: 'risk-card-high',
-        iconBg: 'risk-badge-high',
-        iconColor: 'text-risk-high',
-        valueColor: 'text-risk-high',
-        text: 'HIGH RISK',
-      };
-    }
-    if (studentRiskTier === 'Medium') {
-      return {
-        icon: Meh,
-        cardBg: 'risk-card-medium',
-        iconBg: 'risk-badge-medium',
-        iconColor: 'text-risk-medium',
-        valueColor: 'text-risk-medium',
-        text: 'MEDIUM RISK',
-      };
-    }
-    return {
-      icon: Smile,
-      cardBg: 'risk-card-low',
-      iconBg: 'risk-badge-low',
-      iconColor: 'text-risk-low',
-      valueColor: 'text-risk-low',
-      text: 'LOW RISK',
-    };
-  }, [studentRiskTier]);
 
   // ── Performance Trend Data (10 days / 6 weeks / 6 months) ───────────────────
   const last4WeeksData = useMemo(() => {
@@ -647,30 +595,27 @@ export const StudentHome: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div
-        className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3.5 skeleton-container"
-        style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
-      >
-        {/* 4 KPI Cards skeleton */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 shrink-0 skeleton-row-1">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="flex items-center gap-3.5 rounded-2xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 shadow-sm animate-pulse"
-            >
-              <div className="w-11 h-11 rounded-xl bg-gray-200 dark:bg-gray-800 shrink-0 border border-gray-100 dark:border-gray-800" />
-              <div className="flex-1">
-                <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
-                <div className="h-6 w-14 rounded bg-gray-200 dark:bg-gray-800" />
+      <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3 skeleton-container">
+        {/* KPI Cards skeleton — hero + stacked */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-3 shrink-0 skeleton-row-1">
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 animate-pulse">
+            <div className="h-2.5 w-28 rounded bg-gray-200 dark:bg-gray-800 mb-3" />
+            <div className="h-12 w-24 rounded bg-gray-200 dark:bg-gray-800" />
+          </div>
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center justify-between px-4 py-3">
+                <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-5 w-10 rounded bg-gray-200 dark:bg-gray-800" />
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Content row skeleton (Chart fills space) */}
         <div className="flex-1 flex flex-col min-h-0 skeleton-row-2">
           {/* Chart card skeleton */}
-          <div className="w-full bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl shadow-sm px-4 py-4 sm:px-6 sm:py-5 flex flex-col h-full min-h-0 animate-pulse">
+          <div className="w-full bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-5 flex flex-col h-full min-h-0 animate-pulse">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0 pb-3.5 sm:pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
                 <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800 mt-0.5" />
@@ -679,18 +624,18 @@ export const StudentHome: React.FC = () => {
               <div className="flex items-center gap-2">
                 <div className="h-4 w-28 rounded-full bg-gray-100 dark:bg-gray-800 hidden sm:block" />
                 <div className="h-4 w-20 rounded-full bg-gray-100 dark:bg-gray-800 hidden sm:block" />
-                <div className="h-7 w-28 rounded-xl bg-gray-100 dark:bg-gray-800" />
+                <div className="h-7 w-28 rounded-md bg-gray-100 dark:bg-gray-800" />
               </div>
             </div>
 
             <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3.5 sm:mt-4">
-              <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-2xl" />
+              <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-md" />
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1 shrink-0">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1 skeleton-row-3">
                   {[1, 2, 3, 4].map((j) => (
                     <div
                       key={j}
-                      className="bg-gray-50 dark:bg-[#111111] p-2 rounded-2xl border border-gray-100 dark:border-[#1A1A1A] text-center"
+                      className="bg-gray-50 dark:bg-[#111111] p-2 rounded-md border border-gray-100 dark:border-[#1A1A1A] text-center"
                     >
                       <div className="h-2.5 w-12 rounded bg-gray-200 dark:bg-gray-800 mx-auto" />
                       <div className="h-5 w-14 rounded bg-gray-200 dark:bg-gray-800 mx-auto mt-1" />
@@ -709,7 +654,7 @@ export const StudentHome: React.FC = () => {
 
   if (error) {
     return (
-      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm">
+      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-md p-4">
         <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-bold">Failed to load dashboard</p>
@@ -717,7 +662,7 @@ export const StudentHome: React.FC = () => {
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
+            className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-md text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
           >
             Retry
           </button>
@@ -726,125 +671,134 @@ export const StudentHome: React.FC = () => {
     );
   }
 
-  const RiskIcon = riskCardConfig.icon;
-
   return (
-    <div
-      className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3.5 data-loaded-content"
-      style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
-    >
-      {/* ── Top KPI Cards (4 Cards Matching TutorHome) ───────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 shrink-0">
-        {[
-          {
-            label: 'Average Attendance',
-            to: '/student/attendance',
-            value: currentStudentAttendance.length === 0 ? '—' : `${avgAttendance}%`,
-            icon: attendanceMood.icon,
-            iconBg: attendanceMood.iconBg,
-            iconColor: attendanceMood.iconColor,
-            valueColor:
-              currentStudentAttendance.length === 0
-                ? 'text-gray-400 dark:text-slate-500'
-                : avgAttendance >= 81
-                ? 'text-risk-low'
-                : avgAttendance >= 75
-                ? 'text-risk-medium'
-                : 'text-risk-high',
-          },
-          {
-            label: 'Average Scores',
-            to: '/student/scores',
-            value: !hasScoreData ? '—' : `${avgScore}%`,
-            icon: scoreMood.icon,
-            iconBg: scoreMood.iconBg,
-            iconColor: scoreMood.iconColor,
-            valueColor:
-              !hasScoreData
-                ? 'text-gray-400 dark:text-slate-500'
-                : avgScore >= 81
-                ? 'text-risk-low'
-                : avgScore >= 75
-                ? 'text-risk-medium'
-                : 'text-risk-high',
-          },
-          {
-            label: 'Composite Rating',
-            to: '/student/analytics',
-            value: !hasCompositeData ? '—' : `${compositeRating.toFixed(1)}%`,
-            icon: compositeMood.icon,
-            iconBg: compositeMood.iconBg,
-            iconColor: compositeMood.iconColor,
-            valueColor: compositeMood.valueColor,
-          },
-          {
-            label: `${studentFirstName}'s Risk Level`,
-            to: '/student/analytics',
-            value: riskCardConfig.text,
-            icon: RiskIcon,
-            iconBg: riskCardConfig.iconBg,
-            iconColor: riskCardConfig.iconColor,
-            valueColor: riskCardConfig.valueColor,
-            customCardClass: riskCardConfig.cardBg,
-          },
-        ].map((card) => {
-          const Icon = card.icon;
-          return (
-            <Link
-              key={card.label}
-              to={card.to}
-              className={`group flex items-center gap-3.5 rounded-2xl border p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
-                card.customCardClass
-                  ? card.customCardClass
-                  : 'border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_var(--brand-glow)]'
+    <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3 data-loaded-content">
+      {/* ── KPI Cards — hero left, 3 secondaries stacked right ──────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-3 shrink-0">
+        {/* Hero: Composite Rating */}
+        <Link
+          to="/student/analytics"
+          className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 transition-colors hover:bg-gray-50/60 dark:hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] flex flex-col justify-between"
+        >
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">
+              Composite Rating
+            </p>
+            <p
+              className={`text-5xl font-extrabold mt-2 tracking-tight ${
+                !hasCompositeData
+                  ? 'text-gray-400 dark:text-slate-500'
+                  : compositeRating >= 81
+                  ? 'text-risk-low'
+                  : compositeRating >= 70
+                  ? 'text-risk-medium'
+                  : 'text-risk-high'
               }`}
             >
-              <div
-                className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 ${card.iconBg}`}
-              >
-                <Icon className={`w-5 h-5 ${card.iconColor}`} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-900 dark:text-slate-100 truncate">
-                  {card.label}
-                </p>
-                <p className={`text-2xl font-extrabold mt-0.5 ${card.valueColor}`}>
-                  {card.value}
-                </p>
-              </div>
-            </Link>
-          );
-        })}
+              {!hasCompositeData ? '—' : `${compositeRating.toFixed(1)}%`}
+            </p>
+          </div>
+          <p className="mt-2 text-[11px] text-gray-400 dark:text-slate-500">
+            Overall performance standing
+          </p>
+        </Link>
+
+        {/* 3 Secondary metrics stacked */}
+        <div className="flex flex-col divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden">
+          <Link
+            to="/student/attendance"
+            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)]"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">
+              Average Attendance
+            </p>
+            <p
+              className={`text-xl font-extrabold ${
+                currentStudentAttendance.length === 0
+                  ? 'text-gray-400 dark:text-slate-500'
+                  : avgAttendance >= 81
+                  ? 'text-risk-low'
+                  : avgAttendance >= 75
+                  ? 'text-risk-medium'
+                  : 'text-risk-high'
+              }`}
+            >
+              {currentStudentAttendance.length === 0 ? '—' : `${avgAttendance}%`}
+            </p>
+          </Link>
+
+          <Link
+            to="/student/scores"
+            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)]"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">
+              Average Scores
+            </p>
+            <p
+              className={`text-xl font-extrabold ${
+                !hasScoreData
+                  ? 'text-gray-400 dark:text-slate-500'
+                  : avgScore >= 81
+                  ? 'text-risk-low'
+                  : avgScore >= 75
+                  ? 'text-risk-medium'
+                  : 'text-risk-high'
+              }`}
+            >
+              {!hasScoreData ? '—' : `${avgScore}%`}
+            </p>
+          </Link>
+
+          <Link
+            to="/student/analytics"
+            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)]"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">
+              Risk Level
+            </p>
+            <p
+              className={`text-xl font-extrabold ${
+                studentRiskTier === 'High'
+                  ? 'text-risk-high'
+                  : studentRiskTier === 'Medium'
+                  ? 'text-risk-medium'
+                  : 'text-risk-low'
+              }`}
+            >
+              {studentRiskTier ? `${studentRiskTier.toUpperCase()} RISK` : 'LOW RISK'}
+            </p>
+          </Link>
+        </div>
       </div>
 
       {/* ── Main Performance Trend (Full Width) ── */}
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="w-full bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl shadow-sm px-4 py-4 sm:px-6 sm:py-5 flex flex-col h-full min-h-0">
+        <div className="w-full bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-5 flex flex-col h-full min-h-0">
           {/* Chart Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0 pb-3.5 sm:pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div>
-              <h3 className="whitespace-nowrap text-base font-bold text-gray-900 dark:text-slate-100 mt-0.5 uppercase">
-                {studentFirstName}'S PERFORMANCE TREND CHART
+              <h3 className="whitespace-nowrap text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">
+                {studentFirstName}'s Performance Trend
               </h3>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300">
-                <span className="h-2.5 w-2.5 rounded-full bg-[var(--brand)] inline-block shadow-xs" />
-                <span>Total composite rating</span>
+                <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block" />
+                <span>Composite rating</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#38BDF8] inline-block ring-2 ring-[#38BDF8]/30 shadow-xs" />
+                <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block" />
                 <span>{studentMilestone}</span>
               </div>
-              <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5 sm:ml-1">
+              <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 sm:ml-1">
                 {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                   <button
                     key={filter}
                     type="button"
                     onClick={() => setTrendFilter(filter)}
-                    className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                    className={`rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${
                       trendFilter === filter
-                        ? 'bg-[var(--brand)] text-white shadow-sm'
+                        ? 'bg-[var(--brand)] text-white'
                         : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                     }`}
                   >
@@ -857,7 +811,7 @@ export const StudentHome: React.FC = () => {
 
           {/* Chart Canvas & Bottom Stats */}
           <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3.5 sm:mt-4">
-            <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-2xl px-4 py-2 sm:px-6 sm:py-2.5">
+            <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-md px-4 py-2 sm:px-6 sm:py-2.5">
               {last4WeeksData.length > 0 ? (
                 <InteractiveStudentChart data={last4WeeksData} />
               ) : (
@@ -904,7 +858,7 @@ export const StudentHome: React.FC = () => {
                 ].map((stat) => (
                   <div
                     key={stat.label}
-                    className="bg-gray-50 dark:bg-[#111111] p-2 rounded-2xl border border-gray-100 dark:border-[#1A1A1A] text-center"
+                    className="bg-gray-50 dark:bg-[#111111] p-2 rounded-md border border-gray-100 dark:border-[#1A1A1A] text-center"
                   >
                     <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">
                       {stat.label}
@@ -913,7 +867,7 @@ export const StudentHome: React.FC = () => {
                   </div>
                 ))}
 
-                <div className="bg-gray-50 dark:bg-[#111111] p-2 rounded-2xl border border-gray-100 dark:border-[#1A1A1A] text-center">
+                <div className="bg-gray-50 dark:bg-[#111111] p-2 rounded-md border border-gray-100 dark:border-[#1A1A1A] text-center">
                   <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">
                     Trend
                   </p>
@@ -932,7 +886,7 @@ export const StudentHome: React.FC = () => {
 
                 <Link
                   to="/student/analytics"
-                  className="flex items-center justify-center gap-1.5 rounded-2xl border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-4 py-2.5 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300 cursor-pointer"
+                  className="flex items-center justify-center gap-1.5 rounded-md border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-4 py-2.5 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300 cursor-pointer"
                 >
                   <span className="decoration-[var(--brand)]/60 dark:decoration-sky-400/60">See More</span>
                   <span className="font-bold no-underline" aria-hidden="true">&gt;</span>
@@ -947,3 +901,4 @@ export const StudentHome: React.FC = () => {
 };
 
 export default StudentHome;
+

@@ -4,9 +4,6 @@ import { academicService } from '../../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../../utils/analyticsHelpers';
 import {
   AlertCircle,
-  Smile,
-  Meh,
-  Frown,
   Info,
   Users,
 } from 'lucide-react';
@@ -441,48 +438,48 @@ export const StudentAnalytics: React.FC = () => {
   if (isLoading) {
     return (
       <div
-        className="space-y-6 skeleton-container"
+        className="space-y-4 skeleton-container"
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
       >
         {/* 3 Summary KPI Cards Skeleton */}
-        <div className="grid gap-4 sm:grid-cols-3 skeleton-row-1">
+        <div className="grid gap-3 sm:grid-cols-3 skeleton-row-1">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm min-h-[114px] flex items-center gap-4 animate-pulse"
+              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 min-h-[100px] flex items-center gap-3.5 animate-pulse"
             >
-              <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-800 shrink-0" />
+              <div className="w-10 h-10 rounded-md bg-gray-200 dark:bg-gray-800 shrink-0" />
               <div className="flex-1 min-w-0">
-                <div className="h-3 w-24 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
-                <div className="h-7 w-16 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-2.5 w-36 rounded bg-gray-100 dark:bg-gray-800/60 mt-2" />
+                <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
+                <div className="h-6 w-16 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-2 w-36 rounded bg-gray-100 dark:bg-gray-800/60 mt-2" />
               </div>
             </div>
           ))}
         </div>
 
         {/* Chart Card Skeleton */}
-        <div className="w-full rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-6 shadow-sm animate-pulse skeleton-row-2">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 animate-pulse skeleton-row-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="space-y-1.5">
               <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800" />
               <div className="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
             <div className="flex items-center gap-3">
-              <div className="h-8 w-28 rounded-xl bg-gray-100 dark:bg-gray-800" />
+              <div className="h-7 w-28 rounded-md bg-gray-100 dark:bg-gray-800" />
             </div>
           </div>
-          <div className="mt-6">
-            <div className="h-52 w-full rounded-2xl bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A]" />
+          <div className="mt-4">
+            <div className="h-52 w-full rounded-md bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A]" />
           </div>
         </div>
 
         {/* Bottom Table Skeleton */}
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl p-6 shadow-sm space-y-4 animate-pulse">
+        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-5 space-y-4 animate-pulse">
           <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
-          <div className="space-y-3 pt-2">
+          <div className="space-y-2 pt-2">
             {[1, 2, 3].map((k) => (
-              <div key={k} className="h-12 rounded-2xl bg-gray-100 dark:bg-gray-800/70" />
+              <div key={k} className="h-10 rounded-md bg-gray-100 dark:bg-gray-800/70" />
             ))}
           </div>
         </div>
@@ -494,7 +491,7 @@ export const StudentAnalytics: React.FC = () => {
 
   if (error) {
     return (
-      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm">
+      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-md p-4">
         <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-bold">Failed to load analytics</p>
@@ -502,7 +499,7 @@ export const StudentAnalytics: React.FC = () => {
           <button
             type="button"
             onClick={fetchStudentData}
-            className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
+            className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-md text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
           >
             Retry
           </button>
@@ -513,45 +510,30 @@ export const StudentAnalytics: React.FC = () => {
 
   return (
     <div
-      className="space-y-6 data-loaded-content"
+      className="space-y-4 data-loaded-content"
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       {/* ── 3 Risk Level Summary Cards (Active is colored, others inactive gray) ── */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         {/* 1. HIGH RISK CARD */}
         <div
-          className={`relative rounded-3xl border p-5 shadow-sm min-h-[114px] flex items-center gap-4 transition-all duration-300 ${
+          className={`relative rounded-md border p-4 min-h-[100px] flex flex-col justify-center transition-all duration-200 ${
             studentRiskTier === 'High'
               ? 'risk-card-high'
               : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#0A0A0A] opacity-60'
           }`}
         >
-          <div className="absolute right-4 top-4">
+          <div className="absolute right-3 top-3">
             <RiskRangeInfo range="Composite score is below 70%" />
-          </div>
-          <div
-            className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${
-              studentRiskTier === 'High'
-                ? 'risk-badge-high'
-                : 'bg-gray-100 dark:bg-[#1A1A1A] border-gray-200 dark:border-[#262626]'
-            }`}
-          >
-            <Frown
-              className={`w-5 h-5 ${
-                studentRiskTier === 'High'
-                  ? 'text-risk-high'
-                  : 'text-gray-400 dark:text-slate-500'
-              }`}
-            />
           </div>
           <div className="min-w-0">
             {studentRiskTier === 'High' && (
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-white truncate">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-white truncate">
                 {studentFirstName}'S RISK LEVEL
               </p>
             )}
             <p
-              className={`text-2xl font-extrabold mt-0.5 ${
+              className={`text-xl font-extrabold mt-0.5 ${
                 studentRiskTier === 'High'
                   ? 'text-risk-high'
                   : 'text-gray-400 dark:text-slate-500'
@@ -559,7 +541,7 @@ export const StudentAnalytics: React.FC = () => {
             >
               HIGH RISK
             </p>
-            <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-300">
+            <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">
               Students needing immediate intervention
             </p>
           </div>
@@ -567,38 +549,23 @@ export const StudentAnalytics: React.FC = () => {
 
         {/* 2. MEDIUM RISK CARD */}
         <div
-          className={`relative rounded-3xl border p-5 shadow-sm min-h-[114px] flex items-center gap-4 transition-all duration-300 ${
+          className={`relative rounded-md border p-4 min-h-[100px] flex flex-col justify-center transition-all duration-200 ${
             studentRiskTier === 'Medium'
               ? 'risk-card-medium'
               : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#0A0A0A] opacity-60'
           }`}
         >
-          <div className="absolute right-4 top-4">
+          <div className="absolute right-3 top-3">
             <RiskRangeInfo range="Composite score is between 70% to 85%" />
-          </div>
-          <div
-            className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${
-              studentRiskTier === 'Medium'
-                ? 'risk-badge-medium'
-                : 'bg-gray-100 dark:bg-[#1A1A1A] border-gray-200 dark:border-[#262626]'
-            }`}
-          >
-            <Meh
-              className={`w-5 h-5 ${
-                studentRiskTier === 'Medium'
-                  ? 'text-risk-medium'
-                  : 'text-gray-400 dark:text-slate-500'
-              }`}
-            />
           </div>
           <div className="min-w-0">
             {studentRiskTier === 'Medium' && (
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-white truncate">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-white truncate">
                 {studentFirstName}'S RISK LEVEL
               </p>
             )}
             <p
-              className={`text-2xl font-extrabold mt-0.5 ${
+              className={`text-xl font-extrabold mt-0.5 ${
                 studentRiskTier === 'Medium'
                   ? 'text-risk-medium'
                   : 'text-gray-400 dark:text-slate-500'
@@ -606,7 +573,7 @@ export const StudentAnalytics: React.FC = () => {
             >
               MEDIUM RISK
             </p>
-            <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-300">
+            <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">
               Students requiring monitoring
             </p>
           </div>
@@ -614,38 +581,23 @@ export const StudentAnalytics: React.FC = () => {
 
         {/* 3. LOW RISK CARD */}
         <div
-          className={`relative rounded-3xl border p-5 shadow-sm min-h-[114px] flex items-center gap-4 transition-all duration-300 ${
+          className={`relative rounded-md border p-4 min-h-[100px] flex flex-col justify-center transition-all duration-200 ${
             studentRiskTier === 'Low'
               ? 'risk-card-low'
               : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#0A0A0A] opacity-60'
           }`}
         >
-          <div className="absolute right-4 top-4">
+          <div className="absolute right-3 top-3">
             <RiskRangeInfo range="Composite score is between 86% to 100%" />
-          </div>
-          <div
-            className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${
-              studentRiskTier === 'Low'
-                ? 'risk-badge-low'
-                : 'bg-gray-100 dark:bg-[#1A1A1A] border-gray-200 dark:border-[#262626]'
-            }`}
-          >
-            <Smile
-              className={`w-5 h-5 ${
-                studentRiskTier === 'Low'
-                  ? 'text-risk-low'
-                  : 'text-gray-400 dark:text-slate-500'
-              }`}
-            />
           </div>
           <div className="min-w-0">
             {studentRiskTier === 'Low' && (
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-white truncate">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-white truncate">
                 {studentFirstName}'S RISK LEVEL
               </p>
             )}
             <p
-              className={`text-2xl font-extrabold mt-0.5 ${
+              className={`text-xl font-extrabold mt-0.5 ${
                 studentRiskTier === 'Low'
                   ? 'text-risk-low'
                   : 'text-gray-400 dark:text-slate-500'
@@ -653,7 +605,7 @@ export const StudentAnalytics: React.FC = () => {
             >
               LOW RISK
             </p>
-            <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-300">
+            <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">
               Students performing well
             </p>
           </div>
@@ -662,10 +614,10 @@ export const StudentAnalytics: React.FC = () => {
 
       {/* ── Risk Level Trend Chart ── */}
       <section
-        className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]"
+        className="rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]"
         aria-labelledby="risk-overview-heading"
       >
-        <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+        <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
           <div>
             <h3
               id="risk-overview-heading"
@@ -678,20 +630,20 @@ export const StudentAnalytics: React.FC = () => {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
               <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#EF4444' }} />
+                <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#EF4444' }} />
                 High Risk
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#F59E0B' }} />
+                <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#F59E0B' }} />
                 Medium Risk
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#22C55E' }} />
+                <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#22C55E' }} />
                 Low Risk
               </span>
             </div>
             <div
-              className="flex items-center gap-1 rounded-xl bg-gray-100 p-0.5 dark:bg-[#111111]"
+              className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]"
               role="group"
               aria-label="Filter risk chart by time period"
             >
@@ -700,9 +652,9 @@ export const StudentAnalytics: React.FC = () => {
                   key={filter}
                   type="button"
                   onClick={() => setTrendFilter(filter)}
-                  className={`cursor-pointer rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${
+                  className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${
                     trendFilter === filter
-                      ? 'bg-[var(--brand)] text-white shadow-sm'
+                      ? 'bg-[var(--brand)] text-white'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                   }`}
                 >
@@ -713,8 +665,8 @@ export const StudentAnalytics: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-6">
-          <div className="relative rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+        <div className="mt-4">
+          <div className="relative rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
             <RiskTrendChart
               data={riskTrend}
               total={1}
@@ -725,61 +677,61 @@ export const StudentAnalytics: React.FC = () => {
         </div>
       </section>
 
-      {/* ── Student Performance Details Table (Replaces Component Weights) ── */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 px-1 pb-1 text-xs text-gray-500" style={{ fontFamily: 'var(--font-body)' }}>
+      {/* ── Student Performance Details Table ── */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 px-1 text-xs text-gray-500" style={{ fontFamily: 'var(--font-body)' }}>
           <RiskCalculationInfo />
         </div>
-        <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-          <div className="px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
-            <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 uppercase">
-              {studentFirstName}'S PERFORMANCE DETAILS
+        <div className="bg-white rounded-md border border-gray-200 overflow-hidden dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+          <div className="px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">
+              {studentFirstName}'s Performance Details
             </h3>
           </div>
 
           {performanceRows.length === 0 ? (
-            <div className="py-16 text-center space-y-2">
-              <Users className="w-10 h-10 mx-auto text-gray-200 dark:text-gray-700" />
-              <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No records found</p>
+            <div className="py-12 text-center space-y-2">
+              <Users className="w-8 h-8 mx-auto text-gray-200 dark:text-gray-700" />
+              <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">No records found</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-[900px] divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal w-full" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                 <thead>
                   <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">STUDENT</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">AVERAGE ATTENDANCE RATE</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">AVERAGE SCORE</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">COMPOSITE SCORE</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">RISK LEVEL</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">STUDENT</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">AVERAGE ATTENDANCE RATE</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">AVERAGE SCORE</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">COMPOSITE SCORE</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">RISK LEVEL</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
                   {performanceRows.map((row) => (
                     <tr key={row.student.id} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5">
-                      <td className="px-4 py-3.5 align-middle">
+                      <td className="px-4 py-3 align-middle">
                         <div>
-                          <div className="font-semibold text-gray-900 dark:text-slate-100">{row.student.full_name}</div>
-                          <div className="text-xs text-gray-400 dark:text-slate-500 font-mono">LRN: {row.student.lrn || 'N/A'}</div>
+                          <div className="font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</div>
+                          <div className="text-[11px] text-gray-400 dark:text-slate-500 font-mono">LRN: {row.student.lrn || 'N/A'}</div>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 align-middle">
-                        <span className={`text-sm font-normal ${getAttendanceRateCls(row.attendanceRate)}`}>
+                      <td className="px-4 py-3 align-middle">
+                        <span className={`text-xs font-medium ${getAttendanceRateCls(row.attendanceRate)}`}>
                           {smartPct(row.attendanceRate)}%
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 align-middle">
-                        <span className={`text-sm font-normal ${getScoreAvgCls(row.scoreAvg)}`}>
+                      <td className="px-4 py-3 align-middle">
+                        <span className={`text-xs font-medium ${getScoreAvgCls(row.scoreAvg)}`}>
                           {smartPct(row.scoreAvg)}%
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 align-middle">
-                        <span className={`text-sm font-normal ${getCompositeScoreCls(row.riskTier)}`}>
+                      <td className="px-4 py-3 align-middle">
+                        <span className={`text-xs font-medium ${getCompositeScoreCls(row.riskTier)}`}>
                           {smartPct(row.compositeScore)}%
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 align-middle">
-                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold border ${getTierCls(row.riskTier)}`}>
+                      <td className="px-4 py-3 align-middle">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold border ${getTierCls(row.riskTier)}`}>
                           {row.riskTier}
                         </span>
                       </td>

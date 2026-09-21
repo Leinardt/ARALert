@@ -121,9 +121,9 @@ export const AuditLog: React.FC = () => {
 
   const downloadCSV = () => {
     if (!data) return;
-    const header = 'Timestamp,Action,Username,IP Address,Details\n';
+    const header = 'Timestamp,Action,Username,Details\n';
     const rows = data.results
-      .map((r) => `"${r.timestamp}","${r.action}","${r.username}","${r.ip_address}","${JSON.stringify(r.details).replace(/"/g, "'")}"`)
+      .map((r) => `"${r.timestamp}","${r.action}","${r.username}","${JSON.stringify(r.details).replace(/"/g, "'")}"`)
       .join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -307,7 +307,6 @@ export const AuditLog: React.FC = () => {
                   <th>Timestamp (UTC)</th>
                   <th>Event</th>
                   <th>Username</th>
-                  <th>IP Address</th>
                   <th>Browser / Agent</th>
                   <th style={{ textAlign: 'center' }}>Details</th>
                 </tr>
@@ -336,7 +335,7 @@ export const AuditLog: React.FC = () => {
                           <span style={{
                             display: 'inline-flex', alignItems: 'center', gap: '5px',
                             padding: '3px 10px 3px 7px', borderRadius: '99px',
-                            fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.02em',
+                            fontSize: '0.68rem', fontWeight: 600, letterSpacing: '0.02em',
                             background: meta.bg, color: meta.color,
                             border: `1px solid ${meta.border}`,
                             whiteSpace: 'nowrap',
@@ -349,11 +348,6 @@ export const AuditLog: React.FC = () => {
                           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                             {log.username}
                           </span>
-                        </td>
-                        <td>
-                          <code style={{ fontSize: '0.78rem', color: 'var(--text-muted)', background: 'var(--surface-muted)', padding: '2px 7px', borderRadius: '6px' }}>
-                            {log.ip_address}
-                          </code>
                         </td>
                         <td>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }} title={log.user_agent}>
@@ -371,7 +365,7 @@ export const AuditLog: React.FC = () => {
                                 background: isExpanded ? 'var(--brand-light)' : 'var(--surface-muted)',
                                 border: `1px solid ${isExpanded ? 'var(--brand-border)' : 'var(--slate-200)'}`,
                                 color: isExpanded ? 'var(--brand-dark)' : 'var(--text-muted)',
-                                fontSize: '0.75rem', fontWeight: 700,
+                                fontSize: '0.75rem', fontWeight: 600,
                                 cursor: 'pointer', fontFamily: 'var(--font-body)',
                                 transition: 'all 0.15s',
                               }}
@@ -387,7 +381,7 @@ export const AuditLog: React.FC = () => {
                       {/* Expandable details row */}
                       {isExpanded && hasDetails && (
                         <tr>
-                          <td colSpan={6} style={{ padding: '0 1.25rem 1rem', background: 'var(--surface-muted)' }}>
+                          <td colSpan={5} style={{ padding: '0 1.25rem 1rem', background: 'var(--surface-muted)' }}>
                             <div style={{
                               background: '#0F172A',
                               borderRadius: '12px',

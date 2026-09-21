@@ -6,6 +6,7 @@ import { useTheme } from '../hooks/useTheme';
 import {
   LayoutDashboard, Users, User as UserIcon, UserCheck, LogOut, QrCode, Scan,
   Award, Bell, ChevronDown, Shield, BookOpen, X, FileText, Moon, Sun,
+  PanelLeftClose, Menu,
 } from 'lucide-react';
 import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
@@ -99,6 +100,26 @@ export const DashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('aralert_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('aralert_sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState<boolean>(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
 
   const handleLogout = async () => {
     await logout();
@@ -149,8 +170,8 @@ export const DashboardLayout: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
   const isActivePrefix = (prefix: string) => location.pathname.startsWith(prefix);
 
-  const navLinkClass = (active: boolean) =>
-    `sidebar-item ${active ? 'active' : ''}`;
+  const navLinkClass = (active: boolean, collapsed: boolean = isSidebarCollapsed) =>
+    `sidebar-item ${active ? 'active' : ''} ${collapsed ? 'justify-center !px-0' : ''}`;
 
   const studentNoteStyle = (riskLevel: AcademicRisk['risk_level']) => {
     if (riskLevel === 'high') {
@@ -301,7 +322,352 @@ export const DashboardLayout: React.FC = () => {
   useEffect(() => { if (!showRiskList) return; fetchRiskStudents(); }, [showRiskList]);
   useEffect(() => { fetchStudentNotes(); }, [user]);
   useEffect(() => { fetchPendingEditRequests(); }, [user, location.pathname]);
-  useEffect(() => { setProfileMenuOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    setProfileMenuOpen(false);
+    setIsMobileDrawerOpen(false);
+  }, [location.pathname]);
+
+  const renderNavItems = (collapsed: boolean = false, onItemClick?: () => void) => {
+    return (
+      <>
+        {/* SuperAdmin nav */}
+        {user?.is_superuser && (
+          <>
+            {!collapsed ? (
+              <span className="sidebar-section-label">Management</span>
+            ) : (
+              <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.4rem 0.5rem' }} />
+            )}
+            <Link to="/superadmin" onClick={onItemClick} className={navLinkClass(isActive('/superadmin'), collapsed)} title="Dashboard">
+              <AssetSidebarIcon
+                darkSrc={dashboardDarkDefault}
+                darkActiveSrc={dashboardDarkActive}
+                lightSrc={dashboardLightDefault}
+                lightActiveSrc={dashboardLightActive}
+                active={isActive('/superadmin')}
+                alt="Dashboard"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">Dashboard</span>}
+            </Link>
+            <Link
+              to="/superadmin/users"
+              onClick={onItemClick}
+              className={navLinkClass(isActivePrefix('/superadmin/users'), collapsed)}
+              title="User Management"
+            >
+              <SidebarIcon Icon={Users} active={isActivePrefix('/superadmin/users')} />
+              {!collapsed && <span className="truncate">User Management</span>}
+            </Link>
+            <Link
+              to="/superadmin/audit-logs"
+              onClick={onItemClick}
+              className={navLinkClass(isActivePrefix('/superadmin/audit-logs'), collapsed)}
+              title="Audit Log"
+            >
+              <SidebarIcon Icon={FileText} active={isActivePrefix('/superadmin/audit-logs')} />
+              {!collapsed && <span className="truncate">Audit Log</span>}
+            </Link>
+          </>
+        )}
+
+        {/* Admin nav */}
+        {user?.role === 'admin' && (
+          <>
+            <Link to="/admin" onClick={onItemClick} className={navLinkClass(isActive('/admin'), collapsed)} title="Dashboard">
+              <AssetSidebarIcon
+                darkSrc={dashboardDarkDefault}
+                darkActiveSrc={dashboardDarkActive}
+                lightSrc={dashboardLightDefault}
+                lightActiveSrc={dashboardLightActive}
+                active={isActive('/admin')}
+                alt="Dashboard"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">Dashboard</span>}
+            </Link>
+            <Link
+              to="/admin/students"
+              onClick={onItemClick}
+              className={navLinkClass(isActivePrefix('/admin/students') || isActivePrefix('/admin/tutors') || isActivePrefix('/admin/faculty') || isActivePrefix('/admin/principals') || isActivePrefix('/admin/users'), collapsed)}
+              title="User Management"
+            >
+              <AssetSidebarIcon
+                darkSrc={studentsDarkDefault}
+                darkActiveSrc={studentsDarkActive}
+                lightSrc={studentsLightDefault}
+                lightActiveSrc={studentsLightActive}
+                active={isActivePrefix('/admin/students') || isActivePrefix('/admin/tutors') || isActivePrefix('/admin/faculty') || isActivePrefix('/admin/principals') || isActivePrefix('/admin/users')}
+                alt="User Management"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">User Management</span>}
+            </Link>
+            <Link
+              to="/admin/audit-logs"
+              onClick={onItemClick}
+              className={navLinkClass(isActivePrefix('/admin/audit-logs'), collapsed)}
+              title="Audit Log"
+            >
+              <SidebarIcon Icon={FileText} active={isActivePrefix('/admin/audit-logs')} />
+              {!collapsed && <span className="truncate">Audit Log</span>}
+            </Link>
+
+            <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0' }} />
+
+            <Link to="/admin/attendance" onClick={onItemClick} className={navLinkClass(isActive('/admin/attendance'), collapsed)} title="QR Attendance">
+              <AssetSidebarIcon
+                darkSrc={qrDarkDefault}
+                darkActiveSrc={qrDarkActive}
+                lightSrc={qrLightDefault}
+                lightActiveSrc={qrLightActive}
+                active={isActive('/admin/attendance')}
+                alt="QR Attendance"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">QR Attendance</span>}
+            </Link>
+          </>
+        )}
+
+        {/* Tutor nav */}
+        {user?.role === 'tutor' && (
+          <>
+            <Link to="/tutor" onClick={onItemClick} className={navLinkClass(isActive('/tutor'), collapsed)} title="Dashboard">
+              <AssetSidebarIcon
+                darkSrc={dashboardDarkDefault}
+                darkActiveSrc={dashboardDarkActive}
+                lightSrc={dashboardLightDefault}
+                lightActiveSrc={dashboardLightActive}
+                active={isActive('/tutor')}
+                alt="Dashboard"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">Dashboard</span>}
+            </Link>
+
+            <Link
+              to="/tutor/attendance/generate"
+              onClick={onItemClick}
+              className={navLinkClass(isActive('/tutor/attendance/generate'), collapsed)}
+              title="QR Attendance"
+            >
+              <AssetSidebarIcon
+                darkSrc={qrDarkDefault}
+                darkActiveSrc={qrDarkActive}
+                lightSrc={qrLightDefault}
+                lightActiveSrc={qrLightActive}
+                active={isActive('/tutor/attendance/generate')}
+                alt="QR Attendance"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">QR Attendance</span>}
+            </Link>
+
+            <Link to="/tutor/scores" onClick={onItemClick} className={navLinkClass(isActive('/tutor/scores'), collapsed)} title="Score Entry">
+              <AssetSidebarIcon
+                darkSrc={scoreDarkDefault}
+                darkActiveSrc={scoreDarkActive}
+                lightSrc={scoreLightDefault}
+                lightActiveSrc={scoreLightActive}
+                active={isActive('/tutor/scores')}
+                alt="Score Entry"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">Score Entry</span>}
+            </Link>
+
+            <Link to="/tutor/analytics" onClick={onItemClick} className={navLinkClass(isActive('/tutor/analytics'), collapsed)} title="Data Analytics">
+              <AssetSidebarIcon
+                darkSrc={analyticsDarkDefault}
+                darkActiveSrc={analyticsDarkActive}
+                lightSrc={analyticsLightDefault}
+                lightActiveSrc={analyticsLightActive}
+                active={isActive('/tutor/analytics')}
+                alt="Data Analytics"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">Data Analytics</span>}
+            </Link>
+
+            <Link to="/tutor/students" onClick={onItemClick} className={navLinkClass(isActive('/tutor/students'), collapsed)} title="Assigned Students">
+              <AssetSidebarIcon
+                darkSrc={studentsDarkDefault}
+                darkActiveSrc={studentsDarkActive}
+                lightSrc={studentsLightDefault}
+                lightActiveSrc={studentsLightActive}
+                active={isActive('/tutor/students')}
+                alt="Assigned Students"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">Assigned Students</span>}
+            </Link>
+
+            <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0' }} />
+
+            <Link to="/staff/scan" onClick={onItemClick} className={navLinkClass(isActive('/staff/scan'), collapsed)} title="DTR Log">
+              <AssetSidebarIcon
+                darkSrc={clockDarkDefault}
+                darkActiveSrc={clockDarkActive}
+                lightSrc={clockLightDefault}
+                lightActiveSrc={clockLightActive}
+                active={isActive('/staff/scan')}
+                alt="DTR Log"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">DTR Log</span>}
+            </Link>
+          </>
+        )}
+
+        {/* Principal nav */}
+        {user?.role === 'principal' && (
+          <>
+            {!collapsed ? (
+              <span className="sidebar-section-label">Monitoring</span>
+            ) : (
+              <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.4rem 0.5rem' }} />
+            )}
+            <Link to="/principal" onClick={onItemClick} className={navLinkClass(isActive('/principal'), collapsed)} title="Monitoring Dashboard">
+              <AssetSidebarIcon
+                darkSrc={dashboardDarkDefault}
+                darkActiveSrc={dashboardDarkActive}
+                lightSrc={dashboardLightDefault}
+                lightActiveSrc={dashboardLightActive}
+                active={isActive('/principal')}
+                alt="Monitoring Dashboard"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">Monitoring Dashboard</span>}
+            </Link>
+            <Link to="/staff/scan" onClick={onItemClick} className={navLinkClass(isActive('/staff/scan'), collapsed)} title="DTR Log">
+              <AssetSidebarIcon
+                darkSrc={clockDarkDefault}
+                darkActiveSrc={clockDarkActive}
+                lightSrc={clockLightDefault}
+                lightActiveSrc={clockLightActive}
+                active={isActive('/staff/scan')}
+                alt="DTR Log"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">DTR Log</span>}
+            </Link>
+          </>
+        )}
+
+        {/* Faculty nav */}
+        {user?.role === 'faculty' && (
+          <>
+            {!collapsed ? (
+              <span className="sidebar-section-label">Faculty</span>
+            ) : (
+              <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.4rem 0.5rem' }} />
+            )}
+            <Link to="/faculty" onClick={onItemClick} className={navLinkClass(isActive('/faculty'), collapsed)} title="Faculty Home">
+              <AssetSidebarIcon
+                darkSrc={dashboardDarkDefault}
+                darkActiveSrc={dashboardDarkActive}
+                lightSrc={dashboardLightDefault}
+                lightActiveSrc={dashboardLightActive}
+                active={isActive('/faculty')}
+                alt="Faculty Home"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">Faculty Home</span>}
+            </Link>
+            <Link to="/staff/scan" onClick={onItemClick} className={navLinkClass(isActive('/staff/scan'), collapsed)} title="DTR Log">
+              <AssetSidebarIcon
+                darkSrc={clockDarkDefault}
+                darkActiveSrc={clockDarkActive}
+                lightSrc={clockLightDefault}
+                lightActiveSrc={clockLightActive}
+                active={isActive('/staff/scan')}
+                alt="DTR Log"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">DTR Log</span>}
+            </Link>
+          </>
+        )}
+
+        {/* Student nav */}
+        {user?.role === 'student' && (
+          <>
+            <Link to="/student" onClick={onItemClick} className={navLinkClass(isActive('/student'), collapsed)} title="Dashboard">
+              <AssetSidebarIcon
+                darkSrc={dashboardDarkDefault}
+                darkActiveSrc={dashboardDarkActive}
+                lightSrc={dashboardLightDefault}
+                lightActiveSrc={dashboardLightActive}
+                active={isActive('/student')}
+                alt="Dashboard"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">Dashboard</span>}
+            </Link>
+            <Link to="/student/analytics" onClick={onItemClick} className={navLinkClass(isActive('/student/analytics'), collapsed)} title="Data Analytics">
+              <AssetSidebarIcon
+                darkSrc={analyticsDarkDefault}
+                darkActiveSrc={analyticsDarkActive}
+                lightSrc={analyticsLightDefault}
+                lightActiveSrc={analyticsLightActive}
+                active={isActive('/student/analytics')}
+                alt="Data Analytics"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">Data Analytics</span>}
+            </Link>
+
+            <Link to="/student/scores" onClick={onItemClick} className={navLinkClass(isActive('/student/scores'), collapsed)} title="Scores">
+              <AssetSidebarIcon
+                darkSrc={scoreDarkDefault}
+                darkActiveSrc={scoreDarkActive}
+                lightSrc={scoreLightDefault}
+                lightActiveSrc={scoreLightActive}
+                active={isActive('/student/scores')}
+                alt="Scores"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">Scores</span>}
+            </Link>
+
+            <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0' }} />
+
+            <Link to="/student/attendance" onClick={onItemClick} className={navLinkClass(isActive('/student/attendance'), collapsed)} title="QR Attendance">
+              <AssetSidebarIcon
+                darkSrc={clockDarkDefault}
+                darkActiveSrc={clockDarkActive}
+                lightSrc={clockLightDefault}
+                lightActiveSrc={clockLightActive}
+                active={isActive('/student/attendance')}
+                alt="QR Attendance"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">QR Attendance</span>}
+            </Link>
+          </>
+        )}
+      </>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--surface-bg)', overflow: 'hidden', fontFamily: 'var(--font-body)' }}>
@@ -314,87 +680,233 @@ export const DashboardLayout: React.FC = () => {
         sidebarTextId="sidebar-brand-text"
       />
 
-      {/* ── Sidebar ───────────────────────────────────── */}
+      {/* ── Desktop Sidebar (Collapsible & Minimizable, hidden on <1024px) ───────────────────────── */}
       <aside
+        className="hidden lg:flex"
         style={{
-          width: '260px',
+          width: isSidebarCollapsed ? '68px' : '260px',
+          transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
           background: 'var(--sidebar-bg)',
-          display: 'flex',
           flexDirection: 'column',
           flexShrink: 0,
           borderRight: '1px solid var(--slate-200)',
           zIndex: 20,
           position: 'relative',
+          overflow: 'hidden',
         }}
       >
         {/* Brand Header */}
-        <Link
-          to={user?.is_superuser ? '/superadmin' : user?.role ? `/${user.role}` : '/'}
-          className="group"
+        <div
           style={{
-            padding: '0 1.25rem',
+            padding: isSidebarCollapsed ? '0 0.5rem' : '0 1rem 0 1.25rem',
             minHeight: '64px',
             borderBottom: '1px solid var(--slate-100)',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.75rem',
+            justifyContent: isSidebarCollapsed ? 'center' : 'space-between',
             flexShrink: 0,
             position: 'relative',
-            textDecoration: 'none',
+            transition: 'padding 0.25s ease',
           }}
         >
-          <div
-            id="sidebar-brand-logo"
-            className="transition-transform duration-300 ease-out group-hover:-translate-y-1 group-hover:scale-110 will-change-transform select-none"
+          {isSidebarCollapsed ? (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="group relative flex items-center justify-center p-2 rounded-lg cursor-pointer transition-all duration-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 active:scale-95 focus:outline-none"
+              title="Click to expand sidebar"
+              aria-label="Click to expand sidebar"
+            >
+              <div
+                id="sidebar-brand-logo"
+                className="transition-transform duration-200 group-hover:scale-110 will-change-transform select-none"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <img
+                  src="/src/assets/ARALert_Logo_LIGHT.png"
+                  alt="ARALert"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    display: 'block',
+                  }}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
+            </button>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <Link
+                to={user?.is_superuser ? '/superadmin' : user?.role ? `/${user.role}` : '/'}
+                className="group"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  textDecoration: 'none',
+                  minWidth: 0,
+                }}
+                title="ARALert"
+              >
+                <div
+                  id="sidebar-brand-logo"
+                  className="transition-transform duration-300 ease-out group-hover:-translate-y-0.5 group-hover:scale-105 will-change-transform select-none"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transformOrigin: 'center center',
+                    backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
+                    transform: 'translateZ(0)',
+                  }}
+                >
+                  <img
+                    src="/src/assets/ARALert_Logo_LIGHT.png"
+                    alt="ARALert"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      display: 'block',
+                      backfaceVisibility: 'hidden',
+                      WebkitBackfaceVisibility: 'hidden',
+                      transform: 'translateZ(0)',
+                    }}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                  />
+                </div>
+                <div
+                  id="sidebar-brand-text"
+                  className="will-change-transform select-none"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  <div
+                    style={{
+                      fontFamily: 'var(--font-heading)',
+                      fontWeight: 700,
+                      fontSize: '1.1rem',
+                      color: 'var(--brand)',
+                      letterSpacing: '-0.02em',
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    ARALert
+                  </div>
+                </div>
+              </Link>
+
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="p-1.5 rounded-md border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0"
+                title="Collapse sidebar"
+                aria-label="Collapse sidebar"
+              >
+                <PanelLeftClose size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <nav
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: isSidebarCollapsed ? '0.875rem 0.35rem' : '0.875rem 0.75rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+          }}
+        >
+          {renderNavItems(isSidebarCollapsed)}
+        </nav>
+      </aside>
+
+      {/* ── Mobile Sidebar Drawer (< 1024px) ───────────────────────── */}
+      {isMobileDrawerOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs lg:hidden animate-fade-in"
+          onClick={() => setIsMobileDrawerOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] flex flex-col lg:hidden transition-transform duration-300 ease-in-out shadow-2xl ${
+          isMobileDrawerOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
+        }`}
+        style={{
+          background: 'var(--sidebar-bg)',
+          borderRight: '1px solid var(--slate-200)',
+        }}
+      >
+        {/* Mobile Drawer Header */}
+        <div
+          style={{
+            minHeight: '64px',
+            borderBottom: '1px solid var(--slate-100)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 1rem 0 1.25rem',
+            flexShrink: 0,
+          }}
+        >
+          <Link
+            to={user?.is_superuser ? '/superadmin' : user?.role ? `/${user.role}` : '/'}
+            onClick={() => setIsMobileDrawerOpen(false)}
             style={{
-              width: '32px',
-              height: '32px',
-              flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              transformOrigin: 'center center',
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-              transform: 'translateZ(0)',
+              gap: '0.65rem',
+              textDecoration: 'none',
             }}
           >
             <img
               src="/src/assets/ARALert_Logo_LIGHT.png"
               alt="ARALert"
               style={{
-                width: '100%',
-                height: '100%',
+                width: '32px',
+                height: '32px',
                 objectFit: 'contain',
-                display: 'block',
-                backfaceVisibility: 'hidden',
-                WebkitBackfaceVisibility: 'hidden',
-                transform: 'translateZ(0)',
               }}
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
             />
-          </div>
-          <div
-            id="sidebar-brand-text"
-            className="will-change-transform select-none"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            <div
+            <span
               style={{
-                fontFamily: 'var(--font-heading)',
+                fontSize: '1.05rem',
                 fontWeight: 800,
-                fontSize: '1.1rem',
                 color: 'var(--brand)',
                 letterSpacing: '-0.02em',
-                lineHeight: 1.1,
+                fontFamily: 'var(--font-heading)',
               }}
             >
               ARALert
-            </div>
-          </div>
-        </Link>
+            </span>
+          </Link>
 
-        {/* Navigation */}
+          <button
+            type="button"
+            onClick={() => setIsMobileDrawerOpen(false)}
+            className="p-1.5 rounded-md border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            aria-label="Close navigation"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Mobile Navigation */}
         <nav
           style={{
             flex: 1,
@@ -405,319 +917,7 @@ export const DashboardLayout: React.FC = () => {
             gap: '2px',
           }}
         >
-          {/* SuperAdmin nav */}
-          {user?.is_superuser && (
-            <>
-              <span className="sidebar-section-label">Management</span>
-              <Link to="/superadmin" className={navLinkClass(isActive('/superadmin'))}>
-                <AssetSidebarIcon
-                  darkSrc={dashboardDarkDefault}
-                  darkActiveSrc={dashboardDarkActive}
-                  lightSrc={dashboardLightDefault}
-                  lightActiveSrc={dashboardLightActive}
-                  active={isActive('/superadmin')}
-                  alt="Dashboard"
-                  size={18}
-                  theme={theme}
-                />
-                Dashboard
-              </Link>
-              <Link
-                to="/superadmin/users"
-                className={navLinkClass(isActivePrefix('/superadmin/users'))}
-              >
-                <SidebarIcon Icon={Users} active={isActivePrefix('/superadmin/users')} />
-                User Management
-              </Link>
-              <Link
-                to="/superadmin/audit-logs"
-                className={navLinkClass(isActivePrefix('/superadmin/audit-logs'))}
-              >
-                <SidebarIcon Icon={FileText} active={isActivePrefix('/superadmin/audit-logs')} />
-                Audit Log
-              </Link>
-            </>
-          )}
-
-          {/* Admin nav */}
-          {user?.role === 'admin' && (
-            <>
-              <Link to="/admin" className={navLinkClass(isActive('/admin'))}>
-                <AssetSidebarIcon
-                  darkSrc={dashboardDarkDefault}
-                  darkActiveSrc={dashboardDarkActive}
-                  lightSrc={dashboardLightDefault}
-                  lightActiveSrc={dashboardLightActive}
-                  active={isActive('/admin')}
-                  alt="Dashboard"
-                  size={18}
-                  theme={theme}
-                />
-                Dashboard
-              </Link>
-              <Link
-                to="/admin/students"
-                className={navLinkClass(isActivePrefix('/admin/students') || isActivePrefix('/admin/tutors') || isActivePrefix('/admin/faculty') || isActivePrefix('/admin/principals') || isActivePrefix('/admin/users'))}
-              >
-                <AssetSidebarIcon
-                  darkSrc={studentsDarkDefault}
-                  darkActiveSrc={studentsDarkActive}
-                  lightSrc={studentsLightDefault}
-                  lightActiveSrc={studentsLightActive}
-                  active={isActivePrefix('/admin/students') || isActivePrefix('/admin/tutors') || isActivePrefix('/admin/faculty') || isActivePrefix('/admin/principals') || isActivePrefix('/admin/users')}
-                  alt="User Management"
-                  size={18}
-                  theme={theme}
-                />
-                User Management
-              </Link>
-              <Link
-                to="/admin/audit-logs"
-                className={navLinkClass(isActivePrefix('/admin/audit-logs'))}
-              >
-                <SidebarIcon Icon={FileText} active={isActivePrefix('/admin/audit-logs')} />
-                Audit Log
-              </Link>
-
-              <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0', boxShadow: 'inset 0 1px 0 var(--slate-200)' }} />
-
-              <Link to="/admin/attendance" className={navLinkClass(isActive('/admin/attendance'))}>
-                <AssetSidebarIcon
-                  darkSrc={qrDarkDefault}
-                  darkActiveSrc={qrDarkActive}
-                  lightSrc={qrLightDefault}
-                  lightActiveSrc={qrLightActive}
-                  active={isActive('/admin/attendance')}
-                  alt="QR Attendance"
-                  size={18}
-                  theme={theme}
-                />
-                QR Attendance
-              </Link>
-            </>
-          )}
-
-          {/* Tutor nav */}
-          {user?.role === 'tutor' && (
-            <>
-              <Link to="/tutor" className={navLinkClass(isActive('/tutor'))}>
-                <AssetSidebarIcon
-                  darkSrc={dashboardDarkDefault}
-                  darkActiveSrc={dashboardDarkActive}
-                  lightSrc={dashboardLightDefault}
-                  lightActiveSrc={dashboardLightActive}
-                  active={isActive('/tutor')}
-                  alt="Dashboard"
-                  size={18}
-                  theme={theme}
-                />
-                Dashboard
-              </Link>
-
-              <Link
-                to="/tutor/attendance/generate"
-                className={navLinkClass(isActive('/tutor/attendance/generate'))}
-              >
-                <AssetSidebarIcon
-                  darkSrc={qrDarkDefault}
-                  darkActiveSrc={qrDarkActive}
-                  lightSrc={qrLightDefault}
-                  lightActiveSrc={qrLightActive}
-                  active={isActive('/tutor/attendance/generate')}
-                  alt="QR Attendance"
-                  size={18}
-                  theme={theme}
-                />
-                QR Attendance
-              </Link>
-
-              <Link to="/tutor/scores" className={navLinkClass(isActive('/tutor/scores'))}>
-                <AssetSidebarIcon
-                  darkSrc={scoreDarkDefault}
-                  darkActiveSrc={scoreDarkActive}
-                  lightSrc={scoreLightDefault}
-                  lightActiveSrc={scoreLightActive}
-                  active={isActive('/tutor/scores')}
-                  alt="Score Entry"
-                  size={18}
-                  theme={theme}
-                />
-                Score Entry
-              </Link>
-
-              <Link to="/tutor/analytics" className={navLinkClass(isActive('/tutor/analytics'))}>
-                <AssetSidebarIcon
-                  darkSrc={analyticsDarkDefault}
-                  darkActiveSrc={analyticsDarkActive}
-                  lightSrc={analyticsLightDefault}
-                  lightActiveSrc={analyticsLightActive}
-                  active={isActive('/tutor/analytics')}
-                  alt="Data Analytics"
-                  size={18}
-                  theme={theme}
-                />
-                Data Analytics
-              </Link>
-
-              <Link to="/tutor/students" className={navLinkClass(isActive('/tutor/students'))}>
-                <AssetSidebarIcon
-                  darkSrc={studentsDarkDefault}
-                  darkActiveSrc={studentsDarkActive}
-                  lightSrc={studentsLightDefault}
-                  lightActiveSrc={studentsLightActive}
-                  active={isActive('/tutor/students')}
-                  alt="Assigned Students"
-                  size={18}
-                  theme={theme}
-                />
-                Assigned Students
-              </Link>
-
-              <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0', boxShadow: 'inset 0 1px 0 var(--slate-200)' }} />
-
-              <Link to="/staff/scan" className={navLinkClass(isActive('/staff/scan'))}>
-                <AssetSidebarIcon
-                  darkSrc={clockDarkDefault}
-                  darkActiveSrc={clockDarkActive}
-                  lightSrc={clockLightDefault}
-                  lightActiveSrc={clockLightActive}
-                  active={isActive('/staff/scan')}
-                  alt="DTR Log"
-                  size={18}
-                  theme={theme}
-                />
-                DTR Log
-              </Link>
-            </>
-          )}
-
-          {/* Principal nav */}
-          {user?.role === 'principal' && (
-            <>
-              <span className="sidebar-section-label">Monitoring</span>
-              <Link to="/principal" className={navLinkClass(isActive('/principal'))}>
-                <AssetSidebarIcon
-                  darkSrc={dashboardDarkDefault}
-                  darkActiveSrc={dashboardDarkActive}
-                  lightSrc={dashboardLightDefault}
-                  lightActiveSrc={dashboardLightActive}
-                  active={isActive('/principal')}
-                  alt="Monitoring Dashboard"
-                  size={18}
-                  theme={theme}
-                />
-                Monitoring Dashboard
-              </Link>
-              <Link to="/staff/scan" className={navLinkClass(isActive('/staff/scan'))}>
-                <AssetSidebarIcon
-                  darkSrc={clockDarkDefault}
-                  darkActiveSrc={clockDarkActive}
-                  lightSrc={clockLightDefault}
-                  lightActiveSrc={clockLightActive}
-                  active={isActive('/staff/scan')}
-                  alt="DTR Log"
-                  size={18}
-                  theme={theme}
-                />
-                DTR Log
-              </Link>
-            </>
-          )}
-
-          {/* Faculty nav */}
-          {user?.role === 'faculty' && (
-            <>
-              <span className="sidebar-section-label">Faculty</span>
-              <Link to="/faculty" className={navLinkClass(isActive('/faculty'))}>
-                <AssetSidebarIcon
-                  darkSrc={dashboardDarkDefault}
-                  darkActiveSrc={dashboardDarkActive}
-                  lightSrc={dashboardLightDefault}
-                  lightActiveSrc={dashboardLightActive}
-                  active={isActive('/faculty')}
-                  alt="Faculty Home"
-                  size={18}
-                  theme={theme}
-                />
-                Faculty Home
-              </Link>
-              <Link to="/staff/scan" className={navLinkClass(isActive('/staff/scan'))}>
-                <AssetSidebarIcon
-                  darkSrc={clockDarkDefault}
-                  darkActiveSrc={clockDarkActive}
-                  lightSrc={clockLightDefault}
-                  lightActiveSrc={clockLightActive}
-                  active={isActive('/staff/scan')}
-                  alt="DTR Log"
-                  size={18}
-                  theme={theme}
-                />
-                DTR Log
-              </Link>
-            </>
-          )}
-
-          {/* Student nav */}
-          {user?.role === 'student' && (
-            <>
-              <Link to="/student" className={navLinkClass(isActive('/student'))}>
-                <AssetSidebarIcon
-                  darkSrc={dashboardDarkDefault}
-                  darkActiveSrc={dashboardDarkActive}
-                  lightSrc={dashboardLightDefault}
-                  lightActiveSrc={dashboardLightActive}
-                  active={isActive('/student')}
-                  alt="Dashboard"
-                  size={18}
-                  theme={theme}
-                />
-                Dashboard
-              </Link>
-              <Link to="/student/analytics" className={navLinkClass(isActive('/student/analytics'))}>
-                <AssetSidebarIcon
-                  darkSrc={analyticsDarkDefault}
-                  darkActiveSrc={analyticsDarkActive}
-                  lightSrc={analyticsLightDefault}
-                  lightActiveSrc={analyticsLightActive}
-                  active={isActive('/student/analytics')}
-                  alt="Data Analytics"
-                  size={18}
-                  theme={theme}
-                />
-                Data Analytics
-              </Link>
-
-              <Link to="/student/scores" className={navLinkClass(isActive('/student/scores'))}>
-                <AssetSidebarIcon
-                  darkSrc={scoreDarkDefault}
-                  darkActiveSrc={scoreDarkActive}
-                  lightSrc={scoreLightDefault}
-                  lightActiveSrc={scoreLightActive}
-                  active={isActive('/student/scores')}
-                  alt="Scores"
-                  size={18}
-                  theme={theme}
-                />
-                Scores
-              </Link>
-
-              <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0', boxShadow: 'inset 0 1px 0 var(--slate-200)' }} />
-
-              <Link to="/student/attendance" className={navLinkClass(isActive('/student/attendance'))}>
-                <AssetSidebarIcon
-                  darkSrc={clockDarkDefault}
-                  darkActiveSrc={clockDarkActive}
-                  lightSrc={clockLightDefault}
-                  lightActiveSrc={clockLightActive}
-                  active={isActive('/student/attendance')}
-                  alt="QR Attendance"
-                  size={18}
-                  theme={theme}
-                />
-                QR Attendance
-              </Link>
-            </>
-          )}
+          {renderNavItems(false, () => setIsMobileDrawerOpen(false))}
         </nav>
       </aside>
 
@@ -726,31 +926,30 @@ export const DashboardLayout: React.FC = () => {
 
         {/* ── Top Bar ── */}
         <header
+          className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 lg:px-8 shrink-0 z-10"
           style={{
-            height: '64px',
             background: 'var(--glass-bg)',
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
-            borderBottom: '1px solid var(--slate-200)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 2rem',
-            flexShrink: 0,
-            zIndex: 10,
           }}
         >
-          {/* Page title */}
-          <div>
+          {/* Page title & Mobile Menu Toggle */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => setIsMobileDrawerOpen(true)}
+              className="lg:hidden p-2 -ml-1 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0"
+              title="Open Navigation"
+              aria-label="Open Navigation"
+            >
+              <Menu size={20} />
+            </button>
             <h1
+              className="truncate text-xs sm:text-sm md:text-base font-bold text-slate-900 dark:text-white uppercase tracking-tight max-w-[130px] xs:max-w-[190px] sm:max-w-xs md:max-w-none"
               style={{
                 margin: 0,
                 fontFamily: 'var(--font-heading)',
-                fontWeight: 700,
-                fontSize: '1.15rem',
-                color: 'var(--text-primary)',
                 letterSpacing: '-0.02em',
-                textTransform: 'uppercase',
               }}
             >
               {getPageTitle()}
@@ -758,7 +957,7 @@ export const DashboardLayout: React.FC = () => {
           </div>
 
           {/* Right controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', position: 'relative' }}>
+          <div className="flex items-center gap-1.5 sm:gap-3 relative shrink-0">
             <ThemeToggle />
 
             {/* Edit Requests Bell (School Admin & Super Admin) */}
@@ -779,9 +978,9 @@ export const DashboardLayout: React.FC = () => {
                   }
                   style={{
                     position: 'relative',
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
                     background: pendingEditRequestsCount > 0 ? 'rgba(245, 158, 11, 0.12)' : 'var(--surface-muted)',
                     border: pendingEditRequestsCount > 0 ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid var(--slate-200)',
                     display: 'flex',
@@ -820,7 +1019,7 @@ export const DashboardLayout: React.FC = () => {
                       transformOrigin: 'top center',
                     }}
                   >
-                    <Bell size={17} />
+                    <Bell size={16} />
                   </span>
                   {pendingEditRequestsCount > 0 && (
                     <span
@@ -864,9 +1063,9 @@ export const DashboardLayout: React.FC = () => {
                   aria-label="Risk alerts"
                   style={{
                     position: 'relative',
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
                     background: 'var(--surface-muted)',
                     border: '1px solid var(--slate-200)',
                     display: 'flex',
@@ -905,7 +1104,7 @@ export const DashboardLayout: React.FC = () => {
                       transformOrigin: 'top center',
                     }}
                   >
-                    <Bell size={17} />
+                    <Bell size={16} />
                   </span>
                   {highRiskCount > 0 && (
                     <span
@@ -940,11 +1139,11 @@ export const DashboardLayout: React.FC = () => {
                     style={{
                       position: 'absolute',
                       right: 0,
-                      top: 'calc(100% + 10px)',
+                      top: 'calc(100% + 8px)',
                       width: '380px',
                       background: 'var(--surface-card)',
                       border: '1px solid var(--slate-200)',
-                      borderRadius: '18px',
+                      borderRadius: '12px',
                       boxShadow: 'var(--shadow-xl)',
                       zIndex: 50,
                       overflow: 'hidden',
@@ -953,7 +1152,7 @@ export const DashboardLayout: React.FC = () => {
                     {/* Dropdown header */}
                     <div
                       style={{
-                        padding: '1rem 1.25rem',
+                        padding: '0.875rem 1.25rem',
                         background: 'var(--surface-muted)',
                         borderBottom: '1px solid var(--slate-200)',
                         display: 'flex',
@@ -962,7 +1161,7 @@ export const DashboardLayout: React.FC = () => {
                       }}
                     >
                       <div>
-                        <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase' }}>
                           HIGH RISK STUDENTS ALERT
                         </p>
                       </div>
@@ -972,7 +1171,7 @@ export const DashboardLayout: React.FC = () => {
                         style={{
                           width: '28px',
                           height: '28px',
-                          borderRadius: '8px',
+                          borderRadius: '6px',
                           border: 'none',
                           background: 'transparent',
                           display: 'flex',
@@ -989,10 +1188,10 @@ export const DashboardLayout: React.FC = () => {
                     </div>
 
                     {/* Risk list body */}
-                    <div style={{ maxHeight: '380px', overflowY: 'auto', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{ maxHeight: '380px', overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {/* High risk */}
-                      <div style={{ background: 'var(--risk-high-bg)', border: '1px solid var(--risk-high-border)', borderRadius: '12px', padding: '0.875rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <div style={{ background: 'var(--risk-high-bg)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                           <div>
                             <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: 'var(--risk-high-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>High Risk</p>
                           </div>
@@ -1003,9 +1202,9 @@ export const DashboardLayout: React.FC = () => {
                         {highRiskStudents.length === 0 ? (
                           <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>No high-risk students detected.</p>
                         ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                             {highRiskStudents.map((row) => (
-                              <div key={`high-${row.student.id}`} style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '10px', padding: '0.65rem 0.75rem' }}>
+                              <div key={`high-${row.student.id}`} style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '6px', padding: '0.5rem 0.65rem' }}>
                                 <Link
                                   to={`/tutor/students/${row.student.id}`}
                                   state={{ from: 'dashboard' }}
@@ -1015,33 +1214,33 @@ export const DashboardLayout: React.FC = () => {
                                 >
                                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
                                     <div>
-                                      <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }} className="group-hover:text-[var(--brand)] transition-colors">
+                                      <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }} className="group-hover:text-[var(--brand)] transition-colors">
                                         {row.student.full_name}
                                       </p>
-                                      <p style={{ margin: '3px 0 0', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                                        Composite Rating: <span style={{ fontWeight: 500, color: 'var(--risk-high-text)' }}>{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
+                                      <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                        Composite: <span style={{ fontWeight: 600, color: 'var(--risk-high-text)' }}>{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
                                       </p>
                                       {acknowledgedNotes[row.student.id] && (
-                                        <div style={{ marginTop: '6px' }}>
-                                          <p style={{ margin: '2px 0 0', fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{acknowledgedNotes[row.student.id]}</p>
+                                        <div style={{ marginTop: '4px' }}>
+                                          <p style={{ margin: '2px 0 0', fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>{acknowledgedNotes[row.student.id]}</p>
                                         </div>
                                       )}
                                     </div>
-                                    <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.62rem', fontWeight: 800, borderRadius: '6px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0, border: '1px solid var(--risk-high-border)' }}>HIGH</span>
+                                    <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.62rem', fontWeight: 800, borderRadius: '4px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0, border: '1px solid var(--risk-high-border)' }}>HIGH</span>
                                   </div>
                                 </Link>
                                 <button
                                   type="button"
                                   onClick={() => handleAcknowledgeInitiate(row)}
                                   style={{
-                                    marginTop: '0.5rem',
+                                    marginTop: '0.4rem',
                                     width: '100%',
-                                    padding: '5px 10px',
-                                    borderRadius: '7px',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
                                     border: '1px solid var(--slate-200)',
                                     background: 'var(--surface-muted)',
                                     color: 'var(--text-secondary)',
-                                    fontSize: '0.75rem',
+                                    fontSize: '0.72rem',
                                     fontWeight: 700,
                                     cursor: 'pointer',
                                     transition: 'var(--transition-fast)',
@@ -1075,9 +1274,9 @@ export const DashboardLayout: React.FC = () => {
                   aria-label="Tutor notes"
                   style={{
                     position: 'relative',
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
                     background: 'var(--surface-muted)',
                     border: '1px solid var(--slate-200)',
                     display: 'flex',
@@ -1116,7 +1315,7 @@ export const DashboardLayout: React.FC = () => {
                       transformOrigin: 'top center',
                     }}
                   >
-                    <Bell size={17} />
+                    <Bell size={16} />
                   </span>
                   {studentNotes.filter((note) => !note.student_acknowledged).length > 0 && (
                     <span
@@ -1145,10 +1344,10 @@ export const DashboardLayout: React.FC = () => {
                 </button>
 
                 {showStudentNotes && (
-                  <div className="animate-fade-in-scale" style={{ position: 'absolute', right: 0, top: 'calc(100% + 10px)', width: '360px', background: 'var(--surface-card)', border: '1px solid var(--slate-200)', borderRadius: '18px', boxShadow: 'var(--shadow-xl)', zIndex: 50, overflow: 'hidden' }}>
-                    <div style={{ padding: '1rem 1.25rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-200)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div className="animate-fade-in-scale" style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', width: '360px', background: 'var(--surface-card)', border: '1px solid var(--slate-200)', borderRadius: '12px', boxShadow: 'var(--shadow-xl)', zIndex: 50, overflow: 'hidden' }}>
+                    <div style={{ padding: '0.875rem 1.25rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-200)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div>
-                        <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>TUTOR NOTES</p>
+                        <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase' }}>TUTOR NOTES</p>
                       </div>
                       <button
                         type="button"
@@ -1157,7 +1356,7 @@ export const DashboardLayout: React.FC = () => {
                         style={{
                           width: '28px',
                           height: '28px',
-                          borderRadius: '8px',
+                          borderRadius: '6px',
                           border: 'none',
                           background: 'transparent',
                           display: 'flex',
@@ -1172,22 +1371,22 @@ export const DashboardLayout: React.FC = () => {
                         <X size={15} />
                       </button>
                     </div>
-                    <div style={{ maxHeight: '380px', overflowY: 'auto', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{ maxHeight: '380px', overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {studentNotes.length === 0 ? (
                         <p style={{ margin: 0, padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>No current tutor notes.</p>
                       ) : studentNotes.map((note) => {
                         const colors = studentNoteStyle(note.risk_level);
                         return (
-                          <div key={note.id} style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: '12px', padding: '0.875rem' }}>
+                          <div key={note.id} style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: '8px', padding: '0.75rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
                               <span style={{ fontSize: '0.68rem', fontWeight: 800, color: colors.label, textTransform: 'uppercase' }}>{note.risk_level_display} risk</span>
                               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{new Date(note.date_created).toLocaleDateString()}</span>
                             </div>
-                            <p style={{ margin: '0.55rem 0 0', fontSize: '0.82rem', color: colors.text, lineHeight: 1.45 }}>{note.details}</p>
+                            <p style={{ margin: '0.45rem 0 0', fontSize: '0.8rem', color: colors.text, lineHeight: 1.4 }}>{note.details}</p>
                             {note.student_acknowledged ? (
-                              <p style={{ margin: '0.65rem 0 0', fontSize: '0.75rem', fontWeight: 700, color: colors.acknowledged }}>Acknowledged</p>
+                              <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', fontWeight: 700, color: colors.acknowledged }}>Acknowledged</p>
                             ) : (
-                              <button type="button" onClick={() => acknowledgeStudentNote(note.id)} style={{ marginTop: '0.65rem', border: 'none', borderRadius: '7px', padding: '6px 10px', background: colors.button, color: '#fff', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Acknowledge</button>
+                              <button type="button" onClick={() => acknowledgeStudentNote(note.id)} style={{ marginTop: '0.5rem', border: 'none', borderRadius: '4px', padding: '5px 9px', background: colors.button, color: '#fff', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Acknowledge</button>
                             )}
                           </div>
                         );
@@ -1207,43 +1406,42 @@ export const DashboardLayout: React.FC = () => {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.6rem',
-                  padding: '0.35rem 0.75rem 0.35rem 0.35rem',
-                  borderRadius: '12px',
-                  border: '1.5px solid var(--slate-200)',
+                  padding: '0.3rem 0.65rem 0.3rem 0.3rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--slate-200)',
                   background: 'var(--surface-card)',
                   cursor: 'pointer',
                   transition: 'var(--transition-fast)',
-                  boxShadow: 'var(--shadow-xs)',
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--brand-border)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--slate-200)'; e.currentTarget.style.boxShadow = 'var(--shadow-xs)'; }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--brand-border)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--slate-200)'; }}
               >
                 {user?.avatar ? (
                   <img
                     src={user.avatar}
                     alt="avatar"
-                    style={{ width: '32px', height: '32px', borderRadius: '9px', objectFit: 'cover' }}
+                    style={{ width: '30px', height: '30px', borderRadius: '6px', objectFit: 'cover' }}
                   />
                 ) : (
                   <div
-                    className="flex items-center justify-center shrink-0 rounded-[9px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                    className="flex items-center justify-center shrink-0 rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
                     style={{
-                      width: '32px',
-                      height: '32px',
+                      width: '30px',
+                      height: '30px',
                     }}
                   >
-                    <UserIcon size={16} />
+                    <UserIcon size={15} />
                   </div>
                 )}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                <div className="hidden sm:flex flex-col items-start leading-tight">
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                     {user?.first_name || user?.username}
                   </span>
-                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {getRoleLabel()}
                   </span>
                 </div>
-                <ChevronDown size={14} style={{ color: 'var(--text-muted)', marginLeft: '2px' }} />
+                <ChevronDown size={13} style={{ color: 'var(--text-muted)', marginLeft: '2px' }} />
               </button>
 
               {profileMenuOpen && (
@@ -1256,14 +1454,14 @@ export const DashboardLayout: React.FC = () => {
                     width: '220px',
                     background: 'var(--surface-card)',
                     border: '1px solid var(--slate-200)',
-                    borderRadius: '16px',
+                    borderRadius: '12px',
                     boxShadow: 'var(--shadow-xl)',
                     zIndex: 50,
                     overflow: 'hidden',
                   }}
                 >
                   {/* User info */}
-                  <div style={{ padding: '0.875rem 1rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-100)' }}>
+                  <div style={{ padding: '0.75rem 1rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-100)' }}>
                     <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>
                       {(() => {
                         const first = (user?.first_name || '').trim().toUpperCase();
@@ -1278,9 +1476,9 @@ export const DashboardLayout: React.FC = () => {
                   </div>
 
                   {/* Menu items */}
-                  <div style={{ padding: '0.5rem' }}>
+                  <div style={{ padding: '0.4rem' }}>
                     {[
-                      { label: 'View Profile', icon: <UserIcon size={15} />, action: () => { setProfileMenuOpen(false); navigate('/profile'); } },
+                      { label: 'View Profile', icon: <UserIcon size={14} />, action: () => { setProfileMenuOpen(false); navigate('/profile'); } },
                     ].map((item) => (
                       <button
                         key={item.label}
@@ -1291,12 +1489,12 @@ export const DashboardLayout: React.FC = () => {
                           alignItems: 'center',
                           gap: '0.6rem',
                           width: '100%',
-                          padding: '0.55rem 0.75rem',
-                          borderRadius: '10px',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: '6px',
                           border: 'none',
                           background: 'transparent',
                           cursor: 'pointer',
-                          fontSize: '0.825rem',
+                          fontSize: '0.8rem',
                           fontWeight: 600,
                           color: 'var(--text-secondary)',
                           fontFamily: 'var(--font-body)',
@@ -1315,19 +1513,22 @@ export const DashboardLayout: React.FC = () => {
 
                     <button
                       type="button"
-                      onClick={handleLogout}
+                      onClick={() => {
+                        setShowLogoutConfirm(true);
+                        setProfileMenuOpen(false);
+                      }}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.6rem',
                         width: '100%',
-                        padding: '0.55rem 0.75rem',
-                        borderRadius: '10px',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: '6px',
                         border: 'none',
                         background: 'transparent',
                         cursor: 'pointer',
-                        fontSize: '0.825rem',
-                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
                         color: '#DC2626',
                         fontFamily: 'var(--font-body)',
                         transition: 'var(--transition-fast)',
@@ -1336,7 +1537,7 @@ export const DashboardLayout: React.FC = () => {
                       onMouseEnter={(e) => { e.currentTarget.style.background = '#FEF2F2'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                     >
-                      <LogOut size={15} style={{ color: '#EF4444' }} />
+                      <LogOut size={14} style={{ color: '#EF4444' }} />
                       Sign Out
                     </button>
                   </div>
@@ -1347,7 +1548,7 @@ export const DashboardLayout: React.FC = () => {
         </header>
 
         {/* ── Content body ── */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: '2rem' }}>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 md:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>
@@ -1436,6 +1637,53 @@ export const DashboardLayout: React.FC = () => {
           onRequestReviewed={fetchPendingEditRequests}
         />
       )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+            onClick={() => setShowLogoutConfirm(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-confirm-title"
+          >
+            <div
+              className="w-full max-w-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111622] p-5 sm:p-6 shadow-xl animate-fade-in-scale"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div>
+                <h3 id="logout-confirm-title" className="text-base font-semibold text-slate-900 dark:text-white">
+                  Confirm Logout
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+                  Are you sure you want to log out? You will need to sign in again to access your account.
+                </p>
+              </div>
+
+              <div className="mt-5 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLogoutConfirm(false);
+                    handleLogout();
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-xs font-medium text-white shadow-xs transition-colors cursor-pointer"
+                >
+                  Log out
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
     </div>
   );

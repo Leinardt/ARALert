@@ -15,14 +15,7 @@ import {
   ChevronDown,
   Info,
   BookOpen,
-  HelpCircle,
-  CheckCircle2,
-  Clock,
-  Sparkles,
-  Award,
   Users,
-  Target,
-  RotateCw,
 } from 'lucide-react';
 
 interface FAQItem {
@@ -232,14 +225,13 @@ export const Landing: React.FC = () => {
                 <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center text-[#0052B7] dark:text-blue-400">
                   <BookOpen className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Core Learning Recovery</h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white">Core Learning Recovery</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                   Focuses on essential competencies in English, Science, and Mathematics, giving learners personalized guidance through tutor-led sessions.
                 </p>
               </div>
-              <div className="pt-6 mt-6 border-t border-slate-200/60 dark:border-neutral-800 flex items-center gap-2 text-xs font-semibold text-[#0052B7] dark:text-blue-400">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Standardized Curriculum Focus</span>
+              <div className="pt-4 mt-6 border-t border-slate-200/60 dark:border-neutral-800 text-xs font-medium text-[#0052B7] dark:text-blue-400">
+                Standardized Curriculum Focus
               </div>
             </div>
 
@@ -249,14 +241,13 @@ export const Landing: React.FC = () => {
                 <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400">
                   <AlertTriangle className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Proactive Intervention</h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white">Proactive Intervention</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                   Replaces end-of-term surprises with continuous monitoring. Risk factors are flagged immediately so educators can adapt lesson plans.
                 </p>
               </div>
-              <div className="pt-6 mt-6 border-t border-slate-200/60 dark:border-neutral-800 flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                <Clock className="w-4 h-4" />
-                <span>Immediate Risk Mitigation</span>
+              <div className="pt-4 mt-6 border-t border-slate-200/60 dark:border-neutral-800 text-xs font-medium text-amber-600 dark:text-amber-400">
+                Immediate Risk Mitigation
               </div>
             </div>
 
@@ -266,14 +257,13 @@ export const Landing: React.FC = () => {
                 <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                   <Users className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Connected Stakeholders</h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white">Connected Stakeholders</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                   Seamlessly connects school administrators, subject faculties, assigned tutors, and students onto a unified, transparent digital record.
                 </p>
               </div>
-              <div className="pt-6 mt-6 border-t border-slate-200/60 dark:border-neutral-800 flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                <Sparkles className="w-4 h-4" />
-                <span>Role-Based Collaboration</span>
+              <div className="pt-4 mt-6 border-t border-slate-200/60 dark:border-neutral-800 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                Role-Based Collaboration
               </div>
             </div>
           </div>
@@ -320,18 +310,18 @@ export const Landing: React.FC = () => {
                 <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center text-[#0052B7] dark:text-blue-400">
                   <TrendingUp className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white">
                   Performance Tracking
                 </h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                   Consolidates formative assessments, weekly quizzes, and tasks into clear progress summaries with automatic weighted calculations.
                 </p>
               </div>
 
               <div className="mt-6 pt-4 border-t border-slate-200/60 dark:border-neutral-800 flex items-center justify-between text-xs">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">Calculation Engine</span>
-                <span className="inline-flex items-center gap-1 font-bold text-[#0052B7] dark:text-blue-400">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Auto-Weighted
+                <span className="text-slate-500 dark:text-slate-400 font-normal">Calculation Engine</span>
+                <span className="font-semibold text-[#0052B7] dark:text-blue-400">
+                  Auto-Weighted
                 </span>
               </div>
             </div>
@@ -349,18 +339,18 @@ export const Landing: React.FC = () => {
                 <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400">
                   <AlertTriangle className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white">
                   Early Risk Alerts
                 </h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                   Automatically flags students who drop below 75% or miss consecutive sessions, alerting educators before gaps compound.
                 </p>
               </div>
 
               <div className="mt-6 pt-4 border-t border-slate-200/60 dark:border-neutral-800 flex items-center justify-between text-xs">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">Alert Level</span>
-                <span className="inline-flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400">
-                  <Clock className="w-3.5 h-3.5" /> Real-Time Flags
+                <span className="text-slate-500 dark:text-slate-400 font-normal">Alert Level</span>
+                <span className="font-semibold text-amber-600 dark:text-amber-400">
+                  Real-Time Flags
                 </span>
               </div>
             </div>
@@ -378,18 +368,18 @@ export const Landing: React.FC = () => {
                 <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center text-[#0052B7] dark:text-blue-400">
                   <QrCode className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white">
                   QR Attendance
                 </h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                   Fast, tamper-proof session check-in and check-out using dynamic QR codes, saving valuable instructional time.
                 </p>
               </div>
 
               <div className="mt-6 pt-4 border-t border-slate-200/60 dark:border-neutral-800 flex items-center justify-between text-xs">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">Session Check-In</span>
-                <span className="inline-flex items-center gap-1 font-bold text-[#0052B7] dark:text-blue-400">
-                  <Sparkles className="w-3.5 h-3.5" /> Instant Scan
+                <span className="text-slate-500 dark:text-slate-400 font-normal">Session Check-In</span>
+                <span className="font-semibold text-[#0052B7] dark:text-blue-400">
+                  Instant Scan
                 </span>
               </div>
             </div>

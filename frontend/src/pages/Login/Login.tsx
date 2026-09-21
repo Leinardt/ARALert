@@ -114,10 +114,11 @@ export const Login: React.FC = () => {
           });
 
           if (googleBtnRef.current) {
+            const btnWidth = Math.min(340, Math.max(220, window.innerWidth - 72));
             window.google.accounts.id.renderButton(googleBtnRef.current, {
               theme: 'outline',
               size: 'large',
-              width: 340,
+              width: btnWidth,
               text: 'continue_with',
               shape: 'rectangular',
               logo_alignment: 'center',
@@ -161,23 +162,11 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '100px 20px 80px',
-        boxSizing: 'border-box',
-      }}
-    >
+    <div className="min-h-screen flex flex-col items-center justify-center px-3.5 sm:px-6 py-6 sm:py-12 md:py-16 box-border">
       <div
+        className="w-full transition-all duration-300 mx-auto"
         style={{
-          width: '100%',
           maxWidth: loginType === 'select' ? '560px' : '440px',
-          margin: '0 auto',
-          transition: 'max-width 0.3s ease',
         }}
       >
         {/* Session expired alert */}
@@ -233,12 +222,7 @@ export const Login: React.FC = () => {
           }}
         >
           {/* Card Header */}
-          <div
-            style={{
-              padding: '36px 36px 0',
-              textAlign: 'center',
-            }}
-          >
+          <div className="p-5 sm:p-8 sm:pb-0 text-center">
             {loginType !== 'select' && (
               <button
                 onClick={handleBack}
@@ -320,26 +304,17 @@ export const Login: React.FC = () => {
           </div>
 
           {/* Card Body */}
-          <div style={{ padding: '0 36px 36px' }}>
+          <div className="p-5 sm:p-8 pt-0 sm:pt-0">
             {/* ── Option Cards ────────────────────────────────────────── */}
             {loginType === 'select' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {/* Staff Google Login Option */}
                 <button
                   type="button"
                   onClick={() => { setLoginType('staff'); setServerError(null); }}
+                  className="flex items-center gap-3.5 sm:gap-4.5 p-3.5 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 text-left transition-all duration-200 w-full hover:border-brand hover:-translate-y-0.5 hover:shadow-md cursor-pointer"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '18px',
-                    padding: '20px 22px',
-                    borderRadius: '18px',
-                    border: '1.5px solid var(--slate-200)',
                     background: 'var(--surface-card)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.2s ease',
-                    width: '100%',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = 'var(--brand)';
@@ -355,19 +330,13 @@ export const Login: React.FC = () => {
                   }}
                 >
                   <div
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0"
                     style={{
-                      width: '50px',
-                      height: '50px',
-                      borderRadius: '14px',
                       background: 'var(--brand-light)',
                       border: '1px solid var(--brand-border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
                     }}
                   >
-                    <Shield style={{ width: '24px', height: '24px', color: 'var(--brand)' }} />
+                    <Shield style={{ width: '22px', height: '22px', color: 'var(--brand)' }} />
                   </div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', marginBottom: '3px' }}>
@@ -383,18 +352,9 @@ export const Login: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => { setLoginType('student'); setServerError(null); }}
+                  className="flex items-center gap-3.5 sm:gap-4.5 p-3.5 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 text-left transition-all duration-200 w-full hover:border-brand hover:-translate-y-0.5 hover:shadow-md cursor-pointer"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '18px',
-                    padding: '20px 22px',
-                    borderRadius: '18px',
-                    border: '1.5px solid var(--slate-200)',
                     background: 'var(--surface-card)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.2s ease',
-                    width: '100%',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = 'var(--brand)';
@@ -410,19 +370,13 @@ export const Login: React.FC = () => {
                   }}
                 >
                   <div
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0"
                     style={{
-                      width: '50px',
-                      height: '50px',
-                      borderRadius: '14px',
                       background: 'var(--brand-light)',
                       border: '1px solid var(--brand-border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
                     }}
                   >
-                    <GraduationCap style={{ width: '24px', height: '24px', color: 'var(--brand)' }} />
+                    <GraduationCap style={{ width: '22px', height: '22px', color: 'var(--brand)' }} />
                   </div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', marginBottom: '3px' }}>

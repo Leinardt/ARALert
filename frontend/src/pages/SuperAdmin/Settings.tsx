@@ -89,9 +89,9 @@ const AuditLogTab: React.FC = () => {
 
   const downloadCSV = () => {
     if (!data) return;
-    const header = 'Timestamp,Action,Username,IP Address,Details\n';
+    const header = 'Timestamp,Action,Username,Details\n';
     const rows = data.results
-      .map((r) => `"${r.timestamp}","${r.action}","${r.username}","${r.ip_address}","${JSON.stringify(r.details).replace(/"/g, "'")}"`)
+      .map((r) => `"${r.timestamp}","${r.action}","${r.username}","${JSON.stringify(r.details).replace(/"/g, "'")}"`)
       .join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -233,7 +233,6 @@ const AuditLogTab: React.FC = () => {
                   <th>Timestamp</th>
                   <th>Action</th>
                   <th>Username</th>
-                  <th>IP Address</th>
                   <th style={{ textAlign: 'center' }}>Details</th>
                 </tr>
               </thead>
@@ -254,7 +253,7 @@ const AuditLogTab: React.FC = () => {
                           <span style={{
                             display: 'inline-flex', alignItems: 'center', gap: '5px',
                             padding: '3px 10px', borderRadius: '99px',
-                            fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.03em',
+                            fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.03em',
                             background: meta.bg, color: meta.color, border: `1px solid ${meta.border}`,
                             whiteSpace: 'nowrap',
                           }}>
@@ -265,11 +264,6 @@ const AuditLogTab: React.FC = () => {
                         <td>
                           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                             {log.username}
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
-                            {log.ip_address}
                           </span>
                         </td>
                         <td style={{ textAlign: 'center' }}>
@@ -294,7 +288,7 @@ const AuditLogTab: React.FC = () => {
                       </tr>
                       {isExpanded && hasDetails && (
                         <tr>
-                          <td colSpan={5} style={{ padding: '0 1rem 1rem', background: 'var(--surface-muted)' }}>
+                          <td colSpan={4} style={{ padding: '0 1rem 1rem', background: 'var(--surface-muted)' }}>
                             <div style={{
                               background: '#0F172A', color: '#94A3B8', fontFamily: 'monospace',
                               fontSize: '0.8rem', padding: '0.875rem 1rem', borderRadius: '10px',

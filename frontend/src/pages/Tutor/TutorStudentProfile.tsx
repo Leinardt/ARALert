@@ -16,22 +16,17 @@ import {
   AlertCircle,
   Clock,
   Edit3,
-  X,
-  Sparkles,
-  User,
-  Sliders,
-  TrendingUp,
-  Layers,
-  ArrowUpDown,
-  ChevronUp,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   CalendarDays,
   Check,
-  Smile,
-  Meh,
-  Frown,
+  User,
+  Layers,
+  TrendingUp,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown,
 } from 'lucide-react';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
@@ -78,19 +73,19 @@ const formatTimeString = (value: string | null | undefined): string => {
 };
 
 const getAralBadge = (level?: string | null) => {
-  switch (level) {
-    case 'plus': return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">Plus</span>;
-    case 'summer': return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">Summer</span>;
-    case 'graduated': return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Graduated</span>;
-    default: return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Basic</span>;
+  switch (level?.toLowerCase()) {
+    case 'plus': return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200">Plus</span>;
+    case 'summer': return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Summer</span>;
+    case 'graduated': return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Graduated</span>;
+    default: return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200">Basic</span>;
   }
 };
 
 const getRiskBadge = (tier?: string | null) => {
   switch (tier?.toLowerCase()) {
-    case 'high': return <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-high"><Frown className="w-3.5 h-3.5" />High Risk</span>;
-    case 'medium': return <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-medium"><Meh className="w-3.5 h-3.5" />Medium Risk</span>;
-    default: return <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-low"><Smile className="w-3.5 h-3.5" />Low Risk</span>;
+    case 'high': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-high">High Risk</span>;
+    case 'medium': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-medium">Medium Risk</span>;
+    default: return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-low">Low Risk</span>;
   }
 };
 
@@ -165,7 +160,6 @@ export const TutorStudentProfile: React.FC = () => {
     // No-data state: neutral grey — not orange, which would imply a known medium risk
     if (!hasScoreData) {
       return {
-        icon: Smile,
         cardBg: 'bg-gray-50 border-gray-200 dark:bg-[#111111] dark:border-[#1A1A1A]',
         iconBg: 'bg-gray-100 border-gray-200 dark:bg-gray-800 dark:border-gray-700',
         iconColor: 'text-gray-400 dark:text-slate-500',
@@ -176,7 +170,6 @@ export const TutorStudentProfile: React.FC = () => {
     }
     if (calculatedAvgScore >= 81) {
       return {
-        icon: Smile,
         cardBg: 'risk-card-low',
         iconBg: 'risk-badge-low',
         iconColor: 'text-risk-low',
@@ -187,7 +180,6 @@ export const TutorStudentProfile: React.FC = () => {
     }
     if (calculatedAvgScore >= 75) {
       return {
-        icon: Meh,
         cardBg: 'risk-card-medium',
         iconBg: 'risk-badge-medium',
         iconColor: 'text-risk-medium',
@@ -197,7 +189,6 @@ export const TutorStudentProfile: React.FC = () => {
       };
     }
     return {
-      icon: Frown,
       cardBg: 'risk-card-high',
       iconBg: 'risk-badge-high',
       iconColor: 'text-risk-high',
@@ -216,7 +207,6 @@ export const TutorStudentProfile: React.FC = () => {
     // No-data state: neutral grey — not orange, which would imply a known medium risk
     if (!hasAttendanceData) {
       return {
-        icon: Smile,
         cardBg: 'bg-gray-50 border-gray-200 dark:bg-[#111111] dark:border-[#1A1A1A]',
         iconBg: 'bg-gray-100 border-gray-200 dark:bg-gray-800 dark:border-gray-700',
         iconColor: 'text-gray-400 dark:text-slate-500',
@@ -227,7 +217,6 @@ export const TutorStudentProfile: React.FC = () => {
     }
     if (attendanceRate >= 81) {
       return {
-        icon: Smile,
         cardBg: 'risk-card-low',
         iconBg: 'risk-badge-low',
         iconColor: 'text-risk-low',
@@ -238,7 +227,6 @@ export const TutorStudentProfile: React.FC = () => {
     }
     if (attendanceRate >= 75) {
       return {
-        icon: Meh,
         cardBg: 'risk-card-medium',
         iconBg: 'risk-badge-medium',
         iconColor: 'text-risk-medium',
@@ -248,7 +236,6 @@ export const TutorStudentProfile: React.FC = () => {
       };
     }
     return {
-      icon: Frown,
       cardBg: 'risk-card-high',
       iconBg: 'risk-badge-high',
       iconColor: 'text-risk-high',
@@ -556,16 +543,16 @@ export const TutorStudentProfile: React.FC = () => {
       </div>
 
       {/* ── Student Header Card ──────────────────────────────────── */}
-      <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 space-y-5">
+      <div className="bg-white dark:bg-[#111111] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 space-y-5">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
           <div className="flex items-center gap-4">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-sm shrink-0 ${avatarColor(profile.student.name)}`}>
-              <User className="w-8 h-8" />
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center shrink-0 ${avatarColor(profile.student.name)}`}>
+              <User className="w-7 h-7" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{profile.student.name}</h1>
-              <p className="text-xs text-gray-500 font-medium mt-1">
-                LRN: <span className="font-mono font-bold text-gray-700">{profile.student.lrn || 'N/A'}</span>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{profile.student.name}</h1>
+              <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mt-1">
+                LRN: <span className="font-mono font-bold text-gray-700 dark:text-slate-300">{profile.student.lrn || 'N/A'}</span>
               </p>
             </div>
           </div>
@@ -576,9 +563,9 @@ export const TutorStudentProfile: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowPendingModal(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition shadow-xs cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition cursor-pointer"
               >
-                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                 <span>Edit Request Pending Approval</span>
               </button>
             )}
@@ -593,7 +580,7 @@ export const TutorStudentProfile: React.FC = () => {
                   setStudentEditError(null);
                 }
               }}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border border-gray-200 hover:border-[var(--brand)] hover:bg-[var(--brand-light)] text-gray-700 hover:text-[var(--brand-dark)] transition shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold border border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:bg-[var(--brand-light)] dark:hover:bg-[#161616] text-gray-700 dark:text-slate-300 hover:text-[var(--brand-dark)] transition cursor-pointer"
             >
               <Edit3 className="w-3.5 h-3.5" />
               <span>{pendingEditRequest ? 'View Pending Request' : 'Edit Student Details'}</span>
@@ -604,7 +591,7 @@ export const TutorStudentProfile: React.FC = () => {
 
       {/* ── Tab Navigation ─────────────────────────────────────────── */}
       <div
-        className="flex w-full rounded-2xl bg-gray-100 p-1 no-arrive-animation"
+        className="flex w-full rounded-md bg-gray-100 dark:bg-[#1A1A1A] p-0.5 no-arrive-animation gap-0.5"
         role="tablist"
         aria-label="Student profile view"
         style={{ animation: 'none', transform: 'none', opacity: 1 }}
@@ -622,9 +609,9 @@ export const TutorStudentProfile: React.FC = () => {
               role="tab"
               aria-selected={isActive}
               onClick={() => setActiveTab(tabKey)}
-              className={`flex-1 rounded-xl py-2.5 px-3 text-xs font-bold uppercase flex items-center justify-center transition-all cursor-pointer ${isActive
-                ? 'bg-[var(--brand)] text-white shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+              className={`flex-1 rounded-sm py-2 px-3 text-xs font-bold uppercase flex items-center justify-center transition-all cursor-pointer ${isActive
+                ? 'bg-[var(--brand)] text-white'
+                : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                 }`}
             >
               <span>{label}</span>
@@ -641,93 +628,77 @@ export const TutorStudentProfile: React.FC = () => {
           <div className="space-y-6">
             {/* KPI Containers */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm flex items-center gap-4">
-                <div className="w-11 h-11 rounded-2xl bg-indigo-100 border border-indigo-200 flex items-center justify-center shrink-0">
-                  <Layers className="w-5 h-5 text-indigo-600" />
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-md bg-indigo-100 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shrink-0">
+                  <Layers className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">ARAL LEVEL</p>
-                  <p className="text-2xl font-extrabold text-gray-900 mt-0.5 capitalize">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">ARAL LEVEL</p>
+                  <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5 capitalize">
                     {profile.student.aral_level || 'Basic'}
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm flex items-center gap-4">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
-                  <TrendingUp className="w-5 h-5 text-emerald-600" />
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-md bg-emerald-100 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0">
+                  <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">COMPOSITE SCORE</p>
-                  <p className="text-2xl font-extrabold text-gray-900 mt-0.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">COMPOSITE SCORE</p>
+                  <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">
                     {smartPct(compositeScore)}%
                   </p>
                 </div>
               </div>
 
-              <div className={`rounded-3xl border p-5 shadow-sm flex items-center gap-4 ${riskTier === 'High'
+              <div className={`rounded-md border p-5 flex flex-col justify-center ${riskTier === 'High'
                 ? 'risk-card-high'
                 : riskTier === 'Medium'
                   ? 'risk-card-medium'
                   : 'risk-card-low'
                 }`}>
-                <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${riskTier === 'High'
-                  ? 'risk-badge-high text-risk-high'
+                <p className={`text-[11px] font-bold uppercase tracking-wider ${riskTier === 'High'
+                  ? 'text-risk-high'
                   : riskTier === 'Medium'
-                    ? 'risk-badge-medium text-risk-medium'
-                    : 'risk-badge-low text-risk-low'
+                    ? 'text-risk-medium'
+                    : 'text-risk-low'
+                  }`}>RISK LEVEL</p>
+                <p className={`text-2xl font-extrabold mt-0.5 ${riskTier === 'High'
+                  ? 'text-risk-high'
+                  : riskTier === 'Medium'
+                    ? 'text-risk-medium'
+                    : 'text-risk-low'
                   }`}>
-                  {riskTier === 'High' ? (
-                    <Frown className="w-5 h-5" />
-                  ) : riskTier === 'Medium' ? (
-                    <Meh className="w-5 h-5" />
-                  ) : (
-                    <Smile className="w-5 h-5" />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className={`text-[11px] font-bold uppercase tracking-wider ${riskTier === 'High'
-                    ? 'text-risk-high'
-                    : riskTier === 'Medium'
-                      ? 'text-risk-medium'
-                      : 'text-risk-low'
-                    }`}>RISK LEVEL</p>
-                  <p className={`text-2xl font-extrabold mt-0.5 ${riskTier === 'High'
-                    ? 'text-risk-high'
-                    : riskTier === 'Medium'
-                      ? 'text-risk-medium'
-                      : 'text-risk-low'
-                    }`}>
-                    {riskTier}
-                  </p>
-                </div>
+                  {riskTier}
+                </p>
               </div>
             </div>
 
             {/* Performance Summary Table */}
-            <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-100 px-6 py-4">
-                <h3 className="text-base font-bold text-gray-900 uppercase">STUDENT PERFORMANCE SUMMARY</h3>
-                <p className="mt-0.5 text-xs font-medium text-gray-500">Overview of the calculation</p>
+            <div className="overflow-hidden rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111]">
+              <div className="border-b border-gray-100 dark:border-[#1A1A1A] px-6 py-4">
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT PERFORMANCE SUMMARY</h3>
+                <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">Overview of the calculation</p>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-100 text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                  <thead className="bg-gray-50">
-                    <tr className="divide-x divide-gray-100 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                      <th className="px-6 py-3.5 text-center">AVERAGE ATTENDANCE RATE</th>
-                      <th className="px-6 py-3.5 text-center">AVERAGE SCORE</th>
-                      <th className="px-6 py-3.5 text-center">COMPOSITE SCORE</th>
+                <table className="min-w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                  <thead className="bg-gray-50 dark:bg-[#151515]">
+                    <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                      <th className="px-6 py-3 text-center">AVERAGE ATTENDANCE RATE</th>
+                      <th className="px-6 py-3 text-center">AVERAGE SCORE</th>
+                      <th className="px-6 py-3 text-center">COMPOSITE SCORE</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
-                    <tr className="divide-x divide-gray-100 transition-colors hover:bg-gray-50/80 text-center">
-                      <td className={`px-6 py-4 font-normal ${attendanceRate >= 81 ? 'text-risk-low' : attendanceRate >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                  <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
+                    <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515] text-center">
+                      <td className={`px-6 py-3.5 font-normal ${attendanceRate >= 81 ? 'text-risk-low' : attendanceRate >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
                         {smartPct(attendanceRate)}%
                       </td>
-                      <td className={`px-6 py-4 font-normal ${calculatedAvgScore >= 81 ? 'text-risk-low' : calculatedAvgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                      <td className={`px-6 py-3.5 font-normal ${calculatedAvgScore >= 81 ? 'text-risk-low' : calculatedAvgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
                         {smartPct(calculatedAvgScore)}%
                       </td>
-                      <td className="px-6 py-4 font-normal text-indigo-600">
+                      <td className="px-6 py-3.5 font-normal text-indigo-600 dark:text-indigo-400">
                         {smartPct(compositeScore)}%
                       </td>
                     </tr>
@@ -743,36 +714,36 @@ export const TutorStudentProfile: React.FC = () => {
           <div className="space-y-4">
             {/* Stat Containers */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm flex items-center gap-4">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
-                  <Check className="w-5 h-5 text-emerald-600" strokeWidth={3} />
+              <div className="rounded-md border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-md bg-emerald-100 dark:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0">
+                  <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-300" strokeWidth={3} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">TOTAL PRESENT</p>
-                  <p className="text-2xl font-extrabold text-emerald-900 mt-0.5">{profile.attendance.present}</p>
-                  <p className="mt-0.5 text-xs font-medium text-gray-500">{studentFirstName}'s total present records</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">TOTAL PRESENT</p>
+                  <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{profile.attendance.present}</p>
+                  <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s total present records</p>
                 </div>
               </div>
-              <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-sm flex items-center gap-4">
-                <div className="w-11 h-11 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
-                  <X className="w-5 h-5 text-rose-600" strokeWidth={3} />
+              <div className="rounded-md border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-md bg-rose-100 dark:bg-rose-900/60 border border-rose-200 dark:border-rose-800 flex items-center justify-center shrink-0">
+                  <X className="w-5 h-5 text-rose-600 dark:text-rose-300" strokeWidth={3} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">TOTAL ABSENT</p>
-                  <p className="text-2xl font-extrabold text-rose-900 mt-0.5">{profile.attendance.absent}</p>
-                  <p className="mt-0.5 text-xs font-medium text-gray-500">{studentFirstName}'s total absent records</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-300">TOTAL ABSENT</p>
+                  <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{profile.attendance.absent}</p>
+                  <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s total absent records</p>
                 </div>
               </div>
-              <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm flex items-center gap-4 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-                <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${attendanceMood.iconBg}`}>
-                  <attendanceMood.icon className={`w-5 h-5 ${attendanceMood.iconColor}`} />
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-md bg-indigo-100 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE ATTENDANCE RATE</p>
-                  <p className={`text-2xl font-extrabold mt-0.5 ${attendanceMood.valueColor}`}>
+                  <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">
                     {hasAttendanceData ? `${smartPct(attendanceRate)}%` : '—'}
                   </p>
-                  <p className="mt-0.5 text-xs font-medium text-gray-500">{studentFirstName}'s average attendance rate</p>
+                  <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s average attendance rate</p>
                 </div>
               </div>
             </div>
@@ -787,36 +758,36 @@ export const TutorStudentProfile: React.FC = () => {
           <div className="space-y-4">
             {/* Stat Containers */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm flex items-center gap-4">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
-                  <Check className="w-5 h-5 text-emerald-600" strokeWidth={3} />
+              <div className="rounded-md border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-md bg-emerald-100 dark:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0">
+                  <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-300" strokeWidth={3} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">TOTAL PASSED</p>
-                  <p className="text-2xl font-extrabold text-emerald-900 mt-0.5">{passedCount}</p>
-                  <p className="mt-0.5 text-xs font-medium text-gray-500">{studentFirstName}'s total passed score records</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">TOTAL PASSED</p>
+                  <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{passedCount}</p>
+                  <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s total passed score records</p>
                 </div>
               </div>
-              <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-sm flex items-center gap-4">
-                <div className="w-11 h-11 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
-                  <X className="w-5 h-5 text-rose-600" strokeWidth={3} />
+              <div className="rounded-md border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-md bg-rose-100 dark:bg-rose-900/60 border border-rose-200 dark:border-rose-800 flex items-center justify-center shrink-0">
+                  <X className="w-5 h-5 text-rose-600 dark:text-rose-300" strokeWidth={3} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">TOTAL FAILED</p>
-                  <p className="text-2xl font-extrabold text-rose-900 mt-0.5">{failedCount}</p>
-                  <p className="mt-0.5 text-xs font-medium text-gray-500">{studentFirstName}'s total failed score records</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-300">TOTAL FAILED</p>
+                  <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{failedCount}</p>
+                  <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s total failed score records</p>
                 </div>
               </div>
-              <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm flex items-center gap-4 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-                <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${scoreMood.iconBg}`}>
-                  <scoreMood.icon className={`w-5 h-5 ${scoreMood.iconColor}`} />
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-md bg-indigo-100 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shrink-0">
+                  <BookOpen className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE SCORE</p>
-                  <p className={`text-2xl font-extrabold mt-0.5 ${scoreMood.valueColor}`}>
+                  <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">
                     {hasScoreData ? `${smartPct(calculatedAvgScore)}%` : '—'}
                   </p>
-                  <p className="mt-0.5 text-xs font-medium text-gray-500">{studentFirstName}'s average score</p>
+                  <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s average score</p>
                 </div>
               </div>
             </div>
@@ -834,42 +805,42 @@ export const TutorStudentProfile: React.FC = () => {
       {/* ── ARAL ACTIVITY MODAL ────────────────────────────────────── */}
       {showActivityModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleAddActivity} className="bg-white rounded-3xl p-6 max-w-md w-full border border-gray-200 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="font-bold text-gray-900 text-lg">Create ARAL Activity</h3>
-              <button type="button" onClick={() => setShowActivityModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
-                <X className="w-5 h-5" />
+          <form onSubmit={handleAddActivity} className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
+              <h3 className="font-bold text-gray-900 dark:text-white text-base">Create ARAL Activity</h3>
+              <button type="button" onClick={() => setShowActivityModal(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors cursor-pointer">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Title</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Title</label>
               <input
                 type="text"
                 required
                 placeholder="e.g. Remedial Reading Practice"
                 value={activityForm.title}
                 onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })}
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Description</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Description</label>
               <textarea
                 value={activityForm.description}
                 onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })}
                 placeholder="Describe the activity guidelines or intervention objectives..."
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] h-20 resize-none"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] h-20 resize-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Initial Status</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Initial Status</label>
               <select
                 value={activityForm.status}
                 onChange={(e) => setActivityForm({ ...activityForm, status: e.target.value as any })}
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)]"
               >
                 <option value="pending">Pending</option>
                 <option value="in_progress">In Progress</option>
@@ -878,27 +849,27 @@ export const TutorStudentProfile: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Remarks (Optional)</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Remarks (Optional)</label>
               <input
                 type="text"
                 value={activityForm.remarks}
                 onChange={(e) => setActivityForm({ ...activityForm, remarks: e.target.value })}
                 placeholder="Additional notes or observation..."
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)]"
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
               <button
                 type="button"
                 onClick={() => setShowActivityModal(false)}
-                className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-2xl text-xs font-bold hover:bg-gray-50 cursor-pointer"
+                className="bg-white dark:bg-transparent border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-2xl text-xs font-bold cursor-pointer shadow-sm transition-all"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-md text-xs font-bold cursor-pointer transition-colors"
               >
                 Create Activity
               </button>
@@ -910,20 +881,20 @@ export const TutorStudentProfile: React.FC = () => {
       {/* ── RISK ALERTS MODAL ──────────────────────────────────────── */}
       {showRiskModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleAddRisk} className="bg-white rounded-3xl p-6 max-w-md w-full border border-gray-200 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="font-bold text-gray-900 text-lg">Log Academic Risk Warning</h3>
-              <button type="button" onClick={() => setShowRiskModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
-                <X className="w-5 h-5" />
+          <form onSubmit={handleAddRisk} className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
+              <h3 className="font-bold text-gray-900 dark:text-white text-base">Log Academic Risk Warning</h3>
+              <button type="button" onClick={() => setShowRiskModal(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors cursor-pointer">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Risk Level</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Risk Level</label>
               <select
                 value={riskForm.risk_level}
                 onChange={(e) => setRiskForm({ ...riskForm, risk_level: e.target.value as any })}
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)]"
               >
                 <option value="low">Low Risk</option>
                 <option value="medium">Medium Risk</option>
@@ -932,27 +903,27 @@ export const TutorStudentProfile: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Details & Reasons</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Details & Reasons</label>
               <textarea
                 required
                 placeholder="Explain why this student is flagged (e.g. failing exam grades, consistent absenteeism)..."
                 value={riskForm.details}
                 onChange={(e) => setRiskForm({ ...riskForm, details: e.target.value })}
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] h-24 resize-none"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] h-24 resize-none"
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
               <button
                 type="button"
                 onClick={() => setShowRiskModal(false)}
-                className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-2xl text-xs font-bold hover:bg-gray-50 cursor-pointer"
+                className="bg-white dark:bg-transparent border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-2xl text-xs font-bold cursor-pointer shadow-sm transition-all"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-md text-xs font-bold cursor-pointer transition-colors"
               >
                 Submit Risk Flag
               </button>
@@ -964,31 +935,31 @@ export const TutorStudentProfile: React.FC = () => {
       {/* ── ATTENDANCE MODAL ───────────────────────────────────────── */}
       {showAttendanceModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleAddAttendance} className="bg-white rounded-3xl p-6 max-w-md w-full border border-gray-200 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="font-bold text-gray-900 text-lg">Log Manual Attendance</h3>
-              <button type="button" onClick={() => setShowAttendanceModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
-                <X className="w-5 h-5" />
+          <form onSubmit={handleAddAttendance} className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
+              <h3 className="font-bold text-gray-900 dark:text-white text-base">Log Manual Attendance</h3>
+              <button type="button" onClick={() => setShowAttendanceModal(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors cursor-pointer">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Date</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Date</label>
               <input
                 type="date"
                 required
                 value={attendanceForm.date}
                 onChange={(e) => setAttendanceForm({ ...attendanceForm, date: e.target.value })}
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Status</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Status</label>
               <select
                 value={attendanceForm.status}
                 onChange={(e) => setAttendanceForm({ ...attendanceForm, status: e.target.value as any })}
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)]"
               >
                 <option value="present">Present</option>
                 <option value="absent">Absent</option>
@@ -996,11 +967,11 @@ export const TutorStudentProfile: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Linked Intervention Activity (Optional)</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Linked Intervention Activity (Optional)</label>
               <select
                 value={attendanceForm.aral_activity_id}
                 onChange={(e) => setAttendanceForm({ ...attendanceForm, aral_activity_id: e.target.value })}
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)]"
               >
                 <option value="">None</option>
                 {profile.aral_progress.activities.map((act) => (
@@ -1011,17 +982,17 @@ export const TutorStudentProfile: React.FC = () => {
               </select>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
               <button
                 type="button"
                 onClick={() => setShowAttendanceModal(false)}
-                className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-2xl text-xs font-bold hover:bg-gray-50 cursor-pointer"
+                className="bg-white dark:bg-transparent border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-2xl text-xs font-bold cursor-pointer shadow-sm transition-all"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-md text-xs font-bold cursor-pointer transition-colors"
               >
                 Log Entry
               </button>
@@ -1033,88 +1004,88 @@ export const TutorStudentProfile: React.FC = () => {
       {/* ── STUDENT EDIT REQUEST MODAL ─────────────────────────────── */}
       {isEditingStudent && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <form onSubmit={handleSubmitStudentEditRequest} className="bg-white rounded-3xl p-6 max-w-lg w-full border border-gray-200 shadow-2xl space-y-4 my-8">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+          <form onSubmit={handleSubmitStudentEditRequest} className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <div>
-                <h3 className="font-bold text-gray-900 text-lg">EDIT STUDENT DETAILS</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white text-base">Edit Student Details</h3>
               </div>
-              <button type="button" onClick={() => setIsEditingStudent(false)} className="text-gray-400 hover:text-gray-600 p-1">
-                <X className="w-5 h-5" />
+              <button type="button" onClick={() => setIsEditingStudent(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors cursor-pointer">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Integrity Notice Banner */}
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-3">
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3.5 flex items-start gap-3">
               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-900 leading-relaxed">
+              <div className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
                 <span className="font-bold">Official Record Protection:</span> Changes to student identity or program levels require approval from a School Admin or Super Admin before taking effect to prevent unauthorized edits.
               </div>
             </div>
 
             {studentEditError && (
-              <div className="bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl p-3 flex items-center gap-2">
+              <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/40 text-rose-800 dark:text-rose-300 text-xs rounded-md p-3 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
                 <span>{studentEditError}</span>
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Proposed First Name *</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed First Name *</label>
                 <input
                   type="text"
                   required
                   value={studentForm.first_name}
                   onChange={(e) => setStudentForm({ ...studentForm, first_name: e.target.value })}
                   placeholder="e.g. JUAN"
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] uppercase font-semibold"
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] uppercase font-semibold"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Proposed Middle Name</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed Middle Name</label>
                 <input
                   type="text"
                   value={studentForm.middle_name}
                   onChange={(e) => setStudentForm({ ...studentForm, middle_name: e.target.value })}
                   placeholder="e.g. PROTACIO"
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] uppercase font-semibold"
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] uppercase font-semibold"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Proposed Last Name *</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed Last Name *</label>
                 <input
                   type="text"
                   required
                   value={studentForm.last_name}
                   onChange={(e) => setStudentForm({ ...studentForm, last_name: e.target.value })}
                   placeholder="e.g. DELA CRUZ"
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] uppercase font-semibold"
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] uppercase font-semibold"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Proposed LRN (12 digits)</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed LRN (12 digits)</label>
                 <input
                   type="text"
                   maxLength={12}
                   value={studentForm.lrn}
                   onChange={(e) => setStudentForm({ ...studentForm, lrn: e.target.value.replace(/\D/g, '') })}
                   placeholder="12-digit number"
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] font-mono font-bold"
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] font-mono font-bold"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Proposed ARAL Program Level *</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed ARAL Program Level *</label>
               <select
                 value={studentForm.aral_level}
                 onChange={(e) => setStudentForm({ ...studentForm, aral_level: e.target.value as any })}
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] font-semibold"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] font-semibold"
               >
                 <option value="basic">Basic</option>
                 <option value="plus">Plus</option>
@@ -1124,29 +1095,29 @@ export const TutorStudentProfile: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Reason for Edit Request *</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Reason for Edit Request *</label>
               <textarea
                 required
                 rows={3}
                 value={studentForm.reason}
                 onChange={(e) => setStudentForm({ ...studentForm, reason: e.target.value })}
                 placeholder="Explain why this student detail change is necessary (e.g., PSA birth certificate name spelling correction, LRN typo correction, or program reclassification)..."
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] resize-none"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] resize-none"
               />
             </div>
 
-            <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100">
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
               <button
                 type="button"
                 onClick={() => setIsEditingStudent(false)}
-                className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-2xl text-xs font-bold hover:bg-gray-50 cursor-pointer"
+                className="bg-white dark:bg-transparent border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSavingStudent}
-                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-2xl text-xs font-bold cursor-pointer shadow-sm transition-all disabled:opacity-50 inline-flex items-center gap-2"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-md text-xs font-bold cursor-pointer transition-colors disabled:opacity-50 inline-flex items-center gap-2"
               >
                 {isSavingStudent ? 'Submitting Request...' : 'Submit Request for Approval'}
               </button>
@@ -1158,65 +1129,65 @@ export const TutorStudentProfile: React.FC = () => {
       {/* ── PENDING REQUEST DETAILS MODAL ──────────────────────────── */}
       {showPendingModal && pendingEditRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full border border-gray-200 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+          <div className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
-                  <Clock className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-md bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 flex items-center justify-center">
+                  <Clock className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900 text-base">Edit Request Pending</h3>
-                  <p className="text-[11px] text-gray-500">Awaiting Admin or Super Admin review</p>
+                  <h3 className="font-bold text-gray-900 dark:text-white text-sm">Edit Request Pending</h3>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Awaiting Admin or Super Admin review</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setShowPendingModal(false)} className="text-gray-400 hover:text-gray-600 p-1">
-                <X className="w-5 h-5" />
+              <button type="button" onClick={() => setShowPendingModal(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors cursor-pointer">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
+              <div className="bg-slate-50 dark:bg-[#0A0A0A] p-3.5 rounded-md border border-slate-200 dark:border-[#1A1A1A] space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-500 font-medium">Requested By:</span>
-                  <span className="font-bold text-gray-800">{pendingEditRequest.requested_by_name}</span>
+                  <span className="text-gray-500 dark:text-gray-400 font-medium">Requested By:</span>
+                  <span className="font-bold text-gray-800 dark:text-white">{pendingEditRequest.requested_by_name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500 font-medium">Submitted:</span>
-                  <span className="font-bold text-gray-800">{new Date(pendingEditRequest.created_at).toLocaleDateString()}</span>
+                  <span className="text-gray-500 dark:text-gray-400 font-medium">Submitted:</span>
+                  <span className="font-bold text-gray-800 dark:text-white">{new Date(pendingEditRequest.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
 
-              <div className="border border-gray-100 rounded-2xl p-3.5 space-y-2">
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Proposed Changes</p>
+              <div className="border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 space-y-2">
+                <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Proposed Changes</p>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-gray-400 block text-[10px]">Proposed Name:</span>
-                    <span className="font-bold text-gray-800">
+                    <span className="font-bold text-gray-800 dark:text-white">
                       {pendingEditRequest.proposed_last_name}, {pendingEditRequest.proposed_first_name} {pendingEditRequest.proposed_middle_name}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-400 block text-[10px]">Proposed LRN:</span>
-                    <span className="font-mono font-bold text-gray-800">{pendingEditRequest.proposed_lrn || '—'}</span>
+                    <span className="font-mono font-bold text-gray-800 dark:text-white">{pendingEditRequest.proposed_lrn || '—'}</span>
                   </div>
                   <div>
                     <span className="text-gray-400 block text-[10px]">Proposed Level:</span>
-                    <span className="font-bold text-indigo-600 capitalize">{pendingEditRequest.proposed_aral_level}</span>
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400 capitalize">{pendingEditRequest.proposed_aral_level}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-amber-50/70 border border-amber-100 rounded-2xl p-3 space-y-1">
-                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Tutor Reason:</span>
-                <p className="text-gray-700 italic text-xs">"{pendingEditRequest.reason}"</p>
+              <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-800/30 rounded-md p-3 space-y-1">
+                <span className="text-[10px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider">Tutor Reason:</span>
+                <p className="text-gray-700 dark:text-gray-300 italic text-xs">"{pendingEditRequest.reason}"</p>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-gray-100">
+            <div className="flex justify-end pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
               <button
                 type="button"
                 onClick={() => setShowPendingModal(false)}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-2xl text-xs font-bold transition cursor-pointer"
+                className="bg-gray-100 dark:bg-[#1A1A1A] hover:bg-gray-200 dark:hover:bg-[#222222] text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md text-xs font-bold transition cursor-pointer"
               >
                 Close
               </button>
@@ -1287,24 +1258,24 @@ const CustomCalendarDropdown: React.FC<{
   return (
     <div
       ref={dropdownRef}
-      className={`${className || 'absolute right-0 top-full mt-2'} z-[60] w-72 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xl font-sans select-none text-slate-800 animate-in fade-in zoom-in-95 duration-150`}
+      className={`${className || 'absolute right-0 top-full mt-2'} z-[60] w-72 rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-xl font-sans select-none text-slate-800 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-150`}
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif", ...style }}
     >
       {/* Month & Navigation in Poppins */}
-      <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+      <div className="flex items-center justify-between pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
         <button
           type="button"
           onClick={prevMonth}
-          className="rounded-lg p-1.5 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+          className="rounded-md p-1.5 hover:bg-gray-100 dark:hover:bg-[#1A1A1A] text-slate-600 dark:text-slate-400 transition cursor-pointer"
           aria-label="Previous Month"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="font-bold text-xs text-slate-900 tracking-wide">{monthName}</span>
+        <span className="font-bold text-xs text-slate-900 dark:text-white tracking-wide">{monthName}</span>
         <button
           type="button"
           onClick={nextMonth}
-          className="rounded-lg p-1.5 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+          className="rounded-md p-1.5 hover:bg-gray-100 dark:hover:bg-[#1A1A1A] text-slate-600 dark:text-slate-400 transition cursor-pointer"
           aria-label="Next Month"
         >
           <ChevronRight className="w-4 h-4" />
@@ -1342,13 +1313,13 @@ const CustomCalendarDropdown: React.FC<{
                 onSelectDate(cellDateKey);
                 onClose();
               }}
-              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-lg text-xs font-semibold transition-all cursor-pointer ${isSelected
-                ? 'bg-[var(--brand)] text-white font-bold shadow-sm'
+              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${isSelected
+                ? 'bg-[var(--brand)] text-white font-bold'
                 : isToday
                   ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
                   : hasLogs
-                    ? 'bg-slate-100 text-slate-800 font-semibold hover:bg-slate-200'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    ? 'bg-slate-100 dark:bg-[#1A1A1A] text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-200 dark:hover:bg-[#222222]'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A]'
                 }`}
             >
               <span>{dayNum}</span>
@@ -1361,7 +1332,7 @@ const CustomCalendarDropdown: React.FC<{
       </div>
 
       {/* Footer shortcut buttons */}
-      <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] font-semibold">
+      <div className="mt-3 flex items-center justify-between pt-2 border-t border-gray-100 dark:border-[#1A1A1A] text-[11px] font-semibold">
         <button
           type="button"
           onClick={() => {
@@ -1560,7 +1531,7 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
   };
 
   const renderTable = (records: Grade[]) => (
-    <div className="overflow-x-auto rounded-2xl border border-gray-100">
+    <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-[#1A1A1A]">
       <table className="min-w-full divide-y divide-gray-100 text-sm">
         <thead>
           <tr className="divide-x divide-gray-100 bg-gray-50">
@@ -1633,12 +1604,12 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
   if (isLoading) {
     return (
       <div
-        className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 space-y-4"
+        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 space-y-4"
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
           <div>
-            <h3 className="font-bold text-gray-900 text-base">SCORES HISTORY</h3>
+            <h3 className="font-bold text-gray-900 dark:text-white text-sm">SCORES HISTORY</h3>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Loading...</p>
           </div>
         </div>
@@ -1650,12 +1621,12 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
   if (grades.length === 0) {
     return (
       <div
-        className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 space-y-4"
+        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 space-y-4"
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
           <div>
-            <h3 className="font-bold text-gray-900 text-base">SCORES HISTORY</h3>
+            <h3 className="font-bold text-gray-900 dark:text-white text-sm">SCORES HISTORY</h3>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">0 RECORDS</p>
           </div>
         </div>
@@ -1670,14 +1641,14 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
 
   return (
     <div
-      className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 space-y-4 relative"
+      className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 space-y-4 relative"
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
         <div>
-          <h3 className="font-bold text-gray-900 text-base">SCORES HISTORY</h3>
-          <p className="mt-0.5 text-xs font-medium text-gray-500">
+          <h3 className="font-bold text-gray-900 dark:text-white text-sm">SCORES HISTORY</h3>
+          <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">
             {jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length} Record
             {(jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length) !== 1 ? 's' : ''}
           </p>
@@ -1987,7 +1958,7 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
   };
 
   const renderTable = (records: Attendance[]) => (
-    <div className="overflow-x-auto rounded-2xl border border-gray-100">
+    <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-[#1A1A1A]">
       <table className="min-w-full divide-y divide-gray-100 text-sm">
         <thead>
           <tr className="divide-x divide-gray-100 bg-gray-50">
@@ -2031,12 +2002,12 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
   if (isLoading) {
     return (
       <div
-        className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 space-y-4"
+        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 space-y-4"
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
           <div>
-            <h3 className="font-bold text-gray-900 text-base">STUDENT ATTENDANCE HISTORY</h3>
+            <h3 className="font-bold text-gray-900 dark:text-white text-sm">STUDENT ATTENDANCE HISTORY</h3>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Loading...</p>
           </div>
         </div>
@@ -2048,12 +2019,12 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
   if (logs.length === 0) {
     return (
       <div
-        className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 space-y-4"
+        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 space-y-4"
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
           <div>
-            <h3 className="font-bold text-gray-900 text-base">Student Attendance History</h3>
+            <h3 className="font-bold text-gray-900 dark:text-white text-sm">Student Attendance History</h3>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">0 RECORDS</p>
           </div>
         </div>
@@ -2068,14 +2039,14 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
 
   return (
     <div
-      className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 space-y-4 relative"
+      className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 space-y-4 relative"
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
         <div>
-          <h3 className="font-bold text-gray-900 text-base">STUDENT ATTENDANCE HISTORY</h3>
-          <p className="mt-0.5 text-xs font-medium text-gray-500">
+          <h3 className="font-bold text-gray-900 dark:text-white text-sm">STUDENT ATTENDANCE HISTORY</h3>
+          <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">
             {jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length} Record
             {(jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length) !== 1 ? 's' : ''}
           </p>

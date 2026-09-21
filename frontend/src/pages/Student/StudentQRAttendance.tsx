@@ -18,9 +18,6 @@ import {
   Users,
   UserCheck,
   Check,
-  Smile,
-  Meh,
-  Frown,
   RefreshCw,
 } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
@@ -316,42 +313,7 @@ export const StudentQRAttendance: React.FC = () => {
     };
   }, [attendanceLogs]);
 
-  const attendanceMood = useMemo(() => {
-    if (!hasAttendanceData) {
-      return {
-        icon: Smile,
-        cardBg: 'bg-gray-50 border-gray-200 dark:bg-[#111111] dark:border-[#1A1A1A]',
-        iconBg: 'bg-gray-100 border-gray-200 dark:bg-gray-800 dark:border-gray-700',
-        iconColor: 'text-gray-400 dark:text-slate-500',
-        valueColor: 'text-gray-400 dark:text-slate-500',
-      };
-    }
-    if (attendanceRate >= 81) {
-      return {
-        icon: Smile,
-        cardBg: 'risk-card-low',
-        iconBg: 'risk-badge-low',
-        iconColor: 'text-risk-low',
-        valueColor: 'text-risk-low',
-      };
-    }
-    if (attendanceRate >= 75) {
-      return {
-        icon: Meh,
-        cardBg: 'risk-card-medium',
-        iconBg: 'risk-badge-medium',
-        iconColor: 'text-risk-medium',
-        valueColor: 'text-risk-medium',
-      };
-    }
-    return {
-      icon: Frown,
-      cardBg: 'risk-card-high',
-      iconBg: 'risk-badge-high',
-      iconColor: 'text-risk-high',
-      valueColor: 'text-risk-high',
-    };
-  }, [attendanceRate, hasAttendanceData]);
+
 
   // Attendance history helpers
   const sortedHistory = useMemo(() => {
@@ -672,27 +634,27 @@ export const StudentQRAttendance: React.FC = () => {
 
   return (
     <div
-      className="space-y-6 max-w-6xl mx-auto data-loaded-content"
+      className="space-y-4 max-w-6xl mx-auto data-loaded-content"
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
-      {/* ── Main Grid (Exact Match to TutorQRGenerator.tsx) ───────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* ── Main Grid ───────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* ── LEFT: Attendance Scanner Card ── */}
         <div className="lg:col-span-7">
-          <div className="h-full rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm overflow-hidden flex flex-col justify-between">
+          <div className="h-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden flex flex-col justify-between">
             {/* Card Header */}
-            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <div className="h-[52px] shrink-0 flex items-center justify-between px-5 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h2 className="text-base font-bold text-gray-900 dark:text-slate-100 uppercase">SCAN QR CODE</h2>
+                <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">SCAN QR CODE</h2>
               </div>
             </div>
 
             {/* Card Body */}
-            <div className="p-6 flex flex-col items-center gap-5 flex-1 justify-between">
+            <div className="p-5 flex flex-col items-center gap-4 flex-1 justify-between">
               {/* Notification Banner */}
               {scanResult && (
                 <div
-                  className={`flex items-start justify-between gap-2.5 w-full rounded-2xl p-3.5 text-xs font-medium animate-fade-in ${
+                  className={`flex items-start justify-between gap-2.5 w-full rounded-md p-3 text-xs font-medium animate-fade-in ${
                     scanResult.type === 'success'
                       ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50'
                       : 'bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50'
@@ -716,32 +678,32 @@ export const StudentQRAttendance: React.FC = () => {
                 </div>
               )}
 
-              {/* Viewport Frame with Corner Scan Brackets (Matching StaffAttendanceScanner) */}
+              {/* Viewport Frame with Corner Scan Brackets */}
               <div className="w-full">
-                <div className="relative flex min-h-[340px] sm:min-h-[380px] w-full items-center justify-center rounded-3xl border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#111111]/60 p-6 overflow-hidden">
+                <div className="relative flex min-h-[320px] sm:min-h-[360px] w-full items-center justify-center rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#111111]/60 p-5 overflow-hidden">
                   {/* Scan frame corners */}
-                  <span className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-lg z-10" />
-                  <span className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-lg z-10" />
-                  <span className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-lg z-10" />
-                  <span className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-[var(--brand)] rounded-br-lg z-10" />
+                  <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-sm z-10" />
+                  <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-sm z-10" />
+                  <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-sm z-10" />
+                  <span className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[var(--brand)] rounded-br-sm z-10" />
 
                   <div className="w-full max-w-md mx-auto space-y-3">
                     {cameraError && (
-                      <div className="flex items-start gap-2.5 rounded-2xl border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30 p-4 text-xs text-red-700 dark:text-red-300">
+                      <div className="flex items-start gap-2.5 rounded-md border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30 p-3 text-xs text-red-700 dark:text-red-300">
                         <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
                         <span>{cameraError}</span>
                       </div>
                     )}
                     <div
                       id="student-qr-reader"
-                      className="w-full font-mono text-xs text-white overflow-hidden rounded-2xl"
+                      className="w-full font-mono text-xs text-white overflow-hidden rounded-md"
                     />
                     {!isCameraActive && (
                       <div className="flex justify-center pt-2">
                         <button
                           type="button"
                           onClick={restartScanner}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--brand)] text-white text-xs font-bold hover:bg-[var(--brand-dark)] transition cursor-pointer shadow-sm"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[var(--brand)] text-white text-xs font-bold hover:bg-[var(--brand-dark)] transition cursor-pointer"
                         >
                           <RefreshCw className="w-3.5 h-3.5" />
                           <span>Scan Again</span>
@@ -752,12 +714,12 @@ export const StudentQRAttendance: React.FC = () => {
                 </div>
               </div>
 
-              {/* Manual Input Container (Matching StaffAttendanceScanner) */}
+              {/* Manual Input Container */}
               <div className="w-full">
-                <div className="rounded-2xl border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] p-4 space-y-3">
+                <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] p-3.5 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">MANUAL ENTRY</h3>
+                      <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase">MANUAL ENTRY</h3>
                     </div>
                   </div>
                   <form
@@ -772,12 +734,12 @@ export const StudentQRAttendance: React.FC = () => {
                       placeholder="Enter session token / code..."
                       value={manualCode}
                       onChange={(e) => setManualCode(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-[#262626] rounded-xl text-xs bg-white dark:bg-[#0A0A0A] font-mono text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] transition-colors"
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-[#262626] rounded-md text-xs bg-white dark:bg-[#0A0A0A] font-mono text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition-colors"
                     />
                     <button
                       type="submit"
                       disabled={!manualCode.trim() || isSubmitting}
-                      className="w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2 rounded-md text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSubmitting ? (
                         <>
@@ -797,11 +759,11 @@ export const StudentQRAttendance: React.FC = () => {
 
         {/* ── RIGHT: Student Attendance Feed ── */}
         <div className="lg:col-span-5">
-          <div className="flex h-full min-h-[480px] flex-col rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm overflow-hidden">
+          <div className="flex h-full min-h-[480px] flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden">
             {/* Feed Header */}
-            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <div className="h-[52px] shrink-0 flex items-center justify-between px-5 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm uppercase">
                   {studentFirstName}'S RECENT SCANS
                 </h3>
               </div>
@@ -813,23 +775,23 @@ export const StudentQRAttendance: React.FC = () => {
             </div>
 
             {/* Feed List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            <div className="flex-1 overflow-y-auto p-3.5 space-y-2">
               {logsLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3, 4].map((i) => (
                     <div
                       key={i}
-                      className="h-14 bg-gray-50 dark:bg-[#111111] rounded-2xl animate-pulse flex items-center px-4 gap-3"
+                      className="h-12 bg-gray-50 dark:bg-[#111111] rounded-md animate-pulse flex items-center px-3.5 gap-3"
                     >
-                      <div className="h-3.5 bg-gray-200 dark:bg-gray-800 rounded w-1/3" />
-                      <div className="h-5 w-24 rounded-full bg-gray-200 dark:bg-gray-800 ml-auto" />
+                      <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-1/3" />
+                      <div className="h-4 w-20 rounded-full bg-gray-200 dark:bg-gray-800 ml-auto" />
                     </div>
                   ))}
                 </div>
               ) : recentScans.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-3 min-h-[280px]">
-                  <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] flex items-center justify-center">
-                    <UserCheck className="w-8 h-8 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
+                <div className="h-full flex flex-col items-center justify-center text-center p-5 gap-2.5 min-h-[260px]">
+                  <div className="w-12 h-12 rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] flex items-center justify-center">
+                    <UserCheck className="w-6 h-6 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
                   </div>
                   <div>
                     <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center whitespace-nowrap">
@@ -844,7 +806,7 @@ export const StudentQRAttendance: React.FC = () => {
                 recentScans.map((log) => (
                   <div
                     key={log.id}
-                    className="flex items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-[#111111] hover:bg-gray-100/60 dark:hover:bg-[#161616] rounded-2xl border border-gray-100 dark:border-[#1A1A1A] transition-colors"
+                    className="flex items-center justify-between gap-3 p-2.5 bg-gray-50 dark:bg-[#111111] hover:bg-gray-100/60 dark:hover:bg-[#161616] rounded-md border border-gray-100 dark:border-[#1A1A1A] transition-colors"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-gray-800 dark:text-slate-100 leading-tight truncate">
@@ -852,7 +814,7 @@ export const StudentQRAttendance: React.FC = () => {
                       </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-100 dark:border-emerald-800/40">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800/40">
                         <CheckCircle2 className="w-3 h-3" />
                         {log.date ? `${formatDateString(log.date)} | ` : ''}{log.time_in ? formatTimeString(log.time_in) : 'Logged'}
                       </span>
@@ -865,40 +827,40 @@ export const StudentQRAttendance: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Attendance Stat Containers under QR Attendance Scan Part ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* ── Attendance Stat Containers ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* TOTAL PRESENT */}
-        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 dark:border-emerald-800/40 dark:bg-emerald-950/20 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-emerald-100 dark:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center shrink-0">
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800/40 dark:bg-emerald-950/20 p-4 flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-md bg-emerald-100 dark:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center shrink-0">
             <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">TOTAL PRESENT</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">TOTAL PRESENT</p>
             <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{totalPresent}</p>
             <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s total present records</p>
           </div>
         </div>
 
         {/* TOTAL ABSENT */}
-        <div className="rounded-3xl border border-rose-200 bg-rose-50 dark:border-rose-800/40 dark:bg-rose-950/20 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-rose-100 dark:bg-rose-900/50 border border-rose-200 dark:border-rose-800/60 flex items-center justify-center shrink-0">
+        <div className="rounded-md border border-rose-200 bg-rose-50 dark:border-rose-800/40 dark:bg-rose-950/20 p-4 flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-md bg-rose-100 dark:bg-rose-900/50 border border-rose-200 dark:border-rose-800/60 flex items-center justify-center shrink-0">
             <X className="w-5 h-5 text-rose-600 dark:text-rose-400" strokeWidth={3} />
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">TOTAL ABSENT</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">TOTAL ABSENT</p>
             <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{totalAbsent}</p>
             <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s total absent records</p>
           </div>
         </div>
 
         {/* AVERAGE ATTENDANCE RATE */}
-        <div className="rounded-3xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-5 shadow-sm flex items-center gap-4">
-          <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${attendanceMood.iconBg}`}>
-            <attendanceMood.icon className={`w-5 h-5 ${attendanceMood.iconColor}`} />
+        <div className="rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-4 flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-md bg-indigo-100 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shrink-0">
+            <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE ATTENDANCE RATE</p>
-            <p className={`text-2xl font-extrabold mt-0.5 ${attendanceMood.valueColor}`}>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE ATTENDANCE RATE</p>
+            <p className="text-2xl font-extrabold mt-0.5 text-gray-900 dark:text-slate-100">
               {hasAttendanceData ? `${smartPct(attendanceRate)}%` : '—'}
             </p>
             <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s average attendance rate</p>
@@ -907,11 +869,11 @@ export const StudentQRAttendance: React.FC = () => {
       </div>
 
       {/* ── Attendance History ──── */}
-      <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm relative">
+      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
         {/* Section Header with Pills and Calendar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
           <div>
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm uppercase">
               {studentFirstName}'S ATTENDANCE HISTORY
             </h3>
             <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
@@ -922,7 +884,7 @@ export const StudentQRAttendance: React.FC = () => {
           {/* Controls */}
           <div className="flex flex-wrap items-center gap-2">
             {/* View Mode Toggle */}
-            <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5">
+            <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5">
               {(['day', 'week', 'month'] as const).map((mode) => (
                 <button
                   key={mode}
@@ -932,9 +894,9 @@ export const StudentQRAttendance: React.FC = () => {
                     setViewMode(mode);
                     setJumpDate(null);
                   }}
-                  className={`h-8 whitespace-nowrap rounded-lg px-3 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                  className={`h-7 whitespace-nowrap rounded-sm px-3 text-[10px] font-bold uppercase transition-all cursor-pointer ${
                     viewMode === mode && !jumpDate
-                      ? 'bg-[var(--brand)] text-white shadow-sm'
+                      ? 'bg-[var(--brand)] text-white'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                   }`}
                 >
@@ -949,10 +911,10 @@ export const StudentQRAttendance: React.FC = () => {
                 type="button"
                 id="student-attendance-calendar-btn"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border p-0 transition-all ${
+                className={`flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border p-0 transition-all ${
                   jumpDate
-                    ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                    : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
+                    ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
+                    : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)]'
                 }`}
                 title="Select a specific date from calendar"
                 aria-label="Open score calendar"
@@ -981,7 +943,7 @@ export const StudentQRAttendance: React.FC = () => {
 
         {/* Jump-to-date Active Chip */}
         {jumpDate && (
-          <div className="flex items-center gap-2 px-6 py-2 border-b border-gray-50 dark:border-[#1A1A1A] bg-emerald-50/60 dark:bg-emerald-950/20">
+          <div className="flex items-center gap-2 px-5 py-2 border-b border-gray-50 dark:border-[#1A1A1A] bg-emerald-50/60 dark:bg-emerald-950/20">
             <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
               {new Date(jumpDate + 'T00:00:00').toLocaleDateString(undefined, {
@@ -1001,21 +963,21 @@ export const StudentQRAttendance: React.FC = () => {
         )}
 
         {/* Content Area */}
-        <div className="p-4 sm:p-6">
+        <div className="p-4 sm:p-5">
           {logsLoading ? (
-            <div className="space-y-4 animate-pulse">
-              <div className="flex items-center gap-3 mb-3">
+            <div className="space-y-3 animate-pulse">
+              <div className="flex items-center gap-3 mb-2">
                 <div className="h-3 w-48 rounded bg-gray-200 dark:bg-gray-800" />
                 <div className="flex-1 h-px bg-gray-100 dark:bg-[#1A1A1A]" />
                 <div className="h-3 w-16 rounded bg-gray-200 dark:bg-gray-800" />
               </div>
-              <div className="h-16 rounded-2xl bg-gray-100 dark:bg-gray-800/60" />
-              <div className="flex items-center gap-3 mb-3 mt-6">
+              <div className="h-12 rounded-md bg-gray-100 dark:bg-gray-800/60" />
+              <div className="flex items-center gap-3 mb-2 mt-4">
                 <div className="h-3 w-48 rounded bg-gray-200 dark:bg-gray-800" />
                 <div className="flex-1 h-px bg-gray-100 dark:bg-[#1A1A1A]" />
                 <div className="h-3 w-16 rounded bg-gray-200 dark:bg-gray-800" />
               </div>
-              <div className="h-16 rounded-2xl bg-gray-100 dark:bg-gray-800/60" />
+              <div className="h-12 rounded-md bg-gray-100 dark:bg-gray-800/60" />
             </div>
           ) : logsError ? (
             <div className="py-12 flex flex-col items-center justify-center text-rose-500 text-xs font-semibold gap-2">
@@ -1025,19 +987,19 @@ export const StudentQRAttendance: React.FC = () => {
           ) : jumpFiltered !== null ? (
             jumpFiltered.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-12 text-center">
-                <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
-                <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">
+                <CalendarDays className="w-8 h-8 text-gray-200 dark:text-gray-700" />
+                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">
                   No records for this date
                 </p>
-                <p className="text-xs text-gray-400 dark:text-slate-500">
+                <p className="text-[11px] text-gray-400 dark:text-slate-500">
                   Try a different date or clear the filter
                 </p>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-5">
                 {timeGroupedHistory.map((group) => (
                   <div key={group.key}>
-                    <div className="mb-3 flex items-center gap-3">
+                    <div className="mb-2.5 flex items-center gap-3">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
                         {group.label}
                       </span>
@@ -1054,19 +1016,19 @@ export const StudentQRAttendance: React.FC = () => {
           ) : viewMode === 'day' ? (
             sortedHistory.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-12 text-center">
-                <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
-                <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">
+                <CalendarDays className="w-8 h-8 text-gray-200 dark:text-gray-700" />
+                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">
                   No attendance records yet
                 </p>
-                <p className="text-xs text-gray-400 dark:text-slate-500">
+                <p className="text-[11px] text-gray-400 dark:text-slate-500">
                   Records will appear once attendance is logged for you
                 </p>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-5">
                 {timeGroupedHistory.map((group) => (
                   <div key={group.key}>
-                    <div className="mb-3 flex items-center gap-3">
+                    <div className="mb-2.5 flex items-center gap-3">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
                         {group.label}
                       </span>
@@ -1082,16 +1044,16 @@ export const StudentQRAttendance: React.FC = () => {
             )
           ) : groupedHistory.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
-              <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
-              <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">
+              <CalendarDays className="w-8 h-8 text-gray-200 dark:text-gray-700" />
+              <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">
                 No records to display
               </p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-5">
               {groupedHistory.map((group) => (
                 <div key={group.key}>
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-3 mb-2.5">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
                       {group.label}
                     </span>
