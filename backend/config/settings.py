@@ -218,7 +218,9 @@ CORS_EXPOSE_HEADERS = [
     'X-Server-Time',
     'X-Server-Timestamp',
 ]
-
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https:\/\/.*\.vercel\.app$",
+]
 # --------------------------------------------------------------------------
 # CSRF — Cross-Site Request Forgery Protection
 # --------------------------------------------------------------------------
