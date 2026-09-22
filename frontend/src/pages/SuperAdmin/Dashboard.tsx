@@ -121,7 +121,7 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+              <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                 <span>
                   Staff: <strong className="font-semibold text-slate-800 dark:text-slate-200">{staffTotal}</strong>
                   <span className="mx-1.5 text-slate-300 dark:text-slate-700">•</span>
@@ -200,7 +200,7 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-2.5 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+              <div className="pt-2.5 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                 <span>Active Rate: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{activeRate}%</span></span>
                 <span>Total Accounts: <strong className="font-semibold text-slate-800 dark:text-slate-200">{(stats.total_users + 1).toLocaleString()}</strong></span>
               </div>

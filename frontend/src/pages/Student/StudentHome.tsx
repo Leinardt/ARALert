@@ -775,13 +775,13 @@ export const StudentHome: React.FC = () => {
       <div className="flex-1 flex flex-col min-h-0">
         <div className="w-full bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-5 flex flex-col h-full min-h-0">
           {/* Chart Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0 pb-3.5 sm:pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 shrink-0 pb-3.5 sm:pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div>
-              <h3 className="whitespace-nowrap text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">
                 {studentFirstName}'s Performance Trend
               </h3>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300">
                 <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block" />
                 <span>Composite rating</span>
@@ -811,7 +811,7 @@ export const StudentHome: React.FC = () => {
 
           {/* Chart Canvas & Bottom Stats */}
           <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3.5 sm:mt-4">
-            <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-md px-4 py-2 sm:px-6 sm:py-2.5">
+            <div className="relative flex-1 min-h-[220px] sm:min-h-[260px] w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-md px-4 py-2 sm:px-6 sm:py-2.5">
               {last4WeeksData.length > 0 ? (
                 <InteractiveStudentChart data={last4WeeksData} />
               ) : (

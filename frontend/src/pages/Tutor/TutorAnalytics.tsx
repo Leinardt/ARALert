@@ -483,7 +483,7 @@ const RiskCalculationInfo: React.FC = () => (
     >
       <Info className="h-3.5 w-3.5" />
     </button>
-    <span className="pointer-events-none absolute left-full top-1/2 z-20 ml-2 hidden w-max max-w-[calc(100vw-2rem)] -translate-y-1/2 rounded-lg bg-slate-900 px-3 py-1.5 text-left text-xs font-semibold leading-relaxed text-white shadow-lg group-hover:block group-focus-within:block">
+    <span className="pointer-events-none absolute left-0 top-full mt-2 sm:left-full sm:top-1/2 sm:mt-0 sm:ml-2 z-20 hidden w-72 sm:w-80 max-w-[calc(100vw-2rem)] sm:-translate-y-1/2 rounded-lg bg-slate-900 p-2.5 sm:px-3 sm:py-2 text-left text-xs font-semibold leading-relaxed text-white shadow-lg group-hover:block group-focus-within:block">
       Risk level is calculated from the composite score of a student. Composite Score = 40% (Attendance Rate) + 60% (Average Score)
     </span>
   </span>

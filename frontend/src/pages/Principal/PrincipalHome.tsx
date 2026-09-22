@@ -219,11 +219,11 @@ export const PrincipalHome: React.FC = () => {
             Comprehensive student performance, risk distribution, and tutor analytics.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 items-center shrink-0">
+        <div className="flex flex-wrap gap-2 items-center shrink-0 w-full sm:w-auto">
           <select
             value={dashboardDays}
             onChange={(e) => setDashboardDays(Number(e.target.value))}
-            className="px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-md text-xs font-medium bg-white dark:bg-[#0c111c] text-gray-700 dark:text-slate-200"
+            className="flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-md text-xs font-medium bg-white dark:bg-[#0c111c] text-gray-700 dark:text-slate-200"
           >
             <option value={7}>Last 7 days</option>
             <option value={14}>Last 14 days</option>
@@ -232,31 +232,31 @@ export const PrincipalHome: React.FC = () => {
           <button
             type="button"
             onClick={fetchDashboardData}
-            className="inline-flex items-center bg-[var(--brand-light)] text-[var(--brand-text)] hover:bg-[var(--surface-muted)] px-3 py-1.5 rounded-md text-xs font-medium border border-[var(--brand-border)] transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center bg-[var(--brand-light)] text-[var(--brand-text)] hover:bg-[var(--surface-muted)] px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium border border-[var(--brand-border)] transition-colors cursor-pointer"
           >
-            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+            <RefreshCw className="w-3.5 h-3.5 mr-1 sm:mr-1.5" />
             Refresh
           </button>
           <button
             type="button"
             onClick={openDtrExport}
             disabled={isLoadingDtr}
-            className="inline-flex items-center bg-[var(--brand)] text-white hover:bg-[var(--brand-dark)] px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+            className="inline-flex items-center justify-center bg-[var(--brand)] text-white hover:bg-[var(--brand-dark)] px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
-            <Download className="w-3.5 h-3.5 mr-1.5" />
+            <Download className="w-3.5 h-3.5 mr-1 sm:mr-1.5" />
             {isLoadingDtr ? 'Loading…' : 'Export DTR'}
           </button>
         </div>
       </div>
 
       {/* ── Key Metrics Cards (6-column) ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3">
         {statCards.map((card) => {
           const IconComp = card.icon;
           return (
             <div
               key={card.label}
-              className="bg-white dark:bg-[#0c111c] p-3.5 rounded-md border border-gray-200 dark:border-slate-800 flex flex-col justify-between"
+              className="bg-white dark:bg-[#0c111c] p-2.5 sm:p-3.5 rounded-md border border-gray-200 dark:border-slate-800 flex flex-col justify-between"
             >
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -264,10 +264,10 @@ export const PrincipalHome: React.FC = () => {
                 </span>
                 <IconComp className={`w-3.5 h-3.5 ${card.color}`} />
               </div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1.5">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-1 sm:mt-1.5">
                 {card.value}
               </p>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+              <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
                 {card.subtext}
               </p>
             </div>
@@ -499,7 +499,7 @@ export const PrincipalHome: React.FC = () => {
           </div>
         ) : (
           <div className="overflow-x-auto mt-2">
-            <table className="w-full text-left text-xs">
+            <table className="w-full min-w-[620px] text-left text-xs">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-wider">
                   <th className="py-2.5 px-3 font-semibold">Tutor Name</th>

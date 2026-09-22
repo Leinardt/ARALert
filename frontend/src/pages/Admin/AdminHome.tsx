@@ -748,30 +748,30 @@ export const AdminHome: React.FC = () => {
           </div>
 
           {/* Academic Health KPIs (5 cols) */}
-          <div className="lg:col-span-5 grid grid-cols-3 gap-2 sm:gap-0 sm:divide-x sm:divide-slate-200/60 dark:sm:divide-zinc-800/60 lg:pl-4">
-            <div className="px-3 py-1 sm:first:pl-0">
+          <div className="lg:col-span-5 grid grid-cols-3 gap-1 sm:gap-0 sm:divide-x sm:divide-slate-200/60 dark:sm:divide-zinc-800/60 lg:pl-4">
+            <div className="px-1.5 sm:px-3 py-1 sm:first:pl-0">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 truncate" title="Overall Attendance Rate">
                 {tutorFirstName ? `${tutorFirstName}'s Attendance` : 'Attendance'}
               </p>
-              <p className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5">
+              <p className="text-lg xs:text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5 truncate">
                 {!hasAttendanceData ? '—' : `${overallAttendanceRate}%`}
               </p>
             </div>
 
-            <div className="px-3 py-1">
+            <div className="px-1.5 sm:px-3 py-1">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 truncate" title="Average Assessment Score">
                 {tutorFirstName ? `${tutorFirstName}'s Avg` : 'Avg Score'}
               </p>
-              <p className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5">
+              <p className="text-lg xs:text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5 truncate">
                 {!hasScoreData ? '—' : `${overallAvgScore}%`}
               </p>
             </div>
 
-            <div className="px-3 py-1 sm:last:pr-0">
+            <div className="px-1.5 sm:px-3 py-1 sm:last:pr-0">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 truncate" title="Overall Composite Rating">
                 Composite
               </p>
-              <p className="text-xl sm:text-2xl font-extrabold text-[#0052B7] dark:text-blue-400 mt-0.5">
+              <p className="text-lg xs:text-xl sm:text-2xl font-extrabold text-[#0052B7] dark:text-blue-400 mt-0.5 truncate">
                 {!hasAttendanceData && !hasScoreData ? '—' : `${overallCompositeScore}%`}
               </p>
             </div>

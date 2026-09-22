@@ -651,11 +651,11 @@ export const TutorHome: React.FC = () => {
 
         {/* Chart */}
         <div className="lg:col-span-3 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-5 flex flex-col h-full min-h-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0 pb-3.5 sm:pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 shrink-0 pb-3.5 sm:pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div>
-              <h3 className="whitespace-nowrap text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">Students Performance Trend</h3>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">Students Performance Trend</h3>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300">
                 <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block" />
                 <span>Composite rating</span>
@@ -681,7 +681,7 @@ export const TutorHome: React.FC = () => {
           </div>
 
           <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3.5 sm:mt-4">
-            <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-sm px-4 py-2 sm:px-5 sm:py-2.5">
+            <div className="relative flex-1 min-h-[220px] sm:min-h-[260px] w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-sm px-4 py-2 sm:px-5 sm:py-2.5">
               {last4WeeksData.length > 0 ? (
                 <InteractiveTutorChart data={last4WeeksData} />
               ) : (
@@ -744,7 +744,7 @@ export const TutorHome: React.FC = () => {
 
         {/* At-Risk panel */}
         <div className="lg:col-span-1 h-full min-h-0">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-full flex flex-col">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-full flex flex-col max-h-[380px] lg:max-h-none">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
               <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase tracking-wider">
                 Top At-Risk
