@@ -1,0 +1,173 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ARALert Design System - Central Theme Configuration (Single Source of Truth)
+   ═══════════════════════════════════════════════════════════════════════════════
+   To change the system theme color collectively across the entire application:
+   👉 Simply edit the value of `--brand` below!
+   
+   All shades (hover, dark, light surfaces, subtle borders, glow rings, focus
+   outlines, active navigation tabs, and dark mode surfaces) are automatically
+   calculated and derived via standard CSS `color-mix()`.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── 🎯 MASTER BRAND COLOR ──────────────────────────────────────────────────
+     Change this single hex code to re-theme all components in ARALert:
+     Default ARALert Deep Royal Blue: #0052B7
+     Example alternatives:
+       - Royal Purple:   #7C3AED
+       - Emerald Green:  #059669
+       - Indigo:         #4F46E5
+       - Oceanic Cyan:   #0284C7
+       - Crimson Red:    #DC2626
+     ─────────────────────────────────────────────────────────────────────────── */
+  --brand: #0052B7;
+
+  /* ── 🎨 MASTER CONTAINER & SURFACE SYSTEM ───────────────────────────────────
+     Master light-mode tokens for canvas background vs elevated container cards:
+       - Background Canvas:  #FFFFFF (Pure White)
+       - Top Bar / Sidebar:  #FFFFFF (Pure White)
+       - Containers / Cards: #FFFFFF (Pure White)
+     ─────────────────────────────────────────────────────────────────────────── */
+  --surface-bg: #FFFFFF;
+  --surface-card: #FFFFFF;
+  --container-bg: #FFFFFF;
+
+  /* ── 🪄 AUTOMATIC DYNAMIC DERIVATIVES (Standard CSS color-mix) ───────────────
+     These dynamically adapt whenever --brand changes. You do NOT need to edit
+     these unless you want custom non-standard ratios.
+     ─────────────────────────────────────────────────────────────────────────── */
+  /* Hover state: 15% deeper contrast */
+  --brand-hover: color-mix(in srgb, var(--brand) 85%, #000000);
+
+  /* Darker / Active pressed state: 28% deeper */
+  --brand-dark: color-mix(in srgb, var(--brand) 72%, #000000);
+
+  /* Deepest accent: 45% deeper */
+  --brand-darker: color-mix(in srgb, var(--brand) 55%, #000000);
+
+  /* Soft Light Tint: Used for pills, badges, active row highlights in light mode */
+  --brand-light: color-mix(in srgb, var(--brand) 10%, #FFFFFF);
+
+  /* Subtle Lighter Tint: Used for subtle striped rows and table backgrounds */
+  --brand-lighter: color-mix(in srgb, var(--brand) 5%, #FFFFFF);
+
+  /* Harmonious Border: Used for inputs, pills, modal dividers, and cards */
+  --brand-border: color-mix(in srgb, var(--brand) 30%, #FFFFFF);
+
+  /* Ambient Glow & Focus Rings: 25% opacity alpha blend */
+  --brand-glow: color-mix(in srgb, var(--brand) 25%, transparent);
+
+  /* Brand Text Token */
+  --brand-text: var(--brand);
+
+  /* ── 🎯 SYSTEM RISK & PERFORMANCE PALETTE ──────────────────────────────────
+     Master tokens for Risk Levels, Average Scores, and Attendance indicators:
+       - Low Risk / Good:     #22C55E (Green)
+       - Medium Risk / Fair:  #F59E0B (Amber/Orange)
+       - High Risk / Urgent:  #EF4444 (Red)
+     ─────────────────────────────────────────────────────────────────────────── */
+  --risk-low:            #22C55E;
+  --risk-low-bg:         color-mix(in srgb, var(--risk-low) 14%, #FFFFFF);
+  --risk-low-border:     color-mix(in srgb, var(--risk-low) 38%, #FFFFFF);
+  --risk-low-text:       color-mix(in srgb, var(--risk-low) 60%, #064E3B);
+  --risk-low-badge-bg:   color-mix(in srgb, var(--risk-low) 22%, #FFFFFF);
+
+  --risk-medium:         #F59E0B;
+  --risk-medium-bg:      color-mix(in srgb, var(--risk-medium) 14%, #FFFFFF);
+  --risk-medium-border:  color-mix(in srgb, var(--risk-medium) 38%, #FFFFFF);
+  --risk-medium-text:    color-mix(in srgb, var(--risk-medium) 65%, #78350F);
+  --risk-medium-badge-bg:color-mix(in srgb, var(--risk-medium) 22%, #FFFFFF);
+
+  --risk-high:           #EF4444;
+  --risk-high-bg:        color-mix(in srgb, var(--risk-high) 14%, #FFFFFF);
+  --risk-high-border:    color-mix(in srgb, var(--risk-high) 38%, #FFFFFF);
+  --risk-high-text:      color-mix(in srgb, var(--risk-high) 65%, #881337);
+  --risk-high-badge-bg:  color-mix(in srgb, var(--risk-high) 22%, #FFFFFF);
+
+  /* ── Derived Elevation & Ambient Shadows ─────────────────────────────────── */
+  --shadow-brand: 0 12px 32px -4px color-mix(in srgb, var(--brand) 32%, transparent);
+
+  /* ── Derived Sidebar & Navigation Accent States ──────────────────────────── */
+  --sidebar-active-bg: linear-gradient(135deg,
+      color-mix(in srgb, var(--brand) 8%, #FFFFFF) 0%,
+      color-mix(in srgb, var(--brand) 18%, #FFFFFF) 100%);
+  --sidebar-active-border: color-mix(in srgb, var(--brand) 20%, transparent);
+  --sidebar-active-glow: 0 4px 16px -2px color-mix(in srgb, var(--brand) 14%, transparent), inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Dark Mode Automatic Adaptations
+   ═══════════════════════════════════════════════════════════════════════════════
+   In dark mode, the primary --brand remains vibrant, while light backgrounds
+   and borders automatically blend against dark OLED surfaces instead of white.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.dark,
+:root.dark {
+  /* Dynamic light tint blending against dark surface in dark mode */
+  --brand-light: color-mix(in srgb, var(--brand) 22%, #141414);
+  --brand-lighter: color-mix(in srgb, var(--brand) 12%, #0A0A0A);
+  --brand-border: color-mix(in srgb, var(--brand) 38%, #262626);
+  --brand-glow: color-mix(in srgb, var(--brand) 35%, transparent);
+
+  /* Solid, Clean Risk & Status System in Dark Mode (Clean Borderless Outline) */
+  --risk-low-bg:         #052E16;
+  --risk-low-border:     color-mix(in srgb, var(--risk-low) 30%, transparent);
+  --risk-low-text:       #4ADE80;
+  --risk-low-badge-bg:   #064E3B;
+
+  --risk-medium-bg:      #451A03;
+  --risk-medium-border:  color-mix(in srgb, var(--risk-medium) 30%, transparent);
+  --risk-medium-text:    #FBBF24;
+  --risk-medium-badge-bg:#78350F;
+
+  --risk-high-bg:        #450A0A;
+  --risk-high-border:    color-mix(in srgb, var(--risk-high) 30%, transparent);
+  --risk-high-text:      #F87171;
+  --risk-high-badge-bg:  #881337;
+
+  /* Dark mode active sidebar gradient incorporating master brand */
+  --sidebar-active-bg: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      color-mix(in srgb, var(--brand) 30%, transparent) 50%,
+      color-mix(in srgb, var(--brand) 14%, transparent) 100%);
+  --sidebar-active-glow: 0 4px 16px -2px color-mix(in srgb, var(--brand) 30%, transparent), inset 0 1px 0 0 rgba(255, 255, 255, 0.20);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Tailwind CSS v4 @theme Integration
+   ═══════════════════════════════════════════════════════════════════════════════
+   Allows using standard Tailwind utility classes like `bg-brand`, `text-brand`,
+   `border-brand`, `hover:bg-brand-hover`, and `ring-brand/20` across all files.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@theme {
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-darker: var(--brand-darker);
+  --color-brand-light: var(--brand-light);
+  --color-brand-lighter: var(--brand-lighter);
+  --color-brand-border: var(--brand-border);
+  --color-brand-text: var(--brand-text);
+  --color-brand-glow: var(--brand-glow);
+
+  /* Risk color utilities: bg-risk-low, text-risk-high, border-risk-medium, etc. */
+  --color-risk-low: var(--risk-low);
+  --color-risk-low-bg: var(--risk-low-bg);
+  --color-risk-low-border: var(--risk-low-border);
+  --color-risk-low-text: var(--risk-low-text);
+
+  --color-risk-medium: var(--risk-medium);
+  --color-risk-medium-bg: var(--risk-medium-bg);
+  --color-risk-medium-border: var(--risk-medium-border);
+  --color-risk-medium-text: var(--risk-medium-text);
+
+  --color-risk-high: var(--risk-high);
+  --color-risk-high-bg: var(--risk-high-bg);
+  --color-risk-high-border: var(--risk-high-border);
+  --color-risk-high-text: var(--risk-high-text);
+
+  /* Master container and surface utilities */
+  --color-surface-bg: var(--surface-bg);
+  --color-surface-card: var(--surface-card);
+  --color-container-bg: var(--container-bg);
+}

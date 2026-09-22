@@ -1,32 +1,2178 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
+@import "./theme.css";
 
-/* Minimal UI layout utilities */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Enforce Poppins on Calendar / Date Pickers ── */
+input[type="date"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="time"],
+::-webkit-datetime-edit,
+::-webkit-datetime-edit-fields-wrapper,
+::-webkit-datetime-edit-text,
+::-webkit-datetime-edit-month-field,
+::-webkit-datetime-edit-day-field,
+::-webkit-datetime-edit-year-field,
+::-webkit-calendar-picker-indicator {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 64px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   :root
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  /* Fonts */
+  --font-heading: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --sidebar-icon-color: #0F172A;
+  --sidebar-icon-active-color: var(--brand);
+
+  /* Note: Core Brand Palette & dynamic derivatives are centralized in ./theme.css */
+
+  /* ── Accent Amber Palette ── */
+  --yellow-accent:        #F59E0B;
+  --yellow-hover:         #D97706;
+  --yellow-dark:          #B45309;
+  --yellow-light:         #FEF9C3;
+  --yellow-lighter:       #FFFBEB;
+  --yellow-border:        #FDE047;
+  --yellow-glow:          rgba(245, 158, 11, 0.35);
+
+  /* ── Neutral / Slate Palette ── */
+  --slate-50:  #F8FAFC;
+  --slate-100: #F1F5F9;
+  --slate-200: #E2E8F0;
+  --slate-300: #CBD5E1;
+  --slate-400: #94A3B8;
+  --slate-500: #64748B;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1E293B;
+  --slate-900: #0F172A;
+
+  /* ── Surface & Background ── */
+  --surface-bg:    #FFFFFF;
+  --surface-card:  #FFFFFF;
+  --container-bg:  #FFFFFF;
+  --surface-muted: #F1F5F9;
+
+  /* ── Text ── */
+  --text-primary:   #0F172A;
+  --text-secondary: #475569;
+  --text-muted:     #64748B;
+  --text-disabled:  #94A3B8;
+
+  /* ── Semantic Colors & Academic Risk Hierarchy ── */
+  --color-success: var(--risk-low);
+  --color-warning: var(--risk-medium);
+  --color-danger:  var(--risk-high);
+  --color-info:    var(--brand);
+
+  --color-success-bg: var(--risk-low-bg);
+  --color-warning-bg: var(--risk-medium-bg);
+  --color-danger-bg:  var(--risk-high-bg);
+  --color-info-bg:    var(--brand-light);
+
+  --color-success-border: var(--risk-low-border);
+  --color-warning-border: var(--risk-medium-border);
+  --color-danger-border:  var(--risk-high-border);
+  --color-info-border:    var(--brand-border);
+
+  /* ── Academic Risk Hierarchy (Harmonized with #0052B7) ── */
+  --risk-low:            #22C55E;
+  --risk-low-bg:         color-mix(in srgb, var(--risk-low) 14%, #FFFFFF);
+  --risk-low-border:     color-mix(in srgb, var(--risk-low) 38%, #FFFFFF);
+  --risk-low-text:       color-mix(in srgb, var(--risk-low) 60%, #064E3B);
+  --risk-low-badge-bg:   color-mix(in srgb, var(--risk-low) 22%, #FFFFFF);
+
+  --risk-medium:         #F59E0B;
+  --risk-medium-bg:      color-mix(in srgb, var(--risk-medium) 14%, #FFFFFF);
+  --risk-medium-border:  color-mix(in srgb, var(--risk-medium) 38%, #FFFFFF);
+  --risk-medium-text:    color-mix(in srgb, var(--risk-medium) 65%, #78350F);
+  --risk-medium-badge-bg:color-mix(in srgb, var(--risk-medium) 22%, #FFFFFF);
+
+  --risk-high:           #EF4444;
+  --risk-high-bg:        color-mix(in srgb, var(--risk-high) 14%, #FFFFFF);
+  --risk-high-border:    color-mix(in srgb, var(--risk-high) 38%, #FFFFFF);
+  --risk-high-text:      color-mix(in srgb, var(--risk-high) 65%, #881337);
+  --risk-high-badge-bg:  color-mix(in srgb, var(--risk-high) 22%, #FFFFFF);
+
+  /* ── Sidebar Palette ── */
+  --sidebar-bg:         #FFFFFF;
+  --sidebar-border:     #E2E8F0;
+  --sidebar-item:       #475569;
+  --sidebar-item-hover: #F1F5F9;
+  --sidebar-active-text: var(--brand);
+  --sidebar-heading:    #94A3B8;
+
+  /* ── Glassmorphism ── */
+  --glass-bg:     rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(226, 232, 240, 0.9);
+  --glass-shadow: 0 20px 50px -10px rgba(15, 23, 42, 0.08);
+
+  /* ── Elevation / Shadows ── */
+  --shadow-xs:  0 1px 2px rgba(15,23,42,0.05);
+  --shadow-sm:  0 2px 8px rgba(15,23,42,0.06);
+  --shadow-md:  0 8px 24px rgba(15,23,42,0.08);
+  --shadow-lg:  0 20px 48px rgba(15,23,42,0.10);
+  --shadow-xl:  0 32px 64px rgba(15,23,42,0.14);
+  --shadow-yellow: 0 8px 20px -4px rgba(245, 158, 11, 0.35);
+}
+
+.dark, :root.dark {
+  color-scheme: dark;
+
+  --sidebar-icon-color: #FFFFFF;
+  --sidebar-icon-active-color: #FFFFFF;
+
+  /* Note: Dark mode brand adaptations are centralized in ./theme.css */
+
+  --yellow-accent:        #FBBF24;
+  --yellow-hover:         #F59E0B;
+  --yellow-dark:          #D97706;
+  --yellow-light:         rgba(245, 158, 11, 0.12);
+  --yellow-lighter:       rgba(245, 158, 11, 0.06);
+  --yellow-border:        rgba(245, 158, 11, 0.25);
+  --yellow-glow:          rgba(251, 191, 36, 0.18);
+
+  /* True Pure Black (#000000) & OLED Slate Surfaces */
+  --slate-50:  #000000;
+  --slate-100: #0A0A0A;
+  --slate-200: #222222;
+  --slate-300: #333333;
+  --slate-400: #71717A;
+  --slate-500: #A1A1AA;
+  --slate-600: #D4D4D8;
+  --slate-700: #E4E4E7;
+  --slate-800: #F4F4F5;
+  --slate-900: #FFFFFF;
+
+  /* Pure black background with sleek elevated cards */
+  --surface-bg:    #000000;
+  --surface-card:  #0A0A0A;
+  --container-bg:  #0A0A0A;
+  --surface-muted: #141414;
+
+  /* High contrast text hierarchy */
+  --text-primary:   #FFFFFF;
+  --text-secondary: #D4D4D8;
+  --text-muted:     #A1A1AA;
+  --text-disabled:  #71717A;
+
+  --color-success: var(--risk-low);
+  --color-warning: var(--risk-medium);
+  --color-danger:  var(--risk-high);
+  --color-info:    var(--brand);
+
+  --color-success-bg: var(--risk-low-bg);
+  --color-warning-bg: var(--risk-medium-bg);
+  --color-danger-bg:  var(--risk-high-bg);
+  --color-info-bg:    var(--brand-light);
+
+  --color-success-border: var(--risk-low-border);
+  --color-warning-border: var(--risk-medium-border);
+  --color-danger-border:  var(--risk-high-border);
+  --color-info-border:    var(--brand-border);
+
+  /* ── Solid Clean Academic Risk & Status Hierarchy in Dark Mode (Clean Borderless Outline) ── */
+  --risk-low:            #22C55E;
+  --risk-low-bg:         #052E16;
+  --risk-low-border:     transparent;
+  --risk-low-text:       #4ADE80;
+  --risk-low-badge-bg:   #064E3B;
+
+  --risk-medium:         #F59E0B;
+  --risk-medium-bg:      #451A03;
+  --risk-medium-border:  transparent;
+  --risk-medium-text:    #FBBF24;
+  --risk-medium-badge-bg:#78350F;
+
+  --risk-high:           #EF4444;
+  --risk-high-bg:        #450A0A;
+  --risk-high-border:    transparent;
+  --risk-high-text:      #F87171;
+  --risk-high-badge-bg:  #881337;
+
+  --sidebar-bg:         #000000;
+  --sidebar-border:     #1F1F1F;
+  --sidebar-item:       #A1A1AA;
+  --sidebar-item-hover: #181818;
+  --sidebar-active-border: rgba(255, 255, 255, 0.14);
+  --sidebar-active-text: #FFFFFF;
+  --sidebar-heading:    #71717A;
+
+  --glass-bg:     rgba(0, 0, 0, 0.90);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.80);
+}
+
+:root {
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-pill: 999px;
+
+  /* ── Transitions ── */
+  --ease-spring:  cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth:  cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-fast: all 0.15s var(--ease-smooth);
+  --transition-base: all 0.25s var(--ease-spring);
+  --transition-slow: all 0.4s var(--ease-spring);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Base Reset & Typography
+   ═══════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
 body {
   margin: 0;
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  background-color: #f9fafb;
-  color: #111827;
+  font-family: var(--font-body);
+  background-color: var(--surface-bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: var(--font-heading);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
 }
 
-/* Hide standard Edge reveal password and clear buttons */
-input::-ms-reveal,
-input::-ms-clear {
+/* Custom Scrollbars */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--slate-300); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--slate-400); }
+
+/* Hide Edge reveal/clear buttons */
+input::-ms-reveal, input::-ms-clear { display: none !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Animation Keyframes
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-ring {
+  0%   { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes orb-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(30px, -20px) scale(1.05); }
+  66%       { transform: translate(-20px, 15px) scale(0.95); }
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+
+@keyframes checkmark-draw {
+  from { stroke-dashoffset: 60; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes bounce-in {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.15); }
+  80%  { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6); }
+  50%       { box-shadow: 0 0 0 5px rgba(239,68,68,0); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Animation Utility Classes
+   ═══════════════════════════════════════════════════════════════ */
+
+.animate-fade-in       { animation: fadeIn       0.3s var(--ease-smooth) forwards; }
+.animate-fade-in-up    { animation: fadeInUp     0.4s var(--ease-spring) forwards; }
+.animate-fade-in-down  { animation: fadeInDown   0.4s var(--ease-spring) forwards; }
+.animate-fade-in-scale { animation: fadeInScale  0.35s var(--ease-spring) forwards; }
+.animate-slide-left    { animation: slideInLeft  0.4s var(--ease-spring) forwards; }
+.animate-slide-right   { animation: slideInRight 0.4s var(--ease-spring) forwards; }
+.animate-float         { animation: float 3s ease-in-out infinite; }
+.animate-spin          { animation: spin  1s linear infinite; }
+.animate-bounce-in     { animation: bounce-in 0.5s var(--ease-bounce) forwards; }
+.animate-badge-pulse   { animation: badge-pulse 2s ease-in-out infinite; }
+
+.animate-stagger-1 { animation-delay: 0.05s; }
+.animate-stagger-2 { animation-delay: 0.10s; }
+.animate-stagger-3 { animation-delay: 0.15s; }
+.animate-stagger-4 { animation-delay: 0.20s; }
+.animate-stagger-5 { animation-delay: 0.25s; }
+
+/* ── Theme Switcher Smooth Clockwise Movement Animations ── */
+@keyframes moveClockwiseOut {
+  0% {
+    transform: rotate(0deg) translateZ(0);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(56deg) translateZ(0);
+    opacity: 0;
+  }
+}
+
+@keyframes moveClockwiseIn {
+  0% {
+    transform: rotate(-56deg) translateZ(0);
+    opacity: 0;
+  }
+  100% {
+    transform: rotate(0deg) translateZ(0);
+    opacity: 1;
+  }
+}
+
+/* ── Bell Ring / Shake Animation ── */
+@keyframes bellShake {
+  0% {
+    transform: rotate(0deg);
+  }
+  15% {
+    transform: rotate(18deg);
+  }
+  30% {
+    transform: rotate(-16deg);
+  }
+  45% {
+    transform: rotate(12deg);
+  }
+  60% {
+    transform: rotate(-8deg);
+  }
+  75% {
+    transform: rotate(4deg);
+  }
+  85% {
+    transform: rotate(-2deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-bell-shake {
+  display: inline-flex;
+  transform-origin: top center !important;
+  animation: bellShake 0.65s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* ── Bell Periodic Ring / Swing Animation ── */
+@keyframes bellSwingInfinite {
+  0%, 65%, 100% {
+    transform: rotate(0deg);
+  }
+  70% {
+    transform: rotate(18deg);
+  }
+  75% {
+    transform: rotate(-16deg);
+  }
+  80% {
+    transform: rotate(12deg);
+  }
+  85% {
+    transform: rotate(-8deg);
+  }
+  90% {
+    transform: rotate(4deg);
+  }
+  95% {
+    transform: rotate(-2deg);
+  }
+}
+
+.animate-bell-swing {
+  display: inline-flex;
+  transform-origin: top center !important;
+  animation: bellSwingInfinite 3s ease-in-out infinite;
+}
+/* ═══════════════════════════════════════════════════════════════
+   Surface & Card Utilities
+   ═══════════════════════════════════════════════════════════════ */
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-md);
+  transition: var(--transition-base);
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px -10px var(--brand-glow), 0 8px 16px -4px rgba(15,23,42,0.04);
+}
+
+/* Stat Card */
+.stat-card {
+  background: var(--surface-card);
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-2xl);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: linear-gradient(135deg, var(--brand-light), transparent);
+  transition: opacity 0.3s;
+}
+
+.stat-card:hover::before { opacity: 1; }
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--brand-border);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Facebook-Style Hollow Skeleton Loading System
+   (Instant Static Skeleton Display + Smooth Down-to-Up Real Data Arrival)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Smooth Arrival for Real Data Containers (When Data Is Ready) ── */
+@keyframes data-container-arrive-up {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Skeletons are already there statically with zero entry animation */
+.skeleton-container,
+.skeleton-container *,
+.skeleton-card,
+.skeleton-card *,
+.skeleton-row-1,
+.skeleton-row-2,
+.skeleton-row-3,
+.skeleton-row-4,
+[class*="animate-pulse"] {
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+/* Static loaded elements with zero entry animation (e.g. tab bars that replace skeleton tabs instantly, fixed overlays) */
+[role="tablist"],
+.no-arrive-animation,
+.modal-backdrop-static,
+.data-loaded-content > .fixed,
+.data-loaded-content > [role="dialog"],
+.data-loaded-content > [class*="fixed"] {
+  animation: none !important;
+  transform: none !important;
+}
+
+/* Modal dialog card pop-in animation (in place without upward translation) */
+@keyframes modal-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-pop-in {
+  animation: modal-pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
+/* Real data content cards glide up smoothly ONLY when data is ready */
+.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):not(.modal-backdrop-static):not(.fixed):not([class*="fixed"]):not([role="dialog"]):not(.skeleton-container):not([class*="skeleton-row-"]):not([class*="animate-pulse"]),
+.content-arrive-up {
+  animation: data-container-arrive-up 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+/* Stagger real data tiers from top to bottom */
+.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):not(.modal-backdrop-static):not(.fixed):not([class*="fixed"]):not([role="dialog"]):nth-child(1) {
+  animation-delay: 0.04s;
+}
+.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):not(.modal-backdrop-static):not(.fixed):not([class*="fixed"]):not([role="dialog"]):nth-child(2) {
+  animation-delay: 0.14s;
+}
+.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):not(.modal-backdrop-static):not(.fixed):not([class*="fixed"]):not([role="dialog"]):nth-child(3) {
+  animation-delay: 0.24s;
+}
+.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):not(.modal-backdrop-static):not(.fixed):not([class*="fixed"]):not([role="dialog"]):nth-child(4) {
+  animation-delay: 0.34s;
+}
+.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):not(.modal-backdrop-static):not(.fixed):not([class*="fixed"]):not([role="dialog"]):nth-child(5) {
+  animation-delay: 0.44s;
+}
+
+.data-loaded-content .grid > *:nth-child(1) { animation-delay: 0.16s; }
+.data-loaded-content .grid > *:nth-child(2) { animation-delay: 0.22s; }
+.data-loaded-content .grid > *:nth-child(3) { animation-delay: 0.28s; }
+.data-loaded-content .grid > *:nth-child(4) { animation-delay: 0.34s; }
+
+/* ── True Top-to-Bottom Downward Hollow Wipe (Direct on Elements) ── */
+@keyframes fb-hollow-wipe-down {
+  0% {
+    background-position: 0% 100%;
+  }
+  26% {
+    background-position: 0% 0%;
+  }
+  26.001%, 100% {
+    background-position: 0% 100%;
+  }
+}
+
+/* Eliminate harsh whole-page blinking/flickering opacity */
+.animate-pulse {
+  animation: none !important;
+}
+
+/* Remove all pseudo-element overlays from parent containers */
+.skeleton-container::after,
+.skeleton-card::after,
+[class*="animate-pulse"] [class*="rounded-3xl"]::after,
+[class*="animate-pulse"] [class*="rounded-2xl"]::after,
+[class*="animate-pulse"][class*="rounded-3xl"]::after,
+[class*="animate-pulse"][class*="rounded-2xl"]::after {
   display: none !important;
 }
+
+/* ── Base Hollow Skeleton Elements (Solid Cavity + Top-to-Bottom Diffuse Wash) ── */
+.skeleton,
+.skeleton-box,
+[class*="animate-pulse"] [class*="bg-gray-"],
+[class*="animate-pulse"] [class*="bg-slate-"],
+[class*="animate-pulse"] [class*="bg-zinc-"],
+[class*="bg-gray-"].animate-pulse,
+[class*="bg-slate-"].animate-pulse {
+  background-color: #E4E6EB !important;
+  background-image: linear-gradient(
+    180deg,
+    #E4E6EB 0%,
+    #E4E6EB 35%,
+    #FFFFFF 50%,
+    #E4E6EB 65%,
+    #E4E6EB 100%
+  ) !important;
+  background-size: 100% 400% !important;
+  background-repeat: no-repeat !important;
+  box-shadow: inset 0 1.5px 2.5px rgba(0, 0, 0, 0.08), inset 0 -0.5px 1px rgba(255, 255, 255, 0.6) !important;
+  border-radius: var(--radius-md);
+  animation: fb-hollow-wipe-down 3.8s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+}
+
+.dark .skeleton,
+.dark .skeleton-box,
+:root.dark .skeleton,
+:root.dark .skeleton-box,
+.dark [class*="animate-pulse"] [class*="bg-gray-"],
+.dark [class*="animate-pulse"] [class*="bg-slate-"],
+.dark [class*="animate-pulse"] [class*="bg-zinc-"],
+.dark [class*="animate-pulse"] [class*="dark:bg-gray-"],
+.dark [class*="animate-pulse"] [class*="dark:bg-slate-"],
+.dark [class*="animate-pulse"] [class*="dark:bg-zinc-"],
+:root.dark [class*="animate-pulse"] [class*="dark:bg-gray-"],
+:root.dark [class*="animate-pulse"] [class*="dark:bg-slate-"],
+:root.dark [class*="animate-pulse"] [class*="dark:bg-zinc-"],
+.dark [class*="bg-gray-"].animate-pulse,
+.dark [class*="bg-slate-"].animate-pulse,
+.dark [class*="dark:bg-gray-"].animate-pulse,
+.dark [class*="dark:bg-slate-"].animate-pulse,
+:root.dark [class*="dark:bg-gray-"].animate-pulse,
+:root.dark [class*="dark:bg-slate-"].animate-pulse {
+  background-color: #242526 !important;
+  background-image: linear-gradient(
+    180deg,
+    #242526 0%,
+    #242526 35%,
+    #3E4044 50%,
+    #242526 65%,
+    #242526 100%
+  ) !important;
+  background-size: 100% 400% !important;
+  background-repeat: no-repeat !important;
+  box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.65), inset 0 -0.5px 1px rgba(255, 255, 255, 0.04) !important;
+  animation: fb-hollow-wipe-down 3.8s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+}
+
+/* ── Unified Top-to-Bottom Wave Across Rows (Cascading Descent) ── */
+
+/*
+  CRITICAL: skeleton-row-* classes are the source of truth for animation delay.
+  They must win over any auto nth-child cascade that fires on gap-3.5 / space-y-* parents.
+  Use !important to ensure specificity over the auto-cascade selectors below.
+*/
+
+/* Row 1: Header / Top Section (Starts first at 0.0s) — ALL descendants */
+.skeleton-row-1 [class*="bg-gray-"],
+.skeleton-row-1 [class*="dark:bg-gray-"],
+.skeleton-row-1 [class*="bg-slate-"],
+.skeleton-row-1 .skeleton,
+/* Force every nth-child inside row-1 to 0s so inner gap-3.5 cards don't stagger */
+.skeleton-row-1 > *:nth-child(n) [class*="bg-gray-"],
+.skeleton-row-1 > *:nth-child(n) [class*="dark:bg-gray-"],
+.skeleton-row-1 > *:nth-child(n) [class*="bg-slate-"],
+.skeleton-row-1 > * [class*="bg-gray-"],
+.skeleton-row-1 > * [class*="dark:bg-gray-"],
+.skeleton-row-1 > * [class*="bg-slate-"],
+.space-y-5 > *:nth-child(1) [class*="bg-gray-"],
+.space-y-5 > *:nth-child(1) [class*="dark:bg-gray-"],
+.space-y-5 > *:nth-child(1) [class*="bg-slate-"],
+.space-y-5 > *:nth-child(1) .skeleton,
+.space-y-6 > *:nth-child(1):not([role="tablist"]) [class*="bg-gray-"],
+.space-y-6 > *:nth-child(1):not([role="tablist"]) [class*="dark:bg-gray-"],
+.space-y-6 > *:nth-child(1):not([role="tablist"]) [class*="bg-slate-"],
+.space-y-6 > *:nth-child(1):not([role="tablist"]) .skeleton,
+.space-y-6 > [role="tablist"] + *:nth-child(2) [class*="bg-gray-"],
+.space-y-6 > [role="tablist"] + *:nth-child(2) [class*="dark:bg-gray-"],
+.space-y-6 > [role="tablist"] + *:nth-child(2) [class*="bg-slate-"],
+.space-y-6 > [role="tablist"] + *:nth-child(2) .skeleton,
+.gap-3\.5 > *:nth-child(1) [class*="bg-gray-"],
+.gap-3\.5 > *:nth-child(1) [class*="dark:bg-gray-"],
+.gap-3\.5 > *:nth-child(1) [class*="bg-slate-"],
+.gap-3\.5 > *:nth-child(1) .skeleton {
+  animation-delay: 0s !important;
+}
+
+/* Row 2: Secondary / Content Section (Descends to Row 2 at 0.80s) */
+.skeleton-row-2 [class*="bg-gray-"],
+.skeleton-row-2 [class*="dark:bg-gray-"],
+.skeleton-row-2 [class*="bg-slate-"],
+.skeleton-row-2 .skeleton,
+.space-y-5 > *:nth-child(2) [class*="bg-gray-"],
+.space-y-5 > *:nth-child(2) [class*="dark:bg-gray-"],
+.space-y-5 > *:nth-child(2) [class*="bg-slate-"],
+.space-y-5 > *:nth-child(2) .skeleton,
+.space-y-6 > *:nth-child(2):not([role="tablist"]) [class*="bg-gray-"],
+.space-y-6 > *:nth-child(2):not([role="tablist"]) [class*="dark:bg-gray-"],
+.space-y-6 > *:nth-child(2):not([role="tablist"]) [class*="bg-slate-"],
+.space-y-6 > *:nth-child(2):not([role="tablist"]) .skeleton,
+.space-y-6 > [role="tablist"] ~ *:nth-child(3) [class*="bg-gray-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(3) [class*="dark:bg-gray-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(3) [class*="bg-slate-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(3) .skeleton,
+.gap-3\.5 > *:nth-child(2) [class*="bg-gray-"],
+.gap-3\.5 > *:nth-child(2) [class*="dark:bg-gray-"],
+.gap-3\.5 > *:nth-child(2) [class*="bg-slate-"],
+.gap-3\.5 > *:nth-child(2) .skeleton {
+  animation-delay: 0.80s !important;
+}
+
+/* Row 3: Lower Panels / Tables (Descends to Row 3 at 1.60s) */
+.skeleton-row-3 [class*="bg-gray-"],
+.skeleton-row-3 [class*="dark:bg-gray-"],
+.skeleton-row-3 [class*="bg-slate-"],
+.skeleton-row-3 .skeleton,
+.space-y-5 > *:nth-child(3) [class*="bg-gray-"],
+.space-y-5 > *:nth-child(3) [class*="dark:bg-gray-"],
+.space-y-5 > *:nth-child(3) [class*="bg-slate-"],
+.space-y-5 > *:nth-child(3) .skeleton,
+.space-y-6 > *:nth-child(3):not([role="tablist"]) [class*="bg-gray-"],
+.space-y-6 > *:nth-child(3):not([role="tablist"]) [class*="dark:bg-gray-"],
+.space-y-6 > *:nth-child(3):not([role="tablist"]) [class*="bg-slate-"],
+.space-y-6 > *:nth-child(3):not([role="tablist"]) .skeleton,
+.space-y-6 > [role="tablist"] ~ *:nth-child(4) [class*="bg-gray-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(4) [class*="dark:bg-gray-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(4) [class*="bg-slate-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(4) .skeleton,
+.gap-3\.5 > *:nth-child(3) [class*="bg-gray-"],
+.gap-3\.5 > *:nth-child(3) [class*="dark:bg-gray-"],
+.gap-3\.5 > *:nth-child(3) [class*="bg-slate-"],
+.gap-3\.5 > *:nth-child(3) .skeleton {
+  animation-delay: 1.60s !important;
+}
+
+/* Row 4: Bottom Footers / Sequential Sub-items (Descends at 2.20s) */
+.skeleton-row-4 [class*="bg-gray-"],
+.skeleton-row-4 [class*="dark:bg-gray-"],
+.skeleton-row-4 [class*="bg-slate-"],
+.skeleton-row-4 .skeleton,
+.space-y-5 > *:nth-child(4) [class*="bg-gray-"],
+.space-y-5 > *:nth-child(4) [class*="dark:bg-gray-"],
+.space-y-5 > *:nth-child(4) [class*="bg-slate-"],
+.space-y-5 > *:nth-child(4) .skeleton,
+.space-y-6 > *:nth-child(4):not([role="tablist"]) [class*="bg-gray-"],
+.space-y-6 > *:nth-child(4):not([role="tablist"]) [class*="dark:bg-gray-"],
+.space-y-6 > *:nth-child(4):not([role="tablist"]) [class*="bg-slate-"],
+.space-y-6 > *:nth-child(4):not([role="tablist"]) .skeleton,
+.space-y-6 > [role="tablist"] ~ *:nth-child(5) [class*="bg-gray-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(5) [class*="dark:bg-gray-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(5) [class*="bg-slate-"],
+.space-y-6 > [role="tablist"] ~ *:nth-child(5) .skeleton,
+.gap-3\.5 > *:nth-child(4) [class*="bg-gray-"],
+.gap-3\.5 > *:nth-child(4) [class*="dark:bg-gray-"],
+.gap-3\.5 > *:nth-child(4) [class*="bg-slate-"],
+.gap-3\.5 > *:nth-child(4) .skeleton {
+  animation-delay: 2.20s !important;
+}
+
+/* Explicit skeleton-row overrides that ALWAYS win over auto nth-child cascade */
+.skeleton-container .skeleton-row-1 [class*="bg-gray-"],
+.skeleton-container .skeleton-row-1 [class*="dark:bg-gray-"],
+.skeleton-container .skeleton-row-1 [class*="bg-slate-"],
+.skeleton-container .skeleton-row-1 [class*="dark:bg-slate-"],
+.skeleton-container .skeleton-row-1 .skeleton,
+.skeleton-row-1 [class*="bg-gray-"],
+.skeleton-row-1 [class*="dark:bg-gray-"],
+.skeleton-row-1 [class*="bg-slate-"],
+.skeleton-row-1 [class*="dark:bg-slate-"],
+.skeleton-row-1 .skeleton {
+  animation-delay: 0s !important;
+}
+
+.skeleton-container .skeleton-row-2 [class*="bg-gray-"],
+.skeleton-container .skeleton-row-2 [class*="dark:bg-gray-"],
+.skeleton-container .skeleton-row-2 [class*="bg-slate-"],
+.skeleton-container .skeleton-row-2 [class*="dark:bg-slate-"],
+.skeleton-container .skeleton-row-2 .skeleton,
+.skeleton-row-2 [class*="bg-gray-"],
+.skeleton-row-2 [class*="dark:bg-gray-"],
+.skeleton-row-2 [class*="bg-slate-"],
+.skeleton-row-2 [class*="dark:bg-slate-"],
+.skeleton-row-2 .skeleton {
+  animation-delay: 0.80s !important;
+}
+
+.skeleton-container .skeleton-row-3 [class*="bg-gray-"],
+.skeleton-container .skeleton-row-3 [class*="dark:bg-gray-"],
+.skeleton-container .skeleton-row-3 [class*="bg-slate-"],
+.skeleton-container .skeleton-row-3 [class*="dark:bg-slate-"],
+.skeleton-container .skeleton-row-3 .skeleton,
+.skeleton-row-3 [class*="bg-gray-"],
+.skeleton-row-3 [class*="dark:bg-gray-"],
+.skeleton-row-3 [class*="bg-slate-"],
+.skeleton-row-3 [class*="dark:bg-slate-"],
+.skeleton-row-3 .skeleton {
+  animation-delay: 1.60s !important;
+}
+
+.skeleton-container .skeleton-row-4 [class*="bg-gray-"],
+.skeleton-container .skeleton-row-4 [class*="dark:bg-gray-"],
+.skeleton-container .skeleton-row-4 [class*="bg-slate-"],
+.skeleton-container .skeleton-row-4 [class*="dark:bg-slate-"],
+.skeleton-container .skeleton-row-4 .skeleton,
+.skeleton-row-4 [class*="bg-gray-"],
+.skeleton-row-4 [class*="dark:bg-gray-"],
+.skeleton-row-4 [class*="bg-slate-"],
+.skeleton-row-4 [class*="dark:bg-slate-"],
+.skeleton-row-4 .skeleton {
+  animation-delay: 2.20s !important;
+}
+
+/* Sequential table and directory list rows (Cascading downward inside tables/cards) */
+.divide-y > *:nth-child(1) [class*="bg-gray-"],
+.divide-y > *:nth-child(1) [class*="dark:bg-gray-"],
+tbody > tr:nth-child(1) [class*="bg-gray-"],
+tbody > tr:nth-child(1) [class*="dark:bg-gray-"] { animation-delay: 1.80s !important; }
+
+.divide-y > *:nth-child(2) [class*="bg-gray-"],
+.divide-y > *:nth-child(2) [class*="dark:bg-gray-"],
+tbody > tr:nth-child(2) [class*="bg-gray-"],
+tbody > tr:nth-child(2) [class*="dark:bg-gray-"] { animation-delay: 1.88s !important; }
+
+.divide-y > *:nth-child(3) [class*="bg-gray-"],
+.divide-y > *:nth-child(3) [class*="dark:bg-gray-"],
+tbody > tr:nth-child(3) [class*="bg-gray-"],
+tbody > tr:nth-child(3) [class*="dark:bg-gray-"] { animation-delay: 1.96s !important; }
+
+.divide-y > *:nth-child(4) [class*="bg-gray-"],
+.divide-y > *:nth-child(4) [class*="dark:bg-gray-"],
+tbody > tr:nth-child(4) [class*="bg-gray-"],
+tbody > tr:nth-child(4) [class*="dark:bg-gray-"] { animation-delay: 2.04s !important; }
+
+.divide-y > *:nth-child(5) [class*="bg-gray-"],
+.divide-y > *:nth-child(5) [class*="dark:bg-gray-"],
+tbody > tr:nth-child(5) [class*="bg-gray-"],
+tbody > tr:nth-child(5) [class*="dark:bg-gray-"] { animation-delay: 2.12s !important; }
+
+.divide-y > *:nth-child(6) [class*="bg-gray-"],
+.divide-y > *:nth-child(6) [class*="dark:bg-gray-"],
+tbody > tr:nth-child(6) [class*="bg-gray-"],
+tbody > tr:nth-child(6) [class*="dark:bg-gray-"] { animation-delay: 2.20s !important; }
+
+/*
+  ── Final Override: skeleton-row-* Wins Over All Auto-Cascade Rules ──
+  These selectors are placed LAST so they beat any conflicting !important
+  from the auto nth-child gap-3.5 / space-y-* selectors above.
+  This is critical for layouts like TutorHome where the outer wrapper and
+  inner grid both use gap-3.5 — without this, inner KPI cards get staggered
+  at 0.8s/1.6s/2.2s instead of all starting at 0s.
+*/
+.skeleton-row-1 [class*="bg-gray-"],
+.skeleton-row-1 [class*="dark:bg-gray-"],
+.skeleton-row-1 [class*="bg-slate-"],
+.skeleton-row-1 > * [class*="bg-gray-"],
+.skeleton-row-1 > * [class*="dark:bg-gray-"],
+.skeleton-row-1 > * [class*="bg-slate-"],
+.skeleton-row-1 .skeleton { animation-delay: 0s !important; }
+
+.skeleton-row-2 [class*="bg-gray-"],
+.skeleton-row-2 [class*="dark:bg-gray-"],
+.skeleton-row-2 [class*="bg-slate-"],
+.skeleton-row-2 > * [class*="bg-gray-"],
+.skeleton-row-2 > * [class*="dark:bg-gray-"],
+.skeleton-row-2 > * [class*="bg-slate-"],
+.skeleton-row-2 .skeleton { animation-delay: 0.80s !important; }
+
+.skeleton-row-3 [class*="bg-gray-"],
+.skeleton-row-3 [class*="dark:bg-gray-"],
+.skeleton-row-3 [class*="bg-slate-"],
+.skeleton-row-3 > * [class*="bg-gray-"],
+.skeleton-row-3 > * [class*="dark:bg-gray-"],
+.skeleton-row-3 > * [class*="bg-slate-"],
+.skeleton-row-3 .skeleton { animation-delay: 1.60s !important; }
+
+.skeleton-row-4 [class*="bg-gray-"],
+.skeleton-row-4 [class*="dark:bg-gray-"],
+.skeleton-row-4 [class*="bg-slate-"],
+.skeleton-row-4 > * [class*="bg-gray-"],
+.skeleton-row-4 > * [class*="dark:bg-gray-"],
+.skeleton-row-4 > * [class*="bg-slate-"],
+.skeleton-row-4 .skeleton { animation-delay: 2.20s !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Button Utilities
+   ═══════════════════════════════════════════════════════════════ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.7rem 1.4rem;
+  cursor: pointer;
+  transition: var(--transition-base);
+  white-space: nowrap;
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn:disabled { opacity: 0.55; cursor: not-allowed; pointer-events: none; }
+
+.btn-primary {
+  background: var(--brand);
+  color: #fff;
+  box-shadow: 0 4px 12px -2px var(--brand-glow);
+}
+.btn-primary:hover {
+  background: var(--brand-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -2px var(--brand-glow);
+}
+.btn-primary:active { transform: translateY(0); }
+
+.btn-secondary {
+  background: #FFFFFF;
+  color: var(--text-primary);
+  border: 1.5px solid var(--slate-200);
+  box-shadow: var(--shadow-xs);
+}
+.dark .btn-secondary {
+  background: var(--surface-card);
+}
+.btn-secondary:hover {
+  border-color: var(--brand-border);
+  background: var(--brand-light);
+  color: var(--brand-darker);
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn-ghost:hover {
+  background: var(--surface-muted);
+  color: var(--text-primary);
+}
+
+.btn-danger {
+  background: #FEF2F2;
+  color: #DC2626;
+  border: 1.5px solid #FECACA;
+}
+.btn-danger:hover {
+  background: #FEE2E2;
+  border-color: #FCA5A5;
+}
+
+.btn-sm { padding: 0.45rem 0.9rem; font-size: 0.8rem; }
+.btn-lg { padding: 0.875rem 1.75rem; font-size: 1rem; border-radius: var(--radius-lg); }
+.btn-xl { padding: 1rem 2rem; font-size: 1.05rem; border-radius: var(--radius-lg); }
+.btn-full { width: 100%; }
+
+.btn-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: var(--radius-md);
+}
+
+/* Spinner inside button */
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Form Utilities
+   ═══════════════════════════════════════════════════════════════ */
+
+.form-group { display: flex; flex-direction: column; gap: 0.375rem; }
+
+.form-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--slate-700);
+  letter-spacing: 0.01em;
+}
+
+.form-input-wrap { position: relative; }
+
+.form-icon-left {
+  position: absolute;
+  left: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--slate-400);
+  pointer-events: none;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.form-icon-right {
+  position: absolute;
+  right: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--slate-400);
+  width: 18px;
+  height: 18px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: var(--surface-muted);
+  border: 1.5px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  background: #FFFFFF;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-glow);
+}
+.dark .form-input:focus {
+  background: var(--surface-card);
+}
+
+.form-input.has-left-icon  { padding-left: 2.625rem; }
+.form-input.has-right-icon { padding-right: 2.625rem; }
+
+.form-input.is-error {
+  border-color: var(--color-danger);
+  background: var(--surface-card);
+}
+.form-input.is-error:focus {
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.15);
+}
+
+.form-error {
+  font-size: 0.75rem;
+  color: var(--color-danger);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.form-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: var(--surface-muted);
+  border: 1.5px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  outline: none;
+  resize: vertical;
+  min-height: 100px;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.form-textarea:focus {
+  background: #FFFFFF;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-glow);
+}
+.dark .form-textarea:focus {
+  background: var(--surface-card);
+}
+
+/* Custom checkbox */
+.form-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Badge Utilities
+   ═══════════════════════════════════════════════════════════════ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+}
+
+.badge-green, .badge-risk-low    { background: var(--risk-low-badge-bg); color: var(--risk-low-text); border: 1px solid var(--risk-low-border); }
+.badge-red, .badge-risk-high     { background: var(--risk-high-badge-bg); color: var(--risk-high-text); border: 1px solid var(--risk-high-border); }
+.badge-amber, .badge-risk-medium { background: var(--risk-medium-badge-bg); color: var(--risk-medium-text); border: 1px solid var(--risk-medium-border); }
+.badge-blue                      { background: var(--color-info-bg); color: var(--brand); border: 1px solid var(--color-info-border); }
+.badge-slate                     { background: var(--slate-100); color: var(--slate-600); border: 1px solid var(--slate-200); }
+
+/* Reusable Global Risk Utilities */
+.risk-card-low    { background-color: var(--risk-low-bg) !important; border-color: var(--risk-low-border) !important; }
+.risk-card-medium { background-color: var(--risk-medium-bg) !important; border-color: var(--risk-medium-border) !important; }
+.risk-card-high   { background-color: var(--risk-high-bg) !important; border-color: var(--risk-high-border) !important; }
+
+.risk-badge-low    { background-color: var(--risk-low-badge-bg) !important; color: var(--risk-low-text) !important; border: 1px solid var(--risk-low-border) !important; }
+.risk-badge-medium { background-color: var(--risk-medium-badge-bg) !important; color: var(--risk-medium-text) !important; border: 1px solid var(--risk-medium-border) !important; }
+.risk-badge-high   { background-color: var(--risk-high-badge-bg) !important; color: var(--risk-high-text) !important; border: 1px solid var(--risk-high-border) !important; }
+
+.risk-avatar-low    { background-color: var(--risk-low-bg) !important; color: var(--risk-low-text) !important; border: 1px solid var(--risk-low-border) !important; }
+.risk-avatar-medium { background-color: var(--risk-medium-bg) !important; color: var(--risk-medium-text) !important; border: 1px solid var(--risk-medium-border) !important; }
+.risk-avatar-high   { background-color: var(--risk-high-bg) !important; color: var(--risk-high-text) !important; border: 1px solid var(--risk-high-border) !important; }
+
+.text-risk-low    { color: var(--risk-low-text) !important; }
+.text-risk-medium { color: var(--risk-medium-text) !important; }
+.text-risk-high   { color: var(--risk-high-text) !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Alert / Banner Utilities
+   ═══════════════════════════════════════════════════════════════ */
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  border-width: 1px;
+  border-style: solid;
+  animation: fadeInDown 0.3s var(--ease-spring);
+}
+
+.alert-icon { flex-shrink: 0; margin-top: 1px; width: 18px; height: 18px; }
+
+.alert-success { background: var(--color-success-bg); color: #166534;  border-color: var(--color-success-border); }
+.alert-error   { background: var(--color-danger-bg);  color: #991B1B; border-color: var(--color-danger-border);  }
+.alert-warning { background: var(--color-warning-bg); color: #92400E; border-color: var(--color-warning-border); }
+.alert-info    { background: var(--color-info-bg);    color: var(--brand); border-color: var(--color-info-border);    }
+
+.dark .alert-success { color: #4ADE80 !important; border-color: transparent !important; }
+.dark .alert-error   { color: #F87171 !important; border-color: transparent !important; }
+.dark .alert-warning { color: #FBBF24 !important; border-color: transparent !important; }
+.dark .alert-info    { color: #60A5FA !important; border-color: transparent !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Dark Sidebar Nav
+   ═══════════════════════════════════════════════════════════════ */
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  position: relative;
+  border: 1px solid transparent;
+}
+
+.sidebar-item:hover {
+  background: var(--sidebar-item-hover);
+  color: var(--text-primary);
+}
+
+.sidebar-item.active {
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-active-text);
+  font-weight: 500;
+  border: 1px solid var(--sidebar-active-border);
+  box-shadow: var(--sidebar-active-glow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.sidebar-item.active:hover {
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-active-text);
+  border: 1px solid var(--sidebar-active-border);
+  box-shadow: var(--sidebar-active-glow);
+}
+
+.sidebar-item.active .sidebar-icon {
+  color: var(--sidebar-icon-active-color);
+  stroke-width: 2.3;
+}
+
+.dark .sidebar-item.active .sidebar-icon,
+:root.dark .sidebar-item.active .sidebar-icon {
+  color: #FFFFFF !important;
+  filter: none;
+}
+
+.sidebar-asset-icon {
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+.sidebar-item.active .sidebar-asset-icon {
+  filter: brightness(0) saturate(100%) invert(20%) sepia(98%) saturate(2950%) hue-rotate(205deg) brightness(93%) contrast(105%);
+}
+
+.dark .sidebar-item.active .sidebar-asset-icon,
+:root.dark .sidebar-item.active .sidebar-asset-icon {
+  filter: none;
+}
+
+.sidebar-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--sidebar-icon-color);
+  background: transparent;
+  display: block;
+  transition: color 0.2s, fill 0.2s;
+}
+
+.sidebar-item:hover .sidebar-icon {
+  color: var(--sidebar-icon-color);
+}
+
+.sidebar-section-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0.5rem 1rem 0.25rem;
+  margin-top: 0.5rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Table Utilities
+   ═══════════════════════════════════════════════════════════════ */
+
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.875rem;
+}
+
+.data-table th {
+  padding: 0.75rem 1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  border-bottom: 1px solid var(--slate-200);
+  text-align: left;
+  white-space: nowrap;
+}
+
+table thead th {
+  text-align: center !important;
+  vertical-align: middle;
+}
+
+.data-table th:first-child { border-radius: var(--radius-md) 0 0 0; }
+.data-table th:last-child  { border-radius: 0 var(--radius-md) 0 0; }
+
+.data-table td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--slate-100);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.data-table tbody tr {
+  transition: background 0.15s;
+}
+
+.data-table tbody tr:hover td {
+  background: var(--brand-lighter);
+}
+
+.data-table tbody tr:last-child td { border-bottom: none; }
+
+/* Table row dividers: in HTML tables, divide-y applies borders to <tr> elements, which browsers
+   suppress in favor of <td> cell borders. These rules ensure every row displays horizontal row lines. */
+tbody.divide-y > tr > td,
+table.divide-y > tbody > tr > td {
+  border-top-width: 1px;
+  border-top-style: solid;
+  border-top-color: #F3F4F6;
+}
+
+tbody.divide-gray-100 > tr > td,
+table.divide-gray-100 > tbody > tr > td {
+  border-top-color: #F3F4F6;
+}
+
+tbody.divide-gray-200 > tr > td,
+table.divide-gray-200 > tbody > tr > td {
+  border-top-color: #E5E7EB;
+}
+
+tbody.divide-slate-100 > tr > td,
+table.divide-slate-100 > tbody > tr > td {
+  border-top-color: var(--slate-100);
+}
+
+tbody.divide-slate-200 > tr > td,
+table.divide-slate-200 > tbody > tr > td {
+  border-top-color: var(--slate-200);
+}
+
+tbody.divide-y > tr:first-child > td,
+table.divide-y > tbody > tr:first-child > td {
+  border-top-width: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Auth Background Gradient
+   ═══════════════════════════════════════════════════════════════ */
+
+.auth-bg {
+  min-height: 100vh;
+  background: var(--surface-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--surface-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-xl);
+  padding: 2.5rem;
+  position: relative;
+  z-index: 2;
+  animation: fadeInScale 0.4s var(--ease-spring);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Misc Utilities
+   ═══════════════════════════════════════════════════════════════ */
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--slate-200);
+}
+
+.page-container {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.section-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+}
+
+/* Password strength bar */
+.strength-bar-track {
+  height: 4px;
+  background: var(--slate-200);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.strength-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.35s var(--ease-spring), background 0.35s;
+}
+
+/* OTP input */
+.otp-input {
+  width: 3rem;
+  height: 3.5rem;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: var(--font-heading);
+  background: var(--surface-muted);
+  border: 2px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  color: var(--text-primary);
+}
+.otp-input:focus {
+  background: var(--surface-card);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-glow);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Light Mode — Container Surfaces (#FFFFFF)
+   ═══════════════════════════════════════════════════════════════════════════════
+   Container cards use pure white (#FFFFFF) matching the background canvas.
+   The var(--surface-card) rules below are retained for dark mode remapping.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Containers / Cards across dashboard pages in light mode */
+:root:not(.dark) .rounded-3xl.bg-white,
+:root:not(.dark) .rounded-2xl.bg-white,
+:root:not(.dark) [class*="rounded-3xl"].bg-white,
+:root:not(.dark) [class*="rounded-2xl"].bg-white,
+:root:not(.dark) [class*="rounded-3xl"][class*="dark:bg-[#0A0A0A]"],
+:root:not(.dark) [class*="rounded-2xl"][class*="dark:bg-[#0A0A0A]"],
+:root:not(.dark) [class*="rounded-3xl"][class*="dark:bg-slate-900"],
+:root:not(.dark) [class*="rounded-2xl"][class*="dark:bg-slate-900"],
+:root:not(.dark) .bg-white.p-6.rounded-xl.border,
+:root:not(.dark) .bg-white.p-5.rounded-xl.border,
+:root:not(.dark) .bg-white.rounded-xl.border.shadow-sm,
+:root:not(.dark) .stat-card,
+:root:not(.dark) .glass-card,
+:root:not(.dark) .dashboard-card,
+:root:not(.dark) .card {
+  background-color: var(--surface-card) !important;
+}
+
+/* Container table body rows in light mode */
+:root:not(.dark) tbody.bg-white {
+  background-color: var(--surface-card) !important;
+}
+
+/* Subtle row hover highlight in light mode tables for effortless scanning */
+:root:not(.dark) tbody.bg-white tr:hover,
+:root:not(.dark) tbody[class*="bg-white"] tr:hover {
+  background-color: #FFFFFF !important;
+}
+
+/* ── Crisp Pure White (#FFFFFF) Protections for Inner Controls & Interactive Elements ── */
+:root:not(.dark) input.bg-white,
+:root:not(.dark) select.bg-white,
+:root:not(.dark) textarea.bg-white,
+:root:not(.dark) button.bg-white,
+:root:not(.dark) button[class*="bg-white"],
+:root:not(.dark) input[type="text"],
+:root:not(.dark) input[type="search"],
+:root:not(.dark) input[type="email"],
+:root:not(.dark) input[type="password"],
+:root:not(.dark) input[type="number"],
+:root:not(.dark) .form-input,
+:root:not(.dark) .form-input:focus,
+:root:not(.dark) input:focus,
+:root:not(.dark) textarea:focus,
+:root:not(.dark) select:focus,
+:root:not(.dark) .btn-secondary,
+:root:not(.dark) .bg-white.rounded-full,
+:root:not(.dark) .bg-white.rounded-lg,
+:root:not(.dark) .bg-white.rounded-xl:not(.border):not(.shadow-sm),
+:root:not(.dark) [role="dialog"].bg-white,
+:root:not(.dark) .modal-card,
+:root:not(.dark) [class*="z-[60]"],
+:root:not(.dark) [class*="z-50"].shadow-2xl,
+:root:not(.dark) [class*="z-50"].shadow-xl,
+:root:not(.dark) .dropdown-menu,
+:root:not(.dark) .popover,
+:root:not(.dark) .bg-white:has(canvas),
+:root:not(.dark) canvas {
+  background-color: #FFFFFF !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Dark Mode — Tailwind utility class overrides
+   Because many pages use Tailwind classes (bg-white, bg-gray-*,
+   text-gray-*, border-gray-*) we override them here under .dark
+   ═══════════════════════════════════════════════════════════════ */
+
+.dark .bg-white    { background-color: var(--surface-card)  !important; }
+.dark .bg-gray-50  { background-color: var(--surface-muted) !important; }
+.dark .bg-gray-100 { background-color: var(--surface-muted) !important; }
+.dark .bg-slate-50 { background-color: var(--surface-muted) !important; }
+
+/* Text colors */
+.dark .text-gray-900  { color: var(--text-primary)   !important; }
+.dark .text-gray-800  { color: var(--text-primary)   !important; }
+.dark .text-gray-700  { color: var(--text-secondary) !important; }
+.dark .text-gray-600  { color: var(--text-secondary) !important; }
+.dark .text-gray-500  { color: var(--text-muted)     !important; }
+.dark .text-gray-400  { color: var(--text-muted)     !important; }
+.dark .text-slate-900 { color: var(--text-primary)   !important; }
+.dark .text-slate-800 { color: var(--text-primary)   !important; }
+.dark .text-slate-700 { color: var(--text-secondary) !important; }
+.dark .text-slate-600 { color: var(--text-secondary) !important; }
+.dark .text-slate-500 { color: var(--text-muted)     !important; }
+.dark .text-slate-400 { color: var(--text-muted)     !important; }
+
+/* Border colors - crisp contrast on pure black */
+.dark .border-gray-100 { border-color: var(--slate-200) !important; }
+.dark .border-gray-200 { border-color: var(--slate-200) !important; }
+.dark .border-gray-300 { border-color: var(--slate-300) !important; }
+.dark .border-slate-100 { border-color: var(--slate-200) !important; }
+.dark .border-slate-200 { border-color: var(--slate-200) !important; }
+.dark .border-slate-300 { border-color: var(--slate-300) !important; }
+
+/* Table and divide */
+.dark .divide-gray-100 > * + *,
+.dark .divide-gray-100 > :not(:last-child) { border-color: var(--slate-200) !important; }
+.dark .divide-gray-200 > * + *,
+.dark .divide-gray-200 > :not(:last-child) { border-color: var(--slate-200) !important; }
+.dark .divide-slate-100 > * + *,
+.dark .divide-slate-100 > :not(:last-child) { border-color: var(--slate-200) !important; }
+.dark .divide-slate-200 > * + *,
+.dark .divide-slate-200 > :not(:last-child) { border-color: var(--slate-200) !important; }
+
+/* Table row dividers in Dark Mode */
+.dark tbody.divide-y > tr > td,
+.dark table.divide-y > tbody > tr > td,
+.dark tbody[class*="divide-"] > tr > td,
+.dark table[class*="divide-"] > tbody > tr > td {
+  border-top-color: var(--slate-200) !important;
+}
+
+.dark tbody.divide-y > tr:first-child > td,
+.dark table.divide-y > tbody > tr:first-child > td,
+.dark tbody[class*="divide-"] > tr:first-child > td,
+.dark table[class*="divide-"] > tbody > tr:first-child > td {
+  border-top-width: 0 !important;
+}
+
+.dark .data-table th {
+  background-color: var(--surface-muted) !important;
+  color: var(--text-muted) !important;
+  border-bottom-color: var(--slate-200) !important;
+}
+.dark .data-table td {
+  border-bottom-color: var(--slate-200) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Hover row */
+.dark .hover\:bg-gray-50:hover  { background-color: #161616 !important; }
+.dark .hover\:bg-gray-100:hover { background-color: #161616 !important; }
+.dark .hover\:bg-slate-50:hover { background-color: #161616 !important; }
+.dark .hover\:bg-slate-100:hover { background-color: #161616 !important; }
+
+/* Badge Utilities in Dark Mode */
+.dark .badge-green, .dark .badge-risk-low    { background: var(--risk-low-bg) !important; color: var(--risk-low-text) !important; border: 1px solid var(--risk-low-border) !important; }
+.dark .badge-red, .dark .badge-risk-high     { background: var(--risk-high-bg) !important; color: var(--risk-high-text) !important; border: 1px solid var(--risk-high-border) !important; }
+.dark .badge-amber, .dark .badge-risk-medium { background: var(--risk-medium-bg) !important; color: var(--risk-medium-text) !important; border: 1px solid var(--risk-medium-border) !important; }
+.dark .badge-blue                            { background: rgba(56, 189, 248, 0.12) !important; color: #7DD3FC !important; border: 1px solid rgba(56, 189, 248, 0.25) !important; }
+.dark .badge-slate                           { background: #161616 !important; color: #D4D4D8 !important; border: 1px solid #2D2D2D !important; }
+
+/* Alert Utilities in Dark Mode */
+.dark .alert-success { background: rgba(16, 185, 129, 0.12) !important; color: #6EE7B7 !important; border-color: rgba(16, 185, 129, 0.25) !important; }
+.dark .alert-error   { background: rgba(239, 68, 68, 0.12) !important; color: #FDA4AF !important; border-color: rgba(239, 68, 68, 0.25) !important; }
+.dark .alert-warning { background: rgba(245, 158, 11, 0.12) !important; color: #FCD34D !important; border-color: rgba(245, 158, 11, 0.25) !important; }
+.dark .alert-info    { background: rgba(56, 189, 248, 0.12) !important; color: #7DD3FC !important; border-color: rgba(56, 189, 248, 0.25) !important; }
+
+/* Role badge chip colors in UserList.tsx and Dashboards */
+.dark .bg-purple-100 { background-color: rgba(168, 85, 247, 0.12) !important; }
+.dark .text-purple-800 { color: #D8B4FE !important; }
+.dark .bg-purple-50  { background-color: rgba(168, 85, 247, 0.10) !important; }
+.dark .border-purple-100 { border-color: rgba(168, 85, 247, 0.25) !important; }
+
+/* Blue / Sky Role & Badges */
+.dark .bg-blue-100   { background-color: rgba(56, 189, 248, 0.12) !important; }
+.dark .text-blue-800 { color: #BAE6FD !important; }
+.dark .text-blue-700 { color: #7DD3FC !important; }
+.dark .bg-blue-50    { background-color: rgba(56, 189, 248, 0.10) !important; }
+.dark .text-blue-600 { color: #38BDF8 !important; }
+.dark .border-blue-100 { border-color: rgba(56, 189, 248, 0.25) !important; }
+.dark .border-blue-200 { border-color: rgba(56, 189, 248, 0.25) !important; }
+.dark .border-blue-800 { border-color: rgba(56, 189, 248, 0.25) !important; }
+
+/* Amber / Orange Role & Badges */
+.dark .bg-amber-100  { background-color: rgba(245, 158, 11, 0.12) !important; }
+.dark .text-amber-800 { color: #FEF08A !important; }
+.dark .text-amber-700 { color: #FDE68A !important; }
+.dark .text-amber-600 { color: #FBBF24 !important; }
+.dark .bg-amber-50   { background-color: rgba(245, 158, 11, 0.10) !important; }
+.dark .border-amber-100 { border-color: rgba(245, 158, 11, 0.25) !important; }
+.dark .border-amber-200 { border-color: rgba(245, 158, 11, 0.25) !important; }
+.dark .border-amber-800 { border-color: rgba(245, 158, 11, 0.25) !important; }
+.dark .bg-amber-950\/40 { background-color: rgba(245, 158, 11, 0.12) !important; }
+.dark .bg-amber-950\/60 { background-color: rgba(245, 158, 11, 0.14) !important; }
+
+.dark .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.12) !important; }
+.dark .text-emerald-800 { color: #A7F3D0 !important; }
+.dark .text-emerald-700 { color: #6EE7B7 !important; }
+.dark .text-emerald-500 { color: #34D399 !important; }
+.dark .bg-emerald-50  { background-color: rgba(16, 185, 129, 0.10) !important; }
+.dark .border-emerald-100 { border-color: rgba(16, 185, 129, 0.25) !important; }
+
+.dark .bg-teal-100   { background-color: rgba(20, 184, 166, 0.12) !important; }
+.dark .text-teal-800 { color: #99F6E4 !important; }
+
+.dark .bg-green-100  { background-color: rgba(16, 185, 129, 0.12) !important; }
+.dark .text-green-800 { color: #A7F3D0 !important; }
+
+/* Red / Rose Role & Badges */
+.dark .bg-red-100    { background-color: rgba(239, 68, 68, 0.12) !important; }
+.dark .text-red-800  { color: #FEE2E2 !important; }
+.dark .text-red-700  { color: #FECACA !important; }
+.dark .text-red-600  { color: #FDA4AF !important; }
+.dark .bg-red-50     { background-color: rgba(239, 68, 68, 0.10) !important; }
+.dark .border-red-100 { border-color: rgba(239, 68, 68, 0.25) !important; }
+.dark .border-red-200 { border-color: rgba(239, 68, 68, 0.25) !important; }
+.dark .border-red-800 { border-color: rgba(239, 68, 68, 0.25) !important; }
+.dark .bg-red-950\/40 { background-color: rgba(239, 68, 68, 0.12) !important; }
+.dark .bg-red-950\/60 { background-color: rgba(239, 68, 68, 0.14) !important; }
+
+/* Pagination/modal backgrounds */
+.dark .bg-white.rounded-2xl { background-color: var(--surface-card) !important; }
+
+/* Selected row in UserList */
+.dark .bg-blue-50\/50 { background-color: var(--brand-lighter) !important; }
+
+/* Select inputs */
+.dark select {
+  background-color: var(--surface-muted);
+  color: var(--text-primary);
+  border-color: var(--slate-200);
+}
+.dark select option {
+  background-color: var(--surface-card);
+  color: var(--text-primary);
+}
+
+/* Plain text inputs with border */
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="number"],
+.dark input[type="file"] {
+  background-color: var(--surface-muted);
+  color: var(--text-primary);
+  border-color: var(--slate-200);
+}
+.dark input[type="text"]:focus,
+.dark input[type="email"]:focus,
+.dark input[type="password"]:focus,
+.dark input[type="number"]:focus {
+  background-color: var(--surface-card);
+  border-color: var(--brand);
+}
+
+/* Fix hardcoded .form-input focus background */
+.dark .form-input {
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  border-color: var(--slate-200);
+}
+.dark .form-input:focus,
+.dark .form-textarea:focus,
+.dark .otp-input:focus {
+  background: var(--surface-card);
+  border-color: var(--brand);
+}
+.dark .form-input.is-error {
+  background: var(--surface-card);
+  border-color: var(--color-danger);
+}
+
+/* Dark action buttons */
+.dark .bg-gray-900 { background-color: var(--brand) !important; color: #FFFFFF !important; }
+.dark .bg-gray-900:hover { background-color: var(--brand-hover) !important; }
+.dark .bg-slate-900 { background-color: var(--brand) !important; color: #FFFFFF !important; }
+
+/* Fix .stat-card and .glass-card */
+.dark .stat-card {
+  background: var(--surface-card);
+  border-color: var(--slate-200);
+}
+.dark .glass-card {
+  background: var(--surface-card);
+  border-color: var(--glass-border);
+}
+
+/* Fix hardcoded pitch-black cards and borders across tutor/analytics pages */
+.dark .dark\:bg-\[\#0A0A0A\] { background-color: var(--surface-card) !important; }
+.dark .dark\:bg-\[\#111111\] { background-color: var(--surface-muted) !important; }
+.dark .dark\:border-\[\#1A1A1A\] { border-color: var(--slate-200) !important; }
+.dark .dark\:bg-\[\#000000\] { background-color: var(--surface-bg) !important; }
+.dark .dark\:bg-slate-900 { background-color: var(--surface-card) !important; }
+.dark .dark\:bg-slate-800 { background-color: var(--surface-muted) !important; }
+.dark .dark\:border-slate-800 { border-color: var(--slate-200) !important; }
+.dark .dark\:border-slate-700 { border-color: var(--slate-200) !important; }
+.dark .dark\:divide-slate-700 > * + * { border-color: var(--slate-200) !important; }
+
+/* Fix .auth-bg and .auth-card */
+.dark .auth-bg { background: var(--surface-bg); }
+.dark .auth-card {
+  background: var(--surface-card);
+  border-color: var(--glass-border);
+}
+
+/* Modals & Dialogs */
+.dark [role="dialog"],
+.dark .modal-card {
+  background-color: var(--surface-card) !important;
+  border-color: var(--slate-200) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ── Dashboard solid accent colors in Dark Mode (Red, Orange/Amber, Green/Emerald) ── */
+.dark .bg-indigo-50  { background-color: var(--brand-light) !important; }
+.dark .bg-indigo-100 { background-color: color-mix(in srgb, var(--brand) 28%, transparent) !important; }
+.dark .text-indigo-500 { color: var(--brand) !important; }
+.dark .text-indigo-600 { color: var(--brand) !important; }
+.dark .border-indigo-100 { border-color: var(--brand-border) !important; }
+
+/* Solid Red in Dark Mode (Clean Seamless Outline) */
+.dark .bg-rose-50,
+.dark .bg-rose-100,
+.dark .bg-red-50,
+.dark .bg-red-100,
+.dark .bg-rose-950\/20,
+.dark .bg-rose-950\/30,
+.dark .bg-rose-950\/40,
+.dark .bg-rose-950\/50,
+.dark .bg-rose-950\/60,
+.dark .bg-red-950\/30,
+.dark .bg-red-950\/40 { 
+  background-color: #450A0A !important; 
+  color: #F87171 !important; 
+  border-color: transparent !important;
+}
+.dark .bg-rose-50 *,
+.dark .bg-rose-100 *,
+.dark .bg-red-50 *,
+.dark .bg-red-100 *,
+.dark .bg-rose-950\/20 *,
+.dark .bg-rose-950\/30 *,
+.dark .bg-rose-950\/40 *,
+.dark .bg-rose-950\/50 *,
+.dark .bg-rose-950\/60 *,
+.dark .bg-red-950\/30 *,
+.dark .bg-red-950\/40 * { 
+  color: #F87171 !important; 
+}
+
+/* Standalone Red text on non-colored dark surfaces */
+.dark .text-rose-400,
+.dark .text-rose-500,
+.dark .text-rose-600,
+.dark .text-rose-700,
+.dark .text-red-400,
+.dark .text-red-500,
+.dark .text-red-600,
+.dark .text-red-700,
+.dark .text-rose-200,
+.dark .text-rose-300    { color: #F87171 !important; }
+
+.dark .border-rose-100,
+.dark .border-rose-200,
+.dark .border-rose-800,
+.dark .border-rose-900,
+.dark .border-red-100,
+.dark .border-red-200,
+.dark .border-red-900   { border-color: transparent !important; }
+
+/* Solid Orange / Amber in Dark Mode (Clean Seamless Outline) */
+.dark .bg-amber-50,
+.dark .bg-amber-100,
+.dark .bg-orange-50,
+.dark .bg-orange-100,
+.dark .bg-yellow-50,
+.dark .bg-amber-950\/20,
+.dark .bg-amber-950\/30,
+.dark .bg-amber-950\/40,
+.dark .bg-orange-950\/30,
+.dark .bg-orange-950\/40 { 
+  background-color: #451A03 !important; 
+  color: #FBBF24 !important; 
+  border-color: transparent !important;
+}
+.dark .bg-amber-50 *,
+.dark .bg-amber-100 *,
+.dark .bg-orange-50 *,
+.dark .bg-orange-100 *,
+.dark .bg-yellow-50 *,
+.dark .bg-amber-950\/20 *,
+.dark .bg-amber-950\/30 *,
+.dark .bg-amber-950\/40 *,
+.dark .bg-orange-950\/30 *,
+.dark .bg-orange-950\/40 * { 
+  color: #FBBF24 !important; 
+}
+
+/* Standalone Orange / Amber text on non-colored dark surfaces */
+.dark .text-amber-400,
+.dark .text-amber-500,
+.dark .text-amber-600,
+.dark .text-amber-700,
+.dark .text-orange-400,
+.dark .text-orange-500,
+.dark .text-orange-600,
+.dark .text-orange-700,
+.dark .text-amber-200,
+.dark .text-amber-300   { color: #FBBF24 !important; }
+
+.dark .border-amber-100,
+.dark .border-amber-200,
+.dark .border-amber-800,
+.dark .border-amber-900,
+.dark .border-orange-100,
+.dark .border-orange-200 { border-color: transparent !important; }
+
+/* Solid Green / Emerald in Dark Mode (Clean Seamless Outline) */
+.dark .bg-emerald-50,
+.dark .bg-emerald-100,
+.dark .bg-green-50,
+.dark .bg-green-100,
+.dark .bg-emerald-950\/20,
+.dark .bg-emerald-950\/30,
+.dark .bg-emerald-950\/40,
+.dark .bg-green-950\/30,
+.dark .bg-green-950\/40 { 
+  background-color: #052E16 !important; 
+  color: #4ADE80 !important; 
+  border-color: transparent !important;
+}
+.dark .bg-emerald-50 *,
+.dark .bg-emerald-100 *,
+.dark .bg-green-50 *,
+.dark .bg-green-100 *,
+.dark .bg-emerald-950\/20 *,
+.dark .bg-emerald-950\/30 *,
+.dark .bg-emerald-950\/40 *,
+.dark .bg-green-950\/30 *,
+.dark .bg-green-950\/40 * { 
+  color: #4ADE80 !important; 
+}
+
+/* Standalone Green / Emerald text on non-colored dark surfaces */
+.dark .text-emerald-400,
+.dark .text-emerald-500,
+.dark .text-emerald-600,
+.dark .text-emerald-700,
+.dark .text-green-400,
+.dark .text-green-500,
+.dark .text-green-600,
+.dark .text-green-700,
+.dark .text-emerald-200,
+.dark .text-emerald-300  { color: #4ADE80 !important; }
+
+.dark .border-emerald-100,
+.dark .border-emerald-200,
+.dark .border-emerald-800,
+.dark .border-emerald-900,
+.dark .border-green-100,
+.dark .border-green-200  { border-color: transparent !important; }
+
+.dark .bg-violet-50  { background-color: rgba(168, 85, 247, 0.12) !important; }
+.dark .text-violet-600 { color: #C4B5FD !important; }
+
+/* Dashboard & Table hover overrides in Dark Mode */
+.dark .hover\:bg-slate-50:hover    { background-color: #141414 !important; }
+.dark .hover\:bg-slate-100:hover   { background-color: #181818 !important; }
+.dark .hover\:bg-slate-200:hover   { background-color: #222222 !important; }
+.dark .hover\:bg-gray-50:hover     { background-color: #141414 !important; }
+.dark .hover\:bg-gray-50\/80:hover { background-color: #161616 !important; }
+.dark .hover\:bg-gray-100:hover    { background-color: #181818 !important; }
+.dark .hover\:bg-gray-100\/60:hover{ background-color: #181818 !important; }
+.dark .hover\:bg-gray-100\/70:hover{ background-color: #181818 !important; }
+.dark .hover\:bg-gray-200:hover    { background-color: #222222 !important; }
+.dark .hover\:bg-green-100:hover   { background-color: color-mix(in srgb, var(--brand) 16%, transparent) !important; }
+.dark .data-table tbody tr:hover td { background: color-mix(in srgb, var(--brand) 8%, transparent) !important; }
+
+/* Text color on hover in Dark Mode (prevent disappearing on dark bg) */
+.dark .hover\:text-gray-600:hover  { color: #E4E4E7 !important; }
+.dark .hover\:text-gray-700:hover  { color: #FFFFFF !important; }
+.dark .hover\:text-gray-800:hover  { color: #FFFFFF !important; }
+.dark .hover\:text-gray-900:hover  { color: #FFFFFF !important; }
+.dark .hover\:text-slate-600:hover { color: #E4E4E7 !important; }
+.dark .hover\:text-slate-700:hover { color: #FFFFFF !important; }
+.dark .hover\:text-slate-800:hover { color: #FFFFFF !important; }
+.dark .hover\:text-slate-900:hover { color: #FFFFFF !important; }
+
+/* Card & Button hover lighting in Dark Mode */
+.dark .stat-card:hover {
+  border-color: var(--brand-border);
+  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.8), 0 0 16px -2px var(--brand-glow);
+}
+.dark .glass-card:hover {
+  border-color: var(--brand-border);
+  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.8), 0 0 16px -2px var(--brand-glow);
+}
+.dark .hover\:shadow-xs:hover {
+  border-color: var(--brand-border);
+  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.7), 0 0 10px -2px var(--brand-glow) !important;
+}
+.dark .hover\:shadow-sm:hover {
+  border-color: var(--brand-border);
+  box-shadow: 0 6px 18px -3px rgba(0, 0, 0, 0.75), 0 0 12px -2px var(--brand-glow) !important;
+}
+.dark .hover\:shadow-md:hover {
+  border-color: var(--brand-border);
+  box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.8), 0 0 15px -2px var(--brand-glow) !important;
+}
+.dark .hover\:shadow-lg:hover {
+  border-color: var(--brand-border);
+  box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.85), 0 0 20px -2px var(--brand-glow) !important;
+}
+
+/* Secondary Button Hover in Dark Mode */
+.dark .btn-secondary:hover {
+  background: color-mix(in srgb, var(--brand) 14%, transparent) !important;
+  border-color: var(--brand-border) !important;
+  color: #FFFFFF !important;
+}
+
+/* Chart SVG dark mode */
+.dark .dashboard-chart line[stroke="#e5e7eb"],
+.dark .dashboard-chart line[stroke="#E5E7EB"] { stroke: var(--slate-200) !important; }
+.dark .dashboard-chart text[fill="#9ca3af"],
+.dark .dashboard-chart text[fill="#6b7280"],
+.dark .dashboard-chart text[fill="#6B7280"] { fill: var(--text-muted) !important; }
+
+/* Divide dark mode */
+.dark .divide-slate-100 > * + * { border-color: var(--slate-200) !important; }
+
+/* Shadow overrides for dark mode cards */
+.dark .shadow-sm { box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6) !important; }
+
+/* ── Landing & Login page backgrounds ── */
+.dark [style*="background: '#F8FAFC'"],
+.dark [style*="background: '#ffffff'"],
+.dark [style*="background: '#fff'"] {
+  background-color: var(--surface-bg) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   React Bits Aesthetic System
+   ═══════════════════════════════════════════════════════════════ */
+.font-handwriting {
+  font-family: 'Gochi Hand', cursive !important;
+}
+
+.bg-dot-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.bg-dot-grid-subtle {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+@keyframes laserSweep {
+  0% {
+    top: 5%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    top: 92%;
+    opacity: 0;
+  }
+}
+
+.animate-laser-sweep {
+  animation: laserSweep 2.2s ease-in-out infinite;
+}
+
+@keyframes auroraFloat {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate(15px, -15px) scale(1.08);
+    opacity: 0.55;
+  }
+}
+
+.animate-aurora-glow {
+  animation: auroraFloat 8s ease-in-out infinite;
+}
+
+@keyframes textShimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-text-shimmer {
+  background-size: 200% auto;
+  animation: textShimmer 4s ease-in-out infinite;
+}
+
+/* ── Isolated Physical Paper Preview for Export Sheets ── */
+.export-paper-sheet,
+.dark .export-paper-sheet,
+:root.dark .export-paper-sheet {
+  color-scheme: light !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  --slate-50:  #F8FAFC !important;
+  --slate-100: #F1F5F9 !important;
+  --slate-200: #E2E8F0 !important;
+  --slate-300: #CBD5E1 !important;
+  --slate-400: #94A3B8 !important;
+  --slate-500: #64748B !important;
+  --slate-600: #475569 !important;
+  --slate-700: #334155 !important;
+  --slate-800: #1E293B !important;
+  --slate-900: #0F172A !important;
+}
+
+.export-paper-sheet *,
+.dark .export-paper-sheet *,
+:root.dark .export-paper-sheet *,
+.export-paper-sheet table,
+.export-paper-sheet tr,
+.export-paper-sheet th,
+.export-paper-sheet td,
+.export-paper-sheet span,
+.export-paper-sheet p,
+.export-paper-sheet h3,
+.export-paper-sheet h4,
+.export-paper-sheet div {
+  color-scheme: light !important;
+}
+
+.export-paper-sheet .bg-slate-50,
+.dark .export-paper-sheet .bg-slate-50 {
+  background-color: #F8FAFC !important;
+}
+
+.export-paper-sheet .bg-white,
+.dark .export-paper-sheet .bg-white {
+  background-color: #FFFFFF !important;
+}
+
+.export-paper-sheet .text-slate-900,
+.dark .export-paper-sheet .text-slate-900 {
+  color: #0F172A !important;
+}
+
+.export-paper-sheet .text-slate-800,
+.dark .export-paper-sheet .text-slate-800 {
+  color: #1E293B !important;
+}
+
+.export-paper-sheet .text-slate-700,
+.dark .export-paper-sheet .text-slate-700 {
+  color: #334155 !important;
+}
+
+.export-paper-sheet .text-slate-600,
+.dark .export-paper-sheet .text-slate-600 {
+  color: #475569 !important;
+}
+
+.export-paper-sheet .text-slate-500,
+.dark .export-paper-sheet .text-slate-500 {
+  color: #64748B !important;
+}
+
+.export-paper-sheet .border-slate-800,
+.dark .export-paper-sheet .border-slate-800 {
+  border-color: #1E293B !important;
+}
+
+.export-paper-sheet .border-slate-300,
+.dark .export-paper-sheet .border-slate-300 {
+  border-color: #CBD5E1 !important;
+}
+
+.export-paper-sheet .border-slate-200,
+.dark .export-paper-sheet .border-slate-200 {
+  border-color: #E2E8F0 !important;
+}
+
+.export-paper-sheet .bg-slate-900,
+.dark .export-paper-sheet .bg-slate-900 {
+  background-color: #0F172A !important;
+}
+
+.export-paper-sheet .hover\:bg-slate-50:hover,
+.dark .export-paper-sheet .hover\:bg-slate-50:hover {
+  background-color: #F8FAFC !important;
+}
+
+
 

@@ -55,3 +55,48 @@ def role_required(*roles):
 
     RolePermission.__name__ = f'RolePermission_{"_".join(roles)}'
     return RolePermission
+
+
+class IsTutor(BasePermission):
+    message = 'Access restricted to Tutor users.'
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and (request.user.is_superuser or request.user.role == 'tutor')
+        )
+
+
+class IsStudent(BasePermission):
+    message = 'Access restricted to Student users.'
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and (request.user.is_superuser or request.user.role == 'student')
+        )
+
+
+class IsPrincipal(BasePermission):
+    message = 'Access restricted to Principal users.'
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and (request.user.is_superuser or request.user.role == 'principal')
+        )
+
+
+class IsFaculty(BasePermission):
+    message = 'Access restricted to Faculty users.'
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and (request.user.is_superuser or request.user.role == 'faculty')
+        )
+

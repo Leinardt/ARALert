@@ -1,7 +1,53 @@
 import React, { useEffect, useState } from 'react';
 import { userService } from '../../services/userService';
 import type { UserStats } from '../../types';
-import { Users, CheckCircle, XCircle, Shield, GraduationCap, School, BookOpen, UserCheck } from 'lucide-react';
+import {
+  Users,
+  UserCheck,
+  UserX,
+  Briefcase,
+  GraduationCap,
+  Shield,
+  BookOpen,
+  Award,
+  LinkIcon,
+} from 'lucide-react';
+
+interface StatCardProps {
+  label: string;
+  value: number | string;
+  subtitle?: string;
+  icon: React.ReactNode;
+  accentBg: string;
+  accentBorder: string;
+  delay?: number;
+}
+
+const StatCard: React.FC<StatCardProps> = ({
+  label,
+  value,
+  subtitle,
+  icon,
+  accentBg,
+  accentBorder,
+  delay = 0,
+}) => (
+  <div
+    className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 flex items-center gap-4 animate-fade-in-up"
+    style={{ animationDelay: `${delay}ms` }}
+  >
+    <div
+      className={`w-11 h-11 rounded-xl ${accentBg} border ${accentBorder} flex items-center justify-center shrink-0`}
+    >
+      {icon}
+    </div>
+    <div className="min-w-0">
+      <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{label}</p>
+      <p className="text-2xl font-extrabold text-gray-900 mt-0.5">{value}</p>
+      {subtitle && <p className="text-xs text-gray-500 mt-0.5 truncate">{subtitle}</p>}
+    </div>
+  </div>
+);
 
 export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -9,116 +55,159 @@ export const Dashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const loadStats = async () => {
       try {
         const data = await userService.getStats();
         setStats(data);
-      } catch (err) {
-        console.error(err);
-        setError('Failed to load dashboard statistics.');
+      } catch (err: unknown) {
+        console.error('Failed to load dashboard stats', err);
+        setError('Unable to load dashboard statistics.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchStats();
+    loadStats();
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
+  const today = new Date().toLocaleDateString('en-PH', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 
-  if (error || !stats) {
-    return (
-      <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4">
-        {error || 'Could not load statistics.'}
-      </div>
-    );
-  }
-
-  const statCards = [
-    {
-      title: 'Total Users',
-      value: stats.total_users,
-      icon: Users,
-      color: 'bg-blue-50 text-blue-600 border-blue-100',
-    },
-    {
-      title: 'Active Users',
-      value: stats.active_users,
-      icon: CheckCircle,
-      color: 'bg-green-50 text-green-600 border-green-100',
-    },
-    {
-      title: 'Inactive Users',
-      value: stats.inactive_users,
-      icon: XCircle,
-      color: 'bg-red-50 text-red-600 border-red-100',
-    },
-    {
-      title: 'School Admins',
-      value: stats.admins,
-      icon: Shield,
-      color: 'bg-purple-50 text-purple-600 border-purple-100',
-    },
-    {
-      title: 'Principals',
-      value: stats.principals,
-      icon: School,
-      color: 'bg-yellow-50 text-yellow-600 border-yellow-100',
-    },
-    {
-      title: 'Faculty members',
-      value: stats.faculty,
-      icon: UserCheck,
-      color: 'bg-orange-50 text-orange-600 border-orange-100',
-    },
-    {
-      title: 'Academic Tutors',
-      value: stats.tutors,
-      icon: BookOpen,
-      color: 'bg-pink-50 text-pink-600 border-pink-100',
-    },
-    {
-      title: 'Registered Students',
-      value: stats.students,
-      icon: GraduationCap,
-      color: 'bg-teal-50 text-teal-600 border-teal-100',
-    },
-  ];
+  const staffTotal = stats
+    ? stats.admins + stats.principals + stats.faculty + stats.tutors
+    : 0;
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900">Welcome to SuperAdmin Dashboard</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          This system dashboard allows you to monitor user accounts, audit statistics, and create new users.
-        </p>
+      {/* Header */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3 animate-fade-in-up">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400">System Overview</p>
+          <h1 className="mt-0.5 text-2xl font-extrabold text-gray-900">SuperAdmin Dashboard</h1>
+          <p className="text-xs text-gray-500 mt-1">{today}</p>
+        </div>
+        <div className="inline-flex items-center gap-2 rounded-xl bg-indigo-50 border border-indigo-100 px-3.5 py-2 text-sm font-semibold text-indigo-600 shrink-0">
+          <Shield className="w-4 h-4" />
+          System Administrator
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((card, index) => {
-          const Icon = card.icon;
-          return (
-            <div
-              key={index}
-              className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between"
-            >
-              <div className="space-y-1">
-                <span className="text-sm font-medium text-gray-500">{card.title}</span>
-                <p className="text-3xl font-extrabold text-gray-900">{card.value}</p>
-              </div>
-              <div className={`p-3 rounded-lg border ${card.color}`}>
-                <Icon className="w-6 h-6" />
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {isLoading ? (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-3 text-gray-400">
+            <div className="w-10 h-10 border-4 border-[var(--brand)] border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm font-semibold text-gray-600">Loading statistics…</p>
+          </div>
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-rose-700 shadow-sm">
+          <p className="text-sm font-bold">{error}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-3 px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition"
+          >
+            Retry
+          </button>
+        </div>
+      ) : stats ? (
+        <>
+          {/* Primary Stats — Top row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <StatCard
+              label="Total Users"
+              value={stats.total_users}
+              subtitle={`Active: ${stats.active_users} · Inactive: ${stats.inactive_users}`}
+              icon={<Users className="w-5 h-5 text-indigo-500" />}
+              accentBg="bg-indigo-50"
+              accentBorder="border-indigo-100"
+              delay={50}
+            />
+            <StatCard
+              label="Active Users"
+              value={stats.active_users}
+              subtitle="Currently active accounts"
+              icon={<UserCheck className="w-5 h-5 text-emerald-500" />}
+              accentBg="bg-emerald-50"
+              accentBorder="border-emerald-100"
+              delay={100}
+            />
+            <StatCard
+              label="Total Staff"
+              value={staffTotal}
+              subtitle={`Admins ${stats.admins} · Principals ${stats.principals}`}
+              icon={<Briefcase className="w-5 h-5 text-amber-600" />}
+              accentBg="bg-amber-50"
+              accentBorder="border-amber-100"
+              delay={150}
+            />
+            <StatCard
+              label="Students"
+              value={stats.students}
+              subtitle={`Assigned: ${stats.assigned_students} · Unassigned: ${stats.unassigned_students}`}
+              icon={<GraduationCap className="w-5 h-5 text-indigo-500" />}
+              accentBg="bg-indigo-50"
+              accentBorder="border-indigo-100"
+              delay={200}
+            />
+          </div>
+
+          {/* Role Breakdown — Second row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <StatCard
+              label="Admins"
+              value={stats.admins}
+              icon={<Shield className="w-5 h-5 text-violet-600" />}
+              accentBg="bg-violet-50"
+              accentBorder="border-indigo-100"
+              delay={250}
+            />
+            <StatCard
+              label="Principals"
+              value={stats.principals}
+              icon={<Award className="w-5 h-5 text-amber-600" />}
+              accentBg="bg-amber-50"
+              accentBorder="border-amber-100"
+              delay={300}
+            />
+            <StatCard
+              label="Faculty"
+              value={stats.faculty}
+              icon={<BookOpen className="w-5 h-5 text-violet-600" />}
+              accentBg="bg-violet-50"
+              accentBorder="border-violet-100"
+              delay={350}
+            />
+            <StatCard
+              label="Tutors"
+              value={stats.tutors}
+              icon={<Users className="w-5 h-5 text-indigo-500" />}
+              accentBg="bg-indigo-50"
+              accentBorder="border-indigo-100"
+              delay={400}
+            />
+          </div>
+
+          {/* Summary footer */}
+          <div
+            className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-wrap items-center gap-3 text-sm text-gray-600 animate-fade-in-up"
+            style={{ animationDelay: '450ms' }}
+          >
+            <LinkIcon className="w-4 h-4 text-[var(--brand)]" />
+            <span>
+              <span className="font-semibold text-gray-900">{stats.assigned_students}</span> students assigned to tutors
+              <span className="mx-2 text-gray-300">·</span>
+              <span className="font-semibold text-gray-900">{stats.unassigned_students}</span> unassigned
+              <span className="mx-2 text-gray-300">·</span>
+              <span className="font-semibold text-gray-900">{stats.inactive_users}</span> inactive accounts
+            </span>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 };

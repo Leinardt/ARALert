@@ -1,70 +1,86 @@
+from unittest.mock import patch
+
 from django.test import TestCase
 from api.users.serializers import UserCreateSerializer
 from apps.accounts.models import User
 
 class UserCreateSerializerTests(TestCase):
-    def test_create_user_with_auto_generated_password(self):
-        """Test that missing password automatically triggers generating one based on details."""
+    def test_create_pending_staff_account_without_password(self):
+        """Super Admin creation should create a pending staff account without a password."""
         data = {
             'first_name': 'John',
             'last_name': 'Doe',
-            'username': 'johndoe',
             'email': 'johndoe@example.com',
             'role': 'tutor',
-            'is_active': True,
+            'is_active': False,
         }
-        
+
         serializer = UserCreateSerializer(data=data)
         self.assertTrue(serializer.is_valid(), serializer.errors)
-        
+
         user = serializer.save()
-        self.assertTrue(user.is_active)
+        self.assertFalse(user.is_active)
+        self.assertFalse(user.password_set)
+        self.assertTrue(user.password_setup_required)
+        self.assertTrue(user.username.startswith('pending-'))
         self.assertEqual(user.first_name, 'John')
         self.assertEqual(user.last_name, 'Doe')
-        self.assertEqual(user.username, 'johndoe')
-        
-        # Verify the password check logic
-        # Expected generated password: DoeJ@johndoe
-        self.assertTrue(user.check_password('DoeJ@johndoe'))
 
-    def test_create_user_with_explicit_password(self):
-        """Test that providing an explicit password uses it instead of generating one."""
+    def test_create_pending_staff_account_with_provided_password_is_ignored(self):
+        """The staff creation flow should not use a password supplied by the Super Admin."""
         data = {
             'first_name': 'Alice',
             'last_name': 'Smith',
-            'username': 'asmith',
             'email': 'asmith@example.com',
             'role': 'faculty',
             'password': 'CustomSecurePassword123!',
             'confirm_password': 'CustomSecurePassword123!',
-            'is_active': True,
+            'is_active': False,
         }
-        
+
         serializer = UserCreateSerializer(data=data)
         self.assertTrue(serializer.is_valid(), serializer.errors)
-        
-        user = serializer.save()
-        self.assertTrue(user.check_password('CustomSecurePassword123!'))
-        self.assertFalse(user.check_password('SmithA@asmith'))
 
-    def test_create_user_short_details_generates_padded_password(self):
-        """Test that short name/username generates password that is at least 8 characters."""
+        user = serializer.save()
+        self.assertFalse(user.password_set)
+        self.assertTrue(user.password_setup_required)
+        self.assertFalse(user.check_password('CustomSecurePassword123!'))
+
+    def test_pending_staff_account_gets_activation_token(self):
+        """Pending staff accounts should receive an activation token for setup."""
         data = {
             'first_name': 'A',
             'last_name': 'B',
-            'username': 'ab',
             'email': 'ab@example.com',
             'role': 'principal',
-            'is_active': True,
+            'is_active': False,
         }
-        
+
         serializer = UserCreateSerializer(data=data)
         self.assertTrue(serializer.is_valid(), serializer.errors)
-        
+
         user = serializer.save()
-        # Expected base generated password: BA@ab (5 chars)
-        # Expected padded: BA@ab123 (8 chars)
-        self.assertTrue(user.check_password('BA@ab123'))
+        self.assertIsNotNone(user.activation_token)
+        self.assertIsNotNone(user.activation_token_expires_at)
+
+    @patch('api.users.serializers.send_account_invitation_email', return_value=False)
+    def test_pending_staff_account_preserves_activation_link_when_email_fails(self, mock_send_email):
+        """Even if the email cannot be delivered, the user should still get an activation link."""
+        data = {
+            'first_name': 'C',
+            'last_name': 'D',
+            'email': 'cd@example.com',
+            'role': 'tutor',
+            'is_active': False,
+        }
+
+        serializer = UserCreateSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        user = serializer.save()
+        self.assertFalse(user.email_sent)
+        self.assertTrue(user.activation_link.endswith('/activate?token=' + user.activation_token))
+        mock_send_email.assert_called_once()
 
     def test_create_student_requires_lrn(self):
         """Test that creating a student requires a 12-digit LRN."""
@@ -80,6 +96,26 @@ class UserCreateSerializerTests(TestCase):
         serializer = UserCreateSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         self.assertIn('lrn', serializer.errors)
+
+    def test_create_student_accepts_middle_name_and_lrn(self):
+        """Student creation should accept a middle name and LRN."""
+        data = {
+            'first_name': 'Student',
+            'middle_name': 'Middle',
+            'last_name': 'One',
+            'username': 'student2',
+            'email': 'student2@example.com',
+            'role': 'student',
+            'lrn': '123456789012',
+            'is_active': True,
+        }
+
+        serializer = UserCreateSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        user = serializer.save()
+        self.assertEqual(user.middle_name, 'Middle')
+        self.assertEqual(user.lrn, '123456789012')
 
 
 from rest_framework.test import APITestCase
@@ -143,7 +179,7 @@ class UserAPIViewTests(APITestCase):
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('role', response.data)
+        self.assertIn('role', response.data.get('errors', response.data))
 
     def test_superadmin_can_create_other_roles(self):
         self.client.force_authenticate(user=self.superadmin)
@@ -158,6 +194,26 @@ class UserAPIViewTests(APITestCase):
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    @patch('api.users.serializers.send_account_invitation_email')
+    def test_superadmin_can_create_staff_without_username_or_password(self, mock_send_email):
+        self.client.force_authenticate(user=self.superadmin)
+        url = reverse('user-list')
+        data = {
+            'first_name': 'New',
+            'last_name': 'Tutor',
+            'email': 'newstaff@example.com',
+            'role': 'tutor',
+            'is_active': False,
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        user = User.objects.get(email='newstaff@example.com')
+        self.assertFalse(user.is_active)
+        self.assertTrue(user.password_setup_required)
+        self.assertIsNotNone(user.activation_token)
+        self.assertFalse(user.password_set)
+        mock_send_email.assert_called_once()
 
     def test_admin_can_create_student(self):
         self.client.force_authenticate(user=self.admin)
@@ -187,7 +243,7 @@ class UserAPIViewTests(APITestCase):
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('role', response.data)
+        self.assertIn('role', response.data.get('errors', response.data))
 
     def test_admin_list_only_contains_students(self):
         self.client.force_authenticate(user=self.admin)

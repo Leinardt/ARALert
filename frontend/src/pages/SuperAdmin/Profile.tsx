@@ -1,51 +1,925 @@
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import type { User, StudentEditRequest } from '../../types';
+import { userService } from '../../services/userService';
+import {
+  User as UserIcon,
+  Mail,
+  Calendar,
+  CheckCircle2,
+  AlertCircle,
+  Edit3,
+  X,
+  Save,
+  Info,
+  Clock,
+  AlertTriangle,
+  Send,
+  Eye,
+} from 'lucide-react';
+
+/**
+ * Format ARAL level string (e.g. 'basic' -> 'Basic').
+ */
+const formatAralLevel = (level: string | null | undefined): string => {
+  if (!level) return 'Basic';
+  return level.charAt(0).toUpperCase() + level.slice(1).toLowerCase();
+};
+
+/**
+ * Format string to Title Case (normal typography with first letter of each word capitalized).
+ */
+const toTitleCase = (str: string | null | undefined): string => {
+  if (!str) return '';
+  return str
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+/**
+ * Format user full name for system display:
+ * All UPPERCASE as LASTNAME, FIRSTNAME M.I (e.g. "DELA CRUZ, JUAN S.").
+ */
+const formatSystemDisplayName = (user: User | null): string => {
+  if (!user) return '';
+  const first = (user.first_name || '').trim().toUpperCase();
+  const last = (user.last_name || '').trim().toUpperCase();
+  let middleInitial = '';
+  if (user.middle_name && user.middle_name.trim()) {
+    middleInitial = `${user.middle_name.trim()[0].toUpperCase()}.`;
+  }
+  const given = [first, middleInitial].filter(Boolean).join(' ');
+  if (last && given) {
+    return `${last}, ${given}`;
+  }
+  return (last || given || user.full_name || user.username || '').toUpperCase();
+};
+
+const SecurityHelpButton: React.FC<{ label: string; description: string }> = ({ label, description }) => (
+  <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }} className="group">
+    <button
+      type="button"
+      aria-label={label}
+      style={{
+        border: 'none',
+        background: 'transparent',
+        padding: 0,
+        color: 'var(--text-muted)',
+        fontSize: '0.7rem',
+        fontWeight: 800,
+        letterSpacing: '0.06em',
+        cursor: 'pointer',
+      }}
+    >
+      {label.toUpperCase()}
+    </button>
+    <button
+      type="button"
+      aria-label={label}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '20px',
+        height: '20px',
+        borderRadius: '50%',
+        border: 'none',
+        background: 'transparent',
+        color: 'var(--text-muted)',
+        cursor: 'pointer',
+      }}
+    >
+      <Info size={14} />
+    </button>
+    <span className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-72 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold leading-relaxed text-white shadow-lg group-hover:block group-focus-within:block">
+      {description}
+    </span>
+  </span>
+);
 
 export const Profile: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
+  const [localUser, setLocalUser] = useState<User | null>(user);
 
-  if (!user) return null;
+  // Staff direct editing state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editFirst, setEditFirst] = useState('');
+  const [editMiddle, setEditMiddle] = useState('');
+  const [editLast, setEditLast] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const fields = [
-    { label: 'Full Name', value: user.full_name },
-    { label: 'Username', value: user.username },
-    { label: 'Email', value: user.email },
-    { label: 'Role', value: user.is_superuser ? 'SuperAdmin' : (user.role || 'N/A') },
-    { label: 'Account Status', value: user.is_active ? 'Active' : 'Inactive' },
-    { label: 'Member Since', value: new Date(user.date_joined).toLocaleDateString('en-US', { dateStyle: 'long' }) },
-    { label: 'Last Login', value: user.last_login ? new Date(user.last_login).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'Never' },
-  ];
+  // Student Edit Request States
+  const [pendingEditRequest, setPendingEditRequest] = useState<StudentEditRequest | null>(null);
+  const [isEditingStudent, setIsEditingStudent] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showPendingModal, setShowPendingModal] = useState(false);
+  const [isSavingStudent, setIsSavingStudent] = useState(false);
+  const [studentEditError, setStudentEditError] = useState<string | null>(null);
+  const [studentForm, setStudentForm] = useState({
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    lrn: '',
+    aral_level: 'basic' as 'basic' | 'plus' | 'summer' | 'graduated',
+    reason: '',
+  });
+
+  const fetchPendingRequest = useCallback(async () => {
+    if (!user || user.role !== 'student') return;
+    try {
+      const data = await userService.getStudentEditRequests({
+        student_id: user.id,
+        status: 'pending',
+      });
+      if (data.results && data.results.length > 0) {
+        setPendingEditRequest(data.results[0]);
+      } else {
+        setPendingEditRequest(null);
+      }
+    } catch (err) {
+      console.error('Failed to check pending student edit requests', err);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    setLocalUser(user);
+    if (user?.role === 'student') {
+      fetchPendingRequest();
+    }
+  }, [user, fetchPendingRequest]);
+
+  // Non-student direct edit handlers
+  const handleEditOpen = () => {
+    if (!localUser) return;
+    if (localUser.role === 'student') {
+      if (pendingEditRequest) {
+        setShowPendingModal(true);
+        return;
+      }
+      setStudentForm({
+        first_name: localUser.first_name || '',
+        middle_name: localUser.middle_name || '',
+        last_name: localUser.last_name || '',
+        lrn: localUser.lrn || '',
+        aral_level: (localUser.aral_level as any) || 'basic',
+        reason: '',
+      });
+      setStudentEditError(null);
+      setIsEditingStudent(true);
+      return;
+    }
+
+    setEditFirst(toTitleCase(localUser.first_name));
+    setEditMiddle(toTitleCase(localUser.middle_name));
+    setEditLast(toTitleCase(localUser.last_name));
+    setMessage(null);
+    setError(null);
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setError(null);
+  };
+
+  const handleSave = async () => {
+    if (!localUser) return;
+    setIsSaving(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('first_name', toTitleCase(editFirst));
+      formData.append('middle_name', toTitleCase(editMiddle));
+      formData.append('last_name', toTitleCase(editLast));
+      const updated = await updateProfile(formData);
+      setLocalUser(updated);
+      setMessage('Profile updated successfully.');
+      setIsEditing(false);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unable to save profile.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Student request submit (opens confirmation)
+  const handleStudentFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!studentForm.reason.trim()) {
+      setStudentEditError('A reason for the edit request is required.');
+      return;
+    }
+    setStudentEditError(null);
+    setShowConfirmModal(true);
+  };
+
+  // Confirm and create student edit request
+  const handleConfirmSubmitRequest = async () => {
+    if (!localUser) return;
+    setIsSavingStudent(true);
+    setStudentEditError(null);
+
+    try {
+      await userService.createStudentEditRequest({
+        student: localUser.id,
+        proposed_first_name: studentForm.first_name.trim().toUpperCase(),
+        proposed_middle_name: studentForm.middle_name.trim().toUpperCase(),
+        proposed_last_name: studentForm.last_name.trim().toUpperCase(),
+        proposed_lrn: studentForm.lrn.trim() || null,
+        proposed_aral_level: studentForm.aral_level,
+        reason: studentForm.reason.trim(),
+      });
+
+      setShowConfirmModal(false);
+      setIsEditingStudent(false);
+      setMessage('Your profile edit request has been submitted for School Admin and Super Admin review.');
+      await fetchPendingRequest();
+    } catch (err: any) {
+      setShowConfirmModal(false);
+      const errData = err?.response?.data;
+      const msg =
+        errData?.detail ||
+        errData?.reason?.[0] ||
+        errData?.proposed_lrn?.[0] ||
+        errData?.student?.[0] ||
+        'Failed to submit profile edit request.';
+      setStudentEditError(msg);
+    } finally {
+      setIsSavingStudent(false);
+    }
+  };
+
+  if (!localUser) {
+    return (
+      <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+        Loading profile information...
+      </div>
+    );
+  }
+
+  const readonlyStyle: React.CSSProperties = {
+    padding: '0.65rem 0.85rem',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--slate-200)',
+    background: 'var(--surface-muted)',
+    fontSize: '0.875rem',
+    color: 'var(--text-muted)',
+    cursor: 'not-allowed',
+  };
+
+  const editableStyle: React.CSSProperties = {
+    padding: '0.65rem 0.85rem',
+    borderRadius: 'var(--radius-md)',
+    border: '1.5px solid var(--brand)',
+    background: 'var(--surface-card)',
+    fontSize: '0.875rem',
+    color: 'var(--text-primary)',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+  };
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-        <div className="flex items-center space-x-4 mb-8">
-          <div className="w-16 h-16 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-2xl shadow-md">
-            {user.first_name ? user.first_name[0].toUpperCase() : 'U'}
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">{user.full_name || user.username}</h2>
-            <span className="text-xs text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase">
-              {user.is_superuser ? 'SuperAdmin' : user.role}
-            </span>
+    <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+      {/* ── User Overview Header ── */}
+      <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', padding: '2rem', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <div
+              className="flex items-center justify-center shrink-0 overflow-hidden rounded-2xl bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
+              style={{
+                width: '76px',
+                height: '76px',
+              }}
+            >
+              {localUser.avatar ? (
+                <img src={localUser.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <UserIcon size={38} />
+              )}
+            </div>
+
+            <div>
+              {/* Displayed in uppercase with middle initial only across the system */}
+              <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
+                {formatSystemDisplayName(localUser)}
+              </h1>
+              {localUser.role === 'student' ? (
+                <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-muted)' }}>LRN:</span>
+                  <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>{localUser.lrn || '—'}</span>
+                </p>
+              ) : (
+                <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Mail size={14} /> {localUser.email}
+                </p>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--brand-light)', color: 'var(--brand-dark)', border: '1px solid var(--brand-border)' }}>
+                  {localUser.is_superuser ? 'SuperAdmin' : localUser.role?.toUpperCase() || 'USER'}
+                </span>
+                {(localUser.role === 'student' || localUser.role === 'tutor') && (
+                  <>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/80">
+                      ARAL {formatAralLevel(localUser.aral_level).toUpperCase()}
+                    </span>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider border ${
+                      (localUser.subject || 'Reading') === 'Reading'
+                        ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/80'
+                        : (localUser.subject || 'Reading') === 'Science'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/80'
+                        : 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800/80'
+                    }`}>
+                      {localUser.subject || 'Reading'}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
+      </div>
 
-        <dl className="divide-y divide-gray-100">
-          {fields.map((field, i) => (
-            <div key={i} className="py-3 flex justify-between text-sm">
-              <dt className="font-medium text-gray-500">{field.label}</dt>
-              <dd className="text-gray-900 font-semibold">{field.value}</dd>
+      {/* ── Student Pending Edit Request Notification Banner ── */}
+      {localUser.role === 'student' && pendingEditRequest && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-3xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-900/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 text-amber-700 dark:text-amber-400" />
             </div>
-          ))}
-        </dl>
+            <div>
+              <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                PROFILE EDIT REQUEST PENDING REVIEW
+              </h3>
+              <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-0.5 leading-relaxed">
+                You have submitted profile changes on{' '}
+                <span className="font-semibold">
+                  {new Date(pendingEditRequest.created_at).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </span>
+                . Your request has been forwarded to the School Admin and Super Admin for confirmation.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowPendingModal(true)}
+            className="self-start sm:self-center shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            View Request Details
+          </button>
+        </div>
+      )}
+
+      {/* ── Profile Details Section ── */}
+      <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '2rem', boxShadow: 'var(--shadow-xs)' }}>
+
+        {/* Card header row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+          <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            PROFILE INFORMATION
+          </h2>
+
+          {localUser.role === 'student' ? (
+            pendingEditRequest ? (
+              <button
+                type="button"
+                onClick={() => setShowPendingModal(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold cursor-pointer transition hover:bg-amber-200"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                Edit Pending Approval
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleEditOpen}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.5rem 1.1rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  background: 'var(--brand)',
+                  color: '#fff',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-body)',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(9, 115, 55, 0.25)',
+                  transition: 'var(--transition-fast)',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-dark, #065f2c)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--brand)'; }}
+              >
+                <Edit3 size={14} />
+                Request Profile Update
+              </button>
+            )
+          ) : !isEditing ? (
+            <button
+              type="button"
+              onClick={handleEditOpen}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.5rem 1.1rem',
+                borderRadius: 'var(--radius-md)',
+                border: 'none',
+                background: 'var(--brand)',
+                color: '#fff',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                fontFamily: 'var(--font-body)',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(9, 115, 55, 0.25)',
+                transition: 'var(--transition-fast)',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-dark, #065f2c)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--brand)'; }}
+            >
+              <Edit3 size={14} />
+              Edit
+            </button>
+          ) : (
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={handleCancel}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.5rem 1rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1.5px solid var(--slate-200)',
+                  background: 'var(--surface-muted)',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-body)',
+                  cursor: 'pointer',
+                  transition: 'var(--transition-fast)',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-100)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; }}
+              >
+                <X size={14} />
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.5rem 1.1rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  background: isSaving ? 'var(--brand-muted, #6ee7a0)' : 'var(--brand)',
+                  color: '#fff',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-body)',
+                  cursor: isSaving ? 'not-allowed' : 'pointer',
+                  transition: 'var(--transition-fast)',
+                  opacity: isSaving ? 0.7 : 1,
+                }}
+              >
+                <Save size={14} />
+                {isSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Alerts */}
+        {error && (
+          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertCircle size={18} /> {error}
+          </div>
+        )}
+        {message && (
+          <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <CheckCircle2 size={18} /> {message}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* First Name / Middle Name / Last Name (Normal Typography) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>First Name</label>
+              {isEditing && localUser.role !== 'student' ? (
+                <input
+                  value={editFirst}
+                  onChange={(e) => setEditFirst(e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
+                  placeholder="First name"
+                  style={editableStyle}
+                />
+              ) : (
+                <input value={toTitleCase(localUser.first_name)} readOnly disabled style={readonlyStyle} />
+              )}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Middle Name</label>
+              {isEditing && localUser.role !== 'student' ? (
+                <input
+                  value={editMiddle}
+                  onChange={(e) => setEditMiddle(e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
+                  placeholder="Middle name"
+                  style={editableStyle}
+                />
+              ) : (
+                <input value={toTitleCase(localUser.middle_name) || '—'} readOnly disabled style={readonlyStyle} />
+              )}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Last Name</label>
+              {isEditing && localUser.role !== 'student' ? (
+                <input
+                  value={editLast}
+                  onChange={(e) => setEditLast(e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
+                  placeholder="Last name"
+                  style={editableStyle}
+                />
+              ) : (
+                <input value={toTitleCase(localUser.last_name)} readOnly disabled style={readonlyStyle} />
+              )}
+            </div>
+          </div>
+
+          {/* Email (or LRN for students) / Member Since */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                {localUser.role === 'student' ? 'Learner Reference Number (LRN)' : 'Email Address'}
+              </label>
+              <input
+                type={localUser.role === 'student' ? 'text' : 'email'}
+                value={localUser.role === 'student' ? (localUser.lrn || '—') : localUser.email}
+                readOnly
+                disabled
+                style={readonlyStyle}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                Member Since
+              </label>
+              <input
+                value={new Date(localUser.date_joined).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                readOnly
+                disabled
+                style={readonlyStyle}
+              />
+            </div>
+          </div>
+
+          {/* Tutor Academic Assignment */}
+          {localUser.role === 'tutor' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  ARAL Level Assigned
+                </label>
+                <input
+                  value={formatAralLevel(localUser.aral_level)}
+                  readOnly
+                  disabled
+                  style={readonlyStyle}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  ARAL Subject Assigned
+                </label>
+                <input
+                  value={localUser.subject || 'Reading'}
+                  readOnly
+                  disabled
+                  style={readonlyStyle}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Student Academic Information */}
+          {localUser.role === 'student' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  ARAL Level
+                </label>
+                <input
+                  value={formatAralLevel(localUser.aral_level)}
+                  readOnly
+                  disabled
+                  style={readonlyStyle}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  Subject
+                </label>
+                <input
+                  value={localUser.subject || 'Reading'}
+                  readOnly
+                  disabled
+                  style={readonlyStyle}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-        <p className="text-xs text-gray-500 italic">
-          Profile editing and password change features are planned for a future sprint.
-        </p>
-      </div>
+      {localUser.role === 'tutor' && (
+        <section style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '2rem', boxShadow: 'var(--shadow-xs)' }}>
+          <h2 style={{ margin: '0 0 1.25rem', fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            ACCOUNT SECURITY
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+            <div style={{ border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-lg)', padding: '1.15rem' }}>
+              <h3 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>CHANGE PASSWORD</h3>
+              <p style={{ margin: '0.35rem 0 0.85rem', fontSize: '0.78rem', lineHeight: 1.5, color: 'var(--text-muted)' }}>Your sign-in password is managed through your Google Account.</p>
+              <SecurityHelpButton label="How to change password" description="Open your Google Account, select Security, then choose Password under “How you sign in to Google.”" />
+            </div>
+            <div style={{ border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-lg)', padding: '1.15rem' }}>
+              <h3 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>ENABLE 2-FACTOR AUTHENTICATION</h3>
+              <p style={{ margin: '0.35rem 0 0.85rem', fontSize: '0.78rem', lineHeight: 1.5, color: 'var(--text-muted)' }}>Two-factor authentication is managed through your Google Account.</p>
+              <SecurityHelpButton label="How to enable 2-factor authentication" description="Open your Google Account, select Security, then choose 2-Step Verification and follow the setup steps." />
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── STUDENT EDIT REQUEST MODAL ─────────────────────────────── */}
+      {isEditingStudent && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <form onSubmit={handleStudentFormSubmit} className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg uppercase">
+                  REQUEST PROFILE UPDATE
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  Proposed changes will be submitted to the Admin & Super Admin for review
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditingStudent(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Notice Banner */}
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-3.5 flex items-start gap-3">
+              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
+                <span className="font-bold">Official Record Verification:</span> Updates to your student profile (name, LRN, or ARAL program level) require verification and confirmation by a School Admin or Super Admin before taking effect.
+              </div>
+            </div>
+
+            {studentEditError && (
+              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs rounded-xl p-3 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                <span>{studentEditError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed First Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={studentForm.first_name}
+                  onChange={(e) => setStudentForm({ ...studentForm, first_name: e.target.value })}
+                  placeholder="e.g. JUAN"
+                  className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] uppercase font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed Middle Name</label>
+                <input
+                  type="text"
+                  value={studentForm.middle_name}
+                  onChange={(e) => setStudentForm({ ...studentForm, middle_name: e.target.value })}
+                  placeholder="e.g. PROTACIO"
+                  className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] uppercase font-semibold"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed Last Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={studentForm.last_name}
+                  onChange={(e) => setStudentForm({ ...studentForm, last_name: e.target.value })}
+                  placeholder="e.g. DELA CRUZ"
+                  className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] uppercase font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed LRN (12 digits)</label>
+                <input
+                  type="text"
+                  maxLength={12}
+                  value={studentForm.lrn}
+                  onChange={(e) => setStudentForm({ ...studentForm, lrn: e.target.value.replace(/\D/g, '') })}
+                  placeholder="12-digit number"
+                  className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed ARAL Program Level *</label>
+              <select
+                value={studentForm.aral_level}
+                onChange={(e) => setStudentForm({ ...studentForm, aral_level: e.target.value as any })}
+                className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] font-semibold cursor-pointer"
+              >
+                <option value="basic">Basic</option>
+                <option value="plus">Plus</option>
+                <option value="summer">Summer</option>
+                <option value="graduated">Graduated</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Reason for Edit Request *</label>
+              <textarea
+                required
+                rows={3}
+                value={studentForm.reason}
+                onChange={(e) => setStudentForm({ ...studentForm, reason: e.target.value })}
+                placeholder="Explain why this profile change is necessary (e.g., PSA birth certificate name spelling correction, LRN typo, or program level change)..."
+                className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] resize-none"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
+              <button
+                type="button"
+                onClick={() => setIsEditingStudent(false)}
+                className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-xl text-xs font-bold cursor-pointer shadow-sm transition-all inline-flex items-center gap-1.5"
+              >
+                <Send className="w-3.5 h-3.5" />
+                Submit Request for Approval
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── CONFIRMATION MODAL BEFORE SUBMISSION ───────────────────── */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-6 max-w-sm w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 animate-fade-in-scale">
+            <div>
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
+                Confirm Edit Request Submission
+              </h3>
+              <p className="mt-2 text-xs leading-relaxed text-gray-500 dark:text-slate-400">
+                Are you sure you want to submit this profile change request? Your proposed details and reason will be sent to the <span className="font-bold text-gray-700 dark:text-slate-300">School Admin</span> and <span className="font-bold text-gray-700 dark:text-slate-300">Super Admin</span> for confirmation and review.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isSavingStudent}
+                onClick={() => setShowConfirmModal(false)}
+                className="rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-4 py-2 text-xs font-bold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSavingStudent}
+                onClick={handleConfirmSubmitRequest}
+                className="rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+              >
+                {isSavingStudent ? 'Submitting...' : 'Yes, Submit Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── PENDING REQUEST DETAILS MODAL ──────────────────────────── */}
+      {showPendingModal && pendingEditRequest && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">Edit Request Pending</h3>
+                  <p className="text-[11px] text-gray-500 dark:text-slate-400">Awaiting Admin or Super Admin review</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPendingModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="bg-slate-50 dark:bg-[#111111] p-3.5 rounded-2xl border border-slate-200 dark:border-[#1A1A1A] space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-slate-400 font-medium">Submitted On:</span>
+                  <span className="font-semibold text-gray-800 dark:text-slate-200">
+                    {new Date(pendingEditRequest.created_at).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-slate-400 font-medium">Status:</span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                    Pending Approval
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="font-bold text-gray-700 dark:text-slate-300 text-xs">Proposed Changes:</h4>
+                <div className="bg-gray-50 dark:bg-[#111111] p-3 rounded-2xl border border-gray-100 dark:border-[#1A1A1A] space-y-1.5 font-mono text-[11px]">
+                  <p className="text-gray-700 dark:text-slate-300">
+                    <span className="text-gray-400 dark:text-slate-500 font-sans">Name: </span>
+                    {pendingEditRequest.proposed_last_name}, {pendingEditRequest.proposed_first_name} {pendingEditRequest.proposed_middle_name || ''}
+                  </p>
+                  <p className="text-gray-700 dark:text-slate-300">
+                    <span className="text-gray-400 dark:text-slate-500 font-sans">LRN: </span>
+                    {pendingEditRequest.proposed_lrn || 'Unchanged'}
+                  </p>
+                  <p className="text-gray-700 dark:text-slate-300">
+                    <span className="text-gray-400 dark:text-slate-500 font-sans">ARAL Level: </span>
+                    {pendingEditRequest.proposed_aral_level ? formatAralLevel(pendingEditRequest.proposed_aral_level) : 'Unchanged'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <h4 className="font-bold text-gray-700 dark:text-slate-300 text-xs">Reason:</h4>
+                <p className="text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-[#111111] p-2.5 rounded-xl border border-gray-100 dark:border-[#1A1A1A] text-xs leading-relaxed italic">
+                  "{pendingEditRequest.reason}"
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setShowPendingModal(false)}
+                className="bg-gray-100 dark:bg-[#141414] hover:bg-gray-200 dark:hover:bg-[#1f1f1f] text-gray-700 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

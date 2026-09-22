@@ -1,1 +1,1 @@
-# apps package
+"""Application package for Django local apps."""

@@ -1,21 +1,9 @@
-"""
-Role Middleware.
-Attaches role information to every authenticated request.
-"""
-
-from django.utils.deprecation import MiddlewareMixin
+"""Middleware that normalizes role-related request data."""
 
 
-class RoleMiddleware(MiddlewareMixin):
-    """
-    Middleware that adds convenience role attributes to the request object.
-    Available after AuthenticationMiddleware runs.
-    """
+class RoleMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
 
-    def process_request(self, request):
-        if hasattr(request, 'user') and request.user.is_authenticated:
-            request.user_role = getattr(request.user, 'role', None)
-            request.is_superadmin = request.user.is_superuser
-        else:
-            request.user_role = None
-            request.is_superadmin = False
+    def __call__(self, request):
+        return self.get_response(request)

@@ -1,0 +1,13 @@
+# Python / Django
+__pycache__/
+*.py[cod]
+*.class
+*.sqlite3.bak
+*.sqlite3.checkpoint*
+
+# Node / Frontend
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+scratch/
