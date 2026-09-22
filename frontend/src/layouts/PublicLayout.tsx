@@ -4,6 +4,8 @@ import { useAuth } from '../hooks/useAuth';
 import { ArrowRight, School, Menu, X } from 'lucide-react';
 import { ThemeToggle } from '../components/ThemeToggle';
 
+import aralertLogo from '../assets/ARALert_Logo_LIGHT.png';
+
 export const PublicLayout: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const location = useLocation();
@@ -40,7 +42,7 @@ export const PublicLayout: React.FC = () => {
     }
   };
 
-  const logoSrc = '/src/assets/ARALert_Logo_LIGHT.png';
+  const logoSrc = aralertLogo;
 
   const navLinks = [
     { label: 'Home', id: 'home', to: '/#home' },

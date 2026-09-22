@@ -1,5 +1,6 @@
 import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
+import aralertLogo from '../assets/ARALert_Logo_LIGHT.png';
 
 /**
  * AuthLayout — wraps all auth pages (activate, reset, MFA, forgot-password).
@@ -57,7 +58,7 @@ export const AuthLayout: React.FC = () => {
         }}
       >
         <img
-          src="/src/assets/ARALert_Logo_LIGHT.png"
+          src={aralertLogo}
           alt="ARALert"
           style={{ width: '32px', height: '32px', objectFit: 'contain' }}
           onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}

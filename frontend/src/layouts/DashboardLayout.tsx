@@ -40,6 +40,7 @@ import scoreDarkDefault from '../assets/icons/score_entry_dark.png';
 import scoreDarkActive from '../assets/icons/score_entry_dark_active.png';
 import scoreLightDefault from '../assets/icons/score_entry_light.png';
 import scoreLightActive from '../assets/icons/score_entry_light_active.png';
+import aralertLogo from '../assets/ARALert_Logo_LIGHT.png';
 
 const SidebarIcon: React.FC<{
   Icon: React.ComponentType<{ className?: string; size?: number; strokeWidth?: number; fill?: string; style?: React.CSSProperties }>;
@@ -719,7 +720,7 @@ export const DashboardLayout: React.FC = () => {
                 className="w-8 h-8 flex items-center justify-center select-none transition-all duration-200 ease-in-out opacity-100 scale-100 group-hover/header:opacity-0 group-hover/header:scale-75 pointer-events-none"
               >
                 <img
-                  src="/src/assets/ARALert_Logo_LIGHT.png"
+                  src={aralertLogo}
                   alt="ARALert"
                   className="w-full h-full object-contain block"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
@@ -830,7 +831,7 @@ export const DashboardLayout: React.FC = () => {
             }}
           >
             <img
-              src="/src/assets/ARALert_Logo_LIGHT.png"
+              src={aralertLogo}
               alt="ARALert"
               style={{
                 width: '32px',
