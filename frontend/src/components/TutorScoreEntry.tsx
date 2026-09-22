@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { academicService } from '../services/academicService';
 import type { User } from '../types';
-import { CheckCircle2, User as UserIcon, BookOpen, Sparkles } from 'lucide-react';
+import { CheckCircle2, User as UserIcon, BookOpen } from 'lucide-react';
 
 interface Props {
   student: User | null;
@@ -42,9 +42,9 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
 
   if (!student) {
     return (
-      <div className="rounded-3xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-50 border border-gray-200 text-gray-400">
-          <UserIcon className="w-7 h-7" />
+      <div className="rounded-md border border-gray-200 bg-white p-8 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-md bg-gray-50 border border-gray-200 text-gray-400">
+          <UserIcon className="w-6 h-6" />
         </div>
         <p className="mt-4 text-base font-bold text-gray-800">Select a Learner</p>
         <p className="mt-1 text-xs text-gray-400 max-w-sm mx-auto">Choose a student from the directory to quickly log today's daily Reading score.</p>
@@ -55,7 +55,7 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
   const isReady = score !== '' && Number(score) >= 0;
 
   return (
-    <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
+    <div className="rounded-md border border-gray-200 bg-white p-6 space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-4">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Daily Assessment Entry</p>
@@ -72,9 +72,9 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
         </span>
       </div>
 
-      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+      <div className="rounded-md border border-gray-100 bg-gray-50 p-4">
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="rounded-md border border-gray-200 bg-white p-4">
             <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
               Task Score
             </label>
@@ -97,20 +97,20 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
                 else setScore(num);
               }}
               placeholder="0 - 20"
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-lg font-bold text-gray-900 outline-none transition focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]"
+              className="w-full rounded-md border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-lg font-bold text-gray-900 outline-none transition focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]"
             />
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="rounded-md border border-gray-200 bg-white p-4">
             <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Max Score</p>
-            <div className="flex h-[46px] items-center rounded-xl border border-gray-100 bg-gray-50 px-3.5 text-lg font-bold text-gray-700">
+            <div className="flex h-[46px] items-center rounded-md border border-gray-100 bg-gray-50 px-3.5 text-lg font-bold text-gray-700">
               20 Items
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="rounded-md border border-gray-200 bg-white p-4">
             <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Percentage</p>
-            <div className="flex h-[46px] items-center rounded-xl border border-gray-100 bg-gray-50 px-3.5 text-lg font-extrabold text-[var(--brand)]">
+            <div className="flex h-[46px] items-center rounded-md border border-gray-100 bg-gray-50 px-3.5 text-lg font-extrabold text-[var(--brand)]">
               {score !== '' ? `${Math.round((Number(score) / 20) * 100)}%` : '—'}
             </div>
           </div>
@@ -118,7 +118,7 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pt-2">
-        <div className="flex items-center gap-2.5 rounded-2xl border border-[var(--brand-border)] bg-[var(--brand-light)] p-3 text-xs text-[var(--brand-text)]">
+        <div className="flex items-center gap-2.5 rounded-md border border-[var(--brand-border)] bg-[var(--brand-light)] p-3 text-xs text-[var(--brand-text)]">
           <BookOpen className="w-4 h-4 shrink-0 text-[var(--brand)]" />
           <p>Scores are stored under Reading subject and feed into quarterly GPA automatically.</p>
         </div>
@@ -127,7 +127,7 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
           type="button"
           onClick={handleSubmit}
           disabled={loading || score === ''}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--brand)] px-6 py-3 text-sm font-bold text-white transition hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-60 shadow-sm shrink-0"
+          className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--brand)] px-6 py-3 text-sm font-bold text-white transition hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-60 shrink-0 cursor-pointer"
         >
           {loading ? (
             <>

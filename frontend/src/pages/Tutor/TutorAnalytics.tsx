@@ -13,10 +13,8 @@ import {
   Users,
   Info,
   X,
-  Smile,
-  Meh,
-  Frown,
-
+  Clock,
+  BookOpen,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Attendance, Grade, User } from '../../types';
@@ -540,11 +538,11 @@ const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; o
 };
 
 const getAralBadge = (level?: string | null) => {
-  switch (level) {
-    case 'plus':      return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">Plus</span>;
-    case 'summer':    return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">Summer</span>;
-    case 'graduated': return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">Graduated</span>;
-    default:          return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">Basic</span>;
+  switch (level?.toLowerCase()) {
+    case 'plus':      return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200">Plus</span>;
+    case 'summer':    return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Summer</span>;
+    case 'graduated': return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Graduated</span>;
+    default:          return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200">Basic</span>;
   }
 };
 
@@ -703,38 +701,6 @@ export const TutorAnalytics: React.FC = () => {
     return Math.round((rows.reduce((acc, r) => acc + r.attendanceRate, 0) / rows.length) * 100) / 100;
   }, [rows]);
 
-  const attendanceMood = useMemo(() => {
-    if (attendanceLogs.length === 0) {
-      return {
-        icon: Meh,
-        iconBg: 'bg-amber-50 border-amber-100 dark:bg-amber-950/40 dark:border-amber-800/60',
-        iconColor: 'text-amber-500',
-        valueColor: 'text-amber-500',
-      };
-    }
-    if (avgAttendance >= 81) {
-      return {
-        icon: Smile,
-        iconBg: 'risk-card-low',
-        iconColor: 'text-risk-low',
-        valueColor: 'text-risk-low',
-      };
-    }
-    if (avgAttendance >= 75) {
-      return {
-        icon: Meh,
-        iconBg: 'risk-card-medium',
-        iconColor: 'text-risk-medium',
-        valueColor: 'text-risk-medium',
-      };
-    }
-    return {
-      icon: Frown,
-      iconBg: 'risk-card-high',
-      iconColor: 'text-risk-high',
-      valueColor: 'text-risk-high',
-    };
-  }, [avgAttendance, attendanceLogs.length]);
   const scoreSummary = useMemo(() => {
     const todayStr = new Date().toISOString().slice(0, 10);
     const scoreRecords = grades.filter((grade) =>
@@ -752,40 +718,6 @@ export const TutorAnalytics: React.FC = () => {
     if (rows.length === 0) return 0;
     return Math.round((rows.reduce((acc, r) => acc + r.scoreAvg, 0) / rows.length) * 100) / 100;
   }, [rows]);
-
-  const scoreMood = useMemo(() => {
-    const noGrades = grades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0;
-    if (noGrades) {
-      return {
-        icon: Meh,
-        iconBg: 'bg-amber-50 border-amber-100',
-        iconColor: 'text-amber-500',
-        valueColor: 'text-amber-500',
-      };
-    }
-    if (avgScore >= 81) {
-      return {
-        icon: Smile,
-        iconBg: 'risk-card-low',
-        iconColor: 'text-risk-low',
-        valueColor: 'text-risk-low',
-      };
-    }
-    if (avgScore >= 70) {
-      return {
-        icon: Meh,
-        iconBg: 'risk-card-medium',
-        iconColor: 'text-risk-medium',
-        valueColor: 'text-risk-medium',
-      };
-    }
-    return {
-      icon: Frown,
-      iconBg: 'risk-card-high',
-      iconColor: 'text-risk-high',
-      valueColor: 'text-risk-high',
-    };
-  }, [avgScore, grades]);
   const attendanceDetails = useMemo(() => {
     const list: (ExtendedRiskRow & {
       description: EntryDescriptionType;
@@ -942,83 +874,83 @@ export const TutorAnalytics: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 skeleton-container" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <div className="space-y-4 skeleton-container" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
         {/* ── View Tab Switcher Skeleton ── */}
-        <div className="flex w-full rounded-2xl bg-gray-100 dark:bg-[#111111] p-1 gap-1 animate-pulse skeleton-row-1">
-          <div className="h-9 flex-1 rounded-xl bg-gray-200 dark:bg-gray-800" />
-          <div className="h-9 flex-1 rounded-xl bg-gray-200 dark:bg-gray-800" />
-          <div className="h-9 flex-1 rounded-xl bg-gray-200 dark:bg-gray-800" />
+        <div className="flex w-full rounded-md bg-gray-100 dark:bg-[#111111] p-0.5 gap-0.5 animate-pulse skeleton-row-1">
+          <div className="h-8 flex-1 rounded-sm bg-gray-200 dark:bg-gray-800" />
+          <div className="h-8 flex-1 rounded-sm bg-gray-200 dark:bg-gray-800" />
+          <div className="h-8 flex-1 rounded-sm bg-gray-200 dark:bg-gray-800" />
         </div>
 
         {/* ── 3 Summary KPI Cards Skeleton ── */}
-        <div className="grid gap-4 sm:grid-cols-3 skeleton-row-1">
+        <div className="grid gap-3 sm:grid-cols-3 skeleton-row-1">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm min-h-[114px] flex items-center gap-4 animate-pulse"
+              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 min-h-[100px] flex items-center gap-3.5 animate-pulse"
             >
-              <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 shrink-0" />
+              <div className="w-10 h-10 rounded-md bg-gray-200 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 shrink-0" />
               <div className="flex-1 min-w-0">
-                <div className="h-3 w-20 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
-                <div className="h-8 w-14 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-3 w-44 rounded bg-gray-100 dark:bg-gray-800/60 mt-2" />
+                <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
+                <div className="h-7 w-14 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-2 w-44 rounded bg-gray-100 dark:bg-gray-800/60 mt-2" />
               </div>
             </div>
           ))}
         </div>
 
         {/* ── Chart Card Skeleton ── */}
-        <div className="w-full rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-6 shadow-sm animate-pulse skeleton-row-2">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 animate-pulse skeleton-row-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="space-y-1.5">
               <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800" />
               <div className="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
             <div className="flex items-center gap-3">
               <div className="h-4 w-44 rounded bg-gray-100 dark:bg-gray-800 hidden sm:block" />
-              <div className="h-8 w-24 rounded-xl bg-gray-100 dark:bg-gray-800" />
-              <div className="h-8 w-28 rounded-xl bg-gray-100 dark:bg-gray-800" />
+              <div className="h-7 w-24 rounded-md bg-gray-100 dark:bg-gray-800" />
+              <div className="h-7 w-28 rounded-md bg-gray-100 dark:bg-gray-800" />
             </div>
           </div>
-          <div className="mt-6">
-            <div className="h-[228px] w-full rounded-2xl bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A]" />
+          <div className="mt-4">
+            <div className="h-[228px] w-full rounded-md bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A]" />
           </div>
         </div>
 
         {/* ── Table Card Skeleton ── */}
         <div className="space-y-2 skeleton-row-3">
-          <div className="w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A] animate-pulse">
+          <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] animate-pulse">
             {/* Table toolbar */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div className="space-y-1">
                 <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800" />
                 <div className="h-3 w-28 rounded bg-gray-100 dark:bg-gray-800" />
               </div>
-              <div className="h-9 w-64 rounded-xl bg-gray-100 dark:bg-gray-800" />
+              <div className="h-8 w-64 rounded-md bg-gray-100 dark:bg-gray-800" />
             </div>
 
             {/* Table header bar */}
-            <div className="bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-4 py-3 flex items-center justify-between">
-              <div className="h-3 w-24 rounded bg-gray-200 dark:bg-gray-800" />
-              <div className="h-3 w-20 rounded bg-gray-200 dark:bg-gray-800" />
-              <div className="h-3 w-28 rounded bg-gray-200 dark:bg-gray-800" />
-              <div className="h-3 w-24 rounded bg-gray-200 dark:bg-gray-800" />
-              <div className="h-3 w-20 rounded bg-gray-200 dark:bg-gray-800" />
+            <div className="bg-gray-50 dark:bg-[#111111] border-b border-gray-100 dark:border-[#1A1A1A] px-4 py-2.5 flex items-center justify-between">
+              <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="h-2.5 w-28 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800" />
             </div>
 
             {/* Table rows */}
             <div className="divide-y divide-gray-100 dark:divide-[#1A1A1A]">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center gap-4 px-4 py-3.5">
-                  <div className="w-9 h-9 rounded-xl bg-gray-200 dark:bg-gray-800 shrink-0" />
+                <div key={i} className="flex items-center gap-4 px-4 py-3">
+                  <div className="w-8 h-8 rounded-md bg-gray-200 dark:bg-gray-800 shrink-0" />
                   <div className="space-y-1">
-                    <div className="h-3.5 w-36 rounded bg-gray-200 dark:bg-gray-800" />
-                    <div className="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800" />
+                    <div className="h-3 w-36 rounded bg-gray-200 dark:bg-gray-800" />
+                    <div className="h-2 w-24 rounded bg-gray-100 dark:bg-gray-800" />
                   </div>
-                  <div className="h-5 w-16 rounded-full bg-gray-100 dark:bg-gray-800 ml-8" />
-                  <div className="h-3.5 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
-                  <div className="h-3.5 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
-                  <div className="h-3.5 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
+                  <div className="h-4 w-16 rounded-full bg-gray-100 dark:bg-gray-800 ml-8" />
+                  <div className="h-3 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
+                  <div className="h-3 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
+                  <div className="h-3 w-16 rounded bg-gray-100 dark:bg-gray-800 ml-auto" />
                 </div>
               ))}
             </div>
@@ -1030,7 +962,7 @@ export const TutorAnalytics: React.FC = () => {
 
   if (error) {
     return (
-      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm">
+      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-md p-4">
         <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-bold">Failed to load analytics</p>
@@ -1038,7 +970,7 @@ export const TutorAnalytics: React.FC = () => {
           <button
             type="button"
             onClick={fetchAnalytics}
-            className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
+            className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-md text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
           >
             Retry
           </button>
@@ -1048,10 +980,10 @@ export const TutorAnalytics: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+    <div className="space-y-4 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
       {/* ── View Tab Switcher ── */}
       <div
-        className="flex w-full rounded-2xl bg-gray-100 p-1 gap-1 dark:bg-[#111111]"
+        className="flex w-full rounded-md bg-gray-100 p-0.5 gap-0.5 dark:bg-[#111111]"
         role="tablist"
         aria-label="Analytics view"
       >
@@ -1066,9 +998,9 @@ export const TutorAnalytics: React.FC = () => {
             role="tab"
             aria-selected={activeAnalyticsTab === tab}
             onClick={() => setActiveAnalyticsTab(tab)}
-            className={`flex-1 h-9 rounded-xl px-4 flex items-center justify-center text-xs font-bold uppercase transition-all ${
+            className={`flex-1 h-8 rounded-sm px-4 flex items-center justify-center text-xs font-bold uppercase transition-all ${
               activeAnalyticsTab === tab
-                ? 'bg-[var(--brand)] text-white shadow-sm'
+                ? 'bg-[var(--brand)] text-white'
                 : 'text-gray-400 opacity-60 hover:bg-white/60 hover:text-gray-600 hover:opacity-100 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-slate-300'
             }`}
           >
@@ -1080,97 +1012,88 @@ export const TutorAnalytics: React.FC = () => {
           {activeAnalyticsTab === 'overall' && (
             <>
               {/* ── Risk Summary Cards ─────────────────────────────────────── */}
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="relative rounded-3xl border risk-card-high p-5 shadow-sm min-h-[114px] flex items-center gap-4">
-                  <div className="absolute right-4 top-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="relative rounded-md border risk-card-high p-4 min-h-[100px] flex flex-col justify-center">
+                  <div className="absolute right-3 top-3">
                     <RiskRangeInfo range="Composite score is below 70%" />
-                  </div>
-                  <div className="w-11 h-11 rounded-2xl border risk-badge-high flex items-center justify-center shrink-0">
-                    <Frown className="w-5 h-5 text-risk-high" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-high">
-                      <p className="text-[11px] font-bold uppercase tracking-wider">High Risk</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider">High Risk</p>
                     </div>
-                    <p className="text-3xl font-extrabold text-risk-high mt-0.5">{riskCounts.high}</p>
+                    <p className="text-2xl font-extrabold text-risk-high mt-0.5">{riskCounts.high}</p>
                     <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Students needing immediate intervention</p>
                   </div>
                 </div>
 
-                <div className="relative rounded-3xl border risk-card-medium p-5 shadow-sm min-h-[114px] flex items-center gap-4">
-                  <div className="absolute right-4 top-4">
+                <div className="relative rounded-md border risk-card-medium p-4 min-h-[100px] flex flex-col justify-center">
+                  <div className="absolute right-3 top-3">
                     <RiskRangeInfo range="Composite score is between 70% to 85%" />
-                  </div>
-                  <div className="w-11 h-11 rounded-2xl border risk-badge-medium flex items-center justify-center shrink-0">
-                    <Meh className="w-5 h-5 text-risk-medium" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-medium">
-                      <p className="text-[11px] font-bold uppercase tracking-wider">Medium Risk</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider">Medium Risk</p>
                     </div>
-                    <p className="text-3xl font-extrabold text-risk-medium mt-0.5">{riskCounts.moderate}</p>
+                    <p className="text-2xl font-extrabold text-risk-medium mt-0.5">{riskCounts.moderate}</p>
                     <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Students requiring monitoring</p>
                   </div>
                 </div>
 
-                <div className="relative rounded-3xl border risk-card-low p-5 shadow-sm min-h-[114px] flex items-center gap-4">
-                  <div className="absolute right-4 top-4">
+                <div className="relative rounded-md border risk-card-low p-4 min-h-[100px] flex flex-col justify-center">
+                  <div className="absolute right-3 top-3">
                     <RiskRangeInfo range="Composite score is between 86% to 100%" />
-                  </div>
-                  <div className="w-11 h-11 rounded-2xl border risk-badge-low flex items-center justify-center shrink-0">
-                    <Smile className="w-5 h-5 text-risk-low" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-low">
-                      <p className="text-[11px] font-bold uppercase tracking-wider">Low Risk</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider">Low Risk</p>
                     </div>
-                    <p className="text-3xl font-extrabold text-risk-low mt-0.5">{riskCounts.low}</p>
+                    <p className="text-2xl font-extrabold text-risk-low mt-0.5">{riskCounts.low}</p>
                     <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Students performing well</p>
                   </div>
                 </div>
               </div>
 
               {/* ── Risk Level Trend Chart ── */}
-              <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]" aria-labelledby="risk-overview-heading">
-                <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+              <section className="rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]" aria-labelledby="risk-overview-heading">
+                <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
                     <h3 id="risk-overview-heading" className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">RISK LEVEL TREND CHART</h3>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
-                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#EF4444' }} />High Risk</span>
-                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#F59E0B' }} />Medium Risk</span>
-                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#22C55E' }} />Low Risk</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#EF4444' }} />High Risk</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#F59E0B' }} />Medium Risk</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#22C55E' }} />Low Risk</span>
                     </div>
                     <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
                       <StudentRiskFilter rows={rows} value={riskScope} onChange={setRiskScope} />
                     </label>
-                    <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Filter risk chart by time period">
+                    <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Filter risk chart by time period">
                       {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button key={filter} type="button" onClick={() => setRiskTrendFilter(filter)} className={`cursor-pointer rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${riskTrendFilter === filter ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
+                        <button key={filter} type="button" onClick={() => setRiskTrendFilter(filter)} className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${riskTrendFilter === filter ? 'bg-[var(--brand)] text-white' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
                           {filter}
                         </button>
                       ))}
                     </div>
                   </div>
                 </div>
-                <div className="mt-6">
-                  <div className="relative rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+                <div className="mt-4">
+                  <div className="relative rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
                     <RiskTrendChart data={riskTrend} total={riskScopedRows.length} isSingleStudent={riskScope !== 'all'} studentName={selectedRiskStudent?.full_name} />
                   </div>
                 </div>
               </section>
 
               {/* ── Student Performance Details Table ── */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 px-1 pb-1 text-xs text-gray-500" style={{ fontFamily: 'var(--font-body)' }}>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 px-1 text-xs text-gray-500" style={{ fontFamily: 'var(--font-body)' }}>
                   <RiskCalculationInfo />
                 </div>
-                <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+                <div className="bg-white rounded-md border border-gray-200 overflow-hidden dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
                     <div className="flex items-center gap-3">
                       <div>
-                        <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">STUDENT PERFORMANCE DETAILS</h3>
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT PERFORMANCE DETAILS</h3>
                         <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{filteredAndSortedRows.length} Students</p>
                       </div>
                     </div>
@@ -1182,17 +1105,17 @@ export const TutorAnalytics: React.FC = () => {
                           placeholder="Search Student Name"
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
-                          className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10"
+                          className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200"
                         />
                       </div>
                     </div>
                   </div>
 
                   {filteredAndSortedRows.length === 0 ? (
-                    <div className="py-16 text-center space-y-2">
-                      <Users className="w-10 h-10 mx-auto text-gray-200" />
-                      <p className="text-sm font-semibold text-gray-500">No students found</p>
-                      <p className="text-xs text-gray-400">Try adjusting your search criteria.</p>
+                    <div className="py-12 text-center space-y-2">
+                      <Users className="w-8 h-8 mx-auto text-gray-200 dark:text-gray-700" />
+                      <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">No students found</p>
+                      <p className="text-[11px] text-gray-400 dark:text-slate-500">Try adjusting your search criteria.</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -1200,7 +1123,7 @@ export const TutorAnalytics: React.FC = () => {
                         <thead>
                           <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
                             <SortHeader field="student">Student</SortHeader>
-                            <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">ARAL Level</th>
+                            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">ARAL Level</th>
                             <SortHeader field="attendanceRate">Average Attendance Rate</SortHeader>
                             <SortHeader field="scoreAvg">Average Score</SortHeader>
                             <SortHeader field="compositeScore">COMPOSITE SCORE</SortHeader>
@@ -1210,30 +1133,30 @@ export const TutorAnalytics: React.FC = () => {
                         <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
                           {filteredAndSortedRows.map((row) => (
                             <tr key={row.student.id} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5">
-                              <td className="px-4 py-3.5 align-middle">
+                              <td className="px-4 py-3 align-middle">
                                 <div>
-                                  <div className="font-semibold text-gray-900 dark:text-slate-100">{row.student.full_name}</div>
-                                  <div className="text-xs text-gray-400 font-normal">LRN: {row.student.lrn || 'N/A'}</div>
+                                  <div className="font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</div>
+                                  <div className="text-[11px] text-gray-400 dark:text-slate-500 font-mono">LRN: {row.student.lrn || 'N/A'}</div>
                                 </div>
                               </td>
-                              <td className="px-4 py-3.5 align-middle">{getAralBadge(row.student.aral_level)}</td>
-                              <td className="px-4 py-3.5 align-middle">
-                                <span className={`text-sm font-normal ${getAttendanceRateCls(row.attendanceRate)}`}>
+                              <td className="px-4 py-3 align-middle">{getAralBadge(row.student.aral_level)}</td>
+                              <td className="px-4 py-3 align-middle">
+                                <span className={`text-xs font-medium ${getAttendanceRateCls(row.attendanceRate)}`}>
                                   {smartPct(row.attendanceRate)}%
                                 </span>
                               </td>
-                              <td className="px-4 py-3.5 align-middle">
-                                <span className={`text-sm font-normal ${getScoreAvgCls(row.scoreAvg)}`}>
+                              <td className="px-4 py-3 align-middle">
+                                <span className={`text-xs font-medium ${getScoreAvgCls(row.scoreAvg)}`}>
                                   {smartPct(row.scoreAvg)}%
                                 </span>
                               </td>
-                              <td className="px-4 py-3.5 align-middle">
-                                <span className={`text-sm font-normal ${getCompositeScoreCls(row.riskTier)}`}>
+                              <td className="px-4 py-3 align-middle">
+                                <span className={`text-xs font-medium ${getCompositeScoreCls(row.riskTier)}`}>
                                   {smartPct(row.compositeScore)}%
                                 </span>
                               </td>
-                              <td className="px-4 py-3.5 align-middle">
-                                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold border ${getTierCls(row.riskTier)}`}>
+                              <td className="px-4 py-3 align-middle">
+                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold border ${getTierCls(row.riskTier)}`}>
                                   {row.riskTier}
                                 </span>
                               </td>
@@ -1252,34 +1175,34 @@ export const TutorAnalytics: React.FC = () => {
           {activeAnalyticsTab === 'attendance' && (
             <>
               {/* 3 Attendance Summary Cards */}
-              <div className="grid w-full gap-4 sm:grid-cols-3">
-                <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm min-h-[114px] flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
+              <div className="grid w-full gap-3 sm:grid-cols-3">
+                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 min-h-[100px] flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-md bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
                     <Check className="w-5 h-5 text-emerald-600" strokeWidth={3} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Present Today</p>
-                    <p className="text-3xl font-extrabold text-emerald-900 mt-0.5">{attendanceSummary.present}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Present Today</p>
+                    <p className="text-2xl font-extrabold text-emerald-900 mt-0.5">{attendanceSummary.present}</p>
                     <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students marked present today</p>
                   </div>
                 </div>
-                <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-sm min-h-[114px] flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
+                <div className="rounded-md border border-rose-200 bg-rose-50 p-4 min-h-[100px] flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-md bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
                     <X className="w-5 h-5 text-rose-600" strokeWidth={3} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Absent Today</p>
-                    <p className="text-3xl font-extrabold text-rose-900 mt-0.5">{attendanceSummary.absent}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600">Absent Today</p>
+                    <p className="text-2xl font-extrabold text-rose-900 mt-0.5">{attendanceSummary.absent}</p>
                     <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students marked absent today</p>
                   </div>
                 </div>
-                <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm min-h-[114px] flex items-center gap-4 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-                  <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${attendanceMood.iconBg}`}>
-                    <attendanceMood.icon className={`w-5 h-5 ${attendanceMood.iconColor}`} />
+                <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                  <div className="w-10 h-10 rounded-md bg-indigo-100 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shrink-0">
+                    <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Attendance</p>
-                    <p className={`text-3xl font-extrabold mt-0.5 ${attendanceMood.valueColor}`}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Attendance</p>
+                    <p className="text-2xl font-extrabold mt-0.5 text-gray-900 dark:text-slate-100">
                       {attendanceLogs.length === 0 ? '—' : `${smartPct(avgAttendance)}%`}
                     </p>
                     <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Class average attendance rate</p>
@@ -1288,43 +1211,43 @@ export const TutorAnalytics: React.FC = () => {
               </div>
 
               {/* Attendance Trend Chart */}
-              <div className="w-full rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-                <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+              <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
                     <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS ATTENDANCE RATE TREND CHART</h3>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
-                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0052B7] shadow-xs" />Attendance Rate</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Attendance Rate</span>
                     </div>
                     <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
                       <StudentRiskFilter rows={rows} value={attendanceScope} onChange={setAttendanceScope} />
                     </label>
-                    <div className="flex rounded-xl bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Attendance trend period">
+                    <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Attendance trend period">
                       {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button key={filter} type="button" onClick={() => setAttendanceFilter(filter)} className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${attendanceFilter === filter ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
+                        <button key={filter} type="button" onClick={() => setAttendanceFilter(filter)} className={`rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${attendanceFilter === filter ? 'bg-[var(--brand)] text-white' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
                           {filter}
                         </button>
                       ))}
                     </div>
                   </div>
                 </div>
-                <div className="relative mt-6 h-56 w-full rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+                <div className="relative mt-4 h-56 w-full rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
                   <TrendChart data={attendanceTrend} color="#0052B7" emptyLabel="No attendance trend data" valueLabel={selectedAttendanceStudent ? selectedAttendanceStudent.full_name : 'Class Average Attendance'} />
                 </div>
               </div>
 
               {/* Student Attendance Details Table */}
-              <div className="w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+              <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
                 <div className="overflow-hidden">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
                     <div>
-                      <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">STUDENT ATTENDANCE DETAILS</h3>
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT ATTENDANCE DETAILS</h3>
                       <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{attendanceDetails.length} Students</p>
                     </div>
                     <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
                       {/* Description Filter */}
-                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5 shrink-0">
+                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0">
                         {([
                           ['all', 'All'],
                           ['Intervention Activity', 'Intervention'],
@@ -1334,9 +1257,9 @@ export const TutorAnalytics: React.FC = () => {
                             key={val}
                             type="button"
                             onClick={() => setAttendanceDescFilter(val)}
-                            className={`rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                            className={`rounded-sm px-2.5 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
                               attendanceDescFilter === val
-                                ? 'bg-[var(--brand)] text-white shadow-sm'
+                                ? 'bg-[var(--brand)] text-white'
                                 : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                             }`}
                           >
@@ -1346,14 +1269,14 @@ export const TutorAnalytics: React.FC = () => {
                       </div>
                       <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input type="search" aria-label="Search attendance students" placeholder="Search Student Name" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10" />
+                        <input type="search" aria-label="Search attendance students" placeholder="Search Student Name" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
                       </div>
                     </div>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                       <thead><tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]"><SortHeader field="student" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Student</SortHeader><SortHeader field="aralLevel" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>ARAL Level</SortHeader><SortHeader field="description" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>DESCRIPTION</SortHeader><SortHeader field="present" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Present</SortHeader><SortHeader field="absent" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Absent</SortHeader><SortHeader field="attendanceAverage" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Average Attendance Rate</SortHeader></tr></thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{attendanceDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : attendanceDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3.5 font-semibold text-gray-900 dark:text-slate-100">{row.student.full_name}</td><td className="px-4 py-3.5">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3.5 text-left"><span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${row.description !== 'Intervention Activity' ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300' : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{row.description}</span></td><td className="px-4 py-3.5 font-normal text-emerald-600">{row.present}</td><td className="px-4 py-3.5 font-normal text-rose-600">{row.absent}</td><td className="px-4 py-3.5 font-normal"><span className={`text-sm font-normal ${getAttendanceRateCls(row.attendanceAverage)}`}>{smartPct(row.attendanceAverage)}%</span></td></tr>)}</tbody>
+                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{attendanceDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : attendanceDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 text-left"><span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${row.description !== 'Intervention Activity' ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300' : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{row.description}</span></td><td className="px-4 py-3 font-normal text-emerald-600 text-xs">{row.present}</td><td className="px-4 py-3 font-normal text-rose-600 text-xs">{row.absent}</td><td className="px-4 py-3 font-normal"><span className={`text-xs font-medium ${getAttendanceRateCls(row.attendanceAverage)}`}>{smartPct(row.attendanceAverage)}%</span></td></tr>)}</tbody>
                     </table>
                   </div>
                 </div>
@@ -1365,34 +1288,34 @@ export const TutorAnalytics: React.FC = () => {
           {activeAnalyticsTab === 'score' && (
             <>
               {/* 3 Score Summary Cards */}
-              <div className="grid w-full gap-4 sm:grid-cols-3">
-                <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm min-h-[114px] flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
+              <div className="grid w-full gap-3 sm:grid-cols-3">
+                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 min-h-[100px] flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-md bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
                     <Check className="w-5 h-5 text-emerald-600" strokeWidth={3} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Passed Today</p>
-                    <p className="text-3xl font-extrabold text-emerald-900 mt-0.5">{scoreSummary.passed}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Passed Today</p>
+                    <p className="text-2xl font-extrabold text-emerald-900 mt-0.5">{scoreSummary.passed}</p>
                     <p className="mt-0.5 text-[11px] font-medium text-gray-500">Assessments scored ≥ 70% today</p>
                   </div>
                 </div>
-                <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5 shadow-sm min-h-[114px] flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
+                <div className="rounded-md border border-rose-200 bg-rose-50 p-4 min-h-[100px] flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-md bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
                     <X className="w-5 h-5 text-rose-600" strokeWidth={3} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Failed Today</p>
-                    <p className="text-3xl font-extrabold text-rose-900 mt-0.5">{scoreSummary.failed}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600">Failed Today</p>
+                    <p className="text-2xl font-extrabold text-rose-900 mt-0.5">{scoreSummary.failed}</p>
                     <p className="mt-0.5 text-[11px] font-medium text-gray-500">Assessments scored &lt; 70% today</p>
                   </div>
                 </div>
-                <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm min-h-[114px] flex items-center gap-4 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-                  <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${scoreMood.iconBg}`}>
-                    <scoreMood.icon className={`w-5 h-5 ${scoreMood.iconColor}`} />
+                <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                  <div className="w-10 h-10 rounded-md bg-indigo-100 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shrink-0">
+                    <BookOpen className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Score</p>
-                    <p className={`text-3xl font-extrabold mt-0.5 ${scoreMood.valueColor}`}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Score</p>
+                    <p className="text-2xl font-extrabold mt-0.5 text-gray-900 dark:text-slate-100">
                       {grades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? '—' : `${smartPct(avgScore)}%`}
                     </p>
                     <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Class average score rate</p>
@@ -1401,43 +1324,43 @@ export const TutorAnalytics: React.FC = () => {
               </div>
 
               {/* Score Trend Chart */}
-              <div className="w-full rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-                <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+              <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
                     <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS AVERAGE SCORE TREND CHART</h3>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
-                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0052B7] shadow-xs" />Average Score</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Average Score</span>
                     </div>
                     <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
                       <StudentRiskFilter rows={rows} value={scoreScope} onChange={setScoreScope} />
                     </label>
-                    <div className="flex rounded-xl bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Score trend period">
+                    <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Score trend period">
                       {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button key={filter} type="button" onClick={() => setScoreFilter(filter)} className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${scoreFilter === filter ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
+                        <button key={filter} type="button" onClick={() => setScoreFilter(filter)} className={`rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${scoreFilter === filter ? 'bg-[var(--brand)] text-white' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
                           {filter}
                         </button>
                       ))}
                     </div>
                   </div>
                 </div>
-                <div className="relative mt-6 h-56 w-full rounded-2xl border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+                <div className="relative mt-4 h-56 w-full rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
                   <TrendChart data={scoreTrend} color="#0052B7" emptyLabel="No score trend data" valueLabel={selectedScoreStudent ? selectedScoreStudent.full_name : 'Class Average Score'} />
                 </div>
               </div>
 
               {/* Student Score Details Table */}
-              <div className="w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+              <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
                 <div className="overflow-hidden">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
                     <div>
-                      <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">STUDENT SCORE DETAILS</h3>
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT SCORE DETAILS</h3>
                       <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{scoreDetails.length} Students</p>
                     </div>
                     <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
                       {/* Description Filter */}
-                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5 shrink-0">
+                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0">
                         {([
                           ['all', 'All'],
                           ['Intervention Activity', 'Intervention'],
@@ -1447,9 +1370,9 @@ export const TutorAnalytics: React.FC = () => {
                             key={val}
                             type="button"
                             onClick={() => setScoreDescFilter(val)}
-                            className={`rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                            className={`rounded-sm px-2.5 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
                               scoreDescFilter === val
-                                ? 'bg-[var(--brand)] text-white shadow-sm'
+                                ? 'bg-[var(--brand)] text-white'
                                 : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                             }`}
                           >
@@ -1459,14 +1382,14 @@ export const TutorAnalytics: React.FC = () => {
                       </div>
                       <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input type="search" aria-label="Search score students" placeholder="Search Student Name" value={scoreSearch} onChange={(event) => setScoreSearch(event.target.value)} className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10" />
+                        <input type="search" aria-label="Search score students" placeholder="Search Student Name" value={scoreSearch} onChange={(event) => setScoreSearch(event.target.value)} className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
                       </div>
                     </div>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                       <thead><tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]"><SortHeader field="student" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Student</SortHeader><SortHeader field="aralLevel" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>ARAL Level</SortHeader><SortHeader field="description" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>DESCRIPTION</SortHeader><SortHeader field="passed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Passed</SortHeader><SortHeader field="failed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Failed</SortHeader><SortHeader field="scoreAverage" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Average Score</SortHeader></tr></thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{scoreDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : scoreDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3.5 font-semibold text-gray-900 dark:text-slate-100">{row.student.full_name}</td><td className="px-4 py-3.5">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3.5 text-left"><span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${row.description !== 'Intervention Activity' ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300' : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{row.description}</span></td><td className="px-4 py-3.5 font-normal text-emerald-600">{row.passed}</td><td className="px-4 py-3.5 font-normal text-rose-600">{row.failed}</td><td className="px-4 py-3.5 font-normal"><span className={`text-sm font-normal ${getScoreAvgCls(row.scoreAverage)}`}>{smartPct(row.scoreAverage)}%</span></td></tr>)}</tbody>
+                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{scoreDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : scoreDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 text-left"><span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${row.description !== 'Intervention Activity' ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300' : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{row.description}</span></td><td className="px-4 py-3 font-normal text-emerald-600 text-xs">{row.passed}</td><td className="px-4 py-3 font-normal text-rose-600 text-xs">{row.failed}</td><td className="px-4 py-3 font-normal"><span className={`text-xs font-medium ${getScoreAvgCls(row.scoreAverage)}`}>{smartPct(row.scoreAverage)}%</span></td></tr>)}</tbody>
                     </table>
                   </div>
                 </div>

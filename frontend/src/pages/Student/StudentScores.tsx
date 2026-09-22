@@ -12,9 +12,6 @@ import {
   ArrowUpDown,
   Check,
   X,
-  Smile,
-  Meh,
-  Frown,
   AlertCircle,
   BookOpen,
 } from 'lucide-react';
@@ -298,38 +295,7 @@ export const StudentScores: React.FC = () => {
     return grades.some((g) => g.remarks?.trim().toLowerCase() !== 'not taken');
   }, [grades]);
 
-  const scoreMood = useMemo(() => {
-    if (!hasScoreData) {
-      return {
-        icon: Smile,
-        iconBg: 'bg-gray-100 border-gray-200 dark:bg-[#1A1A1A] dark:border-[#262626]',
-        iconColor: 'text-gray-400 dark:text-slate-500',
-        valueColor: 'text-gray-400 dark:text-slate-500',
-      };
-    }
-    if (calculatedAvgScore >= 81) {
-      return {
-        icon: Smile,
-        iconBg: 'bg-emerald-100 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800/60',
-        iconColor: 'text-emerald-600 dark:text-emerald-400',
-        valueColor: 'text-emerald-600 dark:text-emerald-400',
-      };
-    }
-    if (calculatedAvgScore >= 75) {
-      return {
-        icon: Meh,
-        iconBg: 'bg-amber-100 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800/60',
-        iconColor: 'text-amber-600 dark:text-amber-400',
-        valueColor: 'text-amber-600 dark:text-amber-400',
-      };
-    }
-    return {
-      icon: Frown,
-      iconBg: 'bg-rose-100 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800/60',
-      iconColor: 'text-rose-600 dark:text-rose-400',
-      valueColor: 'text-rose-600 dark:text-rose-400',
-    };
-  }, [calculatedAvgScore, hasScoreData]);
+
 
   // ── Filter by search & jumpDate ──
   const filteredGrades = useMemo(() => {
@@ -561,39 +527,39 @@ export const StudentScores: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="space-y-6 skeleton-container" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <div className="space-y-4 skeleton-container" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
         {/* KPI containers skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 skeleton-row-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 skeleton-row-1">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm flex items-center gap-4 animate-pulse"
+              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 flex items-center gap-3.5 animate-pulse"
             >
-              <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-800 shrink-0" />
+              <div className="w-10 h-10 rounded-md bg-gray-200 dark:bg-gray-800 shrink-0" />
               <div className="space-y-2 flex-1">
                 <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-7 w-16 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-2.5 w-36 rounded bg-gray-100 dark:bg-gray-800" />
+                <div className="h-6 w-16 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-2 w-36 rounded bg-gray-100 dark:bg-gray-800" />
               </div>
             </div>
           ))}
         </div>
 
         {/* Score Entries Table skeleton */}
-        <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm overflow-hidden skeleton-row-2">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
-            <div className="space-y-1.5">
+        <div className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] overflow-hidden skeleton-row-2">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <div className="space-y-1">
               <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
               <div className="h-3 w-28 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
             <div className="flex items-center gap-2">
-              <div className="h-9 w-28 rounded-xl bg-gray-100 dark:bg-gray-800" />
-              <div className="h-9 w-9 rounded-xl bg-gray-100 dark:bg-gray-800" />
+              <div className="h-8 w-28 rounded-md bg-gray-100 dark:bg-gray-800" />
+              <div className="h-8 w-8 rounded-md bg-gray-100 dark:bg-gray-800" />
             </div>
           </div>
-          <div className="p-4 sm:p-6 space-y-3">
+          <div className="p-4 sm:p-5 space-y-2">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-14 rounded-2xl bg-gray-100 dark:bg-gray-800/60" />
+              <div key={i} className="h-12 rounded-md bg-gray-100 dark:bg-gray-800/60" />
             ))}
           </div>
         </div>
@@ -602,41 +568,41 @@ export const StudentScores: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+    <div className="space-y-4 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
       {/* ── Top KPI Stat Containers ──────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* TOTAL PASSED */}
-        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 dark:border-emerald-800/40 dark:bg-emerald-950/20 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-emerald-100 dark:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center shrink-0">
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800/40 dark:bg-emerald-950/20 p-4 flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-md bg-emerald-100 dark:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center shrink-0">
             <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">TOTAL PASSED</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">TOTAL PASSED</p>
             <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{passedCount}</p>
             <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s total passed score records</p>
           </div>
         </div>
 
         {/* TOTAL FAILED */}
-        <div className="rounded-3xl border border-rose-200 bg-rose-50 dark:border-rose-800/40 dark:bg-rose-950/20 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-rose-100 dark:bg-rose-900/50 border border-rose-200 dark:border-rose-800/60 flex items-center justify-center shrink-0">
+        <div className="rounded-md border border-rose-200 bg-rose-50 dark:border-rose-800/40 dark:bg-rose-950/20 p-4 flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-md bg-rose-100 dark:bg-rose-900/50 border border-rose-200 dark:border-rose-800/60 flex items-center justify-center shrink-0">
             <X className="w-5 h-5 text-rose-600 dark:text-rose-400" strokeWidth={3} />
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">TOTAL FAILED</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">TOTAL FAILED</p>
             <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{failedCount}</p>
             <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s total failed score records</p>
           </div>
         </div>
 
         {/* AVERAGE SCORE */}
-        <div className="rounded-3xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-5 shadow-sm flex items-center gap-4">
-          <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${scoreMood.iconBg}`}>
-            <scoreMood.icon className={`w-5 h-5 ${scoreMood.iconColor}`} />
+        <div className="rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-4 flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-md bg-indigo-100 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shrink-0">
+            <BookOpen className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE SCORE</p>
-            <p className={`text-2xl font-extrabold mt-0.5 ${scoreMood.valueColor}`}>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE SCORE</p>
+            <p className="text-2xl font-extrabold mt-0.5 text-gray-900 dark:text-slate-100">
               {hasScoreData ? `${smartPct(calculatedAvgScore)}%` : '—'}
             </p>
             <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s average score</p>
@@ -645,12 +611,12 @@ export const StudentScores: React.FC = () => {
       </div>
 
       {/* ── Scores History Container ──────────────────────────────────── */}
-      <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm relative">
+      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
         {/* Header & Controls Toolbar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
           <div>
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">
-              {studentFirstName}'S SCORES HISTORY
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm uppercase">
+              {studentFirstName}'s Scores History
             </h3>
             <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
               {visibleRecordsCount} Record{visibleRecordsCount !== 1 ? 's' : ''}
@@ -660,7 +626,7 @@ export const StudentScores: React.FC = () => {
           {/* Filter controls */}
           <div className="flex flex-wrap items-center gap-2">
             {/* View mode toggle (DAY / WEEK / MONTH) */}
-            <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5">
+            <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5">
               {(['day', 'week', 'month'] as const).map((mode) => (
                 <button
                   key={mode}
@@ -669,8 +635,8 @@ export const StudentScores: React.FC = () => {
                     setViewMode(mode);
                     setJumpDate(null);
                   }}
-                  className={`h-8 whitespace-nowrap rounded-lg px-3 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
-                    ? 'bg-[var(--brand)] text-white shadow-sm'
+                  className={`h-7 whitespace-nowrap rounded-sm px-3 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
+                    ? 'bg-[var(--brand)] text-white'
                     : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                     }`}
                 >
@@ -684,9 +650,9 @@ export const StudentScores: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border p-0 transition-all ${jumpDate
-                  ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                  : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
+                className={`flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border p-0 transition-all ${jumpDate
+                  ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
+                  : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)]'
                   }`}
                 title="Select a specific date from calendar"
                 aria-label="Open score calendar"
@@ -715,7 +681,7 @@ export const StudentScores: React.FC = () => {
 
         {/* Jump-to-date active chip */}
         {jumpDate && (
-          <div className="flex items-center gap-2 px-6 py-2 border-b border-gray-50 dark:border-[#1A1A1A] bg-emerald-50/60 dark:bg-emerald-950/20">
+          <div className="flex items-center gap-2 px-5 py-2 border-b border-gray-50 dark:border-[#1A1A1A] bg-emerald-50/60 dark:bg-emerald-950/20">
             <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
               {new Date(jumpDate + 'T00:00:00').toLocaleDateString(undefined, {
@@ -736,9 +702,9 @@ export const StudentScores: React.FC = () => {
         )}
 
         {/* Content */}
-        <div className="p-4 sm:p-6">
+        <div className="p-4 sm:p-5">
           {error ? (
-            <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-md p-4">
               <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold">Failed to load scores</p>

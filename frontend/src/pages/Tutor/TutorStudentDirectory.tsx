@@ -9,11 +9,11 @@ import { User as UserIcon, Search, ArrowUpDown, Users, ChevronUp, ChevronDown, B
 
 /* ─── Badge helpers ────────────────────────────────────────────── */
 const getAralBadge = (level?: string | null) => {
-  switch (level) {
-    case 'plus': return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">Plus</span>;
-    case 'summer': return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">Summer</span>;
-    case 'graduated': return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">Graduated</span>;
-    default: return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">Basic</span>;
+  switch (level?.toLowerCase()) {
+    case 'plus': return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200">Plus</span>;
+    case 'summer': return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Summer</span>;
+    case 'graduated': return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Graduated</span>;
+    default: return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200">Basic</span>;
   }
 };
 
@@ -165,41 +165,41 @@ export const TutorStudentDirectory: React.FC = () => {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm animate-pulse flex items-center gap-4"
+              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 animate-pulse flex items-center gap-4"
             >
-              <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 shrink-0" />
+              <div className="w-10 h-10 rounded-md bg-gray-200 dark:bg-gray-800 shrink-0" />
               <div className="space-y-2 flex-1">
                 <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-7 w-16 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-6 w-16 rounded bg-gray-200 dark:bg-gray-800" />
               </div>
             </div>
           ))}
         </div>
 
         {/* Directory Table Card skeleton */}
-        <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm animate-pulse skeleton-row-2">
+        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] animate-pulse skeleton-row-2">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="space-y-1.5">
               <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
               <div className="h-3 w-24 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
             <div className="flex items-center gap-2">
-              <div className="h-9 w-52 rounded-xl bg-gray-100 dark:bg-gray-800" />
-              <div className="h-9 w-28 rounded-xl bg-gray-100 dark:bg-gray-800" />
+              <div className="h-8.5 w-52 rounded-md bg-gray-100 dark:bg-gray-800" />
+              <div className="h-8.5 w-28 rounded-md bg-gray-100 dark:bg-gray-800" />
             </div>
           </div>
 
           <div className="p-6 space-y-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="flex items-center gap-4 py-2.5 border-b border-gray-50 dark:border-gray-900/50">
-                <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-800 shrink-0" />
+              <div key={i} className="flex items-center gap-4 py-2 border-b border-gray-50 dark:border-gray-900/50">
+                <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-800 shrink-0" />
                 <div className="space-y-1.5 flex-1">
                   <div className="h-3.5 w-36 rounded bg-gray-200 dark:bg-gray-800" />
                   <div className="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800" />
                 </div>
                 <div className="h-4 w-20 rounded bg-gray-100 dark:bg-gray-800 hidden md:block" />
-                <div className="h-6 w-16 rounded-full bg-gray-200 dark:bg-gray-800" />
-                <div className="h-8 w-8 rounded-xl bg-gray-200 dark:bg-gray-800" />
+                <div className="h-5 w-16 rounded-full bg-gray-200 dark:bg-gray-800" />
+                <div className="h-6 w-6 rounded-md bg-gray-200 dark:bg-gray-800" />
               </div>
             ))}
           </div>
@@ -210,7 +210,7 @@ export const TutorStudentDirectory: React.FC = () => {
 
   if (error) {
     return (
-      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm">
+      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-md p-5">
         <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-bold">Failed to load student directory</p>
@@ -218,7 +218,7 @@ export const TutorStudentDirectory: React.FC = () => {
           <button
             type="button"
             onClick={fetchData}
-            className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
+            className="mt-3 px-3.5 py-1.5 bg-rose-600 text-white rounded-md text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
           >
             Retry
           </button>
@@ -231,8 +231,8 @@ export const TutorStudentDirectory: React.FC = () => {
     <div className="space-y-6 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/70 flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
+        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-md bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#222222] flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
             <Users className="w-5 h-5" />
           </div>
           <div>
@@ -240,8 +240,8 @@ export const TutorStudentDirectory: React.FC = () => {
             <p className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">{students.length}</p>
           </div>
         </div>
-        <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/70 flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
+        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-md bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#222222] flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
             <BookOpen className="w-5 h-5" />
           </div>
           <div className="min-w-0">
@@ -249,8 +249,8 @@ export const TutorStudentDirectory: React.FC = () => {
             <p className="mt-0.5 truncate text-xl font-extrabold text-gray-900 dark:text-slate-100" title={directorySubjects.join(', ')}>{directorySubjects.join(', ')}</p>
           </div>
         </div>
-        <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/70 flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
+        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-md bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#222222] flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
             <Layers className="w-5 h-5" />
           </div>
           <div className="min-w-0">
@@ -262,20 +262,20 @@ export const TutorStudentDirectory: React.FC = () => {
 
       {/* ── States ────────────────────────────────────────────────── */}
       {students.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-10 text-center space-y-3">
-          <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center mx-auto">
-            <Users className="w-8 h-8 text-gray-300" />
+        <div className="bg-white dark:bg-[#111111] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-10 text-center space-y-3">
+          <div className="w-14 h-14 rounded-md bg-gray-50 dark:bg-[#161616] border border-gray-200 dark:border-[#1A1A1A] flex items-center justify-center mx-auto">
+            <Users className="w-7 h-7 text-gray-300 dark:text-slate-600" />
           </div>
-          <p className="text-base font-bold text-gray-800">No students assigned yet</p>
-          <p className="text-xs text-gray-400 max-w-sm mx-auto">Ask your administrator to assign student accounts so you can track performance and attendance.</p>
+          <p className="text-base font-bold text-gray-800 dark:text-slate-200">No students assigned yet</p>
+          <p className="text-xs text-gray-400 dark:text-slate-500 max-w-sm mx-auto">Ask your administrator to assign student accounts so you can track performance and attendance.</p>
         </div>
       ) : (
-        <div className="rounded-3xl border border-gray-200 bg-white shadow-sm relative">
+        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative">
           {/* Section header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div>
-              <h3 className="font-bold text-gray-900 text-base uppercase">ASSIGNED STUDENTS DETAILS</h3>
-              <p className="mt-0.5 text-xs font-medium text-gray-500">
+              <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">ASSIGNED STUDENTS DETAILS</h3>
+              <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
                 {filteredAndSorted.length} Student{filteredAndSorted.length !== 1 ? 's' : ''}
               </p>
             </div>
@@ -288,10 +288,10 @@ export const TutorStudentDirectory: React.FC = () => {
                   value={selectedSchoolYear}
                   onChange={(e) => setSelectedSchoolYear(e.target.value)}
                   aria-label="Filter by School Year"
-                  className="h-9 appearance-none rounded-xl border border-[var(--brand-border)] bg-[var(--brand-light)]/50 pl-3.5 pr-8 text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-[var(--brand-light)] focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-xs"
+                  className="h-8.5 appearance-none rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-3 pr-8 text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer"
                 >
                   {schoolYearOptions.map((opt) => (
-                    <option key={opt.key} value={opt.key} className="bg-white text-gray-800 font-medium">
+                    <option key={opt.key} value={opt.key} className="bg-white dark:bg-[#111111] text-gray-800 dark:text-slate-200 font-medium">
                       {opt.label}
                     </option>
                   ))}
@@ -307,7 +307,7 @@ export const TutorStudentDirectory: React.FC = () => {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   aria-label="Search assigned students"
-                  className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10"
+                  className="h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-9 pr-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
                 />
               </label>
             </div>
@@ -317,15 +317,15 @@ export const TutorStudentDirectory: React.FC = () => {
           <div className="p-4 sm:p-6">
             {filteredAndSorted.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-12 text-center">
-                <Users className="w-10 h-10 text-gray-200" />
-                <p className="text-sm font-semibold text-gray-500">No matching students found</p>
-                <p className="text-xs text-gray-400">Try a different student name or LRN</p>
+                <Users className="w-10 h-10 text-gray-200 dark:text-gray-700" />
+                <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No matching students found</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">Try a different student name or LRN</p>
               </div>
             ) : (
               <div className="overflow-x-auto -mx-2 px-2">
-                <table className="min-w-[680px] w-full divide-y divide-gray-100 text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                   <thead>
-                    <tr className="divide-x divide-gray-100 bg-gray-50">
+                    <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
                       <th className="w-12 px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
                         #
                       </th>
@@ -346,30 +346,30 @@ export const TutorStudentDirectory: React.FC = () => {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
+                  <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
                     {filteredAndSorted.map((row, index) => (
-                      <tr key={row.student.id} className="group divide-x divide-gray-100 transition-colors hover:bg-gray-50/80">
-                        <td className="px-3 py-3 text-center text-xs font-normal text-gray-400 whitespace-nowrap">
+                      <tr key={row.student.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
+                        <td className="px-3 py-2.5 text-center text-xs font-normal text-gray-400 whitespace-nowrap">
                           {index + 1}
                         </td>
-                        <td className="px-4 py-3 font-semibold text-gray-800">
+                        <td className="px-4 py-2.5 font-semibold text-gray-800 dark:text-slate-100">
                           <div className="flex items-center gap-2.5">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${avatarColor(row.student.full_name || '')}`}>
-                              <UserIcon className="w-3.5 h-3.5" />
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs ${avatarColor(row.student.full_name || '')}`}>
+                              <UserIcon className="w-3 h-3" />
                             </div>
-                            <span className="truncate font-semibold text-gray-800">{row.student.full_name}</span>
+                            <span className="truncate font-semibold text-gray-800 dark:text-slate-100">{row.student.full_name}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs font-normal font-mono">
+                        <td className="px-4 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs font-normal font-mono">
                           {row.student.lrn || 'N/A'}
                         </td>
-                        <td className="px-4 py-3 text-gray-700 whitespace-nowrap text-xs font-normal">
+                        <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-normal">
                           {row.student.sex || row.student.gender || '—'}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-4 py-2.5 whitespace-nowrap">
                           {getAralBadge(row.student.aral_level)}
                         </td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                        <td className="px-4 py-2.5 text-center whitespace-nowrap">
                           <Link
                             to={`/tutor/students/${row.student.id}`}
                             className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] transition-colors cursor-pointer p-1"

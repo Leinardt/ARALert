@@ -173,24 +173,24 @@ const CustomCalendarDropdown: React.FC<{
   return (
     <div
       ref={dropdownRef}
-      className={`${className || 'absolute right-0 top-full mt-2'} z-[60] w-72 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xl font-sans select-none text-slate-800 animate-in fade-in zoom-in-95 duration-150`}
+      className={`${className || 'absolute right-0 top-full mt-2'} z-[60] w-72 rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-xl font-sans select-none text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150`}
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif", ...style }}
     >
       {/* Month & Navigation in Poppins */}
-      <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+      <div className="flex items-center justify-between pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
         <button
           type="button"
           onClick={prevMonth}
-          className="rounded-lg p-1.5 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+          className="rounded-md p-1.5 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] text-slate-600 dark:text-slate-400 transition cursor-pointer"
           aria-label="Previous Month"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="font-bold text-xs text-slate-900 tracking-wide">{monthName}</span>
+        <span className="font-bold text-xs text-slate-900 dark:text-slate-100 tracking-wide">{monthName}</span>
         <button
           type="button"
           onClick={nextMonth}
-          className="rounded-lg p-1.5 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+          className="rounded-md p-1.5 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] text-slate-600 dark:text-slate-400 transition cursor-pointer"
           aria-label="Next Month"
         >
           <ChevronRight className="w-4 h-4" />
@@ -228,13 +228,13 @@ const CustomCalendarDropdown: React.FC<{
                 onSelectDate(cellDateKey);
                 onClose();
               }}
-              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-lg text-xs font-semibold transition-all cursor-pointer ${isSelected
-                ? 'bg-[var(--brand)] text-white font-bold shadow-sm'
+              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${isSelected
+                ? 'bg-[var(--brand)] text-white font-bold'
                 : isToday
                   ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
                   : hasLogs
-                    ? 'bg-slate-100 text-slate-800 font-semibold hover:bg-slate-200'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    ? 'bg-slate-100 dark:bg-[#1A1A1A] text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-200 dark:hover:bg-[#222222]'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1A1A1A]'
                 }`}
             >
               <span>{dayNum}</span>
@@ -247,7 +247,7 @@ const CustomCalendarDropdown: React.FC<{
       </div>
 
       {/* Footer shortcut buttons */}
-      <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] font-semibold">
+      <div className="mt-3 flex items-center justify-between pt-2 border-t border-gray-100 dark:border-[#1A1A1A] text-[11px] font-semibold">
         <button
           type="button"
           onClick={() => {
@@ -433,9 +433,9 @@ const AttendanceTable: React.FC<{
 
   return (
     <div className="overflow-x-auto -mx-2 px-2">
-      <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-slate-700 text-sm">
+      <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
         <thead>
-          <tr className="divide-x divide-gray-100 dark:divide-slate-700 bg-gray-50 dark:bg-slate-900">
+          <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
             <th className="w-[28%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="STUDENT" sortKey="student" /></th>
             <th className="w-[22%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="DESCRIPTION" sortKey="description" /></th>
             <th className="w-[18%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="DATE" sortKey="date" /></th>
@@ -444,18 +444,18 @@ const AttendanceTable: React.FC<{
             <th className="w-[8%] px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">ACTIONS</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-700 dark:bg-slate-900">
+        <tbody className="divide-y divide-gray-100 bg-white dark:divide-[#1A1A1A] dark:bg-[#111111]">
           {sortedLogs.map((log) => (
-            <tr key={log.id} className="group divide-x divide-gray-100 dark:divide-slate-700 transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800">
-              <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
+            <tr key={log.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
+              <td className="px-4 py-2.5 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
                 {log.user_name}
               </td>
-              <td className="px-4 py-3 text-left">
+              <td className="px-4 py-2.5 text-left">
                 {editingId === log.id ? (
                   <select
                     value={editDescription}
                     onChange={(event) => setEditDescription(event.target.value as EntryDescriptionType)}
-                    className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none focus:border-[var(--brand)]"
+                    className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#161616] px-2 py-1 text-xs text-gray-700 dark:text-slate-200 outline-none focus:border-[var(--brand)]"
                   >
                     <option value="Intervention Activity">Intervention Activity</option>
                     <option value={assignedMilestone}>{assignedMilestone}</option>
@@ -464,7 +464,7 @@ const AttendanceTable: React.FC<{
                     {assignedMilestone !== 'EOSY' && <option value="EOSY">EOSY</option>}
                   </select>
                 ) : (
-                  <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
+                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${
                     getAttendanceDescription(log) !== 'Intervention Activity'
                       ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
                       : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
@@ -473,10 +473,10 @@ const AttendanceTable: React.FC<{
                   </span>
                 )}
               </td>
-              <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
+              <td className="px-4 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
                 {editingId === log.id ? (
                   <div className="relative inline-block">
-                    <button type="button" onClick={(event) => togglePicker('date', event)} className="h-9 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700" style={{ color: editDate ? '#1f2937' : '#9ca3af' }}>
+                    <button type="button" onClick={(event) => togglePicker('date', event)} className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700" style={{ color: editDate ? '#1f2937' : '#9ca3af' }}>
                       {editDate || 'Select date'}
                     </button>
                     {openPicker === 'date' && createPortal(
@@ -494,28 +494,28 @@ const AttendanceTable: React.FC<{
                   </div>
                 ) : formatDateString(log.date)}
               </td>
-              <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
+              <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
                 {editingId === log.id ? (
                   <div className="relative inline-block">
-                    <button type="button" onClick={(event) => togglePicker('time', event)} className="h-9 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700" style={{ color: editTimeIn ? '#1f2937' : '#9ca3af' }}>
+                    <button type="button" onClick={(event) => togglePicker('time', event)} className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700" style={{ color: editTimeIn ? '#1f2937' : '#9ca3af' }}>
                       {formatEditTime(editTimeIn)}
                     </button>
                     {openPicker === 'time' && createPortal(
-                      <div className="absolute z-[60] w-64 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xl font-sans text-slate-800 animate-in fade-in zoom-in-95 duration-150" style={{ top: pickerPosition.top, left: pickerPosition.left, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                      <div className="absolute z-[60] w-64 rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-xl font-sans text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150" style={{ top: pickerPosition.top, left: pickerPosition.left, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                         <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Set time</p>
                         <div className="grid grid-cols-3 gap-2">
-                          <select value={String(Number(editTimeIn ? editTimeIn.split(':')[0] : 0) % 12 || 12)} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'hour', event.target.value))} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-[var(--brand)]">
+                          <select value={String(Number(editTimeIn ? editTimeIn.split(':')[0] : 0) % 12 || 12)} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'hour', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)]">
                             {Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}
                           </select>
-                          <select value={String(Number(editTimeIn ? editTimeIn.split(':')[1] : 0)).padStart(2, '0')} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'minute', event.target.value))} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-[var(--brand)]">
+                          <select value={String(Number(editTimeIn ? editTimeIn.split(':')[1] : 0)).padStart(2, '0')} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'minute', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)]">
                             {Array.from({ length: 60 }, (_, index) => <option key={index} value={String(index).padStart(2, '0')}>{String(index).padStart(2, '0')}</option>)}
                           </select>
-                          <select value={editTimeIn && Number(editTimeIn.split(':')[0]) >= 12 ? 'PM' : 'AM'} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'period', event.target.value))} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-[var(--brand)]">
+                          <select value={editTimeIn && Number(editTimeIn.split(':')[0]) >= 12 ? 'PM' : 'AM'} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'period', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)]">
                             <option value="AM">AM</option>
                             <option value="PM">PM</option>
                           </select>
                         </div>
-                        <div className="mt-3 flex items-center justify-end border-t border-slate-100 pt-2.5 text-[11px] font-semibold">
+                        <div className="mt-3 flex items-center justify-end border-t border-gray-100 dark:border-[#1A1A1A] pt-2 text-[11px] font-semibold">
                           <button type="button" onClick={() => setOpenPicker(null)} className="text-[var(--brand)] transition hover:underline">Done</button>
                         </div>
                       </div>,
@@ -524,9 +524,9 @@ const AttendanceTable: React.FC<{
                   </div>
                 ) : formatTimeString(log.time_in)}
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-2.5">
                 {editingId === log.id ? (
-                  <select value={editStatus} onChange={(event) => setEditStatus(event.target.value as Attendance['status'])} className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none focus:border-[var(--brand)]">
+                  <select value={editStatus} onChange={(event) => setEditStatus(event.target.value as Attendance['status'])} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#161616] px-2 py-1 text-xs text-gray-700 dark:text-slate-200 outline-none focus:border-[var(--brand)]">
                     <option value="present">Present</option>
                     <option value="absent">Absent</option>
                   </select>
@@ -534,18 +534,18 @@ const AttendanceTable: React.FC<{
                   statusBadge(log.status, log.status_display)
                 )}
               </td>
-              <td className="px-4 py-3 text-center">
+              <td className="px-4 py-2.5 text-center">
                 {editingId === log.id ? (
                   <div className="inline-flex items-center gap-1.5">
-                    <button type="button" onClick={saveEditing} disabled={isSaving} className="rounded-lg p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50" aria-label="Save attendance changes" title="Save attendance changes">
+                    <button type="button" onClick={saveEditing} disabled={isSaving} className="rounded-md p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50" aria-label="Save attendance changes" title="Save attendance changes">
                       <Check className="w-3.5 h-3.5" />
                     </button>
-                    <button type="button" onClick={cancelEditing} disabled={isSaving} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 disabled:opacity-50" aria-label="Cancel attendance changes" title="Cancel attendance changes">
+                    <button type="button" onClick={cancelEditing} disabled={isSaving} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 disabled:opacity-50" aria-label="Cancel attendance changes" title="Cancel attendance changes">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => startEditing(log)} className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700" aria-label={`Edit attendance for ${log.user_name}`} title="Edit attendance">
+                  <button type="button" onClick={() => startEditing(log)} className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700" aria-label={`Edit attendance for ${log.user_name}`} title="Edit attendance">
                     <Edit3 className="w-3.5 h-3.5" />
                   </button>
                 )}
@@ -1166,15 +1166,15 @@ export const TutorQRGenerator: React.FC = () => {
 
         {/* ── LEFT: QR Generator ─────────────────────────────────── */}
         <div className="lg:col-span-7">
-          <div className="h-full rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="h-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden">
 
             {/* Card Header */}
-            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100">
+            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h2 className="text-base font-bold text-gray-900">SESSION SETUP</h2>
+                <h2 className="text-base font-bold text-gray-900 dark:text-slate-100">SESSION SETUP</h2>
               </div>
               {session && (
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border ${session.is_active
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border ${session.is_active
                   ? 'bg-[var(--brand-light)] text-[var(--brand)] border-[var(--brand-border)]'
                   : 'bg-red-50 text-red-600 border-red-200'
                   }`}>
@@ -1187,20 +1187,20 @@ export const TutorQRGenerator: React.FC = () => {
             <div className="p-6 flex flex-col gap-5">
 
               {!session && (
-                <div className="order-2 rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-4">
+                <div className="order-2 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/60 dark:bg-[#161616] p-4 space-y-4">
                   {/* Description Option */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-2">
+                    <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-2">
                       Description
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => handleDescriptionOptionClick('Intervention Activity')}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        className={`py-2 px-3 rounded-md text-xs font-bold border transition-all cursor-pointer ${
                           sessionDescription === 'Intervention Activity'
-                            ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-[var(--brand)] hover:text-[var(--brand)]'
+                            ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
+                            : 'bg-white dark:bg-[#111111] text-gray-600 dark:text-slate-300 border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:text-[var(--brand)]'
                         }`}
                       >
                         Intervention Activity
@@ -1208,10 +1208,10 @@ export const TutorQRGenerator: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleDescriptionOptionClick(assignedMilestone)}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        className={`py-2 px-3 rounded-md text-xs font-bold border transition-all cursor-pointer ${
                           sessionDescription === assignedMilestone
-                            ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-[var(--brand)] hover:text-[var(--brand)]'
+                            ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
+                            : 'bg-white dark:bg-[#111111] text-gray-600 dark:text-slate-300 border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:text-[var(--brand)]'
                         }`}
                       >
                         {assignedMilestone}
@@ -1221,7 +1221,7 @@ export const TutorQRGenerator: React.FC = () => {
 
                   {/* Duration */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-3">
+                    <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-3">
                       Duration
                     </label>
                     <div className="grid grid-cols-4 gap-2">
@@ -1230,9 +1230,9 @@ export const TutorQRGenerator: React.FC = () => {
                           key={mins}
                           type="button"
                           onClick={() => setExpiresIn(mins)}
-                          className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${expiresIn === mins
-                            ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-[var(--brand)] hover:text-[var(--brand)]'
+                          className={`py-2 rounded-md text-xs font-bold border transition-all cursor-pointer ${expiresIn === mins
+                            ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
+                            : 'bg-white dark:bg-[#111111] text-gray-600 dark:text-slate-300 border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:text-[var(--brand)]'
                             }`}
                         >
                           {mins}m
@@ -1248,7 +1248,7 @@ export const TutorQRGenerator: React.FC = () => {
                 <button
                   onClick={generateStudentQR}
                   disabled={isLoading}
-                  className="order-3 w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-3 rounded-2xl text-sm font-bold shadow-sm transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="order-3 w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2.5 rounded-md text-sm font-bold transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
                     <>
@@ -1263,7 +1263,7 @@ export const TutorQRGenerator: React.FC = () => {
                 <button
                   onClick={handleGenerateNewClick}
                   disabled={isLoading}
-                  className="order-3 w-full flex items-center justify-center gap-2 border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand-light)] py-2.5 rounded-2xl text-sm font-bold transition-all cursor-pointer disabled:opacity-70"
+                  className="order-3 w-full flex items-center justify-center gap-2 border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand-light)] py-2.5 rounded-md text-sm font-bold transition-all cursor-pointer disabled:opacity-70"
                 >
                   <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                   {isLoading ? 'Creating...' : 'Generate New QR Code'}
@@ -1271,7 +1271,7 @@ export const TutorQRGenerator: React.FC = () => {
               )}
 
               {error && (
-                <div className="order-4 flex items-start gap-2.5 w-full bg-red-50 border border-red-200 text-red-800 text-xs rounded-xl p-3">
+                <div className="order-4 flex items-start gap-2.5 w-full bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-800 dark:text-red-300 text-xs rounded-md p-3">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
                   {error}
                 </div>
@@ -1279,29 +1279,29 @@ export const TutorQRGenerator: React.FC = () => {
 
               {/* QR Display */}
               <div className="order-1 mx-auto w-full max-w-sm">
-                <div className="relative flex min-h-[300px] items-center justify-center rounded-3xl border-2 border-dashed border-gray-200 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-900/60 p-4 overflow-hidden">
+                <div className="relative flex min-h-[300px] items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-4 overflow-hidden">
 
                   {/* Corner scan-frame decorations */}
                   {session && session.is_active && (
                     <>
-                      <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-md" />
-                      <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-md" />
-                      <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-md" />
-                      <span className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[var(--brand)] rounded-br-md" />
+                      <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-xs" />
+                      <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-xs" />
+                      <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-xs" />
+                      <span className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[var(--brand)] rounded-br-xs" />
                     </>
                   )}
 
                   {session ? (
                     <>
-                      <div className="flex h-[264px] w-[264px] items-center justify-center rounded-2xl border border-gray-200 dark:border-slate-600 bg-white p-3 shadow-md">
-                        <canvas ref={canvasRef} className="block h-full w-full rounded-xl" />
+                      <div className="flex h-[264px] w-[264px] items-center justify-center rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white p-3">
+                        <canvas ref={canvasRef} className="block h-full w-full rounded-sm" />
                       </div>
 
                       {/* Expired overlay */}
                       {!session.is_active && (
-                        <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center p-6 gap-3">
-                          <div className="w-14 h-14 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/50 flex items-center justify-center">
-                            <Clock className="w-7 h-7 text-red-500" />
+                        <div className="absolute inset-0 bg-white/95 dark:bg-[#111111]/95 backdrop-blur-sm rounded-md flex flex-col items-center justify-center p-6 gap-3">
+                          <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/50 flex items-center justify-center">
+                            <Clock className="w-6 h-6 text-red-500" />
                           </div>
                           <div className="text-center">
                             <p className="font-bold text-gray-900 dark:text-slate-100 text-sm">Session Expired</p>
@@ -1315,7 +1315,7 @@ export const TutorQRGenerator: React.FC = () => {
                               setScannedStudents([]);
                               void fetchAttendanceHistory();
                             }}
-                            className="mt-1 px-5 py-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                            className="mt-1 px-4 py-1.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-md text-xs font-bold transition-all cursor-pointer"
                           >
                             Reset
                           </button>
@@ -1324,8 +1324,8 @@ export const TutorQRGenerator: React.FC = () => {
                     </>
                   ) : (
                     <div className="flex flex-col items-center gap-3 py-8">
-                      <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center">
-                        <QrCode className="w-8 h-8 text-gray-300 dark:text-slate-600" />
+                      <div className="w-14 h-14 rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] flex items-center justify-center">
+                        <QrCode className="w-7 h-7 text-gray-300 dark:text-slate-600" />
                       </div>
                       <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center max-w-[180px]">
                         Your QR code appears here
@@ -1346,9 +1346,9 @@ export const TutorQRGenerator: React.FC = () => {
                         </div>
                         <span className="text-sm font-bold font-mono text-gray-900 dark:text-slate-100">{formatTime(timeLeft)}</span>
                       </div>
-                      <div className="h-2.5 w-full rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden">
+                      <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-[#222222] overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-black dark:bg-white transition-all duration-1000"
+                          className="h-full rounded-full bg-[var(--brand)] transition-all duration-1000"
                           style={{ width: `${100 - progressPct}%` }}
                         />
                       </div>
@@ -1379,12 +1379,12 @@ export const TutorQRGenerator: React.FC = () => {
 
         {/* ── RIGHT: Live Check-in Feed ──────────────────────────── */}
         <div className="lg:col-span-5">
-          <div className="flex h-full min-h-[480px] flex-col rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="flex h-full min-h-[480px] flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden">
 
             {/* Feed header */}
-            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100">
+            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h3 className="font-bold text-gray-900 text-base">RECENT STUDENT QR SCANS</h3>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">RECENT STUDENT QR SCANS</h3>
               </div>
               <div>
                 <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
@@ -1397,28 +1397,28 @@ export const TutorQRGenerator: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {scannedStudents.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-3 min-h-[280px]">
-                  <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center">
-                    <UserCheck className="w-8 h-8 text-gray-300 stroke-[1.5]" />
+                  <div className="w-14 h-14 rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] flex items-center justify-center">
+                    <UserCheck className="w-7 h-7 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
                   </div>
                   <div>
                     <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center whitespace-nowrap">Students that scan the QR code appears here</p>
                   </div>
                   {!session && (
-                    <p className="text-[11px] text-gray-300 font-medium">Generate a QR session to begin</p>
+                    <p className="text-[11px] text-gray-300 dark:text-slate-600 font-medium">Generate a QR session to begin</p>
                   )}
                 </div>
               ) : (
-                scannedStudents.map((log, idx) => (
+                scannedStudents.map((log) => (
                   <div
                     key={log.id}
-                    className="flex items-center justify-between gap-3 p-3 bg-gray-50 hover:bg-gray-100/60 rounded-2xl border border-gray-100 transition-colors"
+                    className="flex items-center justify-between gap-3 p-3 bg-gray-50/60 dark:bg-[#161616] hover:bg-gray-100/60 dark:hover:bg-[#1a1a1a] rounded-md border border-gray-100 dark:border-[#1A1A1A] transition-colors"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-gray-800 leading-tight truncate">{log.user_name}</p>
+                      <p className="text-xs font-bold text-gray-800 dark:text-slate-200 leading-tight truncate">{log.user_name}</p>
                       <p className="text-[11px] text-gray-400 truncate">LRN: {log.user_lrn || 'N/A'}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800">
                         <CheckCircle2 className="w-3 h-3" />
                         {log.time_in ? formatTimeString(log.time_in) : 'Logged'}
                       </span>
@@ -1432,13 +1432,13 @@ export const TutorQRGenerator: React.FC = () => {
       </div>
 
       {/* ── Attendance History ───────────────────────────────────── */}
-      <div className="rounded-3xl border border-gray-200 bg-white shadow-sm relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
         {/* Section header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
           <div>
-            <h3 className="font-bold text-gray-900 text-base">STUDENTS ATTENDANCE HISTORY</h3>
-            <p className="mt-0.5 text-xs font-medium text-gray-500">
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">STUDENTS ATTENDANCE HISTORY</h3>
+            <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
               {jumpFiltered !== null ? jumpFiltered.length : filteredHistory.length} Record{(jumpFiltered !== null ? jumpFiltered.length : filteredHistory.length) !== 1 ? 's' : ''}
             </p>
           </div>
@@ -1453,20 +1453,20 @@ export const TutorQRGenerator: React.FC = () => {
                 onChange={(event) => setStudentSearch(event.target.value)}
                 placeholder="Search Student Name"
                 aria-label="Search attendance history by student"
-                className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10"
+                className="h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-9 pr-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
               />
             </label>
 
             {/* View mode toggle styled like TutorHome trend filter */}
-            <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5">
+            <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5">
               {(['day', 'week', 'month'] as const).map((mode) => (
                 <button
                   key={mode}
                   id={`qr-view-${mode}`}
                   type="button"
                   onClick={() => { setViewMode(mode); setJumpDate(null); }}
-                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
-                    ? 'bg-[var(--brand)] text-white shadow-sm'
+                  className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
+                    ? 'bg-[var(--brand)] text-white'
                     : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                     }`}
                 >
@@ -1481,9 +1481,9 @@ export const TutorQRGenerator: React.FC = () => {
                 type="button"
                 id="qr-attendance-calendar-btn"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${jumpDate
-                  ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
-                  : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
+                className={`p-2 rounded-md border transition-all flex items-center justify-center cursor-pointer ${jumpDate
+                  ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
+                  : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)]'
                   }`}
                 title="Select a specific date from calendar"
                 aria-label="Open Calendar"
@@ -1506,7 +1506,7 @@ export const TutorQRGenerator: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowExportModal(true)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--brand)] px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-[var(--brand-hover)] active:scale-[0.98] cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-3 py-2 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-white" />
               Export Attendance Sheet
@@ -1516,14 +1516,14 @@ export const TutorQRGenerator: React.FC = () => {
 
         {/* Jump-to-date active chip */}
         {jumpDate && (
-          <div className="flex items-center gap-2 px-6 py-2 border-b border-gray-50 bg-emerald-50/60">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="text-xs font-semibold text-emerald-700">
+          <div className="flex items-center gap-2 px-6 py-2 border-b border-gray-100 dark:border-[#1A1A1A] bg-emerald-50/60 dark:bg-emerald-950/20">
+            <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
               {new Date(jumpDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
             </span>
             <button
               onClick={() => setJumpDate(null)}
-              className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-800 transition-colors"
+              className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline transition-colors"
             >
               <X className="w-3 h-3" /> Clear
             </button>
@@ -1535,25 +1535,25 @@ export const TutorQRGenerator: React.FC = () => {
           {attendanceHistoryLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-11 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse flex items-center px-4 gap-3">
-                  <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 shrink-0" />
-                  <div className="h-3.5 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
-                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/5 ml-auto" />
+                <div key={i} className="h-10 bg-gray-100 dark:bg-[#1A1A1A] rounded-md animate-pulse flex items-center px-4 gap-3">
+                  <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-[#222222] shrink-0" />
+                  <div className="h-3 bg-gray-200 dark:bg-[#222222] rounded w-1/3" />
+                  <div className="h-3 bg-gray-200 dark:bg-[#222222] rounded w-1/5 ml-auto" />
                 </div>
               ))}
             </div>
           ) : attendanceHistoryError ? (
-            <div className="flex items-start gap-2.5 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-start gap-2.5 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-md p-4">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
               {attendanceHistoryError}
             </div>
           ) : filteredHistory.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
-              <CalendarDays className="w-10 h-10 text-gray-200" />
-              <p className="text-sm font-semibold text-gray-500">
+              <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
+              <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">
                 {studentSearch.trim() ? 'No matching attendance records' : 'No attendance records yet'}
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-400 dark:text-slate-500">
                 {studentSearch.trim() ? 'Try a different student name or LRN' : 'Records will appear once students start scanning'}
               </p>
             </div>
@@ -1562,9 +1562,9 @@ export const TutorQRGenerator: React.FC = () => {
             /* ── Jump-to-date: flat list for that specific day ── */
             jumpFiltered.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-12 text-center">
-                <CalendarDays className="w-10 h-10 text-gray-200" />
-                <p className="text-sm font-semibold text-gray-500">No records for this date</p>
-                <p className="text-xs text-gray-400">Try a different date or clear the filter</p>
+                <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
+                <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No records for this date</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">Try a different date or clear the filter</p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -1572,7 +1572,7 @@ export const TutorQRGenerator: React.FC = () => {
                   <div key={group.key}>
                     <div className="mb-3 flex items-center gap-3">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{group.label}</span>
-                      <div className="h-px flex-1 bg-gray-100" />
+                      <div className="h-px flex-1 bg-gray-100 dark:bg-[#1A1A1A]" />
                       <span className="text-[11px] font-semibold text-gray-400">{group.records.length} Record{group.records.length !== 1 ? 's' : ''}</span>
                     </div>
                     <AttendanceTable key={group.key} logs={group.records} statusBadge={statusBadge} avatarColor={avatarColor} formatDateString={formatDateString} formatTimeString={formatTimeString} onUpdate={handleUpdateAttendance} />
@@ -1588,7 +1588,7 @@ export const TutorQRGenerator: React.FC = () => {
                 <div key={group.key}>
                   <div className="mb-3 flex items-center gap-3">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{group.label}</span>
-                    <div className="h-px flex-1 bg-gray-100" />
+                    <div className="h-px flex-1 bg-gray-100 dark:bg-[#1A1A1A]" />
                     <span className="text-[11px] font-semibold text-gray-400">{group.records.length} Record{group.records.length !== 1 ? 's' : ''}</span>
                   </div>
                   <AttendanceTable key={group.key} logs={group.records} statusBadge={statusBadge} avatarColor={avatarColor} formatDateString={formatDateString} formatTimeString={formatTimeString} onUpdate={handleUpdateAttendance} />
@@ -1600,8 +1600,8 @@ export const TutorQRGenerator: React.FC = () => {
             /* ── Weekly / Monthly: grouped ── */
             groupedHistory.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-12 text-center">
-                <CalendarDays className="w-10 h-10 text-gray-200" />
-                <p className="text-sm font-semibold text-gray-500">No records to display</p>
+                <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
+                <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No records to display</p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -1610,7 +1610,7 @@ export const TutorQRGenerator: React.FC = () => {
                     {/* Group divider header */}
                     <div className="flex items-center gap-3 mb-3">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{group.label}</span>
-                      <div className="flex-1 h-px bg-gray-100" />
+                      <div className="flex-1 h-px bg-gray-100 dark:bg-[#1A1A1A]" />
                       <span className="text-[11px] font-semibold text-gray-400">{group.records.length} Record{group.records.length !== 1 ? 's' : ''}</span>
                     </div>
                     <AttendanceTable key={group.key} logs={group.records} statusBadge={statusBadge} avatarColor={avatarColor} formatDateString={formatDateString} formatTimeString={formatTimeString} onUpdate={handleUpdateAttendance} />
@@ -1639,7 +1639,7 @@ export const TutorQRGenerator: React.FC = () => {
           style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
           onClick={(e) => { if (e.target === e.currentTarget) setConfirmAction((prev) => ({ ...prev, isOpen: false })); }}
         >
-          <div className="relative w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-gray-200 dark:border-slate-800 space-y-4 animate-fade-in-scale">
+          <div className="relative w-full max-w-sm rounded-lg bg-white dark:bg-[#111111] p-6 shadow-2xl border border-gray-200 dark:border-[#1A1A1A] space-y-4 animate-fade-in-scale">
             <div>
               <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
                 {confirmAction.title}
@@ -1652,14 +1652,14 @@ export const TutorQRGenerator: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setConfirmAction((prev) => ({ ...prev, isOpen: false }))}
-                className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition cursor-pointer"
+                className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#161616] px-3.5 py-1.5 text-xs font-bold text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#222222] transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={confirmAction.onConfirm}
-                className={`rounded-xl px-4 py-2 text-xs font-bold text-white transition shadow-sm cursor-pointer ${confirmAction.confirmStyle === 'danger'
+                className={`rounded-md px-3.5 py-1.5 text-xs font-bold text-white transition cursor-pointer ${confirmAction.confirmStyle === 'danger'
                   ? 'bg-rose-600 hover:bg-rose-700'
                   : 'bg-[var(--brand)] hover:bg-[var(--brand-dark)]'
                   }`}
@@ -1681,7 +1681,7 @@ export const TutorQRGenerator: React.FC = () => {
           style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowMilestoneConfirmModal(false); }}
         >
-          <div className="relative w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-gray-200 dark:border-slate-800 space-y-4 animate-fade-in-scale">
+          <div className="relative w-full max-w-sm rounded-lg bg-white dark:bg-[#111111] p-6 shadow-2xl border border-gray-200 dark:border-[#1A1A1A] space-y-4 animate-fade-in-scale">
             <div>
               <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
                 {assignedMilestone} Attendance
@@ -1694,7 +1694,7 @@ export const TutorQRGenerator: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowMilestoneConfirmModal(false)}
-                className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition cursor-pointer"
+                className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#161616] px-3.5 py-1.5 text-xs font-bold text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#222222] transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -1704,7 +1704,7 @@ export const TutorQRGenerator: React.FC = () => {
                   setSessionDescription(assignedMilestone);
                   setShowMilestoneConfirmModal(false);
                 }}
-                className="rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer"
+                className="rounded-md bg-[var(--brand)] px-3.5 py-1.5 text-xs font-bold text-white transition hover:bg-[var(--brand-dark)] cursor-pointer"
               >
                 Confirm {assignedMilestone}
               </button>

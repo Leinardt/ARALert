@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { academicService } from '../../services/academicService';
-import { ArrowLeft, RefreshCw, CheckCircle2, Clock, FileImage, FileText } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { RefreshCw, CheckCircle2, Clock, FileImage, FileText, X, ZoomIn } from 'lucide-react';
 import QRCode from 'qrcode';
 import { exportStaffQrPrintFile } from '../../utils/staffQrPrintExport';
 
@@ -10,18 +9,18 @@ export const AdminAttendanceQR: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [exportingFormat, setExportingFormat] = useState<'png' | 'jpeg' | 'pdf' | null>(null);
+  const [isEnlarged, setIsEnlarged] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const enlargedCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const generateQR = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Create a 24-hour long session so it does not count down or expire during the workday
       const newSession = await academicService.createAttendanceSession({
         session_type: 'staff',
         expires_in_minutes: 1440,
       });
-
       setSession(newSession);
     } catch (err: any) {
       console.error(err);
@@ -35,22 +34,27 @@ export const AdminAttendanceQR: React.FC = () => {
     generateQR();
   }, []);
 
-  // Render QR code to Canvas when session changes
+  // Render QR to main canvas
   useEffect(() => {
     if (session && canvasRef.current) {
-      const qrValue = session.id;
-      QRCode.toCanvas(canvasRef.current, qrValue, {
+      QRCode.toCanvas(canvasRef.current, session.id, {
         width: 256,
         margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#ffffff',
-        },
-      }, (err) => {
-        if (err) console.error('QR Render Error:', err);
-      });
+        color: { dark: '#000000', light: '#ffffff' },
+      }, (err) => { if (err) console.error('QR Render Error:', err); });
     }
   }, [session]);
+
+  // Render QR to enlarged canvas when modal opens
+  useEffect(() => {
+    if (isEnlarged && session && enlargedCanvasRef.current) {
+      QRCode.toCanvas(enlargedCanvasRef.current, session.id, {
+        width: 480,
+        margin: 2,
+        color: { dark: '#000000', light: '#ffffff' },
+      }, (err) => { if (err) console.error('QR Enlarged Render Error:', err); });
+    }
+  }, [isEnlarged, session]);
 
   const exportPrintFile = async (format: 'png' | 'jpeg' | 'pdf') => {
     if (!session) return;
@@ -71,135 +75,182 @@ export const AdminAttendanceQR: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        
+    <div className="mx-auto max-w-5xl">
 
-        <div className="inline-flex items-center gap-2 rounded-full border border-[var(--brand-border)] bg-[var(--brand-light)] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--brand-dark)]">
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          Staff Attendance
-        </div>
-      </div>
+      {/* ── Main Card (Responsive 2-column layout to fit single viewport) ── */}
+      <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-xs">
+        <div className="grid grid-cols-1 md:grid-cols-12 items-stretch divide-y md:divide-y-0 md:divide-x divide-gray-100 dark:divide-[#1A1A1A]">
 
-      <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-[0_20px_45px_rgba(15,23,42,0.08)]">
-        <div className="border-b border-gray-200 bg-gradient-to-r from-[var(--brand-light)] via-white to-slate-50 px-5 py-5 sm:px-8">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Attendance Access</p>
-              <h1 className="mt-1 text-2xl font-bold text-gray-900">Staff DTR QR Code</h1>
-            </div>
-            {session && (
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                Active Session
-              </span>
-            )}
-          </div>
-        </div>
+          {/* ── Left Column: QR Code & Controls (5 cols) ── */}
+          <div className="md:col-span-5 p-5 sm:p-6 flex flex-col items-center justify-center text-center gap-3 bg-slate-50/40 dark:bg-[#0d0d0d]">
 
-        <div className="grid gap-4 p-4 sm:p-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
-          <div className="flex flex-col items-center justify-center rounded-[24px] border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
             {error && (
-              <div className="mb-2 w-full rounded-2xl border border-red-200 bg-red-50 p-2.5 text-left text-xs text-red-700">
+              <div className="w-full rounded-md border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 p-2.5 text-center text-xs text-red-700 dark:text-red-300">
                 {error}
               </div>
             )}
 
-            <div className="flex w-full flex-col items-center justify-center">
-              {isLoading ? (
-                <div className="flex h-[160px] w-full max-w-[160px] flex-col items-center justify-center rounded-[16px] border border-dashed border-slate-200 bg-white">
-                  <RefreshCw className="h-7 w-7 animate-spin text-[var(--brand)]" />
-                  <span className="mt-2.5 text-xs font-medium text-slate-500">Generating...</span>
+            {isLoading ? (
+              <div className="flex h-[190px] w-[190px] flex-col items-center justify-center rounded-md border border-dashed border-slate-200 dark:border-[#222222] bg-slate-50 dark:bg-[#161616]">
+                <RefreshCw className="h-7 w-7 animate-spin text-[var(--brand)]" />
+                <span className="mt-2 text-xs font-medium text-slate-500">Generating…</span>
+              </div>
+            ) : (
+              <div className="group relative cursor-zoom-in" onClick={() => setIsEnlarged(true)} title="Click to enlarge">
+                <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-[var(--brand-light)]/40 p-2.5 transition-transform duration-200 group-hover:scale-[1.01]">
+                  <canvas ref={canvasRef} className="block rounded-sm bg-white p-1.5" style={{ width: 190, height: 190 }} />
                 </div>
-              ) : (
-                <div className="relative w-full max-w-[180px]">
-                  <div className="rounded-[16px] border border-[var(--brand-border)] bg-[var(--brand-light)]/60 p-2.5 shadow-inner">
-                    <canvas ref={canvasRef} className="block w-full rounded-lg bg-white p-2" />
+                {/* Zoom hint overlay */}
+                <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/0 transition-all duration-200 group-hover:bg-black/10">
+                  <div className="flex items-center gap-1.5 rounded-full bg-white/90 dark:bg-black/90 px-2.5 py-1 text-[10px] font-medium text-slate-700 dark:text-slate-200 opacity-0 shadow-md backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100">
+                    <ZoomIn className="h-3 w-3" />
+                    Click to enlarge
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Active session badge & Actions */}
+            <div className="flex flex-col items-center gap-2">
+              {session && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Active Session
+                </span>
               )}
 
               {session && (
                 <button
+                  type="button"
                   onClick={generateQR}
-                  className="mt-2 inline-flex items-center justify-center gap-1.5 text-xs font-bold text-[var(--brand)] transition-colors hover:text-[var(--brand-dark)]"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--brand)] transition-colors hover:text-[var(--brand-dark)] cursor-pointer"
                 >
                   <RefreshCw className="h-3 w-3" />
-                  <span>Regenerate</span>
+                  Regenerate QR
                 </button>
               )}
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="rounded-[20px] border border-[var(--brand-border)] bg-[var(--brand-light)] p-3.5 text-left">
+          {/* ── Right Column: Info & Print Export (7 cols) ── */}
+          <div className="md:col-span-7 p-5 sm:p-6 flex flex-col justify-between gap-3">
+            
+            {/* Header info */}
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Attendance Terminal
+              </p>
+              <h2 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white mt-0.5">
+                Staff DTR QR Code
+              </h2>
+            </div>
+
+            {/* All-day DTR info */}
+            <div className="rounded-md border border-[var(--brand-border)] bg-[var(--brand-light)] dark:bg-[#161616] p-3">
               <div className="flex items-start gap-2.5">
-                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[var(--brand-dark)] shadow-sm">
+                <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white dark:bg-[#222222] text-[var(--brand-dark)] dark:text-[var(--brand)] shadow-xs">
                   <Clock className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--brand-dark)]">All-day staff DTR</p>
-                  <p className="mt-0.5 text-xs text-[var(--brand-text)]">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--brand-dark)] dark:text-[var(--brand)]">All-day Staff DTR</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-[var(--brand-text)] dark:text-slate-300 font-normal">
                     One QR code records each tutor or faculty DTR punch automatically based on scan time.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-3.5">
+            {/* Recommended schedule */}
+            <div className="rounded-md border border-slate-200 dark:border-[#1A1A1A] bg-slate-50/70 dark:bg-[#161616] p-3">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                <p className="text-xs font-semibold text-slate-800">Recommended schedule</p>
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <p className="text-xs font-medium text-slate-800 dark:text-slate-200">Recommended Schedule</p>
               </div>
-              <p className="mt-2 text-xs leading-5 text-slate-600">
-                Faculty: 8:00 AM in, 11:30 AM out, 1:00 PM in, 4:30 PM out. Tutors: 4:30 PM in, 5:00 PM out.
+              <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-400 font-normal">
+                Faculty: 8:00 AM in, 11:30 AM out, 1:00 PM in, 4:30 PM out.<br />
+                Tutors: 4:30 PM in, 5:00 PM out.
               </p>
             </div>
 
-            <div className="rounded-[20px] border border-slate-200 bg-white p-3.5 shadow-sm">
-              <div className="mb-2.5 flex items-center gap-2">
-                <FileText className="h-3.5 w-3.5 text-slate-700" />
-                <p className="text-xs font-semibold text-slate-800">Print-ready export</p>
+            {/* Print-ready export */}
+            <div className="rounded-md border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5 text-slate-700 dark:text-slate-300" />
+                  <p className="text-xs font-medium text-slate-800 dark:text-slate-200">Print-ready Export</p>
+                </div>
+                <span className="text-[11px] text-slate-400">Staff area poster</span>
               </div>
-              <p className="text-xs text-slate-500">
-                Download a long bond paper poster for staff area.
-              </p>
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => exportPrintFile('png')}
                   disabled={exportingFormat !== null}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-1 rounded-md border border-slate-300 dark:border-[#222222] bg-white dark:bg-[#161616] px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-[#222222] disabled:opacity-60 cursor-pointer"
                 >
-                  <FileImage className="h-4 w-4" />
+                  <FileImage className="h-3.5 w-3.5" />
                   {exportingFormat === 'png' ? 'Creating…' : 'PNG'}
                 </button>
-
                 <button
                   type="button"
                   onClick={() => exportPrintFile('jpeg')}
                   disabled={exportingFormat !== null}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-1 rounded-md border border-slate-300 dark:border-[#222222] bg-white dark:bg-[#161616] px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-[#222222] disabled:opacity-60 cursor-pointer"
                 >
-                  <FileImage className="h-4 w-4" />
+                  <FileImage className="h-3.5 w-3.5" />
                   {exportingFormat === 'jpeg' ? 'Creating…' : 'JPEG'}
                 </button>
-
                 <button
                   type="button"
                   onClick={() => exportPrintFile('pdf')}
                   disabled={exportingFormat !== null}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--brand)] px-3 py-2.5 text-xs font-bold text-white transition hover:bg-[var(--brand-dark)] disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-1 rounded-md bg-[var(--brand)] px-2.5 py-1.5 text-xs font-medium text-white transition hover:bg-[var(--brand-dark)] disabled:opacity-60 cursor-pointer"
                 >
-                  <FileText className="h-4 w-4" />
+                  <FileText className="h-3.5 w-3.5" />
                   {exportingFormat === 'pdf' ? 'Creating…' : 'PDF'}
                 </button>
               </div>
             </div>
+
           </div>
         </div>
       </div>
+
+      {/* ── Enlarged QR Lightbox Modal ── */}
+      {isEnlarged && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in"
+          onClick={() => setIsEnlarged(false)}
+        >
+          <div
+            className="relative flex flex-col items-center gap-3 sm:gap-4 rounded-xl bg-white dark:bg-[#111111] p-4 sm:p-6 shadow-2xl border border-gray-200 dark:border-[#1A1A1A] animate-fade-in-scale max-w-[92vw]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setIsEnlarged(false)}
+              className="absolute right-3 top-3 sm:right-4 sm:top-4 flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 dark:bg-[#222222] text-slate-600 dark:text-slate-300 transition hover:bg-slate-200 dark:hover:bg-[#333333] cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Staff DTR QR Code</p>
+
+            <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-[var(--brand-light)]/40 p-2.5 sm:p-4">
+              <canvas ref={enlargedCanvasRef} className="block rounded-sm bg-white p-2 sm:p-3 w-[240px] h-[240px] xs:w-[280px] xs:h-[280px] sm:w-[400px] sm:h-[400px] max-w-[78vw] max-h-[78vw]" />
+            </div>
+
+            {session && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                Active Session
+              </span>
+            )}
+
+            <p className="text-[11px] text-slate-400">Click anywhere outside to close</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -14,13 +14,13 @@ import { useAuth } from '../../hooks/useAuth';
 const getAralBadge = (level?: string | null) => {
   switch (level?.toLowerCase()) {
     case 'plus':
-      return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800">Plus</span>;
+      return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-800/60">Plus</span>;
     case 'summer':
-      return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">Summer</span>;
+      return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60">Summer</span>;
     case 'graduated':
-      return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">Graduated</span>;
+      return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60">Graduated</span>;
     default:
-      return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">Basic</span>;
+      return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60">Basic</span>;
   }
 };
 
@@ -29,18 +29,18 @@ const getSubjectBadge = (subject?: string | null) => {
   if (!subject) return <span className="text-gray-400 dark:text-slate-500">—</span>;
   const s = subject.trim().toLowerCase();
   if (s.includes('reading')) {
-    return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">Reading</span>;
+    return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60">Reading</span>;
   }
   if (s.includes('science')) {
-    return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">Science</span>;
+    return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60">Science</span>;
   }
   if (s.includes('math')) {
-    return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-50 text-cyan-700 border border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800">Math</span>;
+    return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-50 text-cyan-700 border border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800/60">Math</span>;
   }
-  return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800">{subject}</span>;
+  return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/60">{subject}</span>;
 };
 
-type AccountTab = 'student' | 'tutor' | 'faculty';
+type AccountTab = 'student' | 'tutor' | 'faculty' | 'principal';
 
 export const UserList: React.FC = () => {
   const { user: currentUser } = useAuth();
@@ -51,6 +51,7 @@ export const UserList: React.FC = () => {
   const initialTab = useMemo<AccountTab>(() => {
     if (location.pathname.includes('/tutors')) return 'tutor';
     if (location.pathname.includes('/faculty')) return 'faculty';
+    if (location.pathname.includes('/principals')) return 'principal';
     return 'student';
   }, [location.pathname]);
 
@@ -87,6 +88,8 @@ export const UserList: React.FC = () => {
       setActiveTab('tutor');
     } else if (location.pathname.includes('/faculty') && activeTab !== 'faculty') {
       setActiveTab('faculty');
+    } else if (location.pathname.includes('/principals') && activeTab !== 'principal') {
+      setActiveTab('principal');
     } else if (location.pathname.includes('/students') && activeTab !== 'student') {
       setActiveTab('student');
     }
@@ -102,7 +105,11 @@ export const UserList: React.FC = () => {
     setSelectedIds([]);
 
     if (location.pathname.startsWith('/admin/')) {
-      const targetPath = newTab === 'student' ? '/admin/students' : newTab === 'tutor' ? '/admin/tutors' : '/admin/faculty';
+      const targetPath =
+        newTab === 'student' ? '/admin/students' :
+        newTab === 'tutor' ? '/admin/tutors' :
+        newTab === 'principal' ? '/admin/principals' :
+        '/admin/faculty';
       navigate(targetPath, { replace: true });
     }
   };
@@ -269,18 +276,21 @@ export const UserList: React.FC = () => {
     }
     if (activeTab === 'student') return '/admin/students/create?role=student';
     if (activeTab === 'tutor') return '/admin/tutors/create?role=tutor';
+    if (activeTab === 'principal') return '/admin/principals/create?role=principal';
     return '/admin/faculty/create?role=faculty';
   };
 
   const getCreateLabel = () => {
     if (activeTab === 'student') return 'Enroll Student';
     if (activeTab === 'tutor') return 'Add Tutor';
+    if (activeTab === 'principal') return 'Add Principal';
     return 'Add Faculty';
   };
 
   const getSearchPlaceholder = () => {
     if (activeTab === 'student') return 'Search Student Name, LRN...';
     if (activeTab === 'tutor') return 'Search Tutor Name, Email...';
+    if (activeTab === 'principal') return 'Search Principal Name, Email...';
     return 'Search Faculty Name, Email...';
   };
 
@@ -288,7 +298,7 @@ export const UserList: React.FC = () => {
     <div className="space-y-6" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
       {/* ── Top Navigation Tabs (Pill Switcher) ────────────────────────── */}
       <div
-        className="flex w-full rounded-2xl bg-gray-100 p-1 gap-1 dark:bg-[#111111]"
+        className="flex w-full rounded-md bg-gray-100 p-1 gap-1 dark:bg-[#111111] overflow-x-auto no-scrollbar"
         role="tablist"
         aria-label="User account management tabs"
       >
@@ -296,6 +306,7 @@ export const UserList: React.FC = () => {
           ['student', 'STUDENTS'],
           ['tutor', 'TUTORS'],
           ['faculty', 'FACULTY'],
+          ['principal', 'PRINCIPALS'],
         ] as const).map(([tabRole, label]) => (
           <button
             key={tabRole}
@@ -303,8 +314,8 @@ export const UserList: React.FC = () => {
             role="tab"
             aria-selected={activeTab === tabRole}
             onClick={() => handleTabChange(tabRole)}
-            className={`flex-1 h-9 rounded-xl px-4 flex items-center justify-center text-xs font-bold uppercase transition-all cursor-pointer ${activeTab === tabRole
-              ? 'bg-[var(--brand)] text-white shadow-sm'
+            className={`flex-1 min-w-[70px] h-9 rounded-sm px-2.5 sm:px-4 flex items-center justify-center text-[11px] sm:text-xs font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${activeTab === tabRole
+              ? 'bg-[var(--brand)] text-white'
               : 'text-gray-400 opacity-60 hover:bg-white/60 hover:text-gray-600 hover:opacity-100 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-slate-300'
               }`}
           >
@@ -315,9 +326,9 @@ export const UserList: React.FC = () => {
 
 
       {/* ── Main Integrated Directory Table Card ──────────────────────── */}
-      <div className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm relative overflow-hidden">
+      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative overflow-hidden">
         {/* Table Toolbar (Section Title + Action Buttons & Filters) */}
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
           {/* Left: Title & Counter */}
           <div className="min-w-0">
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase tracking-wide">
@@ -325,7 +336,9 @@ export const UserList: React.FC = () => {
                 ? 'STUDENTS DIRECTORY'
                 : activeTab === 'tutor'
                   ? 'TUTORS DIRECTORY'
-                  : 'FACULTY DIRECTORY'}
+                  : activeTab === 'principal'
+                    ? 'PRINCIPALS DIRECTORY'
+                    : 'FACULTY DIRECTORY'}
             </h3>
             <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
               {totalCount} Registered Account{totalCount !== 1 ? 's' : ''}
@@ -333,13 +346,13 @@ export const UserList: React.FC = () => {
           </div>
 
           {/* Right: Actions & Filter Controls */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full xl:w-auto">
             {/* Bulk Assign Tutor Button (Student tab with selections) */}
             {activeTab === 'student' && selectedIds.length > 0 && (
               <button
                 type="button"
                 onClick={() => setIsBulkModalOpen(true)}
-                className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
+                className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-md text-xs font-bold transition-all cursor-pointer"
               >
                 <Users className="w-3.5 h-3.5 mr-1.5" />
                 Assign Tutor ({selectedIds.length})
@@ -356,7 +369,7 @@ export const UserList: React.FC = () => {
                     setPage(1);
                   }}
                   aria-label="Filter by Assigned Tutor"
-                  className="h-9 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                  className="h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
                 >
                   <option value="">All Tutors</option>
                   <option value="none">TBA (Unassigned)</option>
@@ -379,7 +392,7 @@ export const UserList: React.FC = () => {
                     setPage(1);
                   }}
                   aria-label="Filter by ARAL Level"
-                  className="h-9 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                  className="h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
                 >
                   <option value="">All ARAL Levels</option>
                   <option value="basic">Basic</option>
@@ -400,7 +413,7 @@ export const UserList: React.FC = () => {
                     setPage(1);
                   }}
                   aria-label="Filter by Subject"
-                  className="h-9 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                  className="h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
                 >
                   <option value="">All Subjects</option>
                   <option value="Reading">Reading</option>
@@ -411,7 +424,7 @@ export const UserList: React.FC = () => {
             )}
 
             {/* Search Input Bar */}
-            <form onSubmit={handleSearchSubmit} className="relative flex min-w-56 items-center">
+            <form onSubmit={handleSearchSubmit} className="relative flex w-full sm:w-auto flex-1 sm:flex-initial min-w-0 sm:min-w-56 items-center">
               <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-gray-400" />
               <input
                 type="search"
@@ -419,14 +432,14 @@ export const UserList: React.FC = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Search users"
-                className="h-9 w-full rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] pl-9 pr-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] focus:ring-2 focus:ring-[var(--brand)]/10"
+                className="h-9 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] pl-9 pr-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] focus:ring-2 focus:ring-[var(--brand)]/10"
               />
             </form>
 
-            {/* Primary Action: Enroll / Add Account (Positioned to the right of Search) */}
+            {/* Primary Action: Enroll / Add Account */}
             <Link
               to={getCreateLink()}
-              className="inline-flex items-center bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer shrink-0"
+              className="inline-flex items-center justify-center bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3.5 py-2 rounded-md text-xs font-bold transition-all cursor-pointer shrink-0 w-full sm:w-auto"
             >
               <Plus className="w-3.5 h-3.5 mr-1.5" />
               {getCreateLabel()}
@@ -445,7 +458,7 @@ export const UserList: React.FC = () => {
                 </div>
                 <div className="h-5 w-20 rounded-full bg-gray-100 dark:bg-gray-800 hidden sm:block" />
                 <div className="h-5 w-16 rounded-full bg-gray-100 dark:bg-gray-800 hidden md:block" />
-                <div className="h-5 w-24 rounded-lg bg-gray-100 dark:bg-gray-800" />
+                <div className="h-5 w-24 rounded-md bg-gray-100 dark:bg-gray-800" />
               </div>
             ))}
           </div>
@@ -455,7 +468,7 @@ export const UserList: React.FC = () => {
             <button
               type="button"
               onClick={fetchUsers}
-              className="mt-3 px-4 py-1.5 bg-[var(--brand)] text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-[var(--brand-dark)] transition"
+              className="mt-3 px-4 py-1.5 bg-[var(--brand)] text-white rounded-md text-xs font-bold cursor-pointer hover:bg-[var(--brand-dark)] transition"
             >
               Retry
             </button>
@@ -638,7 +651,7 @@ export const UserList: React.FC = () => {
                                   {u.assigned_tutor_name}
                                 </span>
                               ) : (
-                                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                                <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800/70 dark:text-slate-300 dark:border-slate-700">
                                   TBA
                                 </span>
                               )}
@@ -806,7 +819,7 @@ export const UserList: React.FC = () => {
                 type="button"
                 disabled={page === 1}
                 onClick={() => setPage(page - 1)}
-                className="px-3.5 py-1.5 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-xs font-bold text-gray-700 dark:text-slate-200 disabled:opacity-40 flex items-center cursor-pointer transition hover:bg-gray-50 dark:hover:bg-white/5"
+                className="px-3.5 py-1.5 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md text-xs font-bold text-gray-700 dark:text-slate-200 disabled:opacity-40 flex items-center cursor-pointer transition hover:bg-gray-50 dark:hover:bg-white/5"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" /> Previous
               </button>
@@ -814,7 +827,7 @@ export const UserList: React.FC = () => {
                 type="button"
                 disabled={page === totalPages}
                 onClick={() => setPage(page + 1)}
-                className="px-3.5 py-1.5 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-xs font-bold text-gray-700 dark:text-slate-200 disabled:opacity-40 flex items-center cursor-pointer transition hover:bg-gray-50 dark:hover:bg-white/5"
+                className="px-3.5 py-1.5 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md text-xs font-bold text-gray-700 dark:text-slate-200 disabled:opacity-40 flex items-center cursor-pointer transition hover:bg-gray-50 dark:hover:bg-white/5"
               >
                 Next <ChevronRight className="w-4 h-4 ml-1" />
               </button>
@@ -826,7 +839,7 @@ export const UserList: React.FC = () => {
       {/* ── Bulk Assign Tutor Modal ───────────────────────────────────── */}
       {isBulkModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-6 max-w-md w-full shadow-2xl border border-gray-200 dark:border-[#1A1A1A] space-y-4">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 dark:border-[#1A1A1A] space-y-4">
             <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">
               Bulk Assign Tutor to {selectedIds.length} Student(s)
             </h3>
@@ -841,7 +854,7 @@ export const UserList: React.FC = () => {
               <select
                 value={selectedTargetTutorId}
                 onChange={(e) => setSelectedTargetTutorId(e.target.value)}
-                className="w-full border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] text-gray-800 dark:text-slate-100 rounded-xl p-2.5 text-xs font-medium focus:ring-[var(--brand)] focus:border-[var(--brand)]"
+                className="w-full border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] text-gray-800 dark:text-slate-100 rounded-md p-2.5 text-xs font-medium focus:ring-[var(--brand)] focus:border-[var(--brand)]"
               >
                 <option value="tba">-- TBA (Unassign Tutor) --</option>
                 {tutors.map((t) => (
@@ -856,7 +869,7 @@ export const UserList: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsBulkModalOpen(false)}
-                className="px-4 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-xs font-semibold text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
+                className="px-4 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-xs font-semibold text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
               >
                 Cancel
               </button>
@@ -864,7 +877,7 @@ export const UserList: React.FC = () => {
                 type="button"
                 disabled={isSubmittingBulk}
                 onClick={handleBulkAssignSubmit}
-                className="px-5 py-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-xl text-xs font-bold cursor-pointer disabled:opacity-50 shadow-xs"
+                className="px-5 py-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-md text-xs font-bold cursor-pointer disabled:opacity-50"
               >
                 {isSubmittingBulk ? 'Assigning...' : 'Confirm Assignment'}
               </button>
@@ -876,7 +889,7 @@ export const UserList: React.FC = () => {
       {/* ── User Login & Logout History Timeline Modal ────────────────── */}
       {activityModalUser && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-6 max-w-xl w-full shadow-2xl border border-gray-200 dark:border-[#1A1A1A] space-y-4 max-h-[85vh] flex flex-col">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-lg p-6 max-w-xl w-full shadow-xl border border-gray-200 dark:border-[#1A1A1A] space-y-4 max-h-[85vh] flex flex-col">
             <div className="flex justify-between items-start border-b border-gray-100 dark:border-[#1A1A1A] pb-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -892,7 +905,7 @@ export const UserList: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActivityModalUser(null)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 cursor-pointer"
+                className="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 rounded-md hover:bg-gray-100 dark:hover:bg-white/5 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -906,7 +919,7 @@ export const UserList: React.FC = () => {
                   <span className="text-xs">Loading login activity history...</span>
                 </div>
               ) : userActivities.length === 0 ? (
-                <div className="p-8 text-center text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-[#111111] rounded-2xl border border-gray-200 dark:border-[#1A1A1A]">
+                <div className="p-8 text-center text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-[#111111] rounded-md border border-gray-200 dark:border-[#1A1A1A]">
                   <Clock className="w-8 h-8 mx-auto text-gray-400 mb-2" />
                   <p className="font-semibold text-gray-700 dark:text-slate-300 text-sm">No login or logout activity recorded yet.</p>
                   <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Activity logs will appear here after the user logs in for the first time.</p>
@@ -928,7 +941,7 @@ export const UserList: React.FC = () => {
                         </div>
 
                         {/* Event Content */}
-                        <div className="bg-gray-50 dark:bg-[#111111] p-3.5 rounded-2xl border border-gray-200 dark:border-[#1A1A1A] space-y-1 hover:bg-gray-100/70 dark:hover:bg-white/[0.04] transition-colors">
+                        <div className="bg-gray-50 dark:bg-[#111111] p-3.5 rounded-md border border-gray-200 dark:border-[#1A1A1A] space-y-1 hover:bg-gray-100/70 dark:hover:bg-white/[0.04] transition-colors">
                           <div className="flex items-center justify-between">
                             <span className={`px-2 py-0.5 rounded text-xs font-bold ${isLogin ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' :
                               isLogout ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300' :
@@ -959,7 +972,7 @@ export const UserList: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActivityModalUser(null)}
-                className="px-5 py-2 bg-gray-900 hover:bg-gray-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                className="px-5 py-2 bg-gray-900 hover:bg-gray-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-md text-xs font-bold cursor-pointer"
               >
                 Close History
               </button>

@@ -26,7 +26,6 @@ import {
   Search,
   Edit3,
   Check,
-  Sparkles,
   Layers,
   User as UserIcon,
 } from 'lucide-react';
@@ -907,14 +906,14 @@ export const TutorScores: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col space-y-6 max-w-6xl mx-auto data-loaded-content">
+    <div className="flex flex-col space-y-4 max-w-6xl mx-auto data-loaded-content">
 
       {/* ── Score Entry Form ───────────────────────────────────────── */}
       {showAddEntry && (
-        <div className="order-1 flex h-[600px] flex-col rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-6 py-4 border-b border-gray-100">
+        <div className="order-1 flex h-[600px] flex-col rounded-md border border-gray-200 bg-white overflow-hidden">
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-5 py-3.5 border-b border-gray-100">
             <div>
-              <h3 className="font-bold text-gray-900 text-base uppercase">
+              <h3 className="font-bold text-gray-900 text-sm uppercase">
                 {entryKind === 'daily' ? 'Add Intervention Activity Scores' : levelEntry.title}
               </h3>
             </div>
@@ -922,7 +921,7 @@ export const TutorScores: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleOpenAddEntry('daily')}
-                className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-3 text-xs font-bold transition ${entryKind === 'daily' ? 'border-[var(--brand)] bg-[var(--brand)] text-white shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-[var(--brand-border)] hover:text-[var(--brand)]'}`}
+                className={`inline-flex h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-xs font-bold transition ${entryKind === 'daily' ? 'border-[var(--brand)] bg-[var(--brand)] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[var(--brand-border)] hover:text-[var(--brand)]'}`}
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add Intervention Score
@@ -930,7 +929,7 @@ export const TutorScores: React.FC = () => {
               <button
                 type="button"
                 onClick={handleMilestoneEntryClick}
-                className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-3 text-xs font-bold transition ${entryKind !== 'daily' ? 'border-[var(--brand)] bg-[var(--brand-light)] text-[var(--brand-dark)] shadow-sm' : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-[var(--brand-border)] hover:text-[var(--brand)]'}`}
+                className={`inline-flex h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-xs font-bold transition ${entryKind !== 'daily' ? 'border-[var(--brand)] bg-[var(--brand-light)] text-[var(--brand-dark)]' : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-[var(--brand-border)] hover:text-[var(--brand)]'}`}
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add {assignedPeriod} Score
@@ -938,7 +937,7 @@ export const TutorScores: React.FC = () => {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-hidden p-6 flex flex-col gap-5">
+          <div className="min-h-0 flex-1 overflow-hidden p-5 flex flex-col gap-4">
             <div className="shrink-0 grid grid-cols-1 gap-2.5 sm:grid-cols-[minmax(0,1.8fr)_auto]">
               <div className="min-w-0">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,300px)_170px]">
@@ -950,7 +949,7 @@ export const TutorScores: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setShowEntryCalendarPopover((previous) => !previous)}
-                        className="flex w-full max-w-[300px] items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 text-left text-sm font-semibold text-gray-900 transition hover:bg-gray-50 focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
+                        className="flex w-full max-w-[300px] items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-1.5 text-left text-xs font-semibold text-gray-900 transition hover:bg-gray-50 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
                         aria-label="Select score date"
                       >
                         <span>{logDate ? formatDateStr(logDate) : 'Select date'}</span>
@@ -976,7 +975,7 @@ export const TutorScores: React.FC = () => {
                       value={totalScore}
                       onKeyDown={blockSymbolKeys}
                       onChange={(e) => setTotalScore(sanitizeScoreInput(e.target.value))}
-                      className="w-full max-w-[170px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-900 focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 [appearance:textfield]"
+                      className="w-full max-w-[170px] rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-900 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] [appearance:textfield]"
                     />
                   </div>
                 </div>
@@ -987,10 +986,10 @@ export const TutorScores: React.FC = () => {
                   type="button"
                   onClick={() => setShowSaveConfirmation(true)}
                   disabled={isSaving}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--brand)] px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white transition hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSaving ? (
-                    <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />Saving...</>
+                    <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving...</>
                   ) : entryKind === 'daily' ? 'Save Intervention Activity Scores' : `Save ${assignedPeriod} Scores`}
                 </button>
               </div>
@@ -999,10 +998,10 @@ export const TutorScores: React.FC = () => {
             {students.length === 0 ? (
               <p className="text-center py-6 text-xs text-gray-400">No assigned students found.</p>
             ) : (
-              <div className="min-h-0 flex flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200">
-                <div className="flex shrink-0 flex-col gap-3 border-b border-gray-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-h-0 flex flex-1 flex-col overflow-hidden rounded-md border border-gray-200">
+                <div className="flex shrink-0 flex-col gap-3 border-b border-gray-100 bg-white px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h3 className="text-base font-bold uppercase text-gray-900">Student Score List</h3>
+                    <h3 className="text-sm font-bold uppercase text-gray-900">Student Score List</h3>
                     <p className="mt-0.5 text-xs font-medium text-gray-500">Enter scores for assigned students</p>
                   </div>
                   <label className="relative flex min-w-52 items-center">
@@ -1012,7 +1011,7 @@ export const TutorScores: React.FC = () => {
                       placeholder="Search Student Name"
                       value={studentSearch}
                       onChange={(event) => setStudentSearch(event.target.value)}
-                      className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10"
+                      className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)]"
                       aria-label="Search student name"
                     />
                   </label>
@@ -1021,7 +1020,7 @@ export const TutorScores: React.FC = () => {
                   <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-slate-800 text-sm">
                     <thead className="bg-gray-50 dark:bg-slate-900">
                       <tr className="divide-x divide-gray-100 dark:divide-slate-800">
-                        <th aria-sort={studentSortActive ? (studentSortDirection === 'asc' ? 'ascending' : 'descending') : undefined} className="w-[38%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                        <th aria-sort={studentSortActive ? (studentSortDirection === 'asc' ? 'ascending' : 'descending') : undefined} className="w-[38%] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
                           <button
                             type="button"
                             onClick={() => {
@@ -1039,9 +1038,9 @@ export const TutorScores: React.FC = () => {
                               : <ArrowUpDown className="h-3.5 w-3.5 text-gray-400" />}
                           </button>
                         </th>
-                        <th className="w-[24%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">Score (OUT OF {totalScore || 'Total'})</th>
-                        <th className="w-[19%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">Preview %</th>
-                        <th className="w-[19%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">Status</th>
+                        <th className="w-[24%] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">Score (OUT OF {totalScore || 'Total'})</th>
+                        <th className="w-[19%] px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">Preview %</th>
+                        <th className="w-[19%] px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
@@ -1059,13 +1058,13 @@ export const TutorScores: React.FC = () => {
 
                         return (
                           <tr key={student.id} className="divide-x divide-gray-100 dark:divide-slate-800 transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800/60">
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-2.5">
                               <div className="min-w-0">
                                 <p className="truncate text-xs font-bold text-gray-900 dark:text-slate-100">{student.full_name}</p>
                                 <p className="truncate text-[10px] text-gray-400 dark:text-slate-500">LRN: {student.lrn || 'N/A'}</p>
                               </div>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-2.5">
                               <input
                                 type="text"
                                 inputMode="numeric"
@@ -1077,10 +1076,10 @@ export const TutorScores: React.FC = () => {
                                 }}
                                 placeholder={`0–${activeTotal}`}
                                 disabled={isNotTaken}
-                                className="w-full max-w-[110px] rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold text-gray-900 dark:text-slate-100 focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60"
+                                className="w-full max-w-[110px] rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-gray-900 dark:text-slate-100 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60"
                               />
                             </td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="px-4 py-2.5 text-center">
                               {pct !== null ? (
                                 <div>
                                   <span className={`block text-xs font-extrabold ${scoreColor(pct)}`}>{pct}%</span>
@@ -1094,7 +1093,7 @@ export const TutorScores: React.FC = () => {
                                 <span className="text-xs text-gray-300 dark:text-slate-600">0%</span>
                               )}
                             </td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="px-4 py-2.5 text-center">
                               <select
                                 value={status}
                                 onChange={(e) => {
@@ -1102,7 +1101,7 @@ export const TutorScores: React.FC = () => {
                                   setEntryStatus((prev) => ({ ...prev, [student.id]: newStatus }));
                                   if (newStatus === 'Not') setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
                                 }}
-                                className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-xs font-bold text-gray-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                                className="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-semibold text-gray-700 dark:text-slate-200 focus:outline-none cursor-pointer"
                               >
                                 <option value="Taken">Taken</option>
                                 <option value="Not">Not Taken</option>
@@ -1122,13 +1121,13 @@ export const TutorScores: React.FC = () => {
       )}
 
       {/* ── DTR-style Score Records Table ─────────────────────────── */}
-      <div ref={tableContainerRef} className="order-4 rounded-3xl border border-gray-200 bg-white shadow-sm overflow-visible">
+      <div ref={tableContainerRef} className="order-4 rounded-md border border-gray-200 bg-white overflow-visible">
 
-        {/* Table header — mirrors DTR header */}
-        <div className="flex flex-col gap-3 px-6 py-4 border-b border-gray-100 sm:flex-row sm:items-center sm:justify-between">
+        {/* Table header */}
+        <div className="flex flex-col gap-3 px-5 py-3.5 border-b border-gray-100 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center">
             <div>
-              <h3 className="text-base font-bold text-gray-900">STUDENTS SCORES HISTORY</h3>
+              <h3 className="text-sm font-bold text-gray-900 uppercase">STUDENTS SCORES HISTORY</h3>
               <p className="mt-0.5 text-xs font-medium text-gray-500">
                 {visibleScoreRows.length} Record{visibleScoreRows.length !== 1 ? 's' : ''}
               </p>
@@ -1143,16 +1142,16 @@ export const TutorScores: React.FC = () => {
                 onChange={(event) => setScoreStudentSearch(event.target.value)}
                 placeholder="Search Student Name"
                 aria-label="Search score records by student"
-                className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-2 focus:ring-[var(--brand)]/10"
+                className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)]"
               />
             </label>
-            <div className="flex h-9 shrink-0 items-center gap-0.5 rounded-xl bg-gray-100 p-0.5">
+            <div className="flex h-8 shrink-0 items-center gap-0.5 rounded-md bg-gray-100 p-0.5">
               {(['day', 'week', 'month'] as const).map((mode) => (
                 <button
                   key={mode}
                   type="button"
                   onClick={() => { setViewMode(mode); setJumpDate(null); }}
-                  className={`h-8 whitespace-nowrap rounded-lg px-3 text-[10px] font-bold uppercase transition-all ${viewMode === mode && !jumpDate ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`h-7 whitespace-nowrap rounded-sm px-3 text-[10px] font-bold uppercase transition-all ${viewMode === mode && !jumpDate ? 'bg-[var(--brand)] text-white' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                   {mode}
                 </button>
@@ -1162,7 +1161,7 @@ export const TutorScores: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowCalendarPopover((previous) => !previous)}
-                className={`flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border p-0 transition-all ${jumpDate ? 'border-[var(--brand)] bg-[var(--brand)] text-white shadow-sm' : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'}`}
+                className={`flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border p-0 transition-all ${jumpDate ? 'border-[var(--brand)] bg-[var(--brand)] text-white' : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)]'}`}
                 aria-label="Open score calendar"
                 title="Select a specific date from calendar"
               >
@@ -1193,7 +1192,7 @@ export const TutorScores: React.FC = () => {
                   setExportModalConfig({ isOpen: true, mode: 'weekly', targetKey: '' });
                 }
               }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--brand)] px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-[var(--brand-hover)] active:scale-[0.98] cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] active:scale-[0.98] cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-white" />
               Export Score Sheet
@@ -1202,7 +1201,7 @@ export const TutorScores: React.FC = () => {
         </div>
 
         {jumpDate && (
-          <div className="flex items-center gap-2 px-6 py-2 border-b border-gray-50 bg-emerald-50/60">
+          <div className="flex items-center gap-2 px-5 py-2 border-b border-gray-50 bg-emerald-50/60">
             <Calendar className="w-3.5 h-3.5 text-emerald-600" />
             <span className="text-xs font-semibold text-emerald-700">
               {new Date(`${jumpDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
@@ -1213,25 +1212,25 @@ export const TutorScores: React.FC = () => {
           </div>
         )}
 
-        <div className="p-4 sm:p-6">
+        <div className="p-4 sm:p-5">
           {gradesLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-11 bg-gray-100 rounded-xl animate-pulse" />
+                <div key={i} className="h-10 bg-gray-100 rounded-md animate-pulse" />
               ))}
             </div>
           ) : visibleScoreRows.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
-              <BookOpen className="w-10 h-10 text-gray-200" />
-              <p className="text-sm font-semibold text-gray-500">{jumpDate ? 'No records for this date' : 'No score records yet'}</p>
-              <p className="text-xs text-gray-400">{jumpDate ? 'Try a different date or clear the filter' : 'Records will appear after logging scores'}</p>
+              <BookOpen className="w-8 h-8 text-gray-200" />
+              <p className="text-xs font-semibold text-gray-500">{jumpDate ? 'No records for this date' : 'No score records yet'}</p>
+              <p className="text-[11px] text-gray-400">{jumpDate ? 'Try a different date or clear the filter' : 'Records will appear after logging scores'}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-2 px-2 space-y-6">
+            <div className="overflow-x-auto -mx-2 px-2 space-y-5">
               {scoreTableGroups.map((tableGroup) => (
-                <div key={tableGroup.key} className="space-y-3">
+                <div key={tableGroup.key} className="space-y-2.5">
                   {tableGroup.label && (
-                    <div className="mb-3 flex items-center gap-3">
+                    <div className="mb-2.5 flex items-center gap-3">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{tableGroup.label}</span>
                       <div className="h-px flex-1 bg-gray-100" />
                       <span className="text-[11px] font-semibold text-gray-400">{tableGroup.rows.length} Record{tableGroup.rows.length !== 1 ? 's' : ''}</span>
@@ -1288,25 +1287,25 @@ export const TutorScores: React.FC = () => {
           style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowMilestoneConfirmation(false); }}
         >
-          <div className="relative w-full max-w-sm rounded-3xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 animate-fade-in-scale">
+          <div className="relative w-full max-w-sm rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl space-y-3 animate-fade-in-scale">
             <div>
-              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Add {assignedPeriod} Score</h3>
-              <p className="mt-2 text-xs leading-relaxed text-gray-500 dark:text-slate-400">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">Add {assignedPeriod} Score</h3>
+              <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-slate-400">
                 Are you sure you want to add a {assignedPeriod} score?
               </p>
             </div>
-            <div className="flex items-center justify-end gap-2.5 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowMilestoneConfirmation(false)}
-                className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
+                className="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={confirmMilestoneEntry}
-                className="rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer"
+                className="rounded-md bg-[var(--brand)] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer"
               >
                 Add {assignedPeriod}
               </button>
@@ -1324,25 +1323,25 @@ export const TutorScores: React.FC = () => {
           style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowSaveConfirmation(false); }}
         >
-          <div className="relative w-full max-w-sm rounded-3xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 animate-fade-in-scale">
+          <div className="relative w-full max-w-sm rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl space-y-3 animate-fade-in-scale">
             <div>
-              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Save Scores</h3>
-              <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400 leading-relaxed">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">Save Scores</h3>
+              <p className="mt-1 text-xs font-normal text-gray-500 dark:text-slate-400 leading-relaxed">
                 Are you sure you want to save {entryKind === 'daily' ? 'these intervention activity scores' : `these ${assignedPeriod} scores`}?
               </p>
             </div>
-            <div className="flex items-center justify-end gap-2.5 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowSaveConfirmation(false)}
-                className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-bold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
+                className="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={confirmSaveScores}
-                className="rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer"
+                className="rounded-md bg-[var(--brand)] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer"
               >
                 {entryKind === 'daily' ? 'Save Intervention Activity Scores' : `Save ${assignedPeriod} Scores`}
               </button>
@@ -1358,22 +1357,22 @@ export const TutorScores: React.FC = () => {
           aria-live="polite"
           className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
         >
-          <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-white p-4 shadow-xl shadow-emerald-950/10">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200">
-              <CheckCircle2 className="h-5 w-5" />
+          <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-white p-3.5 shadow-xl">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200">
+              <CheckCircle2 className="h-4 w-4" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-bold text-gray-900">
+                <h3 className="text-xs font-bold text-gray-900">
                   Scores Saved Successfully
                 </h3>
                 <button
                   type="button"
                   onClick={handleDismissSuccessModal}
-                  className="rounded-lg p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition cursor-pointer"
+                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition cursor-pointer"
                   aria-label="Close notification"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
               <p className="mt-1 text-xs text-gray-600 leading-relaxed">

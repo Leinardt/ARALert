@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Activity, BarChart3, UsersRound } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import type { Attendance } from '../../types';
@@ -74,70 +73,77 @@ export const FacultyHome: React.FC = () => {
   }));
   const linePath = pointCoordinates.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
 
-  return (
-    <div className="space-y-4">
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Faculty overview</p>
-            <h1 className="mt-1 text-2xl font-semibold text-slate-900">Welcome back, {user?.full_name || 'Faculty'}</h1>
-            <p className="mt-1 text-sm text-slate-600">Track your current profile and attendance trend in a single concise view.</p>
-          </div>
-          <div className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-light)] px-3 py-2 text-sm font-semibold text-[var(--brand-text)]">
-            <UsersRound className="h-4 w-4" />
-            {facultyType}
-          </div>
-        </div>
-      </section>
+  const attendanceColor = attendanceRate >= 81
+    ? 'text-risk-low'
+    : attendanceRate >= 75
+      ? 'text-risk-medium'
+      : 'text-risk-high';
 
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-[var(--brand-light)] p-2.5 text-[var(--brand-text)]">
-              <Activity className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Attendance rate</p>
-              <p className="text-3xl font-semibold text-slate-900">{attendanceRate}%</p>
-            </div>
+  return (
+    <div className="space-y-3">
+
+      <div className="grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+        {/* Primary: Attendance Rate — number-first, no icon container */}
+        <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c111c] p-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+            Attendance Rate
+          </p>
+          <p className={`text-4xl font-extrabold tracking-tight mt-1 ${attendanceColor}`}>
+            {attendanceRate}%
+          </p>
+          {/* Thin progress bar */}
+          <div className="mt-3 h-1 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${attendanceRate >= 81 ? 'bg-emerald-500' : attendanceRate >= 75 ? 'bg-amber-500' : 'bg-red-500'}`}
+              style={{ width: `${attendanceRate}%` }}
+            />
           </div>
-          <p className="mt-4 text-sm text-slate-600">{attendance.length} recorded {attendance.length === 1 ? 'day' : 'days'} across your recent attendance history.</p>
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+            {attendance.length} recorded {attendance.length === 1 ? 'day' : 'days'} in attendance history.
+          </p>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-700">
-              <BarChart3 className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Faculty type</p>
-              <p className="text-xl font-semibold text-slate-900">{facultyType}</p>
-            </div>
-          </div>
-          <p className="mt-4 text-sm text-slate-600">This summary keeps the page focused on the essentials without distracting sections.</p>
+        {/* Secondary: Faculty Type — clean label + value */}
+        <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c111c] p-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+            Faculty Type
+          </p>
+          <p className="text-xl font-bold mt-1 text-slate-900 dark:text-white">
+            {facultyType}
+          </p>
+          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+            Your assigned role within the ARAL Program faculty.
+          </p>
         </section>
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-[var(--brand-text)]" />
-          <h2 className="text-lg font-semibold text-slate-900">Your attendance trend</h2>
+      {/* Chart Section */}
+      <section className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c111c] p-4 sm:p-5">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+            Attendance Trend
+          </h2>
+          {attendance.length > 0 && (
+            <span className="text-[11px] text-slate-400 dark:text-slate-500">
+              Last {Math.min(attendance.length, 8)} records
+            </span>
+          )}
         </div>
 
         {isLoading ? (
-          <p className="py-10 text-center text-sm text-slate-600">Loading attendance rate…</p>
+          <p className="py-10 text-center text-sm text-slate-500 dark:text-slate-400">Loading attendance rate…</p>
         ) : error ? (
-          <p className="py-10 text-center text-sm text-red-700">{error}</p>
+          <p className="py-10 text-center text-sm text-red-600 dark:text-red-400">{error}</p>
         ) : chartPoints.length === 0 ? (
-          <p className="py-10 text-center text-sm text-slate-600">No attendance records yet.</p>
+          <p className="py-10 text-center text-sm text-slate-500 dark:text-slate-400">No attendance records yet.</p>
         ) : (
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Faculty attendance rate chart" className="mt-4 h-[230px] w-full overflow-visible">
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Faculty attendance rate chart" className="mt-4 h-[210px] w-full overflow-visible">
             {[0, 50, 100].map((rate) => {
               const y = chartPadding.top + plotHeight - (rate / 100) * plotHeight;
-              return <g key={rate}><line x1={chartPadding.left} y1={y} x2={chartWidth - chartPadding.right} y2={y} stroke="#E2E8F0" /><text x={chartPadding.left - 8} y={y + 4} textAnchor="end" fontSize="10" fill="#64748B">{rate}%</text></g>;
+              return <g key={rate}><line x1={chartPadding.left} y1={y} x2={chartWidth - chartPadding.right} y2={y} stroke="var(--slate-200, #E2E8F0)" strokeDasharray="3 3" opacity="0.7" /><text x={chartPadding.left - 8} y={y + 4} textAnchor="end" fontSize="10" fill="#94A3B8">{rate}%</text></g>;
             })}
-            <path d={linePath} fill="none" stroke="var(--brand)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-            {pointCoordinates.map((point) => <g key={`${point.label}-${point.x}`}><circle cx={point.x} cy={point.y} r="4" fill="var(--brand)" /><text x={point.x} y={chartHeight - 12} textAnchor="middle" fontSize="10" fill="#64748B">{point.label}</text></g>)}
+            <path d={linePath} fill="none" stroke="var(--brand)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            {pointCoordinates.map((point) => <g key={`${point.label}-${point.x}`}><circle cx={point.x} cy={point.y} r="3.5" fill="var(--brand)" stroke="#B6D4F8" strokeWidth="1.5" /><text x={point.x} y={chartHeight - 12} textAnchor="middle" fontSize="10" fill="#94A3B8">{point.label}</text></g>)}
           </svg>
         )}
       </section>

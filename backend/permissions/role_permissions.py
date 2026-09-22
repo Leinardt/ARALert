@@ -30,7 +30,7 @@ class IsAdmin(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and (request.user.is_superuser or request.user.role == 'admin')
+            and (request.user.is_superuser or getattr(request.user, 'role', None) == 'admin')
         )
 
 
@@ -51,7 +51,7 @@ def role_required(*roles):
                 return False
             if request.user.is_superuser:
                 return True
-            return request.user.role in roles
+            return getattr(request.user, 'role', None) in roles
 
     RolePermission.__name__ = f'RolePermission_{"_".join(roles)}'
     return RolePermission
@@ -64,7 +64,7 @@ class IsTutor(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and (request.user.is_superuser or request.user.role == 'tutor')
+            and (request.user.is_superuser or getattr(request.user, 'role', None) == 'tutor')
         )
 
 
@@ -75,7 +75,7 @@ class IsStudent(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and (request.user.is_superuser or request.user.role == 'student')
+            and (request.user.is_superuser or getattr(request.user, 'role', None) == 'student')
         )
 
 
@@ -86,7 +86,7 @@ class IsPrincipal(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and (request.user.is_superuser or request.user.role == 'principal')
+            and (request.user.is_superuser or getattr(request.user, 'role', None) == 'principal')
         )
 
 
@@ -97,6 +97,7 @@ class IsFaculty(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and (request.user.is_superuser or request.user.role == 'faculty')
+            and (request.user.is_superuser or getattr(request.user, 'role', None) == 'faculty')
         )
+
 

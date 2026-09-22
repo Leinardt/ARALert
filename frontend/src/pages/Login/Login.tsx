@@ -1,23 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAuth } from '../../hooks/useAuth';
-import {
-  AlertCircle, Shield, GraduationCap, ArrowLeft, BookOpen,
-  Hash, Info, CheckCircle2,
-} from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 // ── Student Login Schema (LRN only) ───────────────────────────────
 const studentLoginSchema = z.object({
-  lrn: z.string()
+  lrn: z
+    .string()
     .min(1, 'LRN is required.')
     .regex(/^\d{12}$/, 'LRN must be exactly 12 digits.'),
 });
 type StudentLoginFields = z.infer<typeof studentLoginSchema>;
 
-// ── Error parsing helper ─────────────────────────────────────────────────
+// ── Error parsing helper ──────────────────────────────────────────
 const parseApiError = (error: any, fallback: string): string => {
   if (!error || !error.response) {
     return 'Authentication failed. Server might be offline or unreachable.';
@@ -28,7 +26,9 @@ const parseApiError = (error: any, fallback: string): string => {
   if (typeof data === 'string') return data;
   if (data.detail) return data.detail;
   if (data.non_field_errors) {
-    return Array.isArray(data.non_field_errors) ? data.non_field_errors[0] : String(data.non_field_errors);
+    return Array.isArray(data.non_field_errors)
+      ? data.non_field_errors[0]
+      : String(data.non_field_errors);
   }
   if (data.id_token) {
     return Array.isArray(data.id_token) ? data.id_token[0] : String(data.id_token);
@@ -87,7 +87,9 @@ export const Login: React.FC = () => {
       const res = await googleLogin(response.credential);
       navigate(res.redirect ?? '/login');
     } catch (error: any) {
-      setServerError(parseApiError(error, 'Google Sign-In failed. Check your email domain permissions.'));
+      setServerError(
+        parseApiError(error, 'Google Sign-In failed. Check your email domain permissions.')
+      );
     } finally {
       setGoogleLoading(false);
     }
@@ -100,7 +102,9 @@ export const Login: React.FC = () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
     if (!clientId) {
-      setServerError('Google Client ID is not configured. Please add VITE_GOOGLE_CLIENT_ID to your frontend/.env file.');
+      setServerError(
+        'Google Client ID is not configured. Please add VITE_GOOGLE_CLIENT_ID to your frontend/.env file.'
+      );
       return;
     }
 
@@ -114,10 +118,11 @@ export const Login: React.FC = () => {
           });
 
           if (googleBtnRef.current) {
+            const btnWidth = Math.min(340, Math.max(220, window.innerWidth - 72));
             window.google.accounts.id.renderButton(googleBtnRef.current, {
               theme: 'outline',
               size: 'large',
-              width: 340,
+              width: btnWidth,
               text: 'continue_with',
               shape: 'rectangular',
               logo_alignment: 'center',
@@ -161,158 +166,49 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div
-      style={{
-        minHeight: 'calc(100vh - 64px)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '64px 20px 96px',
-        boxSizing: 'border-box',
-      }}
-    >
+    <div className="min-h-screen flex flex-col items-center justify-center px-3.5 sm:px-6 py-6 sm:py-12 md:py-16 box-border bg-white dark:bg-black text-slate-900 dark:text-white transition-colors">
       <div
+        className="w-full transition-all duration-300 mx-auto"
         style={{
-          width: '100%',
-          maxWidth: loginType === 'select' ? '560px' : '440px',
-          margin: '0 auto',
-          transition: 'max-width 0.3s ease',
+          maxWidth: loginType === 'select' ? '540px' : '440px',
         }}
       >
         {/* Session expired alert */}
         {isSessionExpired && (
-          <div
-            style={{
-              marginBottom: '20px',
-              background: 'var(--color-warning-bg)',
-              border: '1px solid var(--color-warning-border)',
-              color: 'var(--color-warning)',
-              fontSize: '13px',
-              borderRadius: '12px',
-              padding: '14px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-            }}
-          >
-            <AlertCircle style={{ width: '18px', height: '18px', color: 'var(--color-warning)', flexShrink: 0 }} />
+          <div className="mb-4 p-3.5 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs sm:text-sm flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <span>Your session has expired. Please log in again to continue.</span>
           </div>
         )}
 
         {/* Server error alert */}
         {serverError && (
-          <div
-            style={{
-              marginBottom: '20px',
-              background: 'var(--color-danger-bg)',
-              border: '1px solid var(--color-danger-border)',
-              color: 'var(--color-danger)',
-              fontSize: '13px',
-              borderRadius: '12px',
-              padding: '14px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-            }}
-          >
-            <AlertCircle style={{ width: '18px', height: '18px', color: 'var(--color-danger)', flexShrink: 0 }} />
+          <div className="mb-4 p-3.5 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-xs sm:text-sm flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-600 dark:text-red-400" />
             <span>{serverError}</span>
           </div>
         )}
 
-        {/* ── Card ──────────────────────────────────────────────────────── */}
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            borderRadius: '24px',
-            border: '1px solid var(--slate-200)',
-            boxShadow: 'var(--shadow-xl)',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Card Header */}
-          <div
-            style={{
-              padding: '36px 36px 0',
-              textAlign: 'center',
-            }}
-          >
+        {/* ── Card ── */}
+        <div className="bg-white dark:bg-neutral-950 rounded-2xl border border-slate-200/90 dark:border-neutral-800 shadow-sm overflow-hidden">
+          {/* Card Header (No icons) */}
+          <div className="p-5 sm:p-8 sm:pb-0 text-center">
             {loginType !== 'select' && (
               <button
                 onClick={handleBack}
                 type="button"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  color: 'var(--brand)',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  background: 'var(--brand-light)',
-                  border: '1px solid var(--brand-border)',
-                  cursor: 'pointer',
-                  padding: '6px 14px',
-                  borderRadius: '99px',
-                  marginBottom: '16px',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--surface-muted)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--brand-light)';
-                }}
+                className="glass-btn inline-flex items-center text-xs font-semibold px-3.5 py-1.5 rounded-full mb-4 cursor-pointer"
               >
-                <ArrowLeft style={{ width: '15px', height: '15px' }} />
-                Back to options
+                &larr; Back to options
               </button>
             )}
 
-            <div
-              style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: '16px',
-                background: 'var(--brand-light)',
-                border: '1px solid var(--brand-border)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px',
-              }}
-            >
-              {loginType === 'student' ? (
-                <GraduationCap style={{ width: '28px', height: '28px', color: 'var(--brand)' }} />
-              ) : loginType === 'staff' ? (
-                <Shield style={{ width: '28px', height: '28px', color: 'var(--brand)' }} />
-              ) : (
-                <BookOpen style={{ width: '28px', height: '28px', color: 'var(--brand)' }} />
-              )}
-            </div>
-
-            <h1
-              style={{
-                fontSize: loginType === 'select' ? '24px' : '22px',
-                fontWeight: 800,
-                color: 'var(--text-primary)',
-                margin: '0 0 6px',
-                letterSpacing: '-0.3px',
-                fontFamily: 'var(--font-heading)',
-              }}
-            >
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">
               {loginType === 'select' && 'Sign In Options'}
               {loginType === 'staff' && 'Staff Google Login'}
               {loginType === 'student' && 'Student Login'}
             </h1>
-            <p
-              style={{
-                fontSize: '14px',
-                color: 'var(--text-secondary)',
-                margin: '0 0 28px',
-              }}
-            >
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-6">
               {loginType === 'select' && 'Select your portal to access the ARALert system.'}
               {loginType === 'staff' && 'Sign in using your pre-registered Google account.'}
               {loginType === 'student' && 'Enter your 12-digit Learner Reference Number to continue.'}
@@ -320,236 +216,128 @@ export const Login: React.FC = () => {
           </div>
 
           {/* Card Body */}
-          <div style={{ padding: '0 36px 36px' }}>
-            {/* ── Option Cards ────────────────────────────────────────── */}
+          <div className="p-5 sm:p-8 pt-0 sm:pt-0">
+            {/* ── Option Cards (Glass Style, Border-Only Blue Hover Effect) ── */}
             {loginType === 'select' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="flex flex-col gap-3.5">
                 {/* Staff Google Login Option */}
                 <button
                   type="button"
-                  onClick={() => { setLoginType('staff'); setServerError(null); }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '18px',
-                    padding: '20px 22px',
-                    borderRadius: '18px',
-                    border: '1.5px solid var(--slate-200)',
-                    background: 'var(--surface-card)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.2s ease',
-                    width: '100%',
+                  onClick={() => {
+                    setLoginType('staff');
+                    setServerError(null);
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--brand)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-                    e.currentTarget.style.background = 'var(--surface-muted)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--slate-200)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.background = 'var(--surface-card)';
-                  }}
+                  className="glass-card-btn group flex flex-col p-4 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none"
                 >
-                  <div
-                    style={{
-                      width: '50px',
-                      height: '50px',
-                      borderRadius: '14px',
-                      background: 'var(--brand-light)',
-                      border: '1px solid var(--brand-border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Shield style={{ width: '24px', height: '24px', color: 'var(--brand)' }} />
+                  <div className="card-title font-semibold text-sm sm:text-base text-slate-900 dark:text-white mb-1 transition-colors duration-200">
+                    Staff & Faculty Portal
                   </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', marginBottom: '3px' }}>
-                      Staff & Faculty Portal
-                    </div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                      Sign in using your pre-registered Google account (Principal, Admin, Tutor, Faculty).
-                    </div>
+                  <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Sign in using your pre-registered Google account (Principal, Admin, Tutor, Faculty).
                   </div>
                 </button>
 
                 {/* Student Login Option */}
                 <button
                   type="button"
-                  onClick={() => { setLoginType('student'); setServerError(null); }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '18px',
-                    padding: '20px 22px',
-                    borderRadius: '18px',
-                    border: '1.5px solid var(--slate-200)',
-                    background: 'var(--surface-card)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.2s ease',
-                    width: '100%',
+                  onClick={() => {
+                    setLoginType('student');
+                    setServerError(null);
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--brand)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-                    e.currentTarget.style.background = 'var(--surface-muted)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--slate-200)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.background = 'var(--surface-card)';
-                  }}
+                  className="glass-card-btn group flex flex-col p-4 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none"
                 >
-                  <div
-                    style={{
-                      width: '50px',
-                      height: '50px',
-                      borderRadius: '14px',
-                      background: 'var(--brand-light)',
-                      border: '1px solid var(--brand-border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <GraduationCap style={{ width: '24px', height: '24px', color: 'var(--brand)' }} />
+                  <div className="card-title font-semibold text-sm sm:text-base text-slate-900 dark:text-white mb-1 transition-colors duration-200">
+                    Student Learner Portal
                   </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', marginBottom: '3px' }}>
-                      Student Learner Portal
-                    </div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                      Sign in directly with your 12-digit Learner Reference Number (LRN).
-                    </div>
+                  <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Sign in directly with your 12-digit Learner Reference Number (LRN).
                   </div>
                 </button>
               </div>
             )}
 
-            {/* ── Staff Google Login ───────────────────────────────────── */}
+            {/* ── Staff Google Login (Glass Style, Border-Only Blue Hover Effect) ── */}
             {loginType === 'staff' && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-                {/* Render Google Sign-In Button */}
-                <div
-                  ref={googleBtnRef}
-                  style={{ minHeight: '50px', display: 'flex', justifyContent: 'center', width: '100%' }}
-                />
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative w-full max-w-[340px] mx-auto">
+                  <button
+                    type="button"
+                    disabled={googleLoading}
+                    className="glass-btn group w-full flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-xl font-medium text-sm cursor-pointer select-none"
+                  >
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                      <path
+                        fill="#4285F4"
+                        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.25 21.36 7.34 24 12 24z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.25 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                      />
+                    </svg>
+                    <span>{googleLoading ? 'Connecting to Google...' : 'Continue with Google'}</span>
+                  </button>
+                  <div
+                    ref={googleBtnRef}
+                    className="absolute inset-0 w-full h-full opacity-[0.001] overflow-hidden cursor-pointer flex items-center justify-center z-10"
+                    title="Continue with Google"
+                  />
+                </div>
 
-                {googleLoading && (
-                  <div style={{ fontSize: '14px', color: 'var(--brand)', fontWeight: 600 }}>
-                    Authenticating with Google...
-                  </div>
-                )}
-
-                <div
-                  style={{
-                    fontSize: '12px',
-                    color: 'var(--text-muted)',
-                    textAlign: 'center',
-                    marginTop: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    background: 'var(--surface-muted)',
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--slate-200)',
-                    lineHeight: '1.4',
-                  }}
-                >
-                  <Info style={{ width: '14px', height: '14px', color: 'var(--brand)', flexShrink: 0 }} />
-                  <span>Only authorized DepEd / ARALert accounts are permitted to access.</span>
+                <div className="text-xs text-slate-500 dark:text-slate-400 text-center mt-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 leading-relaxed w-full">
+                  Only authorized DepEd / ARALert accounts are permitted to access.
                 </div>
               </div>
             )}
 
-            {/* ── Student Login Form (LRN only) ────────────────────────── */}
+            {/* ── Student Login Form (Glass Style, Border-Only Blue Hover Effect) ── */}
             {loginType === 'student' && (
-              <form onSubmit={studentForm.handleSubmit(onStudentSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <form
+                onSubmit={studentForm.handleSubmit(onStudentSubmit)}
+                className="flex flex-col gap-4"
+              >
                 <div>
-                  <label htmlFor="lrn" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                    Learner Reference Number (LRN) <span style={{ color: 'var(--color-danger)' }}>*</span>
+                  <label
+                    htmlFor="lrn"
+                    className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5"
+                  >
+                    Learner Reference Number (LRN) <span className="text-red-500">*</span>
                   </label>
-                  <div style={{ position: 'relative' }}>
-                    <Hash style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '18px', color: 'var(--text-muted)' }} />
-                    <input
-                      id="lrn"
-                      type="text"
-                      placeholder="Enter 12-digit LRN"
-                      maxLength={12}
-                      {...studentForm.register('lrn')}
-                      style={{
-                        width: '100%',
-                        padding: '12px 14px 12px 42px',
-                        border: `1.5px solid ${studentForm.formState.errors.lrn ? 'var(--color-danger)' : 'var(--slate-200)'}`,
-                        borderRadius: '12px',
-                        fontSize: '14px',
-                        outline: 'none',
-                        transition: 'border-color 0.2s, box-shadow 0.2s',
-                        background: 'var(--surface-muted)',
-                        color: 'var(--text-primary)',
-                        boxSizing: 'border-box',
-                        letterSpacing: '1px',
-                        fontFamily: 'var(--font-body)',
-                      }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--brand)';
-                        e.currentTarget.style.boxShadow = '0 0 0 3px var(--brand-glow)';
-                        e.currentTarget.style.background = 'var(--surface-card)';
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = studentForm.formState.errors.lrn ? 'var(--color-danger)' : 'var(--slate-200)';
-                        e.currentTarget.style.boxShadow = 'none';
-                        e.currentTarget.style.background = 'var(--surface-muted)';
-                      }}
-                    />
-                  </div>
+                  <input
+                    id="lrn"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Enter 12-digit LRN"
+                    maxLength={12}
+                    {...studentForm.register('lrn')}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border bg-slate-50/50 dark:bg-neutral-900 text-slate-900 dark:text-white text-sm tracking-wide placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0052B7]/20 focus:border-[#0052B7] dark:focus:border-blue-500 transition-all duration-150 ${
+                      studentForm.formState.errors.lrn
+                        ? 'border-red-500 dark:border-red-500'
+                        : 'border-slate-200 dark:border-neutral-800'
+                    }`}
+                  />
                   {studentForm.formState.errors.lrn && (
-                    <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--color-danger)' }}>{studentForm.formState.errors.lrn.message}</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      {studentForm.formState.errors.lrn.message}
+                    </p>
                   )}
-                  <p style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>Official 12-digit number issued by the Department of Education.</p>
+                  <p className="mt-1.5 text-[11px] text-slate-400 dark:text-neutral-500">
+                    Official 12-digit number issued by the Department of Education.
+                  </p>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  style={{
-                    width: '100%',
-                    padding: '13px',
-                    background: isSubmitting ? 'var(--slate-400)' : 'var(--brand)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '12px',
-                    fontSize: '14px',
-                    fontWeight: 700,
-                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s',
-                    boxShadow: 'var(--shadow-brand)',
-                    marginTop: '6px',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSubmitting) {
-                      e.currentTarget.style.background = 'var(--brand-hover)';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSubmitting) {
-                      e.currentTarget.style.background = 'var(--brand)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }
-                  }}
+                  className="glass-btn w-full py-2.5 px-4 rounded-xl font-semibold text-sm cursor-pointer mt-1 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? 'Signing in...' : 'Sign In as Student'}
                 </button>
@@ -561,3 +349,5 @@ export const Login: React.FC = () => {
     </div>
   );
 };
+
+export default Login;

@@ -131,9 +131,9 @@ export const CreateUser: React.FC = () => {
         </Link>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center gap-3 border-b border-slate-100 pb-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700">
+      <div className="rounded-md border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-6">
+        <div className="mb-4 flex items-center gap-3 border-b border-slate-100 dark:border-[#1A1A1A] pb-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-blue-700">
             <UserCheck className="h-5 w-5" />
           </div>
           <div>

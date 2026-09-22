@@ -9,9 +9,6 @@ import {
   ChevronRight,
   AlertCircle,
   Users,
-  Smile,
-  Meh,
-  Frown,
   X,
   BarChart2,
 } from 'lucide-react';
@@ -320,21 +317,7 @@ export const TutorHome: React.FC = () => {
     return Math.round((withScores.reduce((acc, s) => acc + s.scoreAvg, 0) / withScores.length) * 10) / 10;
   }, [studentStats]);
 
-  const getAverageMood = (value: number, hasData: boolean) => {
-    // No data yet: show happy face in neutral grey — not orange which implies known medium risk
-    if (!hasData) return {
-      icon: Smile,
-      iconBg: 'bg-gray-100 border-gray-200 dark:bg-gray-800/80 dark:border-gray-700/70',
-      iconColor: 'text-gray-400 dark:text-slate-500',
-    };
-    if (value >= 81) return { icon: Smile, iconBg: 'risk-card-low', iconColor: 'text-risk-low' };
-    if (value >= 75) return { icon: Meh, iconBg: 'risk-card-medium', iconColor: 'text-risk-medium' };
-    return { icon: Frown, iconBg: 'risk-card-high', iconColor: 'text-risk-high' };
-  };
-
   const hasScoreData = grades.some((grade) => grade.remarks?.trim().toLowerCase() !== 'not taken');
-  const attendanceMood = getAverageMood(avgAttendance, attendance.length > 0);
-  const scoreMood = getAverageMood(avgScore, hasScoreData);
 
   const atRiskStudents = useMemo(
     () => studentStats
@@ -531,42 +514,44 @@ export const TutorHome: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3.5 skeleton-container">
-        {/* KPI Cards skeleton */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 shrink-0 skeleton-row-1">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex items-center gap-3.5 rounded-2xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 shadow-sm animate-pulse">
-              <div className="w-11 h-11 rounded-xl bg-gray-200 dark:bg-gray-800 shrink-0 border border-gray-100 dark:border-gray-800" />
-              <div className="flex-1">
-                <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
-                <div className="h-6 w-14 rounded bg-gray-200 dark:bg-gray-800" />
+      <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3 skeleton-container">
+        {/* KPI Cards skeleton — hero + stacked */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-3 shrink-0 skeleton-row-1">
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 animate-pulse">
+            <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800 mb-3" />
+            <div className="h-12 w-16 rounded bg-gray-200 dark:bg-gray-800" />
+          </div>
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center justify-between px-4 py-3">
+                <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-5 w-10 rounded bg-gray-200 dark:bg-gray-800" />
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Content rows skeleton */}
-        <div className="grid gap-4 lg:grid-cols-4 items-stretch flex-1 min-h-0 skeleton-row-2">
+        <div className="grid gap-3 lg:grid-cols-4 items-stretch flex-1 min-h-0 skeleton-row-2">
           {/* Chart card skeleton */}
-          <div className="lg:col-span-3 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl shadow-sm px-4 py-4 sm:px-6 sm:py-5 flex flex-col h-full min-h-0 animate-pulse">
+          <div className="lg:col-span-3 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-5 flex flex-col h-full min-h-0 animate-pulse">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0 pb-3.5 sm:pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
                 <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800 mt-0.5" />
-                <div className="h-3 w-36 rounded bg-gray-100 dark:bg-gray-800 mt-1.5" />
               </div>
               <div className="flex items-center gap-2">
-                <div className="h-4 w-28 rounded-full bg-gray-100 dark:bg-gray-800 hidden sm:block" />
-                <div className="h-4 w-20 rounded-full bg-gray-100 dark:bg-gray-800 hidden sm:block" />
-                <div className="h-7 w-28 rounded-xl bg-gray-100 dark:bg-gray-800" />
+                <div className="h-4 w-28 rounded bg-gray-100 dark:bg-gray-800 hidden sm:block" />
+                <div className="h-4 w-20 rounded bg-gray-100 dark:bg-gray-800 hidden sm:block" />
+                <div className="h-7 w-28 rounded-md bg-gray-100 dark:bg-gray-800" />
               </div>
             </div>
 
             <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3.5 sm:mt-4">
-              <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-2xl" />
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1 shrink-0">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1 skeleton-row-3">
+              <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-sm" />
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1 shrink-0">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1 skeleton-row-3">
                   {[1, 2, 3, 4].map((j) => (
-                    <div key={j} className="bg-gray-50 dark:bg-[#111111] p-2 rounded-2xl border border-gray-100 dark:border-[#1A1A1A] text-center">
+                    <div key={j} className="bg-gray-50 dark:bg-[#111111] p-2 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
                       <div className="h-2.5 w-12 rounded bg-gray-200 dark:bg-gray-800 mx-auto" />
                       <div className="h-5 w-14 rounded bg-gray-200 dark:bg-gray-800 mx-auto mt-1" />
                     </div>
@@ -577,14 +562,14 @@ export const TutorHome: React.FC = () => {
           </div>
 
           {/* At-Risk panel skeleton */}
-          <div className="lg:col-span-1 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl shadow-sm flex flex-col h-full min-h-0 overflow-hidden animate-pulse">
-            <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] flex items-center justify-between shrink-0">
+          <div className="lg:col-span-1 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md flex flex-col h-full min-h-0 overflow-hidden animate-pulse">
+            <div className="px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] flex items-center justify-between shrink-0">
               <div className="h-4 w-36 rounded bg-gray-200 dark:bg-gray-800" />
               <div className="h-5 w-7 rounded-full bg-rose-100 dark:bg-rose-950/40" />
             </div>
-            <div className="p-2.5 sm:p-3 space-y-1.5 flex-1 min-h-0 overflow-y-auto skeleton-row-3">
+            <div className="p-2 space-y-1 flex-1 min-h-0 overflow-y-auto skeleton-row-3">
               {[1, 2, 3, 4, 5].map((j) => (
-                <div key={j} className="px-3 py-1.5 rounded-xl border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111] flex flex-col justify-between">
+                <div key={j} className="px-3 py-1.5 rounded-sm border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111] flex flex-col justify-between">
                   <div className="flex items-center justify-between gap-2">
                     <div className="h-3 w-28 rounded bg-gray-200 dark:bg-gray-800" />
                     <div className="h-3.5 w-10 rounded-full bg-rose-100 dark:bg-rose-950/50 shrink-0" />
@@ -604,12 +589,12 @@ export const TutorHome: React.FC = () => {
 
   if (error) {
     return (
-      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm">
+      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-md p-4">
         <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-bold">Failed to load dashboard</p>
           <p className="text-xs mt-0.5 text-rose-700 dark:text-rose-300">{error}</p>
-          <button type="button" onClick={() => window.location.reload()} className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition">
+          <button type="button" onClick={() => window.location.reload()} className="mt-3 px-4 py-1.5 bg-rose-600 text-white rounded-md text-xs font-bold hover:bg-rose-700 transition">
             Retry
           </button>
         </div>
@@ -618,108 +603,74 @@ export const TutorHome: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3.5 data-loaded-content">
-      {/* ── KPI Cards ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 shrink-0">
-        {[
-          {
-            label: 'My Students',
-            to: '/tutor/students',
-            value: totalStudents,
-            suffix: '',
-            iconBg: 'bg-slate-100 border-slate-200 dark:bg-slate-800/80 dark:border-slate-700/70',
-            icon: Users,
-            iconColor: 'text-slate-800 dark:text-slate-100',
-            valueColor: 'text-gray-900 dark:text-slate-100',
-          },
-          {
-            label: 'Average Attendance',
-            to: '/tutor/analytics?tab=attendance',
-            value: attendance.length === 0 ? '—' : `${avgAttendance}%`,
-            suffix: '',
-            icon: attendanceMood.icon,
-            iconBg: attendanceMood.iconBg,
-            iconColor: attendanceMood.iconColor,
-            valueColor: attendance.length === 0 ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high',
-          },
-          {
-            label: 'Average Scores',
-            to: '/tutor/analytics?tab=score',
-            value: !hasScoreData ? '—' : `${avgScore}%`,
-            suffix: '',
-            icon: scoreMood.icon,
-            iconBg: scoreMood.iconBg,
-            iconColor: scoreMood.iconColor,
-            valueColor: !hasScoreData ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
-          },
-          {
-            label: 'High Risk Students',
-            to: '/tutor/analytics',
-            value: highRiskStudents.length,
-            suffix: '',
-            icon: Frown,
-            iconBg: 'risk-card-high',
-            iconColor: 'text-risk-high',
-            valueColor: 'text-risk-high',
-          },
-        ].map((card) => {
-          const Icon = card.icon;
-          const iconImage = 'iconImage' in card ? card.iconImage as string | undefined : undefined;
-          const iconImageLight = 'iconImageLight' in card ? card.iconImageLight as string | undefined : undefined;
-          return (
-            <Link
-              key={card.label}
-              to={card.to}
-              className="group flex items-center gap-3.5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] dark:border-[#1A1A1A] dark:bg-[#0A0A0A] dark:hover:border-[var(--brand)] dark:hover:shadow-[0_4px_20px_-4px_var(--brand-glow)]"
-            >
-              <div className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 ${card.iconBg}`}>
-                {iconImage ? (
-                  iconImageLight ? (
-                    <>
-                      <img src={iconImageLight} alt="" className="w-5 h-5 object-contain dark:hidden" />
-                      <img src={iconImage} alt="" className="hidden w-5 h-5 object-contain dark:block" />
-                    </>
-                  ) : (
-                    <img src={iconImage} alt="" className="w-5 h-5 object-contain" />
-                  )
-                ) : Icon ? (
-                  <Icon className={`w-5 h-5 ${card.iconColor}`} />
-                ) : null}
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-900 dark:text-slate-100">{card.label}</p>
-                <p className={`text-2xl font-extrabold mt-0.5 ${card.valueColor}`}>{card.value}</p>
-              </div>
-            </Link>
-          );
-        })}
+    <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3 data-loaded-content">
+      {/* ── KPI Cards — hero left, 3 secondaries stacked right ──────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-3 shrink-0">
+        {/* Hero: My Students */}
+        <Link
+          to="/tutor/students"
+          className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 transition-colors hover:bg-gray-50/60 dark:hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">My Students</p>
+          <p className="text-5xl font-extrabold mt-2 tracking-tight text-gray-900 dark:text-slate-100">{totalStudents}</p>
+          <p className="mt-2 text-[11px] text-gray-400 dark:text-slate-500">Enrolled learners</p>
+        </Link>
+
+        {/* 3 Secondary metrics stacked */}
+        <div className="flex flex-col divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden">
+          <Link
+            to="/tutor/analytics?tab=attendance"
+            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)]"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">Avg Attendance</p>
+            <p className={`text-xl font-extrabold ${attendance.length === 0 ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+              {attendance.length === 0 ? '—' : `${avgAttendance}%`}
+            </p>
+          </Link>
+          <Link
+            to="/tutor/analytics?tab=score"
+            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)]"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">Avg Scores</p>
+            <p className={`text-xl font-extrabold ${!hasScoreData ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+              {!hasScoreData ? '—' : `${avgScore}%`}
+            </p>
+          </Link>
+          <Link
+            to="/tutor/analytics"
+            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)]"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">High Risk</p>
+            <p className="text-xl font-extrabold text-risk-high">{highRiskStudents.length}</p>
+          </Link>
+        </div>
       </div>
 
       {/* ── Performance Trend + Risk ───────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-4 items-stretch flex-1 min-h-0">
+      <div className="grid gap-3 lg:grid-cols-4 items-stretch flex-1 min-h-0">
 
         {/* Chart */}
-        <div className="lg:col-span-3 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl shadow-sm px-4 py-4 sm:px-6 sm:py-5 flex flex-col h-full min-h-0">
+        <div className="lg:col-span-3 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-5 flex flex-col h-full min-h-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0 pb-3.5 sm:pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div>
-              <h3 className="whitespace-nowrap text-base font-bold text-gray-900 dark:text-slate-100 mt-0.5">STUDENTS PERFORMANCE TREND CHART</h3>
+              <h3 className="whitespace-nowrap text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">Students Performance Trend</h3>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300">
-                <span className="h-2.5 w-2.5 rounded-full bg-[var(--brand)] inline-block shadow-xs" />
-                <span>Total composite rating of all students</span>
+                <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block" />
+                <span>Composite rating</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#38BDF8] inline-block ring-2 ring-[#38BDF8]/30 shadow-xs" />
+                <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block" />
                 <span>{tutorMilestone}</span>
               </div>
-              <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5 sm:ml-1">
+              <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 sm:ml-1">
                 {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                   <button
                     key={filter}
                     type="button"
                     onClick={() => setTrendFilter(filter)}
-                    className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${trendFilter === filter ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                    className={`rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${trendFilter === filter ? 'bg-[var(--brand)] text-white' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                       }`}
                   >
                     {filter}
@@ -730,7 +681,7 @@ export const TutorHome: React.FC = () => {
           </div>
 
           <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3.5 sm:mt-4">
-            <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-2xl px-4 py-2 sm:px-6 sm:py-2.5">
+            <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-sm px-4 py-2 sm:px-5 sm:py-2.5">
               {last4WeeksData.length > 0 ? (
                 <InteractiveTutorChart data={last4WeeksData} />
               ) : (
@@ -746,8 +697,8 @@ export const TutorHome: React.FC = () => {
               )}
             </div>
 
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1 shrink-0">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1 shrink-0">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
                 {[
                   {
                     label: 'Highest',
@@ -760,12 +711,12 @@ export const TutorHome: React.FC = () => {
                     color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : lowestScore >= 81 ? 'text-risk-low' : lowestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
                   },
                 ].map((stat) => (
-                  <div key={stat.label} className="bg-gray-50 dark:bg-[#111111] p-2 rounded-2xl border border-gray-100 dark:border-[#1A1A1A] text-center">
+                  <div key={stat.label} className="bg-gray-50 dark:bg-[#111111] p-2 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
                     <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">{stat.label}</p>
                     <p className={`text-lg font-extrabold mt-0.5 ${stat.color}`}>{stat.value}</p>
                   </div>
                 ))}
-                <div className="bg-gray-50 dark:bg-[#111111] p-2 rounded-2xl border border-gray-100 dark:border-[#1A1A1A] text-center">
+                <div className="bg-gray-50 dark:bg-[#111111] p-2 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
                   <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">Trend</p>
                   <div className="mt-0.5">
                     {last4WeeksData.length === 0 ? (
@@ -781,10 +732,10 @@ export const TutorHome: React.FC = () => {
                 </div>
                 <Link
                   to="/tutor/analytics"
-                  className="flex items-center justify-center gap-1.5 rounded-2xl border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-4 py-2.5 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300"
+                  className="flex items-center justify-center gap-1.5 rounded-md border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-4 py-2 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300"
                 >
-                  <span className="decoration-[var(--brand)]/60 dark:decoration-sky-400/60">See More</span>
-                  <span className="font-bold no-underline" aria-hidden="true">&gt;</span>
+                  <span>See More</span>
+                  <span className="font-bold" aria-hidden="true">&gt;</span>
                 </Link>
               </div>
             </div>
@@ -793,26 +744,20 @@ export const TutorHome: React.FC = () => {
 
         {/* At-Risk panel */}
         <div className="lg:col-span-1 h-full min-h-0">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-3xl shadow-sm overflow-hidden h-full flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 sm:px-5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
-              <div>
-                <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 mt-0.5 flex items-center gap-2">
-                  TOP STUDENTS AT-RISK
-                </h3>
-              </div>
-              <div>
-                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
-                  {atRiskStudents.length}
-                </span>
-              </div>
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-full flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
+              <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase tracking-wider">
+                Top At-Risk
+              </h3>
+              <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
+                {atRiskStudents.length}
+              </span>
             </div>
 
-            <div className="p-2.5 sm:p-3 space-y-1.5 flex-1 min-h-0 overflow-y-auto">
+            <div className="p-2 space-y-1 flex-1 min-h-0 overflow-y-auto">
               {atRiskStudents.length === 0 ? (
                 <div className="flex flex-col items-center justify-center text-center py-8 px-4 gap-2">
-                  <div className="w-12 h-12 rounded-2xl risk-card-low flex items-center justify-center">
-                    <Smile className="w-6 h-6 text-risk-low" />
-                  </div>
+                  <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   <p className="text-sm font-semibold text-gray-700 dark:text-slate-300">All students on track</p>
                   <p className="text-xs text-gray-400 dark:text-slate-500">No high or medium risk students.</p>
                 </div>
@@ -822,7 +767,7 @@ export const TutorHome: React.FC = () => {
                     key={s.student.id}
                     to={`/tutor/students/${s.student.id}`}
                     state={{ from: 'dashboard' }}
-                    className={`block rounded-xl border px-3 py-1.5 transition-colors group ${s.riskTier === 'High'
+                    className={`block rounded-sm border px-3 py-1.5 transition-colors hover:opacity-90 ${s.riskTier === 'High'
                       ? 'risk-card-high'
                       : 'risk-card-medium'
                       }`}
@@ -838,7 +783,7 @@ export const TutorHome: React.FC = () => {
                       </div>
                       <div className="mt-1 flex items-center justify-between gap-1">
                         <span className="text-gray-500 dark:text-slate-400 text-[10.5px] font-normal leading-tight">
-                          Composite Rating:
+                          Composite:
                         </span>
                         <span className="text-xs font-normal text-gray-900 dark:text-slate-100 leading-tight">
                           {s.compositeScore.toFixed(1)}%

@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  Activity, Search, Filter, Download, ChevronLeft, ChevronRight,
+  Search, Filter, Download, ChevronLeft, ChevronRight,
   AlertTriangle, LogIn, LogOut, KeyRound, UserCog, Eye,
-  Shield, CheckCircle2, RefreshCw,
+  Shield, CheckCircle2, RefreshCw, Activity,
 } from 'lucide-react';
 import api from '../../api/axios';
 
@@ -121,9 +121,9 @@ export const AuditLog: React.FC = () => {
 
   const downloadCSV = () => {
     if (!data) return;
-    const header = 'Timestamp,Action,Username,IP Address,Details\n';
+    const header = 'Timestamp,Action,Username,Details\n';
     const rows = data.results
-      .map((r) => `"${r.timestamp}","${r.action}","${r.username}","${r.ip_address}","${JSON.stringify(r.details).replace(/"/g, "'")}"`)
+      .map((r) => `"${r.timestamp}","${r.action}","${r.username}","${JSON.stringify(r.details).replace(/"/g, "'")}"`)
       .join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -134,93 +134,38 @@ export const AuditLog: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Compute category breakdown from current page results
-  const categoryBreakdown = data?.results.reduce<Record<string, number>>((acc, r) => {
-    const cat = getMeta(r.action).category;
-    acc[cat] = (acc[cat] ?? 0) + 1;
-    return acc;
-  }, {}) ?? {};
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1100px', margin: '0 auto' }}>
 
       {/* ── Page Header ── */}
-      <div style={{
-        background: 'var(--surface-card)',
-        borderRadius: 'var(--radius-xl)',
-        padding: '1.75rem 2rem',
-        border: '1px solid var(--slate-200)',
-        boxShadow: 'var(--shadow-xs)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{
-              width: '48px', height: '48px', borderRadius: '14px',
-              background: 'var(--brand-light)',
-              border: '1px solid var(--brand-border)',
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={fetchLogs}
+            title="Refresh"
+            style={{
+              width: '38px', height: '38px', borderRadius: '10px',
+              background: 'var(--surface-muted)', border: '1px solid var(--slate-200)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <Activity size={24} color="var(--brand-dark)" />
-            </div>
-            <div>
-              <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                Audit Log
-              </h1>
-              <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                {data ? `${data.count.toLocaleString()} total system and administrative events recorded` : 'Tamper-evident log of administrative actions, authentication attempts, and system activity'}
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={fetchLogs}
-              title="Refresh"
-              style={{
-                width: '38px', height: '38px', borderRadius: '10px',
-                background: 'var(--surface-muted)', border: '1px solid var(--slate-200)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: 'var(--text-secondary)',
-                transition: 'var(--transition-fast)',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand-dark)'; e.currentTarget.style.borderColor = 'var(--brand-border)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--slate-200)'; }}
-            >
-              <RefreshCw size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={downloadCSV}
-              disabled={!data}
-              className="btn btn-secondary btn-sm"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
-            >
-              <Download size={15} /> Export CSV
-            </button>
-          </div>
+              cursor: 'pointer', color: 'var(--text-secondary)',
+              transition: 'var(--transition-fast)',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand-dark)'; e.currentTarget.style.borderColor = 'var(--brand-border)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--slate-200)'; }}
+          >
+            <RefreshCw size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={downloadCSV}
+            disabled={!data}
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <Download size={15} /> Export CSV
+          </button>
         </div>
-
-        {/* Category breakdown pills */}
-        {Object.keys(categoryBreakdown).length > 0 && (
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', flexWrap: 'wrap' }}>
-            {Object.entries(categoryBreakdown).map(([cat, count]) => {
-              const c = CATEGORY_COLORS[cat] ?? CATEGORY_COLORS.other;
-              return (
-                <span key={cat} style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '5px',
-                  padding: '3px 10px', borderRadius: '99px', fontSize: '0.72rem', fontWeight: 700,
-                  background: c.bg, color: c.color,
-                  border: `1px solid var(--slate-200)`,
-                }}>
-                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: c.color, display: 'inline-block' }} />
-                  {cat.toUpperCase()} ({count})
-                </span>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {/* ── Filters ── */}
@@ -362,7 +307,6 @@ export const AuditLog: React.FC = () => {
                   <th>Timestamp (UTC)</th>
                   <th>Event</th>
                   <th>Username</th>
-                  <th>IP Address</th>
                   <th>Browser / Agent</th>
                   <th style={{ textAlign: 'center' }}>Details</th>
                 </tr>
@@ -391,7 +335,7 @@ export const AuditLog: React.FC = () => {
                           <span style={{
                             display: 'inline-flex', alignItems: 'center', gap: '5px',
                             padding: '3px 10px 3px 7px', borderRadius: '99px',
-                            fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.02em',
+                            fontSize: '0.68rem', fontWeight: 600, letterSpacing: '0.02em',
                             background: meta.bg, color: meta.color,
                             border: `1px solid ${meta.border}`,
                             whiteSpace: 'nowrap',
@@ -404,11 +348,6 @@ export const AuditLog: React.FC = () => {
                           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                             {log.username}
                           </span>
-                        </td>
-                        <td>
-                          <code style={{ fontSize: '0.78rem', color: 'var(--text-muted)', background: 'var(--surface-muted)', padding: '2px 7px', borderRadius: '6px' }}>
-                            {log.ip_address}
-                          </code>
                         </td>
                         <td>
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }} title={log.user_agent}>
@@ -426,7 +365,7 @@ export const AuditLog: React.FC = () => {
                                 background: isExpanded ? 'var(--brand-light)' : 'var(--surface-muted)',
                                 border: `1px solid ${isExpanded ? 'var(--brand-border)' : 'var(--slate-200)'}`,
                                 color: isExpanded ? 'var(--brand-dark)' : 'var(--text-muted)',
-                                fontSize: '0.75rem', fontWeight: 700,
+                                fontSize: '0.75rem', fontWeight: 600,
                                 cursor: 'pointer', fontFamily: 'var(--font-body)',
                                 transition: 'all 0.15s',
                               }}
@@ -442,7 +381,7 @@ export const AuditLog: React.FC = () => {
                       {/* Expandable details row */}
                       {isExpanded && hasDetails && (
                         <tr>
-                          <td colSpan={6} style={{ padding: '0 1.25rem 1rem', background: 'var(--surface-muted)' }}>
+                          <td colSpan={5} style={{ padding: '0 1.25rem 1rem', background: 'var(--surface-muted)' }}>
                             <div style={{
                               background: '#0F172A',
                               borderRadius: '12px',
@@ -532,22 +471,6 @@ export const AuditLog: React.FC = () => {
       )}
 
       {/* ── Legend ── */}
-      <div style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-xl)', padding: '1.25rem 1.5rem', boxShadow: 'var(--shadow-xs)' }}>
-        <p style={{ margin: '0 0 0.875rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Event Legend
-        </p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-          {Object.entries(ACTION_META).slice(0, 12).map(([action, m]) => (
-            <span key={action} style={{
-              display: 'inline-flex', alignItems: 'center', gap: '5px',
-              padding: '3px 10px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: 700,
-              background: m.bg, color: m.color, border: `1px solid ${m.border}`,
-            }}>
-              {m.icon} {action.replace(/_/g, ' ')}
-            </span>
-          ))}
-        </div>
-      </div>
     </div>
   );
 };
