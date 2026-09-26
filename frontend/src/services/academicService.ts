@@ -6,7 +6,16 @@ import type {
   AttendanceSession,
   Attendance,
   StudentAcademicProfile,
-  AralProgressionResult
+  AralProgressionResult,
+  SchoolYear,
+  MosyMonitoringData,
+  EosyMonitoringData,
+  MosyAssignmentData,
+  TransitionSummaryPreview,
+  AvailableTutorItem,
+  SummerRecord,
+  ArchivedSchoolYearSnapshot,
+  StudentCompleteHistory,
 } from '../types';
 
 export interface GetGradesParams {
@@ -238,5 +247,92 @@ export const academicService = {
       student_id: studentId
     });
     return response.data.results;
-  }
+  },
+
+  // School Year Management
+  getSchoolYears: async (): Promise<SchoolYear[]> => {
+    const response = await api.get<SchoolYear[]>('/academics/school-years/');
+    return response.data;
+  },
+
+  getCurrentSchoolYear: async (): Promise<SchoolYear> => {
+    const response = await api.get<SchoolYear>('/academics/school-years/current/');
+    return response.data;
+  },
+
+  // MOSY Evaluation & Assignments
+  getMosyMonitoring: async (): Promise<MosyMonitoringData> => {
+    const response = await api.get<MosyMonitoringData>('/academics/evaluations/mosy-monitoring/');
+    return response.data;
+  },
+
+  processMosyCompletion: async (): Promise<{ status: string; message: string; plus_unassigned_count: number; basic_retained_count: number }> => {
+    const response = await api.post<{ status: string; message: string; plus_unassigned_count: number; basic_retained_count: number }>('/academics/evaluations/mosy-process/');
+    return response.data;
+  },
+
+  getMosyAssignments: async (): Promise<MosyAssignmentData> => {
+    const response = await api.get<MosyAssignmentData>('/academics/evaluations/mosy-assignments/');
+    return response.data;
+  },
+
+  // EOSY Evaluation & Transition
+  getEosyMonitoring: async (): Promise<EosyMonitoringData> => {
+    const response = await api.get<EosyMonitoringData>('/academics/evaluations/eosy-monitoring/');
+    return response.data;
+  },
+
+  getTransitionSummaryPreview: async (): Promise<TransitionSummaryPreview> => {
+    const response = await api.get<TransitionSummaryPreview>('/academics/evaluations/transition-summary/');
+    return response.data;
+  },
+
+  startNewSchoolYear: async (): Promise<{ status: string; message: string; previous_school_year: string; new_school_year: string; summary: any }> => {
+    const response = await api.post<{ status: string; message: string; previous_school_year: string; new_school_year: string; summary: any }>('/academics/evaluations/start-new-school-year/');
+    return response.data;
+  },
+
+  // Available Tutors (No Capacity) & Assignment
+  getAvailableTutors: async (program?: string): Promise<AvailableTutorItem[]> => {
+    const response = await api.get<AvailableTutorItem[]>('/academics/tutors/available/', { params: program ? { program } : {} });
+    return response.data;
+  },
+
+  assignTutor: async (payload: { student_id: string; tutor_id?: string | null; period?: string; notes?: string }): Promise<{ message: string; student_id: string; tutor_id: string | null; tutor_name: string }> => {
+    const response = await api.post<{ message: string; student_id: string; tutor_id: string | null; tutor_name: string }>('/academics/tutors/assign/', payload);
+    return response.data;
+  },
+
+  // Summer Remediation Program
+  getSummerList: async (): Promise<SummerRecord[]> => {
+    const response = await api.get<SummerRecord[]>('/academics/summer/');
+    return response.data;
+  },
+
+  startSummerParticipation: async (id: number): Promise<{ message: string; record: SummerRecord }> => {
+    const response = await api.post<{ message: string; record: SummerRecord }>(`/academics/summer/${id}/start/`);
+    return response.data;
+  },
+
+  evaluateSummerStudent: async (id: number, payload: { result: 'passed' | 'failed'; notes?: string }): Promise<{ message: string; record: SummerRecord }> => {
+    const response = await api.post<{ message: string; record: SummerRecord }>(`/academics/summer/${id}/evaluate/`, payload);
+    return response.data;
+  },
+
+  // School Year Archive
+  getArchivedSchoolYears: async (): Promise<SchoolYear[]> => {
+    const response = await api.get<SchoolYear[]>('/academics/archive/');
+    return response.data;
+  },
+
+  getArchivedSchoolYearDetail: async (schoolYear: string): Promise<ArchivedSchoolYearSnapshot> => {
+    const response = await api.get<ArchivedSchoolYearSnapshot>(`/academics/archive/${schoolYear}/`);
+    return response.data;
+  },
+
+  // Student Complete History
+  getStudentCompleteHistory: async (studentId: string): Promise<StudentCompleteHistory> => {
+    const response = await api.get<StudentCompleteHistory>(`/academics/students/${studentId}/history/`);
+    return response.data;
+  },
 };

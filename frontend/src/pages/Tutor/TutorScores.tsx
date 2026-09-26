@@ -286,82 +286,242 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
   };
 
   return (
-    <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-slate-700 text-sm">
-      <thead>
-        <tr className="divide-x divide-gray-100 dark:divide-slate-700 bg-gray-50 dark:bg-slate-900">
-          <th className="w-[22%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="STUDENT" sortKey="student" /></th>
-          <th className="w-[18%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="DESCRIPTION" sortKey="description" /></th>
-          <th className="w-[10%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="SCORE" sortKey="score" /></th>
-          <th className="w-[12%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="REMARK" sortKey="remark" /></th>
-          <th className="w-[10%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="STATUS" sortKey="status" /></th>
-          <th className="w-[14%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="DATE" sortKey="date" /></th>
-          <th className="w-[8%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="TIME" sortKey="time" /></th>
-          <th className="w-[6%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">ACTIONS</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-700 dark:bg-slate-900">
+    <>
+      {/* Desktop Table View (>= 768px) */}
+      <div className="hidden md:block overflow-x-auto mobile-scroll-table">
+        <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-slate-700 text-sm">
+          <thead>
+            <tr className="divide-x divide-gray-100 dark:divide-slate-700 bg-gray-50 dark:bg-slate-900">
+              <th className="w-[22%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="STUDENT" sortKey="student" /></th>
+              <th className="w-[18%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="DESCRIPTION" sortKey="description" /></th>
+              <th className="w-[10%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="SCORE" sortKey="score" /></th>
+              <th className="w-[12%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="REMARK" sortKey="remark" /></th>
+              <th className="w-[10%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="STATUS" sortKey="status" /></th>
+              <th className="w-[14%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="DATE" sortKey="date" /></th>
+              <th className="w-[8%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="TIME" sortKey="time" /></th>
+              <th className="w-[6%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-700 dark:bg-slate-900">
+            {sortedRows.map((grade) => {
+              const isEditing = editingGradeId === grade.id;
+              const isLastSaved = grade.batch_id === lastSavedBatchId;
+              const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
+              const scorePercentage = (Number(grade.score) / (Number(grade.total_score) || 100)) * 100;
+              const descriptionVal = getScoreDescription(grade);
+              return (
+                <tr
+                  key={grade.id}
+                  ref={isLastSaved ? lastRowRef : undefined}
+                  className={`group divide-x divide-gray-100 dark:divide-slate-700 border-t border-gray-100 dark:border-slate-700 text-left transition-colors ${isLastSaved ? 'bg-[var(--brand-light)] hover:bg-[var(--brand-light)]' : 'hover:bg-gray-50/80 dark:hover:bg-slate-800'}`}
+                >
+                  <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
+                    {grade.student_name || 'Unknown student'}
+                  </td>
+                  <td className="px-4 py-3 text-left whitespace-nowrap">
+                    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${descriptionVal !== 'Intervention Activity'
+                        ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
+                        : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                      }`}>
+                      {descriptionVal}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-700 dark:text-slate-300 whitespace-nowrap">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={editScore}
+                        onKeyDown={blockSymbolKeys}
+                        onChange={(event) => setEditScore(sanitizeScoreInput(event.target.value, Number(grade.total_score)))}
+                        className="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-semibold outline-none focus:border-[var(--brand)]"
+                      />
+                    ) : `${grade.score} / ${grade.total_score}`}
+                  </td>
+                  <td className="px-4 py-3 text-left whitespace-nowrap">
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${isNotTaken ? 'border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400' : scorePercentage >= 70 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'}`}>
+                      {isNotTaken ? 'Not Taken' : scorePercentage >= 70 ? 'Passed' : 'Failed'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-left whitespace-nowrap">
+                    {isEditing ? (
+                      <select value={editStatus} onChange={(event) => setEditStatus(event.target.value as 'Taken' | 'Not')} className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none focus:border-[var(--brand)]">
+                        <option value="Taken">Taken</option>
+                        <option value="Not">Not Taken</option>
+                      </select>
+                    ) : (
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${isNotTaken ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'}`}>
+                        {isNotTaken ? 'Not Taken' : 'Taken'}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
+                    {isEditing ? (
+                      <div className="relative inline-block">
+                        <button
+                          type="button"
+                          onClick={(event) => toggleEditCalendar(event, grade.id)}
+                          className="h-9 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700"
+                          style={{ color: editDate ? '#1f2937' : '#9ca3af' }}
+                        >
+                          {editDate || 'Select date'}
+                        </button>
+                        {editCalendarGradeId === grade.id && createPortal(
+                          <ScoreCalendarDropdown
+                            selectedDate={editDate}
+                            onSelectDate={setEditDate}
+                            onClear={() => setEditDate('')}
+                            onClose={() => setEditCalendarGradeId(null)}
+                            loggedDates={new Set(grades.map((entry) => entry.date_logged))}
+                            className="fixed"
+                            style={{ position: 'fixed', top: editCalendarPosition.top, left: editCalendarPosition.left, marginTop: 0, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+                          />,
+                          document.body
+                        )}
+                      </div>
+                    ) : formatDateStr(grade.date_logged)}
+                  </td>
+                  <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">{formatTimeStr(grade.created_at)}</td>
+                  <td className="px-4 py-3 text-center whitespace-nowrap">
+                    {isEditing ? (
+                      <div className="inline-flex items-center gap-1.5">
+                        <button type="button" onClick={saveEditingGrade} disabled={isEditingGrade} className="rounded-lg p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50" aria-label="Save score changes" title="Save score changes">
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                        <button type="button" onClick={cancelEditingGrade} disabled={isEditingGrade} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 disabled:opacity-50" aria-label="Cancel score changes" title="Cancel score changes">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => startEditingGrade(grade)} className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 cursor-pointer" aria-label={`Edit score for ${grade.student_name}`} title="Edit score">
+                        <Edit3 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Card View (< 768px) */}
+      <div className="md:hidden space-y-3">
         {sortedRows.map((grade) => {
           const isEditing = editingGradeId === grade.id;
           const isLastSaved = grade.batch_id === lastSavedBatchId;
           const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
           const scorePercentage = (Number(grade.score) / (Number(grade.total_score) || 100)) * 100;
           const descriptionVal = getScoreDescription(grade);
+
           return (
-            <tr
-              key={grade.id}
-              ref={isLastSaved ? lastRowRef : undefined}
-              className={`group divide-x divide-gray-100 dark:divide-slate-700 border-t border-gray-100 dark:border-slate-700 text-left transition-colors ${isLastSaved ? 'bg-[var(--brand-light)] hover:bg-[var(--brand-light)]' : 'hover:bg-gray-50/80 dark:hover:bg-slate-800'}`}
+            <div
+              key={`mobile-row-${grade.id}`}
+              ref={isLastSaved ? (lastRowRef as any) : undefined}
+              className={`rounded-xl border p-4 space-y-3 transition-colors ${
+                isLastSaved
+                  ? 'border-[var(--brand)] bg-[var(--brand-light)] dark:bg-slate-800'
+                  : 'border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+              }`}
             >
-              <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
-                {grade.student_name || 'Unknown student'}
-              </td>
-              <td className="px-4 py-3 text-left whitespace-nowrap">
-                <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${descriptionVal !== 'Intervention Activity'
-                    ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
-                    : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                  }`}>
+              {/* Header: Student Name + Action */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-bold text-sm text-gray-900 dark:text-slate-100 truncate">
+                    {grade.student_name || 'Unknown student'}
+                  </p>
+                  <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-0.5">
+                    {formatDateStr(grade.date_logged)}
+                  </p>
+                </div>
+
+                {!isEditing && (
+                  <button
+                    type="button"
+                    onClick={() => startEditingGrade(grade)}
+                    className="h-8 px-2.5 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-semibold text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+                    aria-label={`Edit score for ${grade.student_name}`}
+                  >
+                    <Edit3 className="h-3.5 w-3.5" />
+                    <span>Edit</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Badges: Description & Status */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span
+                  className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
+                    descriptionVal !== 'Intervention Activity'
+                      ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
+                      : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                  }`}
+                >
                   {descriptionVal}
                 </span>
-              </td>
-              <td className="px-4 py-3 text-xs text-gray-700 dark:text-slate-300 whitespace-nowrap">
-                {isEditing ? (
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={editScore}
-                    onKeyDown={blockSymbolKeys}
-                    onChange={(event) => setEditScore(sanitizeScoreInput(event.target.value, Number(grade.total_score)))}
-                    className="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-semibold outline-none focus:border-[var(--brand)]"
-                  />
-                ) : `${grade.score} / ${grade.total_score}`}
-              </td>
-              <td className="px-4 py-3 text-left whitespace-nowrap">
-                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${isNotTaken ? 'border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400' : scorePercentage >= 70 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'}`}>
+
+                <span
+                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
+                    isNotTaken
+                      ? 'border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                      : scorePercentage >= 70
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                      : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                  }`}
+                >
                   {isNotTaken ? 'Not Taken' : scorePercentage >= 70 ? 'Passed' : 'Failed'}
                 </span>
-              </td>
-              <td className="px-4 py-3 text-left whitespace-nowrap">
-                {isEditing ? (
-                  <select value={editStatus} onChange={(event) => setEditStatus(event.target.value as 'Taken' | 'Not')} className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none focus:border-[var(--brand)]">
-                    <option value="Taken">Taken</option>
-                    <option value="Not">Not Taken</option>
-                  </select>
-                ) : (
-                  <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${isNotTaken ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'}`}>
-                    {isNotTaken ? 'Not Taken' : 'Taken'}
-                  </span>
-                )}
-              </td>
-              <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
-                {isEditing ? (
-                  <div className="relative inline-block">
+
+                <span
+                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize ${
+                    isNotTaken
+                      ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                  }`}
+                >
+                  {isNotTaken ? 'Not Taken' : 'Taken'}
+                </span>
+              </div>
+
+              {/* Content area: Editing vs Viewing */}
+              {isEditing ? (
+                <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-slate-800">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Score</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={editScore}
+                        onKeyDown={blockSymbolKeys}
+                        onChange={(event) => setEditScore(sanitizeScoreInput(event.target.value, Number(grade.total_score)))}
+                        className="w-full h-9 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-sm font-bold text-gray-900 outline-none focus:border-[var(--brand)]"
+                        placeholder={`0–${grade.total_score}`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Status</label>
+                      <select
+                        value={editStatus}
+                        onChange={(event) => setEditStatus(event.target.value as 'Taken' | 'Not')}
+                        className="w-full h-9 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-700 outline-none focus:border-[var(--brand)]"
+                      >
+                        <option value="Taken">Taken</option>
+                        <option value="Not">Not Taken</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Date</label>
                     <button
                       type="button"
                       onClick={(event) => toggleEditCalendar(event, grade.id)}
-                      className="h-9 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700"
+                      className="w-full h-9 rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 text-left flex items-center justify-between"
                       style={{ color: editDate ? '#1f2937' : '#9ca3af' }}
                     >
-                      {editDate || 'Select date'}
+                      <span>{editDate || 'Select date'}</span>
+                      <Calendar className="w-3.5 h-3.5 text-gray-400" />
                     </button>
                     {editCalendarGradeId === grade.id && createPortal(
                       <ScoreCalendarDropdown
@@ -371,35 +531,66 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                         onClose={() => setEditCalendarGradeId(null)}
                         loggedDates={new Set(grades.map((entry) => entry.date_logged))}
                         className="fixed"
-                        style={{ position: 'fixed', top: editCalendarPosition.top, left: editCalendarPosition.left, marginTop: 0, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+                        style={{ position: 'fixed', top: editCalendarPosition.top, left: Math.min(editCalendarPosition.left, window.innerWidth - 300), marginTop: 0, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
                       />,
                       document.body
                     )}
                   </div>
-                ) : formatDateStr(grade.date_logged)}
-              </td>
-              <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">{formatTimeStr(grade.created_at)}</td>
-              <td className="px-4 py-3 text-center whitespace-nowrap">
-                {isEditing ? (
-                  <div className="inline-flex items-center gap-1.5">
-                    <button type="button" onClick={saveEditingGrade} disabled={isEditingGrade} className="rounded-lg p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50" aria-label="Save score changes" title="Save score changes">
-                      <Check className="h-3.5 w-3.5" />
+
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={cancelEditingGrade}
+                      disabled={isEditingGrade}
+                      className="h-9 px-3 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-50 cursor-pointer"
+                    >
+                      Cancel
                     </button>
-                    <button type="button" onClick={cancelEditingGrade} disabled={isEditingGrade} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 disabled:opacity-50" aria-label="Cancel score changes" title="Cancel score changes">
-                      <X className="h-3.5 w-3.5" />
+                    <button
+                      type="button"
+                      onClick={saveEditingGrade}
+                      disabled={isEditingGrade}
+                      className="h-9 px-4 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Check className="h-4 w-4" />
+                      Save
                     </button>
                   </div>
-                ) : (
-                  <button type="button" onClick={() => startEditingGrade(grade)} className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 cursor-pointer" aria-label={`Edit score for ${grade.student_name}`} title="Edit score">
-                    <Edit3 className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </td>
-            </tr>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50/80 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-800">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+                      Score
+                    </span>
+                    <p className="text-xl font-extrabold text-gray-900 dark:text-slate-100">
+                      {grade.score}{' '}
+                      <span className="text-xs font-semibold text-gray-400 dark:text-slate-500">
+                        / {grade.total_score}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+                      Result
+                    </span>
+                    <p className={`text-xl font-black ${scoreColor(scorePercentage)}`}>
+                      {isNotTaken ? '0%' : `${smartPct(scorePercentage)}%`}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Timestamp footer */}
+              <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-slate-500 pt-0.5">
+                <span className="truncate">{formatDateStr(grade.date_logged)}</span>
+                <span>{formatTimeStr(grade.created_at)}</span>
+              </div>
+            </div>
           );
         })}
-      </tbody>
-    </table>
+      </div>
+    </>
   );
 };
 
@@ -443,7 +634,7 @@ export const TutorScores: React.FC = () => {
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
   const [showEntryCalendarPopover, setShowEntryCalendarPopover] = useState(false);
-  const [studentSortDirection, setStudentSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [studentSortDirection, setStudentSortDirection] = useState<'asc' | 'desc'>('asc');
   const [studentSortActive, setStudentSortActive] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
   const [scoreStudentSearch, setScoreStudentSearch] = useState('');
@@ -681,6 +872,25 @@ export const TutorScores: React.FC = () => {
     return Math.round((sum / dailyGrades.length) * 10) / 10;
   }, [dailyGrades]);
 
+  // Live evaluation progress tracking for milestone periods (MOSY / EOSY / Summer)
+  const periodGrades = useMemo(() => safeGrades.filter((grade) =>
+    grade.component_type === 'assessment' &&
+    (grade.subject?.toLowerCase().includes(assignedPeriod.toLowerCase()) ||
+     grade.subject?.toLowerCase().includes('reading'))
+  ), [safeGrades, assignedPeriod]);
+
+  const evaluatedStudentIds = useMemo(() => new Set(periodGrades.map((g) => String(g.student))), [periodGrades]);
+  const evaluatedStudentsCount = useMemo(() => {
+    return students.filter((s) => evaluatedStudentIds.has(String(s.id))).length;
+  }, [students, evaluatedStudentIds]);
+
+  const evaluationStatus = useMemo(() => {
+    if (students.length === 0) return 'No Students';
+    if (evaluatedStudentsCount >= students.length) return 'Completed';
+    if (evaluatedStudentsCount > 0) return 'In Progress';
+    return 'Pending';
+  }, [students.length, evaluatedStudentsCount]);
+
   // ── DTR-mirror: batchRows (mirrors dtrRows in StaffAttendanceScanner) ──
   // Each unique batch_id → one row in the table, newest-first
   const batchRows = useMemo(() => {
@@ -841,6 +1051,18 @@ export const TutorScores: React.FC = () => {
     [students, studentSearch, studentSortDirection]
   );
 
+  // Mobile score entry must ALWAYS be in alphabetical order (A to Z)
+  const mobileAlphabeticalStudents = useMemo(
+    () => [...students]
+      .filter((student) => matchesSearch(studentSearch, student.full_name, student.first_name, student.last_name, student.lrn))
+      .sort((firstStudent, secondStudent) => {
+        const nameA = (firstStudent.full_name || `${firstStudent.first_name || ''} ${firstStudent.last_name || ''}`).trim();
+        const nameB = (secondStudent.full_name || `${secondStudent.first_name || ''} ${secondStudent.last_name || ''}`).trim();
+        return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+      }),
+    [students, studentSearch]
+  );
+
   if (isLoading) return (
     <div className="flex flex-col space-y-6 max-w-6xl mx-auto skeleton-container">
       {/* Header controls skeleton */}
@@ -910,46 +1132,62 @@ export const TutorScores: React.FC = () => {
 
       {/* ── Score Entry Form ───────────────────────────────────────── */}
       {showAddEntry && (
-        <div className="order-1 flex h-[600px] flex-col rounded-md border border-gray-200 bg-white overflow-hidden">
-          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-5 py-3.5 border-b border-gray-100">
-            <div>
-              <h3 className="font-bold text-gray-900 text-sm uppercase">
+        <div className="order-1 flex flex-col rounded-md border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 w-full min-w-0 max-w-full sm:h-[600px] sm:min-h-[500px] sm:overflow-hidden">
+          <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-3.5 border-b border-gray-100 dark:border-slate-800">
+            <div className="flex flex-wrap items-center gap-3">
+              <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm uppercase">
                 {entryKind === 'daily' ? 'Add Intervention Activity Scores' : levelEntry.title}
               </h3>
+              {/* Live Evaluation Progress Pill */}
+              <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/80 text-xs">
+                <span className="text-gray-500 dark:text-slate-400 text-[11px] font-semibold">{assignedPeriod} Progress:</span>
+                <span className="font-extrabold text-gray-800 dark:text-slate-200 text-xs">
+                  {evaluatedStudentsCount}/{students.length} Evaluated
+                </span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                  evaluationStatus === 'Completed'
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    : evaluationStatus === 'In Progress'
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+                    : 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-slate-400'
+                }`}>
+                  {evaluationStatus}
+                </span>
+              </div>
             </div>
-            <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => handleOpenAddEntry('daily')}
-                className={`inline-flex h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-xs font-bold transition ${entryKind === 'daily' ? 'border-[var(--brand)] bg-[var(--brand)] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[var(--brand-border)] hover:text-[var(--brand)]'}`}
+                className={`inline-flex min-h-[44px] sm:min-h-0 sm:h-8 w-full sm:w-auto shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-xs font-bold transition ${entryKind === 'daily' ? 'border-[var(--brand)] bg-[var(--brand)] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[var(--brand-border)] hover:text-[var(--brand)] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                 Add Intervention Score
               </button>
               <button
                 type="button"
                 onClick={handleMilestoneEntryClick}
-                className={`inline-flex h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-xs font-bold transition ${entryKind !== 'daily' ? 'border-[var(--brand)] bg-[var(--brand-light)] text-[var(--brand-dark)]' : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-[var(--brand-border)] hover:text-[var(--brand)]'}`}
+                className={`inline-flex min-h-[44px] sm:min-h-0 sm:h-8 w-full sm:w-auto shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-xs font-bold transition ${entryKind !== 'daily' ? 'border-[var(--brand)] bg-[var(--brand-light)] text-[var(--brand-dark)]' : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-[var(--brand-border)] hover:text-[var(--brand)] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                 Add {assignedPeriod} Score
               </button>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-hidden p-5 flex flex-col gap-4">
-            <div className="shrink-0 grid grid-cols-1 gap-2.5 sm:grid-cols-[minmax(0,1.8fr)_auto]">
-              <div className="min-w-0">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,300px)_170px]">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
+          <div className="flex-1 p-4 sm:p-5 flex flex-col gap-4 sm:min-h-0 sm:overflow-hidden">
+            <div className="shrink-0 flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(0,1.8fr)_auto] sm:items-end">
+              <div className="min-w-0 w-full">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,260px)_160px]">
+                  <div className="w-full">
+                    <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1.5">
                       DATE
                     </label>
-                    <div className="relative">
+                    <div className="relative w-full">
                       <button
                         type="button"
                         onClick={() => setShowEntryCalendarPopover((previous) => !previous)}
-                        className="flex w-full max-w-[300px] items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-1.5 text-left text-xs font-semibold text-gray-900 transition hover:bg-gray-50 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                        className="flex w-full min-h-[44px] sm:min-h-0 sm:h-9 items-center justify-between rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 sm:py-1.5 text-left text-xs font-semibold text-gray-900 dark:text-slate-100 transition hover:bg-gray-50 dark:hover:bg-slate-700/50 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
                         aria-label="Select score date"
                       >
                         <span>{logDate ? formatDateStr(logDate) : 'Select date'}</span>
@@ -967,29 +1205,29 @@ export const TutorScores: React.FC = () => {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">TOTAL ITEMS</label>
+                  <div className="w-full">
+                    <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1.5">TOTAL ITEMS</label>
                     <input
                       type="text"
                       inputMode="numeric"
                       value={totalScore}
                       onKeyDown={blockSymbolKeys}
                       onChange={(e) => setTotalScore(sanitizeScoreInput(e.target.value))}
-                      className="w-full max-w-[170px] rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-900 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] [appearance:textfield]"
+                      className="w-full min-h-[44px] sm:min-h-0 sm:h-9 rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 sm:py-1.5 text-xs font-bold text-gray-900 dark:text-slate-100 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] [appearance:textfield]"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-end justify-end">
+              <div className="w-full sm:w-auto flex items-end justify-end">
                 <button
                   type="button"
                   onClick={() => setShowSaveConfirmation(true)}
                   disabled={isSaving}
-                  className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white transition hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full sm:w-auto min-h-[44px] sm:min-h-0 sm:h-9 inline-flex items-center justify-center gap-2 rounded-md bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white transition hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-60 shadow-sm"
                 >
                   {isSaving ? (
-                    <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving...</>
+                    <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving...</>
                   ) : entryKind === 'daily' ? 'Save Intervention Activity Scores' : `Save ${assignedPeriod} Scores`}
                 </button>
               </div>
@@ -998,26 +1236,27 @@ export const TutorScores: React.FC = () => {
             {students.length === 0 ? (
               <p className="text-center py-6 text-xs text-gray-400">No assigned students found.</p>
             ) : (
-              <div className="min-h-0 flex flex-1 flex-col overflow-hidden rounded-md border border-gray-200">
-                <div className="flex shrink-0 flex-col gap-3 border-b border-gray-100 bg-white px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col rounded-md border border-gray-200 dark:border-slate-800 sm:min-h-0 sm:flex-1 sm:overflow-hidden">
+                <div className="flex shrink-0 flex-col gap-3 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 sm:py-2.5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h3 className="text-sm font-bold uppercase text-gray-900">Student Score List</h3>
-                    <p className="mt-0.5 text-xs font-medium text-gray-500">Enter scores for assigned students</p>
+                    <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">Student Score List</h3>
+                    <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">Enter scores for assigned students</p>
                   </div>
-                  <label className="relative flex min-w-52 items-center">
-                    <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-gray-400" />
+                  <label className="relative flex w-full sm:w-auto sm:min-w-56 items-center">
+                    <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-gray-400" />
                     <input
                       type="search"
                       placeholder="Search Student Name"
                       value={studentSearch}
                       onChange={(event) => setStudentSearch(event.target.value)}
-                      className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)]"
+                      className="min-h-[44px] sm:min-h-0 sm:h-8 w-full rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 pl-10 pr-3 text-xs font-medium text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-[var(--brand)]"
                       aria-label="Search student name"
                     />
                   </label>
                 </div>
-                <div className="min-h-0 flex-1 overflow-auto">
-                  <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-slate-800 text-sm">
+                <div className="mobile-scroll-table sm:min-h-0 sm:flex-1 sm:overflow-auto">
+                  {/* Desktop Table View (>= 640px) */}
+                  <table className="hidden sm:table min-w-[680px] w-full divide-y divide-gray-100 dark:divide-slate-800 text-sm">
                     <thead className="bg-gray-50 dark:bg-slate-900">
                       <tr className="divide-x divide-gray-100 dark:divide-slate-800">
                         <th aria-sort={studentSortActive ? (studentSortDirection === 'asc' ? 'ascending' : 'descending') : undefined} className="w-[38%] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
@@ -1112,6 +1351,96 @@ export const TutorScores: React.FC = () => {
                       })}
                     </tbody>
                   </table>
+
+                  {/* Mobile Card Entry View (< 640px) - always strictly alphabetical order (A to Z) */}
+                  <div className="sm:hidden p-3 space-y-3">
+                    {mobileAlphabeticalStudents.length === 0 ? (
+                      <p className="text-center py-6 text-xs text-gray-400">No students found matching "{studentSearch}".</p>
+                    ) : (
+                      mobileAlphabeticalStudents.map((student) => {
+                      const status = entryStatus[student.id] || 'Taken';
+                      const isNotTaken = status === 'Not';
+                      const rawScore = entryScores[student.id];
+                      const activeTotal = Number(totalScore) || 0;
+                      const pct = isNotTaken
+                        ? 0
+                        : (!isNotTaken && rawScore !== '' && activeTotal > 0
+                          ? Math.round((Number(rawScore) / activeTotal) * 100 * 10) / 10
+                          : null);
+                      const isPassingMilestone = entryKind !== 'daily' && pct !== null && pct >= 70;
+
+                      return (
+                        <div
+                          key={`mobile-entry-${student.id}`}
+                          className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3 shadow-xs"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-sm text-gray-900 dark:text-slate-100 break-words">
+                                {student.full_name}
+                              </p>
+                              <p className="text-[11px] font-medium text-gray-400 dark:text-slate-500 mt-0.5">
+                                LRN: {student.lrn || 'N/A'}
+                              </p>
+                            </div>
+                            <div className="shrink-0">
+                              <select
+                                value={status}
+                                onChange={(e) => {
+                                  const newStatus = e.target.value as 'Taken' | 'Not';
+                                  setEntryStatus((prev) => ({ ...prev, [student.id]: newStatus }));
+                                  if (newStatus === 'Not') setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
+                                }}
+                                className="min-h-[44px] rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-slate-200 focus:border-[var(--brand)] focus:outline-none cursor-pointer"
+                              >
+                                <option value="Taken">Taken</option>
+                                <option value="Not">Not Taken</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
+                            <div className="flex items-center gap-2">
+                              <label htmlFor={`score-input-${student.id}`} className="text-xs font-bold text-gray-600 dark:text-slate-400 shrink-0">
+                                Score:
+                              </label>
+                              <input
+                                id={`score-input-${student.id}`}
+                                type="text"
+                                inputMode="numeric"
+                                value={isNotTaken ? 0 : (entryScores[student.id] ?? '')}
+                                onKeyDown={blockSymbolKeys}
+                                onChange={(e) => {
+                                  const sanitized = sanitizeScoreInput(e.target.value, activeTotal);
+                                  setEntryScores((prev) => ({ ...prev, [student.id]: sanitized }));
+                                }}
+                                placeholder={`0–${activeTotal}`}
+                                disabled={isNotTaken}
+                                className="w-24 min-h-[44px] rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-center text-sm font-bold text-gray-900 dark:text-slate-100 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60"
+                              />
+                              <span className="text-xs font-semibold text-gray-400 shrink-0">/ {activeTotal}</span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-xs font-medium text-gray-400">Preview:</span>
+                              {pct !== null ? (
+                                <div className="flex items-center gap-1">
+                                  <span className={`text-sm font-black ${scoreColor(pct)}`}>{pct}%</span>
+                                  {entryKind !== 'daily' && (
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isPassingMilestone ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400'}`}>
+                                      {isPassingMilestone ? 'Pass' : 'Fail'}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-gray-400 font-semibold">0%</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }))}
+                  </div>
                 </div>
               </div>
             )}
@@ -1134,7 +1463,7 @@ export const TutorScores: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <label className="relative flex min-w-52 items-center">
+            <label className="relative flex w-full sm:w-auto sm:min-w-52 items-center">
               <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-gray-400" />
               <input
                 type="search"
@@ -1192,7 +1521,7 @@ export const TutorScores: React.FC = () => {
                   setExportModalConfig({ isOpen: true, mode: 'weekly', targetKey: '' });
                 }
               }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] active:scale-[0.98] cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-3.5 py-2 sm:py-1.5 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] active:scale-[0.98] cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-white" />
               Export Score Sheet
@@ -1226,7 +1555,7 @@ export const TutorScores: React.FC = () => {
               <p className="text-[11px] text-gray-400">{jumpDate ? 'Try a different date or clear the filter' : 'Records will appear after logging scores'}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-2 px-2 space-y-5">
+            <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2 space-y-5">
               {scoreTableGroups.map((tableGroup) => (
                 <div key={tableGroup.key} className="space-y-2.5">
                   {tableGroup.label && (

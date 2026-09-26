@@ -28,6 +28,8 @@ export interface User {
   weekly_tasks_weight: number;
   attendance_weight: number;
   aral_level?: 'basic' | 'plus' | 'summer' | 'graduated' | null;
+  tutor_type?: 'basic' | 'plus' | 'basic_plus' | null;
+  is_available_for_students?: boolean;
   subject?: 'Reading' | 'Science' | 'Math' | null;
   faculty_type?: string | null;
   grade_level?: string | null;
@@ -277,3 +279,281 @@ export interface CreateStudentEditRequestPayload {
   proposed_aral_level: string;
   reason: string;
 }
+
+export interface SchoolYear {
+  id: number;
+  school_year: string;
+  status: 'ACTIVE' | 'ARCHIVED';
+  is_active: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string;
+  archived_at: string | null;
+}
+
+export interface StudentEnrollment {
+  id: number;
+  student: string;
+  student_name: string;
+  student_lrn: string;
+  school_year: number;
+  school_year_str: string;
+  grade_level: string;
+  program: 'basic' | 'plus' | 'summer';
+  assigned_tutor: string | null;
+  assigned_tutor_name: string;
+  enrollment_status: 'active' | 'completed' | 'dropped' | 'inactive';
+  mosy_result: 'pending' | 'passed' | 'failed' | 'exempted' | 'not_taken';
+  eosy_result: 'pending' | 'passed' | 'failed' | 'exempted' | 'not_taken';
+  final_result: string | null;
+  evaluation_status: 'pending' | 'in_progress' | 'completed';
+  graduation_status: 'not_eligible' | 'eligible' | 'graduated';
+  summer_status: 'none' | 'summer_required' | 'summer_active' | 'evaluation_pending' | 'summer_passed' | 'summer_failed' | 'summer_completed';
+  enrollment_date: string;
+  completion_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TutorAssignmentHistory {
+  id: number;
+  student: string;
+  student_name: string;
+  student_lrn: string;
+  tutor: string;
+  tutor_name: string;
+  school_year: number;
+  school_year_str: string;
+  period: 'MOSY' | 'EOSY' | 'FULL_YEAR';
+  program: string;
+  assigned_by: string | null;
+  start_date: string;
+  end_date: string | null;
+  is_active: boolean;
+  notes: string;
+  created_at: string;
+}
+
+export interface SummerRecord {
+  id: number;
+  student: string;
+  student_name: string;
+  student_lrn: string;
+  previous_enrollment: number | null;
+  previous_program: string;
+  previous_school_year: string;
+  reason: 'BASIC_FAILED_TWICE' | 'PLUS_FAILED' | 'ADMIN_REFERRED';
+  reason_display: string;
+  summer_status: 'summer_required' | 'summer_active' | 'evaluation_pending' | 'summer_passed' | 'summer_failed' | 'summer_completed';
+  status_display: string;
+  summer_evaluation_status: 'pending' | 'completed';
+  summer_result: 'passed' | 'failed' | null;
+  start_date: string | null;
+  completion_date: string | null;
+  evaluating_tutor: string | null;
+  evaluator_name: string | null;
+  notes: string;
+  created_at: string;
+}
+
+export interface IncompleteStudent {
+  id: string;
+  full_name: string;
+  lrn: string | null;
+  program: string;
+}
+
+export interface TutorProgressItem {
+  tutor_id: string;
+  tutor_name: string;
+  email: string;
+  tutor_type: string;
+  assigned_students_count: number;
+  evaluated_count: number;
+  remaining_count: number;
+  status: 'Completed' | 'In Progress' | 'Pending';
+  has_no_students: boolean;
+  incomplete_students: IncompleteStudent[];
+}
+
+export interface MosyMonitoringData {
+  school_year: string;
+  total_tutors: number;
+  completed_tutors: number;
+  in_progress_tutors: number;
+  pending_tutors: number;
+  total_assigned_students: number;
+  total_students_evaluated: number;
+  students_remaining: number;
+  is_all_complete: boolean;
+  tutors_progress: TutorProgressItem[];
+  incomplete_tutors: TutorProgressItem[];
+}
+
+export interface EosyMonitoringData {
+  current_school_year: string;
+  next_school_year: string;
+  current_school_year_status: string;
+  eosy_completion_status: string;
+  can_transition: boolean;
+  warning_message: string | null;
+  total_tutors: number;
+  completed_tutors: number;
+  in_progress_tutors: number;
+  pending_tutors: number;
+  total_assigned_students: number;
+  total_students_evaluated: number;
+  students_remaining: number;
+  tutors_progress: TutorProgressItem[];
+  incomplete_tutors: TutorProgressItem[];
+}
+
+export interface UnassignedPlusStudent {
+  id: string;
+  full_name: string;
+  lrn: string | null;
+  program: string;
+  school_year: string;
+  mosy_status: string;
+  mosy_result: string;
+  mosy_score_pct: number | null;
+  previous_tutor: string;
+  assignment_status: string;
+}
+
+export interface BasicStudentAssignmentItem {
+  id: string;
+  full_name: string;
+  lrn: string | null;
+  program: string;
+  school_year: string;
+  current_tutor: string;
+  tutor_id: string | null;
+  mosy_status: string;
+  mosy_result: string;
+  assignment_status: string;
+}
+
+export interface GraduatedStudentItem {
+  id: string;
+  full_name: string;
+  lrn: string | null;
+  program: string;
+  school_year: string;
+  status: string;
+  requires_tutor: boolean;
+}
+
+export interface MosyAssignmentData {
+  school_year: string;
+  unassigned_plus_students: UnassignedPlusStudent[];
+  basic_students: BasicStudentAssignmentItem[];
+  graduated_students: GraduatedStudentItem[];
+}
+
+export interface AvailableTutorItem {
+  id: string;
+  full_name: string;
+  email: string;
+  subject: string;
+  tutor_type: string;
+  tutor_type_display: string;
+  current_students_count: number;
+  has_students: boolean;
+  is_available: boolean;
+  availability_status: string;
+}
+
+export interface TransitionSummaryPreview {
+  current_school_year: string;
+  next_school_year: string;
+  student_movement: {
+    basic_to_plus: number;
+    plus_to_graduated: number;
+    basic_to_basic: number;
+    basic_to_summer_required: number;
+    plus_to_summer_required: number;
+    dropped_inactive: number;
+  };
+  tutor_assignment: {
+    basic_tutors: number;
+    basic_tutors_available_for_additional_students: number;
+    unassigned_basic_students: number;
+    plus_tutors: number;
+    plus_tutors_available_for_additional_students: number;
+    unassigned_plus_students: number;
+  };
+}
+
+export interface StudentHistoryEnrollmentItem {
+  school_year: string;
+  grade_level: string;
+  program: string;
+  tutor_name: string;
+  mosy_result: string;
+  eosy_result: string;
+  final_result: string;
+  status: string;
+  graduation_status: string;
+  summer_status: string;
+}
+
+export interface StudentHistoryTutorItem {
+  tutor_name: string;
+  school_year: string;
+  period: string;
+  program: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  notes: string;
+}
+
+export interface StudentHistorySummerItem {
+  school_year: string;
+  program: string;
+  reason: string;
+  status: string;
+  evaluation_status: string;
+  result: string;
+  evaluator: string;
+  start_date: string | null;
+  completion_date: string | null;
+}
+
+export interface StudentCompleteHistory {
+  student_id: string;
+  full_name: string;
+  lrn: string | null;
+  current_level: string;
+  current_tutor: string;
+  enrollment_history: StudentHistoryEnrollmentItem[];
+  tutor_history: StudentHistoryTutorItem[];
+  summer_history: StudentHistorySummerItem[];
+}
+
+export interface ArchivedSchoolYearRecord {
+  enrollment_id: number;
+  student_id: string;
+  student_name: string;
+  lrn: string | null;
+  grade_level: string;
+  program: string;
+  assigned_tutor: string;
+  tutor_id: string | null;
+  mosy_result: string;
+  eosy_result: string;
+  final_result: string;
+  graduation_status: string;
+  summer_status: string;
+  enrollment_status: string;
+}
+
+export interface ArchivedSchoolYearSnapshot {
+  school_year: string;
+  status: string;
+  is_read_only: boolean;
+  total_students: number;
+  records: ArchivedSchoolYearRecord[];
+}
+

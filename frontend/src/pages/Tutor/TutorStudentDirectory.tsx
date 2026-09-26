@@ -299,7 +299,7 @@ export const TutorStudentDirectory: React.FC = () => {
                 <ChevronDown className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-[var(--brand)] opacity-75" />
               </div>
 
-              <label className="relative flex min-w-52 items-center">
+              <label className="relative flex w-full sm:w-auto sm:min-w-52 items-center">
                 <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-gray-400" />
                 <input
                   type="search"
@@ -322,7 +322,7 @@ export const TutorStudentDirectory: React.FC = () => {
                 <p className="text-xs text-gray-400 dark:text-slate-500">Try a different student name or LRN</p>
               </div>
             ) : (
-              <div className="overflow-x-auto -mx-2 px-2">
+              <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2">
                 <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                   <thead>
                     <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">

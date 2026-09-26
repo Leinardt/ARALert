@@ -432,7 +432,7 @@ const AttendanceTable: React.FC<{
   };
 
   return (
-    <div className="overflow-x-auto -mx-2 px-2">
+    <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2">
       <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
         <thead>
           <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
@@ -1445,7 +1445,7 @@ export const TutorQRGenerator: React.FC = () => {
 
           {/* ── Controls ── */}
           <div className="flex flex-wrap items-center gap-2">
-            <label className="relative flex min-w-52 items-center">
+            <label className="relative flex w-full sm:w-auto sm:min-w-52 items-center">
               <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-gray-400" />
               <input
                 type="search"

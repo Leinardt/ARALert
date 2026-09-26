@@ -116,10 +116,10 @@ export const PrincipalHome: React.FC = () => {
     });
   }, [dashboardData]);
 
-  const chartHeight = 180;
+  const chartHeight = 220;
   const chartPadding = 36;
-  const classChartWidth = Math.max(320, classTrend.length * 50);
-  const staffChartWidth = Math.max(320, staffTrend.length * 50);
+  const classChartWidth = Math.max(340, classTrend.length * 56);
+  const staffChartWidth = Math.max(340, staffTrend.length * 56);
   const classStepX = classTrend.length > 1 ? (classChartWidth - chartPadding * 2) / (classTrend.length - 1) : 0;
   const staffStepX = staffTrend.length > 1 ? (staffChartWidth - chartPadding * 2) / (staffTrend.length - 1) : 0;
 
@@ -223,7 +223,7 @@ export const PrincipalHome: React.FC = () => {
           <select
             value={dashboardDays}
             onChange={(e) => setDashboardDays(Number(e.target.value))}
-            className="flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-md text-xs font-medium bg-white dark:bg-[#0c111c] text-gray-700 dark:text-slate-200"
+            className="flex-1 sm:flex-initial px-2.5 sm:px-3 py-2 min-h-[38px] border border-gray-200 dark:border-slate-700 rounded-md text-xs font-medium bg-white dark:bg-[#0c111c] text-gray-700 dark:text-slate-200"
           >
             <option value={7}>Last 7 days</option>
             <option value={14}>Last 14 days</option>
@@ -232,7 +232,7 @@ export const PrincipalHome: React.FC = () => {
           <button
             type="button"
             onClick={fetchDashboardData}
-            className="inline-flex items-center justify-center bg-[var(--brand-light)] text-[var(--brand-text)] hover:bg-[var(--surface-muted)] px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium border border-[var(--brand-border)] transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center bg-[var(--brand-light)] text-[var(--brand-text)] hover:bg-[var(--surface-muted)] px-3 py-2 min-h-[38px] rounded-md text-xs font-medium border border-[var(--brand-border)] transition-colors cursor-pointer flex-1 xs:flex-initial"
           >
             <RefreshCw className="w-3.5 h-3.5 mr-1 sm:mr-1.5" />
             Refresh
@@ -241,7 +241,7 @@ export const PrincipalHome: React.FC = () => {
             type="button"
             onClick={openDtrExport}
             disabled={isLoadingDtr}
-            className="inline-flex items-center justify-center bg-[var(--brand)] text-white hover:bg-[var(--brand-dark)] px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+            className="inline-flex items-center justify-center bg-[var(--brand)] text-white hover:bg-[var(--brand-dark)] px-3 py-2 min-h-[38px] rounded-md text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer flex-1 xs:flex-initial"
           >
             <Download className="w-3.5 h-3.5 mr-1 sm:mr-1.5" />
             {isLoadingDtr ? 'Loading…' : 'Export DTR'}
@@ -256,15 +256,15 @@ export const PrincipalHome: React.FC = () => {
           return (
             <div
               key={card.label}
-              className="bg-white dark:bg-[#0c111c] p-2.5 sm:p-3.5 rounded-md border border-gray-200 dark:border-slate-800 flex flex-col justify-between"
+              className="bg-white dark:bg-[#0c111c] p-2.5 sm:p-3.5 rounded-md border border-gray-200 dark:border-slate-800 flex flex-col justify-between min-w-0"
             >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
                   {card.label}
                 </span>
-                <IconComp className={`w-3.5 h-3.5 ${card.color}`} />
+                <IconComp className={`w-3.5 h-3.5 shrink-0 ${card.color}`} />
               </div>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-1 sm:mt-1.5">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-1 sm:mt-1.5 truncate">
                 {card.value}
               </p>
               <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
@@ -350,7 +350,7 @@ export const PrincipalHome: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {/* Composite Performance Chart */}
         <div className="bg-white dark:bg-[#0c111c] rounded-md border border-gray-200 dark:border-slate-800 p-4">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 mb-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
                 Student Performance Analytics
@@ -362,7 +362,7 @@ export const PrincipalHome: React.FC = () => {
             <select
               value={selectedTutorId}
               onChange={(e) => setSelectedTutorId(e.target.value)}
-              className="px-2.5 py-1.5 border border-gray-200 dark:border-slate-700 rounded-md text-xs font-medium bg-white dark:bg-[#0c111c] text-gray-700 dark:text-slate-200"
+              className="px-2.5 py-1.5 border border-gray-200 dark:border-slate-700 rounded-md text-xs font-medium bg-white dark:bg-[#0c111c] text-gray-700 dark:text-slate-200 w-full xs:w-auto"
             >
               <option value="all">All Tutors</option>
               {dashboardData?.per_tutor_performance && dashboardData.per_tutor_performance.length > 0 ? (
@@ -382,7 +382,7 @@ export const PrincipalHome: React.FC = () => {
           ) : dashboardError ? (
             <div className="rounded-md border border-red-100 bg-red-50 p-3 text-xs text-red-700">{dashboardError}</div>
           ) : hasClassTrendData ? (
-            <div className="overflow-x-auto dashboard-chart">
+            <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2 sm:mx-0 sm:px-0 dashboard-chart">
               <svg width={classChartWidth} height={chartHeight} className="block mx-auto">
                 {[0, 1, 2, 3, 4].map((line) => {
                   const y = chartPadding + ((chartHeight - chartPadding * 1.5) / 4) * line;
@@ -402,7 +402,7 @@ export const PrincipalHome: React.FC = () => {
                 {classTrend.map((point, index) => {
                   const x = chartPadding + index * classStepX;
                   return (
-                    <text key={point.date} x={x} y={chartHeight - chartPadding / 2.5} textAnchor="middle" fontSize="9" fill="#6B7280">
+                    <text key={point.date} x={x} y={chartHeight - chartPadding / 2.5} textAnchor="middle" fontSize="10" className="fill-slate-600 dark:fill-slate-400 font-semibold">
                       {formatDateLabel(point.date)}
                     </text>
                   );
@@ -418,7 +418,7 @@ export const PrincipalHome: React.FC = () => {
 
         {/* Staff Attendance Chart */}
         <div className="bg-white dark:bg-[#0c111c] rounded-md border border-gray-200 dark:border-slate-800 p-4">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 mb-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
                 Staff Activity Analytics
@@ -440,7 +440,7 @@ export const PrincipalHome: React.FC = () => {
           ) : dashboardError ? (
             <div className="rounded-md border border-red-100 bg-red-50 p-3 text-xs text-red-700">{dashboardError}</div>
           ) : hasStaffTrendData ? (
-            <div className="overflow-x-auto dashboard-chart">
+            <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2 sm:mx-0 sm:px-0 dashboard-chart">
               <svg width={staffChartWidth} height={chartHeight} className="block mx-auto">
                 {[0, 1, 2, 3, 4].map((line) => {
                   const y = chartPadding + ((chartHeight - chartPadding * 1.5) / 4) * line;
@@ -462,7 +462,7 @@ export const PrincipalHome: React.FC = () => {
                 {staffTrend.map((point, index) => {
                   const x = chartPadding + index * staffStepX;
                   return (
-                    <text key={point.date} x={x} y={chartHeight - chartPadding / 2.5} textAnchor="middle" fontSize="9" fill="#6B7280">
+                    <text key={point.date} x={x} y={chartHeight - chartPadding / 2.5} textAnchor="middle" fontSize="10" className="fill-slate-600 dark:fill-slate-400 font-semibold">
                       {formatDateLabel(point.date)}
                     </text>
                   );
@@ -498,7 +498,7 @@ export const PrincipalHome: React.FC = () => {
             No tutor performance records found for this period.
           </div>
         ) : (
-          <div className="overflow-x-auto mt-2">
+          <div className="overflow-x-auto mobile-scroll-table mt-2 -mx-2 px-2 sm:mx-0 sm:px-0">
             <table className="w-full min-w-[620px] text-left text-xs">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-wider">

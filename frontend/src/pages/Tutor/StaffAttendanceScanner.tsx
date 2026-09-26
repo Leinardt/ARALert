@@ -974,7 +974,7 @@ export const StaffAttendanceScanner: React.FC = () => {
               <p className="text-xs text-gray-400 dark:text-slate-500">Records will appear after scanning QR codes</p>
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-2 px-2">
+            <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2">
               <table className="min-w-[600px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-[#151515]">

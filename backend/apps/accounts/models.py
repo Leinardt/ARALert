@@ -110,6 +110,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         SCIENCE = 'Science', 'Science'
         MATH    = 'Math',    'Math'
 
+    class TutorType(models.TextChoices):
+        BASIC      = 'basic',      'Basic Tutor'
+        PLUS       = 'plus',       'Plus Tutor'
+        BASIC_PLUS = 'basic_plus', 'Basic & Plus Tutor'
+
     # Subject handled by the tutor (Reading, Science, or Math)
     subject = models.CharField(
         max_length=20,
@@ -118,6 +123,20 @@ class User(AbstractBaseUser, PermissionsMixin):
         blank=True,
         verbose_name='Assigned Subject',
         help_text='Subject handled by the tutor (Reading, Science, or Math).',
+    )
+
+    tutor_type = models.CharField(
+        max_length=20,
+        choices=TutorType.choices,
+        default=TutorType.BASIC,
+        verbose_name='Tutor Type',
+        help_text='Tutor specialization program level.',
+    )
+
+    is_available_for_students = models.BooleanField(
+        default=True,
+        verbose_name='Available for Additional Students',
+        help_text='Eligibility indicator indicating if tutor is accepting compatible students.',
     )
 
     # Tutor-customisable grading weights (only used if role='tutor')

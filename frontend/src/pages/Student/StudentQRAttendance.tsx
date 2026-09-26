@@ -418,7 +418,7 @@ export const StudentQRAttendance: React.FC = () => {
   };
 
   const renderTable = (records: Attendance[]) => (
-    <div className="overflow-x-auto -mx-2 px-2">
+    <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2">
       <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
         <thead>
           <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
