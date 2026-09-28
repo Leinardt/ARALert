@@ -28,7 +28,7 @@ export interface User {
   weekly_tasks_weight: number;
   attendance_weight: number;
   aral_level?: 'basic' | 'plus' | 'summer' | 'graduated' | null;
-  tutor_type?: 'basic' | 'plus' | 'basic_plus' | null;
+  tutor_type?: 'basic' | 'plus' | 'summer' | null;
   is_available_for_students?: boolean;
   subject?: 'Reading' | 'Science' | 'Math' | null;
   faculty_type?: string | null;
@@ -285,6 +285,9 @@ export interface SchoolYear {
   school_year: string;
   status: 'ACTIVE' | 'ARCHIVED';
   is_active: boolean;
+  current_semester?: '1st' | '2nd' | 'summer';
+  current_period?: string;
+  active_milestone?: 'MOSY' | 'EOSY' | 'ARAL Summer Assessment';
   start_date: string | null;
   end_date: string | null;
   created_at: string;
@@ -419,6 +422,10 @@ export interface UnassignedPlusStudent {
   mosy_score_pct: number | null;
   previous_tutor: string;
   assignment_status: string;
+  /** e.g. 'Leveled Up to PLUS' | 'Ready for Q3/Q4 PLUS Cohort' */
+  status_badge: string;
+  /** color hint: 'green' | 'blue' */
+  status_color: string;
 }
 
 export interface BasicStudentAssignmentItem {
@@ -427,11 +434,15 @@ export interface BasicStudentAssignmentItem {
   lrn: string | null;
   program: string;
   school_year: string;
-  current_tutor: string;
-  tutor_id: string | null;
   mosy_status: string;
   mosy_result: string;
+  mosy_score_pct: number | null;
+  previous_tutor: string;
   assignment_status: string;
+  /** e.g. 'Needs Basic Retake (Q3/Q4 or Summer)' | 'Passed MOSY — Awaiting Level-Up' | 'Pending MOSY Evaluation' */
+  status_badge: string;
+  /** color hint: 'yellow' | 'green' | 'gray' */
+  status_color: string;
 }
 
 export interface GraduatedStudentItem {
@@ -447,8 +458,12 @@ export interface GraduatedStudentItem {
 export interface MosyAssignmentData {
   school_year: string;
   unassigned_plus_students: UnassignedPlusStudent[];
+  /** Unassigned basic students — failed MOSY retake or pending evaluation */
+  unassigned_basic_students: BasicStudentAssignmentItem[];
+  /** Backward-compat alias for unassigned_basic_students */
   basic_students: BasicStudentAssignmentItem[];
   graduated_students: GraduatedStudentItem[];
+  total_unassigned: number;
 }
 
 export interface AvailableTutorItem {
@@ -459,7 +474,12 @@ export interface AvailableTutorItem {
   tutor_type: string;
   tutor_type_display: string;
   current_students_count: number;
+  /** Maximum cohort size (25) */
+  total_slots: number;
+  /** Remaining slots available for new students */
+  available_slots: number;
   has_students: boolean;
+  cohort_load_status?: string;
   is_available: boolean;
   availability_status: string;
 }
@@ -555,5 +575,103 @@ export interface ArchivedSchoolYearSnapshot {
   is_read_only: boolean;
   total_students: number;
   records: ArchivedSchoolYearRecord[];
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: Unified Assignment Queue & Bulk Cohort Dispatch
+// ---------------------------------------------------------------------------
+
+export interface AssignmentQueueItem {
+  id: string;
+  full_name: string;
+  lrn: string | null;
+  /** 'basic' | 'plus' */
+  required_program: string;
+  mosy_result: string;
+  eosy_result: string;
+  mosy_score_pct: number | null;
+  previous_tutor: string;
+  /** Human-readable explanation of why this student is in the queue */
+  status_reason: string;
+  /** Short display badge label */
+  status_badge: string;
+  /** Color hint: 'green' | 'blue' | 'yellow' | 'orange' | 'red' | 'gray' */
+  status_color: string;
+}
+
+export interface AssignmentQueueData {
+  school_year: string;
+  total_unassigned: number;
+  /** Students requiring a Plus-certified tutor */
+  plus_queue: AssignmentQueueItem[];
+  /** Students requiring a Basic-certified tutor */
+  basic_queue: AssignmentQueueItem[];
+  summary: {
+    total_plus_queue: number;
+    total_basic_queue: number;
+    needs_plus_tutor: number;
+    needs_basic_tutor: number;
+  };
+}
+
+export interface BulkAssignResultStudent {
+  student_id: string;
+  student_name: string;
+  lrn: string | null;
+  program: string;
+  history_id: number | null;
+  reason?: string;
+}
+
+export interface BulkAssignResult {
+  tutor_id: string;
+  tutor_name: string;
+  period: string;
+  assigned: BulkAssignResultStudent[];
+  skipped: BulkAssignResultStudent[];
+  total_assigned: number;
+  total_skipped: number;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4: Tutor Historical Roster & Past Cohorts
+// ---------------------------------------------------------------------------
+
+export interface TutorActiveCohortStudent {
+  student_id: string;
+  student_name: string;
+  lrn: string | null;
+  email: string;
+  program: string;
+  grade_level: string;
+  is_active: boolean;
+}
+
+export interface TutorHistoricalCohortRecord {
+  history_id: number;
+  student_id: string;
+  student_name: string;
+  lrn: string | null;
+  email: string;
+  school_year: string;
+  period: string;
+  program: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  notes: string;
+  latest_score: string | null;
+  latest_grade_remarks: string | null;
+}
+
+export interface TutorCohortHistoryData {
+  tutor_id: string;
+  tutor_name: string;
+  email: string;
+  tutor_type: string;
+  active_students_count: number;
+  active_cohort: TutorActiveCohortStudent[];
+  past_records: TutorHistoricalCohortRecord[];
+  total_historical_students: number;
 }
 

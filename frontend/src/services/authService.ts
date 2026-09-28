@@ -1,5 +1,6 @@
 import api from '../api/axios';
 import type { AuthResponse, User } from '../types';
+import { clearActivity } from '../utils/activityTracker';
 
 export interface AllowedEmail {
   id: number;
@@ -41,6 +42,8 @@ export const authService = {
         // Ignore logout network errors
       }
     }
+    clearActivity();
+    sessionStorage.clear();
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');

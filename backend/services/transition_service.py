@@ -210,24 +210,17 @@ def get_transition_summary_preview() -> dict:
 
     dropped_inactive = User.objects.filter(role='student', is_active=False).count()
 
-    # Tutor metrics (no capacity limits)
+    # Tutor metrics (single ARAL level handled per tutor)
     basic_tutors = User.objects.filter(role='tutor', tutor_type='basic', is_active=True)
     plus_tutors = User.objects.filter(role='tutor', tutor_type='plus', is_active=True)
-    basic_plus_tutors = User.objects.filter(role='tutor', tutor_type='basic_plus', is_active=True)
 
     # Basic available count
-    basic_tutors_count = basic_tutors.count() + basic_plus_tutors.count()
-    available_basic_tutors_count = (
-        basic_tutors.filter(is_available_for_students=True).count()
-        + basic_plus_tutors.filter(is_available_for_students=True).count()
-    )
+    basic_tutors_count = basic_tutors.count()
+    available_basic_tutors_count = basic_tutors.filter(is_available_for_students=True).count()
 
     # Plus available count
-    plus_tutors_count = plus_tutors.count() + basic_plus_tutors.count()
-    available_plus_tutors_count = (
-        plus_tutors.filter(is_available_for_students=True).count()
-        + basic_plus_tutors.filter(is_available_for_students=True).count()
-    )
+    plus_tutors_count = plus_tutors.count()
+    available_plus_tutors_count = plus_tutors.filter(is_available_for_students=True).count()
 
     return {
         'current_school_year': current_sy_str,
@@ -365,7 +358,7 @@ def execute_school_year_transition(admin_user: User | None = None) -> dict:
                         # Check if current tutor is still compatible Basic tutor
                         tutor = student.assigned_tutor
                         tutor_compatible = (
-                            tutor and (tutor.tutor_type in ('basic', 'basic_plus'))
+                            tutor and (tutor.tutor_type == 'basic' or tutor.aral_level == 'basic')
                         )
                         next_tutor = tutor if tutor_compatible else None
 
@@ -413,25 +406,25 @@ def execute_school_year_transition(admin_user: User | None = None) -> dict:
                     )
                     summary_stats['sent_to_summer'] += 1
 
-        # STEP 7: Recalculate Tutor Assignments in TutorAssignmentHistory
-        # (deactivate previous year active assignments, record active new assignments)
+        # STEP 7: Clean-Slate Reset — conclude all active assignments for the archived school year.
+        # All students (Basic, Plus) become unassigned. Tutors become fully vacant.
+        # Admin will build fresh cohorts for the new school year.
         TutorAssignmentHistory.objects.filter(
             school_year=active_sy,
             is_active=True,
-        ).update(is_active=False, end_date=timezone.localdate())
+        ).update(
+            is_active=False,
+            end_date=timezone.localdate(),
+            notes='Concluded at EOSY — all pairings reset for new school year cohort reassignment.'
+        )
 
-        for student in User.objects.filter(role='student', is_active=True):
+        # Unassign ALL non-graduated active students (reset for Admin to reassign)
+        for student in User.objects.filter(role='student', is_active=True).exclude(aral_level='graduated'):
             if student.assigned_tutor:
-                TutorAssignmentHistory.objects.create(
-                    student=student,
-                    tutor=student.assigned_tutor,
-                    school_year=new_sy,
-                    period='FULL_YEAR',
-                    program=student.aral_level or 'basic',
-                    assigned_by=admin_user,
-                    start_date=timezone.localdate(),
-                    is_active=True,
-                )
+                student.assigned_tutor = None
+                student.save(update_fields=['assigned_tutor'])
+                summary_stats['unassigned_students'] += 1
+                summary_stats['tutor_changes'] += 1
 
         # STEP 8: Identify Available Tutors (handled dynamically via get_available_tutors_data)
         # STEP 9: Identify Unassigned Students (handled dynamically)

@@ -24,7 +24,10 @@ import {
   type MilestoneType,
   getScoreDescription,
   getAttendanceDescription,
-  getTutorAssignedMilestone,
+  getCurrentSemesterMilestone,
+  getActiveSystemMilestone,
+  getActiveSystemSemester,
+  setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
 
@@ -961,9 +964,28 @@ export const TutorAnalytics: React.FC = () => {
   const [scoreSortField, setScoreSortField] = useState<ScoreDetailSortField | null>(null);
   const [scoreSortAsc, setScoreSortAsc] = useState(true);
 
+  const [activeSystemSem, setActiveSystemSem] = useState(() => getActiveSystemSemester());
+
+  useEffect(() => {
+    academicService.getCurrentSchoolYear().then((sy) => {
+      if (sy && sy.current_semester) {
+        setActiveSystemSemester(sy.current_semester as any);
+        setActiveSystemSem(sy.current_semester as any);
+      }
+    }).catch(() => {});
+
+    const handleSemChange = (e: any) => {
+      const newSem = e?.detail?.semester || getActiveSystemSemester();
+      setActiveSystemSem(newSem);
+    };
+
+    window.addEventListener('system_semester_changed', handleSemChange);
+    return () => window.removeEventListener('system_semester_changed', handleSemChange);
+  }, []);
+
   const assignedMilestone = useMemo<MilestoneType>(() => {
-    return getTutorAssignedMilestone(user?.aral_level);
-  }, [user?.aral_level]);
+    return getActiveSystemMilestone();
+  }, [activeSystemSem]);
 
 
 
@@ -1399,7 +1421,7 @@ export const TutorAnalytics: React.FC = () => {
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="relative rounded-md border risk-card-high p-4 min-h-[100px] flex flex-col justify-center">
                   <div className="absolute right-3 top-3">
-                    <RiskRangeInfo range="Composite score is below 70%" />
+                    <RiskRangeInfo range="Composite score is 69% and below" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-high">
@@ -1690,7 +1712,7 @@ export const TutorAnalytics: React.FC = () => {
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600">Failed Today</p>
                     <p className="text-2xl font-extrabold text-rose-900 mt-0.5">{scoreSummary.failed}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Assessments scored &lt; 70% today</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Assessments scored ≤ 69% today</p>
                   </div>
                 </div>
                 <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">

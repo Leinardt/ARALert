@@ -906,7 +906,6 @@ export const AdminHome: React.FC = () => {
                 </option>
                 {tutors.map((tutor) => {
                   const fullName = (tutor.full_name || `${tutor.first_name} ${tutor.last_name}`).trim().toUpperCase();
-                  const gradeSection = (tutor as any).gradeSection || `${(tutor as any).grade || 'GRADE 8'} - ${(tutor as any).section || 'MANGO'}`.toUpperCase();
                   const subject = (tutor.subject || 'MATH').toUpperCase();
                   const rawLevel = (tutor.aral_level || 'BASIC').toUpperCase();
                   const levelOnly = rawLevel.replace(/^ARAL\s*/i, '').trim();
@@ -916,7 +915,7 @@ export const AdminHome: React.FC = () => {
                       value={tutor.id}
                       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
                     >
-                      {`${fullName} | ${gradeSection} | ${subject} | ${levelOnly}`}
+                      {`${fullName} | ${subject} | ${levelOnly} TUTOR`}
                     </option>
                   );
                 })}

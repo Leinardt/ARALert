@@ -159,16 +159,13 @@ export const AssignTutorModal: React.FC<AssignTutorModalProps> = ({
           </div>
         </div>
 
-        {/* Informational Guidance (Strict Compatibility & Zero Capacity) */}
+        {/* Informational Guidance (PNAHS Mixed Grades & Sections Cohort Policy) */}
         <div className="px-5 py-2.5 bg-sky-50/50 dark:bg-sky-950/20 border-b border-sky-100 dark:border-sky-900/30 flex items-start gap-2.5 text-xs text-sky-800 dark:text-sky-300 shrink-0">
           <Shield className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
-            <span className="font-bold">Strict Compatibility & Zero-Capacity Rules:</span>
+            <span className="font-bold">PNAHS ARAL Program &amp; Cohort Structure:</span>
             <p className="text-[11px] opacity-90">
-              {student.program === 'plus'
-                ? 'Only Plus and Basic & Plus certified tutors can accept Plus students.'
-                : 'Only Basic and Basic & Plus certified tutors can accept Basic students.'}{' '}
-              Tutors have no arbitrary capacity limits or vacant slots; active student counts are shown for load awareness.
+              Tutors are not restricted to a single grade level or section — they can teach mixed Grade 7–10 students across sections. Matching is based solely on program level ({student.program === 'plus' ? 'Plus certified' : 'Basic certified'}). Standard cohort size is <strong>15–25 students</strong> (up to 30 max).
             </p>
           </div>
         </div>
@@ -220,6 +217,18 @@ export const AssignTutorModal: React.FC<AssignTutorModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {filteredTutors.map((tutor) => {
                 const isSelected = selectedTutorId === tutor.id;
+                const count = tutor.current_students_count;
+                const loadBadgeColor =
+                  count === 0
+                    ? 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 border-slate-200 dark:border-zinc-700'
+                    : count < 15
+                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200/60 dark:border-blue-800/40'
+                    : count <= 25
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-800/40'
+                    : count <= 30
+                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200/60 dark:border-amber-800/40'
+                    : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200/60 dark:border-rose-800/40';
+
                 return (
                   <div
                     key={tutor.id}
@@ -262,11 +271,11 @@ export const AssignTutorModal: React.FC<AssignTutorModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Informational student count (ZERO capacity metrics) */}
-                    <div className="mt-3 pt-2 border-t border-slate-100 dark:border-zinc-800/60 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
-                      <span>Assigned Students:</span>
-                      <span className="font-extrabold text-slate-800 dark:text-zinc-200">
-                        {tutor.current_students_count}
+                    {/* Informational student count & PNAHS 15-25 Cohort Load */}
+                    <div className="mt-3 pt-2 border-t border-slate-100 dark:border-zinc-800/60 flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500 dark:text-zinc-400">Assigned Cohort:</span>
+                      <span className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold border ${loadBadgeColor}`}>
+                        {tutor.cohort_load_status || `${count}/25 students`}
                       </span>
                     </div>
                   </div>

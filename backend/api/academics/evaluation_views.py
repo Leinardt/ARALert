@@ -22,6 +22,7 @@ from services.mosy_service import (
     get_mosy_monitoring_data,
     process_mosy_completion,
     get_mosy_assignment_dashboard_data,
+    get_unified_assignment_queue,
 )
 from services.transition_service import (
     get_eosy_monitoring_data,
@@ -37,6 +38,8 @@ from services.tutor_service import (
     get_available_tutors_data,
     assign_tutor_to_student,
     validate_tutor_compatibility,
+    assign_students_to_tutor_bulk,
+    get_tutor_cohort_history,
 )
 
 from .serializers import (
@@ -64,7 +67,10 @@ class SchoolYearListView(APIView):
 
 
 class CurrentSchoolYearView(APIView):
-    """GET /api/academics/school-years/current/ — Get active school year."""
+    """
+    GET /api/academics/school-years/current/ — Get active school year and active semester.
+    POST /api/academics/school-years/current/ — Set active semester on system (Admin/Principal).
+    """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -75,7 +81,41 @@ class CurrentSchoolYearView(APIView):
                 defaults={'status': 'ACTIVE', 'is_active': True}
             )
         data = SchoolYearSerializer(sy).data
+
+        # Check if MOSY has been processed/completed on this school year
+        mosy_processed = StudentEnrollment.objects.filter(
+            school_year=sy,
+            enrollment_status='active',
+            program='plus'
+        ).exists() or TutorAssignmentHistory.objects.filter(
+            school_year=sy,
+            period='MOSY',
+            is_active=False
+        ).exists()
+
+        active_semester = '2nd' if mosy_processed else '1st'
+        data['current_semester'] = active_semester
+        data['current_period'] = active_semester
+        data['active_milestone'] = 'EOSY' if active_semester == '2nd' else 'MOSY'
         return Response(data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        if request.user.role not in ('admin', 'principal') and not request.user.is_superuser:
+            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+
+        semester = request.data.get('semester') or request.data.get('current_semester') or '1st'
+        if semester not in ('1st', '2nd', 'summer'):
+            return Response({'error': 'Invalid semester. Allowed: 1st, 2nd, summer.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        sy = SchoolYear.objects.filter(is_active=True).first()
+        milestone = 'MOSY' if semester == '1st' else ('EOSY' if semester == '2nd' else 'ARAL Summer Assessment')
+        return Response({
+            'status': 'SUCCESS',
+            'school_year': sy.school_year if sy else '2025-2026',
+            'current_semester': semester,
+            'active_milestone': milestone,
+            'message': f'Active semester updated to {semester} semester ({milestone}).'
+        }, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +146,20 @@ class MosyAssignmentsView(APIView):
 
     def get(self, request):
         data = get_mosy_assignment_dashboard_data()
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class AssignmentQueueView(APIView):
+    """
+    GET /api/academics/evaluations/assignment-queue/
+    Returns the unified post-milestone reassignment queue:
+    all non-graduated, unassigned students grouped by required program level and
+    status reason (Leveled Up, MOSY Retake, Summer Queued, Early Rollover, etc.).
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        data = get_unified_assignment_queue()
         return Response(data, status=status.HTTP_200_OK)
 
 
@@ -203,6 +257,42 @@ class AssignTutorView(APIView):
                 'tutor_id': str(tutor.id) if tutor else None,
                 'tutor_name': tutor.get_full_name() if tutor else 'TBA',
             }, status=status.HTTP_200_OK)
+        except DjangoValidationError as e:
+            msg = e.message_dict if hasattr(e, 'message_dict') else str(e)
+            return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BulkAssignTutorView(APIView):
+    """
+    POST /api/academics/tutors/assign-bulk/
+    Bulk cohort dispatch: assign multiple students to a single tutor in one click.
+    Body: { tutor_id: uuid, student_ids: [uuid, ...], period?: str, notes?: str }
+    Returns a full dispatch report with assigned/skipped lists.
+    """
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        tutor_id = request.data.get('tutor_id')
+        student_ids = request.data.get('student_ids', [])
+        period = request.data.get('period', 'MOSY')
+        notes = request.data.get('notes', '')
+
+        if not tutor_id:
+            return Response({'error': 'tutor_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not isinstance(student_ids, list) or len(student_ids) == 0:
+            return Response({'error': 'student_ids must be a non-empty list.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(student_ids) > 25:
+            return Response({'error': 'Cannot assign more than 25 students per cohort dispatch.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            result = assign_students_to_tutor_bulk(
+                student_ids=student_ids,
+                tutor_id=tutor_id,
+                assigned_by=request.user,
+                period=period,
+                notes=notes,
+            )
+            return Response(result, status=status.HTTP_200_OK)
         except DjangoValidationError as e:
             msg = e.message_dict if hasattr(e, 'message_dict') else str(e)
             return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
@@ -397,3 +487,34 @@ class StudentCompleteHistoryView(APIView):
             'tutor_history': tutor_history_list,
             'summer_history': summer_list,
         }, status=status.HTTP_200_OK)
+
+
+class TutorCohortHistoryView(APIView):
+    """
+    GET /api/academics/tutors/cohort-history/
+    GET /api/academics/tutors/<uuid:tutor_id>/cohort-history/
+    Returns active cohort and historical student rosters handled by this tutor.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, tutor_id=None):
+        if tutor_id is None:
+            if request.user.role == 'tutor':
+                tutor_id = str(request.user.id)
+            else:
+                tutor_id = request.query_params.get('tutor_id')
+                if not tutor_id:
+                    return Response(
+                        {'error': 'Tutor ID is required for non-tutor users.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+        sy = request.query_params.get('school_year')
+        try:
+            data = get_tutor_cohort_history(tutor_id, school_year_str=sy)
+            return Response(data, status=status.HTTP_200_OK)
+        except DjangoValidationError as e:
+            msg = e.message_dict if hasattr(e, 'message_dict') else str(e)
+            return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

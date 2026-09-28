@@ -411,30 +411,24 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
   const row12 = worksheet.getRow(12);
   row12.height = 6;
 
-  // 13 & 14: 2 Header Rows (Row 13: Date for each session, Row 14: Session #)
-  worksheet.mergeCells('A13:A14');
+  // Row 13: Single Header Row with Dates
+  const row13 = worksheet.getRow(13);
+  row13.height = 20;
+
   const cellA13 = worksheet.getCell('A13');
   cellA13.value = '#';
   cellA13.alignment = { horizontal: 'center', vertical: 'middle' };
   cellA13.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
   cellA13.border = tableBorder;
   cellA13.fill = headerFill;
-  worksheet.getCell('A14').border = tableBorder;
-  worksheet.getCell('A14').fill = headerFill;
 
-  worksheet.mergeCells('B13:B14');
   const cellB13 = worksheet.getCell('B13');
   cellB13.value = 'NAME OF THE STUDENTS';
   cellB13.alignment = { horizontal: 'center', vertical: 'middle' };
   cellB13.font = { name: fontMain, size: 10, bold: true, color: colorSlate900 };
   cellB13.border = tableBorder;
   cellB13.fill = headerFill;
-  worksheet.getCell('B14').border = tableBorder;
-  worksheet.getCell('B14').fill = headerFill;
 
-  // Row 13: Session Date Headers
-  const row13 = worksheet.getRow(13);
-  row13.height = 20;
   allEntryCols.forEach((col, idx) => {
     const cLetter = getExcelColumnLetter(3 + idx);
     const cell = worksheet.getCell(`${cLetter}13`);
@@ -445,31 +439,14 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
     cell.fill = headerFill;
   });
 
-  // Row 14: Session Labels (Session #1, Session #2, ...)
-  const row14 = worksheet.getRow(14);
-  row14.height = 20;
-  allEntryCols.forEach((col, idx) => {
-    const cLetter = getExcelColumnLetter(3 + idx);
-    const cell = worksheet.getCell(`${cLetter}14`);
-    cell.value = col.entryLabel;
-    cell.font = { name: fontMain, size: 9, bold: true, color: colorSlate900 };
-    cell.alignment = { horizontal: 'center', vertical: 'middle', shrinkToFit: true, wrapText: false };
-    cell.border = tableBorder;
-    cell.fill = whiteFill;
-  });
-
-  // TOTAL SCORE (merged 13:14)
-  worksheet.mergeCells(`${lastColLetter}13:${lastColLetter}14`);
   const totalCell13 = worksheet.getCell(`${lastColLetter}13`);
   totalCell13.value = 'TOTAL SCORE';
   totalCell13.alignment = { horizontal: 'center', vertical: 'middle' };
   totalCell13.font = { name: fontMain, size: 9.5, bold: true, color: colorSlate900 };
   totalCell13.border = tableBorder;
   totalCell13.fill = headerFill;
-  worksheet.getCell(`${lastColLetter}14`).border = tableBorder;
-  worksheet.getCell(`${lastColLetter}14`).fill = headerFill;
 
-  let currentRow = 15;
+  let currentRow = 14;
 
   // Data rows
   const totalStudents = Math.max(data.students.length, 1);

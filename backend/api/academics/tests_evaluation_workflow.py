@@ -21,11 +21,14 @@ from services.tutor_service import (
     validate_tutor_compatibility,
     assign_tutor_to_student,
     get_available_tutors_data,
+    assign_students_to_tutor_bulk,
+    get_tutor_cohort_history,
 )
 from services.mosy_service import (
     get_mosy_monitoring_data,
     process_mosy_completion,
     get_mosy_assignment_dashboard_data,
+    get_unified_assignment_queue,
 )
 from services.transition_service import (
     get_eosy_monitoring_data,
@@ -104,13 +107,23 @@ class EvaluationWorkflowTests(TestCase):
             is_active=True,
         )
 
-        self.both_tutor = User.objects.create(
-            email='both_tutor@test.com',
-            username='both_tutor@test.com',
-            first_name='BOTH',
+        self.summer_tutor = User.objects.create(
+            email='summer_tutor@test.com',
+            username='summer_tutor@test.com',
+            first_name='SUMMER',
             last_name='TUTOR',
             role='tutor',
-            tutor_type='basic_plus',
+            tutor_type='summer',
+            is_active=True,
+        )
+
+        self.second_basic_tutor = User.objects.create(
+            email='second_basic_tutor@test.com',
+            username='second_basic_tutor@test.com',
+            first_name='SECOND',
+            last_name='BASIC TUTOR',
+            role='tutor',
+            tutor_type='basic',
             is_active=True,
         )
 
@@ -164,7 +177,7 @@ class EvaluationWorkflowTests(TestCase):
         )
 
     def test_tutor_compatibility_rules(self):
-        """Test strict compatibility enforcement (backend)."""
+        """Test strict single ARAL level compatibility enforcement (backend)."""
         # Basic Tutor + Basic Student -> ALLOWED
         validate_tutor_compatibility(self.basic_tutor, 'basic')
 
@@ -179,27 +192,28 @@ class EvaluationWorkflowTests(TestCase):
         # Plus Tutor + Plus Student -> ALLOWED
         validate_tutor_compatibility(self.plus_tutor, 'plus')
 
-        # Basic & Plus Tutor + Basic Student -> ALLOWED
-        validate_tutor_compatibility(self.both_tutor, 'basic')
+        # Summer Tutor + Summer Student -> ALLOWED
+        validate_tutor_compatibility(self.summer_tutor, 'summer')
 
-        # Basic & Plus Tutor + Plus Student -> ALLOWED
-        validate_tutor_compatibility(self.both_tutor, 'plus')
+        # Summer Tutor + Basic Student -> NOT ALLOWED
+        with self.assertRaises(ValidationError):
+            validate_tutor_compatibility(self.summer_tutor, 'basic')
 
     def test_assign_tutor_history_preservation(self):
         """Test that assigning a new tutor does not overwrite historical records."""
         assign_tutor_to_student(
             student=self.student_basic,
-            tutor=self.both_tutor,
+            tutor=self.second_basic_tutor,
             school_year=self.sy,
             assigned_by=self.admin,
             period='MOSY',
         )
 
         self.student_basic.refresh_from_db()
-        self.assertEqual(self.student_basic.assigned_tutor, self.both_tutor)
+        self.assertEqual(self.student_basic.assigned_tutor, self.second_basic_tutor)
 
         histories = TutorAssignmentHistory.objects.filter(student=self.student_basic)
-        self.assertTrue(histories.filter(tutor=self.both_tutor, is_active=True).exists())
+        self.assertTrue(histories.filter(tutor=self.second_basic_tutor, is_active=True).exists())
 
     def test_no_capacity_limits_in_available_tutors(self):
         """Verify available tutors tracking has no capacity or vacant slot numbers."""
@@ -214,9 +228,10 @@ class EvaluationWorkflowTests(TestCase):
 
     def test_mosy_completion_logic(self):
         """
-        Test MOSY completion:
-        - Plus student becomes Unassigned awaiting Plus tutor.
-        - Basic student retains existing compatible Basic tutor.
+        Test MOSY completion Clean-Slate Model:
+        - All student-tutor pairings concluded with period='MOSY'.
+        - Both leveled-up and retake students become Unassigned for Admin reassignment.
+        - All tutors reset to 0/25 vacant.
         """
         # Seed MOSY grades
         ApiGrade.objects.create(
@@ -224,7 +239,7 @@ class EvaluationWorkflowTests(TestCase):
             tutor=self.basic_tutor,
             subject='MOSY Reading',
             quarter=2,
-            score=Decimal('25.00'),  # Failed MOSY -> Retains Basic
+            score=Decimal('25.00'),  # Failed MOSY (<28/40) -> Retains Basic
             total_score=Decimal('40.00'),
             date_logged=timezone.localdate(),
         )
@@ -234,7 +249,7 @@ class EvaluationWorkflowTests(TestCase):
             tutor=self.plus_tutor,
             subject='MOSY Reading',
             quarter=2,
-            score=Decimal('35.00'),
+            score=Decimal('35.00'),  # Passed MOSY (>=28/40) -> Promoted to Plus
             total_score=Decimal('40.00'),
             date_logged=timezone.localdate(),
         )
@@ -246,12 +261,18 @@ class EvaluationWorkflowTests(TestCase):
         self.student_plus.refresh_from_db()
         self.student_basic.refresh_from_db()
 
-        # Plus student should become Unassigned
+        # Plus student should become Unassigned for Admin reassignment
         self.assertIsNone(self.student_plus.assigned_tutor)
         self.assertEqual(self.student_plus.aral_level, 'plus')
 
-        # Basic student should remain with Basic tutor
-        self.assertEqual(self.student_basic.assigned_tutor, self.basic_tutor)
+        # Basic student should also become Unassigned under Clean-Slate Model
+        self.assertIsNone(self.student_basic.assigned_tutor)
+        self.assertEqual(self.student_basic.aral_level, 'basic')
+
+        # Historical assignment records preserved with period='MOSY'
+        histories = TutorAssignmentHistory.objects.filter(student=self.student_basic, period='MOSY')
+        self.assertTrue(histories.exists())
+        self.assertFalse(histories.first().is_active)
 
     def test_eosy_gate_blocks_incomplete_evaluations(self):
         """Starting new school year must be rejected if EOSY evaluations are incomplete."""
@@ -393,3 +414,49 @@ class EvaluationWorkflowTests(TestCase):
         self.assertEqual(summer_rec.summer_status, 'summer_passed')
         self.assertEqual(summer_rec.summer_result, 'passed')
         self.assertEqual(summer_rec.evaluating_tutor, self.basic_tutor)
+
+    def test_unified_assignment_queue_and_bulk_dispatch(self):
+        """Test unified assignment queue returns all unassigned students and bulk cohort dispatch works."""
+        # Setup student state
+        self.student_basic.assigned_tutor = None
+        self.student_basic.aral_level = 'basic'
+        self.student_basic.save()
+
+        self.student_plus.assigned_tutor = None
+        self.student_plus.aral_level = 'plus'
+        self.student_plus.save()
+
+        # 1. Test Unified Queue
+        queue = get_unified_assignment_queue(self.sy)
+        self.assertGreaterEqual(queue['total_unassigned'], 2)
+        plus_ids = [s['id'] for s in queue['plus_queue']]
+        basic_ids = [s['id'] for s in queue['basic_queue']]
+        self.assertIn(str(self.student_plus.id), plus_ids)
+        self.assertIn(str(self.student_basic.id), basic_ids)
+
+        # 2. Test Bulk Cohort Assignment
+        dispatch = assign_students_to_tutor_bulk(
+            student_ids=[str(self.student_basic.id)],
+            tutor_id=str(self.basic_tutor.id),
+            period='MOSY',
+            notes='Test Cohort Dispatch',
+        )
+        self.assertEqual(dispatch['total_assigned'], 1)
+        self.assertEqual(dispatch['total_skipped'], 0)
+
+        self.student_basic.refresh_from_db()
+        self.assertEqual(self.student_basic.assigned_tutor, self.basic_tutor)
+
+        # 3. Test Tutor Cohort History
+        history_data = get_tutor_cohort_history(str(self.basic_tutor.id))
+        self.assertEqual(history_data['active_students_count'], 1)
+        self.assertGreaterEqual(history_data['total_historical_students'], 1)
+
+    def test_tutor_cohort_history_api_endpoint(self):
+        """Test GET /api/academics/tutors/cohort-history/ endpoint."""
+        self.client.force_authenticate(user=self.basic_tutor)
+        response = self.client.get('/api/academics/tutors/cohort-history/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('active_cohort', response.data)
+        self.assertIn('past_records', response.data)
+        self.assertEqual(response.data['tutor_id'], str(self.basic_tutor.id))

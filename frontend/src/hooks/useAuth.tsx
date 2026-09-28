@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { AuthResponse, User } from '../types';
 import { authService } from '../services/authService';
+import { initActivityTracker, resetActivity } from '../utils/activityTracker';
 
 interface AuthContextValue {
   user: User | null;
@@ -26,6 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!response.access || !response.refresh || !response.user) {
       return;
     }
+    resetActivity();
     localStorage.setItem('access_token', response.access);
     localStorage.setItem('refresh_token', response.refresh);
     localStorage.setItem('user', JSON.stringify(response.user));
@@ -79,6 +81,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     reloadProfile();
   }, []);
+
+  // ── 30-Minute AFK Inactivity Detection ─────────────────────────────────
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const handleAfkTimeout = async () => {
+      await logout();
+      const publicPaths = ['/login', '/activate', '/forgot-password', '/reset-password', '/mfa', '/invalid-link'];
+      const isPublicPath = publicPaths.some((p) => window.location.pathname.startsWith(p));
+      if (!isPublicPath) {
+        window.location.assign('/login?expired=true');
+      }
+    };
+
+    const cleanupTracker = initActivityTracker(handleAfkTimeout);
+    return cleanupTracker;
+  }, [isAuthenticated]);
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated, googleLogin, studentLogin, completeAuthSession, updateProfile, logout }}>

@@ -815,7 +815,7 @@ export const StudentAnalytics: React.FC = () => {
           }`}
         >
           <div className="absolute right-3 top-3">
-            <RiskRangeInfo range="Composite score is below 70%" />
+            <RiskRangeInfo range="Composite score is 69% and below" />
           </div>
           <div className="min-w-0">
             {studentRiskTier === 'High' && (
