@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
-import type { Grade, User } from '../../types';
+import type { Grade, User, StudentCompleteHistory, SchoolYear } from '../../types';
 import {
   CalendarDays,
   Calendar,
@@ -14,6 +14,7 @@ import {
   X,
   AlertCircle,
   BookOpen,
+  UserCheck,
 } from 'lucide-react';
 import { getScoreDescription } from '../../utils/sessionDescriptionHelpers';
 
@@ -22,6 +23,108 @@ import { getScoreDescription } from '../../utils/sessionDescriptionHelpers';
 const smartPct = (n: number): string => {
   const fixed2 = n.toFixed(2);
   return parseFloat(fixed2).toString();
+};
+
+export const getDepEdSchoolYear = (date: Date = new Date()) => {
+  const month = date.getMonth() + 1;
+  const year = date.getFullYear();
+
+  let syStart = year;
+  let syEnd = year + 1;
+  let currentPeriod: '1st' | '2nd' | 'summer' = '1st';
+
+  if (month < 7) {
+    syStart = year - 1;
+    syEnd = year;
+    currentPeriod = month === 6 ? 'summer' : '2nd';
+  } else {
+    currentPeriod = '1st';
+  }
+
+  return {
+    syStart,
+    syEnd,
+    currentPeriod,
+    currentKey: `${syStart}-${syEnd}`,
+    displayLabel: `SY ${syStart}–${syEnd}`,
+  };
+};
+
+export const resolveTutorForPeriod = (
+  sy: string,
+  period: '1st' | '2nd' | 'summer',
+  studentHistory: StudentCompleteHistory | null
+): string | null => {
+  if (!studentHistory) return null;
+
+  if (period === 'summer' && studentHistory.summer_history) {
+    const summer = studentHistory.summer_history.find((s) => s.school_year === sy);
+    if (summer?.evaluator) return summer.evaluator;
+  }
+
+  if (studentHistory.tutor_history) {
+    const matchingTutor = studentHistory.tutor_history.find((t) => {
+      if (t.school_year !== sy) return false;
+      const p = t.period?.toLowerCase() || '';
+      if (period === '1st' && (p.includes('1st') || p.includes('mosy'))) return true;
+      if (period === '2nd' && (p.includes('2nd') || p.includes('eosy'))) return true;
+      if (period === 'summer' && p.includes('summer')) return true;
+      return p.includes('full');
+    });
+    if (matchingTutor?.tutor_name) return matchingTutor.tutor_name;
+  }
+
+  if (studentHistory.enrollment_history) {
+    const enrollment = studentHistory.enrollment_history.find((e) => e.school_year === sy);
+    const tutor = enrollment?.tutor_name || (enrollment as any)?.assigned_tutor;
+    if (tutor) return tutor;
+  }
+
+  return null;
+};
+
+export const getSchoolYearFromDate = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '2025-2026';
+  const clean = dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`;
+  const d = new Date(clean);
+  if (isNaN(d.getTime())) return '2025-2026';
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1; // 1-12
+  // DepEd academic school year runs July/August through May/June of next year
+  if (month >= 7) {
+    return `${year}-${year + 1}`;
+  } else {
+    return `${year - 1}-${year}`;
+  }
+};
+
+export const getSemesterFromGrade = (grade: Grade): '1st' | '2nd' | 'summer' => {
+  if (grade.quarter === 1 || grade.quarter === 2) return '1st';
+  if (grade.quarter === 3 || grade.quarter === 4) return '2nd';
+  if (grade.date_logged) {
+    const clean = grade.date_logged.includes('T') ? grade.date_logged : `${grade.date_logged}T00:00:00`;
+    const d = new Date(clean);
+    if (!isNaN(d.getTime())) {
+      const month = d.getMonth() + 1;
+      if (month >= 7 && month <= 12) return '1st';
+      if (month >= 1 && month <= 5) return '2nd';
+      if (month === 6) return 'summer';
+    }
+  }
+  return '1st';
+};
+
+export const getSemesterLabel = (sem: '1st' | '2nd' | 'summer' | 'all'): string => {
+  switch (sem) {
+    case '1st':
+      return '1st Semester (MOSY / Q1-Q2)';
+    case '2nd':
+      return '2nd Semester (EOSY / Q3-Q4)';
+    case 'summer':
+      return 'Summer Remediation';
+    default:
+      return 'All Semesters';
+  }
 };
 
 const formatDateString = (value: string | null | undefined): string => {
@@ -224,19 +327,42 @@ export const StudentScores: React.FC = () => {
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
 
-  // Fetch grades for logged-in student
+  // ── Unified School Year - Semester/Summer Filter State ──
+  const currentSchoolYear = useMemo(() => getDepEdSchoolYear(), []);
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(
+    () => `${currentSchoolYear.syStart}-${currentSchoolYear.syEnd}|${currentSchoolYear.currentPeriod}`
+  );
+  const [studentHistory, setStudentHistory] = useState<StudentCompleteHistory | null>(null);
+
+  // Fetch grades, complete history, and current active school year
   useEffect(() => {
     let cancelled = false;
-    const loadGrades = async () => {
+    const loadData = async () => {
       if (!user) return;
       setLoading(true);
       setError(null);
       try {
-        const data = await academicService.getGrades({ student_id: String(user.id) });
+        const [gradesData, historyData, currentSyData] = await Promise.allSettled([
+          academicService.getGrades({ student_id: String(user.id) }),
+          academicService.getStudentCompleteHistory(String(user.id)),
+          academicService.getCurrentSchoolYear(),
+        ]);
         if (!cancelled) {
-          // Strict student isolation
-          const myGrades = data.filter((g) => String(g.student) === String(user.id));
-          setGrades(myGrades);
+          if (gradesData.status === 'fulfilled') {
+            const myGrades = gradesData.value.filter((g) => String(g.student) === String(user.id));
+            setGrades(myGrades);
+          }
+          if (historyData.status === 'fulfilled') {
+            setStudentHistory(historyData.value);
+          }
+          if (currentSyData.status === 'fulfilled' && currentSyData.value?.school_year) {
+            const activeSy = currentSyData.value.school_year;
+            setSelectedPeriod((prev) => {
+              if (prev === 'all|all') return prev;
+              const sem = prev.split('|')[1] || currentSchoolYear.currentPeriod;
+              return `${activeSy}|${sem}`;
+            });
+          }
         }
       } catch (err: any) {
         if (!cancelled) {
@@ -247,13 +373,13 @@ export const StudentScores: React.FC = () => {
         if (!cancelled) setLoading(false);
       }
     };
-    loadGrades();
+    loadData();
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, currentSchoolYear.currentPeriod]);
 
-  // Distinct dates with grades
+  // Distinct dates with grades (for calendar)
   const loggedDates = useMemo(() => {
     const set = new Set<string>();
     grades.forEach((g) => {
@@ -265,12 +391,145 @@ export const StudentScores: React.FC = () => {
     return set;
   }, [grades]);
 
-  // ── Top KPI Stat Calculations (Parity with Tutor Student Profile & Analytics) ──
+  // Dropdown options in SCHOOLYEAR - SEMESTER/SUMMER format (only existing records + active period)
+  const schoolYearOptions = useMemo(() => {
+    const { syStart, syEnd, currentPeriod } = currentSchoolYear;
+    const activeSy = `${syStart}-${syEnd}`;
+    const activePeriodKey = `${activeSy}|${currentPeriod || '1st'}`;
+
+    const recordedPeriods = new Set<string>();
+
+    // Always include current active period
+    recordedPeriods.add(activePeriodKey);
+
+    // 1. From student's actual grades
+    for (const g of grades) {
+      const gDate = g.date_logged || g.created_at;
+      const sy = getSchoolYearFromDate(gDate);
+      const sem = getSemesterFromGrade(g);
+      if (sy && sem) {
+        recordedPeriods.add(`${sy}|${sem}`);
+      }
+    }
+
+    // 2. From student history (summer)
+    if (studentHistory?.summer_history) {
+      for (const s of studentHistory.summer_history) {
+        if (s.school_year) {
+          recordedPeriods.add(`${s.school_year}|summer`);
+        }
+      }
+    }
+
+    // 3. From student history (tutor assignments)
+    if (studentHistory?.tutor_history) {
+      for (const t of studentHistory.tutor_history) {
+        if (t.school_year) {
+          const p = t.period?.toLowerCase() || '';
+          if (p.includes('1st') || p.includes('mosy')) {
+            recordedPeriods.add(`${t.school_year}|1st`);
+          } else if (p.includes('2nd') || p.includes('eosy')) {
+            recordedPeriods.add(`${t.school_year}|2nd`);
+          } else if (p.includes('summer')) {
+            recordedPeriods.add(`${t.school_year}|summer`);
+          } else if (p.includes('full')) {
+            recordedPeriods.add(`${t.school_year}|1st`);
+            recordedPeriods.add(`${t.school_year}|2nd`);
+          }
+        }
+      }
+    }
+
+    // 4. From student history (enrollment history)
+    if (studentHistory?.enrollment_history) {
+      for (const e of studentHistory.enrollment_history) {
+        if (e.school_year) {
+          if (e.mosy_result && e.mosy_result !== '—') {
+            recordedPeriods.add(`${e.school_year}|1st`);
+          }
+          if (e.eosy_result && e.eosy_result !== '—') {
+            recordedPeriods.add(`${e.school_year}|2nd`);
+          }
+          if (e.summer_status && e.summer_status !== 'none') {
+            recordedPeriods.add(`${e.school_year}|summer`);
+          }
+          if (!e.mosy_result && !e.eosy_result && !e.summer_status) {
+            recordedPeriods.add(`${e.school_year}|1st`);
+          }
+        }
+      }
+    }
+
+    // Convert to list of { sy, sem }
+    const periodsList = Array.from(recordedPeriods).map((key) => {
+      const [sy, sem] = key.split('|');
+      return { key, sy, sem: sem as '1st' | '2nd' | 'summer' };
+    });
+
+    // Sort descending by starting year, then semester order (1st, 2nd, summer)
+    const semRank: Record<string, number> = { '1st': 1, '2nd': 2, 'summer': 3 };
+    periodsList.sort((a, b) => {
+      const yearA = parseInt(a.sy.split('-')[0], 10) || 0;
+      const yearB = parseInt(b.sy.split('-')[0], 10) || 0;
+      if (yearA !== yearB) {
+        return yearB - yearA;
+      }
+      return (semRank[a.sem] || 0) - (semRank[b.sem] || 0);
+    });
+
+    const opts: { key: string; label: string }[] = [
+      { key: 'all|all', label: 'All School Years & Semesters' },
+    ];
+
+    periodsList.forEach(({ key, sy, sem }) => {
+      const isCurrentSy = sy === activeSy;
+      const isCurrentSem = isCurrentSy && sem === (currentPeriod || '1st');
+      const tag = isCurrentSem ? ' (Active)' : '';
+      const syDisplay = `SY ${sy.replace('-', '–')}`;
+      const semDisplay = sem === '1st' ? '1st Semester' : sem === '2nd' ? '2nd Semester' : 'Summer';
+
+      const tutor = resolveTutorForPeriod(sy, sem, studentHistory) || (isCurrentSy ? studentHistory?.current_tutor : null);
+      const tutorSuffix = tutor ? ` — ${tutor}` : '';
+
+      opts.push({
+        key,
+        label: `${syDisplay} - ${semDisplay}${tag}${tutorSuffix}`,
+      });
+    });
+
+    return opts;
+  }, [currentSchoolYear, studentHistory, grades]);
+
+  // ── Filter by Unified School Year - Semester & jumpDate ──
+  const filteredGrades = useMemo(() => {
+    let result = [...grades];
+    if (selectedPeriod !== 'all|all') {
+      const [filterSy, filterSem] = selectedPeriod.split('|');
+      if (filterSy && filterSy !== 'all') {
+        result = result.filter((g) => {
+          const sy = getSchoolYearFromDate(g.date_logged || g.created_at);
+          return sy === filterSy;
+        });
+      }
+      if (filterSem && filterSem !== 'all') {
+        result = result.filter((g) => {
+          const sem = getSemesterFromGrade(g);
+          return sem === filterSem;
+        });
+      }
+    }
+    if (jumpDate) {
+      result = result.filter((g) => g.date_logged === jumpDate);
+    }
+    return result;
+  }, [grades, selectedPeriod, jumpDate]);
+
+  // ── Top KPI Stat Calculations (scoped to current filtered view) ──
   const { passedCount, failedCount, calculatedAvgScore } = useMemo(() => {
-    if (grades.length === 0) {
+    if (filteredGrades.length === 0) {
       return { passedCount: 0, failedCount: 0, calculatedAvgScore: 0 };
     }
-    const takenGrades = grades.filter(
+    const takenGrades = filteredGrades.filter(
       (g) => g.remarks?.trim().toLowerCase() !== 'not taken'
     );
     const passed = takenGrades.filter((g) => {
@@ -289,22 +548,11 @@ export const StudentScores: React.FC = () => {
       failedCount: failed,
       calculatedAvgScore: avg,
     };
-  }, [grades]);
+  }, [filteredGrades]);
 
   const hasScoreData = useMemo(() => {
-    return grades.some((g) => g.remarks?.trim().toLowerCase() !== 'not taken');
-  }, [grades]);
-
-
-
-  // ── Filter by search & jumpDate ──
-  const filteredGrades = useMemo(() => {
-    let result = [...grades];
-    if (jumpDate) {
-      result = result.filter((g) => g.date_logged === jumpDate);
-    }
-    return result;
-  }, [grades, jumpDate]);
+    return filteredGrades.some((g) => g.remarks?.trim().toLowerCase() !== 'not taken');
+  }, [filteredGrades]);
 
   const sortedHistory = useMemo(
     () => [...filteredGrades].sort((a, b) => (b.date_logged > a.date_logged ? 1 : b.date_logged < a.date_logged ? -1 : 0)),
@@ -426,7 +674,7 @@ export const StudentScores: React.FC = () => {
           <thead>
             <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
               <th className="w-[22%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-                <SortableHeader label="STUDENT" sortKey="student" />
+                <SortableHeader label="HANDLED BY (TUTOR)" sortKey="student" />
               </th>
               <th className="w-[18%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                 <SortableHeader label="DESCRIPTION" sortKey="description" />
@@ -455,13 +703,30 @@ export const StudentScores: React.FC = () => {
               const scorePct = (Number(grade.score) / totalScore) * 100;
               const isPassed = !isNotTaken && scorePct >= 70;
               const desc = getScoreDescription(grade);
-              const name = user?.full_name || grade.student_name || 'Student';
+              const gradeSy = getSchoolYearFromDate(grade.date_logged || grade.created_at);
+              const gradeSem = getSemesterFromGrade(grade);
+              const handlerName =
+                grade.tutor_name ||
+                resolveTutorForPeriod(gradeSy, gradeSem, studentHistory) ||
+                studentHistory?.current_tutor ||
+                'Assigned Tutor';
+              const semLabel = grade.quarter
+                ? `Quarter ${grade.quarter}`
+                : getSemesterLabel(getSemesterFromGrade(grade));
 
               return (
                 <tr key={grade.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#111111]/80">
-                  {/* STUDENT */}
+                  {/* HANDLED BY */}
                   <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
-                    {name}
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-gray-800 dark:text-slate-100 flex items-center gap-1.5 text-xs">
+                        <UserCheck className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
+                        {handlerName}
+                      </span>
+                      <span className="text-[10px] text-gray-400 dark:text-slate-500 font-medium">
+                        {semLabel}
+                      </span>
+                    </div>
                   </td>
 
                   {/* DESCRIPTION */}
@@ -532,6 +797,16 @@ export const StudentScores: React.FC = () => {
           const scorePct = (Number(grade.score) / totalScore) * 100;
           const isPassed = !isNotTaken && scorePct >= 70;
           const desc = getScoreDescription(grade);
+          const gradeSy = getSchoolYearFromDate(grade.date_logged || grade.created_at);
+          const gradeSem = getSemesterFromGrade(grade);
+          const handlerName =
+            grade.tutor_name ||
+            resolveTutorForPeriod(gradeSy, gradeSem, studentHistory) ||
+            studentHistory?.current_tutor ||
+            'Assigned Tutor';
+          const semLabel = grade.quarter
+            ? `Quarter ${grade.quarter}`
+            : getSemesterLabel(getSemesterFromGrade(grade));
 
           return (
             <div
@@ -605,17 +880,26 @@ export const StudentScores: React.FC = () => {
                 </div>
               </div>
 
-              {/* Timestamp Row */}
-              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400 pt-0.5">
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                  <span>{formatDateString(grade.date_logged)}</span>
-                </div>
-                {grade.created_at && (
-                  <span className="text-[11px] text-gray-400 dark:text-slate-500">
-                    {formatTimeString(grade.created_at)}
+              {/* Handled By & Timestamp Row */}
+              <div className="flex flex-col gap-1.5 pt-1 border-t border-gray-100 dark:border-[#222222] text-xs">
+                <div className="flex items-center justify-between text-slate-700 dark:text-zinc-300">
+                  <span className="flex items-center gap-1.5 text-[11px] font-medium">
+                    <UserCheck className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
+                    <span>Handled by: <strong className="font-bold text-slate-900 dark:text-white">{handlerName}</strong></span>
                   </span>
-                )}
+                  <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">{semLabel}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    <span>{formatDateString(grade.date_logged)}</span>
+                  </div>
+                  {grade.created_at && (
+                    <span className="text-[11px] text-gray-400 dark:text-slate-500">
+                      {formatTimeString(grade.created_at)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -711,13 +995,13 @@ export const StudentScores: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Scores History Container ──────────────────────────────────── */}
+      {/* ── Academic Records Container ──────────────────────────────────── */}
       <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
         {/* Header & Controls Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
           <div>
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm uppercase">
-              {studentFirstName}'s Scores History
+              {studentFirstName}'s Academic Records
             </h3>
             <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
               {visibleRecordsCount} Record{visibleRecordsCount !== 1 ? 's' : ''}
@@ -726,6 +1010,30 @@ export const StudentScores: React.FC = () => {
 
           {/* Filter controls */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Unified School Year - Semester/Summer Dropdown (matches Tutor Assigned Students dropdown) */}
+            <div className="relative inline-flex items-center">
+              <select
+                value={selectedPeriod}
+                onChange={(e) => {
+                  setSelectedPeriod(e.target.value);
+                  setJumpDate(null);
+                }}
+                aria-label="Filter by School Year and Semester"
+                className="h-8.5 sm:h-8 appearance-none rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-3 pr-8 text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer"
+              >
+                {schoolYearOptions.map((opt) => (
+                  <option
+                    key={opt.key}
+                    value={opt.key}
+                    className="bg-white dark:bg-[#111111] text-gray-800 dark:text-slate-200 font-medium"
+                  >
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-[var(--brand)] opacity-75" />
+            </div>
+
             {/* View mode toggle (DAY / WEEK / MONTH) */}
             <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5">
               {(['day', 'week', 'month'] as const).map((mode) => (
@@ -893,6 +1201,8 @@ export const StudentScores: React.FC = () => {
           )}
         </div>
       </div>
+
+
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import type { User, Attendance } from '../types';
 import { userService } from '../services/userService';
 import {
@@ -352,7 +352,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
   const [schoolAddress, setSchoolAddress] = useState('Sta. Cruz, Palanas, Masbate');
 
   const [subjectTitle, setSubjectTitle] = useState('ARAL PROGRAM STUDENT ATTENDANCE RECORD');
-  const [gradeSection, setGradeSection] = useState('GRADE 8-MANGO');
+  const [gradeSection, setGradeSection] = useState('MIXED (GRADES 7-10)');
   const [dateStr, setDateStr] = useState(() => formatNumericDate(new Date()));
 
   const [tutorName, setTutorName] = useState('');
@@ -376,6 +376,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [confirmDownloadFormat, setConfirmDownloadFormat] = useState<'docx' | 'pdf' | 'excel' | null>(null);
 
   const printRef = useRef<HTMLDivElement>(null);
   const scrollBodyRef = useRef<HTMLDivElement>(null);
@@ -598,39 +599,56 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
     }),
   });
 
-  const handleDocxExport = async () => {
-    try {
-      setIsExportingDocx(true);
-      await exportAttendanceToDocx(getExportData());
-    } catch (err: any) {
-      console.error('Failed to export DOCX:', err);
-      alert(`Failed to generate DOCX file: ${err?.message || err}.`);
-    } finally {
-      setIsExportingDocx(false);
-    }
+  const handleInitiateDownload = (format: 'docx' | 'pdf' | 'excel') => {
+    // Hide template details settings if open to give full visibility to paper preview
+    if (showSettings) setShowSettings(false);
+    // Smoothly scroll the preview into view
+    setTimeout(() => {
+      if (scrollBodyRef.current) {
+        scrollBodyRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      if (printRef.current) {
+        printRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 50);
+    setConfirmDownloadFormat(format);
   };
 
-  const handleExcelExport = async () => {
-    try {
-      setIsExporting(true);
-      await exportAttendanceToExcel(getExportData());
-    } catch (err) {
-      console.error('Failed to export Excel:', err);
-      alert('Failed to generate Excel file.');
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleDownloadPdf = async () => {
-    try {
-      setIsExportingPdf(true);
-      await exportAttendanceToPdf(getExportData());
-    } catch (err: any) {
-      console.error('Failed to export PDF:', err);
-      alert(`Failed to generate PDF file: ${err?.message || err}. Please check the browser console for details.`);
-    } finally {
-      setIsExportingPdf(false);
+  const handleExecuteConfirmedDownload = async () => {
+    if (!confirmDownloadFormat) return;
+    if (confirmDownloadFormat === 'docx') {
+      try {
+        setIsExportingDocx(true);
+        await exportAttendanceToDocx(getExportData());
+        setConfirmDownloadFormat(null);
+      } catch (err: any) {
+        console.error('Failed to export DOCX:', err);
+        alert(`Failed to generate DOCX file: ${err?.message || err}.`);
+      } finally {
+        setIsExportingDocx(false);
+      }
+    } else if (confirmDownloadFormat === 'pdf') {
+      try {
+        setIsExportingPdf(true);
+        await exportAttendanceToPdf(getExportData());
+        setConfirmDownloadFormat(null);
+      } catch (err: any) {
+        console.error('Failed to export PDF:', err);
+        alert(`Failed to generate PDF file: ${err?.message || err}. Please check the browser console for details.`);
+      } finally {
+        setIsExportingPdf(false);
+      }
+    } else if (confirmDownloadFormat === 'excel') {
+      try {
+        setIsExporting(true);
+        await exportAttendanceToExcel(getExportData());
+        setConfirmDownloadFormat(null);
+      } catch (err) {
+        console.error('Failed to export Excel:', err);
+        alert('Failed to generate Excel file.');
+      } finally {
+        setIsExporting(false);
+      }
     }
   };
 
@@ -641,33 +659,60 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
     >
       <div className="relative w-full max-w-[96vw] 2xl:max-w-[1640px] h-[95vh] max-h-[95vh] rounded-3xl bg-white dark:bg-[#0A0A0A] shadow-2xl border border-slate-200 dark:border-[#1A1A1A] flex flex-col overflow-hidden">
         {/* Fixed Top Header (Solid Opaque, Non-scrollable) */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200 dark:border-[#1A1A1A] px-5 py-2.5 sm:py-3 flex-shrink-0 bg-white dark:bg-[#0A0A0A] z-20">
-          <div>
-            <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">EXPORT STUDENT ATTENDANCE SHEET</h3>
+        {confirmDownloadFormat ? (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200 dark:border-[#1A1A1A] px-5 py-2.5 sm:py-3 flex-shrink-0 bg-white dark:bg-[#0A0A0A] z-20 animate-fade-in">
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 uppercase">
+                Full Export Preview — {confirmDownloadFormat === 'docx' ? 'Word Document (.docx)' : confirmDownloadFormat === 'pdf' ? 'PDF Document (.pdf)' : 'Excel Spreadsheet (.xlsx)'}
+              </h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDownloadFormat(null)}
+                className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                Back to Edit
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition cursor-pointer"
+                aria-label="Close modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleToggleSettings}
-              className="rounded-xl bg-[var(--brand)] px-3.5 py-1.5 text-[11px] font-bold tracking-wide text-white hover:bg-[var(--brand-dark)] transition shadow-xs cursor-pointer"
-            >
-              {showSettings ? 'Hide Template Details' : 'Edit Template Details'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition cursor-pointer"
-              aria-label="Close modal"
-            >
-              <X className="w-4 h-4" />
-            </button>
+        ) : (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200 dark:border-[#1A1A1A] px-5 py-2.5 sm:py-3 flex-shrink-0 bg-white dark:bg-[#0A0A0A] z-20">
+            <div>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">EXPORT STUDENT ATTENDANCE SHEET</h3>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleToggleSettings}
+                className="rounded-xl bg-[var(--brand)] px-3.5 py-1.5 text-[11px] font-bold tracking-wide text-white hover:bg-[var(--brand-dark)] transition shadow-xs cursor-pointer"
+              >
+                {showSettings ? 'Hide Template Details' : 'Edit Template Details'}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition cursor-pointer"
+                aria-label="Close modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Scrollable Content Body */}
         <div ref={scrollBodyRef} className="flex-1 overflow-y-auto px-4 sm:px-5 py-2.5 space-y-2.5 scroll-smooth">
           {/* Header Settings Form - Displayed at the Top */}
-          {showSettings && (
+          {!confirmDownloadFormat && showSettings && (
             <div ref={settingsRef} className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#0E0E0E] p-4 sm:p-5 space-y-6 text-xs animate-in fade-in duration-150 shadow-xs">
               {/* Section 1: HEADER */}
               <div className="pb-1">
@@ -810,8 +855,9 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
 
           {/* Two-Column Body: Left (Controls + Calendar), Right (Fixed-Size Paper Sheet Preview) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-            {/* Left Column: Date Filter Bar, Calendar Picker & Paper Size */}
-            <div className="lg:col-span-4 xl:col-span-3 2xl:col-span-3 space-y-2 lg:sticky lg:top-0">
+            {/* Left Column: Date Filter Bar, Calendar Picker & Paper Size (Hidden in Full Preview Confirmation Mode) */}
+            {!confirmDownloadFormat && (
+              <div className="lg:col-span-4 xl:col-span-3 2xl:col-span-3 space-y-2 lg:sticky lg:top-0">
               {/* Connected Date Filter & Calendar Container */}
               <div className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm overflow-hidden text-xs">
                 {/* Connected Filter Bar Header */}
@@ -921,11 +967,12 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                     </button>
                   ))}
                 </div>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Right Column: Physical Paper Sheet Preview */}
-            <div className="lg:col-span-8 xl:col-span-9 2xl:col-span-9 flex flex-col min-w-0">
+            {/* Right Column: Physical Paper Sheet Preview (Full Width in Confirmation Mode) */}
+            <div className={confirmDownloadFormat ? "col-span-12 flex flex-col items-center justify-center min-w-0 animate-fade-in" : "lg:col-span-8 xl:col-span-9 2xl:col-span-9 flex flex-col min-w-0"}>
               {/* Paper Workspace Canvas */}
               <div className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-slate-100/90 dark:bg-[#111111] p-4 sm:p-6 overflow-x-auto flex flex-col items-center shadow-inner">
                 {/* Physical Sheet Card with Fixed Proportions */}
@@ -1146,40 +1193,84 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
           </div>
         </div>
 
-        {/* Fixed, 100% Solid Opaque Footer for Save/Export Buttons */}
-        <div className="flex-shrink-0 bg-white dark:bg-[#0A0A0A] border-t border-slate-200 dark:border-[#1A1A1A] px-5 py-2.5 flex flex-col sm:flex-row items-center justify-end gap-2 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full sm:w-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleDocxExport}
-            disabled={isExportingDocx}
-            className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
-          >
-            {isExportingDocx ? 'Downloading DOC...' : 'Download Document (.docx)'}
-          </button>
-          <button
-            type="button"
-            onClick={handleDownloadPdf}
-            disabled={isExportingPdf}
-            className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
-          >
-            {isExportingPdf ? 'Downloading PDF...' : 'Download PDF (.pdf)'}
-          </button>
-          <button
-            type="button"
-            onClick={handleExcelExport}
-            disabled={isExporting}
-            className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
-          >
-            {isExporting ? 'Exporting...' : 'Download Excel (.xlsx)'}
-          </button>
-        </div>
+        {/* Fixed, 100% Solid Opaque Footer for Save/Export / Confirmation Buttons */}
+        {confirmDownloadFormat ? (
+          <div className="flex-shrink-0 bg-white dark:bg-[#0A0A0A] border-t border-slate-200 dark:border-[#1A1A1A] px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.04)] animate-fade-in">
+            <div className="text-xs text-slate-600 dark:text-slate-400 flex flex-wrap items-center gap-2">
+              <span className="font-bold text-slate-900 dark:text-slate-100">{subjectTitle}</span>
+              <span>•</span>
+              <span className="font-semibold text-[var(--brand)]">
+                {exportMode === 'weekly' ? `Week ${weekNumber || '1'} (${dateStr})` : exportMode === 'monthly' ? `Month (${selectedMonthKey})` : `Daily (${dateStr})`}
+              </span>
+              <span>•</span>
+              <span>{sortedStudents.length} Student{sortedStudents.length !== 1 ? 's' : ''}</span>
+              <span>•</span>
+              <span className="uppercase font-semibold text-slate-700 dark:text-slate-300">{PAPER_CONFIG[paperSize]?.label || paperSize}</span>
+            </div>
+            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+              <button
+                type="button"
+                disabled={isExporting || isExportingDocx || isExportingPdf}
+                onClick={() => setConfirmDownloadFormat(null)}
+                className="w-full sm:w-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                Back to Edit
+              </button>
+              <button
+                type="button"
+                disabled={isExporting || isExportingDocx || isExportingPdf}
+                onClick={handleExecuteConfirmedDownload}
+                className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-sm disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-2"
+              >
+                {(isExporting || isExportingDocx || isExportingPdf) ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Generating {confirmDownloadFormat === 'docx' ? '.docx' : confirmDownloadFormat === 'pdf' ? '.pdf' : '.xlsx'}...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    Confirm Download {confirmDownloadFormat === 'docx' ? 'Document(.docx)' : confirmDownloadFormat === 'pdf' ? 'PDF(.pdf)' : 'Excel(.xlsx)'}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-shrink-0 bg-white dark:bg-[#0A0A0A] border-t border-slate-200 dark:border-[#1A1A1A] px-5 py-2.5 flex flex-col sm:flex-row items-center justify-end gap-2 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full sm:w-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => handleInitiateDownload('docx')}
+              disabled={isExportingDocx || isExportingPdf || isExporting}
+              className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
+            >
+              Download Document (.docx)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleInitiateDownload('pdf')}
+              disabled={isExportingDocx || isExportingPdf || isExporting}
+              className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
+            >
+              Download PDF (.pdf)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleInitiateDownload('excel')}
+              disabled={isExportingDocx || isExportingPdf || isExporting}
+              className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
+            >
+              Download Excel (.xlsx)
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

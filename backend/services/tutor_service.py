@@ -19,9 +19,10 @@ def validate_tutor_compatibility(tutor: User, student_program: str) -> None:
     """
     Validate that tutor can teach the student's program level.
     Rules:
+    - A tutor can only have ONE ARAL level handled (cannot handle both basic and plus).
     - Basic Tutor: can only teach Basic students.
     - Plus Tutor: can only teach Plus students.
-    - Basic & Plus Tutor: can teach Basic or Plus students.
+    - Summer Tutor: can only teach Summer students.
     Invalid assignments raise ValidationError.
     """
     if not tutor:
@@ -35,16 +36,10 @@ def validate_tutor_compatibility(tutor: User, student_program: str) -> None:
     t_type = str(t_type).lower().strip()
     s_prog = str(student_program).lower().strip() if student_program else 'basic'
 
-    if s_prog == 'basic':
-        if t_type == 'plus':
-            raise ValidationError({
-                'tutor': 'This tutor cannot be assigned to this student because the tutor is assigned to the Plus program only.'
-            })
-    elif s_prog == 'plus':
-        if t_type == 'basic':
-            raise ValidationError({
-                'tutor': 'This tutor cannot be assigned to this student because the tutor is assigned to the Basic program only.'
-            })
+    if t_type != s_prog:
+        raise ValidationError({
+            'tutor': f'This tutor cannot be assigned to this student because the tutor handles the {t_type.capitalize()} level only, while the student is in {s_prog.capitalize()}. Tutors can only handle one ARAL level.'
+        })
 
 
 def assign_tutor_to_student(
@@ -125,27 +120,39 @@ def assign_tutor_to_student(
 def get_available_tutors_data(program: str | None = None) -> list[dict]:
     """
     Return active tutors available for additional compatible students.
-    NO fixed capacity limits or vacant-slot metrics are returned.
+    After any milestone reset (MOSY/EOSY/Summer), all tutors will show 0 students
+    and full slot availability (up to 25 per cohort).
     """
+    MAX_COHORT = 25
     tutors_qs = User.objects.filter(role='tutor', is_active=True, is_superuser=False)
 
     if program:
         prog = program.lower().strip()
-        if prog == 'basic':
-            tutors_qs = tutors_qs.filter(tutor_type__in=['basic', 'basic_plus'])
-        elif prog == 'plus':
-            tutors_qs = tutors_qs.filter(tutor_type__in=['plus', 'basic_plus'])
+        tutors_qs = tutors_qs.filter(tutor_type=prog)
 
     results = []
     for tutor in tutors_qs:
         assigned_count = tutor.assigned_students.filter(is_active=True).count()
-        t_type = tutor.tutor_type or 'basic'
+        available_slots = max(0, MAX_COHORT - assigned_count)
+        t_type = tutor.tutor_type or tutor.aral_level or 'basic'
 
         type_display = (
             'Basic Tutor' if t_type == 'basic'
             else 'Plus Tutor' if t_type == 'plus'
-            else 'Basic & Plus Tutor'
+            else 'Summer Tutor' if t_type == 'summer'
+            else f'{t_type.capitalize()} Tutor'
         )
+
+        if assigned_count == 0:
+            load_status = f'Open (0/{MAX_COHORT} students — {MAX_COHORT} Slots Available)'
+        elif assigned_count < 15:
+            load_status = f'Light Load ({assigned_count}/{MAX_COHORT} — {available_slots} Slots Available)'
+        elif assigned_count <= MAX_COHORT:
+            load_status = f'Optimal Cohort ({assigned_count}/{MAX_COHORT} — {available_slots} Slots Available)'
+        elif assigned_count <= 30:
+            load_status = f'High Capacity ({assigned_count}/30)'
+        else:
+            load_status = f'Full ({assigned_count} students — 0 Slots Available)'
 
         results.append({
             'id': str(tutor.id),
@@ -155,9 +162,169 @@ def get_available_tutors_data(program: str | None = None) -> list[dict]:
             'tutor_type': t_type,
             'tutor_type_display': type_display,
             'current_students_count': assigned_count,
+            'total_slots': MAX_COHORT,
+            'available_slots': available_slots,
             'has_students': assigned_count > 0,
+            'cohort_load_status': load_status,
             'is_available': tutor.is_available_for_students,
             'availability_status': 'Available' if tutor.is_available_for_students else 'Unavailable',
         })
 
     return results
+
+
+
+def assign_students_to_tutor_bulk(
+    student_ids,
+    tutor_id,
+    school_year=None,
+    assigned_by=None,
+    period='MOSY',
+    notes='',
+):
+    """
+    Bulk assign a list of students to a single tutor (cohort dispatch).
+    Returns a dispatch report with assigned/skipped lists.
+    """
+    from django.core.exceptions import ValidationError
+
+    if not school_year:
+        school_year = SchoolYear.objects.filter(is_active=True).first()
+
+    tutor = User.objects.filter(id=tutor_id, role='tutor', is_active=True).first()
+    if not tutor:
+        raise ValidationError({'tutor': f'Tutor ID {tutor_id} not found or inactive.'})
+
+    MAX_COHORT = 25
+    assigned_count = tutor.assigned_students.filter(is_active=True).count()
+    available_slots = max(0, MAX_COHORT - assigned_count)
+
+    assigned = []
+    skipped = []
+
+    for sid in student_ids:
+        student = User.objects.filter(id=sid, role='student', is_active=True).first()
+        if not student:
+            skipped.append({'student_id': sid, 'reason': 'Not found or inactive.'})
+            continue
+
+        if len(assigned) >= available_slots:
+            skipped.append({
+                'student_id': sid,
+                'student_name': student.get_full_name(),
+                'reason': f'Cohort full ({MAX_COHORT} limit).',
+            })
+            continue
+
+        try:
+            history = assign_tutor_to_student(
+                student=student,
+                tutor=tutor,
+                school_year=school_year,
+                assigned_by=assigned_by,
+                period=period,
+                notes=notes,
+            )
+            assigned.append({
+                'student_id': str(student.id),
+                'student_name': student.get_full_name(),
+                'lrn': student.lrn,
+                'program': student.aral_level or 'basic',
+                'history_id': history.id if history else None,
+            })
+        except ValidationError as e:
+            msg = e.message_dict if hasattr(e, 'message_dict') else str(e)
+            skipped.append({
+                'student_id': str(student.id),
+                'student_name': student.get_full_name(),
+                'reason': str(msg),
+            })
+
+    return {
+        'tutor_id': str(tutor.id),
+        'tutor_name': tutor.get_full_name(),
+        'period': period,
+        'assigned': assigned,
+        'skipped': skipped,
+        'total_assigned': len(assigned),
+        'total_skipped': len(skipped),
+    }
+
+
+def get_tutor_cohort_history(tutor_id, school_year_str=None):
+    """
+    Returns complete cohort history for a tutor:
+    - Current active students
+    - Past cohorts organized by School Year and Milestone Period (MOSY, EOSY, SUMMER)
+    - Grades/Evaluations logged for those students
+    """
+    from apps.academics.models import ApiGrade
+    from django.core.exceptions import ValidationError
+
+    tutor = User.objects.filter(id=tutor_id, role='tutor').first()
+    if not tutor:
+        raise ValidationError({'tutor': f'Tutor with ID {tutor_id} not found.'})
+
+    # Query all assignment histories for this tutor
+    histories_qs = TutorAssignmentHistory.objects.filter(
+        tutor=tutor
+    ).select_related('student', 'school_year').order_by('-start_date')
+
+    if school_year_str:
+        histories_qs = histories_qs.filter(school_year__school_year=school_year_str)
+
+    # Currently active students from user relationship
+    active_students_qs = tutor.assigned_students.filter(is_active=True)
+    active_cohort = []
+    for st in active_students_qs:
+        active_cohort.append({
+            'student_id': str(st.id),
+            'student_name': st.get_full_name(),
+            'lrn': st.lrn,
+            'email': st.email,
+            'program': (st.aral_level or 'basic').capitalize(),
+            'grade_level': 'Grade 8',
+            'is_active': True,
+        })
+
+    # Historical assignments
+    past_records = []
+    for h in histories_qs:
+        st = h.student
+        grade_obj = ApiGrade.objects.filter(
+            student=st,
+            tutor=tutor,
+        ).order_by('-date_logged').first()
+
+        score_display = None
+        if grade_obj and grade_obj.total_score:
+            pct = round((float(grade_obj.score or 0) / float(grade_obj.total_score or 40)) * 100, 1)
+            score_display = f"{grade_obj.score}/{grade_obj.total_score} ({pct}%)"
+
+        past_records.append({
+            'history_id': h.id,
+            'student_id': str(st.id),
+            'student_name': st.get_full_name(),
+            'lrn': st.lrn,
+            'email': st.email,
+            'school_year': h.school_year.school_year,
+            'period': h.period,
+            'program': h.program.capitalize(),
+            'start_date': str(h.start_date),
+            'end_date': str(h.end_date) if h.end_date else 'Present',
+            'is_active': h.is_active,
+            'notes': h.notes,
+            'latest_score': score_display,
+            'latest_grade_remarks': grade_obj.remarks if grade_obj else None,
+        })
+
+    return {
+        'tutor_id': str(tutor.id),
+        'tutor_name': tutor.get_full_name(),
+        'email': tutor.email,
+        'tutor_type': tutor.tutor_type or 'basic',
+        'active_students_count': len(active_cohort),
+        'active_cohort': active_cohort,
+        'past_records': past_records,
+        'total_historical_students': len(past_records),
+    }

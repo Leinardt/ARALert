@@ -27,17 +27,20 @@ from .evaluation_views import (
     MosyMonitoringView,
     MosyProcessView,
     MosyAssignmentsView,
+    AssignmentQueueView,
     EosyMonitoringView,
     TransitionSummaryPreviewView,
     StartNewSchoolYearView,
     AvailableTutorsView,
     AssignTutorView,
+    BulkAssignTutorView,
     SummerListView,
     SummerStartView,
     SummerEvaluateView,
     SchoolYearArchiveListView,
     SchoolYearArchiveDetailView,
     StudentCompleteHistoryView,
+    TutorCohortHistoryView,
 )
 
 urlpatterns = [
@@ -84,9 +87,13 @@ urlpatterns = [
     path('evaluations/transition-summary/', TransitionSummaryPreviewView.as_view(), name='transition-summary'),
     path('evaluations/start-new-school-year/', StartNewSchoolYearView.as_view(), name='start-new-school-year'),
 
-    # Available Tutors (No Capacity) & Assignment
+    # Available Tutors (Slot Metrics) & Assignment
     path('tutors/available/', AvailableTutorsView.as_view(), name='tutors-available'),
     path('tutors/assign/', AssignTutorView.as_view(), name='tutor-assign'),
+    path('tutors/assign-bulk/', BulkAssignTutorView.as_view(), name='tutor-assign-bulk'),
+
+    # Unified Post-Milestone Assignment Queue
+    path('evaluations/assignment-queue/', AssignmentQueueView.as_view(), name='assignment-queue'),
 
     # Summer Remediation Program
     path('summer/', SummerListView.as_view(), name='summer-list'),
@@ -99,5 +106,9 @@ urlpatterns = [
 
     # Student Full Academic, Tutor & Summer History
     path('students/<uuid:student_id>/history/', StudentCompleteHistoryView.as_view(), name='student-complete-history'),
+
+    # Tutor Cohort History (Active & Past Cohorts)
+    path('tutors/cohort-history/', TutorCohortHistoryView.as_view(), name='tutor-cohort-history-self'),
+    path('tutors/<uuid:tutor_id>/cohort-history/', TutorCohortHistoryView.as_view(), name='tutor-cohort-history-detail'),
 ]
 

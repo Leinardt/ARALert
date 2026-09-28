@@ -260,14 +260,19 @@ export const academicService = {
     return response.data;
   },
 
+  setActiveSemester: async (semester: '1st' | '2nd' | 'summer'): Promise<{ message: string; school_year: SchoolYear }> => {
+    const response = await api.post<{ message: string; school_year: SchoolYear }>('/academics/school-years/current/', { semester });
+    return response.data;
+  },
+
   // MOSY Evaluation & Assignments
   getMosyMonitoring: async (): Promise<MosyMonitoringData> => {
     const response = await api.get<MosyMonitoringData>('/academics/evaluations/mosy-monitoring/');
     return response.data;
   },
 
-  processMosyCompletion: async (): Promise<{ status: string; message: string; plus_unassigned_count: number; basic_retained_count: number }> => {
-    const response = await api.post<{ status: string; message: string; plus_unassigned_count: number; basic_retained_count: number }>('/academics/evaluations/mosy-process/');
+  processMosyCompletion: async (): Promise<{ status: string; message: string; plus_unassigned_count: number; basic_unassigned_count: number }> => {
+    const response = await api.post<{ status: string; message: string; plus_unassigned_count: number; basic_unassigned_count: number }>('/academics/evaluations/mosy-process/');
     return response.data;
   },
 
@@ -333,6 +338,32 @@ export const academicService = {
   // Student Complete History
   getStudentCompleteHistory: async (studentId: string): Promise<StudentCompleteHistory> => {
     const response = await api.get<StudentCompleteHistory>(`/academics/students/${studentId}/history/`);
+    return response.data;
+  },
+
+  // Unified Post-Milestone Assignment Queue
+  getAssignmentQueue: async (): Promise<import('../types').AssignmentQueueData> => {
+    const response = await api.get<import('../types').AssignmentQueueData>('/academics/evaluations/assignment-queue/');
+    return response.data;
+  },
+
+  // Bulk Cohort Dispatch
+  bulkAssignTutor: async (payload: {
+    tutor_id: string;
+    student_ids: string[];
+    period?: string;
+    notes?: string;
+  }): Promise<import('../types').BulkAssignResult> => {
+    const response = await api.post<import('../types').BulkAssignResult>('/academics/tutors/assign-bulk/', payload);
+    return response.data;
+  },
+
+  // Tutor Cohort History (Active & Past Archives)
+  getTutorCohortHistory: async (tutorId?: string, schoolYear?: string): Promise<import('../types').TutorCohortHistoryData> => {
+    const url = tutorId ? `/academics/tutors/${tutorId}/cohort-history/` : '/academics/tutors/cohort-history/';
+    const response = await api.get<import('../types').TutorCohortHistoryData>(url, {
+      params: schoolYear ? { school_year: schoolYear } : {},
+    });
     return response.data;
   },
 };

@@ -10,7 +10,10 @@ import {
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
 import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
 import {
-  getTutorAssignedMilestone,
+  getCurrentSemesterMilestone,
+  getActiveSystemMilestone,
+  getActiveSystemSemester,
+  setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
 
 // ─── Chart Types & Interactive Bézier Chart ──────────────────────────────────
@@ -513,10 +516,29 @@ export const StudentHome: React.FC = () => {
     return currentStudentAttendance.length > 0 || hasScoreData;
   }, [currentStudentAttendance, hasScoreData]);
 
+  const [activeSystemSem, setActiveSystemSem] = useState(() => getActiveSystemSemester());
+
+  useEffect(() => {
+    academicService.getCurrentSchoolYear().then((sy) => {
+      if (sy && sy.current_semester) {
+        setActiveSystemSemester(sy.current_semester as any);
+        setActiveSystemSem(sy.current_semester as any);
+      }
+    }).catch(() => {});
+
+    const handleSemChange = (e: any) => {
+      const newSem = e?.detail?.semester || getActiveSystemSemester();
+      setActiveSystemSem(newSem);
+    };
+
+    window.addEventListener('system_semester_changed', handleSemChange);
+    return () => window.removeEventListener('system_semester_changed', handleSemChange);
+  }, []);
+
   // Student Milestone
   const studentMilestone = useMemo(() => {
-    return getTutorAssignedMilestone(user?.aral_level);
-  }, [user?.aral_level]);
+    return getActiveSystemMilestone();
+  }, [activeSystemSem]);
 
   // Student Risk Tier
   const studentRiskTier = studentStat?.riskTier || (profile?.computed_risk_level === 'high' ? 'High' : profile?.computed_risk_level === 'medium' ? 'Medium' : 'Low');

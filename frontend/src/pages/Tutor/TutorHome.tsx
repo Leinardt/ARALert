@@ -14,6 +14,12 @@ import {
 } from 'lucide-react';
 import { computeStudentRiskRows, type StudentRiskRow, getRiskAvatarClass } from '../../utils/analyticsHelpers';
 import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
+import {
+  getCurrentSemesterMilestone,
+  getActiveSystemMilestone,
+  getActiveSystemSemester,
+  setActiveSystemSemester,
+} from '../../utils/sessionDescriptionHelpers';
 
 interface TutorChartPoint {
   label: string;
@@ -438,12 +444,28 @@ export const TutorHome: React.FC = () => {
     [studentStats]
   );
 
+  const [activeSystemSem, setActiveSystemSem] = useState(() => getActiveSystemSemester());
+
+  useEffect(() => {
+    academicService.getCurrentSchoolYear().then((sy) => {
+      if (sy && sy.current_semester) {
+        setActiveSystemSemester(sy.current_semester as any);
+        setActiveSystemSem(sy.current_semester as any);
+      }
+    }).catch(() => {});
+
+    const handleSemChange = (e: any) => {
+      const newSem = e?.detail?.semester || getActiveSystemSemester();
+      setActiveSystemSem(newSem);
+    };
+
+    window.addEventListener('system_semester_changed', handleSemChange);
+    return () => window.removeEventListener('system_semester_changed', handleSemChange);
+  }, []);
+
   const tutorMilestone = useMemo(() => {
-    const level = (user?.aral_level || 'basic').toLowerCase();
-    if (level === 'plus') return 'EOSY';
-    if (level === 'summer') return 'ARAL Summer Assessment';
-    return 'MOSY'; // for basic
-  }, [user?.aral_level]);
+    return getActiveSystemMilestone();
+  }, [activeSystemSem]);
 
   const last4WeeksData = useMemo(() => {
     if (students.length === 0 || grades.length === 0) return [];

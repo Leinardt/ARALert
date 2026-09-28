@@ -149,7 +149,7 @@ export const exportAttendanceToPdf = async (
 
     pdf.setFontSize(9.5);
     pdf.setTextColor(51, 65, 85); // #334155
-    pdf.text(data.gradeSection.toUpperCase(), pageWidth / 2, curY + 22, { align: 'center' });
+    pdf.text((data.gradeSection || 'MIXED (GRADES 7-10)').toUpperCase(), pageWidth / 2, curY + 22, { align: 'center' });
 
     curY += 24;
 

@@ -6,21 +6,31 @@ import {
 } from 'lucide-react';
 import { academicService } from '../../services/academicService';
 import { AssignTutorModal } from '../../components/AssignTutorModal';
+import { BulkAssignCohortModal } from '../../components/BulkAssignCohortModal';
 import { TransitionConfirmationModal } from '../../components/TransitionConfirmationModal';
 import { EvaluateSummerModal } from '../../components/EvaluateSummerModal';
 import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
-import type {
+import {
   MosyMonitoringData,
   MosyAssignmentData,
   EosyMonitoringData,
   SummerRecord,
   SchoolYear,
-  ArchivedSchoolYearSnapshot
+  ArchivedSchoolYearSnapshot,
+  AssignmentQueueData,
+  AssignmentQueueItem
 } from '../../types';
+import {
+  getActiveSystemSemester,
+  setActiveSystemSemester,
+  getActiveSystemMilestone,
+} from '../../utils/sessionDescriptionHelpers';
 
 export const AdminEvaluationHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'mosy' | 'eosy' | 'summer' | 'archive'>('mosy');
   const [currentSY, setCurrentSY] = useState<SchoolYear | null>(null);
+  const [activeSystemSem, setActiveSystemSem] = useState(() => getActiveSystemSemester());
+  const [isSettingSemester, setIsSettingSemester] = useState<boolean>(false);
 
   // MOSY state
   const [mosyData, setMosyData] = useState<MosyMonitoringData | null>(null);
@@ -44,6 +54,13 @@ export const AdminEvaluationHub: React.FC = () => {
   const [archiveSnapshot, setArchiveSnapshot] = useState<ArchivedSchoolYearSnapshot | null>(null);
   const [isLoadingArchiveDetail, setIsLoadingArchiveDetail] = useState<boolean>(false);
 
+  // Unified Assignment Queue & Bulk Cohort State
+  const [queueData, setQueueData] = useState<AssignmentQueueData | null>(null);
+  const [selectedQueueIds, setSelectedQueueIds] = useState<string[]>([]);
+  const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState<boolean>(false);
+  const [queueFilter, setQueueFilter] = useState<'all' | 'plus' | 'basic'>('all');
+  const [queueSearch, setQueueSearch] = useState<string>('');
+
   // Modals state
   const [assignModalStudent, setAssignModalStudent] = useState<{
     id: string;
@@ -64,27 +81,41 @@ export const AdminEvaluationHub: React.FC = () => {
 
   useEffect(() => {
     loadInitialData();
+
+    const handleSemChange = (e: any) => {
+      const newSem = e?.detail?.semester || getActiveSystemSemester();
+      setActiveSystemSem(newSem);
+    };
+
+    window.addEventListener('system_semester_changed', handleSemChange);
+    return () => window.removeEventListener('system_semester_changed', handleSemChange);
   }, []);
 
   const loadInitialData = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [sy, mosy, mosyAssign, eosy, summer, archives] = await Promise.all([
+      const [sy, mosy, mosyAssign, eosy, summer, archives, queue] = await Promise.all([
         academicService.getCurrentSchoolYear().catch(() => null),
         academicService.getMosyMonitoring().catch(() => null),
         academicService.getMosyAssignments().catch(() => null),
         academicService.getEosyMonitoring().catch(() => null),
         academicService.getSummerList().catch(() => []),
         academicService.getArchivedSchoolYears().catch(() => []),
+        academicService.getAssignmentQueue().catch(() => null),
       ]);
 
       setCurrentSY(sy);
+      if (sy?.current_semester) {
+        setActiveSystemSemester(sy.current_semester as any);
+        setActiveSystemSem(sy.current_semester as any);
+      }
       setMosyData(mosy);
       setMosyAssignments(mosyAssign);
       setEosyData(eosy);
       setSummerRecords(summer);
       setArchivedYears(archives);
+      setQueueData(queue);
 
       if (archives.length > 0 && !selectedArchiveYear) {
         setSelectedArchiveYear(archives[0].school_year);
@@ -102,6 +133,22 @@ export const AdminEvaluationHub: React.FC = () => {
     await loadInitialData();
   };
 
+  const handleSetSemester = async (semester: '1st' | '2nd' | 'summer') => {
+    setIsSettingSemester(true);
+    try {
+      const res = await academicService.setActiveSemester(semester);
+      setCurrentSY(res.school_year);
+      setActiveSystemSemester(semester);
+      setActiveSystemSem(semester);
+      await loadInitialData();
+    } catch (err: any) {
+      console.error('Failed to update active semester:', err);
+      alert(err.response?.data?.error || 'Failed to update active semester.');
+    } finally {
+      setIsSettingSemester(false);
+    }
+  };
+
   const handleProcessMosy = async () => {
     if (!window.confirm('Are you sure you want to finalize the MOSY period? This will promote qualifying students to the Plus program and mark Plus students as unassigned for strict tutor matching.')) {
       return;
@@ -111,13 +158,18 @@ export const AdminEvaluationHub: React.FC = () => {
     try {
       const res = await academicService.processMosyCompletion();
       setMosyProcessSuccess(res.message);
-      // Refresh MOSY data
-      const [m, ma] = await Promise.all([
+      setActiveSystemSemester('2nd');
+      setActiveSystemSem('2nd');
+      // Refresh MOSY data & assignment queue
+      const [m, ma, q] = await Promise.all([
         academicService.getMosyMonitoring(),
         academicService.getMosyAssignments(),
+        academicService.getAssignmentQueue().catch(() => null),
       ]);
       setMosyData(m);
       setMosyAssignments(ma);
+      setQueueData(q);
+      setSelectedQueueIds([]);
     } catch (err: any) {
       console.error('Failed to process MOSY completion:', err);
       alert(err.response?.data?.error || 'Failed to finalize MOSY.');
@@ -159,17 +211,110 @@ export const AdminEvaluationHub: React.FC = () => {
     }
   };
 
+  // Flattened queue items
+  const allQueueItems: AssignmentQueueItem[] = React.useMemo(() => {
+    if (queueData) {
+      return [...queueData.plus_queue, ...queueData.basic_queue];
+    }
+    // Fallback from mosyAssignments if queue endpoint hasn't loaded yet
+    const plusItems: AssignmentQueueItem[] = (mosyAssignments?.unassigned_plus_students || []).map(s => ({
+      id: s.id,
+      full_name: s.full_name,
+      lrn: s.lrn,
+      required_program: 'plus',
+      mosy_result: 'Passed',
+      eosy_result: 'Pending',
+      mosy_score_pct: s.mosy_score_pct,
+      previous_tutor: s.previous_tutor,
+      status_reason: 'Leveled Up from Basic — Awaiting Plus Tutor',
+      status_badge: s.status_badge,
+      status_color: s.status_color,
+    }));
+    const basicItems: AssignmentQueueItem[] = (mosyAssignments?.unassigned_basic_students || mosyAssignments?.basic_students || []).map(s => ({
+      id: s.id,
+      full_name: s.full_name,
+      lrn: s.lrn,
+      required_program: 'basic',
+      mosy_result: s.mosy_result || 'Failed',
+      eosy_result: 'Pending',
+      mosy_score_pct: s.mosy_score_pct,
+      previous_tutor: s.previous_tutor,
+      status_reason: 'Retained in Basic — Midyear Cohort Retake',
+      status_badge: s.status_badge,
+      status_color: s.status_color,
+    }));
+    return [...plusItems, ...basicItems];
+  }, [queueData, mosyAssignments]);
+
+  const filteredQueueItems = React.useMemo(() => {
+    return allQueueItems.filter(item => {
+      if (queueFilter === 'plus' && item.required_program !== 'plus') return false;
+      if (queueFilter === 'basic' && item.required_program !== 'basic') return false;
+      if (queueSearch.trim()) {
+        const q = queueSearch.toLowerCase();
+        const matchesName = item.full_name.toLowerCase().includes(q);
+        const matchesLrn = item.lrn ? item.lrn.toLowerCase().includes(q) : false;
+        const matchesTutor = item.previous_tutor ? item.previous_tutor.toLowerCase().includes(q) : false;
+        if (!matchesName && !matchesLrn && !matchesTutor) return false;
+      }
+      return true;
+    });
+  }, [allQueueItems, queueFilter, queueSearch]);
+
+  const selectedStudentsForCohort = React.useMemo(() => {
+    return allQueueItems.filter(item => selectedQueueIds.includes(item.id));
+  }, [allQueueItems, selectedQueueIds]);
+
+  const toggleSelectStudent = (id: string) => {
+    setSelectedQueueIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectFilteredAll = () => {
+    const ids = filteredQueueItems.map(s => s.id);
+    setSelectedQueueIds(ids);
+  };
+
+  const handleQuickSelectCount = (count: number) => {
+    const ids = filteredQueueItems.slice(0, count).map(s => s.id);
+    setSelectedQueueIds(ids);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedQueueIds([]);
+  };
+
+  const handleCohortDispatched = async () => {
+    setIsBulkAssignModalOpen(false);
+    setSelectedQueueIds([]);
+    await handleRefresh();
+  };
+
   return (
     <div className="flex flex-col gap-4 p-2 sm:p-4 max-w-7xl mx-auto w-full animate-fade-in">
       {/* ── Top Header & Current Year Banner ── */}
       <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A] p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xs">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
               Evaluation & Transition Hub
             </h1>
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
               Active: SY {currentSY?.school_year || '2025-2026'}
+            </span>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+              (currentSY?.current_semester || activeSystemSem) === '1st'
+                ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                : (currentSY?.current_semester || activeSystemSem) === '2nd'
+                ? 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+                : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+            }`}>
+              {(currentSY?.current_semester || activeSystemSem) === '1st'
+                ? '1st Semester (MOSY)'
+                : (currentSY?.current_semester || activeSystemSem) === '2nd'
+                ? '2nd Semester (EOSY)'
+                : 'Summer (ARAL Summer Assessment)'}
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
@@ -177,15 +322,49 @@ export const AdminEvaluationHub: React.FC = () => {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleRefresh}
-          disabled={isLoading}
-          className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          <span>Refresh Data</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Active Operating Phase Selector */}
+          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-zinc-800/80 rounded-xl border border-slate-200 dark:border-zinc-700">
+            <span className="text-[10px] font-bold text-slate-400 uppercase px-2 hidden sm:inline-block">Operating Phase:</span>
+            <button
+              type="button"
+              onClick={() => handleSetSemester('1st')}
+              disabled={isSettingSemester || (currentSY?.current_semester || activeSystemSem) === '1st'}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${(currentSY?.current_semester || activeSystemSem) === '1st' ? 'bg-white dark:bg-zinc-900 text-blue-700 dark:text-blue-400 shadow-xs font-black' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 hover:bg-slate-200/60'}`}
+              title="Set active semester to 1st Semester (MOSY)"
+            >
+              1st Sem (MOSY)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetSemester('2nd')}
+              disabled={isSettingSemester || (currentSY?.current_semester || activeSystemSem) === '2nd'}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${(currentSY?.current_semester || activeSystemSem) === '2nd' ? 'bg-white dark:bg-zinc-900 text-purple-700 dark:text-purple-400 shadow-xs font-black' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 hover:bg-slate-200/60'}`}
+              title="Set active semester to 2nd Semester (EOSY)"
+            >
+              2nd Sem (EOSY)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetSemester('summer')}
+              disabled={isSettingSemester || (currentSY?.current_semester || activeSystemSem) === 'summer'}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${(currentSY?.current_semester || activeSystemSem) === 'summer' ? 'bg-white dark:bg-zinc-900 text-amber-700 dark:text-amber-400 shadow-xs font-black' : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 hover:bg-slate-200/60'}`}
+              title="Set active semester to Summer (ARAL Summer Assessment)"
+            >
+              Summer
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isLoading || isSettingSemester}
+            className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading || isSettingSemester ? 'animate-spin' : ''}`} />
+            <span>Refresh Data</span>
+          </button>
+        </div>
       </div>
 
       {/* ── Navigation Tabs ── */}
@@ -339,7 +518,7 @@ export const AdminEvaluationHub: React.FC = () => {
                 Finalize Mid-Year (MOSY) Evaluation Period
               </h3>
               <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                Evaluates student scores: Promotes qualifying Basic students to Plus, marks Plus students as unassigned awaiting Plus tutors, and retains Basic students with compatible Basic tutors.
+                Concludes MOSY scores: promotes qualifying Basic students to Plus, then releases <em>all</em> student-tutor pairings. Every tutor becomes vacant so the Admin can build fresh cohorts for Q3/Q4.
               </p>
             </div>
             <button
@@ -362,165 +541,273 @@ export const AdminEvaluationHub: React.FC = () => {
             </button>
           </div>
 
-          {/* ── Table 1: Unassigned Plus Students (Action Required) ── */}
-          <div className="rounded-2xl border border-purple-200 dark:border-purple-900/60 bg-white dark:bg-[#0A0A0A] overflow-hidden shadow-xs">
-            <div className="px-5 py-3.5 bg-purple-50/60 dark:bg-purple-950/20 border-b border-purple-100 dark:border-purple-900/40 flex items-center justify-between">
+          {/* ── POST-MILESTONE UNIFIED REASSIGNMENT QUEUE & 1-CLICK COHORT DISPATCH ── */}
+          <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A] overflow-hidden shadow-xs">
+            {/* Header & Filter Controls */}
+            <div className="px-5 py-4 bg-slate-50/80 dark:bg-zinc-900/60 border-b border-slate-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-xs font-extrabold uppercase tracking-wider text-purple-900 dark:text-purple-200 flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-pulse" />
-                  <span>Unassigned Plus Students &mdash; Strict Tutor Matching Required</span>
+                <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Users className="w-4 h-4 text-indigo-500" />
+                  <span>Post-Milestone Reassignment Queue &amp; Cohort Dispatch</span>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                    {allQueueItems.length} Unassigned Students
+                  </span>
                 </h3>
-                <p className="text-[11px] text-purple-700/80 dark:text-purple-300/80 mt-0.5">
-                  Students promoted or enrolled in Plus program must be assigned strictly to Plus or Basic & Plus certified tutors.
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                  Select 15–25 students (mixed Grade 7–10) to dispatch fresh cohorts to vacant tutors in 1 click.
                 </p>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-200">
-                {mosyAssignments?.unassigned_plus_students.length || 0} Awaiting Tutor
-              </span>
+
+              {/* Quick Select & Cohort Dispatch Trigger */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase mr-1">Quick Select:</span>
+                <button
+                  type="button"
+                  onClick={() => handleQuickSelectCount(15)}
+                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 cursor-pointer transition shadow-2xs"
+                >
+                  15 Students
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickSelectCount(20)}
+                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 cursor-pointer transition shadow-2xs"
+                >
+                  20 Students
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickSelectCount(25)}
+                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 cursor-pointer transition shadow-2xs"
+                >
+                  25 (Max)
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSelectFilteredAll}
+                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 cursor-pointer transition shadow-2xs"
+                >
+                  Select All ({filteredQueueItems.length})
+                </button>
+                {selectedQueueIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearSelection}
+                    className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900 text-[11px] font-bold hover:bg-rose-100 cursor-pointer transition"
+                  >
+                    Clear ({selectedQueueIds.length})
+                  </button>
+                )}
+              </div>
             </div>
 
-            {mosyAssignments && mosyAssignments.unassigned_plus_students.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-400">
-                <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
-                <p className="font-bold text-slate-700 dark:text-zinc-300">All Plus students currently have assigned tutors!</p>
-                <p className="text-[11px] mt-0.5">No unassigned Plus students pending assignment.</p>
+            {/* Filter Pills & Search */}
+            <div className="px-5 py-3 bg-white dark:bg-zinc-900/30 border-b border-slate-100 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQueueFilter('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    queueFilter === 'all'
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+                      : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200'
+                  }`}
+                >
+                  All Unassigned ({allQueueItems.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQueueFilter('plus')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    queueFilter === 'plus'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100 border border-purple-200/60 dark:border-purple-800/40'
+                  }`}
+                >
+                  <span>Plus Program</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-purple-200/60 dark:bg-purple-900 text-[10px] font-extrabold">
+                    {allQueueItems.filter(s => s.required_program === 'plus').length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQueueFilter('basic')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    queueFilter === 'basic'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 border border-amber-200/60 dark:border-amber-800/40'
+                  }`}
+                >
+                  <span>Basic Program</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-amber-200/60 dark:bg-amber-900 text-[10px] font-extrabold">
+                    {allQueueItems.filter(s => s.required_program === 'basic').length}
+                  </span>
+                </button>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-zinc-900/40 text-slate-400 text-[10px] uppercase border-b border-slate-100 dark:border-zinc-800">
-                    <tr>
-                      <th className="py-2.5 px-4 font-bold">Student Name</th>
-                      <th className="py-2.5 px-4 font-bold">LRN</th>
-                      <th className="py-2.5 px-4 font-bold">Program</th>
-                      <th className="py-2.5 px-4 font-bold">MOSY Score</th>
-                      <th className="py-2.5 px-4 font-bold">Previous Tutor</th>
-                      <th className="py-2.5 px-4 font-bold text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/60">
-                    {mosyAssignments?.unassigned_plus_students.map((student) => (
-                      <tr key={student.id} className="hover:bg-slate-50/60 dark:hover:bg-zinc-900/30">
-                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
-                          {student.full_name}
-                        </td>
-                        <td className="py-3 px-4 font-mono text-slate-500 dark:text-zinc-400">
-                          {student.lrn || 'N/A'}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
-                            {student.program}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="font-bold text-emerald-600">
-                            {student.mosy_score_pct != null ? `${student.mosy_score_pct}%` : 'N/A'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-slate-600 dark:text-zinc-400">
-                          {student.previous_tutor || 'None'}
-                        </td>
-                        <td className="py-3 px-4 text-right space-x-2">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenHistoryModal(student.id)}
-                            className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-700 text-[11px] font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
-                          >
-                            History
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenAssignModal(student, 'MOSY')}
-                            className="px-3 py-1 rounded-lg bg-[var(--brand)] hover:opacity-90 text-white text-[11px] font-bold transition inline-flex items-center gap-1 cursor-pointer shadow-xs"
-                          >
-                            <UserCheck className="w-3.5 h-3.5" />
-                            <span>Assign Plus Tutor</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+
+              {/* Search input */}
+              <div className="relative w-full sm:w-64">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by student, LRN, tutor..."
+                  value={queueSearch}
+                  onChange={(e) => setQueueSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            {/* Sticky Cohort Dispatch Action Bar (When >= 1 student selected) */}
+            {selectedQueueIds.length > 0 && (
+              <div className="px-5 py-3 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-950/40 dark:to-purple-950/40 border-b border-indigo-200 dark:border-indigo-800 flex flex-wrap items-center justify-between gap-3 animate-fade-in">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-sm">
+                    {selectedQueueIds.length}
+                  </div>
+                  <div>
+                    <p className="text-xs font-extrabold text-slate-900 dark:text-white">
+                      {selectedQueueIds.length} Students Selected for Cohort Dispatch
+                    </p>
+                    <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
+                      {selectedQueueIds.length >= 15 && selectedQueueIds.length <= 25
+                        ? 'Optimal standard cohort size (15–25 students).'
+                        : selectedQueueIds.length < 15
+                        ? `Light cohort (${selectedQueueIds.length}/25). You can add more students.`
+                        : 'Cohort has more than 25 students. Available tutor slot limits will apply.'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsBulkAssignModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Dispatch Cohort ({selectedQueueIds.length} Students) to Tutor</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             )}
-          </div>
 
-          {/* ── Table 2: Basic Students (Assigned) ── */}
-          <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A] overflow-hidden shadow-xs">
-            <div className="px-5 py-3.5 bg-slate-50 dark:bg-zinc-900/40 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
-              <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
-                  Basic Program Students ({mosyAssignments?.basic_students.length || 0})
-                </h3>
-                <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
-                  Basic students retain their compatible Basic or Basic & Plus certified tutors across the mid-year period.
-                </p>
-              </div>
-            </div>
-
-            {mosyAssignments && mosyAssignments.basic_students.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-400">
-                No active Basic students found for current school year.
+            {/* Table */}
+            {filteredQueueItems.length === 0 ? (
+              <div className="p-12 text-center text-xs text-slate-400">
+                <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2 opacity-80" />
+                <p className="font-bold text-sm text-slate-800 dark:text-zinc-200">Reassignment Queue is Clear!</p>
+                <p className="text-xs mt-1">All students currently have active tutor assignments, or no students match the search filter.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto max-h-96">
+              <div className="overflow-x-auto max-h-[500px]">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-zinc-900/40 text-slate-400 text-[10px] uppercase sticky top-0 border-b border-slate-100 dark:border-zinc-800">
+                  <thead className="bg-slate-50 dark:bg-zinc-900/60 text-slate-400 text-[10px] uppercase sticky top-0 z-10 border-b border-slate-100 dark:border-zinc-800">
                     <tr>
+                      <th className="py-2.5 px-3 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          checked={filteredQueueItems.length > 0 && selectedQueueIds.length >= filteredQueueItems.length}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              handleSelectFilteredAll();
+                            } else {
+                              handleClearSelection();
+                            }
+                          }}
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                      </th>
                       <th className="py-2.5 px-4 font-bold">Student Name</th>
                       <th className="py-2.5 px-4 font-bold">LRN</th>
-                      <th className="py-2.5 px-4 font-bold">Assigned Tutor</th>
-                      <th className="py-2.5 px-4 font-bold">MOSY Status</th>
-                      <th className="py-2.5 px-4 font-bold">MOSY Result</th>
-                      <th className="py-2.5 px-4 font-bold text-right">Action</th>
+                      <th className="py-2.5 px-4 font-bold">Required Program</th>
+                      <th className="py-2.5 px-4 font-bold">Queue Status &amp; Reason</th>
+                      <th className="py-2.5 px-4 font-bold">MOSY Score</th>
+                      <th className="py-2.5 px-4 font-bold">Previous Tutor</th>
+                      <th className="py-2.5 px-4 font-bold text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/60">
-                    {mosyAssignments?.basic_students.map((student) => (
-                      <tr key={student.id} className="hover:bg-slate-50/60 dark:hover:bg-zinc-900/30">
-                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
-                          {student.full_name}
-                        </td>
-                        <td className="py-3 px-4 font-mono text-slate-500 dark:text-zinc-400">
-                          {student.lrn || 'N/A'}
-                        </td>
-                        <td className="py-3 px-4 text-slate-800 dark:text-zinc-200 font-medium">
-                          {student.current_tutor}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="capitalize text-slate-600 dark:text-zinc-400">
-                            {student.mosy_status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
-                            student.mosy_result === 'passed'
-                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : student.mosy_result === 'failed'
-                              ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
-                              : 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400'
-                          }`}>
-                            {student.mosy_result}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-right space-x-2">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenHistoryModal(student.id)}
-                            className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-700 text-[11px] font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
-                          >
-                            History
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenAssignModal(student, 'MOSY')}
-                            className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-700 text-[11px] font-semibold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
-                          >
-                            Reassign
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredQueueItems.map((student) => {
+                      const isSelected = selectedQueueIds.includes(student.id);
+
+                      return (
+                        <tr
+                          key={student.id}
+                          className={`transition ${
+                            isSelected
+                              ? 'bg-indigo-50/50 dark:bg-indigo-950/20'
+                              : 'hover:bg-slate-50/60 dark:hover:bg-zinc-900/30'
+                          }`}
+                        >
+                          <td className="py-3 px-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelectStudent(student.id)}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            />
+                          </td>
+                          <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                            {student.full_name}
+                          </td>
+                          <td className="py-3 px-4 font-mono text-slate-500 dark:text-zinc-400">
+                            {student.lrn || 'N/A'}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase ${
+                              student.required_program === 'plus'
+                                ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                                : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                            }`}>
+                              {student.required_program}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase inline-block ${
+                              student.status_color === 'green'
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                : student.status_color === 'yellow' || student.status_color === 'orange'
+                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+                                : student.status_color === 'purple'
+                                ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                                : 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400'
+                            }`}>
+                              {student.status_badge || student.status_reason}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="font-bold text-slate-700 dark:text-zinc-200">
+                              {student.mosy_score_pct != null ? `${student.mosy_score_pct}%` : 'N/A'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-slate-600 dark:text-zinc-400">
+                            {student.previous_tutor || 'None'}
+                          </td>
+                          <td className="py-3 px-4 text-right space-x-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenHistoryModal(student.id)}
+                              className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-zinc-700 text-[11px] font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                            >
+                              History
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAssignModal({
+                                id: student.id,
+                                full_name: student.full_name,
+                                lrn: student.lrn,
+                                program: student.required_program,
+                              }, 'MOSY')}
+                              className="px-3 py-1 rounded-lg bg-[var(--brand)] hover:opacity-90 text-white text-[11px] font-bold transition inline-flex items-center gap-1 cursor-pointer shadow-xs"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                              <span>Assign</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -918,6 +1205,8 @@ export const AdminEvaluationHub: React.FC = () => {
         onClose={() => setIsTransitionModalOpen(false)}
         onSuccess={(result) => {
           setTransitionSuccessMsg(result.message || 'Transition completed successfully.');
+          setActiveSystemSemester('1st');
+          setActiveSystemSem('1st');
           handleRefresh();
         }}
       />
@@ -936,6 +1225,14 @@ export const AdminEvaluationHub: React.FC = () => {
         isOpen={isHistoryModalOpen}
         onClose={() => setIsHistoryModalOpen(false)}
         studentId={historyStudentId}
+      />
+
+      <BulkAssignCohortModal
+        isOpen={isBulkAssignModalOpen}
+        onClose={() => setIsBulkAssignModalOpen(false)}
+        selectedStudents={selectedStudentsForCohort}
+        period="MOSY"
+        onDispatched={handleCohortDispatched}
       />
     </div>
   );

@@ -111,9 +111,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         MATH    = 'Math',    'Math'
 
     class TutorType(models.TextChoices):
-        BASIC      = 'basic',      'Basic Tutor'
-        PLUS       = 'plus',       'Plus Tutor'
-        BASIC_PLUS = 'basic_plus', 'Basic & Plus Tutor'
+        BASIC  = 'basic',  'Basic Tutor'
+        PLUS   = 'plus',   'Plus Tutor'
+        SUMMER = 'summer', 'Summer Tutor'
 
     # Subject handled by the tutor (Reading, Science, or Math)
     subject = models.CharField(
@@ -130,7 +130,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         choices=TutorType.choices,
         default=TutorType.BASIC,
         verbose_name='Tutor Type',
-        help_text='Tutor specialization program level.',
+        help_text='Tutor specialization program level (Basic, Plus, or Summer).',
     )
 
     is_available_for_students = models.BooleanField(
@@ -189,14 +189,29 @@ class User(AbstractBaseUser, PermissionsMixin):
     def get_short_name(self):
         return self.first_name.upper().strip() if self.first_name else ''
 
+    def clean(self):
+        super().clean()
+        if self.role == 'tutor':
+            # A tutor can only have ONE ARAL level handled (basic, plus, or summer)
+            level = (self.tutor_type or self.aral_level or 'basic').lower()
+            if level not in ('basic', 'plus', 'summer'):
+                level = 'basic'
+            self.aral_level = level
+            self.tutor_type = level
+
     def save(self, *args, **kwargs):
-        """Normalise name fields to uppercase; auto-generate username from email."""
+        """Normalise name fields to uppercase; auto-generate username from email; enforce single tutor level."""
         if self.first_name:
             self.first_name = self.first_name.upper().strip()
         if self.middle_name:
             self.middle_name = self.middle_name.upper().strip()
         if self.last_name:
             self.last_name = self.last_name.upper().strip()
+        if self.role == 'tutor':
+            level = (self.tutor_type or self.aral_level or 'basic').lower()
+            if level in ('basic', 'plus', 'summer'):
+                self.aral_level = level
+                self.tutor_type = level
         # Auto-generate username from email for Django internal compatibility
         if not self.username:
             self.username = self.email

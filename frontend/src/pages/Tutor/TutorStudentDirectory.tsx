@@ -5,7 +5,9 @@ import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
 import type { User, Grade, Attendance } from '../../types';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
-import { User as UserIcon, Search, ArrowUpDown, Users, ChevronUp, ChevronDown, BookOpen, AlertCircle, Layers } from 'lucide-react';
+import { User as UserIcon, Search, ArrowUpDown, Users, ChevronUp, ChevronDown, BookOpen, AlertCircle, Layers, History, Calendar, CheckCircle2, Award, Clock } from 'lucide-react';
+import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
+import type { TutorCohortHistoryData, TutorHistoricalCohortRecord } from '../../types';
 
 /* ─── Badge helpers ────────────────────────────────────────────── */
 const getAralBadge = (level?: string | null) => {
@@ -26,18 +28,56 @@ function getDepEdSchoolYear(date: Date = new Date()) {
 
   let syStart = year;
   let syEnd = year + 1;
+  let currentPeriod: '1st' | '2nd' | 'summer' = '1st';
+
   if (month < 7) {
     syStart = year - 1;
     syEnd = year;
+    currentPeriod = month === 6 ? 'summer' : '2nd';
+  } else {
+    currentPeriod = '1st';
   }
 
   return {
     syStart,
     syEnd,
+    currentPeriod,
     currentKey: `${syStart}-${syEnd}`,
     displayLabel: `SY ${syStart}–${syEnd}`,
   };
 }
+
+export const getSchoolYearFromDate = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '2025-2026';
+  const clean = dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`;
+  const d = new Date(clean);
+  if (isNaN(d.getTime())) return '2025-2026';
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  if (month >= 7) {
+    return `${year}-${year + 1}`;
+  } else {
+    return `${year - 1}-${year}`;
+  }
+};
+
+export const getSemesterFromDate = (dateStr: string | null | undefined): '1st' | '2nd' | 'summer' => {
+  if (!dateStr) return '1st';
+  const clean = dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`;
+  const d = new Date(clean);
+  if (isNaN(d.getTime())) return '1st';
+  const month = d.getMonth() + 1;
+  if (month >= 7 && month <= 12) return '1st';
+  if (month >= 1 && month <= 5) return '2nd';
+  if (month === 6) return 'summer';
+  return '1st';
+};
+
+export const getSemesterFromGrade = (grade: Grade): '1st' | '2nd' | 'summer' => {
+  if (grade.quarter === 1 || grade.quarter === 2) return '1st';
+  if (grade.quarter === 3 || grade.quarter === 4) return '2nd';
+  return getSemesterFromDate(grade.date_logged || grade.created_at);
+};
 
 /* ─── Component ────────────────────────────────────────────────── */
 export const TutorStudentDirectory: React.FC = () => {
@@ -51,31 +91,116 @@ export const TutorStudentDirectory: React.FC = () => {
   const [sortField, setSortField] = useState<string>('name');
   const [sortAsc, setSortAsc] = useState(true);
 
+  // Cohort View Mode: 'active' | 'past'
+  const [cohortViewMode, setCohortViewMode] = useState<'active' | 'past'>('active');
+  const [cohortHistory, setCohortHistory] = useState<TutorCohortHistoryData | null>(null);
+  const [selectedPastPeriodFilter, setSelectedPastPeriodFilter] = useState<string>('all');
+  const [historyStudentId, setHistoryStudentId] = useState<string | null>(null);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
+
   const currentSchoolYear = useMemo(() => getDepEdSchoolYear(), []);
-  const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>(() => currentSchoolYear.currentKey);
+  const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>(
+    () => `${currentSchoolYear.syStart}-${currentSchoolYear.syEnd}|${currentSchoolYear.currentPeriod}`
+  );
 
   const schoolYearOptions = useMemo(() => {
-    const { syStart, syEnd } = currentSchoolYear;
-    return [
-      { key: `${syStart}-${syEnd}`, label: `SY ${syStart}–${syEnd} (Active)` },
-      { key: `${syStart - 1}-${syStart}`, label: `SY ${syStart - 1}–${syStart} (Previous)` },
-      { key: `${syStart - 2}-${syStart - 1}`, label: `SY ${syStart - 2}–${syStart - 1}` },
+    const { syStart, syEnd, currentPeriod } = currentSchoolYear;
+    const activeSy = `${syStart}-${syEnd}`;
+    const activePeriodKey = `${activeSy}|${currentPeriod || '1st'}`;
+
+    const recordedPeriods = new Set<string>();
+
+    // Always include current active period
+    recordedPeriods.add(activePeriodKey);
+
+    // 1. From grades
+    for (const g of grades) {
+      const gDate = g.date_logged || g.created_at;
+      const sy = getSchoolYearFromDate(gDate);
+      const sem = getSemesterFromGrade(g);
+      if (sy && sem) {
+        recordedPeriods.add(`${sy}|${sem}`);
+      }
+    }
+
+    // 2. From attendance
+    for (const a of attendance) {
+      const aDate = a.date;
+      const sy = getSchoolYearFromDate(aDate);
+      const sem = getSemesterFromDate(aDate);
+      if (sy && sem) {
+        recordedPeriods.add(`${sy}|${sem}`);
+      }
+    }
+
+    // Convert to list of { sy, sem }
+    const periodsList = Array.from(recordedPeriods).map((key) => {
+      const [sy, sem] = key.split('|');
+      return { key, sy, sem: sem as '1st' | '2nd' | 'summer' };
+    });
+
+    const semRank: Record<string, number> = { '1st': 1, '2nd': 2, 'summer': 3 };
+    periodsList.sort((a, b) => {
+      const yearA = parseInt(a.sy.split('-')[0], 10) || 0;
+      const yearB = parseInt(b.sy.split('-')[0], 10) || 0;
+      if (yearA !== yearB) {
+        return yearB - yearA;
+      }
+      return (semRank[a.sem] || 0) - (semRank[b.sem] || 0);
+    });
+
+    const options: { key: string; label: string }[] = [
+      { key: 'all|all', label: 'All School Years & Semesters' },
     ];
-  }, [currentSchoolYear]);
+
+    periodsList.forEach(({ key, sy, sem }) => {
+      const isCurrentSy = sy === activeSy;
+      const isCurrentSem = isCurrentSy && sem === (currentPeriod || '1st');
+      const tag = isCurrentSem ? ' (Active)' : '';
+      const syDisplay = `SY ${sy.replace('-', '–')}`;
+      const semDisplay = sem === '1st' ? '1st Semester' : sem === '2nd' ? '2nd Semester' : 'Summer';
+
+      options.push({
+        key,
+        label: `${syDisplay} - ${semDisplay}${tag}`,
+      });
+    });
+
+    return options;
+  }, [currentSchoolYear, grades, attendance]);
 
   const fetchData = async () => {
     if (!user) return;
     setIsLoading(true);
     setError(null);
     try {
-      const [studentData, gradeData, attData] = await Promise.all([
+      const [studentData, gradeData, attData, currentSyData, cohortHistData] = await Promise.allSettled([
         userService.getAllUsers({ role: 'student', assigned_tutor: user.id }),
         academicService.getGrades(),
         academicService.getAttendanceHistory(),
+        academicService.getCurrentSchoolYear(),
+        academicService.getTutorCohortHistory(),
       ]);
-      setStudents(Array.isArray(studentData) ? studentData : []);
-      setGrades(Array.isArray(gradeData) ? gradeData : []);
-      setAttendance(Array.isArray(attData) ? attData : []);
+      if (cohortHistData.status === 'fulfilled') {
+        setCohortHistory(cohortHistData.value);
+      }
+      if (studentData.status === 'fulfilled') {
+        setStudents(Array.isArray(studentData.value) ? studentData.value : []);
+      }
+      if (gradeData.status === 'fulfilled') {
+        setGrades(Array.isArray(gradeData.value) ? gradeData.value : []);
+      }
+      if (attData.status === 'fulfilled') {
+        setAttendance(Array.isArray(attData.value) ? attData.value : []);
+      }
+      if (currentSyData.status === 'fulfilled' && currentSyData.value?.school_year) {
+        const activeSy = currentSyData.value.school_year;
+        setSelectedSchoolYear((prev) => {
+          if (prev === 'all|all') return prev;
+          const sem = prev.split('|')[1] || currentSchoolYear.currentPeriod;
+          return `${activeSy}|${sem}`;
+        });
+      }
     } catch (err) {
       console.error(err);
       setError('Failed to load assigned students and performance data.');
@@ -86,9 +211,42 @@ export const TutorStudentDirectory: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [user]);
 
+  const [filterSy, filterSem] = useMemo(() => {
+    if (selectedSchoolYear === 'all|all' || !selectedSchoolYear.includes('|')) {
+      return ['all', 'all'];
+    }
+    return selectedSchoolYear.split('|');
+  }, [selectedSchoolYear]);
+
+  const filteredGrades = useMemo(() => {
+    return grades.filter((g) => {
+      const gDate = g.date_logged || g.created_at;
+      const gSy = getSchoolYearFromDate(gDate);
+      if (filterSy && filterSy !== 'all' && gSy !== filterSy) return false;
+      if (filterSem && filterSem !== 'all') {
+        const gSem = getSemesterFromGrade(g);
+        if (gSem !== filterSem) return false;
+      }
+      return true;
+    });
+  }, [grades, filterSy, filterSem]);
+
+  const filteredAttendance = useMemo(() => {
+    return attendance.filter((a) => {
+      const aDate = a.date;
+      const aSy = getSchoolYearFromDate(aDate);
+      if (filterSy && filterSy !== 'all' && aSy !== filterSy) return false;
+      if (filterSem && filterSem !== 'all') {
+        const aSem = getSemesterFromDate(aDate);
+        if (aSem !== filterSem) return false;
+      }
+      return true;
+    });
+  }, [attendance, filterSy, filterSem]);
+
   const studentRows = useMemo(() => {
-    return computeStudentRiskRows(students, grades, attendance).map((r) => ({ ...r, email: r.student.email }));
-  }, [students, grades, attendance]);
+    return computeStudentRiskRows(students, filteredGrades, filteredAttendance).map((r) => ({ ...r, email: r.student.email }));
+  }, [students, filteredGrades, filteredAttendance]);
 
   const directorySubjects = useMemo(() => {
     const studentIds = new Set(students.map((student) => String(student.id)));
@@ -120,6 +278,38 @@ export const TutorStudentDirectory: React.FC = () => {
   const handleSort = (field: string) => {
     if (sortField === field) setSortAsc(!sortAsc);
     else { setSortField(field); setSortAsc(true); }
+  };
+
+  const filteredPastRecords = useMemo(() => {
+    if (!cohortHistory?.past_records) return [];
+    return cohortHistory.past_records.filter((rec) => {
+      if (selectedPastPeriodFilter !== 'all') {
+        if (rec.period !== selectedPastPeriodFilter && `${rec.school_year}|${rec.period}` !== selectedPastPeriodFilter) {
+          return false;
+        }
+      }
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const matchesName = rec.student_name.toLowerCase().includes(q);
+        const matchesLrn = rec.lrn ? rec.lrn.toLowerCase().includes(q) : false;
+        if (!matchesName && !matchesLrn) return false;
+      }
+      return true;
+    });
+  }, [cohortHistory, selectedPastPeriodFilter, search]);
+
+  const pastPeriodOptions = useMemo(() => {
+    if (!cohortHistory?.past_records) return [];
+    const periods = new Set<string>();
+    cohortHistory.past_records.forEach((r) => {
+      periods.add(`${r.school_year} (${r.period})`);
+    });
+    return Array.from(periods);
+  }, [cohortHistory]);
+
+  const handleOpenStudentHistory = (studentId: string) => {
+    setHistoryStudentId(studentId);
+    setIsHistoryModalOpen(true);
   };
 
   const filteredAndSorted = useMemo(() => {

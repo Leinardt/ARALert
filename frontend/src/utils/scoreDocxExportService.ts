@@ -233,7 +233,7 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
       spacing: { before: 0, after: data.taskTitle ? 15 : 240, line: 220 },
       children: [
         new TextRun({
-          text: (data.gradeSection || 'GRADE 8-MANGO').toUpperCase(),
+          text: (data.gradeSection || 'MIXED (GRADES 7-10)').toUpperCase(),
           font: 'Times New Roman',
           size: 19, // 9.5pt
           bold: true,
@@ -399,10 +399,9 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
 
   const tableRows: TableRow[] = [];
 
-  // 2 Header Rows (Row 1: Session Dates, Row 2: Session Labels)
+  // Single Header Row (Session Dates)
   const headRow1Cells: TableCell[] = [
     new TableCell({
-      rowSpan: 2,
       width: { size: idxW, type: WidthType.DXA },
       borders: cellBordersAll,
       shading: { fill: 'F8FAFC' },
@@ -417,7 +416,6 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
       ],
     }),
     new TableCell({
-      rowSpan: 2,
       width: { size: nameW, type: WidthType.DXA },
       borders: cellBordersAll,
       shading: { fill: 'F8FAFC' },
@@ -469,7 +467,6 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
 
   headRow1Cells.push(
     new TableCell({
-      rowSpan: 2,
       width: { size: totalW, type: WidthType.DXA },
       borders: cellBordersAll,
       shading: { fill: 'F8FAFC' },
@@ -486,34 +483,6 @@ export const exportScoresToDocx = async (data: ScoreExportData): Promise<void> =
   );
 
   tableRows.push(new TableRow({ tableHeader: true, cantSplit: true, children: headRow1Cells }));
-
-  // Row 2: Session labels under each date
-  const headRow2Cells: TableCell[] = [];
-  allEntryCols.forEach((col, idx) => {
-    let labelText = col.entryLabel;
-    if (dayW < 400) {
-      labelText = `S${idx + 1}`;
-    } else if (dayW < 550) {
-      labelText = `S#${idx + 1}`;
-    }
-    headRow2Cells.push(
-      new TableCell({
-        width: { size: dayW, type: WidthType.DXA },
-        borders: cellBordersAll,
-        shading: { fill: 'FFFFFF' },
-        margins: dayHeaderCellMargins,
-        verticalAlign: VerticalAlign.CENTER,
-        children: [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 30, after: 30, line: 240 },
-            children: [new TextRun({ text: labelText, font: 'Times New Roman', size: sessionLabelFontSize, bold: true, color: '0F172A' })],
-          }),
-        ],
-      })
-    );
-  });
-  tableRows.push(new TableRow({ tableHeader: true, cantSplit: true, children: headRow2Cells }));
 
   // Student rows
   data.students.forEach((student, idx) => {

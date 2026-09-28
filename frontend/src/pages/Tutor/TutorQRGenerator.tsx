@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import QRCode from 'qrcode';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
@@ -27,25 +28,14 @@ import {
   Search,
   User as UserIcon,
 } from 'lucide-react';
-import QRCode from 'qrcode';
 import type { Attendance, User, AttendanceSession } from '../../types';
 import { ExportAttendanceModal } from '../../components/ExportAttendanceModal';
-import {
-  type EntryDescriptionType,
-  type MilestoneType,
-  getAttendanceDescription,
-  getStoredSessionDescriptions,
-  getTutorAssignedMilestone,
-  storeSessionDescription,
-  storeAttendanceDescription,
-} from '../../utils/sessionDescriptionHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
 
 interface StoredSessionData {
   session: AttendanceSession;
   durationMinutes: number;
   localExpiresAt: number;
-  description?: EntryDescriptionType;
 }
 
 const getStorageKey = (userId?: string | number) =>
@@ -302,11 +292,8 @@ const AttendanceTable: React.FC<{
   formatTimeString: (value: string | null) => string;
   onUpdate: (id: number, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>) => Promise<Attendance>;
 }> = ({ logs, statusBadge, avatarColor, formatDateString, formatTimeString, onUpdate }) => {
-  const { user } = useAuth();
-  const assignedMilestone = getTutorAssignedMilestone(user?.aral_level);
-  type SortKey = 'student' | 'description' | 'date' | 'time' | 'status';
+  type SortKey = 'student' | 'date' | 'time' | 'status';
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editDescription, setEditDescription] = useState<EntryDescriptionType>('Intervention Activity');
   const [editDate, setEditDate] = useState('');
   const [editStatus, setEditStatus] = useState<Attendance['status']>('present');
   const [editTimeIn, setEditTimeIn] = useState('');
@@ -325,7 +312,6 @@ const AttendanceTable: React.FC<{
     const getSortValue = (log: Attendance) => {
       switch (sortConfig.key) {
         case 'student': return log.user_name || '';
-        case 'description': return getAttendanceDescription(log);
         case 'date': return log.date || '';
         case 'time': return log.time_in || '';
         case 'status': return log.status_display || log.status || '';
@@ -351,7 +337,6 @@ const AttendanceTable: React.FC<{
 
   const startEditing = (log: Attendance) => {
     setEditingId(log.id);
-    setEditDescription(getAttendanceDescription(log));
     setEditDate(log.date);
     setEditStatus(log.status);
     setEditTimeIn(log.time_in?.slice(0, 5) || '');
@@ -403,7 +388,6 @@ const AttendanceTable: React.FC<{
         time_in: editTimeIn ? `${editTimeIn}:00` : null,
         time_out: editTimeOut ? `${editTimeOut}:00` : null,
       });
-      storeAttendanceDescription(editingId, editDescription);
       setEditingId(null);
     } catch (error: any) {
       alert(error?.response?.data?.detail || error?.response?.data?.error || 'Failed to update attendance.');
@@ -436,11 +420,10 @@ const AttendanceTable: React.FC<{
       <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
         <thead>
           <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-            <th className="w-[28%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="STUDENT" sortKey="student" /></th>
-            <th className="w-[22%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="DESCRIPTION" sortKey="description" /></th>
-            <th className="w-[18%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="DATE" sortKey="date" /></th>
-            <th className="w-[14%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="TIME" sortKey="time" /></th>
-            <th className="w-[10%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="STATUS" sortKey="status" /></th>
+            <th className="w-[35%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="STUDENT" sortKey="student" /></th>
+            <th className="w-[25%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="DATE" sortKey="date" /></th>
+            <th className="w-[20%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="TIME" sortKey="time" /></th>
+            <th className="w-[12%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="STATUS" sortKey="status" /></th>
             <th className="w-[8%] px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">ACTIONS</th>
           </tr>
         </thead>
@@ -449,29 +432,6 @@ const AttendanceTable: React.FC<{
             <tr key={log.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
               <td className="px-4 py-2.5 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
                 {log.user_name}
-              </td>
-              <td className="px-4 py-2.5 text-left">
-                {editingId === log.id ? (
-                  <select
-                    value={editDescription}
-                    onChange={(event) => setEditDescription(event.target.value as EntryDescriptionType)}
-                    className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#161616] px-2 py-1 text-xs text-gray-700 dark:text-slate-200 outline-none focus:border-[var(--brand)]"
-                  >
-                    <option value="Intervention Activity">Intervention Activity</option>
-                    <option value={assignedMilestone}>{assignedMilestone}</option>
-                    {assignedMilestone !== 'ARAL Summer Assessment' && <option value="ARAL Summer Assessment">ARAL Summer Assessment</option>}
-                    {assignedMilestone !== 'MOSY' && <option value="MOSY">MOSY</option>}
-                    {assignedMilestone !== 'EOSY' && <option value="EOSY">EOSY</option>}
-                  </select>
-                ) : (
-                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                    getAttendanceDescription(log) !== 'Intervention Activity'
-                      ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
-                      : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                  }`}>
-                    {getAttendanceDescription(log)}
-                  </span>
-                )}
               </td>
               <td className="px-4 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
                 {editingId === log.id ? (
@@ -564,22 +524,7 @@ export const TutorQRGenerator: React.FC = () => {
   const [students, setStudents] = useState<User[]>([]);
   const [expiresIn, setExpiresIn] = useState<number>(5);
   const [session, setSession] = useState<AttendanceSession | null>(null);
-  const [sessionDescription, setSessionDescription] = useState<EntryDescriptionType>('Intervention Activity');
-  const [showMilestoneConfirmModal, setShowMilestoneConfirmModal] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number>(0);
-
-  const assignedMilestone = useMemo<MilestoneType>(() => {
-    return getTutorAssignedMilestone(user?.aral_level);
-  }, [user?.aral_level]);
-
-  const handleDescriptionOptionClick = (type: EntryDescriptionType) => {
-    if (type === sessionDescription) return;
-    if (type !== 'Intervention Activity') {
-      setShowMilestoneConfirmModal(true);
-    } else {
-      setSessionDescription('Intervention Activity');
-    }
-  };
   const [scannedStudents, setScannedStudents] = useState<Attendance[]>([]);
   const [attendanceHistory, setAttendanceHistory] = useState<Attendance[]>([]);
   const [attendanceHistoryLoading, setAttendanceHistoryLoading] = useState<boolean>(true);
@@ -681,7 +626,7 @@ export const TutorQRGenerator: React.FC = () => {
             light: '#ffffff',
           },
         },
-        (err) => {
+        (err: any) => {
           if (err) console.error('QR Render Error:', err);
         }
       );
@@ -765,9 +710,6 @@ export const TutorQRGenerator: React.FC = () => {
             if (parsed.durationMinutes) {
               setExpiresIn(parsed.durationMinutes);
             }
-            if (parsed.description) {
-              setSessionDescription(parsed.description);
-            }
             startTimer(parsed.session, parsed.localExpiresAt);
             startPolling(parsed.session.id);
           } else {
@@ -794,27 +736,6 @@ export const TutorQRGenerator: React.FC = () => {
             setSession(activeSession);
             setTimeLeft(remaining);
 
-            let resolvedDesc = sessionDescription;
-            const storedDesc = getStoredSessionDescriptions()[activeSession.id];
-            if (storedDesc) {
-              resolvedDesc = storedDesc;
-            } else if (activeSession.action) {
-              const act = activeSession.action.toUpperCase();
-              if (act.includes('ARAL SUMMER') || act.includes('SUMMER') || act.includes('BOSY')) {
-                resolvedDesc = 'ARAL Summer Assessment';
-              } else if (act.includes('MOSY')) {
-                resolvedDesc = 'MOSY';
-              } else if (act.includes('EOSY')) {
-                resolvedDesc = 'EOSY';
-              } else if (act.includes('MILESTONE')) {
-                resolvedDesc = assignedMilestone;
-              } else {
-                resolvedDesc = 'Intervention Activity';
-              }
-            }
-            setSessionDescription(resolvedDesc);
-            storeSessionDescription(activeSession.id, resolvedDesc);
-
             const durationMinutes = expiresIn || Math.max(5, Math.ceil(remaining / 60));
             if (storageKey) {
               localStorage.setItem(
@@ -823,7 +744,6 @@ export const TutorQRGenerator: React.FC = () => {
                   session: activeSession,
                   durationMinutes,
                   localExpiresAt,
-                  description: resolvedDesc,
                 })
               );
             }
@@ -863,11 +783,10 @@ export const TutorQRGenerator: React.FC = () => {
       const payload: any = {
         session_type: 'student',
         expires_in_minutes: expiresIn,
-        action: sessionDescription === 'Intervention Activity' ? 'intervention' : sessionDescription.toLowerCase(),
+        action: 'attendance',
       };
 
       const newSession = await academicService.createAttendanceSession(payload);
-      storeSessionDescription(newSession.id, sessionDescription);
       setSession(newSession);
       const remaining = newSession.time_left || expiresIn * 60;
       setTimeLeft(remaining);
@@ -886,7 +805,6 @@ export const TutorQRGenerator: React.FC = () => {
             session: newSession,
             durationMinutes: expiresIn,
             localExpiresAt,
-            description: sessionDescription,
           })
         );
       }
@@ -1188,37 +1106,6 @@ export const TutorQRGenerator: React.FC = () => {
 
               {!session && (
                 <div className="order-2 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/60 dark:bg-[#161616] p-4 space-y-4">
-                  {/* Description Option */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-2">
-                      Description
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleDescriptionOptionClick('Intervention Activity')}
-                        className={`py-2 px-3 rounded-md text-xs font-bold border transition-all cursor-pointer ${
-                          sessionDescription === 'Intervention Activity'
-                            ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
-                            : 'bg-white dark:bg-[#111111] text-gray-600 dark:text-slate-300 border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:text-[var(--brand)]'
-                        }`}
-                      >
-                        Intervention Activity
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDescriptionOptionClick(assignedMilestone)}
-                        className={`py-2 px-3 rounded-md text-xs font-bold border transition-all cursor-pointer ${
-                          sessionDescription === assignedMilestone
-                            ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
-                            : 'bg-white dark:bg-[#111111] text-gray-600 dark:text-slate-300 border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:text-[var(--brand)]'
-                        }`}
-                      >
-                        {assignedMilestone}
-                      </button>
-                    </div>
-                  </div>
-
                   {/* Duration */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-3">
@@ -1355,10 +1242,6 @@ export const TutorQRGenerator: React.FC = () => {
                     </div>
 
                     {/* Session meta */}
-                    <div className="flex items-center justify-between text-xs py-1">
-                      <span className="font-semibold text-gray-500 dark:text-slate-400">Description:</span>
-                      <span className="text-xs font-bold text-gray-900 dark:text-slate-100">{sessionDescription}</span>
-                    </div>
                     <div className="flex items-center justify-between text-xs py-1">
                       <span className="font-semibold text-gray-500 dark:text-slate-400">Session ID:</span>
                       <code className="text-xs font-mono font-bold text-gray-900 dark:text-slate-100 select-all truncate tracking-wider">{session.id}</code>
@@ -1665,48 +1548,6 @@ export const TutorQRGenerator: React.FC = () => {
                   }`}
               >
                 {confirmAction.confirmText}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* ── Milestone Confirmation Modal ── */}
-      {showMilestoneConfirmModal && createPortal(
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
-          style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowMilestoneConfirmModal(false); }}
-        >
-          <div className="relative w-full max-w-sm rounded-lg bg-white dark:bg-[#111111] p-6 shadow-2xl border border-gray-200 dark:border-[#1A1A1A] space-y-4 animate-fade-in-scale">
-            <div>
-              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
-                {assignedMilestone} Attendance
-              </h3>
-              <p className="mt-2 text-xs leading-relaxed text-gray-500 dark:text-slate-400">
-                Are you sure you want to select {assignedMilestone} attendance?
-              </p>
-            </div>
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowMilestoneConfirmModal(false)}
-                className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#161616] px-3.5 py-1.5 text-xs font-bold text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#222222] transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSessionDescription(assignedMilestone);
-                  setShowMilestoneConfirmModal(false);
-                }}
-                className="rounded-md bg-[var(--brand)] px-3.5 py-1.5 text-xs font-bold text-white transition hover:bg-[var(--brand-dark)] cursor-pointer"
-              >
-                Confirm {assignedMilestone}
               </button>
             </div>
           </div>
