@@ -84,15 +84,8 @@ export const PublicLayout: React.FC = () => {
                   (e.currentTarget as HTMLImageElement).style.display = 'none';
                 }}
               />
-              <span className="text-xs sm:text-sm font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                ARALert
-              </span>
             </Link>
 
-            {/* Slash Divider between ARALert and Home (Desktop only) */}
-            <span className="hidden md:inline font-light text-sm select-none text-slate-300 dark:text-neutral-700">
-              /
-            </span>
 
             {/* Navigation links (Desktop & Tablet landscape) */}
             <nav className="hidden md:flex items-center gap-1">
