@@ -509,19 +509,19 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
 
               return (
                 <div
-                  className="pointer-events-none absolute z-20 min-w-[160px] max-w-[240px] rounded-xl border border-slate-700/60 bg-slate-900/95 p-3 text-left text-xs leading-normal text-white shadow-xl backdrop-blur-sm"
+                  className="pointer-events-none absolute z-20 min-w-[160px] max-w-[240px] rounded-xl border border-slate-200 dark:border-zinc-700/60 bg-white/95 dark:bg-zinc-900/95 p-3 text-left text-xs leading-normal text-slate-800 dark:text-white shadow-xl shadow-slate-900/10 dark:shadow-black/60 backdrop-blur-sm"
                   style={{
                     left: isNearRight ? `calc(${barLeftPct}% - 14px)` : `calc(${barRightPct}% + 14px)`,
                     top: '45%',
                     transform: isNearRight ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
                   }}
                 >
-                  <div className="flex items-center justify-between gap-2 border-b border-slate-700/80 pb-1.5 mb-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-200">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-zinc-700/80 pb-1.5 mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
                       {p.label}
                     </span>
                     {isSingleStudent && studentName && (
-                      <span className="text-[10px] font-semibold text-slate-300 truncate max-w-[100px]" title={studentName}>
+                      <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 truncate max-w-[100px]" title={studentName}>
                         {studentName}
                       </span>
                     )}
@@ -535,15 +535,15 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
                             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
                             {item.label}
                           </span>
-                          <span className="font-bold text-white">{count}</span>
+                          <span className="font-bold text-slate-800 dark:text-white">{count}</span>
                         </div>
                       );
                     })}
                   </div>
                   {!isSingleStudent && (
-                    <div className="mt-2 pt-1.5 border-t border-slate-700/80 flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                    <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-zinc-700/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 font-medium">
                       <span>Total</span>
-                      <span className="font-bold text-white">{totalCount} students</span>
+                      <span className="font-bold text-slate-800 dark:text-white">{totalCount} students</span>
                     </div>
                   )}
                 </div>
@@ -785,14 +785,14 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
 
               return (
                 <div
-                  className="pointer-events-none absolute z-20 left-2 right-2 top-2 rounded-xl border border-slate-700/60 bg-slate-900/95 p-3 text-left text-xs leading-normal text-white shadow-2xl backdrop-blur-sm sm:left-auto sm:right-auto sm:min-w-[170px]"
+                  className="pointer-events-none absolute z-20 left-2 right-2 top-2 rounded-xl border border-slate-200 dark:border-zinc-700/60 bg-white/95 dark:bg-zinc-900/95 p-3 text-left text-xs leading-normal text-slate-800 dark:text-white shadow-xl dark:shadow-2xl shadow-slate-900/10 dark:shadow-black/60 backdrop-blur-sm sm:left-auto sm:right-auto sm:min-w-[170px]"
                 >
-                  <div className="flex items-center justify-between gap-2 border-b border-slate-700/80 pb-1 mb-1.5">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-200">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-zinc-700/80 pb-1 mb-1.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
                       {p.label}
                     </span>
                     {isSingleStudent && studentName && (
-                      <span className="text-[10px] font-semibold text-slate-300 truncate max-w-[120px]" title={studentName}>
+                      <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 truncate max-w-[120px]" title={studentName}>
                         {studentName}
                       </span>
                     )}
@@ -806,15 +806,15 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
                           <span style={{ color: item.color }} className="font-medium">
                             {item.label}:
                           </span>
-                          <span className="font-bold text-white">{count}</span>
+                          <span className="font-bold text-slate-800 dark:text-white">{count}</span>
                         </div>
                       );
                     })}
                   </div>
                   {!isSingleStudent && (
-                    <div className="mt-1.5 pt-1 border-t border-slate-700/80 flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                    <div className="mt-1.5 pt-1 border-t border-slate-100 dark:border-zinc-700/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 font-medium">
                       <span>Total evaluated:</span>
-                      <span className="font-bold text-white">{totalCount} students</span>
+                      <span className="font-bold text-slate-800 dark:text-white">{totalCount} students</span>
                     </div>
                   )}
                 </div>

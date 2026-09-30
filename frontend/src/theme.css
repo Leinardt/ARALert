@@ -101,32 +101,190 @@
    ═══════════════════════════════════════════════════════════════════════════════ */
 .dark,
 :root.dark {
-  /* Dynamic light tint blending against dark surface in dark mode */
-  --brand-light: color-mix(in srgb, var(--brand) 22%, #141414);
-  --brand-lighter: color-mix(in srgb, var(--brand) 12%, #0A0A0A);
-  --brand-border: color-mix(in srgb, var(--brand) 38%, #262626);
-  --brand-glow: color-mix(in srgb, var(--brand) 35%, transparent);
+  /* Dynamic light tint blending against OLED true black in dark mode */
+  --brand-light: color-mix(in srgb, var(--brand) 20%, #000000);
+  --brand-lighter: color-mix(in srgb, var(--brand) 10%, #000000);
+  --brand-border: color-mix(in srgb, var(--brand) 45%, #000000);
+  --brand-glow: color-mix(in srgb, var(--brand) 30%, transparent);
 
-  /* Solid, Clean Risk & Status System in Dark Mode (Clean Borderless Outline) */
-  --risk-low-bg:         #052E16;
-  --risk-low-border:     color-mix(in srgb, var(--risk-low) 30%, transparent);
-  --risk-low-text:       #4ADE80;
-  --risk-low-badge-bg:   #064E3B;
+  /* High-Contrast Crisp Academic Risk & Status Indicators against OLED Pure Black (#000000) */
+  --risk-low-bg:         rgba(52, 211, 153, 0.14);
+  --risk-low-border:     rgba(52, 211, 153, 0.40);
+  --risk-low-text:       #34D399;
+  --risk-low-badge-bg:   rgba(52, 211, 153, 0.20);
 
-  --risk-medium-bg:      #451A03;
-  --risk-medium-border:  color-mix(in srgb, var(--risk-medium) 30%, transparent);
+  --risk-medium-bg:      rgba(251, 191, 36, 0.14);
+  --risk-medium-border:  rgba(251, 191, 36, 0.40);
   --risk-medium-text:    #FBBF24;
-  --risk-medium-badge-bg:#78350F;
+  --risk-medium-badge-bg:rgba(251, 191, 36, 0.20);
 
-  --risk-high-bg:        #450A0A;
-  --risk-high-border:    color-mix(in srgb, var(--risk-high) 30%, transparent);
-  --risk-high-text:      #F87171;
-  --risk-high-badge-bg:  #881337;
+  --risk-high-bg:        rgba(251, 113, 133, 0.14);
+  --risk-high-border:    rgba(251, 113, 133, 0.40);
+  --risk-high-text:      #FB7185;
+  --risk-high-badge-bg:  rgba(251, 113, 133, 0.20);
 
-  /* Dark mode active sidebar solid blue accent and border (NO gradients) */
-  --sidebar-active-bg: rgba(59, 130, 246, 0.14);
-  --sidebar-active-border: rgba(96, 165, 250, 0.60);
-  --sidebar-active-glow: 0 0 10px rgba(59, 130, 246, 0.12);
+  /* Dark mode active sidebar vibrant accent and border */
+  --sidebar-active-bg: rgba(56, 189, 248, 0.14);
+  --sidebar-active-border: rgba(56, 189, 248, 0.50);
+  --sidebar-active-glow: 0 0 10px rgba(56, 189, 248, 0.12);
+}
+
+/* ── 📓 Authentic Paper Texture & Defined Horizontal Notebook Rules ──────────────── */
+.notebook-paper {
+  background-color: #FAF8F5;
+  background-image:
+    /* Defined solid horizontal notebook rule lines (40px rhythm, 2px thickness) */
+    linear-gradient(to bottom, rgba(62, 92, 142, 0.22) 2px, transparent 2px),
+    /* Tactile organic paper grain & pulp fiber texture (seamless, variance-driven alpha) */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='paperGrain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch' result='noise'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.24  0 0 0 0 0.20  0 0 0 0 0.16  0.038 0.038 0.038 0 0.012'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23paperGrain)'/%3E%3C/svg%3E");
+  background-size: 100% 40px, 240px 240px;
+  background-repeat: repeat, repeat;
+}
+
+.dark .notebook-paper {
+  background-color: #000000;
+  background-image:
+    /* Defined soft horizontal notebook rule lines in dark mode (glare-free, 40px rhythm, 2px thickness) */
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.20) 2px, transparent 2px),
+    /* Visible paper fiber & tactile grain on pitch black background (seamless, glare-free) */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='paperGrainDark'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch' result='noise'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.72  0 0 0 0 0.78  0 0 0 0 0.86  0.024 0.024 0.024 0 0.010'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23paperGrainDark)'/%3E%3C/svg%3E");
+  background-size: 100% 40px, 240px 240px;
+  background-repeat: repeat, repeat;
+}
+
+/* ── 📐 Typographic Baseline Alignment & Notebook Grid Rhythm (40px Unit) ──── */
+:root {
+  --notebook-grid: 40px;
+}
+
+.notebook-paper {
+  --line-height-grid: 40px;
+}
+
+/* Dedicated Full-Screen Page Alignment: Sections snap directly to viewport top */
+.landing-section-anchor {
+  scroll-margin-top: 0px;
+}
+
+/* Paper ink protection: prevents background rule lines from colliding with or striking through letterforms */
+.notebook-paper .notebook-snap-p,
+.notebook-paper .notebook-snap-sm,
+.notebook-paper .notebook-snap-xs,
+.notebook-paper .notebook-snap-h3,
+.notebook-paper .notebook-snap-h2,
+.notebook-paper .notebook-snap-h1 {
+  text-shadow: 
+    0 1px 1px #FAF8F5,
+    0 -1px 1px #FAF8F5,
+    1px 0 1px #FAF8F5,
+    -1px 0 1px #FAF8F5;
+}
+
+.dark .notebook-paper .notebook-snap-p,
+.dark .notebook-paper .notebook-snap-sm,
+.dark .notebook-paper .notebook-snap-xs,
+.dark .notebook-paper .notebook-snap-h3,
+.dark .notebook-paper .notebook-snap-h2,
+.dark .notebook-paper .notebook-snap-h1 {
+  text-shadow: 
+    0 1px 1px #000000,
+    0 -1px 1px #000000,
+    1px 0 1px #000000,
+    -1px 0 1px #000000;
+}
+
+/* Clean, legibly centered text between notebook rules (40px vertical rhythm) */
+.notebook-snap-p {
+  font-size: 1.0625rem; /* 17px */
+  line-height: 40px !important;
+  margin: 0;
+}
+
+.notebook-snap-sm {
+  font-size: 0.9375rem; /* 15px */
+  line-height: 40px !important;
+  margin: 0;
+}
+
+.notebook-snap-xs {
+  font-size: 0.8125rem; /* 13px */
+  line-height: 40px !important;
+  margin: 0;
+}
+
+.notebook-snap-h3 {
+  font-size: 1.25rem; /* 20px */
+  line-height: 40px !important;
+  margin: 0;
+}
+
+.notebook-snap-h2 {
+  font-size: 1.5rem; /* 24px */
+  line-height: 40px !important; /* 1 ruled line per text row */
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .notebook-snap-h2 {
+    font-size: 1.375rem;
+    line-height: 40px !important;
+  }
+}
+
+.notebook-snap-h1 {
+  font-size: clamp(2.5rem, 5.5vw, 4rem);
+  line-height: 80px !important;
+  margin: 0;
+}
+
+/* Notebook grid-aligned button (spans exactly 2 lines = 80px, borders flush with rules) */
+.notebook-btn-2line {
+  height: 80px !important;
+  box-sizing: border-box !important;
+}
+
+/* ── 📏 Blue Vertical Margin Line (Authentic Loose-Leaf Notebook Paper) ─────── */
+.notebook-page-container {
+  position: relative;
+  padding-left: 2.75rem; /* ~44px on mobile */
+}
+
+@media (min-width: 640px) {
+  .notebook-page-container {
+    padding-left: 4.5rem; /* ~72px on tablet */
+  }
+}
+
+@media (min-width: 1024px) {
+  .notebook-page-container {
+    padding-left: 5.75rem; /* ~92px on desktop */
+  }
+}
+
+.notebook-red-margin-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2rem; /* 32px on mobile */
+  width: 2px;
+  background-color: rgba(26, 93, 173, 0.45); /* Classic ballpoint blue ink margin rule */
+  pointer-events: none;
+}
+
+@media (min-width: 640px) {
+  .notebook-red-margin-line {
+    left: 3.25rem; /* 52px on tablet */
+  }
+}
+
+@media (min-width: 1024px) {
+  .notebook-red-margin-line {
+    left: 4.25rem; /* 68px on desktop */
+  }
+}
+
+.dark .notebook-red-margin-line {
+  background-color: rgba(74, 155, 245, 0.35);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

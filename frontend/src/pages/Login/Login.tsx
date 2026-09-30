@@ -69,6 +69,10 @@ export const Login: React.FC = () => {
 
   const isSessionExpired = searchParams.get('expired') === 'true';
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+  }, []);
+
   // Student form
   const studentForm = useForm<StudentLoginFields>({
     resolver: zodResolver(studentLoginSchema),
@@ -166,7 +170,7 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-3.5 sm:px-6 py-6 sm:py-12 md:py-16 box-border bg-white dark:bg-black text-slate-900 dark:text-white transition-colors">
+    <div className="flex-1 w-full my-auto flex flex-col items-center justify-center px-3.5 sm:px-6 py-8 sm:py-12 md:py-16 box-border bg-white dark:bg-black text-slate-900 dark:text-white transition-colors">
       <div
         className="w-full transition-all duration-300 mx-auto"
         style={{

@@ -5,6 +5,7 @@ and user login/logout activity history.
 """
 
 from django.db.models import Q
+from django.db.models.functions import Lower
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.response import Response

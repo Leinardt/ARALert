@@ -6,7 +6,7 @@ import { useTheme } from '../hooks/useTheme';
 import {
   LayoutDashboard, Users, User as UserIcon, UserCheck, LogOut, QrCode, Scan,
   Award, Bell, ChevronDown, ChevronUp, Shield, BookOpen, X, FileText, Moon, Sun,
-  PanelLeftClose, PanelLeftOpen, Menu, AlertTriangle,
+  PanelLeftClose, PanelLeftOpen, Menu, AlertTriangle, Settings as SettingsIcon,
   Clock, CheckCircle2, XCircle, AlertCircle, RefreshCw,
 } from 'lucide-react';
 import { userService } from '../services/userService';
@@ -132,6 +132,38 @@ export const DashboardLayout: React.FC = () => {
     if (!user) return '';
     if (user.is_superuser) return 'Super Admin';
     return user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User';
+  };
+
+  const getProfilePath = () => {
+    if (user?.is_superuser) return '/superadmin/profile';
+    if (user?.role === 'admin') return '/admin/profile';
+    return '/profile';
+  };
+
+  const getSettingsPath = () => {
+    if (user?.is_superuser) return '/superadmin/settings';
+    if (user?.role === 'admin') return '/admin/settings';
+    return '/profile';
+  };
+
+  const getDisplayName = () => {
+    if (!user) return 'User';
+    if (user.first_name && user.last_name) {
+      return `${user.first_name} ${user.last_name}`;
+    }
+    if (user.first_name) return user.first_name;
+    if (user.full_name) return user.full_name;
+    return user.username || 'User';
+  };
+
+  const getUserInitials = () => {
+    if (!user) return 'U';
+    if (user.first_name && user.last_name) {
+      return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
+    }
+    if (user.first_name) return user.first_name[0].toUpperCase();
+    if (user.username) return user.username[0].toUpperCase();
+    return 'U';
   };
 
   const getPageTitle = () => {
@@ -361,6 +393,17 @@ export const DashboardLayout: React.FC = () => {
     setShowTutorNotifications(false);
     setShowStudentNotes(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setProfileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
 
   const renderNavItems = (collapsed: boolean = false, onItemClick?: () => void) => {
     return (
@@ -795,23 +838,50 @@ export const DashboardLayout: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
               <Link
                 to={user?.is_superuser ? '/superadmin' : user?.role ? `/${user.role}` : '/'}
-                className="group/brand flex items-center no-underline min-w-0"
-                title="ARALert"
+                className="group/brand flex items-center gap-1.5 no-underline min-w-0"
+                title={`ARALert / ${getRoleLabel()}`}
               >
-                <div
+                <span
                   id="sidebar-brand-text"
                   style={{
                     fontFamily: 'var(--font-heading)',
                     fontWeight: 700,
-                    fontSize: '1.15rem',
-                    color: 'var(--brand)',
+                    fontSize: '0.925rem',
                     letterSpacing: '-0.02em',
-                    lineHeight: 1.1,
+                    lineHeight: 1.2,
                   }}
-                  className="select-none truncate"
+                  className="text-black dark:text-white select-none whitespace-nowrap shrink-0"
                 >
                   ARALert
-                </div>
+                </span>
+                {getRoleLabel() && (
+                  <span className="flex items-center gap-1.5 min-w-0 select-none whitespace-nowrap">
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-heading)',
+                        fontWeight: 700,
+                        fontSize: '0.925rem',
+                        letterSpacing: '-0.02em',
+                        lineHeight: 1.2,
+                      }}
+                      className="text-black dark:text-white opacity-40 shrink-0"
+                    >
+                      /
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-heading)',
+                        fontWeight: 700,
+                        fontSize: '0.925rem',
+                        letterSpacing: '-0.02em',
+                        lineHeight: 1.2,
+                      }}
+                      className="text-black dark:text-white whitespace-nowrap truncate"
+                    >
+                      {getRoleLabel()}
+                    </span>
+                  </span>
+                )}
               </Link>
 
               {/* Collapse button in original right-side position; smoothly appears on hover without layout shift */}
@@ -843,123 +913,64 @@ export const DashboardLayout: React.FC = () => {
         </nav>
 
         {/* Sidebar Footer Profile */}
-        <div
-          style={{
-            padding: 0,
-            borderTop: '1px solid var(--brand-border)',
-            background: 'var(--brand-light)',
-            position: 'relative',
-            flexShrink: 0,
-            width: '100%',
-          }}
-        >
+        <div className="p-2 shrink-0 w-full">
           {isSidebarCollapsed ? (
             <button
               type="button"
+              id="sidebar-profile-button"
               onClick={() => setProfileMenuOpen((prev) => !prev)}
-              title={user?.first_name || user?.username || 'Profile'}
+              title={getDisplayName()}
+              aria-expanded={profileMenuOpen}
+              aria-haspopup="menu"
               aria-label="Profile and account menu"
-              style={{
-                width: '100%',
-                height: '60px',
-                borderRadius: '0px',
-                border: 'none',
-                background: 'transparent',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                padding: 0,
-                transition: 'var(--transition-fast)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'color-mix(in srgb, var(--brand) 18%, var(--surface-card))';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-              }}
+              className={`w-10 h-10 mx-auto rounded-xl flex items-center justify-center border transition-all duration-150 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
+                profileMenuOpen
+                  ? 'border-slate-300 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 shadow-xs'
+                  : 'border-transparent hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-slate-300'
+              }`}
             >
               {user?.avatar ? (
                 <img
                   src={user.avatar}
-                  alt="avatar"
-                  style={{ width: '34px', height: '34px', borderRadius: '8px', objectFit: 'cover' }}
+                  alt={getDisplayName()}
+                  className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-zinc-700"
                 />
               ) : (
-                <div
-                  className="flex items-center justify-center shrink-0 rounded-lg bg-white text-[var(--brand)] dark:bg-slate-800 dark:text-[var(--brand)] border border-[var(--brand-border)]"
-                  style={{ width: '34px', height: '34px' }}
-                >
-                  <UserIcon size={16} />
+                <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-medium text-xs border border-slate-200 dark:border-zinc-700">
+                  <UserIcon size={14} strokeWidth={1.8} />
                 </div>
               )}
             </button>
           ) : (
             <button
               type="button"
+              id="sidebar-profile-button"
               onClick={() => setProfileMenuOpen((prev) => !prev)}
+              aria-expanded={profileMenuOpen}
+              aria-haspopup="menu"
               aria-label="Profile and account menu"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                width: '100%',
-                height: '60px',
-                padding: '0 1.25rem',
-                borderRadius: '0px',
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                transition: 'var(--transition-fast)',
-                textAlign: 'left',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'color-mix(in srgb, var(--brand) 18%, var(--surface-card))';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-              }}
+              className={`w-full flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
+                profileMenuOpen
+                  ? 'border-slate-300 dark:border-zinc-700 bg-slate-100/90 dark:bg-zinc-800/80 shadow-xs'
+                  : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
+              }`}
             >
               {user?.avatar ? (
                 <img
                   src={user.avatar}
-                  alt="avatar"
-                  style={{ width: '34px', height: '34px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
+                  alt={getDisplayName()}
+                  className="w-8 h-8 rounded-full object-cover border border-slate-200/80 dark:border-zinc-700 shrink-0"
                 />
               ) : (
-                <div
-                  className="flex items-center justify-center shrink-0 rounded-lg bg-white text-[var(--brand)] dark:bg-slate-800 dark:text-[var(--brand)] border border-[var(--brand-border)]"
-                  style={{ width: '34px', height: '34px' }}
-                >
-                  <UserIcon size={16} />
+                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-medium text-xs border border-slate-200/80 dark:border-zinc-700 shrink-0">
+                  <UserIcon size={15} strokeWidth={1.8} />
                 </div>
               )}
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                <span
-                  style={{
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {user?.first_name || user?.username}
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.65rem',
-                    fontWeight: 600,
-                    color: 'var(--brand)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  {getRoleLabel()}
+              <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate leading-tight">
+                  {getDisplayName()}
                 </span>
               </div>
-              <ChevronUp size={14} style={{ color: 'var(--brand)', flexShrink: 0 }} />
             </button>
           )}
         </div>
@@ -1014,17 +1025,48 @@ export const DashboardLayout: React.FC = () => {
               }}
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
             />
-            <span
-              style={{
-                fontSize: '1.05rem',
-                fontWeight: 800,
-                color: 'var(--brand)',
-                letterSpacing: '-0.02em',
-                fontFamily: 'var(--font-heading)',
-              }}
-            >
-              ARALert
-            </span>
+            <div className="flex items-center gap-1.5 min-w-0 whitespace-nowrap">
+              <span
+                style={{
+                  fontSize: '0.925rem',
+                  fontWeight: 700,
+                  letterSpacing: '-0.02em',
+                  fontFamily: 'var(--font-heading)',
+                  lineHeight: 1.2,
+                }}
+                className="text-black dark:text-white select-none whitespace-nowrap shrink-0"
+              >
+                ARALert
+              </span>
+              {getRoleLabel() && (
+                <span className="flex items-center gap-1.5 min-w-0 select-none whitespace-nowrap">
+                  <span
+                    style={{
+                      fontSize: '0.925rem',
+                      fontWeight: 700,
+                      letterSpacing: '-0.02em',
+                      fontFamily: 'var(--font-heading)',
+                      lineHeight: 1.2,
+                    }}
+                    className="text-black dark:text-white opacity-40 shrink-0"
+                  >
+                    /
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.925rem',
+                      fontWeight: 700,
+                      letterSpacing: '-0.02em',
+                      fontFamily: 'var(--font-heading)',
+                      lineHeight: 1.2,
+                    }}
+                    className="text-black dark:text-white whitespace-nowrap truncate"
+                  >
+                    {getRoleLabel()}
+                  </span>
+                </span>
+              )}
+            </div>
           </Link>
 
           <button
@@ -1052,81 +1094,36 @@ export const DashboardLayout: React.FC = () => {
         </nav>
 
         {/* Mobile Sidebar Footer Profile */}
-        <div
-          style={{
-            padding: 0,
-            borderTop: '1px solid var(--brand-border)',
-            background: 'var(--brand-light)',
-            position: 'relative',
-            flexShrink: 0,
-            width: '100%',
-          }}
-        >
+        <div className="p-2.5 shrink-0 w-full">
           <button
             type="button"
+            id="mobile-drawer-profile-button"
             onClick={() => setProfileMenuOpen((prev) => !prev)}
+            aria-expanded={profileMenuOpen}
+            aria-haspopup="menu"
             aria-label="Profile and account menu"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              width: '100%',
-              height: '60px',
-              padding: '0 1.25rem',
-              borderRadius: '0px',
-              border: 'none',
-              background: 'transparent',
-              cursor: 'pointer',
-              transition: 'var(--transition-fast)',
-              textAlign: 'left',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'color-mix(in srgb, var(--brand) 18%, var(--surface-card))';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-            }}
+            className={`w-full flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
+              profileMenuOpen
+                ? 'border-slate-300 dark:border-zinc-700 bg-slate-100/90 dark:bg-zinc-800/80 shadow-xs'
+                : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
+            }`}
           >
             {user?.avatar ? (
               <img
                 src={user.avatar}
-                alt="avatar"
-                style={{ width: '34px', height: '34px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
+                alt={getDisplayName()}
+                className="w-8 h-8 rounded-full object-cover border border-slate-200/80 dark:border-zinc-700 shrink-0"
               />
             ) : (
-              <div
-                className="flex items-center justify-center shrink-0 rounded-lg bg-white text-[var(--brand)] dark:bg-slate-800 dark:text-[var(--brand)] border border-[var(--brand-border)]"
-                style={{ width: '34px', height: '34px' }}
-              >
-                <UserIcon size={16} />
+              <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-medium text-xs border border-slate-200/80 dark:border-zinc-700 shrink-0">
+                <UserIcon size={15} strokeWidth={1.8} />
               </div>
             )}
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-              <span
-                style={{
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {user?.first_name || user?.username}
-              </span>
-              <span
-                style={{
-                  fontSize: '0.65rem',
-                  fontWeight: 600,
-                  color: 'var(--brand)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                }}
-              >
-                {getRoleLabel()}
+            <div className="flex-1 min-w-0 flex flex-col justify-center">
+              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate leading-tight">
+                {getDisplayName()}
               </span>
             </div>
-            <ChevronUp size={14} style={{ color: 'var(--brand)', flexShrink: 0 }} />
           </button>
         </div>
       </aside>
@@ -2137,140 +2134,95 @@ export const DashboardLayout: React.FC = () => {
         document.body
       )}
 
-      {/* Profile Popover Menu (triggered from bottom of sidebar) */}
+      {/* Modern Profile Dropdown Menu (Sidebar Triggered) */}
       {profileMenuOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-2xs lg:bg-transparent"
+            className="fixed inset-0 z-40 bg-black/10 dark:bg-black/25 backdrop-blur-[1px] lg:bg-transparent"
             onClick={() => setProfileMenuOpen(false)}
             aria-hidden="true"
           />
           <div
-            className="animate-fade-in-scale fixed z-50 bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden"
+            className="fixed z-50 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-neutral-800 shadow-xl dark:shadow-2xl overflow-hidden text-slate-700 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-150"
             style={{
-              bottom: isSidebarCollapsed ? '0px' : '60px',
-              left: isMobileDrawerOpen ? '0px' : isSidebarCollapsed ? '68px' : '0px',
-              width: isMobileDrawerOpen ? '288px' : isSidebarCollapsed ? '260px' : '260px',
-              maxWidth: isMobileDrawerOpen ? '85vw' : '260px',
-              borderRadius: '0px',
+              bottom: isSidebarCollapsed && !isMobileDrawerOpen ? '12px' : '64px',
+              left: isMobileDrawerOpen ? '12px' : isSidebarCollapsed ? '76px' : '12px',
+              width: isMobileDrawerOpen
+                ? 'min(264px, calc(85vw - 24px))'
+                : isSidebarCollapsed
+                  ? '224px'
+                  : '236px',
             }}
+            role="menu"
           >
-            {/* User info */}
-            <div
-              style={{
-                padding: '0.875rem 1rem',
-                background: 'var(--surface-muted)',
-                borderBottom: '1px solid var(--slate-200)',
-                textAlign: 'center',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  letterSpacing: '0.01em',
-                  textAlign: 'center',
-                  width: '100%',
-                }}
-              >
-                {(() => {
-                  const first = (user?.first_name || '').trim().toUpperCase();
-                  const last = (user?.last_name || '').trim().toUpperCase();
-                  const mi = user?.middle_name && user.middle_name.trim() ? `${user.middle_name.trim()[0].toUpperCase()}.` : '';
-                  const given = [first, mi].filter(Boolean).join(' ');
-                  if (last && given) return `${last}, ${given}`;
-                  return last || given || user?.full_name || user?.username;
-                })()}
+            {/* User summary header */}
+            <div className="px-4 py-2.5 border-b border-slate-100 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/40">
+              <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+                {getDisplayName()}
               </p>
-              <p
-                style={{
-                  margin: '3px 0 0',
-                  fontSize: '0.73rem',
-                  color: 'var(--text-muted)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  textAlign: 'center',
-                  width: '100%',
-                }}
-              >
-                {user?.email}
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate mt-0.5">
+                {user?.email || getRoleLabel()}
               </p>
             </div>
 
             {/* Menu items */}
-            <div style={{ padding: 0 }}>
-              {[
-                { label: 'View Profile', icon: <UserIcon size={15} />, action: () => { setProfileMenuOpen(false); setIsMobileDrawerOpen(false); navigate('/profile'); } },
-              ].map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={item.action}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.6rem',
-                    width: '100%',
-                    padding: '0.75rem 1rem',
-                    borderRadius: '0px',
-                    border: 'none',
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
-                    color: 'var(--text-secondary)',
-                    fontFamily: 'var(--font-body)',
-                    transition: 'var(--transition-fast)',
-                    textAlign: 'center',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand-dark)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                >
-                  <span style={{ color: 'var(--text-muted)' }}>{item.icon}</span>
-                  <span>{item.label}</span>
-                </button>
-              ))}
-
-              <div style={{ borderTop: '1px solid var(--slate-200)' }} />
+            <div className="flex flex-col">
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileMenuOpen(false);
+                  setIsMobileDrawerOpen(false);
+                  navigate(getProfilePath());
+                }}
+                className="group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-900 hover:text-slate-900 dark:hover:text-white transition-all duration-150 text-left cursor-pointer"
+                role="menuitem"
+              >
+                <UserIcon
+                  size={16}
+                  strokeWidth={2}
+                  className="text-slate-400 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors shrink-0"
+                />
+                <span>Profile</span>
+              </button>
 
               <button
                 type="button"
                 onClick={() => {
-                  setShowLogoutConfirm(true);
                   setProfileMenuOpen(false);
                   setIsMobileDrawerOpen(false);
+                  navigate(getSettingsPath());
                 }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.6rem',
-                  width: '100%',
-                  padding: '0.75rem 1rem',
-                  borderRadius: '0px',
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  color: '#DC2626',
-                  fontFamily: 'var(--font-body)',
-                  transition: 'var(--transition-fast)',
-                  textAlign: 'center',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#FEF2F2'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                className="group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-900 hover:text-slate-900 dark:hover:text-white transition-all duration-150 text-left cursor-pointer"
+                role="menuitem"
               >
-                <LogOut size={15} style={{ color: '#EF4444' }} />
-                <span>Sign Out</span>
+                <SettingsIcon
+                  size={16}
+                  strokeWidth={2}
+                  className="text-slate-400 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors shrink-0"
+                />
+                <span>Account Settings</span>
+              </button>
+            </div>
+
+            <div className="border-t border-slate-100 dark:border-neutral-800" />
+
+            <div className="flex flex-col">
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileMenuOpen(false);
+                  setIsMobileDrawerOpen(false);
+                  setShowLogoutConfirm(true);
+                }}
+                className="group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-red-50 dark:hover:bg-red-950/50 hover:text-red-600 dark:hover:text-red-400 transition-all duration-150 text-left cursor-pointer"
+                role="menuitem"
+              >
+                <LogOut
+                  size={16}
+                  strokeWidth={2}
+                  className="text-slate-400 dark:text-zinc-400 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors shrink-0"
+                />
+                <span>Logout</span>
               </button>
             </div>
           </div>
@@ -2290,30 +2242,38 @@ export const DashboardLayout: React.FC = () => {
       {showLogoutConfirm &&
         createPortal(
           <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in"
             onClick={() => setShowLogoutConfirm(false)}
             role="dialog"
             aria-modal="true"
             aria-labelledby="logout-confirm-title"
           >
             <div
-              className="w-full max-w-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111622] p-5 sm:p-6 shadow-xl animate-fade-in-scale"
+              className="w-full max-w-sm rounded-2xl border border-slate-200 dark:border-zinc-800 bg-[var(--surface-card)] p-6 shadow-2xl animate-fade-in-scale"
               onClick={(e) => e.stopPropagation()}
             >
-              <div>
-                <h3 id="logout-confirm-title" className="text-base font-semibold text-slate-900 dark:text-white">
+              <div className="mb-3">
+                <h3
+                  id="logout-confirm-title"
+                  className="text-base font-semibold text-slate-900 dark:text-white leading-tight"
+                  style={{ fontFamily: 'var(--font-heading)' }}
+                >
                   Confirm Logout
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
-                  Are you sure you want to log out? You will need to sign in again to access your account.
+                <p className="text-xs text-slate-400 dark:text-zinc-400 leading-tight mt-1">
+                  End your active session
                 </p>
               </div>
 
-              <div className="mt-5 flex items-center justify-end gap-2.5">
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">
+                Are you sure you want to log out? You will need to sign in again to access your account.
+              </p>
+
+              <div className="mt-6 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowLogoutConfirm(false)}
-                  className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -2323,7 +2283,7 @@ export const DashboardLayout: React.FC = () => {
                     setShowLogoutConfirm(false);
                     handleLogout();
                   }}
-                  className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-xs font-medium text-white shadow-xs transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-xs sm:text-sm font-medium text-white shadow-xs transition-colors cursor-pointer"
                 >
                   Log out
                 </button>
