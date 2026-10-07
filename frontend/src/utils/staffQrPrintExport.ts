@@ -145,13 +145,17 @@ export const exportStaffQrPrintFile = async ({
     : 'Use this code only for the indicated DTR punch above.', LONG_BOND_WIDTH / 2, 1465);
 
   context.fillStyle = '#EBF3FC';
-  context.fillRect(145, 1545, LONG_BOND_WIDTH - 290, 170);
+  context.fillRect(145, 1530, LONG_BOND_WIDTH - 290, 190);
   context.fillStyle = '#0052B7';
-  context.font = 'bold 30px Arial';
+  context.font = 'bold 36px Arial';
+  const shortCode = sessionId.replace(/-/g, '').slice(0, 6).toUpperCase();
+  context.fillText(`MANUAL ENTRY CODE: ${shortCode}`, LONG_BOND_WIDTH / 2, 1600);
+  context.fillStyle = '#4B5563';
+  context.font = '26px Arial';
   const expiryLabel = expiresAt
     ? `Valid until: ${new Date(expiresAt).toLocaleString()}`
     : 'Valid for the current staff attendance session';
-  context.fillText(expiryLabel, LONG_BOND_WIDTH / 2, 1645);
+  context.fillText(expiryLabel, LONG_BOND_WIDTH / 2, 1665);
   context.fillStyle = '#6B7280';
   context.font = '24px Arial';
   context.fillText('Print on long bond paper (8.5 x 13 inches)', LONG_BOND_WIDTH / 2, 1815);

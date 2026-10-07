@@ -654,7 +654,7 @@ export const Profile: React.FC = () => {
         </div>
       </div>
 
-      {localUser.role === 'tutor' && (
+      {localUser.role !== 'student' && (
         <section style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '2rem', boxShadow: 'var(--shadow-xs)' }}>
           <h2 style={{ margin: '0 0 1.25rem', fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             ACCOUNT SECURITY

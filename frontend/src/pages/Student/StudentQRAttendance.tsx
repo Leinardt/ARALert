@@ -713,6 +713,9 @@ export const StudentQRAttendance: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase">MANUAL ENTRY</h3>
+                      <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
+                        Enter the 6-character code from your tutor's screen
+                      </p>
                     </div>
                   </div>
                   <form
@@ -724,10 +727,11 @@ export const StudentQRAttendance: React.FC = () => {
                   >
                     <input
                       type="text"
-                      placeholder="Enter session token / code..."
+                      placeholder="Enter 6-char code (e.g. 550E84) or session ID..."
                       value={manualCode}
-                      onChange={(e) => setManualCode(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-200 dark:border-[#262626] rounded-md text-xs bg-white dark:bg-[#0A0A0A] font-mono text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition-colors"
+                      onChange={(e) => setManualCode(e.target.value.toUpperCase())}
+                      maxLength={36}
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-[#262626] rounded-md text-xs bg-white dark:bg-[#0A0A0A] font-mono tracking-wider text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition-colors uppercase"
                     />
                     <button
                       type="submit"

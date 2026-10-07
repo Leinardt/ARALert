@@ -33,6 +33,7 @@ import { AdminAttendanceQR } from '../pages/Admin/AdminAttendanceQR';
 import { AdminEvaluationHub } from '../pages/Admin/AdminEvaluationHub';
 import { AssessmentsArchive } from '../pages/Admin/AssessmentsArchive';
 import { PrincipalHome } from '../pages/Principal/PrincipalHome';
+import { PrincipalAnalytics } from '../pages/Principal/PrincipalAnalytics';
 import { FacultyHome } from '../pages/Faculty/FacultyHome';
 import { TutorHome } from '../pages/Tutor/TutorHome';
 import { TutorQRGenerator } from '../pages/Tutor/TutorQRGenerator';
@@ -146,6 +147,7 @@ export const AppRouter: React.FC = () => {
           }
         >
           <Route path="/principal" element={<PrincipalHome />} />
+          <Route path="/principal/analytics" element={<PrincipalAnalytics />} />
         </Route>
 
         {/* ── Faculty routes ────────────────────────── */}
@@ -178,7 +180,7 @@ export const AppRouter: React.FC = () => {
         {/* ── Shared Staff routes ──────────────────── */}
         <Route
           element={
-            <ProtectedRoute allowedRoles={['admin', 'tutor', 'principal', 'faculty', 'student']}>
+            <ProtectedRoute allowedRoles={['admin', 'tutor', 'faculty', 'student']}>
               <DashboardLayout />
             </ProtectedRoute>
           }

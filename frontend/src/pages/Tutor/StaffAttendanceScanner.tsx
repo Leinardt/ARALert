@@ -777,15 +777,19 @@ export const StaffAttendanceScanner: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">MANUAL ENTRY</h3>
+                      <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">
+                        Enter the 6-character code from the terminal screen or full session ID
+                      </p>
                     </div>
                   </div>
                   <form onSubmit={handleManualSubmit} className="space-y-2">
                     <input
                       type="text"
-                      placeholder="Enter session ID (e.g. 550e8400-e29b-41d4-a716...)"
+                      placeholder="Enter 6-char code (e.g. 550E84) or session ID..."
                       value={manualCode}
-                      onChange={(e) => setManualCode(e.target.value)}
-                      className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-xs bg-white dark:bg-[#111111] text-gray-800 dark:text-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] transition-colors"
+                      onChange={(e) => setManualCode(e.target.value.toUpperCase())}
+                      maxLength={36}
+                      className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-xs bg-white dark:bg-[#111111] text-gray-800 dark:text-slate-200 font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] transition-colors uppercase"
                     />
                     <button
                       type="submit"
@@ -798,7 +802,7 @@ export const StaffAttendanceScanner: React.FC = () => {
                           Confirming...
                         </>
                       ) : (
-                        'Submit Session ID'
+                        'Submit Session Code'
                       )}
                     </button>
                   </form>

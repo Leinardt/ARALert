@@ -187,6 +187,7 @@ export const AdminAttendanceQR: React.FC = () => {
   const [showDtrExportModal, setShowDtrExportModal] = useState<boolean>(false);
 
   // Filters & Controls
+  const [roleFilter, setRoleFilter] = useState<'all' | 'tutor' | 'faculty'>('all');
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState<boolean>(false);
@@ -323,8 +324,19 @@ export const AdminAttendanceQR: React.FC = () => {
 
   // Unique logged dates for calendar dots
   const loggedDates = useMemo(() => {
-    return new Set(attendanceLogs.map((l) => l.date));
-  }, [attendanceLogs]);
+    if (roleFilter === 'all') {
+      return new Set(attendanceLogs.map((l) => l.date));
+    }
+    return new Set(
+      attendanceLogs
+        .filter((l) => {
+          const staff = staffMap.get(String(l.user)) || staffMap.get(String(l.tutor));
+          const role = (staff?.role || l.role || '').toLowerCase();
+          return role === roleFilter;
+        })
+        .map((l) => l.date)
+    );
+  }, [attendanceLogs, roleFilter, staffMap]);
 
   // Total unique staff scanned today
   const scannedStaffTodayCount = useMemo(() => {
@@ -372,6 +384,14 @@ export const AdminAttendanceQR: React.FC = () => {
       });
     }
 
+    if (roleFilter !== 'all') {
+      rows = rows.filter((r) => {
+        const staff = staffMap.get(String(r.user)) || staffMap.get(String(r.tutor));
+        const role = (staff?.role || r.role || '').toLowerCase();
+        return role === roleFilter;
+      });
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       rows = rows.filter((r) => {
@@ -385,7 +405,7 @@ export const AdminAttendanceQR: React.FC = () => {
     }
 
     return [...rows].sort((a, b) => b.date.localeCompare(a.date));
-  }, [dtrRows, jumpDate, todayStr, viewMode, search, staffMap]);
+  }, [dtrRows, jumpDate, todayStr, viewMode, roleFilter, search, staffMap]);
 
   // ── Sort state & DTR sorting ──────────────────────────────────
   type SortKey = 'staff' | 'date' | 'time_in' | 'time_out' | 'undertime' | 'status';
@@ -550,6 +570,25 @@ export const AdminAttendanceQR: React.FC = () => {
                 </div>
               </div>
 
+              {/* Staff DTR Manual Entry Short Code Info */}
+              {session?.id && (
+                <div className="w-full">
+                  <div className="flex items-center justify-between p-3 rounded-md border border-[var(--brand)]/30 bg-[var(--brand)]/5 dark:bg-[var(--brand)]/10">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 block">
+                        Staff DTR Manual Code
+                      </span>
+                      <span className="text-[11px] text-gray-500 dark:text-slate-400">
+                        Tutors &amp; Faculty can enter this 6-char code
+                      </span>
+                    </div>
+                    <span className="text-base font-extrabold font-mono tracking-widest text-[var(--brand)] dark:text-blue-400 bg-white dark:bg-[#1A1A1A] px-3 py-1 rounded border border-gray-200 dark:border-[#2A2A2A] shadow-xs select-all">
+                      {String(session.id).slice(0, 6).toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Export DOCX, PDF, or JPG Toolbar (Neutral Monochrome Style) */}
               <div className="w-full">
                 <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50/60 dark:bg-[#161616] p-4 space-y-2.5">
@@ -687,6 +726,25 @@ export const AdminAttendanceQR: React.FC = () => {
 
           {/* Controls */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Role Filter toggle (ALL / TUTOR / FACULTY) */}
+            <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5">
+              {(['all', 'tutor', 'faculty'] as const).map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  id={`dtr-role-${role}-btn`}
+                  onClick={() => setRoleFilter(role)}
+                  className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                    roleFilter === role
+                      ? 'bg-[var(--brand)] text-white'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {role}
+                </button>
+              ))}
+            </div>
+
             {/* View mode toggle */}
             <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5">
               {(['day', 'week', 'month'] as const).map((mode) => (
@@ -780,7 +838,11 @@ export const AdminAttendanceQR: React.FC = () => {
             <div className="flex flex-col items-center gap-2 py-12 text-center">
               <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
               <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No DTR records found</p>
-              <p className="text-xs text-gray-400 dark:text-slate-500">Records will appear after staff scan the QR code</p>
+              <p className="text-xs text-gray-400 dark:text-slate-500">
+                {roleFilter !== 'all'
+                  ? `No ${roleFilter} records found for the selected period`
+                  : 'Records will appear after staff scan the QR code'}
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2">

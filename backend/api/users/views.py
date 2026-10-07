@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 
 from apps.academics.models import AssessmentScore, Prediction, StudentAttendance
 from apps.accounts.models import AuditLog, User, StudentEditRequest
-from permissions.role_permissions import IsAdmin, IsTutor
+from permissions.role_permissions import IsAdmin, IsTutor, role_required
 from utilities.audit import log_audit_event
 
 from .serializers import (
@@ -86,6 +86,8 @@ class UserListCreateView(generics.ListCreateAPIView):
         user = getattr(self.request, 'user', None)
         if user and user.is_authenticated and getattr(user, 'role', None) == 'tutor':
             return [IsTutor()]
+        if user and user.is_authenticated and getattr(user, 'role', None) == 'principal':
+            return [role_required('principal')()]
         return [IsAdmin()]
 
     def get_serializer_class(self):
@@ -459,7 +461,7 @@ class UserActivityHistoryView(APIView):
 class TutorListView(generics.ListAPIView):
     """GET /api/users/tutors/ — List active tutors for assignment dropdowns."""
 
-    permission_classes = [IsAdmin]
+    permission_classes = [role_required('admin', 'principal')]
     serializer_class = UserListSerializer
     pagination_class = None
 

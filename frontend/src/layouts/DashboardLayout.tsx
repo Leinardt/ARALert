@@ -813,36 +813,32 @@ export const DashboardLayout: React.FC = () => {
         {/* Principal nav */}
         {user?.role === 'principal' && (
           <>
-            {!collapsed ? (
-              <span className="sidebar-section-label">Monitoring</span>
-            ) : (
-              <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.4rem 0.5rem' }} />
-            )}
-            <Link to="/principal" onClick={onItemClick} className={navLinkClass(isActive('/principal'), collapsed)} title="Monitoring Dashboard">
+            <Link to="/principal" onClick={onItemClick} className={navLinkClass(isActive('/principal'), collapsed)} title="Dashboard">
               <AssetSidebarIcon
                 darkSrc={dashboardDarkDefault}
                 darkActiveSrc={dashboardDarkActive}
                 lightSrc={dashboardLightDefault}
                 lightActiveSrc={dashboardLightActive}
                 active={isActive('/principal')}
-                alt="Monitoring Dashboard"
+                alt="Dashboard"
                 size={18}
                 theme={theme}
               />
-              {!collapsed && <span className="truncate">Monitoring Dashboard</span>}
+              {!collapsed && <span className="truncate">Dashboard</span>}
             </Link>
-            <Link to="/staff/scan" onClick={onItemClick} className={navLinkClass(isActive('/staff/scan'), collapsed)} title="DTR Log">
+
+            <Link to="/principal/analytics" onClick={onItemClick} className={navLinkClass(isActive('/principal/analytics'), collapsed)} title="Data Analytics">
               <AssetSidebarIcon
-                darkSrc={clockDarkDefault}
-                darkActiveSrc={clockDarkActive}
-                lightSrc={clockLightDefault}
-                lightActiveSrc={clockLightActive}
-                active={isActive('/staff/scan')}
-                alt="DTR Log"
+                darkSrc={analyticsDarkDefault}
+                darkActiveSrc={analyticsDarkActive}
+                lightSrc={analyticsLightDefault}
+                lightActiveSrc={analyticsLightActive}
+                active={isActive('/principal/analytics')}
+                alt="Data Analytics"
                 size={18}
                 theme={theme}
               />
-              {!collapsed && <span className="truncate">DTR Log</span>}
+              {!collapsed && <span className="truncate">Data Analytics</span>}
             </Link>
           </>
         )}
