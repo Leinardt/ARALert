@@ -142,7 +142,7 @@ def get_eosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
         if rem > 0:
             incomplete_tutors_list.append(tutor_data)
 
-    current_sy_str = school_year.school_year if school_year else '2025-2026'
+    current_sy_str = school_year.school_year if school_year else '2026-2027'
     next_sy_str = get_next_school_year_string(current_sy_str)
     can_transition = (students_remaining == 0 and total_assigned_students > 0)
 
@@ -171,7 +171,7 @@ def get_transition_summary_preview() -> dict:
     No capacity or vacant slot numbers are displayed.
     """
     active_sy = SchoolYear.objects.filter(is_active=True).first()
-    current_sy_str = active_sy.school_year if active_sy else '2025-2026'
+    current_sy_str = active_sy.school_year if active_sy else '2026-2027'
     next_sy_str = get_next_school_year_string(current_sy_str)
 
     students = User.objects.filter(role='student', is_active=True)

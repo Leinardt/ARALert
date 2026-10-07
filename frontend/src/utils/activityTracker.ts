@@ -134,14 +134,15 @@ export const initActivityTracker = (
 
   // Periodic AFK check every 5 seconds
   const intervalId = window.setInterval(() => {
-    const token = localStorage.getItem('access_token');
+    const token = sessionStorage.getItem('access_token') || localStorage.getItem('access_token');
     if (token && isUserAfk(timeoutMs)) {
       onAfkTimeout();
     }
   }, 5000);
 
   // Initial check on mount
-  if (localStorage.getItem('access_token') && isUserAfk(timeoutMs)) {
+  const currentToken = sessionStorage.getItem('access_token') || localStorage.getItem('access_token');
+  if (currentToken && isUserAfk(timeoutMs)) {
     onAfkTimeout();
   } else {
     recordActivity();

@@ -264,3 +264,71 @@ export const getRecentSchoolWeekdays = (count: number, refDate: Date = new Date(
   return days;
 };
 
+/**
+ * Splits a full name or single string into { lastName, firstName }.
+ * Supports "LAST, FIRST", "FIRST LAST", and multi-part Filipino surnames (e.g., "DELA CRUZ", "DE GUZMAN", "SAN JUAN").
+ */
+export const extractLastNameAndFirstName = (fullName: string): { lastName: string; firstName: string } => {
+  if (!fullName) return { lastName: '', firstName: '' };
+  const trimmed = fullName.trim();
+  if (trimmed.includes(',')) {
+    const [last, ...rest] = trimmed.split(',');
+    return { lastName: last.trim(), firstName: rest.join(',').trim() };
+  }
+  const parts = trimmed.split(/\s+/);
+  if (parts.length <= 1) return { lastName: trimmed, firstName: '' };
+
+  const multiWordPrefixes = [
+    'DE', 'DEL', 'DELA', 'DE LA', 'SAN', 'SANTA', 'SANTO', 'DELOS', 'DE LOS',
+    'VAN', 'VON', 'AL', 'EL', 'MC', 'MAC', 'DA', 'DOS', 'DAS', 'DI', 'DU'
+  ];
+  for (let i = 0; i < parts.length - 1; i++) {
+    const candidate = parts.slice(i, parts.length - 1).join(' ').toUpperCase();
+    if (multiWordPrefixes.includes(candidate)) {
+      return {
+        lastName: parts.slice(i).join(' '),
+        firstName: parts.slice(0, i).join(' '),
+      };
+    }
+  }
+
+  const lastName = parts[parts.length - 1];
+  const firstName = parts.slice(0, parts.length - 1).join(' ');
+  return { lastName, firstName };
+};
+
+/**
+ * Standard comparator to sort any user, student, or name string by LAST NAME ascending,
+ * breaking ties with first name.
+ */
+export const compareNamesByLastName = (
+  a: Partial<User> | { first_name?: string; last_name?: string; full_name?: string; user_name?: string; student_name?: string; name?: string } | string | null | undefined,
+  b: Partial<User> | { first_name?: string; last_name?: string; full_name?: string; user_name?: string; student_name?: string; name?: string } | string | null | undefined
+): number => {
+  const parseName = (item: any) => {
+    if (!item) return { last: '', first: '' };
+    if (typeof item === 'string') {
+      const { lastName, firstName } = extractLastNameAndFirstName(item);
+      return { last: lastName, first: firstName };
+    }
+    if (typeof item === 'object') {
+      if (item.last_name || item.first_name) {
+        return { last: item.last_name || '', first: item.first_name || '' };
+      }
+      const candidateStr = item.full_name || item.student_name || item.user_name || item.name;
+      if (candidateStr && typeof candidateStr === 'string') {
+        const { lastName, firstName } = extractLastNameAndFirstName(candidateStr);
+        return { last: lastName, first: firstName };
+      }
+    }
+    return { last: '', first: '' };
+  };
+
+  const parsedA = parseName(a);
+  const parsedB = parseName(b);
+
+  const lastCmp = parsedA.last.localeCompare(parsedB.last, undefined, { numeric: true, sensitivity: 'base' });
+  if (lastCmp !== 0) return lastCmp;
+  return parsedA.first.localeCompare(parsedB.first, undefined, { numeric: true, sensitivity: 'base' });
+};
+

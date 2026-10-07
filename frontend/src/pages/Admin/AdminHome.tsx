@@ -7,12 +7,25 @@ import type { Attendance, Grade, User, UserStats } from '../../types';
 import {
   BarChart2,
   AlertCircle,
-  ArrowUpRight,
   RefreshCw,
+  Search,
+  Lock,
+  Unlock,
+  CheckCircle2,
+  Clock,
+  ChevronRight,
+  Filter,
 } from 'lucide-react';
-import { StatsGridSkeleton, CardSkeleton } from '../../components/SkeletonLoader';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
-import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
+import { getRecentSchoolWeekdays, compareNamesByLastName } from '../../utils/studentFormatters';
+import {
+  getActiveSystemMilestone,
+  getActiveSystemSemester,
+  setActiveSystemSemester,
+  isAssessmentWindowOpen,
+  setAssessmentWindowOpen,
+  SemesterType,
+} from '../../utils/sessionDescriptionHelpers';
 
 // ─── Chart Types & Interactive Chart Component ─────────────────────────────────
 
@@ -38,7 +51,9 @@ const formatShortDateRange = (label: string): string => {
   return label;
 };
 
-const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; trendFilter?: TrendFilter }> = ({ data, trendFilter = 'week' }) => {
+type TrendFilter = 'day' | 'week' | 'month';
+
+const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; trendFilter: TrendFilter }> = ({ data, trendFilter }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 260 });
@@ -77,7 +92,7 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
   const { width, height } = dimensions;
   const isMobile = width < 520;
   const isSmallMobile = width < 380;
-  const paddingLeft = isMobile ? 32 : 28;
+  const paddingLeft = isMobile ? 44 : 50;
   const paddingRight = isMobile ? 20 : 14;
   const paddingTop = isMobile ? 18 : 20;
   const paddingBottom = isMobile ? 26 : 24;
@@ -109,7 +124,7 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
     ? `${pathD} L ${points[points.length - 1].x} ${paddingTop + chartH} L ${points[0].x} ${paddingTop + chartH} Z`
     : '';
 
-  // Dynamic tick density to prevent all label overlap
+  // Dynamic tick density to prevent label overlap
   const visibleIndices = useMemo(() => {
     const total = data.length;
     if (total <= 1) return new Set([0]);
@@ -195,7 +210,7 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
                 strokeDasharray="3 3"
                 opacity="0.6"
               />
-              <text x={paddingLeft - 6} y={y + 3} className="fill-slate-400 font-semibold text-[9px] xs:text-[10px]" textAnchor="end">
+              <text x={paddingLeft - 8} y={y + 3} className="fill-slate-400 font-semibold text-[9px] xs:text-[10px]" textAnchor="end">
                 {val}%
               </text>
             </g>
@@ -222,7 +237,7 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
           );
         })}
 
-        {/* X-axis date labels with collision and clipping prevention */}
+        {/* X-axis date labels */}
         {points.map((p, idx) => {
           if (!visibleIndices.has(idx)) return null;
 
@@ -338,7 +353,7 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
         })}
       </svg>
 
-      {/* Floating Tooltip (Guaranteed zero-overflow) */}
+      {/* Floating Tooltip */}
       {hoveredIdx !== null && points[hoveredIdx] && (() => {
         const p = points[hoveredIdx];
         const isRightHalf = p.x > width * 0.5;
@@ -415,8 +430,6 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
 
 // ─── Main AdminHome Component ──────────────────────────────────────────────────
 
-type TrendFilter = 'day' | 'week' | 'month';
-
 export const AdminHome: React.FC = () => {
   const { user } = useAuth();
 
@@ -430,6 +443,9 @@ export const AdminHome: React.FC = () => {
 
   const [trendFilter, setTrendFilter] = useState<TrendFilter>('week');
   const [selectedTutorId, setSelectedTutorId] = useState<string>('all');
+  const [activeSystemSem, setActiveSystemSem] = useState<SemesterType>(() => getActiveSystemSemester());
+  const [isWindowOpen, setIsWindowOpen] = useState<boolean>(() => isAssessmentWindowOpen());
+  const [tutorSearch, setTutorSearch] = useState<string>('');
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -463,6 +479,50 @@ export const AdminHome: React.FC = () => {
     loadDashboard();
   }, []);
 
+  useEffect(() => {
+    academicService
+      .getCurrentSchoolYear()
+      .then((sy) => {
+        if (sy && sy.current_semester) {
+          setActiveSystemSemester(sy.current_semester as any);
+          setActiveSystemSem(sy.current_semester as any);
+          setIsWindowOpen(isAssessmentWindowOpen(sy.current_semester as any));
+        }
+      })
+      .catch(() => {});
+
+    const handleSemChange = (e: any) => {
+      const newSem = e?.detail?.semester || getActiveSystemSemester();
+      setActiveSystemSem(newSem);
+      setIsWindowOpen(isAssessmentWindowOpen(newSem));
+    };
+
+    const handleWindowChange = (e: any) => {
+      if (typeof e?.detail?.isOpen === 'boolean') {
+        setIsWindowOpen(e.detail.isOpen);
+      } else {
+        setIsWindowOpen(isAssessmentWindowOpen());
+      }
+    };
+
+    window.addEventListener('system_semester_changed', handleSemChange);
+    window.addEventListener('assessment_window_changed', handleWindowChange);
+    return () => {
+      window.removeEventListener('system_semester_changed', handleSemChange);
+      window.removeEventListener('assessment_window_changed', handleWindowChange);
+    };
+  }, []);
+
+  const adminMilestone = useMemo(() => {
+    return getActiveSystemMilestone();
+  }, [activeSystemSem]);
+
+  const handleToggleAssessmentWindow = () => {
+    const nextState = !isWindowOpen;
+    setIsWindowOpen(nextState);
+    setAssessmentWindowOpen(nextState, activeSystemSem);
+  };
+
   // Filter students based on selected tutor
   const filteredStudents = useMemo(() => {
     if (selectedTutorId === 'all') return students;
@@ -474,14 +534,87 @@ export const AdminHome: React.FC = () => {
     return tutors.find((t) => String(t.id) === String(selectedTutorId)) || null;
   }, [tutors, selectedTutorId]);
 
-  const tutorFirstName = useMemo(() => {
-    if (!selectedTutorObj) return null;
-    return (
-      selectedTutorObj.first_name ||
-      selectedTutorObj.full_name?.trim().split(' ')[0] ||
-      'TUTOR'
-    ).toUpperCase();
-  }, [selectedTutorObj]);
+  // ── Stakeholder-Validated Overall Metrics Calculations (Always for ALL students) ──
+  const studentRiskRows = useMemo(() => {
+    if (students.length === 0) return [];
+    return computeStudentRiskRows(students, grades, attendance);
+  }, [students, grades, attendance]);
+
+  const highRiskStudents = useMemo(
+    () => studentRiskRows.filter((s) => s.riskTier === 'High'),
+    [studentRiskRows]
+  );
+
+  const hasAttendanceData = useMemo(() => {
+    const studentIds = new Set(students.map((s) => String(s.id)));
+    const hasLogs = attendance.some((a) => {
+      const aUser = typeof a.user === 'object' && a.user !== null ? (a.user as any).id : a.user;
+      const aUserId = (a as any).user_id || (a as any).student_id;
+      return studentIds.has(String(aUser)) || studentIds.has(String(aUserId));
+    });
+    if (hasLogs) return true;
+    if ((stats?.attendance_summary?.total_logs ?? 0) > 0) return true;
+    if ((stats?.academic_summary?.average_attendance_rate ?? 0) > 0) return true;
+    return false;
+  }, [students, attendance, stats]);
+
+  const hasScoreData = useMemo(() => {
+    const studentIds = new Set(students.map((s) => String(s.id)));
+    const hasScores = grades.some((g) => {
+      const gStudent = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
+      const gStudentId = (g as any).student_id;
+      const isStudent = studentIds.has(String(gStudent)) || studentIds.has(String(gStudentId));
+      return isStudent && g.component_type !== 'attendance' && g.remarks?.trim().toLowerCase() !== 'not taken';
+    });
+    if (hasScores) return true;
+    if ((stats?.academic_summary?.average_score ?? 0) > 0) return true;
+    return false;
+  }, [students, grades, stats]);
+
+  const overallAttendanceRate = useMemo(() => {
+    if (studentRiskRows.length > 0 && attendance.length > 0) {
+      const studentIds = new Set(students.map((s) => String(s.id)));
+      const matchingAtt = attendance.filter((a) => {
+        const aUser = typeof a.user === 'object' && a.user !== null ? (a.user as any).id : a.user;
+        const aUserId = (a as any).user_id || (a as any).student_id;
+        return studentIds.has(String(aUser)) || studentIds.has(String(aUserId));
+      });
+      if (matchingAtt.length > 0) {
+        const presentCount = matchingAtt.filter((a) => a.status === 'present').length;
+        return Math.round((presentCount / matchingAtt.length) * 1000) / 10;
+      }
+    }
+    if (stats?.academic_summary?.average_attendance_rate !== undefined && stats.academic_summary.average_attendance_rate > 0) {
+      return stats.academic_summary.average_attendance_rate;
+    }
+    if (stats?.attendance_summary && stats.attendance_summary.total_logs > 0) {
+      return Math.round((stats.attendance_summary.present / stats.attendance_summary.total_logs) * 1000) / 10;
+    }
+    return 0;
+  }, [studentRiskRows, attendance, students, stats]);
+
+  const overallAvgScore = useMemo(() => {
+    if (studentRiskRows.length > 0 && hasScoreData) {
+      const validScores = studentRiskRows.filter((r) => r.scoreAvg > 0);
+      if (validScores.length > 0) {
+        const total = validScores.reduce((sum, r) => sum + r.scoreAvg, 0);
+        return Math.round((total / validScores.length) * 10) / 10;
+      }
+    }
+    if (stats?.academic_summary?.average_score !== undefined && stats.academic_summary.average_score > 0) {
+      return stats.academic_summary.average_score;
+    }
+    return 0;
+  }, [studentRiskRows, hasScoreData, stats]);
+
+  const overallCompositeScore = useMemo(() => {
+    if (overallAttendanceRate > 0 && overallAvgScore > 0) {
+      return Math.round(((overallAttendanceRate * 0.4) + (overallAvgScore * 0.6)) * 10) / 10;
+    }
+    if (overallAttendanceRate > 0) return overallAttendanceRate;
+    if (overallAvgScore > 0) return overallAvgScore;
+    return 0;
+  }, [overallAttendanceRate, overallAvgScore]);
 
   // Compute performance trend combining composite scores
   const chartTrendData = useMemo(() => {
@@ -584,12 +717,14 @@ export const AdminHome: React.FC = () => {
           const scorePercent = g.total_score > 0 ? (g.score / g.total_score) * 100 : g.score;
           p.scores.push(scorePercent);
           const assessmentText = `${g.subject} ${g.remarks ?? ''}`.toUpperCase();
-          if (assessmentText.includes('MOSY')) {
+          if (assessmentText.includes(adminMilestone.toUpperCase())) {
+            p.assessmentLabels.add(adminMilestone);
+          } else if (assessmentText.includes('ARAL SUMMER') || assessmentText.includes('SUMMER') || assessmentText.includes('BOSY')) {
+            p.assessmentLabels.add('ARAL Summer Assessment');
+          } else if (assessmentText.includes('MOSY')) {
             p.assessmentLabels.add('MOSY');
           } else if (assessmentText.includes('EOSY')) {
             p.assessmentLabels.add('EOSY');
-          } else if (assessmentText.includes('ARAL SUMMER') || assessmentText.includes('SUMMER') || assessmentText.includes('BOSY')) {
-            p.assessmentLabels.add('ARAL Summer Assessment');
           }
           break;
         }
@@ -635,7 +770,7 @@ export const AdminHome: React.FC = () => {
         assessmentLabels: p.assessmentLabels,
       };
     });
-  }, [filteredStudents, grades, attendance, trendFilter]);
+  }, [filteredStudents, grades, attendance, trendFilter, adminMilestone]);
 
   const highestScore = useMemo(() => (chartTrendData.length === 0 ? 0 : Math.max(...chartTrendData.map((d) => d.value))), [chartTrendData]);
   const lowestScore = useMemo(() => (chartTrendData.length === 0 ? 0 : Math.min(...chartTrendData.map((d) => d.value))), [chartTrendData]);
@@ -651,129 +786,163 @@ export const AdminHome: React.FC = () => {
   const totalTutorsCount = stats?.tutors ?? tutors.length;
   const totalFacultyCount = stats?.faculty ?? 0;
   const totalPrincipalsCount = stats?.principals ?? 0;
+  const totalAdminsCount = stats?.admins ?? 0;
 
-  // ── Stakeholder-Validated Overall Metrics Calculations ───────────────────────
-  const studentRiskRows = useMemo(() => {
-    if (filteredStudents.length === 0) return [];
-    return computeStudentRiskRows(filteredStudents, grades, attendance);
-  }, [filteredStudents, grades, attendance]);
-
-  const hasAttendanceData = useMemo(() => {
-    const studentIds = new Set(filteredStudents.map((s) => String(s.id)));
-    const hasLogs = attendance.some((a) => {
-      const aUser = typeof a.user === 'object' && a.user !== null ? (a.user as any).id : a.user;
-      const aUserId = (a as any).user_id || (a as any).student_id;
-      return studentIds.has(String(aUser)) || studentIds.has(String(aUserId));
-    });
-    if (hasLogs) return true;
-    if (selectedTutorId === 'all' && (stats?.attendance_summary?.total_logs ?? 0) > 0) return true;
-    if (selectedTutorId === 'all' && (stats?.academic_summary?.average_attendance_rate ?? 0) > 0) return true;
-    return false;
-  }, [filteredStudents, attendance, selectedTutorId, stats]);
-
-  const hasScoreData = useMemo(() => {
-    const studentIds = new Set(filteredStudents.map((s) => String(s.id)));
-    const hasScores = grades.some((g) => {
-      const gStudent = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
-      const gStudentId = (g as any).student_id;
-      const isStudent = studentIds.has(String(gStudent)) || studentIds.has(String(gStudentId));
-      return isStudent && g.component_type !== 'attendance' && g.remarks?.trim().toLowerCase() !== 'not taken';
-    });
-    if (hasScores) return true;
-    if (selectedTutorId === 'all' && (stats?.academic_summary?.average_score ?? 0) > 0) return true;
-    return false;
-  }, [filteredStudents, grades, selectedTutorId, stats]);
-
-  const overallAttendanceRate = useMemo(() => {
-    if (studentRiskRows.length > 0 && attendance.length > 0) {
-      const studentIds = new Set(filteredStudents.map((s) => String(s.id)));
-      const matchingAtt = attendance.filter((a) => {
-        const aUser = typeof a.user === 'object' && a.user !== null ? (a.user as any).id : a.user;
-        const aUserId = (a as any).user_id || (a as any).student_id;
-        return studentIds.has(String(aUser)) || studentIds.has(String(aUserId));
-      });
-      if (matchingAtt.length > 0) {
-        const presentCount = matchingAtt.filter((a) => a.status === 'present').length;
-        return Math.round((presentCount / matchingAtt.length) * 1000) / 10;
+  // ── Tutor Assessment Status Derivations ──────────────────────────────────────
+  const milestoneEvaluatedStudentIds = useMemo(() => {
+    const set = new Set<string>();
+    grades.forEach((g) => {
+      if (g.component_type === 'assessment' && g.remarks?.trim().toLowerCase() !== 'not taken') {
+        const sub = (g.subject || '').toUpperCase();
+        const remarks = (g.remarks || '').toUpperCase();
+        const matchMilestone =
+          adminMilestone === 'ARAL Summer Assessment'
+            ? sub.includes('SUMMER') || sub.includes('BOSY') || remarks.includes('SUMMER')
+            : sub.includes(adminMilestone.toUpperCase()) || remarks.includes(adminMilestone.toUpperCase());
+        if (matchMilestone) {
+          const studentId = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
+          if (studentId) set.add(String(studentId));
+        }
       }
-    }
-    if (selectedTutorId === 'all' && stats?.academic_summary?.average_attendance_rate !== undefined && stats.academic_summary.average_attendance_rate > 0) {
-      return stats.academic_summary.average_attendance_rate;
-    }
-    if (selectedTutorId === 'all' && stats?.attendance_summary && stats.attendance_summary.total_logs > 0) {
-      return Math.round((stats.attendance_summary.present / stats.attendance_summary.total_logs) * 1000) / 10;
-    }
-    return 0;
-  }, [studentRiskRows, attendance, filteredStudents, selectedTutorId, stats]);
+    });
+    return set;
+  }, [grades, adminMilestone]);
 
-  const overallAvgScore = useMemo(() => {
-    if (studentRiskRows.length > 0 && hasScoreData) {
-      const validScores = studentRiskRows.filter((r) => r.scoreAvg > 0);
-      if (validScores.length > 0) {
-        const total = validScores.reduce((sum, r) => sum + r.scoreAvg, 0);
-        return Math.round((total / validScores.length) * 10) / 10;
+  const tutorAssessmentStatusList = useMemo(() => {
+    const list = tutors.map((tutor) => {
+      const tutorStudents = students.filter((s) => String(s.assigned_tutor) === String(tutor.id));
+      const assignedCount = tutorStudents.length;
+      const evaluatedCount = tutorStudents.filter((s) => milestoneEvaluatedStudentIds.has(String(s.id))).length;
+
+      let status: 'SUBMITTED' | 'PENDING' | 'CLOSED';
+      let label: string;
+      let badgeClass: string;
+
+      if (!isWindowOpen) {
+        status = 'CLOSED';
+        label = `${adminMilestone} Closed`;
+        badgeClass = 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-zinc-700';
+      } else if (assignedCount > 0 && evaluatedCount >= assignedCount) {
+        status = 'SUBMITTED';
+        label = `${adminMilestone} Submitted`;
+        badgeClass = 'bg-emerald-50 dark:bg-emerald-950/40 text-risk-low border-emerald-200 dark:border-emerald-800/60';
+      } else {
+        status = 'PENDING';
+        label = `${adminMilestone} Pending`;
+        badgeClass = 'bg-amber-50 dark:bg-amber-950/40 text-risk-medium border-amber-200 dark:border-amber-800/60';
       }
-    }
-    if (selectedTutorId === 'all' && stats?.academic_summary?.average_score !== undefined && stats.academic_summary.average_score > 0) {
-      return stats.academic_summary.average_score;
-    }
-    return 0;
-  }, [studentRiskRows, hasScoreData, selectedTutorId, stats]);
 
-  const overallCompositeScore = useMemo(() => {
-    if (overallAttendanceRate > 0 && overallAvgScore > 0) {
-      return Math.round(((overallAttendanceRate * 0.4) + (overallAvgScore * 0.6)) * 10) / 10;
-    }
-    if (overallAttendanceRate > 0) return overallAttendanceRate;
-    if (overallAvgScore > 0) return overallAvgScore;
-    return 0;
-  }, [overallAttendanceRate, overallAvgScore]);
+      const isEvaluated = assignedCount > 0 && evaluatedCount >= assignedCount;
 
-  // ── Status Border Helpers (Border-primary with subtle glass background) ──────
-  const getScoreBorderBadge = (score: number) => {
-    if (score >= 80) {
-      return 'border border-emerald-500/70 dark:border-emerald-400/80 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
-    }
-    if (score >= 75) {
-      return 'border border-amber-500/70 dark:border-amber-400/80 bg-amber-500/10 text-amber-700 dark:text-amber-300';
-    }
-    return 'border border-rose-500/70 dark:border-rose-400/80 bg-rose-500/10 text-rose-700 dark:text-rose-300';
-  };
-
-  const getTrendBadge = (dir: 'up' | 'down' | 'stable') => {
-    if (dir === 'up') {
       return {
-        text: 'Improving',
-        className: 'border border-emerald-500/70 dark:border-emerald-400/80 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+        tutor,
+        assignedCount,
+        evaluatedCount,
+        status,
+        label,
+        badgeClass,
+        isEvaluated,
       };
-    }
-    if (dir === 'down') {
-      return {
-        text: 'Declining',
-        className: 'border border-rose-500/70 dark:border-rose-400/80 bg-rose-500/10 text-rose-700 dark:text-rose-300',
-      };
-    }
-    return {
-      text: 'Stable',
-      className: 'border border-slate-300 dark:border-zinc-700 bg-slate-100/60 dark:bg-zinc-800/60 text-slate-700 dark:text-slate-300',
+    });
+
+    const statusOrder: Record<'PENDING' | 'SUBMITTED' | 'CLOSED', number> = {
+      PENDING: 1,
+      SUBMITTED: 2,
+      CLOSED: 3,
     };
-  };
 
-  const trendBadge = getTrendBadge(trendDir);
+    return list.sort((a, b) => {
+      const orderA = statusOrder[a.status] ?? 99;
+      const orderB = statusOrder[b.status] ?? 99;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return compareNamesByLastName(a.tutor, b.tutor);
+    });
+  }, [tutors, students, milestoneEvaluatedStudentIds, isWindowOpen, adminMilestone]);
+
+  const filteredTutorStatusList = useMemo(() => {
+    if (!tutorSearch.trim()) return tutorAssessmentStatusList;
+    const query = tutorSearch.toLowerCase().trim();
+    return tutorAssessmentStatusList.filter((item) => {
+      const name = (item.tutor.full_name || `${item.tutor.first_name} ${item.tutor.last_name}`).toLowerCase();
+      const email = (item.tutor.email || '').toLowerCase();
+      return name.includes(query) || email.includes(query);
+    });
+  }, [tutorAssessmentStatusList, tutorSearch]);
+
+  const conductedCount = useMemo(
+    () => tutorAssessmentStatusList.filter((t) => t.isEvaluated).length,
+    [tutorAssessmentStatusList]
+  );
+
+  const ratioBadgeClass = useMemo(() => {
+    if (!isWindowOpen) {
+      return 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-zinc-700';
+    }
+    if (tutors.length > 0 && conductedCount >= tutors.length) {
+      return 'bg-emerald-50 dark:bg-emerald-950/40 text-risk-low border-emerald-200 dark:border-emerald-800/60';
+    }
+    return 'bg-amber-50 dark:bg-amber-950/40 text-risk-medium border-amber-200 dark:border-amber-800/60';
+  }, [isWindowOpen, tutors.length, conductedCount]);
 
   // ─── Loading Skeleton ────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-4 data-loaded-content w-full min-w-0 max-w-full">
-        <StatsGridSkeleton count={4} cols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" />
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div className="lg:col-span-7 space-y-4">
-            <CardSkeleton rows={6} />
-            <CardSkeleton rows={5} />
+      <div className="flex flex-col gap-3 data-loaded-content w-full min-w-0 max-w-full">
+        {/* Row 1 Skeleton: 3 Multi-Layer Top KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0">
+          {/* Card 1 Skeleton: 2 layers (Total Students & High Risk) */}
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-2xs">
+            {[1, 2].map((i) => (
+              <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-2">
+                <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-5 w-12 rounded bg-gray-200 dark:bg-gray-800" />
+              </div>
+            ))}
           </div>
-          <div className="lg:col-span-5 space-y-4">
-            <CardSkeleton rows={4} />
-            <CardSkeleton rows={5} />
+          {/* Card 2 Skeleton: 4 layers (Tutors, Faculty, Principal, Admin) */}
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-2xs">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-1">
+                <div className="h-2 w-20 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-3.5 w-8 rounded bg-gray-200 dark:bg-gray-800" />
+              </div>
+            ))}
+          </div>
+          {/* Card 3 Skeleton: 3 layers (Attendance, Score, Composite) */}
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-2xs">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-1.5">
+                <div className="h-2.5 w-28 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-4 w-10 rounded bg-gray-200 dark:bg-gray-800" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Row 2 Skeleton: Main Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
+          <div className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3">
+            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-2xs flex flex-col justify-between">
+              <div className="h-4 w-56 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="my-4 flex-1 bg-gray-50/60 dark:bg-[#111111] rounded-lg min-h-[200px]" />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map((j) => (
+                  <div key={j} className="h-12 rounded bg-gray-50 dark:bg-[#111111]" />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3">
+            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-2xs">
+              <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-800 mb-3" />
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5].map((k) => (
+                  <div key={k} className="h-10 rounded bg-gray-50 dark:bg-[#111111]" />
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -783,115 +952,191 @@ export const AdminHome: React.FC = () => {
   // ─── Error State ─────────────────────────────────────────────────────────────
   if (error) {
     return (
-      <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/20 p-5 sm:p-6 text-rose-800 dark:text-rose-200">
-        <p className="text-sm font-bold text-rose-900 dark:text-rose-200">Failed to load admin dashboard</p>
-        <p className="text-xs text-rose-700 dark:text-rose-300 mt-1">{error}</p>
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-rose-300 dark:border-rose-800 bg-white dark:bg-rose-900/40 text-rose-700 dark:text-rose-200 text-xs font-semibold hover:bg-rose-100/60 transition-colors cursor-pointer"
-        >
-          <RefreshCw className="w-3.5 h-3.5" /> Retry
-        </button>
+      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-md p-4">
+        <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-bold">Failed to load dashboard</p>
+          <p className="text-xs mt-0.5 text-rose-700 dark:text-rose-300">{error}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-3 inline-flex items-center gap-1.5 px-4 py-1.5 bg-rose-600 text-white rounded-md text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
 
-  const totalStaff = totalTutorsCount + totalFacultyCount + totalPrincipalsCount;
-  const totalDirectory = totalStudentsCount + totalStaff;
-
-  const directoryBreakdown = [
-    { label: 'Students', count: totalStudentsCount, link: '/admin/students' },
-    { label: 'Tutors', count: totalTutorsCount, link: '/admin/tutors' },
-    { label: 'Faculty Members', count: totalFacultyCount, link: '/admin/faculty' },
-    { label: 'Principals', count: totalPrincipalsCount, link: '/admin/principals' },
-  ];
-
   // ─── Main Render ─────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-4 data-loaded-content w-full min-w-0 max-w-full">
-      {/* ── 1. Top Metrics KPI Strip (Clean, Minimalist, Generous Whitespace) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Total Students */}
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-          <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
-            Total Students
-          </span>
-          <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
-            {totalStudentsCount.toLocaleString()}
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 truncate">
-            {filteredStudents.length} active in current selection
-          </p>
+    <div className="flex flex-col gap-3 data-loaded-content w-full min-w-0 max-w-full">
+      {/* ── 1. Top Summary KPI Cards (3 Multi-Layer Containers) ─────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 w-full min-w-0 max-w-full">
+        {/* Container 1: TOTAL STUDENTS & OVERALL HIGH RISK STUDENTS (2 Layers) */}
+        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+          <Link
+            to="/admin/students"
+            className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              TOTAL STUDENTS
+            </p>
+            <p className="text-base sm:text-lg font-extrabold tracking-tight text-gray-900 dark:text-slate-100 shrink-0">
+              {totalStudentsCount.toLocaleString()}
+            </p>
+          </Link>
+          <Link
+            to="/admin/students"
+            className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              OVERALL HIGH RISK STUDENTS
+            </p>
+            <p className="text-base sm:text-lg font-extrabold text-risk-high shrink-0">
+              {highRiskStudents.length.toLocaleString()}
+            </p>
+          </Link>
         </div>
 
-        {/* Metric 2: Academic Staff */}
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-          <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
-            Academic Staff
-          </span>
-          <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
-            {totalStaff.toLocaleString()}
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 truncate">
-            {totalTutorsCount} Tutors • {totalFacultyCount} Faculty • {totalPrincipalsCount} Principals
-          </p>
+        {/* Container 2: TUTORS, FACULTY, PRINCIPAL, & ADMIN (4 Layers) */}
+        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+          <Link
+            to={user?.is_superuser ? "/superadmin/tutors" : "/admin/tutors"}
+            className="flex-1 flex items-center justify-between px-3.5 py-1 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              TUTORS
+            </p>
+            <p className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-slate-100 shrink-0">
+              {totalTutorsCount.toLocaleString()}
+            </p>
+          </Link>
+          <Link
+            to={user?.is_superuser ? "/superadmin/faculty" : "/admin/faculty"}
+            className="flex-1 flex items-center justify-between px-3.5 py-1 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              FACULTY
+            </p>
+            <p className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-slate-100 shrink-0">
+              {totalFacultyCount.toLocaleString()}
+            </p>
+          </Link>
+          <Link
+            to={user?.is_superuser ? "/superadmin/principals" : "/admin/principals"}
+            className="flex-1 flex items-center justify-between px-3.5 py-1 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              PRINCIPAL
+            </p>
+            <p className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-slate-100 shrink-0">
+              {totalPrincipalsCount.toLocaleString()}
+            </p>
+          </Link>
+          <Link
+            to={user?.is_superuser ? "/superadmin/admins" : "/admin/admins"}
+            className="flex-1 flex items-center justify-between px-3.5 py-1 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              ADMIN
+            </p>
+            <p className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-slate-100 shrink-0">
+              {totalAdminsCount.toLocaleString()}
+            </p>
+          </Link>
         </div>
 
-        {/* Metric 3: Attendance Rate */}
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-          <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
-            Attendance Rate
-          </span>
-          <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
-            {!hasAttendanceData ? '—' : `${overallAttendanceRate}%`}
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-            Institutional session attendance compliance
-          </p>
-        </div>
-
-        {/* Metric 4: Average Evaluation */}
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-          <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
-            Average Score
-          </span>
-          <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
-            {!hasScoreData ? '—' : `${overallAvgScore}%`}
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-            Composite rating: {overallCompositeScore > 0 ? `${overallCompositeScore}%` : '—'}
-          </p>
+        {/* Container 3: OVERALL AVERAGE ATTENDANCE, OVERALL AVERAGE SCORE, OVERALL COMPOSITE SCORE (3 Layers) */}
+        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+          <Link
+            to="/admin/attendance"
+            className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              OVERALL AVERAGE ATTENDANCE
+            </p>
+            <p
+              className={`text-xs sm:text-sm font-extrabold shrink-0 ${
+                !hasAttendanceData
+                  ? 'text-gray-400 dark:text-slate-500'
+                  : overallAttendanceRate >= 81
+                  ? 'text-risk-low'
+                  : overallAttendanceRate >= 75
+                  ? 'text-risk-medium'
+                  : 'text-risk-high'
+              }`}
+            >
+              {!hasAttendanceData ? '—' : `${overallAttendanceRate}%`}
+            </p>
+          </Link>
+          <Link
+            to="/admin/evaluations"
+            className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              OVERALL AVERAGE SCORE
+            </p>
+            <p
+              className={`text-xs sm:text-sm font-extrabold shrink-0 ${
+                !hasScoreData
+                  ? 'text-gray-400 dark:text-slate-500'
+                  : overallAvgScore >= 81
+                  ? 'text-risk-low'
+                  : overallAvgScore >= 75
+                  ? 'text-risk-medium'
+                  : 'text-risk-high'
+              }`}
+            >
+              {!hasScoreData ? '—' : `${overallAvgScore}%`}
+            </p>
+          </Link>
+          <Link
+            to="/admin/evaluations"
+            className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              OVERALL COMPOSITE SCORE
+            </p>
+            <p
+              className={`text-xs sm:text-sm font-extrabold shrink-0 ${
+                overallCompositeScore === 0
+                  ? 'text-gray-400 dark:text-slate-500'
+                  : overallCompositeScore >= 81
+                  ? 'text-risk-low'
+                  : overallCompositeScore >= 75
+                  ? 'text-risk-medium'
+                  : 'text-risk-high'
+              }`}
+            >
+              {overallCompositeScore > 0 ? `${overallCompositeScore}%` : '—'}
+            </p>
+          </Link>
         </div>
       </div>
 
-      {/* ── 2. Streamlined Dashboard Layout (Clean Surfaces, Focused Hierarchy) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-        {/* ── Left Column (7 cols): Performance Trend & Institutional Directory ── */}
-        <div className="lg:col-span-7 space-y-4">
-          {/* Performance Trend Card */}
-          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-neutral-800">
-              <div className="min-w-0">
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight truncate">
+      {/* ── 3. Main Section: Trend Chart (Left) & Tutor Assessment Status (Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch w-full min-w-0 max-w-full">
+        {/* ── Left Column (9 cols on lg & xl: ~75% width): PNAHS ARAL PERFORMANCE TREND CHART ── */}
+        <div className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3 w-full min-w-0 max-w-full">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 w-full min-w-0 max-w-full shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 shrink-0 pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate">
                   {selectedTutorObj
-                    ? `${selectedTutorObj.full_name.toUpperCase()}'S PERFORMANCE TREND`
-                    : 'ACADEMIC PERFORMANCE TREND'}
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Cohort progress and assessment trajectory over time
-                </p>
+                    ? `${(selectedTutorObj.first_name || selectedTutorObj.full_name?.split(' ')[0] || '').trim().toUpperCase()}'S STUDENTS PERFORMANCE TREND`
+                    : 'PNAHS ARAL PERFORMANCE TREND CHART'}
+                </h3>
               </div>
-
-              {/* Filters */}
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
-                {/* Tutor Filter Select */}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 justify-between sm:justify-end min-w-0 shrink-0">
+                {/* Tutor Filter Dropdown */}
                 <select
                   aria-label="Filter by Tutor Class"
                   value={selectedTutorId}
                   onChange={(e) => setSelectedTutorId(e.target.value)}
-                  style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
-                  className="h-8 px-2.5 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 text-slate-800 dark:text-slate-200 cursor-pointer outline-none transition focus:border-[var(--brand)] max-w-[180px] sm:max-w-[200px] truncate"
+                  className="h-7 sm:h-8 px-2 rounded-sm text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[140px] sm:max-w-[170px] whitespace-nowrap truncate shrink-0"
                 >
                   <option value="all">ALL TUTORS</option>
                   {tutors.map((tutor) => {
@@ -904,17 +1149,30 @@ export const AdminHome: React.FC = () => {
                   })}
                 </select>
 
-                {/* Granularity Tabs */}
-                <div className="flex bg-slate-100 dark:bg-neutral-900 rounded-lg p-0.5 gap-1 shrink-0 border border-slate-200/60 dark:border-neutral-800">
+                {/* Legend */}
+                <div className="flex items-center gap-2 xs:gap-3 shrink-0 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                    <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
+                    <span className="hidden xs:inline whitespace-nowrap">Composite rating</span>
+                    <span className="xs:hidden whitespace-nowrap">Composite</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400 whitespace-nowrap">
+                    <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block shrink-0" />
+                    <span className="truncate max-w-[120px] xs:max-w-none whitespace-nowrap">{adminMilestone}</span>
+                  </div>
+                </div>
+
+                {/* Period Toggles */}
+                <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
                   {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                     <button
                       key={filter}
                       type="button"
                       onClick={() => setTrendFilter(filter)}
-                      className={`rounded-md px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                      className={`rounded-sm px-2.5 sm:px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                         trendFilter === filter
-                          ? 'border border-[#0052B7] dark:border-blue-400 bg-[#0052B7]/10 dark:bg-blue-500/15 text-[#0052B7] dark:text-blue-300 shadow-xs'
-                          : 'border border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                          ? 'bg-[var(--brand)] text-white shadow-xs'
+                          : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                       }`}
                     >
                       {filter}
@@ -925,219 +1183,129 @@ export const AdminHome: React.FC = () => {
             </div>
 
             {/* Chart Canvas */}
-            <div className="relative min-h-[220px] sm:min-h-[250px] w-full mt-4 bg-slate-50/50 dark:bg-neutral-950/40 border border-slate-100 dark:border-neutral-800/80 rounded-lg p-2 sm:p-3 overflow-hidden">
+            <div className="relative min-h-[220px] sm:min-h-[260px] flex-1 w-full mt-3 sm:mt-4 bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-4 sm:py-3 overflow-hidden">
               {chartTrendData.length > 0 ? (
                 <InteractiveAdminPerformanceChart data={chartTrendData} trendFilter={trendFilter} />
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 select-none">
-                  <BarChart2 className="w-8 h-8 text-slate-300 dark:text-neutral-700" />
-                  <p className="text-xs font-semibold text-slate-400 dark:text-slate-500">
-                    No student assessment records found for this selection
+                  <BarChart2 className="w-8 h-8 text-gray-200 dark:text-gray-700" />
+                  <p className="text-xs font-semibold text-gray-400 dark:text-slate-500 whitespace-nowrap">
+                    {trendFilter === 'day' ? 'No recorded score today' : trendFilter === 'week' ? 'No recorded score this week' : 'No recorded score this month'}
+                  </p>
+                  <p className="text-[11px] text-gray-300 dark:text-slate-600 whitespace-nowrap">
+                    Data will appear once scores and attendance are logged for students
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Summary Metrics Strip */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-4 mt-4 border-t border-slate-100 dark:border-neutral-800">
-              <div className="p-2 text-center sm:text-left">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 block">
-                  Highest Score
-                </span>
-                <span className={`inline-flex items-center px-2 py-0.5 mt-1 rounded text-xs font-bold ${chartTrendData.length > 0 ? getScoreBorderBadge(highestScore) : 'text-slate-400'}`}>
-                  {chartTrendData.length > 0 ? `${highestScore}%` : '—'}
-                </span>
-              </div>
-
-              <div className="p-2 text-center sm:text-left">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 block">
-                  Lowest Score
-                </span>
-                <span className={`inline-flex items-center px-2 py-0.5 mt-1 rounded text-xs font-bold ${chartTrendData.length > 0 ? getScoreBorderBadge(lowestScore) : 'text-slate-400'}`}>
-                  {chartTrendData.length > 0 ? `${lowestScore}%` : '—'}
-                </span>
-              </div>
-
-              <div className="p-2 text-center sm:text-left">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 block">
-                  Cohort Trend
-                </span>
-                <span className={`inline-flex items-center px-2 py-0.5 mt-1 rounded text-xs font-bold ${chartTrendData.length > 0 ? trendBadge.className : 'text-slate-400'}`}>
-                  {chartTrendData.length > 0 ? trendBadge.text : '—'}
-                </span>
-              </div>
-
-              <div className="p-2 text-center sm:text-left">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 block">
-                  Active Learners
-                </span>
-                <span className="text-sm font-bold text-slate-900 dark:text-white mt-1 block">
-                  {filteredStudents.length}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Institutional Directory Card */}
-          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-neutral-800">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">
-                  Institutional Directory
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Academic user distribution across stakeholders
-                </p>
+            {/* Bottom Metrics Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 mt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
+              {[
+                {
+                  label: 'Highest',
+                  value: chartTrendData.length === 0 ? '—' : `${highestScore}%`,
+                  color: chartTrendData.length === 0 ? 'text-gray-400 dark:text-slate-500' : highestScore >= 81 ? 'text-risk-low' : highestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
+                },
+                {
+                  label: 'Lowest',
+                  value: chartTrendData.length === 0 ? '—' : `${lowestScore}%`,
+                  color: chartTrendData.length === 0 ? 'text-gray-400 dark:text-slate-500' : lowestScore >= 81 ? 'text-risk-low' : lowestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
+                },
+              ].map((stat) => (
+                <div key={stat.label} className="bg-gray-50/80 dark:bg-[#111111] p-2.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center min-w-0">
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap truncate">{stat.label}</p>
+                  <p className={`text-base sm:text-lg font-extrabold mt-0.5 whitespace-nowrap truncate ${stat.color}`}>{stat.value}</p>
+                </div>
+              ))}
+              <div className="bg-gray-50/80 dark:bg-[#111111] p-2.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center min-w-0">
+                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap truncate">Trend</p>
+                <div className="mt-0.5 whitespace-nowrap truncate">
+                  {chartTrendData.length === 0 ? (
+                    <span className="text-base sm:text-lg font-extrabold text-gray-400 dark:text-slate-500 whitespace-nowrap">—</span>
+                  ) : trendDir === 'up' ? (
+                    <span className="text-base sm:text-lg font-extrabold text-risk-low whitespace-nowrap">Improving</span>
+                  ) : trendDir === 'down' ? (
+                    <span className="text-base sm:text-lg font-extrabold text-risk-high whitespace-nowrap">Declining</span>
+                  ) : (
+                    <span className="text-base sm:text-lg font-extrabold text-gray-500 dark:text-slate-400 whitespace-nowrap">Stable</span>
+                  )}
+                </div>
               </div>
               <Link
-                to="/admin/students"
-                className="text-xs font-semibold text-[#0052B7] dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                to="/admin/evaluations"
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-4 py-2.5 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300 whitespace-nowrap"
               >
-                <span>View All</span>
-                <ArrowUpRight className="w-3.5 h-3.5" />
+                <span className="whitespace-nowrap">See More</span>
+                <span className="font-bold" aria-hidden="true">&gt;</span>
               </Link>
-            </div>
-
-            <div className="divide-y divide-slate-100 dark:divide-neutral-800/80 mt-1">
-              {directoryBreakdown.map((item) => {
-                const percentage = totalDirectory > 0
-                  ? Math.max(1, Math.round((item.count / totalDirectory) * 100))
-                  : 0;
-                return (
-                  <Link
-                    key={item.label}
-                    to={item.link}
-                    className="py-3 px-2 flex items-center justify-between gap-4 text-sm hover:bg-slate-50/50 dark:hover:bg-white/[0.02] rounded-lg transition-colors no-underline"
-                  >
-                    <span className="font-medium text-slate-800 dark:text-slate-200">
-                      {item.label}
-                    </span>
-                    <div className="flex items-center gap-4 shrink-0">
-                      <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">
-                        {percentage}%
-                      </span>
-                      <span className="font-semibold text-slate-900 dark:text-white min-w-[2.5rem] text-right">
-                        {item.count.toLocaleString()}
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
             </div>
           </div>
         </div>
 
-        {/* ── Right Column (5 cols): Administrative Actions & Benchmark Overview ── */}
-        <div className="lg:col-span-5 space-y-4">
-          {/* Core Administrative Actions */}
-          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight pb-4 border-b border-slate-100 dark:border-neutral-800">
-              Administrative Actions
-            </h2>
-            <div className="grid grid-cols-2 gap-2.5 mt-4">
-              <Link
-                to="/admin/students"
-                className="p-3.5 rounded-lg border border-slate-200 dark:border-neutral-800 hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors no-underline group"
-              >
-                <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors">
-                  Students
+        {/* ── Right Column (3 cols on lg & xl: ~25% width): ASSESSMENT STATUS ── */}
+        <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3 w-full min-w-0 max-w-full">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 h-full min-h-[420px] shadow-2xs">
+            {/* Header */}
+            <div className="pb-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">
+                  ASSESSMENT STATUS
+                </h3>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold border shrink-0 ${ratioBadgeClass}`}>
+                  {conductedCount}/{tutors.length}
                 </span>
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">
-                  Manage learners
-                </span>
-              </Link>
-
-              <Link
-                to="/admin/tutors"
-                className="p-3.5 rounded-lg border border-slate-200 dark:border-neutral-800 hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors no-underline group"
-              >
-                <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors">
-                  Tutors
-                </span>
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">
-                  Staff & classes
-                </span>
-              </Link>
-
-              <Link
-                to="/admin/faculty"
-                className="p-3.5 rounded-lg border border-slate-200 dark:border-neutral-800 hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors no-underline group"
-              >
-                <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors">
-                  Faculty
-                </span>
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">
-                  Teaching roster
-                </span>
-              </Link>
-
-              <Link
-                to="/admin/attendance"
-                className="p-3.5 rounded-lg border border-slate-200 dark:border-neutral-800 hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors no-underline group"
-              >
-                <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors">
-                  QR Attendance
-                </span>
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">
-                  Verify logs
-                </span>
-              </Link>
+              </div>
             </div>
-          </div>
 
-          {/* Academic Health Summary */}
-          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight pb-4 border-b border-slate-100 dark:border-neutral-800">
-              Academic Health Summary
-            </h2>
-            <div className="divide-y divide-slate-100 dark:divide-neutral-800/80 mt-1">
-              <div className="py-3 px-2 flex items-center justify-between text-xs">
-                <div>
-                  <p className="font-semibold text-slate-800 dark:text-slate-200">Attendance Compliance</p>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Threshold: 80% target</p>
-                </div>
-                <div className="text-right">
-                  <span className="font-bold text-slate-900 dark:text-white text-sm">
-                    {!hasAttendanceData ? '—' : `${overallAttendanceRate}%`}
-                  </span>
-                </div>
-              </div>
+            {/* Quick Search */}
+            <div className="mt-3 relative w-full shrink-0">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={tutorSearch}
+                onChange={(e) => setTutorSearch(e.target.value)}
+                placeholder="Search Tutor Name"
+                className="w-full h-7.5 pl-8 pr-2.5 rounded-sm bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-xs text-gray-800 dark:text-slate-200 placeholder-gray-400 focus:outline-none focus:border-[var(--brand)]"
+              />
+            </div>
 
-              <div className="py-3 px-2 flex items-center justify-between text-xs">
-                <div>
-                  <p className="font-semibold text-slate-800 dark:text-slate-200">Assessment Average</p>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Cohort grade average</p>
+            {/* Tutors Status List */}
+            <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5">
+              {filteredTutorStatusList.length === 0 ? (
+                <div className="py-8 text-center text-xs text-gray-400 dark:text-slate-500">
+                  {tutors.length === 0 ? 'No tutors enrolled in ARAL Program' : 'No tutors matching search filter'}
                 </div>
-                <div className="text-right">
-                  <span className="font-bold text-slate-900 dark:text-white text-sm">
-                    {!hasScoreData ? '—' : `${overallAvgScore}%`}
-                  </span>
-                </div>
-              </div>
+              ) : (
+                filteredTutorStatusList.map((item) => {
+                  const tutorName = item.tutor.full_name || `${item.tutor.first_name} ${item.tutor.last_name}`;
 
-              <div className="py-3 px-2 flex items-center justify-between text-xs">
-                <div>
-                  <p className="font-semibold text-slate-800 dark:text-slate-200">Composite Rating</p>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Weighted metric (40% att, 60% eval)</p>
-                </div>
-                <div className="text-right">
-                  <span className="font-bold text-[#0052B7] dark:text-blue-400 text-sm">
-                    {overallCompositeScore > 0 ? `${overallCompositeScore}%` : '—'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="py-3 px-2 flex items-center justify-between text-xs">
-                <div>
-                  <p className="font-semibold text-slate-800 dark:text-slate-200">Total Logged Assessments</p>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Recorded grades in system</p>
-                </div>
-                <div className="text-right">
-                  <span className="font-bold text-slate-900 dark:text-white text-sm">
-                    {chartTrendData.reduce((acc, p) => acc + p.actualCount, 0).toLocaleString()}
-                  </span>
-                </div>
-              </div>
+                  return (
+                    <Link
+                      key={item.tutor.id}
+                      to="/admin/evaluations"
+                      className="block p-2.5 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111]/70 hover:bg-gray-100/60 dark:hover:bg-white/[0.03] hover:border-gray-300 dark:hover:border-zinc-700 transition-colors group cursor-pointer shadow-2xs"
+                      title={`View evaluation management for ${tutorName}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-gray-900 dark:text-slate-100 group-hover:text-[var(--brand)] transition-colors truncate">
+                            {tutorName}
+                          </p>
+                          <p className="text-[10.5px] text-gray-400 dark:text-slate-500 mt-0.5">
+                            {item.assignedCount} assigned student{item.assignedCount === 1 ? '' : 's'}
+                          </p>
+                        </div>
+                        <span
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-bold border shrink-0 ${item.badgeClass}`}
+                        >
+                          {item.label}
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

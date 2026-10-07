@@ -109,20 +109,58 @@ class User(AbstractBaseUser, PermissionsMixin):
         READING = 'Reading', 'Reading'
         SCIENCE = 'Science', 'Science'
         MATH    = 'Math',    'Math'
+        ENGLISH = 'English', 'English'
 
     class TutorType(models.TextChoices):
         BASIC  = 'basic',  'Basic Tutor'
         PLUS   = 'plus',   'Plus Tutor'
         SUMMER = 'summer', 'Summer Tutor'
 
-    # Subject handled by the tutor (Reading, Science, or Math)
+    # Subject handled by the tutor or student subject focus (Reading, Science, Math, English)
     subject = models.CharField(
         max_length=20,
         choices=Subject.choices,
         null=True,
         blank=True,
-        verbose_name='Assigned Subject',
-        help_text='Subject handled by the tutor (Reading, Science, or Math).',
+        verbose_name='Assigned Subject / Focus',
+        help_text='Subject handled by the tutor or student subject focus.',
+    )
+
+    # Additional student details for DepEd / ARAL Program compliance
+    grade_level = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name='Grade Level / Section',
+        help_text='e.g. 7 - HYACINTH',
+    )
+    parent_guardian_name = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        verbose_name='Parent / Guardian Name',
+    )
+    contact_number = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        verbose_name='Contact Number',
+    )
+    has_bosy = models.BooleanField(
+        default=True,
+        verbose_name='Undergone BOSY Assessment',
+    )
+    has_mosy = models.BooleanField(
+        default=False,
+        verbose_name='Undergone MOSY Assessment',
+    )
+    has_eosy = models.BooleanField(
+        default=False,
+        verbose_name='Undergone EOSY Assessment',
+    )
+    has_summer = models.BooleanField(
+        default=False,
+        verbose_name='Undergone ARAL Summer Assessment',
     )
 
     tutor_type = models.CharField(

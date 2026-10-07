@@ -311,6 +311,12 @@ export const StudentQRAttendance: React.FC = () => {
 
 
 
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [jumpDate, viewMode]);
+
   // Attendance history helpers
   const sortedHistory = useMemo(() => {
     return [...attendanceLogs].sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
@@ -321,11 +327,21 @@ export const StudentQRAttendance: React.FC = () => {
     [sortedHistory, jumpDate]
   );
 
+  const activeRecords = useMemo(
+    () => (jumpFiltered !== null ? jumpFiltered : sortedHistory),
+    [jumpFiltered, sortedHistory]
+  );
+
+  const paginatedLogs = useMemo(
+    () => activeRecords.slice((currentPage - 1) * 30, currentPage * 30),
+    [activeRecords, currentPage]
+  );
+
   type Group = { key: string; label: string; records: Attendance[] };
   const groupedHistory = useMemo((): Group[] => {
     if (jumpFiltered !== null) return [];
     const grouped = new Map<string, Attendance[]>();
-    for (const log of sortedHistory) {
+    for (const log of paginatedLogs) {
       const key = viewMode === 'week' ? getWeekKey(log.date) : getMonthKey(log.date);
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key)!.push(log);
@@ -337,10 +353,10 @@ export const StudentQRAttendance: React.FC = () => {
         label: viewMode === 'week' ? weekLabel(key) : monthLabel(key),
         records,
       }));
-  }, [sortedHistory, viewMode, jumpFiltered]);
+  }, [paginatedLogs, viewMode, jumpFiltered]);
 
   const timeGroupedHistory = useMemo((): Group[] => {
-    const source = jumpFiltered ?? sortedHistory;
+    const source = paginatedLogs;
     const grouped = new Map<string, Attendance[]>();
     for (const log of source) {
       const timeStr = log.time_in ? formatTimeString(log.time_in) : '—';
@@ -356,7 +372,7 @@ export const StudentQRAttendance: React.FC = () => {
         records,
       };
     });
-  }, [sortedHistory, jumpFiltered]);
+  }, [paginatedLogs]);
 
   const toggleSort = (key: SortKey) => {
     setSortConfig((prev) => ({
@@ -807,46 +823,39 @@ export const StudentQRAttendance: React.FC = () => {
       {/* ── Attendance Stat Containers ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* TOTAL PRESENT */}
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800/40 dark:bg-emerald-950/20 p-4 flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-md bg-emerald-100 dark:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center shrink-0">
-            <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
-          </div>
+        <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+          <Check className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">TOTAL PRESENT</p>
             <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{totalPresent}</p>
-            <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s total present records</p>
+            <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s total present records</p>
           </div>
         </div>
 
         {/* TOTAL ABSENT */}
-        <div className="rounded-md border border-rose-200 bg-rose-50 dark:border-rose-800/40 dark:bg-rose-950/20 p-4 flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-md bg-rose-100 dark:bg-rose-900/50 border border-rose-200 dark:border-rose-800/60 flex items-center justify-center shrink-0">
-            <X className="w-5 h-5 text-rose-600 dark:text-rose-400" strokeWidth={3} />
-          </div>
+        <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+          <X className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">TOTAL ABSENT</p>
             <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{totalAbsent}</p>
-            <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s total absent records</p>
+            <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s total absent records</p>
           </div>
         </div>
 
         {/* AVERAGE ATTENDANCE RATE */}
-        <div className="rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-4 flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-md bg-indigo-100 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shrink-0">
-            <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-          </div>
+        <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE ATTENDANCE RATE</p>
             <p className="text-2xl font-extrabold mt-0.5 text-gray-900 dark:text-slate-100">
               {hasAttendanceData ? `${smartPct(attendanceRate)}%` : '—'}
             </p>
-            <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s average attendance rate</p>
+            <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s average attendance rate</p>
           </div>
         </div>
       </div>
 
       {/* ── Attendance History ──── */}
-      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
+      <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
         {/* Section Header with Pills and Calendar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
           <div>

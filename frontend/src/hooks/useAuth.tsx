@@ -17,7 +17,8 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
-    const storedUser = localStorage.getItem('user');
+    // Session-based authentication: closing the browser or tab terminates the session.
+    const storedUser = sessionStorage.getItem('user');
     return storedUser ? JSON.parse(storedUser) : null;
   });
 
@@ -28,9 +29,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
     resetActivity();
-    localStorage.setItem('access_token', response.access);
-    localStorage.setItem('refresh_token', response.refresh);
-    localStorage.setItem('user', JSON.stringify(response.user));
+    sessionStorage.setItem('aralert_login_greeting_pending', 'true');
+    sessionStorage.setItem('access_token', response.access);
+    sessionStorage.setItem('refresh_token', response.refresh);
+    sessionStorage.setItem('user', JSON.stringify(response.user));
+    // Clean up any legacy localStorage keys
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
     setUser(response.user);
   };
 
@@ -48,18 +54,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateProfile = async (data: FormData) => {
     const updatedUser = await authService.updateProfile(data);
-    localStorage.setItem('user', JSON.stringify(updatedUser));
+    sessionStorage.setItem('user', JSON.stringify(updatedUser));
+    localStorage.removeItem('user');
     setUser(updatedUser);
     return updatedUser;
   };
 
   const logout = async () => {
-    const refreshToken = localStorage.getItem('refresh_token');
+    const refreshToken = sessionStorage.getItem('refresh_token') || localStorage.getItem('refresh_token');
     try {
       await authService.logout(refreshToken);
     } catch (error) {
       console.warn('Logout request failed', error);
     }
+    sessionStorage.removeItem('aralert_login_greeting_pending');
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('user');
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
@@ -73,7 +84,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const profile = await authService.getProfile();
         setUser(profile);
-        localStorage.setItem('user', JSON.stringify(profile));
+        sessionStorage.setItem('user', JSON.stringify(profile));
+        localStorage.removeItem('user');
       } catch {
         await logout();
       }

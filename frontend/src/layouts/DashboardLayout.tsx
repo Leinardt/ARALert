@@ -6,8 +6,8 @@ import { useTheme } from '../hooks/useTheme';
 import {
   LayoutDashboard, Users, User as UserIcon, UserCheck, LogOut, QrCode, Scan,
   Award, Bell, ChevronDown, ChevronUp, Shield, BookOpen, X, FileText, Moon, Sun,
-  PanelLeftClose, PanelLeftOpen, Menu, AlertTriangle, Settings as SettingsIcon,
-  Clock, CheckCircle2, XCircle, AlertCircle, RefreshCw,
+  PanelLeftClose, PanelLeftOpen, Menu, AlertTriangle, Calendar, Check,
+  Clock, CheckCircle2, XCircle, AlertCircle, RefreshCw, Archive, History,
 } from 'lucide-react';
 import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
@@ -55,6 +55,178 @@ const SidebarIcon: React.FC<{
     style={{ background: 'transparent' }}
   />
 );
+
+const AssessmentNavIcon: React.FC<{ active?: boolean; theme?: 'light' | 'dark'; size?: number }> = ({
+  active = false,
+  theme = 'light',
+  size = 18,
+}) => {
+  if (!active) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="sidebar-icon"
+        style={{ width: size, height: size, flexShrink: 0 }}
+      >
+        <circle cx="12" cy="8.5" r="5.5" />
+        <path d="M8.21 13.89L7 22l5-3 5 3-1.21-8.11" />
+      </svg>
+    );
+  }
+
+  const isDark = theme === 'dark';
+  const fillColor = isDark ? '#FFFFFF' : '#0052B7';
+  const detailColor = isDark ? '#000000' : '#FFFFFF';
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      className="sidebar-icon active"
+      style={{ width: size, height: size, flexShrink: 0 }}
+    >
+      <path
+        d="M8.21 13.5L6.5 22l5.5-3 5.5 3-1.71-8.5"
+        fill={fillColor}
+        stroke={fillColor}
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 14.5v3.5"
+        stroke={detailColor}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="8.5" r="5.8" fill={fillColor} stroke={fillColor} strokeWidth="0.8" />
+      <path
+        d="M12 5.2l.9 1.9 2.1.3-1.5 1.5.35 2.1-1.85-1-1.85 1 .35-2.1-1.5-1.5 2.1-.3z"
+        fill={detailColor}
+      />
+    </svg>
+  );
+};
+
+const ArchiveNavIcon: React.FC<{ active?: boolean; theme?: 'light' | 'dark'; size?: number }> = ({
+  active = false,
+  theme = 'light',
+  size = 18,
+}) => {
+  if (!active) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="sidebar-icon"
+        style={{ width: size, height: size, flexShrink: 0 }}
+      >
+        <rect x="3" y="3.5" width="18" height="4.5" rx="1.5" />
+        <path d="M4.5 8v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8" />
+        <line x1="10" y1="13" x2="14" y2="13" />
+      </svg>
+    );
+  }
+
+  const isDark = theme === 'dark';
+  const fillColor = isDark ? '#FFFFFF' : '#0052B7';
+  const detailColor = isDark ? '#000000' : '#FFFFFF';
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      className="sidebar-icon active"
+      style={{ width: size, height: size, flexShrink: 0 }}
+    >
+      <path
+        d="M4.5 8.5v10.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8.5z"
+        fill={fillColor}
+        stroke={fillColor}
+        strokeWidth="0.8"
+      />
+      <rect x="3" y="3.5" width="18" height="5" rx="1.5" fill={fillColor} stroke={fillColor} strokeWidth="0.8" />
+      <line x1="3" y1="8.5" x2="21" y2="8.5" stroke={detailColor} strokeWidth="1.3" />
+      <rect x="9.5" y="12.5" width="5" height="2.2" rx="1" fill={detailColor} />
+    </svg>
+  );
+};
+
+const AuditLogNavIcon: React.FC<{ active?: boolean; theme?: 'light' | 'dark'; size?: number }> = ({
+  active = false,
+  theme = 'light',
+  size = 18,
+}) => {
+  if (!active) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="sidebar-icon"
+        style={{ width: size, height: size, flexShrink: 0 }}
+      >
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+        <line x1="10" y1="9" x2="8" y2="9" />
+      </svg>
+    );
+  }
+
+  const isDark = theme === 'dark';
+  const fillColor = isDark ? '#FFFFFF' : '#0052B7';
+  const detailColor = isDark ? '#000000' : '#FFFFFF';
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      className="sidebar-icon active"
+      style={{ width: size, height: size, flexShrink: 0 }}
+    >
+      <path
+        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+        fill={fillColor}
+        stroke={fillColor}
+        strokeWidth="0.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14 2v6h6"
+        fill="none"
+        stroke={detailColor}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <line x1="16" y1="12.5" x2="8" y2="12.5" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" />
+      <line x1="16" y1="16.5" x2="8" y2="16.5" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" />
+      <line x1="10.5" y1="8.5" x2="8" y2="8.5" stroke={detailColor} strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+};
 
 const AssetSidebarIcon: React.FC<{
   darkSrc: string;
@@ -169,7 +341,8 @@ export const DashboardLayout: React.FC = () => {
   const getPageTitle = () => {
     const p = location.pathname;
     if (p.includes('/audit-logs')) return 'Audit Log';
-    if (p.includes('/evaluations')) return 'Evaluation & Transition Hub';
+    if (p.includes('/archive')) return 'Archive';
+    if (p.includes('/evaluations')) return 'Assessment';
     if (p.includes('/superadmin/users')) return 'User Management';
     if (p.includes('/admin/students') || p.includes('/admin/tutors') || p.includes('/admin/faculty') || p.includes('/admin/principals') || p.includes('/admin/users')) return 'User Management';
     if (p.includes('/tutor/students')) return 'Assigned Students';
@@ -189,12 +362,12 @@ export const DashboardLayout: React.FC = () => {
   const [moderateRiskStudents, setModerateRiskStudents] = useState<StudentRiskRow[]>([]);
   const [showRiskList, setShowRiskList] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [acknowledgingStudent, setAcknowledgingStudent] = useState<StudentRiskRow | null>(null);
-  const [acknowledgeNote, setAcknowledgeNote] = useState('');
+  const [acknowledgedAlerts, setAcknowledgedAlerts] = useState<Record<string, boolean>>({});
   const [acknowledgedNotes, setAcknowledgedNotes] = useState<Record<string, string>>({});
   const [acknowledgedRiskIds, setAcknowledgedRiskIds] = useState<Record<string, number>>({});
   const [studentNotes, setStudentNotes] = useState<AcademicRisk[]>([]);
-  const [showStudentNotes, setShowStudentNotes] = useState(false);
+  const [showStudentEditRequests, setShowStudentEditRequests] = useState(false);
+  const [showStudentHighRisk, setShowStudentHighRisk] = useState(false);
   const [pendingEditRequestsCount, setPendingEditRequestsCount] = useState<number>(0);
   const [myEditRequests, setMyEditRequests] = useState<StudentEditRequest[]>([]);
   const [isLoadingEditRequests, setIsLoadingEditRequests] = useState<boolean>(false);
@@ -284,7 +457,7 @@ export const DashboardLayout: React.FC = () => {
       setModerateRiskStudents([]);
       // The alert badge and High Risk section both represent every student
       // currently classified as High risk, regardless of acknowledgement notes.
-      setHighRiskCount(highRiskRows.length);
+      setAcknowledgedAlerts(Object.fromEntries(Object.keys(latestResolvedRiskByStudent).map((id) => [id, true])));
       setAcknowledgedNotes(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.details])));
       setAcknowledgedRiskIds(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.id])));
     } catch (error) {
@@ -292,46 +465,30 @@ export const DashboardLayout: React.FC = () => {
     }
   };
 
-  const handleAcknowledgeInitiate = (row: StudentRiskRow) => {
-    setAcknowledgingStudent(row);
-    setAcknowledgeNote(acknowledgedNotes[row.student.id] ?? '');
-  };
-
-  const handleAcknowledgeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!acknowledgingStudent) return;
-    const noteText = acknowledgeNote || `Acknowledged ${acknowledgingStudent.student.full_name}`;
-    const existingRiskId = acknowledgedRiskIds[acknowledgingStudent.student.id];
-    // Derive the correct risk level from the student's computed tier
+  const handleAcknowledgeAlert = async (row: StudentRiskRow) => {
+    const existingRiskId = acknowledgedRiskIds[row.student.id];
     const studentRiskLevel: AcademicRisk['risk_level'] =
-      acknowledgingStudent.riskTier === 'High' ? 'high'
-        : acknowledgingStudent.riskTier === 'Medium' ? 'medium'
+      row.riskTier === 'High' ? 'high'
+        : row.riskTier === 'Medium' ? 'medium'
           : 'low';
+    const noteText = `Alert addressed by Tutor. Target: +${row.neededPresentAttendance} more present records, +${row.neededPassedScores} more passed records.`;
     try {
       if (existingRiskId) {
         await academicService.updateAcademicRisk(existingRiskId, { details: noteText, resolved: true });
       } else {
         const newRisk = await academicService.createAcademicRisk({
-          student: acknowledgingStudent.student.id,
+          student: row.student.id,
           risk_level: studentRiskLevel,
           details: noteText,
           resolved: true,
         });
-        setAcknowledgedRiskIds((prev) => ({ ...prev, [acknowledgingStudent.student.id]: newRisk.id }));
+        setAcknowledgedRiskIds((prev) => ({ ...prev, [row.student.id]: newRisk.id }));
       }
-      setAcknowledgedNotes((prev) => ({ ...prev, [acknowledgingStudent.student.id]: noteText }));
-      setAcknowledgingStudent(null);
-      setAcknowledgeNote('');
-      await fetchRiskStudents();
-      setShowRiskList(true);
+      setAcknowledgedAlerts((prev) => ({ ...prev, [row.student.id]: true }));
+      setAcknowledgedNotes((prev) => ({ ...prev, [row.student.id]: noteText }));
     } catch (error) {
-      console.error('Failed to acknowledge risk', error);
+      console.error('Failed to acknowledge risk alert', error);
     }
-  };
-
-  const handleAcknowledgeCancel = () => {
-    setAcknowledgingStudent(null);
-    setAcknowledgeNote('');
   };
 
   const fetchStudentNotes = async () => {
@@ -382,16 +539,21 @@ export const DashboardLayout: React.FC = () => {
   useEffect(() => { fetchStudentNotes(); }, [user]);
   useEffect(() => { fetchEditRequests(); }, [user, location.pathname]);
   useEffect(() => {
-    if (showTutorNotifications || showStudentNotes) {
+    if (showTutorNotifications || showStudentEditRequests || showEditRequestsModal) {
       fetchEditRequests();
     }
-  }, [showTutorNotifications, showStudentNotes]);
+    if (showStudentHighRisk) {
+      fetchStudentNotes();
+    }
+  }, [showTutorNotifications, showStudentEditRequests, showStudentHighRisk, showEditRequestsModal]);
   useEffect(() => {
     setProfileMenuOpen(false);
     setIsMobileDrawerOpen(false);
     setShowRiskList(false);
     setShowTutorNotifications(false);
-    setShowStudentNotes(false);
+    setShowStudentEditRequests(false);
+    setShowStudentHighRisk(false);
+    setShowEditRequestsModal(false);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -411,11 +573,6 @@ export const DashboardLayout: React.FC = () => {
         {/* SuperAdmin nav */}
         {user?.is_superuser && (
           <>
-            {!collapsed ? (
-              <span className="sidebar-section-label">Management</span>
-            ) : (
-              <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.4rem 0.5rem' }} />
-            )}
             <Link to="/superadmin" onClick={onItemClick} className={navLinkClass(isActive('/superadmin'), collapsed)} title="Dashboard">
               <AssetSidebarIcon
                 darkSrc={dashboardDarkDefault}
@@ -432,20 +589,38 @@ export const DashboardLayout: React.FC = () => {
             <Link
               to="/superadmin/users"
               onClick={onItemClick}
-              className={navLinkClass(isActivePrefix('/superadmin/users'), collapsed)}
+              className={navLinkClass(isActivePrefix('/superadmin/users') || isActivePrefix('/superadmin/students') || isActivePrefix('/superadmin/tutors') || isActivePrefix('/superadmin/faculty') || isActivePrefix('/superadmin/principals') || isActivePrefix('/superadmin/admins'), collapsed)}
               title="User Management"
             >
-              <SidebarIcon Icon={Users} active={isActivePrefix('/superadmin/users')} />
+              <AssetSidebarIcon
+                darkSrc={studentsDarkDefault}
+                darkActiveSrc={studentsDarkActive}
+                lightSrc={studentsLightDefault}
+                lightActiveSrc={studentsLightActive}
+                active={isActivePrefix('/superadmin/users') || isActivePrefix('/superadmin/students') || isActivePrefix('/superadmin/tutors') || isActivePrefix('/superadmin/faculty') || isActivePrefix('/superadmin/principals') || isActivePrefix('/superadmin/admins')}
+                alt="User Management"
+                size={18}
+                theme={theme}
+              />
               {!collapsed && <span className="truncate">User Management</span>}
             </Link>
             <Link
               to="/superadmin/evaluations"
               onClick={onItemClick}
               className={navLinkClass(isActivePrefix('/superadmin/evaluations'), collapsed)}
-              title="Evaluation & Transition"
+              title="Assessment"
             >
-              <SidebarIcon Icon={Award} active={isActivePrefix('/superadmin/evaluations')} />
-              {!collapsed && <span className="truncate">Evaluation & Transition</span>}
+              <AssessmentNavIcon active={isActivePrefix('/superadmin/evaluations')} theme={theme} />
+              {!collapsed && <span className="truncate">Assessment</span>}
+            </Link>
+            <Link
+              to="/superadmin/archive"
+              onClick={onItemClick}
+              className={navLinkClass(isActivePrefix('/superadmin/archive'), collapsed)}
+              title="Archive"
+            >
+              <ArchiveNavIcon active={isActivePrefix('/superadmin/archive')} theme={theme} />
+              {!collapsed && <span className="truncate">Archive</span>}
             </Link>
             <Link
               to="/superadmin/audit-logs"
@@ -453,7 +628,7 @@ export const DashboardLayout: React.FC = () => {
               className={navLinkClass(isActivePrefix('/superadmin/audit-logs'), collapsed)}
               title="Audit Log"
             >
-              <SidebarIcon Icon={FileText} active={isActivePrefix('/superadmin/audit-logs')} />
+              <AuditLogNavIcon active={isActivePrefix('/superadmin/audit-logs')} theme={theme} />
               {!collapsed && <span className="truncate">Audit Log</span>}
             </Link>
           </>
@@ -497,10 +672,19 @@ export const DashboardLayout: React.FC = () => {
               to="/admin/evaluations"
               onClick={onItemClick}
               className={navLinkClass(isActivePrefix('/admin/evaluations'), collapsed)}
-              title="Evaluation & Transition"
+              title="Assessment"
             >
-              <SidebarIcon Icon={Award} active={isActivePrefix('/admin/evaluations')} />
-              {!collapsed && <span className="truncate">Evaluation & Transition</span>}
+              <AssessmentNavIcon active={isActivePrefix('/admin/evaluations')} theme={theme} />
+              {!collapsed && <span className="truncate">Assessment</span>}
+            </Link>
+            <Link
+              to="/admin/archive"
+              onClick={onItemClick}
+              className={navLinkClass(isActivePrefix('/admin/archive'), collapsed)}
+              title="Archive"
+            >
+              <ArchiveNavIcon active={isActivePrefix('/admin/archive')} theme={theme} />
+              {!collapsed && <span className="truncate">Archive</span>}
             </Link>
             <Link
               to="/admin/audit-logs"
@@ -508,24 +692,24 @@ export const DashboardLayout: React.FC = () => {
               className={navLinkClass(isActivePrefix('/admin/audit-logs'), collapsed)}
               title="Audit Log"
             >
-              <SidebarIcon Icon={FileText} active={isActivePrefix('/admin/audit-logs')} />
+              <AuditLogNavIcon active={isActivePrefix('/admin/audit-logs')} theme={theme} />
               {!collapsed && <span className="truncate">Audit Log</span>}
             </Link>
 
             <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0' }} />
 
-            <Link to="/admin/attendance" onClick={onItemClick} className={navLinkClass(isActive('/admin/attendance'), collapsed)} title="QR Attendance">
+            <Link to="/admin/attendance" onClick={onItemClick} className={navLinkClass(isActive('/admin/attendance'), collapsed)} title="DTR Log">
               <AssetSidebarIcon
-                darkSrc={qrDarkDefault}
-                darkActiveSrc={qrDarkActive}
-                lightSrc={qrLightDefault}
-                lightActiveSrc={qrLightActive}
+                darkSrc={clockDarkDefault}
+                darkActiveSrc={clockDarkActive}
+                lightSrc={clockLightDefault}
+                lightActiveSrc={clockLightActive}
                 active={isActive('/admin/attendance')}
-                alt="QR Attendance"
+                alt="DTR Log"
                 size={18}
                 theme={theme}
               />
-              {!collapsed && <span className="truncate">QR Attendance</span>}
+              {!collapsed && <span className="truncate">DTR Log</span>}
             </Link>
           </>
         )}
@@ -666,24 +850,22 @@ export const DashboardLayout: React.FC = () => {
         {/* Faculty nav */}
         {user?.role === 'faculty' && (
           <>
-            {!collapsed ? (
-              <span className="sidebar-section-label">Faculty</span>
-            ) : (
-              <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.4rem 0.5rem' }} />
-            )}
-            <Link to="/faculty" onClick={onItemClick} className={navLinkClass(isActive('/faculty'), collapsed)} title="Faculty Home">
+            <Link to="/faculty" onClick={onItemClick} className={navLinkClass(isActive('/faculty'), collapsed)} title="Dashboard">
               <AssetSidebarIcon
                 darkSrc={dashboardDarkDefault}
                 darkActiveSrc={dashboardDarkActive}
                 lightSrc={dashboardLightDefault}
                 lightActiveSrc={dashboardLightActive}
                 active={isActive('/faculty')}
-                alt="Faculty Home"
+                alt="Dashboard"
                 size={18}
                 theme={theme}
               />
-              {!collapsed && <span className="truncate">Faculty Home</span>}
+              {!collapsed && <span className="truncate">Dashboard</span>}
             </Link>
+
+            <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0' }} />
+
             <Link to="/staff/scan" onClick={onItemClick} className={navLinkClass(isActive('/staff/scan'), collapsed)} title="DTR Log">
               <AssetSidebarIcon
                 darkSrc={clockDarkDefault}
@@ -1173,7 +1355,8 @@ export const DashboardLayout: React.FC = () => {
                   onClick={() => {
                     setShowRiskList((prev) => !prev);
                     setShowTutorNotifications(false);
-                    setShowStudentNotes(false);
+                    setShowStudentEditRequests(false);
+                    setShowStudentHighRisk(false);
                     setProfileMenuOpen(false);
                     setIsRiskShaking(true);
                     setRiskShakeKey((prev) => prev + 1);
@@ -1282,7 +1465,7 @@ export const DashboardLayout: React.FC = () => {
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <AlertTriangle size={15} color="#EF4444" />
+                          <AlertTriangle size={15} className="text-slate-600 dark:text-slate-300" />
                           <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                             HIGH RISK STUDENTS ALERT
                           </p>
@@ -1311,80 +1494,106 @@ export const DashboardLayout: React.FC = () => {
                       </div>
 
                       {/* Risk list body */}
-                      <div style={{ maxHeight: 'min(420px, calc(100vh - 140px))', overflowY: 'auto', padding: '0.75rem sm:1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                        {/* High risk */}
-                        <div style={{ background: 'var(--risk-high-bg)', border: '1px solid var(--risk-high-border)', borderRadius: '10px', padding: '0.75rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <div>
-                              <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 800, color: 'var(--risk-high-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>High Risk</p>
-                            </div>
-                            <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.72rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid var(--risk-high-border)' }}>
-                              {highRiskStudents.length}
-                            </span>
+                      <div
+                        style={{
+                          maxHeight: 'min(420px, calc(100vh - 140px))',
+                          overflowY: 'auto',
+                          background: 'var(--risk-high-bg)',
+                          padding: '0.875rem 1rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.75rem',
+                        }}
+                      >
+                        {/* Section header */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.125rem' }}>
+                          <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 800, color: 'var(--risk-high-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            High Risk
+                          </p>
+                          <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.72rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid var(--risk-high-border)' }}>
+                            {highRiskStudents.length}
+                          </span>
+                        </div>
+
+                        {highRiskStudents.length === 0 ? (
+                          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>
+                              No high-risk students detected.
+                            </p>
                           </div>
-                          {highRiskStudents.length === 0 ? (
-                            <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0, padding: '0.5rem 0' }}>No high-risk students detected.</p>
-                          ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                              {highRiskStudents.map((row) => (
-                                <div key={`high-${row.student.id}`} style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.65rem 0.75rem' }}>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                            {highRiskStudents.map((row) => (
+                              <div
+                                key={`high-${row.student.id}`}
+                                className="rounded-xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#0A0A0A] p-3.5 space-y-2.5 shadow-2xs"
+                              >
+                                <div className="flex items-start justify-between gap-2">
                                   <Link
                                     to={`/tutor/students/${row.student.id}`}
                                     state={{ from: 'dashboard' }}
                                     onClick={() => setShowRiskList(false)}
-                                    style={{ textDecoration: 'none', display: 'block' }}
-                                    className="group"
+                                    className="group min-w-0 flex-1 no-underline"
                                   >
-                                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                      <div className="min-w-0 flex-1">
-                                        <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }} className="group-hover:text-[var(--brand)] transition-colors break-words">
-                                          {row.student.full_name}
-                                        </p>
-                                        <p style={{ margin: '3px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                          Composite: <span style={{ fontWeight: 700, color: 'var(--risk-high-text)' }}>{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
-                                        </p>
-                                        {acknowledgedNotes[row.student.id] && (
-                                          <div style={{ marginTop: '5px' }}>
-                                            <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4, wordBreak: 'break-word' }}>
-                                              {acknowledgedNotes[row.student.id]}
-                                            </p>
-                                          </div>
-                                        )}
-                                      </div>
-                                      <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.65rem', fontWeight: 800, borderRadius: '4px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0, border: '1px solid var(--risk-high-border)' }}>HIGH</span>
-                                    </div>
+                                    <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-[var(--brand)] transition-colors truncate m-0">
+                                      {row.student.full_name}
+                                    </p>
+                                    <p className="text-[11px] text-slate-400 font-mono m-0 mt-0.5">
+                                      LRN: {row.student.lrn || 'N/A'}
+                                    </p>
                                   </Link>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAcknowledgeInitiate(row)}
-                                    style={{
-                                      marginTop: '0.5rem',
-                                      width: '100%',
-                                      minHeight: '38px',
-                                      padding: '6px 10px',
-                                      borderRadius: '6px',
-                                      border: '1px solid var(--slate-200)',
-                                      background: 'var(--surface-muted)',
-                                      color: 'var(--text-secondary)',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 700,
-                                      cursor: 'pointer',
-                                      transition: 'var(--transition-fast)',
-                                      fontFamily: 'var(--font-body)',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                    }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand-dark)'; }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                                  >
-                                    {acknowledgedNotes[row.student.id] ? 'Edit Note' : 'Acknowledge Risk'}
-                                  </button>
+                                  <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
+                                    HIGH RISK
+                                  </span>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+
+                                {/* Composite score */}
+                                <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
+                                  <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Composite Score:</span>
+                                  <span className="font-extrabold text-rose-600 dark:text-rose-400">{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
+                                </div>
+
+                                {/* Recovery targets: matching text format */}
+                                <div className="flex flex-col gap-1.5 pt-0.5">
+                                  {row.neededPresentAttendance > 0 && (
+                                    <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50">
+                                      Need +{row.neededPresentAttendance} more Present records to improve risk level
+                                    </span>
+                                  )}
+                                  {row.neededPassedScores > 0 && (
+                                    <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
+                                      Need +{row.neededPassedScores} more Passed records to improve risk level
+                                    </span>
+                                  )}
+                                  {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
+                                    <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
+                                      Need +1 more Passed record to improve risk level
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Direct Acknowledge Alert button */}
+                                <div className="pt-2 border-t border-slate-100 dark:border-neutral-800">
+                                  {acknowledgedAlerts[row.student.id] ? (
+                                    <div className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-lg">
+                                      <Check size={14} className="stroke-[3]" />
+                                      <span>Alert Addressed</span>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAcknowledgeAlert(row)}
+                                      className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                                    >
+                                      <CheckCircle2 size={14} />
+                                      <span>Acknowledge Alert</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </>
@@ -1398,28 +1607,30 @@ export const DashboardLayout: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowEditRequestsModal(true);
+                    setShowEditRequestsModal((prev) => !prev);
+                    setShowRiskList(false);
+                    setProfileMenuOpen(false);
                     setIsEditBellRinging(true);
                     setEditBellRingKey((prev) => prev + 1);
                   }}
-                  aria-label="EDIT REQUESTS"
+                  aria-label="Edit Request Notifications"
                   title={
                     pendingEditRequestsCount > 0
-                      ? `${pendingEditRequestsCount} EDIT REQUEST(S) Pending Review`
-                      : 'EDIT REQUESTS'
+                      ? `${pendingEditRequestsCount} Edit Request Notification(s) Pending Review`
+                      : 'Edit Request Notifications'
                   }
                   style={{
                     position: 'relative',
                     width: '38px',
                     height: '38px',
                     borderRadius: '10px',
-                    background: pendingEditRequestsCount > 0 ? 'rgba(245, 158, 11, 0.12)' : 'var(--surface-muted)',
-                    border: pendingEditRequestsCount > 0 ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid var(--slate-200)',
+                    background: 'var(--surface-muted)',
+                    border: '1px solid var(--slate-200)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    color: pendingEditRequestsCount > 0 ? '#D97706' : 'var(--text-secondary)',
+                    color: 'var(--text-secondary)',
                     transition: 'var(--transition-fast)',
                   }}
                   onMouseDown={(e) => {
@@ -1429,15 +1640,15 @@ export const DashboardLayout: React.FC = () => {
                     e.currentTarget.style.transform = 'scale(1)';
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = pendingEditRequestsCount > 0 ? 'rgba(245, 158, 11, 0.2)' : 'var(--brand-light)';
-                    e.currentTarget.style.color = pendingEditRequestsCount > 0 ? '#B45309' : 'var(--brand-dark)';
-                    e.currentTarget.style.borderColor = pendingEditRequestsCount > 0 ? '#F59E0B' : 'var(--brand-border)';
+                    e.currentTarget.style.background = 'var(--brand-light)';
+                    e.currentTarget.style.color = 'var(--brand-dark)';
+                    e.currentTarget.style.borderColor = 'var(--brand-border)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.background = pendingEditRequestsCount > 0 ? 'rgba(245, 158, 11, 0.12)' : 'var(--surface-muted)';
-                    e.currentTarget.style.color = pendingEditRequestsCount > 0 ? '#D97706' : 'var(--text-secondary)';
-                    e.currentTarget.style.borderColor = pendingEditRequestsCount > 0 ? 'rgba(245, 158, 11, 0.45)' : 'var(--slate-200)';
+                    e.currentTarget.style.background = 'var(--surface-muted)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.borderColor = 'var(--slate-200)';
                   }}
                 >
                   <span
@@ -1479,6 +1690,15 @@ export const DashboardLayout: React.FC = () => {
                     </span>
                   )}
                 </button>
+
+                {/* Edit Request Notifications Dropdown Popup */}
+                {showEditRequestsModal && (
+                  <StudentEditRequestsModal
+                    isOpen={showEditRequestsModal}
+                    onClose={() => setShowEditRequestsModal(false)}
+                    onRequestReviewed={fetchEditRequests}
+                  />
+                )}
               </div>
             )}
 
@@ -1490,24 +1710,30 @@ export const DashboardLayout: React.FC = () => {
                   onClick={() => {
                     setShowTutorNotifications((prev) => !prev);
                     setShowRiskList(false);
+                    setShowStudentEditRequests(false);
+                    setShowStudentHighRisk(false);
                     setProfileMenuOpen(false);
                     setIsBellRinging(true);
                     setBellRingKey((prev) => prev + 1);
                   }}
-                  aria-label="Notifications"
-                  title="Notifications"
+                  aria-label="Edit Request Notifications"
+                  title={
+                    pendingEditRequestsCount > 0
+                      ? `${pendingEditRequestsCount} Edit Request Notification(s)`
+                      : 'Edit Request Notifications'
+                  }
                   style={{
                     position: 'relative',
                     width: '38px',
                     height: '38px',
                     borderRadius: '10px',
-                    background: pendingEditRequestsCount > 0 ? 'rgba(245, 158, 11, 0.12)' : 'var(--surface-muted)',
-                    border: pendingEditRequestsCount > 0 ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid var(--slate-200)',
+                    background: 'var(--surface-muted)',
+                    border: '1px solid var(--slate-200)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    color: pendingEditRequestsCount > 0 ? '#D97706' : 'var(--text-secondary)',
+                    color: 'var(--text-secondary)',
                     transition: 'var(--transition-fast)',
                   }}
                   onMouseDown={(e) => {
@@ -1517,15 +1743,15 @@ export const DashboardLayout: React.FC = () => {
                     e.currentTarget.style.transform = 'scale(1)';
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = pendingEditRequestsCount > 0 ? 'rgba(245, 158, 11, 0.2)' : 'var(--brand-light)';
-                    e.currentTarget.style.color = pendingEditRequestsCount > 0 ? '#B45309' : 'var(--brand-dark)';
-                    e.currentTarget.style.borderColor = pendingEditRequestsCount > 0 ? '#F59E0B' : 'var(--brand-border)';
+                    e.currentTarget.style.background = 'var(--brand-light)';
+                    e.currentTarget.style.color = 'var(--brand-dark)';
+                    e.currentTarget.style.borderColor = 'var(--brand-border)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.background = pendingEditRequestsCount > 0 ? 'rgba(245, 158, 11, 0.12)' : 'var(--surface-muted)';
-                    e.currentTarget.style.color = pendingEditRequestsCount > 0 ? '#D97706' : 'var(--text-secondary)';
-                    e.currentTarget.style.borderColor = pendingEditRequestsCount > 0 ? 'rgba(245, 158, 11, 0.45)' : 'var(--slate-200)';
+                    e.currentTarget.style.background = 'var(--surface-muted)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.borderColor = 'var(--slate-200)';
                   }}
                 >
                   <span
@@ -1595,7 +1821,7 @@ export const DashboardLayout: React.FC = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <Bell size={15} className="text-slate-600 dark:text-slate-300" />
                           <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                            NOTIFICATIONS & REQUESTS
+                            EDIT REQUEST NOTIFICATION
                           </p>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -1773,136 +1999,177 @@ export const DashboardLayout: React.FC = () => {
               </div>
             )}
 
-            {/* Notification Bell (Student role) */}
+            {/* Student Notifications: Edit Request Notifications & High Risk Alerts */}
             {user?.role === 'student' && (
-              <div style={{ position: 'relative' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowStudentNotes((visible) => !visible);
-                    setIsBellRinging(true);
-                    setBellRingKey((prev) => prev + 1);
-                  }}
-                  aria-label="Tutor notes & notifications"
-                  title="Tutor Notes & Notifications"
-                  style={{
-                    position: 'relative',
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    background: 'var(--surface-muted)',
-                    border: '1px solid var(--slate-200)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: 'var(--text-secondary)',
-                    transition: 'var(--transition-fast)',
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.transform = 'scale(0.93)';
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--brand-light)';
-                    e.currentTarget.style.color = 'var(--brand-dark)';
-                    e.currentTarget.style.borderColor = 'var(--brand-border)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.background = 'var(--surface-muted)';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                    e.currentTarget.style.borderColor = 'var(--slate-200)';
-                  }}
-                >
-                  <span
-                    key={bellRingKey}
-                    className={isBellRinging ? 'animate-bell-shake' : ''}
-                    onAnimationEnd={() => setIsBellRinging(false)}
+              <>
+                {/* 1. EDIT REQUEST NOTIFICATION (Bell Icon) */}
+                <div style={{ position: 'relative' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowStudentEditRequests((prev) => !prev);
+                      setShowStudentHighRisk(false);
+                      setProfileMenuOpen(false);
+                      setIsBellRinging(true);
+                      setBellRingKey((prev) => prev + 1);
+                    }}
+                    aria-label="Edit Request Notifications"
+                    title={
+                      pendingEditRequestsCount > 0
+                        ? `${pendingEditRequestsCount} Edit Request Notification(s) Pending Review`
+                        : 'Edit Request Notifications'
+                    }
                     style={{
-                      display: 'inline-flex',
+                      position: 'relative',
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '10px',
+                      background: 'var(--surface-muted)',
+                      border: '1px solid var(--slate-200)',
+                      display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      transformOrigin: 'top center',
+                      cursor: 'pointer',
+                      color: 'var(--text-secondary)',
+                      transition: 'var(--transition-fast)',
+                    }}
+                    onMouseDown={(e) => {
+                      e.currentTarget.style.transform = 'scale(0.93)';
+                    }}
+                    onMouseUp={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--brand-light)';
+                      e.currentTarget.style.color = 'var(--brand-dark)';
+                      e.currentTarget.style.borderColor = 'var(--brand-border)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.background = 'var(--surface-muted)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                      e.currentTarget.style.borderColor = 'var(--slate-200)';
                     }}
                   >
-                    <Bell size={17} />
-                  </span>
-                  {(studentNotes.filter((note) => !note.student_acknowledged).length + pendingEditRequestsCount) > 0 && (
                     <span
-                      className="animate-badge-pulse"
+                      key={bellRingKey}
+                      className={isBellRinging ? 'animate-bell-shake' : ''}
+                      onAnimationEnd={() => setIsBellRinging(false)}
                       style={{
-                        position: 'absolute',
-                        top: '-4px',
-                        right: '-4px',
-                        minWidth: '18px',
-                        height: '18px',
-                        padding: '0 4px',
-                        borderRadius: '99px',
-                        background: '#EF4444',
-                        color: '#fff',
-                        fontSize: '10px',
-                        fontWeight: 800,
-                        display: 'flex',
+                        display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        border: '2px solid #fff',
-                        boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)',
+                        transformOrigin: 'top center',
                       }}
                     >
-                      {studentNotes.filter((note) => !note.student_acknowledged).length + pendingEditRequestsCount}
+                      <Bell size={17} />
                     </span>
-                  )}
-                </button>
+                    {pendingEditRequestsCount > 0 && (
+                      <span
+                        className="animate-badge-pulse"
+                        style={{
+                          position: 'absolute',
+                          top: '-4px',
+                          right: '-4px',
+                          minWidth: '18px',
+                          height: '18px',
+                          padding: '0 4px',
+                          borderRadius: '99px',
+                          background: '#F59E0B',
+                          color: '#fff',
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '2px solid #fff',
+                          boxShadow: '0 0 8px rgba(245, 158, 11, 0.5)',
+                        }}
+                      >
+                        {pendingEditRequestsCount}
+                      </span>
+                    )}
+                  </button>
 
-                {showStudentNotes && (
-                  <>
-                    {/* Mobile Backdrop */}
-                    <div
-                      className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
-                      onClick={() => setShowStudentNotes(false)}
-                      aria-hidden="true"
-                    />
+                  {/* Student Edit Request Notifications Dropdown */}
+                  {showStudentEditRequests && (
+                    <>
+                      {/* Mobile Backdrop */}
+                      <div
+                        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
+                        onClick={() => setShowStudentEditRequests(false)}
+                        aria-hidden="true"
+                      />
 
-                    {/* Student Notes Panel */}
-                    <div
-                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[410px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 overflow-hidden"
-                    >
-                      <div style={{ padding: '0.875rem 1.25rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-200)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <Bell size={15} className="text-slate-600 dark:text-slate-300" />
-                          <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                            NOTIFICATIONS & REQUESTS
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowStudentNotes(false)}
-                          aria-label="Close notifications"
+                      {/* Notification Panel */}
+                      <div
+                        className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[410px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 overflow-hidden"
+                      >
+                        <div
                           style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '8px',
-                            border: 'none',
-                            background: 'transparent',
+                            padding: '0.875rem 1.25rem',
+                            background: 'var(--surface-muted)',
+                            borderBottom: '1px solid var(--slate-200)',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            color: 'var(--text-muted)',
+                            justifyContent: 'space-between',
                           }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                         >
-                          <X size={16} />
-                        </button>
-                      </div>
-                      <div style={{ maxHeight: 'min(460px, calc(100vh - 140px))', overflowY: 'auto', padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        
-                        {/* Profile Edit Requests Section (if any) */}
-                        {myEditRequests.length > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Bell size={15} className="text-slate-600 dark:text-slate-300" />
+                            <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                              EDIT REQUEST NOTIFICATION
+                            </p>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <button
+                              type="button"
+                              onClick={fetchEditRequests}
+                              title="Refresh status"
+                              aria-label="Refresh status"
+                              style={{
+                                width: '30px',
+                                height: '30px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                background: 'transparent',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'var(--text-muted)',
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                            >
+                              <RefreshCw size={14} className={isLoadingEditRequests ? 'animate-spin' : ''} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowStudentEditRequests(false)}
+                              aria-label="Close notifications"
+                              style={{
+                                width: '30px',
+                                height: '30px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                background: 'transparent',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'var(--text-muted)',
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Edit Requests List Body */}
+                        <div style={{ maxHeight: 'min(460px, calc(100vh - 140px))', overflowY: 'auto', padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                               <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -1912,139 +2179,320 @@ export const DashboardLayout: React.FC = () => {
                                 {myEditRequests.length}
                               </span>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                              {myEditRequests.map((req) => {
-                                const isPending = req.status === 'pending';
-                                const isApproved = req.status === 'approved';
-                                const isRejected = req.status === 'rejected';
 
-                                const cardBg = isPending
-                                  ? 'rgba(245, 158, 11, 0.05)'
-                                  : isApproved
-                                  ? 'rgba(34, 197, 94, 0.05)'
-                                  : 'rgba(239, 68, 68, 0.05)';
+                            {myEditRequests.length === 0 ? (
+                              <div style={{ background: 'var(--surface-muted)', border: '1px dashed var(--slate-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                  No edit requests submitted.
+                                </p>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                {myEditRequests.map((req) => {
+                                  const isPending = req.status === 'pending';
+                                  const isApproved = req.status === 'approved';
+                                  const isRejected = req.status === 'rejected';
 
-                                const cardBorder = isPending
-                                  ? 'rgba(245, 158, 11, 0.3)'
-                                  : isApproved
-                                  ? 'rgba(34, 197, 94, 0.3)'
-                                  : 'rgba(239, 68, 68, 0.3)';
+                                  const cardBg = isPending
+                                    ? 'rgba(245, 158, 11, 0.05)'
+                                    : isApproved
+                                    ? 'rgba(34, 197, 94, 0.05)'
+                                    : 'rgba(239, 68, 68, 0.05)';
 
-                                return (
-                                  <div
-                                    key={req.id}
-                                    style={{
-                                      background: cardBg,
-                                      border: `1px solid ${cardBorder}`,
-                                      borderRadius: '8px',
-                                      padding: '0.65rem 0.75rem',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      gap: '0.35rem',
-                                    }}
-                                  >
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                      <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                        Profile Details Update
-                                      </p>
-                                      {isPending && (
-                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', fontSize: '0.68rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
-                                          <Clock size={10} /> Pending
-                                        </span>
-                                      )}
+                                  const cardBorder = isPending
+                                    ? 'rgba(245, 158, 11, 0.3)'
+                                    : isApproved
+                                    ? 'rgba(34, 197, 94, 0.3)'
+                                    : 'rgba(239, 68, 68, 0.3)';
+
+                                  return (
+                                    <div
+                                      key={req.id}
+                                      style={{
+                                        background: cardBg,
+                                        border: `1px solid ${cardBorder}`,
+                                        borderRadius: '8px',
+                                        padding: '0.65rem 0.75rem',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '0.35rem',
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                        <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                          Profile Details Update
+                                        </p>
+                                        {isPending && (
+                                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', fontSize: '0.68rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                                            <Clock size={10} /> Pending
+                                          </span>
+                                        )}
+                                        {isApproved && (
+                                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', fontSize: '0.68rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                                            <CheckCircle2 size={10} /> Approved
+                                          </span>
+                                        )}
+                                        {isRejected && (
+                                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(239, 68, 68, 0.15)', color: '#DC2626', fontSize: '0.68rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                                            <XCircle size={10} /> Rejected
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                                        <div>
+                                          <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Proposed Name: </span>
+                                          <span>{req.proposed_last_name}, {req.proposed_first_name} {req.proposed_middle_name || ''}</span>
+                                        </div>
+                                        {(req.proposed_aral_level || req.proposed_lrn) && (
+                                          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2px' }}>
+                                            {req.proposed_aral_level && (
+                                              <span>
+                                                <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Level: </span>
+                                                <span style={{ fontWeight: 700 }}>{formatAralLevel(req.proposed_aral_level)}</span>
+                                              </span>
+                                            )}
+                                            {req.proposed_lrn && (
+                                              <span>
+                                                <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>LRN: </span>
+                                                <span>{req.proposed_lrn}</span>
+                                              </span>
+                                            )}
+                                          </div>
+                                        )}
+                                        {req.reason && (
+                                          <p style={{ margin: '3px 0 0', fontStyle: 'italic', color: 'var(--text-muted)' }}>
+                                            "{req.reason}"
+                                          </p>
+                                        )}
+                                      </div>
                                       {isApproved && (
-                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', fontSize: '0.68rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
-                                          <CheckCircle2 size={10} /> Approved
-                                        </span>
+                                        <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(34, 197, 94, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#15803D', fontWeight: 600 }}>
+                                          ✓ Profile update approved and applied.
+                                        </div>
                                       )}
                                       {isRejected && (
-                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(239, 68, 68, 0.15)', color: '#DC2626', fontSize: '0.68rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
-                                          <XCircle size={10} /> Rejected
-                                        </span>
+                                        <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(239, 68, 68, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#B91C1C', fontWeight: 600 }}>
+                                          ✕ Rejected{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}: {req.rejection_reason || 'No specific reason provided.'}
+                                        </div>
+                                      )}
+                                      {isPending && (
+                                        <div style={{ marginTop: '2px', fontSize: '0.7rem', color: '#D97706' }}>
+                                          Submitted on {new Date(req.created_at).toLocaleDateString()}. Waiting for administrator approval.
+                                        </div>
                                       )}
                                     </div>
-                                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                      <div>
-                                        <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Proposed Name: </span>
-                                        <span>{req.proposed_last_name}, {req.proposed_first_name} {req.proposed_middle_name || ''}</span>
-                                      </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* 2. HIGH RISK ALERT (Triangle Alert Icon to the right of EDIT REQUEST NOTIFICATION) */}
+                <div style={{ position: 'relative' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowStudentHighRisk((prev) => !prev);
+                      setShowStudentEditRequests(false);
+                      setProfileMenuOpen(false);
+                      setIsRiskShaking(true);
+                      setRiskShakeKey((prev) => prev + 1);
+                    }}
+                    aria-label="High Risk Alerts"
+                    title={
+                      studentNotes.filter((note) => !note.student_acknowledged).length > 0
+                        ? `${studentNotes.filter((note) => !note.student_acknowledged).length} High Risk Alert(s)`
+                        : 'High Risk Alert'
+                    }
+                    style={{
+                      position: 'relative',
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '10px',
+                      background: 'var(--surface-muted)',
+                      border: '1px solid var(--slate-200)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: 'var(--text-secondary)',
+                      transition: 'var(--transition-fast)',
+                    }}
+                    onMouseDown={(e) => {
+                      e.currentTarget.style.transform = 'scale(0.93)';
+                    }}
+                    onMouseUp={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--brand-light)';
+                      e.currentTarget.style.color = 'var(--brand-dark)';
+                      e.currentTarget.style.borderColor = 'var(--brand-border)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.background = 'var(--surface-muted)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                      e.currentTarget.style.borderColor = 'var(--slate-200)';
+                    }}
+                  >
+                    <span
+                      key={riskShakeKey}
+                      className={isRiskShaking ? 'animate-bell-shake' : ''}
+                      onAnimationEnd={() => setIsRiskShaking(false)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transformOrigin: 'center center',
+                      }}
+                    >
+                      <AlertTriangle size={17} />
+                    </span>
+                    {studentNotes.filter((note) => !note.student_acknowledged).length > 0 && (
+                      <span
+                        className="animate-badge-pulse"
+                        style={{
+                          position: 'absolute',
+                          top: '-4px',
+                          right: '-4px',
+                          minWidth: '18px',
+                          height: '18px',
+                          padding: '0 4px',
+                          borderRadius: '99px',
+                          background: '#EF4444',
+                          color: '#fff',
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '2px solid #fff',
+                          boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)',
+                        }}
+                      >
+                        {studentNotes.filter((note) => !note.student_acknowledged).length}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Student High Risk Dropdown */}
+                  {showStudentHighRisk && (
+                    <>
+                      {/* Mobile Backdrop */}
+                      <div
+                        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
+                        onClick={() => setShowStudentHighRisk(false)}
+                        aria-hidden="true"
+                      />
+
+                      {/* High Risk Panel */}
+                      <div
+                        className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[410px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 overflow-hidden"
+                      >
+                        <div
+                          style={{
+                            padding: '0.875rem 1.25rem',
+                            background: 'var(--surface-muted)',
+                            borderBottom: '1px solid var(--slate-200)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <AlertTriangle size={15} className="text-slate-600 dark:text-slate-300" />
+                            <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                              HIGH RISK ALERT
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowStudentHighRisk(false)}
+                            aria-label="Close alerts"
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              color: 'var(--text-muted)',
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+
+                        {/* Tutor Intervention Notes Body */}
+                        <div style={{ maxHeight: 'min(460px, calc(100vh - 140px))', overflowY: 'auto', padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Tutor Intervention Notes
+                              </span>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--slate-200)', color: 'var(--text-secondary)', borderRadius: '99px', padding: '1px 7px' }}>
+                                {studentNotes.length}
+                              </span>
+                            </div>
+                            {studentNotes.length === 0 ? (
+                              <div style={{ background: 'var(--surface-muted)', border: '1px dashed var(--slate-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>No current tutor notes or risk alerts.</p>
+                              </div>
+                            ) : (
+                              studentNotes.map((note) => {
+                                const colors = studentNoteStyle(note.risk_level);
+                                return (
+                                  <div key={note.id} style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: '10px', padding: '0.75rem 0.85rem', marginBottom: '0.5rem' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: colors.label, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{note.risk_level_display || note.risk_level} risk</span>
+                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{new Date(note.date_created).toLocaleDateString()}</span>
                                     </div>
-                                    {isApproved && (
-                                      <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(34, 197, 94, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#15803D', fontWeight: 600 }}>
-                                        ✓ Profile update approved and applied.
-                                      </div>
-                                    )}
-                                    {isRejected && (
-                                      <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(239, 68, 68, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#B91C1C', fontWeight: 600 }}>
-                                        ✕ Rejected{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}: {req.rejection_reason || 'No specific reason provided.'}
-                                      </div>
-                                    )}
-                                    {isPending && (
-                                      <div style={{ marginTop: '2px', fontSize: '0.7rem', color: '#D97706' }}>
-                                        Submitted on {new Date(req.created_at).toLocaleDateString()}. Waiting for administrator approval.
-                                      </div>
+                                    <p style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: colors.text, lineHeight: 1.45, wordBreak: 'break-word' }}>{note.details}</p>
+                                    {note.student_acknowledged ? (
+                                      <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', fontWeight: 700, color: colors.acknowledged }}>✓ Acknowledged</p>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => acknowledgeStudentNote(note.id)}
+                                        style={{
+                                          marginTop: '0.55rem',
+                                          border: 'none',
+                                          borderRadius: '6px',
+                                          padding: '6px 12px',
+                                          background: colors.button,
+                                          color: '#fff',
+                                          fontSize: '0.75rem',
+                                          fontWeight: 700,
+                                          cursor: 'pointer',
+                                          fontFamily: 'var(--font-body)',
+                                          minHeight: '36px',
+                                        }}
+                                      >
+                                        Acknowledge Note
+                                      </button>
                                     )}
                                   </div>
                                 );
-                              })}
-                            </div>
+                              })
+                            )}
                           </div>
-                        )}
-
-                        {/* Tutor Notes Section */}
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                              Tutor Intervention Notes
-                            </span>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--slate-200)', color: 'var(--text-secondary)', borderRadius: '99px', padding: '1px 7px' }}>
-                              {studentNotes.length}
-                            </span>
-                          </div>
-                          {studentNotes.length === 0 ? (
-                            <p style={{ margin: 0, padding: '1rem', textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)' }}>No current tutor notes.</p>
-                          ) : studentNotes.map((note) => {
-                            const colors = studentNoteStyle(note.risk_level);
-                            return (
-                              <div key={note.id} style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: '10px', padding: '0.75rem 0.85rem', marginBottom: '0.5rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-                                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: colors.label, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{note.risk_level_display} risk</span>
-                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{new Date(note.date_created).toLocaleDateString()}</span>
-                                </div>
-                                <p style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: colors.text, lineHeight: 1.45, wordBreak: 'break-word' }}>{note.details}</p>
-                                {note.student_acknowledged ? (
-                                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', fontWeight: 700, color: colors.acknowledged }}>✓ Acknowledged</p>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => acknowledgeStudentNote(note.id)}
-                                    style={{
-                                      marginTop: '0.55rem',
-                                      border: 'none',
-                                      borderRadius: '6px',
-                                      padding: '6px 12px',
-                                      background: colors.button,
-                                      color: '#fff',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 700,
-                                      cursor: 'pointer',
-                                      fontFamily: 'var(--font-body)',
-                                      minHeight: '36px',
-                                    }}
-                                  >
-                                    Acknowledge Note
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
                         </div>
-
                       </div>
-                    </div>
-                  </>
-                )}
-              </div>
+                    </>
+                  )}
+                </div>
+              </>
             )}
 
             {/* Change Theme Toggle */}
@@ -2058,81 +2506,7 @@ export const DashboardLayout: React.FC = () => {
         </main>
       </div>
 
-      {/* Acknowledge modal — rendered via portal so backdrop-filter on the header doesn't clip it */}
-      {acknowledgingStudent && createPortal(
-        <div
-          className="animate-fade-in"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 99999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(15,23,42,0.5)',
-            backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)',
-            padding: '1rem',
-          }}
-          onClick={(e) => { if (e.target === e.currentTarget) handleAcknowledgeCancel(); }}
-        >
-          <form
-            onSubmit={handleAcknowledgeSubmit}
-            className="animate-fade-in-scale"
-            style={{
-              width: '100%',
-              maxWidth: '440px',
-              background: 'var(--surface-card)',
-              borderRadius: '20px',
-              padding: '1.75rem',
-              boxShadow: 'var(--shadow-xl)',
-              border: '1px solid var(--slate-200)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-              <div>
-                <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
-                  {acknowledgedNotes[acknowledgingStudent.student.id] ? 'Edit Note' : 'Acknowledge Risk'}
-                </h3>
-                <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  {acknowledgingStudent.student.full_name} — {acknowledgedNotes[acknowledgingStudent.student.id] ? 'update the intervention note.' : 'log an intervention note.'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleAcknowledgeCancel}
-                style={{
-                  width: '30px', height: '30px', borderRadius: '8px',
-                  border: 'none', background: 'var(--surface-muted)',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', color: 'var(--text-muted)',
-                }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Note</label>
-              <textarea
-                value={acknowledgeNote}
-                onChange={(e) => setAcknowledgeNote(e.target.value)}
-                className="form-textarea"
-                placeholder="Describe the intervention or action taken..."
-                autoFocus
-              />
-            </div>
-            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-              <button type="button" onClick={handleAcknowledgeCancel} className="btn btn-secondary btn-sm">
-                Cancel
-              </button>
-              <button type="submit" className="btn btn-primary btn-sm">
-                {acknowledgedNotes[acknowledgingStudent.student.id] ? 'Update Note' : 'Save Note'}
-              </button>
-            </div>
-          </form>
-        </div>,
-        document.body
-      )}
+
 
       {/* Modern Profile Dropdown Menu (Sidebar Triggered) */}
       {profileMenuOpen && (
@@ -2184,24 +2558,6 @@ export const DashboardLayout: React.FC = () => {
                 />
                 <span>Profile</span>
               </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setProfileMenuOpen(false);
-                  setIsMobileDrawerOpen(false);
-                  navigate(getSettingsPath());
-                }}
-                className="group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-900 hover:text-slate-900 dark:hover:text-white transition-all duration-150 text-left cursor-pointer"
-                role="menuitem"
-              >
-                <SettingsIcon
-                  size={16}
-                  strokeWidth={2}
-                  className="text-slate-400 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors shrink-0"
-                />
-                <span>Account Settings</span>
-              </button>
             </div>
 
             <div className="border-t border-slate-100 dark:border-neutral-800" />
@@ -2214,13 +2570,13 @@ export const DashboardLayout: React.FC = () => {
                   setIsMobileDrawerOpen(false);
                   setShowLogoutConfirm(true);
                 }}
-                className="group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-red-50 dark:hover:bg-red-950/50 hover:text-red-600 dark:hover:text-red-400 transition-all duration-150 text-left cursor-pointer"
+                className="group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 hover:text-red-700 dark:hover:text-red-300 transition-all duration-150 text-left cursor-pointer"
                 role="menuitem"
               >
                 <LogOut
                   size={16}
                   strokeWidth={2}
-                  className="text-slate-400 dark:text-zinc-400 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors shrink-0"
+                  className="text-red-600 dark:text-red-400 transition-colors shrink-0"
                 />
                 <span>Logout</span>
               </button>
@@ -2229,14 +2585,7 @@ export const DashboardLayout: React.FC = () => {
         </>
       )}
 
-      {/* Student Edit Requests Review Modal (Admin & SuperAdmin) */}
-      {(user?.role === 'admin' || user?.is_superuser) && (
-        <StudentEditRequestsModal
-          isOpen={showEditRequestsModal}
-          onClose={() => setShowEditRequestsModal(false)}
-          onRequestReviewed={fetchEditRequests}
-        />
-      )}
+
 
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm &&

@@ -82,7 +82,7 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[]; trendFilter: Tr
   const { width, height } = dimensions;
   const isMobile = width < 520;
   const isSmallMobile = width < 380;
-  const paddingLeft = isMobile ? 32 : 26;
+  const paddingLeft = isMobile ? 44 : 50;
   const paddingRight = isMobile ? 20 : 14;
   const paddingTop = isMobile ? 18 : 20;
   const paddingBottom = isMobile ? 26 : 24;
@@ -191,7 +191,7 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[]; trendFilter: Tr
           return (
             <g key={val}>
               <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="var(--slate-200)" strokeWidth="0.5" strokeDasharray="3 3" opacity="0.6" />
-              <text x={paddingLeft - 6} y={y + 3} className="fill-slate-400 font-semibold text-[9px] xs:text-[10px]" textAnchor="end">{val}%</text>
+              <text x={paddingLeft - 8} y={y + 3} className="fill-slate-400 font-semibold text-[9px] xs:text-[10px]" textAnchor="end">{val}%</text>
             </g>
           );
         })}
@@ -454,6 +454,14 @@ export const TutorHome: React.FC = () => {
     () => studentStats.filter((s) => s.riskTier === 'High'),
     [studentStats]
   );
+  const mediumRiskStudents = useMemo(
+    () => studentStats.filter((s) => s.riskTier === 'Medium'),
+    [studentStats]
+  );
+  const lowRiskStudents = useMemo(
+    () => studentStats.filter((s) => s.riskTier === 'Low'),
+    [studentStats]
+  );
 
   const [activeSystemSem, setActiveSystemSem] = useState(() => getActiveSystemSemester());
 
@@ -651,27 +659,38 @@ export const TutorHome: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3 skeleton-container">
-        {/* KPI Cards skeleton — hero + stacked */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-3 shrink-0 skeleton-row-1">
-          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 animate-pulse">
-            <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800 mb-3" />
-            <div className="h-12 w-16 rounded bg-gray-200 dark:bg-gray-800" />
-          </div>
-          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A]">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center justify-between px-4 py-3">
-                <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-5 w-10 rounded bg-gray-200 dark:bg-gray-800" />
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:h-[calc(100vh-8.5rem)] lg:min-h-[32rem] skeleton-container w-full min-w-0 max-w-full">
+        {/* Left Section skeleton: 3 top cards + Chart below */}
+        <div className="lg:col-span-3 flex flex-col gap-3 h-full min-h-0 w-full min-w-0 max-w-full">
+          {/* 3 KPI Cards skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 skeleton-row-1">
+            <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3.5 h-[116px] sm:h-[120px] animate-pulse flex flex-col justify-between">
+              <div>
+                <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
+                <div className="h-7 w-14 rounded bg-gray-200 dark:bg-gray-800" />
               </div>
-            ))}
+              <div className="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800" />
+            </div>
+            <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between">
+              {[1, 2].map((i) => (
+                <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-2">
+                  <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
+                  <div className="h-4 w-10 rounded bg-gray-200 dark:bg-gray-800" />
+                </div>
+              ))}
+            </div>
+            <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-1.5">
+                  <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800" />
+                  <div className="h-3.5 w-8 rounded bg-gray-200 dark:bg-gray-800" />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Content rows skeleton */}
-        <div className="grid gap-3 lg:grid-cols-4 items-stretch flex-1 min-h-0 skeleton-row-2">
           {/* Chart card skeleton */}
-          <div className="lg:col-span-3 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-5 flex flex-col h-full min-h-0 animate-pulse">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-5 flex flex-col flex-1 min-h-0 animate-pulse">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0 pb-3.5 sm:pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
                 <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800 mt-0.5" />
@@ -697,27 +716,27 @@ export const TutorHome: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
 
-          {/* At-Risk panel skeleton */}
-          <div className="lg:col-span-1 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md flex flex-col h-full min-h-0 overflow-hidden animate-pulse">
-            <div className="px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] flex items-center justify-between shrink-0">
-              <div className="h-4 w-36 rounded bg-gray-200 dark:bg-gray-800" />
-              <div className="h-5 w-7 rounded-full bg-rose-100 dark:bg-rose-950/40" />
-            </div>
-            <div className="p-2 space-y-1 flex-1 min-h-0 overflow-y-auto skeleton-row-3">
-              {[1, 2, 3, 4, 5].map((j) => (
-                <div key={j} className="px-3 py-1.5 rounded-sm border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111] flex flex-col justify-between">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="h-3 w-28 rounded bg-gray-200 dark:bg-gray-800" />
-                    <div className="h-3.5 w-10 rounded-full bg-rose-100 dark:bg-rose-950/50 shrink-0" />
-                  </div>
-                  <div className="flex items-center justify-between gap-2 mt-1">
-                    <div className="h-2.5 w-20 rounded bg-gray-100 dark:bg-gray-800" />
-                    <div className="h-2.5 w-8 rounded bg-gray-200 dark:bg-gray-800" />
-                  </div>
+        {/* At-Risk panel skeleton (spans from top to bottom) */}
+        <div className="lg:col-span-1 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md flex flex-col h-full min-h-0 overflow-hidden animate-pulse">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] flex items-center justify-between shrink-0">
+            <div className="h-4 w-36 rounded bg-gray-200 dark:bg-gray-800" />
+            <div className="h-5 w-7 rounded-full bg-rose-100 dark:bg-rose-950/40" />
+          </div>
+          <div className="p-2 space-y-1 flex-1 min-h-0 overflow-y-auto skeleton-row-3">
+            {[1, 2, 3, 4, 5, 6, 7].map((j) => (
+              <div key={j} className="px-3 py-2 rounded-sm border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111] flex flex-col justify-between">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="h-3 w-28 rounded bg-gray-200 dark:bg-gray-800" />
+                  <div className="h-3.5 w-10 rounded-full bg-rose-100 dark:bg-rose-950/50 shrink-0" />
                 </div>
-              ))}
-            </div>
+                <div className="flex items-center justify-between gap-2 mt-1">
+                  <div className="h-2.5 w-20 rounded bg-gray-100 dark:bg-gray-800" />
+                  <div className="h-2.5 w-8 rounded bg-gray-200 dark:bg-gray-800" />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -740,56 +759,73 @@ export const TutorHome: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3 data-loaded-content w-full min-w-0 max-w-full">
-      {/* ── KPI Cards — hero left, 3 secondaries stacked right ──────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3 shrink-0 w-full min-w-0 max-w-full">
-        {/* Hero: My Students */}
-        <Link
-          to="/tutor/students"
-          className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 transition-colors hover:bg-gray-50/60 dark:hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] flex flex-col justify-between w-full min-w-0 max-w-full"
-        >
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">My Students</p>
-            <p className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mt-1.5 sm:mt-2 tracking-tight text-gray-900 dark:text-slate-100">{totalStudents}</p>
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:h-[calc(100vh-8.5rem)] lg:min-h-[32rem] data-loaded-content w-full min-w-0 max-w-full">
+      {/* ── Left 3-Column Section: 3 Top Summary Cards + Chart Below ──── */}
+      <div className="lg:col-span-3 flex flex-col gap-3 h-full min-h-0 w-full min-w-0 max-w-full">
+        {/* Row 1: My Students | Avg Attendance & Scores | High/Medium/Low Risk */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 w-full min-w-0 max-w-full">
+          {/* 1. My Students */}
+          <Link
+            to="/tutor/students"
+            className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3 sm:p-3.5 transition-colors hover:bg-gray-50/60 dark:hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] flex flex-col justify-between h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs"
+          >
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">My Students</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mt-0.5 sm:mt-1 tracking-tight text-gray-900 dark:text-slate-100">{totalStudents}</p>
+            </div>
+            <p className="text-[11px] font-normal text-gray-400 dark:text-slate-500">Enrolled learners</p>
+          </Link>
+
+          {/* 2. Average Attendance & Average Scores */}
+          <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+            <Link
+              to="/tutor/analytics?tab=attendance"
+              className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">AVERAGE ATTENDANCE</p>
+              <p className={`text-base sm:text-lg font-extrabold shrink-0 ${attendance.length === 0 ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                {attendance.length === 0 ? '—' : `${avgAttendance}%`}
+              </p>
+            </Link>
+            <Link
+              to="/tutor/analytics?tab=score"
+              className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">AVERAGE SCORES</p>
+              <p className={`text-base sm:text-lg font-extrabold shrink-0 ${!hasScoreData ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                {!hasScoreData ? '—' : `${avgScore}%`}
+              </p>
+            </Link>
           </div>
-          <p className="mt-2 text-[11px] text-gray-400 dark:text-slate-500">Enrolled learners</p>
-        </Link>
 
-        {/* 3 Secondary metrics stacked */}
-        <div className="flex flex-col divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden w-full min-w-0 max-w-full">
-          <Link
-            to="/tutor/analytics?tab=attendance"
-            className="flex items-center justify-between px-3.5 sm:px-4 py-3 min-h-[44px] hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
-          >
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">Avg Attendance</p>
-            <p className={`text-base sm:text-xl font-extrabold shrink-0 ${attendance.length === 0 ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
-              {attendance.length === 0 ? '—' : `${avgAttendance}%`}
-            </p>
-          </Link>
-          <Link
-            to="/tutor/analytics?tab=score"
-            className="flex items-center justify-between px-3.5 sm:px-4 py-3 min-h-[44px] hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
-          >
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">Avg Scores</p>
-            <p className={`text-base sm:text-xl font-extrabold shrink-0 ${!hasScoreData ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
-              {!hasScoreData ? '—' : `${avgScore}%`}
-            </p>
-          </Link>
-          <Link
-            to="/tutor/analytics"
-            className="flex items-center justify-between px-3.5 sm:px-4 py-3 min-h-[44px] hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
-          >
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">High Risk</p>
-            <p className="text-base sm:text-xl font-extrabold text-risk-high shrink-0">{highRiskStudents.length}</p>
-          </Link>
+          {/* 3. High / Medium / Low Risk Breakdown */}
+          <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+            <Link
+              to="/tutor/analytics"
+              className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">High Risk</p>
+              <p className="text-xs sm:text-sm font-extrabold text-risk-high shrink-0">{highRiskStudents.length}</p>
+            </Link>
+            <Link
+              to="/tutor/analytics"
+              className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">Medium Risk</p>
+              <p className="text-xs sm:text-sm font-extrabold text-risk-medium shrink-0">{mediumRiskStudents.length}</p>
+            </Link>
+            <Link
+              to="/tutor/analytics"
+              className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">Low Risk</p>
+              <p className="text-xs sm:text-sm font-extrabold text-risk-low shrink-0">{lowRiskStudents.length}</p>
+            </Link>
+          </div>
         </div>
-      </div>
 
-      {/* ── Performance Trend + Risk ───────────────────────────────── */}
-      <div className="grid gap-3 lg:grid-cols-4 items-stretch flex-1 min-h-0 w-full min-w-0 max-w-full">
-
-        {/* Chart */}
-        <div className="lg:col-span-3 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3.5 sm:px-5 flex flex-col h-full min-h-0 w-full min-w-0 max-w-full">
+        {/* Row 2: Performance Trend Chart */}
+        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3.5 sm:px-5 flex flex-col flex-1 min-h-0 w-full min-w-0 max-w-full">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 shrink-0 pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
             <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight truncate">Students Performance Trend</h3>
@@ -823,14 +859,14 @@ export const TutorHome: React.FC = () => {
           </div>
 
           <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3 sm:mt-4">
-            <div className="relative flex-1 min-h-[180px] xs:min-h-[220px] sm:min-h-[240px] w-full min-w-0 max-w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-5 sm:py-2.5 overflow-hidden">
+            <div className="relative flex-1 min-h-[180px] xs:min-h-[200px] sm:min-h-[220px] w-full min-w-0 max-w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-5 sm:py-2.5 overflow-hidden">
               {last4WeeksData.length > 0 ? (
                 <InteractiveTutorChart data={last4WeeksData} trendFilter={trendFilter} />
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 select-none">
                   <BarChart2 className="w-8 h-8 text-gray-200 dark:text-gray-700" />
                   <p className="text-xs font-semibold text-gray-400 dark:text-slate-500">
-                    No student score records submitted yet
+                    {trendFilter === 'day' ? 'No recorded score today' : trendFilter === 'week' ? 'No recorded score this week' : 'No recorded score this month'}
                   </p>
                   <p className="text-[11px] text-gray-300 dark:text-slate-600">
                     Data will appear once scores and attendance are logged for your students
@@ -881,63 +917,62 @@ export const TutorHome: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* At-Risk panel */}
-        <div className="lg:col-span-1 h-full min-h-0">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-full flex flex-col max-h-[380px] lg:max-h-none">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
-              <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase tracking-wider">
-                Top At-Risk
-              </h3>
-              <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
-                {atRiskStudents.length}
-              </span>
-            </div>
+      {/* ── Right 1-Column Section: Top At-Risk Panel Spanning Full Height ──── */}
+      <div className="lg:col-span-1 h-full min-h-0">
+        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-full flex flex-col max-h-[420px] lg:max-h-none shadow-2xs">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
+            <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase tracking-wider">
+              Top At-Risk
+            </h3>
+            <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
+              {atRiskStudents.length}
+            </span>
+          </div>
 
-            <div className="p-2 space-y-1 flex-1 min-h-0 overflow-y-auto">
-              {atRiskStudents.length === 0 ? (
-                <div className="flex flex-col items-center justify-center text-center py-8 px-4 gap-2">
-                  <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  <p className="text-sm font-semibold text-gray-700 dark:text-slate-300">All students on track</p>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">No high or medium risk students.</p>
-                </div>
-              ) : (
-                atRiskStudents.slice(0, 15).map((s) => (
-                  <Link
-                    key={s.student.id}
-                    to={`/tutor/students/${s.student.id}`}
-                    state={{ from: 'dashboard' }}
-                    className={`block rounded-sm border px-3 py-2 min-h-[44px] flex flex-col justify-center transition-colors hover:opacity-90 ${s.riskTier === 'High'
-                      ? 'risk-card-high'
-                      : 'risk-card-medium'
-                      }`}
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <span className="font-semibold text-xs text-gray-800 dark:text-slate-200 truncate block leading-tight">
-                          {s.student.full_name}
-                        </span>
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-bold shrink-0 border leading-none ${s.riskTier === 'High' ? 'risk-badge-high' : 'risk-badge-medium'}`}>
-                          {s.riskTier.toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="mt-1 flex items-center justify-between gap-1">
-                        <span className="text-gray-500 dark:text-slate-400 text-[10.5px] font-normal leading-tight">
-                          Composite:
-                        </span>
-                        <span className="text-xs font-normal text-gray-900 dark:text-slate-100 leading-tight">
-                          {s.compositeScore.toFixed(1)}%
-                        </span>
-                      </div>
+          <div className="p-2 space-y-1 flex-1 min-h-0 overflow-y-auto">
+            {atRiskStudents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center py-12 px-4 gap-2">
+                <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                <p className="text-sm font-semibold text-gray-700 dark:text-slate-300">All students on track</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">No high or medium risk students.</p>
+              </div>
+            ) : (
+              atRiskStudents.slice(0, 20).map((s) => (
+                <Link
+                  key={s.student.id}
+                  to={`/tutor/students/${s.student.id}`}
+                  state={{ from: 'dashboard' }}
+                  className={`block rounded-sm border px-3 py-2 min-h-[44px] flex flex-col justify-center transition-colors hover:opacity-90 ${s.riskTier === 'High'
+                    ? 'risk-card-high'
+                    : 'risk-card-medium'
+                    }`}
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="font-semibold text-xs text-gray-800 dark:text-slate-200 truncate block leading-tight">
+                        {s.student.full_name}
+                      </span>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-bold shrink-0 border leading-none ${s.riskTier === 'High' ? 'risk-badge-high' : 'risk-badge-medium'}`}>
+                        {s.riskTier.toUpperCase()}
+                      </span>
                     </div>
-                  </Link>
-                ))
-              )}
-            </div>
+                    <div className="mt-1 flex items-center justify-between gap-1">
+                      <span className="text-gray-500 dark:text-slate-400 text-[10.5px] font-normal leading-tight">
+                        Composite:
+                      </span>
+                      <span className="text-xs font-normal text-gray-900 dark:text-slate-100 leading-tight">
+                        {s.compositeScore.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            )}
           </div>
         </div>
       </div>
-
     </div>
   );
 };

@@ -11,8 +11,10 @@ import {
   getActiveSystemMilestone,
   getActiveSystemSemester,
   setActiveSystemSemester,
+  isAssessmentWindowOpen,
 } from '../../utils/sessionDescriptionHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
+import { compareNamesByLastName } from '../../utils/studentFormatters';
 import {
   BookOpen,
   TrendingUp,
@@ -188,7 +190,8 @@ const ScoreCalendarDropdown: React.FC<{
   loggedDates: Set<string>;
   className?: string;
   style?: React.CSSProperties;
-}> = ({ selectedDate, onSelectDate, onClear, onClose, loggedDates, className, style }) => {
+  align?: 'left' | 'right' | 'center';
+}> = ({ selectedDate, onSelectDate, onClear, onClose, loggedDates, className, style, align = 'center' }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [viewDate, setViewDate] = useState(() => {
     if (selectedDate) {
@@ -215,18 +218,42 @@ const ScoreCalendarDropdown: React.FC<{
     index < firstDay ? null : index - firstDay + 1
   );
 
+  const alignmentClass = className?.includes('fixed')
+    ? ''
+    : align === 'center'
+    ? 'left-1/2 -translate-x-1/2'
+    : align === 'left'
+    ? 'left-0'
+    : 'right-0';
+
   return (
-    <div ref={dropdownRef} className={`absolute right-0 top-full mt-2 z-20 w-72 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xl select-none ${className || ''}`} style={style}>
-      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-        <button type="button" onClick={() => setViewDate(new Date(year, month - 1, 1))} className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100" aria-label="Previous month">
+    <div
+      ref={dropdownRef}
+      className={`absolute top-full mt-2 z-[60] w-72 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3.5 shadow-2xl select-none text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150 ${alignmentClass} ${className || ''}`}
+      style={style}
+    >
+      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+        <button
+          type="button"
+          onClick={() => setViewDate(new Date(year, month - 1, 1))}
+          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 cursor-pointer"
+          aria-label="Previous month"
+        >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="text-xs font-bold tracking-wide text-slate-900">{viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
-        <button type="button" onClick={() => setViewDate(new Date(year, month + 1, 1))} className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100" aria-label="Next month">
+        <span className="text-xs font-bold tracking-wide text-slate-900 dark:text-slate-100">
+          {viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+        </span>
+        <button
+          type="button"
+          onClick={() => setViewDate(new Date(year, month + 1, 1))}
+          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 cursor-pointer"
+          aria-label="Next month"
+        >
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
-      <div className="grid grid-cols-7 gap-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">
+      <div className="grid grid-cols-7 gap-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
         {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => <span key={day}>{day}</span>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -240,8 +267,15 @@ const ScoreCalendarDropdown: React.FC<{
               key={dateKey}
               type="button"
               onClick={() => { onSelectDate(dateKey); onClose(); }}
-              className={`relative mx-auto flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold ${isSelected ? 'bg-[var(--brand)] text-white shadow-sm' : dateKey === today ? 'border border-[var(--brand)] text-[var(--brand)]' : hasRecords ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'text-slate-600 hover:bg-slate-100'
-                }`}
+              className={`relative mx-auto flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold cursor-pointer transition ${
+                isSelected
+                  ? 'bg-[var(--brand)] text-white shadow-sm'
+                  : dateKey === today
+                  ? 'border border-[var(--brand)] text-[var(--brand)]'
+                  : hasRecords
+                  ? 'bg-slate-100 text-slate-800 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+              }`}
             >
               {day}
               {hasRecords && !isSelected && <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-[var(--brand)]" />}
@@ -249,9 +283,9 @@ const ScoreCalendarDropdown: React.FC<{
           );
         })}
       </div>
-      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] font-semibold">
-        <button type="button" onClick={() => { onSelectDate(today); onClose(); }} className="text-[var(--brand)] hover:underline">Today</button>
-        {selectedDate && <button type="button" onClick={() => { onClear(); onClose(); }} className="text-slate-400 hover:text-red-500">Clear</button>}
+      <div className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-2 text-[11px] font-semibold">
+        <button type="button" onClick={() => { onSelectDate(today); onClose(); }} className="text-[var(--brand)] hover:underline cursor-pointer">Today</button>
+        {selectedDate && <button type="button" onClick={() => { onClear(); onClose(); }} className="text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 cursor-pointer">Clear</button>}
       </div>
     </div>
   );
@@ -349,7 +383,13 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
       if (typeof firstValue === 'number' && typeof secondValue === 'number') return (firstValue - secondValue) * direction;
       return String(firstValue).localeCompare(String(secondValue), undefined, { numeric: true, sensitivity: 'base' }) * direction;
     };
-    return [...rows].sort((first, second) => compareValues(getScoreValue(first), getScoreValue(second)));
+    return [...rows].sort((first, second) => {
+      if (sortConfig.key === 'student') {
+        const cmp = compareNamesByLastName(first.student_name || '', second.student_name || '');
+        return direction * cmp;
+      }
+      return compareValues(getScoreValue(first), getScoreValue(second));
+    });
   }, [rows, sortConfig]);
 
   const SortableScoreHeader: React.FC<{ label: string; sortKey: ScoreSortKey }> = ({ label, sortKey }) => {
@@ -688,6 +728,138 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
   );
 };
 
+const formatDateButtonLabel = (dateStr: string) => {
+  const d = new Date(`${dateStr}T00:00:00`);
+  const month = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${month} ${day}`;
+};
+
+const getWeekdaysForMonday = (mondayStr: string, extraDates: string[] = []): string[] => {
+  const dates: string[] = [];
+  const monday = new Date(`${mondayStr}T00:00:00`);
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    dates.push(d.toLocaleDateString('en-CA'));
+  }
+  extraDates.forEach((d) => {
+    if (d && !dates.includes(d)) dates.push(d);
+  });
+  return dates.sort();
+};
+
+const computeWeekOfMonth = (dateObj: Date): number => {
+  const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+  const day = d.getDay();
+  const wedDiff = day === 0 ? 3 : 3 - day;
+  const wednesday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + wedDiff);
+  const firstDay = new Date(wednesday.getFullYear(), wednesday.getMonth(), 1).getDay();
+  return Math.ceil((wednesday.getDate() + (firstDay === 0 ? 6 : firstDay - 1)) / 7);
+};
+
+const getWeekTitle = (mondayStr: string) => {
+  const d = new Date(`${mondayStr}T00:00:00`);
+  const weekNum = computeWeekOfMonth(d);
+  return `WEEK ${weekNum}`;
+};
+
+type ScoreTableGroup = {
+  key: string;
+  title: string;
+  weekMonday?: string;
+  isMonthGroup?: boolean;
+  rows: Grade[];
+};
+
+type ScoreHistoryGroupSectionProps = Omit<ScoreEntryTableProps, 'rows'> & {
+  tableGroup: ScoreTableGroup;
+  selectedDate: string | null;
+  onSelectDate: (dateStr: string) => void;
+};
+
+const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
+  tableGroup,
+  selectedDate,
+  onSelectDate,
+  ...tableProps
+}) => {
+  const datesWithRecords = useMemo(() => {
+    return new Set(tableGroup.rows.map((r) => r.date_logged.slice(0, 10)));
+  }, [tableGroup.rows]);
+
+  const groupDates = useMemo(() => {
+    if (tableGroup.isMonthGroup) {
+      return Array.from(datesWithRecords).sort();
+    }
+    const recordDates = Array.from(datesWithRecords);
+    return getWeekdaysForMonday(tableGroup.weekMonday || tableGroup.key, recordDates);
+  }, [tableGroup.isMonthGroup, tableGroup.weekMonday, tableGroup.key, datesWithRecords]);
+
+  const isOpen = useMemo(() => {
+    if (!selectedDate) return false;
+    return groupDates.includes(selectedDate);
+  }, [groupDates, selectedDate]);
+
+  const displayRows = useMemo(() => {
+    if (!selectedDate || !isOpen) return tableGroup.rows;
+    return tableGroup.rows.filter((r) => r.date_logged.slice(0, 10) === selectedDate);
+  }, [tableGroup.rows, selectedDate, isOpen]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 py-0.5">
+            <span className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none">
+              {tableGroup.title}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {groupDates.map((dateStr) => {
+              const hasRecord = datesWithRecords.has(dateStr);
+              const isSelected = selectedDate === dateStr;
+              const label = formatDateButtonLabel(dateStr);
+              return (
+                <button
+                  key={dateStr}
+                  type="button"
+                  disabled={!hasRecord}
+                  onClick={() => onSelectDate(dateStr)}
+                  className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all ${
+                    hasRecord
+                      ? isSelected
+                        ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
+                        : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
+                      : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
+                  }`}
+                  title={hasRecord ? (isSelected ? `Active: ${label}` : `View ${label}`) : `No records on ${label}`}
+                  aria-label={label}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {isOpen && (
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-gray-400">
+              {displayRows.length} Record{displayRows.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+      </div>
+      {isOpen && (
+        <ScoreEntryTable
+          rows={displayRows}
+          {...tableProps}
+        />
+      )}
+    </div>
+  );
+};
+
 /* ─── Component ────────────────────────────────────────────────── */
 export const TutorScores: React.FC = () => {
   const { user } = useAuth();
@@ -753,8 +925,8 @@ export const TutorScores: React.FC = () => {
     isOpen: false, mode: 'weekly', targetKey: ''
   });
 
-  type ViewMode = 'day' | 'week' | 'month';
-  const [viewMode, setViewMode] = useState<ViewMode>('day');
+  type ViewMode = 'week' | 'month';
+  const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
   const [showEntryCalendarPopover, setShowEntryCalendarPopover] = useState(false);
@@ -847,6 +1019,10 @@ export const TutorScores: React.FC = () => {
   };
 
   const handleMilestoneEntryClick = () => {
+    if (!isAssessmentWindowOpen(activeSystemSem)) {
+      alert(`The ${assignedPeriod} assessment window is currently closed by administration.`);
+      return;
+    }
     setShowMilestoneConfirmation(true);
   };
 
@@ -1117,7 +1293,11 @@ export const TutorScores: React.FC = () => {
     };
 
     window.addEventListener('system_semester_changed', handleSemChange);
-    return () => window.removeEventListener('system_semester_changed', handleSemChange);
+    window.addEventListener('assessment_window_changed', handleSemChange);
+    return () => {
+      window.removeEventListener('system_semester_changed', handleSemChange);
+      window.removeEventListener('assessment_window_changed', handleSemChange);
+    };
   }, []);
 
   useEffect(() => { fetchStudents(); }, [user]);
@@ -1223,17 +1403,20 @@ export const TutorScores: React.FC = () => {
     );
   }, [dailyGrades]);
 
-  const filteredBatchRows = batchRows;
+  const searchedBatchRows = useMemo(() => {
+    return batchRows.filter((batch) =>
+      batch.grades.some((grade) => matchesSearch(scoreStudentSearch, grade.student_name, grade.subject))
+    );
+  }, [batchRows, scoreStudentSearch]);
 
-  const jumpFilteredBatches = useMemo(
-    () => {
-      const studentFilteredRows = filteredBatchRows.filter((batch) =>
-        batch.grades.some((grade) => matchesSearch(scoreStudentSearch, grade.student_name, grade.subject))
-      );
-      return jumpDate ? studentFilteredRows.filter((batch) => batch.dateStr === jumpDate) : null;
-    },
-    [filteredBatchRows, jumpDate, scoreStudentSearch]
-  );
+  const visibleBatchRows = useMemo(() => {
+    if (jumpDate) {
+      return searchedBatchRows.filter((batch) => batch.dateStr === jumpDate);
+    }
+    return searchedBatchRows;
+  }, [searchedBatchRows, jumpDate]);
+
+  const visibleScoreRows = useMemo(() => visibleBatchRows.flatMap((batch) => batch.grades), [visibleBatchRows]);
 
   const getWeekKey = (dateStr: string) => {
     const date = new Date(`${dateStr}T00:00:00`);
@@ -1241,104 +1424,76 @@ export const TutorScores: React.FC = () => {
     date.setDate(date.getDate() - (day === 0 ? 6 : day - 1));
     return date.toLocaleDateString('en-CA');
   };
-  const weekLabel = (mondayStr: string) => {
-    const monday = new Date(`${mondayStr}T00:00:00`);
-    const friday = new Date(monday);
-    friday.setDate(monday.getDate() + 4);
-    const format = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    return `${format(monday)} – ${format(friday)}, ${friday.getFullYear()}`;
-  };
-  const groupedBatchRows = useMemo(() => {
-    if (jumpFilteredBatches !== null || viewMode === 'day') return [];
-    const studentFilteredRows = filteredBatchRows.filter((batch) =>
-      batch.grades.some((grade) => matchesSearch(scoreStudentSearch, grade.student_name, grade.subject))
-    );
-    const groups = new Map<string, typeof filteredBatchRows>();
-    studentFilteredRows.forEach((batch) => {
-      const key = viewMode === 'week' ? getWeekKey(batch.dateStr) : batch.dateStr.slice(0, 7);
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(batch);
-    });
-    return Array.from(groups.entries()).map(([key, rows]) => ({
-      key,
-      label: viewMode === 'week' ? weekLabel(key) : new Date(`${key}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
-      rows,
-    }));
-  }, [filteredBatchRows, jumpFilteredBatches, scoreStudentSearch, viewMode]);
 
-  const searchedBatchRows = useMemo(() => {
-    return filteredBatchRows.filter((batch) =>
-      batch.grades.some((grade) => matchesSearch(scoreStudentSearch, grade.student_name, grade.subject))
-    );
-  }, [filteredBatchRows, scoreStudentSearch]);
-  const visibleBatchRows = jumpFilteredBatches ?? searchedBatchRows;
-  const visibleScoreRows = useMemo(() => visibleBatchRows.flatMap((batch) => batch.grades), [visibleBatchRows]);
-  const scoreViewGroups = useMemo(() => {
-    if (viewMode === 'day' || jumpDate) return [{ key: 'all', label: '', rows: visibleScoreRows }];
+  const getMonthKey = (dateStr: string) => dateStr.slice(0, 7);
+
+  const getMonthTitle = (monthKey: string) => {
+    const d = new Date(`${monthKey}-01T00:00:00`);
+    return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+  };
+
+  const mostRecentDateWithEntry = useMemo(() => {
+    if (visibleScoreRows.length === 0) return null;
+    return visibleScoreRows[0].date_logged.slice(0, 10);
+  }, [visibleScoreRows]);
+
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (jumpDate) {
+      setSelectedDate(jumpDate);
+    } else if (mostRecentDateWithEntry) {
+      setSelectedDate(mostRecentDateWithEntry);
+    } else {
+      setSelectedDate(null);
+    }
+  }, [jumpDate, mostRecentDateWithEntry, viewMode, scoreStudentSearch]);
+
+  const scoreTableGroups = useMemo((): ScoreTableGroup[] => {
+    if (jumpDate) {
+      return [{
+        key: jumpDate,
+        title: viewMode === 'week' ? getWeekTitle(getWeekKey(jumpDate)) : getMonthTitle(getMonthKey(jumpDate)),
+        weekMonday: getWeekKey(jumpDate),
+        isMonthGroup: viewMode === 'month',
+        rows: visibleScoreRows,
+      }];
+    }
 
     const groups = new Map<string, Grade[]>();
     visibleScoreRows.forEach((grade) => {
-      const key = viewMode === 'week' ? getWeekKey(grade.date_logged) : grade.date_logged.slice(0, 7);
+      const key = viewMode === 'week' ? getWeekKey(grade.date_logged) : getMonthKey(grade.date_logged);
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(grade);
     });
 
-    return Array.from(groups.entries()).map(([key, rows]) => ({
-      key,
-      label: viewMode === 'week'
-        ? weekLabel(key)
-        : new Date(`${key}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
-      rows,
-    }));
-  }, [jumpDate, visibleScoreRows, viewMode]);
-  const dayScoreGroups = useMemo(() => {
-    const groups = new Map<string, { label: string; rows: Grade[]; sortTime: number }>();
-    visibleScoreRows.forEach((grade) => {
-      const timePart = formatTimeStr(grade.created_at);
-      const batchPart = grade.batch_id || `solo-${grade.id}`;
-      // Group by date + batch ID so multiple score batches on the same day are cleanly separated
-      const key = `${grade.date_logged.slice(0, 10)}|${batchPart}`;
-      const existing = groups.get(key);
-      if (existing) {
-        existing.rows.push(grade);
-      } else {
-        const label = `${formatDateStr(grade.date_logged)} | ${timePart}`;
-        const sortTime = grade.created_at ? new Date(grade.created_at).getTime() : new Date(`${grade.date_logged}T00:00:00`).getTime();
-        groups.set(key, { label, rows: [grade], sortTime });
-      }
-    });
     return Array.from(groups.entries())
-      .sort(([, a], [, b]) => b.sortTime - a.sortTime)
-      .map(([key, group]) => ({
+      .sort(([a], [b]) => (b > a ? 1 : -1))
+      .map(([key, rows]) => ({
         key,
-        label: group.label,
-        rows: group.rows,
+        title: viewMode === 'week' ? getWeekTitle(key) : getMonthTitle(key),
+        weekMonday: viewMode === 'week' ? key : undefined,
+        isMonthGroup: viewMode === 'month',
+        rows,
       }));
-  }, [visibleScoreRows]);
-  const scoreTableGroups = useMemo(() => {
-    if (viewMode === 'day') return dayScoreGroups;
-    if (jumpDate) return [{ key: 'jump', label: '', rows: visibleScoreRows }];
-    return scoreViewGroups;
-  }, [dayScoreGroups, jumpDate, scoreViewGroups, viewMode]);
-  const loggedScoreDates = useMemo(() => new Set(filteredBatchRows.map((batch) => batch.dateStr)), [filteredBatchRows]);
+  }, [jumpDate, viewMode, visibleScoreRows]);
+  const loggedScoreDates = useMemo(() => new Set(batchRows.map((batch) => batch.dateStr)), [batchRows]);
   const sortedStudents = useMemo(
     () => [...students]
       .filter((student) => matchesSearch(studentSearch, student.full_name, student.first_name, student.last_name, student.lrn))
       .sort((firstStudent, secondStudent) => {
-        const comparison = (firstStudent.full_name || '').localeCompare(secondStudent.full_name || '');
+        const comparison = compareNamesByLastName(firstStudent, secondStudent);
         return studentSortDirection === 'asc' ? comparison : -comparison;
       }),
     [students, studentSearch, studentSortDirection]
   );
 
-  // Mobile score entry must ALWAYS be in alphabetical order (A to Z)
+  // Mobile score entry must ALWAYS be in alphabetical order (A to Z by last name)
   const mobileAlphabeticalStudents = useMemo(
     () => [...students]
       .filter((student) => matchesSearch(studentSearch, student.full_name, student.first_name, student.last_name, student.lrn))
       .sort((firstStudent, secondStudent) => {
-        const nameA = (firstStudent.full_name || `${firstStudent.first_name || ''} ${firstStudent.last_name || ''}`).trim();
-        const nameB = (secondStudent.full_name || `${secondStudent.first_name || ''} ${secondStudent.last_name || ''}`).trim();
-        return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+        return compareNamesByLastName(firstStudent, secondStudent);
       }),
     [students, studentSearch]
   );
@@ -1413,18 +1568,18 @@ export const TutorScores: React.FC = () => {
           </div>
 
           <div className="flex-1 p-4 sm:p-5 flex flex-col gap-4 sm:min-h-0 sm:overflow-hidden">
-            <div className="shrink-0 flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(0,1.8fr)_auto] sm:items-end">
+            <div className="shrink-0 flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(0,1.8fr)_auto] sm:items-end relative z-30">
               <div className="min-w-0 w-full">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,260px)_160px]">
-                  <div className="w-full">
+                  <div className="w-full relative z-30">
                     <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1.5">
                       DATE
                     </label>
-                    <div className="relative w-full">
+                    <div className="relative w-full z-30">
                       <button
                         type="button"
                         onClick={() => setShowEntryCalendarPopover((previous) => !previous)}
-                        className="flex w-full min-h-[44px] sm:min-h-0 sm:h-9 items-center justify-between rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 sm:py-1.5 text-left text-xs font-semibold text-gray-900 dark:text-slate-100 transition hover:bg-gray-50 dark:hover:bg-slate-700/50 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                        className="flex w-full min-h-[44px] sm:min-h-0 sm:h-9 items-center justify-between rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 sm:py-1.5 text-left text-xs font-semibold text-gray-900 dark:text-slate-100 transition hover:bg-gray-50 dark:hover:bg-slate-700/50 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] cursor-pointer"
                         aria-label="Select score date"
                       >
                         <span>{logDate ? formatDateStr(logDate) : 'Select date'}</span>
@@ -1437,6 +1592,7 @@ export const TutorScores: React.FC = () => {
                           onClear={() => setLogDate('')}
                           onClose={() => setShowEntryCalendarPopover(false)}
                           loggedDates={new Set<string>()}
+                          align="center"
                         />
                       )}
                     </div>
@@ -1491,7 +1647,7 @@ export const TutorScores: React.FC = () => {
                 <div className="flex shrink-0 flex-col gap-3 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 sm:py-2.5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">Student Score List</h3>
-                    <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">Enter scores for assigned students</p>
+                    <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">Enter scores for assigned students</p>
                   </div>
                   <label className="relative flex w-full sm:w-auto sm:min-w-56 items-center">
                     <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-gray-400" />
@@ -1703,14 +1859,14 @@ export const TutorScores: React.FC = () => {
       )}
 
       {/* ── DTR-style Score Records Table ─────────────────────────── */}
-      <div ref={tableContainerRef} className="order-4 rounded-md border border-gray-200 bg-white overflow-visible">
+      <div ref={tableContainerRef} className="order-4 mt-2.5 sm:mt-4 rounded-md border border-gray-200 bg-white overflow-visible">
 
         {/* Table header */}
         <div className="flex flex-col gap-3 px-5 py-3.5 border-b border-gray-100 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center">
             <div>
               <h3 className="text-sm font-bold text-gray-900 uppercase">STUDENTS SCORES HISTORY</h3>
-              <p className="mt-0.5 text-xs font-medium text-gray-500">
+              <p className="mt-0.5 text-xs font-normal text-gray-500">
                 {visibleScoreRows.length} Record{visibleScoreRows.length !== 1 ? 's' : ''}
               </p>
             </div>
@@ -1727,19 +1883,19 @@ export const TutorScores: React.FC = () => {
                 className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)]"
               />
             </label>
-            <div className="flex h-8 shrink-0 items-center gap-0.5 rounded-md bg-gray-100 p-0.5">
-              {(['day', 'week', 'month'] as const).map((mode) => (
+            <div className="flex h-8 shrink-0 items-center gap-0.5 rounded-md bg-gray-100 dark:bg-[#1A1A1A] p-0.5">
+              {(['week', 'month'] as const).map((mode) => (
                 <button
                   key={mode}
                   type="button"
                   onClick={() => { setViewMode(mode); setJumpDate(null); }}
-                  className={`h-7 whitespace-nowrap rounded-sm px-3 text-[10px] font-bold uppercase transition-all ${viewMode === mode && !jumpDate ? 'bg-[var(--brand)] text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`h-7 whitespace-nowrap rounded-sm px-3 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate ? 'bg-[var(--brand)] text-white' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
                 >
                   {mode}
                 </button>
               ))}
             </div>
-            <div className="relative inline-flex items-center">
+            <div className="relative inline-flex items-center z-30">
               <button
                 type="button"
                 onClick={() => setShowCalendarPopover((previous) => !previous)}
@@ -1756,6 +1912,7 @@ export const TutorScores: React.FC = () => {
                   onClear={() => setJumpDate(null)}
                   onClose={() => setShowCalendarPopover(false)}
                   loggedDates={loggedScoreDates}
+                  align="right"
                 />
               )}
             </div>
@@ -1764,9 +1921,6 @@ export const TutorScores: React.FC = () => {
               onClick={() => {
                 if (jumpDate) {
                   setExportModalConfig({ isOpen: true, mode: 'daily', targetKey: jumpDate });
-                } else if (viewMode === 'day') {
-                  const todayStr = new Date().toLocaleDateString('en-CA');
-                  setExportModalConfig({ isOpen: true, mode: 'daily', targetKey: todayStr });
                 } else if (viewMode === 'month') {
                   const monthStr = new Date().toLocaleDateString('en-CA').slice(0, 7);
                   setExportModalConfig({ isOpen: true, mode: 'monthly', targetKey: monthStr });
@@ -1804,47 +1958,53 @@ export const TutorScores: React.FC = () => {
           ) : visibleScoreRows.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
               <BookOpen className="w-8 h-8 text-gray-200" />
-              <p className="text-xs font-semibold text-gray-500">{jumpDate ? 'No records for this date' : 'No score records yet'}</p>
-              <p className="text-[11px] text-gray-400">{jumpDate ? 'Try a different date or clear the filter' : 'Records will appear after logging scores'}</p>
+              <p className="text-xs font-semibold text-gray-500">
+                {scoreStudentSearch.trim()
+                  ? 'No matching score records'
+                  : jumpDate
+                  ? 'No records for this date'
+                  : 'No score records yet'}
+              </p>
+              <p className="text-[11px] text-gray-400">
+                {scoreStudentSearch.trim()
+                  ? 'Try a different student name or subject'
+                  : jumpDate
+                  ? 'Try a different date or clear the filter'
+                  : 'Records will appear after logging scores'}
+              </p>
             </div>
           ) : (
-            <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2 space-y-5">
+            <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2 space-y-6">
               {scoreTableGroups.map((tableGroup) => (
-                <div key={tableGroup.key} className="space-y-2.5">
-                  {tableGroup.label && (
-                    <div className="mb-2.5 flex items-center gap-3">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{tableGroup.label}</span>
-                      <div className="h-px flex-1 bg-gray-100" />
-                      <span className="text-[11px] font-semibold text-gray-400">{tableGroup.rows.length} Record{tableGroup.rows.length !== 1 ? 's' : ''}</span>
-                    </div>
-                  )}
-                  <ScoreEntryTable
-                    rows={tableGroup.rows}
-                    lastSavedBatchId={lastSavedBatchId}
-                    lastRowRef={lastRowRef}
-                    editingGradeId={editingGradeId}
-                    editScore={editScore}
-                    editStatus={editStatus}
-                    editDate={editDate}
-                    editCalendarGradeId={editCalendarGradeId}
-                    editCalendarPosition={editCalendarPosition}
-                    grades={grades}
-                    blockSymbolKeys={blockSymbolKeys}
-                    sanitizeScoreInput={sanitizeScoreInput}
-                    setEditScore={setEditScore}
-                    setEditStatus={setEditStatus}
-                    setEditDate={setEditDate}
-                    setEditCalendarGradeId={setEditCalendarGradeId}
-                    toggleEditCalendar={toggleEditCalendar}
-                    startEditingGrade={startEditingGrade}
-                    cancelEditingGrade={cancelEditingGrade}
-                    saveEditingGrade={saveEditingGrade}
-                    isEditingGrade={isEditingGrade}
-                    formatDateStr={formatDateStr}
-                    formatTimeStr={formatTimeStr}
-                    avatarColor={avatarColor}
-                  />
-                </div>
+                <ScoreHistoryGroupSection
+                  key={tableGroup.key}
+                  tableGroup={tableGroup}
+                  selectedDate={selectedDate}
+                  onSelectDate={setSelectedDate}
+                  lastSavedBatchId={lastSavedBatchId}
+                  lastRowRef={lastRowRef}
+                  editingGradeId={editingGradeId}
+                  editScore={editScore}
+                  editStatus={editStatus}
+                  editDate={editDate}
+                  editCalendarGradeId={editCalendarGradeId}
+                  editCalendarPosition={editCalendarPosition}
+                  grades={grades}
+                  blockSymbolKeys={blockSymbolKeys}
+                  sanitizeScoreInput={sanitizeScoreInput}
+                  setEditScore={setEditScore}
+                  setEditStatus={setEditStatus}
+                  setEditDate={setEditDate}
+                  setEditCalendarGradeId={setEditCalendarGradeId}
+                  toggleEditCalendar={toggleEditCalendar}
+                  startEditingGrade={startEditingGrade}
+                  cancelEditingGrade={cancelEditingGrade}
+                  saveEditingGrade={saveEditingGrade}
+                  isEditingGrade={isEditingGrade}
+                  formatDateStr={formatDateStr}
+                  formatTimeStr={formatTimeStr}
+                  avatarColor={avatarColor}
+                />
               ))}
             </div>
           )}

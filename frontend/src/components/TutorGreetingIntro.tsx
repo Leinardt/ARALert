@@ -160,15 +160,15 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
     }, 5000);
   }, [sidebarLogoId, sidebarTextId]);
 
-  // Auto-open on first login per morning, afternoon, or evening
+  // Auto-open only on fresh login / re-login (never re-triggers while already logged in)
   useEffect(() => {
     if (!isAllowed || !user) return;
 
-    const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
-    const storageKey = `aralert_greeting_${user.id}_${todayStr}_${period}`;
-    const alreadySeen = localStorage.getItem(storageKey);
+    const isPending = sessionStorage.getItem('aralert_login_greeting_pending') === 'true';
+    if (!isPending) return;
 
-    if (alreadySeen) return;
+    // Consume the pending flag immediately so it never repeats while using the system
+    sessionStorage.removeItem('aralert_login_greeting_pending');
 
     // Immediately shift text left and hide sidebar logo so there is never an awkward empty space
     const sidebarLogo = document.getElementById(sidebarLogoId);
@@ -183,14 +183,13 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
 
     // Delay slightly for smooth page hydration and layout stabilization
     const mountTimer = setTimeout(() => {
-      localStorage.setItem(storageKey, 'true');
       startIntro();
     }, 450);
 
     return () => {
       clearTimeout(mountTimer);
     };
-  }, [isAllowed, user?.id, period, sidebarLogoId, sidebarTextId, startIntro]);
+  }, [isAllowed, user?.id, sidebarLogoId, sidebarTextId, startIntro]);
 
   // Clean up timer on unmount and ensure sidebar logo and text are restored
   useEffect(() => {

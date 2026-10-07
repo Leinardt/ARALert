@@ -58,7 +58,7 @@ def assign_tutor_to_student(
         school_year = SchoolYear.objects.filter(is_active=True).first()
         if not school_year:
             school_year, _ = SchoolYear.objects.get_or_create(
-                school_year='2025-2026',
+                school_year='2026-2027',
                 defaults={'status': 'ACTIVE', 'is_active': True}
             )
 

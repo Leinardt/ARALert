@@ -1,20 +1,21 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import {
-  Search, Filter, Download, ChevronLeft, ChevronRight,
-  AlertTriangle, LogIn, LogOut, KeyRound, UserCog, Eye,
-  Shield, CheckCircle2, RefreshCw, Activity,
-} from 'lucide-react';
+import { Search, AlertTriangle, Download } from 'lucide-react';
 import api from '../../api/axios';
+import { TablePagination } from '../../components/TablePagination';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface AuditEntry {
   id: string;
   timestamp: string;
   action: string;
+  name: string;
+  role: string;
+  email: string;
+  lrn: string;
   username: string;
-  ip_address: string;
-  user_agent: string;
-  details: Record<string, unknown>;
+  ip_address?: string;
+  user_agent?: string;
+  details?: Record<string, any>;
 }
 
 interface AuditResponse {
@@ -25,74 +26,23 @@ interface AuditResponse {
   results: AuditEntry[];
 }
 
-// ── Action badge styles ────────────────────────────────────────────────────────
-const ACTION_META: Record<string, { color: string; bg: string; border: string; icon: React.ReactNode; category: string }> = {
-  LOGIN_SUCCESS:                        { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <LogIn size={12} />,       category: 'auth' },
-  GOOGLE_LOGIN_SUCCESS:                 { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <LogIn size={12} />,       category: 'auth' },
-  STUDENT_LOGIN_SUCCESS:                { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <LogIn size={12} />,       category: 'auth' },
-  LOGOUT_SUCCESS:                       { color: '#1E40AF', bg: '#EFF6FF', border: '#BFDBFE', icon: <LogOut size={12} />,      category: 'auth' },
-  LOGIN_FAILED:                         { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={12}/>, category: 'security' },
-  STUDENT_LOGIN_FAILED:                 { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={12}/>, category: 'security' },
-  GOOGLE_LOGIN_INVALID_TOKEN:           { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={12}/>, category: 'security' },
-  GOOGLE_LOGIN_UNREGISTERED_EMAIL:      { color: '#92400E', bg: '#FEF3C7', border: '#FDE68A', icon: <AlertTriangle size={12}/>, category: 'security' },
-  LOGIN_RATE_LIMITED:                   { color: '#92400E', bg: '#FEF3C7', border: '#FDE68A', icon: <AlertTriangle size={12}/>, category: 'security' },
-  STUDENT_LOGIN_RATE_LIMITED:           { color: '#92400E', bg: '#FEF3C7', border: '#FDE68A', icon: <AlertTriangle size={12}/>, category: 'security' },
-  GOOGLE_LOGIN_RATE_LIMITED:            { color: '#92400E', bg: '#FEF3C7', border: '#FDE68A', icon: <AlertTriangle size={12}/>, category: 'security' },
-  LOGIN_MFA_CHALLENGE_ISSUED:           { color: '#1E40AF', bg: '#EFF6FF', border: '#BFDBFE', icon: <Shield size={12} />,      category: 'auth' },
-  MFA_OTP_SUCCESS:                      { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <Shield size={12} />,      category: 'auth' },
-  MFA_OTP_FAILED:                       { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={12}/>, category: 'security' },
-  MFA_OTP_RATE_LIMITED:                 { color: '#92400E', bg: '#FEF3C7', border: '#FDE68A', icon: <AlertTriangle size={12}/>, category: 'security' },
-  MFA_TOGGLED:                          { color: '#5B21B6', bg: '#F5F3FF', border: '#DDD6FE', icon: <Shield size={12} />,      category: 'settings' },
-  MFA_OTP_INVALID_USER:                 { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={12}/>, category: 'security' },
-  PASSWORD_RESET_REQUESTED:             { color: '#92400E', bg: '#FEF3C7', border: '#FDE68A', icon: <KeyRound size={12} />,    category: 'auth' },
-  PASSWORD_RESET_REQUESTED_UNKNOWN_EMAIL: { color: '#92400E', bg: '#FEF3C7', border: '#FDE68A', icon: <KeyRound size={12} />, category: 'security' },
-  PASSWORD_RESET_COMPLETED:             { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <KeyRound size={12} />,    category: 'auth' },
-  PASSWORD_RESET_BY_ADMIN:              { color: '#5B21B6', bg: '#F5F3FF', border: '#DDD6FE', icon: <KeyRound size={12} />,    category: 'admin' },
-  PROFILE_UPDATED:                      { color: '#1E40AF', bg: '#EFF6FF', border: '#BFDBFE', icon: <UserCog size={12} />,     category: 'admin' },
-  ACCOUNT_ACTIVATED:                    { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <CheckCircle2 size={12}/>, category: 'admin' },
-  USER_CREATED:                         { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <UserCog size={12} />,     category: 'admin' },
-  USER_UPDATED:                         { color: '#1E40AF', bg: '#EFF6FF', border: '#BFDBFE', icon: <UserCog size={12} />,     category: 'admin' },
-  USER_DEACTIVATED:                     { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <UserCog size={12} />,     category: 'admin' },
-  USER_ACTIVATED:                       { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <UserCog size={12} />,     category: 'admin' },
-  BULK_TUTOR_ASSIGNED:                  { color: '#0284C7', bg: '#F0F9FF', border: '#BAE6FD', icon: <UserCog size={12} />,     category: 'admin' },
-  STUDENT_EDIT_REQUEST_CREATED:         { color: '#D97706', bg: '#FFFBEB', border: '#FDE68A', icon: <UserCog size={12} />,     category: 'admin' },
-  STUDENT_EDIT_REQUEST_APPROVED:        { color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', icon: <CheckCircle2 size={12}/>, category: 'admin' },
-  STUDENT_EDIT_REQUEST_REJECTED:        { color: '#DC2626', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={12}/>, category: 'admin' },
-  ALLOWED_EMAIL_ADDED:                  { color: '#065F46', bg: '#ECFDF5', border: '#A7F3D0', icon: <CheckCircle2 size={12}/>, category: 'admin' },
-  ALLOWED_EMAIL_REMOVED:                { color: '#991B1B', bg: '#FEF2F2', border: '#FECACA', icon: <AlertTriangle size={12}/>, category: 'admin' },
-};
-
-const getMeta = (action: string) =>
-  ACTION_META[action] ?? { color: '#334155', bg: '#F8FAFC', border: '#E2E8F0', icon: <Activity size={12} />, category: 'other' };
-
-// ── Category summary pill ──────────────────────────────────────────────────────
-const CATEGORY_COLORS: Record<string, { bg: string; color: string }> = {
-  auth:     { bg: '#ECFDF5', color: '#065F46' },
-  security: { bg: '#FEF2F2', color: '#991B1B' },
-  admin:    { bg: '#EFF6FF', color: '#1E40AF' },
-  settings: { bg: '#F5F3FF', color: '#5B21B6' },
-  other:    { bg: '#F8FAFC', color: '#334155' },
-};
-
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export const AuditLog: React.FC = () => {
   const [data, setData] = useState<AuditResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [actionFilter, setActionFilter] = useState('');
-  const [usernameFilter, setUsernameFilter] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [actionInput, setActionInput] = useState('');
-  const [usernameInput, setUsernameInput] = useState('');
+  const [page, setPage] = useState<number>(1);
+  const [eventFilter, setEventFilter] = useState<string>('');
+  const [searchFilter, setSearchFilter] = useState<string>('');
+  const [searchInput, setSearchInput] = useState<string>('');
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({ page: String(page) });
-      if (actionFilter) params.set('action', actionFilter);
-      if (usernameFilter) params.set('username', usernameFilter);
+      if (eventFilter) params.set('action', eventFilter);
+      if (searchFilter) params.set('search', searchFilter);
       const res = await api.get<AuditResponse>(`/users/audit-logs/?${params}`);
       setData(res.data);
     } catch {
@@ -100,377 +50,298 @@ export const AuditLog: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, actionFilter, usernameFilter]);
+  }, [page, eventFilter, searchFilter]);
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setActionFilter(actionInput);
-    setUsernameFilter(usernameInput);
+    setSearchFilter(searchInput);
     setPage(1);
   };
 
   const handleClear = () => {
-    setActionInput('');
-    setUsernameInput('');
-    setActionFilter('');
-    setUsernameFilter('');
+    setEventFilter('');
+    setSearchInput('');
+    setSearchFilter('');
     setPage(1);
   };
 
-  const downloadCSV = () => {
-    if (!data) return;
-    const header = 'Timestamp,Action,Username,Details\n';
-    const rows = data.results
-      .map((r) => `"${r.timestamp}","${r.action}","${r.username}","${JSON.stringify(r.details).replace(/"/g, "'")}"`)
-      .join('\n');
-    const blob = new Blob([header + rows], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `aralert_audit_log_page${page}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExportCsv = () => {
+    if (!data || !data.results || data.results.length === 0) return;
+    const headers = ['Timestamp (PHT)', 'Action', 'Actor Name', 'Role', 'Email', 'LRN'];
+    const rows = data.results.map((r) => [
+      `"${r.timestamp}"`,
+      `"${r.action}"`,
+      `"${(r.name || 'System').replace(/"/g, '""')}"`,
+      `"${r.role || '—'}"`,
+      `"${r.email || '—'}"`,
+      `"${r.lrn || '—'}"`,
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `ARALert_Audit_Log_Page_${page}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1100px', margin: '0 auto' }}>
+    <div className="flex flex-col gap-5 p-4 sm:p-6 max-w-7xl mx-auto w-full" style={{ fontFamily: 'var(--font-body)' }}>
 
-      {/* ── Page Header ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={fetchLogs}
-            title="Refresh"
-            style={{
-              width: '38px', height: '38px', borderRadius: '10px',
-              background: 'var(--surface-muted)', border: '1px solid var(--slate-200)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', color: 'var(--text-secondary)',
-              transition: 'var(--transition-fast)',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand-dark)'; e.currentTarget.style.borderColor = 'var(--brand-border)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--slate-200)'; }}
-          >
-            <RefreshCw size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={downloadCSV}
-            disabled={!data}
-            className="btn btn-secondary btn-sm"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            <Download size={15} /> Export CSV
-          </button>
-        </div>
-      </div>
-
-      {/* ── Filters ── */}
-      <form onSubmit={handleSearch} className="p-3.5 sm:p-5" style={{
-        background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)',
-        border: '1px solid var(--slate-200)',
-        boxShadow: 'var(--shadow-xs)',
-        display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end',
-      }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', flex: '1', minWidth: '140px' }}>
-          <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Filter by Action
+      {/* ── Filters Bar ── */}
+      <form
+        onSubmit={handleSearch}
+        className="p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs flex flex-wrap items-end gap-3"
+      >
+        {/* Filter by Event */}
+        <div className="flex flex-col gap-1.5 flex-1 min-w-[240px]">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+            Filter by Event
           </label>
-          <div style={{ position: 'relative' }}>
-            <Filter size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+          <div className="relative">
+            <select
+              value={eventFilter}
+              onChange={(e) => {
+                setEventFilter(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter by Event"
+              className="w-full h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+            >
+              <option value="">ALL EVENTS</option>
+              
+              <optgroup label="Authentication & Security">
+                <option value="LOGIN_SUCCESS">Login Success</option>
+                <option value="LOGOUT_SUCCESS">Logout Success</option>
+                <option value="LOGIN_FAILED">Login Failed / Unauthorized</option>
+                <option value="LOGIN_RATE_LIMITED">Login Rate Limited</option>
+              </optgroup>
+
+              <optgroup label="Academic Grades & Scores">
+                <option value="GRADE_RECORDED">Academic Grade Recorded</option>
+                <option value="GRADE_UPDATED">Academic Grade Updated</option>
+                <option value="GRADE_DELETED">Academic Grade Deleted</option>
+              </optgroup>
+
+              <optgroup label="Attendance & DTR Operations">
+                <option value="ATTENDANCE_QR_SCANNED">Student QR Attendance Scanned</option>
+                <option value="ATTENDANCE_MANUAL_LOGGED">Manual Attendance Logged</option>
+                <option value="ATTENDANCE_SESSION_CREATED">Attendance QR Session Generated</option>
+                <option value="ATTENDANCE_SESSION_CLOSED">Attendance QR Session Closed</option>
+                <option value="ATTENDANCE_STAFF_CLOCK_IN">Staff DTR Clock In Scanned</option>
+                <option value="ATTENDANCE_STAFF_CLOCK_OUT">Staff DTR Clock Out Scanned</option>
+              </optgroup>
+
+              <optgroup label="Risk Assessment & Interventions">
+                <option value="STUDENT_INTERVENTION_ACKNOWLEDGED">Student Acknowledged High Risk Alert</option>
+              </optgroup>
+
+              <optgroup label="Learner & Account Lifecycle">
+                <option value="USER_CREATED">User Enrolled / Created</option>
+                <option value="USER_UPDATED">User Profile Updated</option>
+                <option value="USER_ACTIVATED_BY_SUPERADMIN">Account Activated by SuperAdmin</option>
+                <option value="USER_ACTIVATED_BY_ADMIN">Account Activated by Admin</option>
+                <option value="USER_DEACTIVATED_BY_SUPERADMIN">Account Deactivated by SuperAdmin</option>
+                <option value="USER_DEACTIVATED_BY_ADMIN">Account Deactivated by Admin</option>
+                <option value="TUTOR_ASSIGNED">Tutor Assigned to Student</option>
+                <option value="BULK_TUTOR_ASSIGNED">Bulk Cohort Assigned to Tutor</option>
+                <option value="STUDENT_EDIT_REQUEST_SUBMITTED">Student Record Correction Submitted</option>
+                <option value="STUDENT_EDIT_REQUEST_APPROVED">Student Record Correction Approved</option>
+                <option value="STUDENT_EDIT_REQUEST_REJECTED">Student Record Correction Rejected</option>
+                <option value="ALLOWED_EMAIL_ADDED">Allowed Email Added</option>
+                <option value="ALLOWED_EMAIL_REMOVED">Allowed Email Removed</option>
+              </optgroup>
+
+              <optgroup label="Evaluations & Transitions">
+                <option value="MOSY_FINALIZED">MOSY Evaluation Finalized</option>
+                <option value="SEMESTER_TRANSITION_SET">Semester Milestone Set</option>
+                <option value="SCHOOL_YEAR_TRANSITION">School Year Transition Executed</option>
+                <option value="SUMMER_REMEDIATION_STARTED">Summer Remediation Started</option>
+                <option value="SUMMER_EVALUATION_RECORDED">Summer Evaluation Recorded</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+
+        {/* Filter by Name, Email, or LRN */}
+        <div className="flex flex-col gap-1.5 flex-1 min-w-[220px]">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+            Filter by Name, Email, or LRN
+          </label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 pointer-events-none" />
             <input
               type="text"
-              value={actionInput}
-              onChange={(e) => setActionInput(e.target.value)}
-              placeholder="LOGIN, FAILED, MFA, RESET…"
-              style={{
-                width: '100%', padding: '0.65rem 0.75rem 0.65rem 2.1rem',
-                border: '1.5px solid var(--slate-200)', borderRadius: 'var(--radius-md)',
-                fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box',
-                fontFamily: 'var(--font-body)', background: 'var(--surface-muted)',
-                transition: 'border-color 0.2s, box-shadow 0.2s',
-              }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--brand)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; e.currentTarget.style.background = 'var(--surface-card)'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--slate-200)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.background = 'var(--surface-muted)'; }}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search name, email, or LRN…"
+              className="w-full h-9 pl-9 pr-3 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] text-xs font-semibold text-gray-700 dark:text-slate-200 placeholder:text-slate-400 placeholder:font-normal outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A]"
             />
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', flex: '1', minWidth: '140px' }}>
-          <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Filter by Username
-          </label>
-          <div style={{ position: 'relative' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-            <input
-              type="text"
-              value={usernameInput}
-              onChange={(e) => setUsernameInput(e.target.value)}
-              placeholder="aralert_superadmin…"
-              style={{
-                width: '100%', padding: '0.65rem 0.75rem 0.65rem 2.1rem',
-                border: '1.5px solid var(--slate-200)', borderRadius: 'var(--radius-md)',
-                fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box',
-                fontFamily: 'var(--font-body)', background: 'var(--surface-muted)',
-                transition: 'border-color 0.2s, box-shadow 0.2s',
-              }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--brand)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; e.currentTarget.style.background = 'var(--surface-card)'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--slate-200)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.background = 'var(--surface-muted)'; }}
-            />
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
           <button
             type="submit"
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-              padding: '0.65rem 1.25rem', borderRadius: 'var(--radius-md)',
-              background: 'linear-gradient(135deg, var(--brand), var(--brand-hover))',
-              border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 700,
-              cursor: 'pointer', fontFamily: 'var(--font-body)',
-              boxShadow: '0 4px 14px rgba(16,185,129,0.3)',
-            }}
+            className="h-9 px-4 rounded-md text-xs font-bold text-white bg-[#0052B7] hover:bg-[#004194] border border-[#0052B7] transition shadow-none cursor-pointer flex items-center gap-1.5"
           >
-            <Search size={15} /> Search
+            <Search className="w-3.5 h-3.5" /> Search
           </button>
-          {(actionFilter || usernameFilter) && (
+          {(eventFilter || searchFilter || searchInput) && (
             <button
               type="button"
               onClick={handleClear}
-              style={{
-                padding: '0.65rem 1rem', borderRadius: 'var(--radius-md)',
-                background: 'transparent', border: '1.5px solid var(--slate-200)',
-                color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer',
-                fontFamily: 'var(--font-body)', fontWeight: 600,
-              }}
+              className="h-9 px-3.5 rounded-md text-xs font-bold text-slate-600 dark:text-zinc-400 bg-gray-100 hover:bg-gray-200 dark:bg-[#111111] dark:hover:bg-[#1a1a1a] border border-gray-200 dark:border-[#1A1A1A] transition cursor-pointer"
             >
               Clear
+            </button>
+          )}
+          {data && data.results && data.results.length > 0 && (
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              title="Export Current Page to CSV"
+              className="h-9 px-3.5 rounded-md text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 border border-emerald-300 dark:border-emerald-800 transition cursor-pointer flex items-center gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" /> CSV Export
             </button>
           )}
         </div>
       </form>
 
-      {/* ── Log Table ── */}
-      <div style={{ background: 'var(--surface-card)', border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-xl)', overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
-
-        {/* Table header info bar */}
-        <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--slate-100)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface-muted)' }}>
-          <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-            {loading ? 'Loading events…' : data ? `Showing ${data.results.length} of ${data.count} events` : ''}
-          </p>
-          {(actionFilter || usernameFilter) && (
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              {actionFilter && (
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, background: 'var(--brand-light)', color: 'var(--brand-dark)', padding: '2px 10px', borderRadius: '99px', border: '1px solid var(--brand-border)' }}>
-                  action: {actionFilter}
-                </span>
-              )}
-              {usernameFilter && (
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, background: 'var(--brand-light)', color: 'var(--brand-dark)', padding: '2px 10px', borderRadius: '99px', border: '1px solid var(--brand-border)' }}>
-                  user: {usernameFilter}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+      {/* ── Log Table Container (30 records per page) ── */}
+      <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs overflow-hidden">
+        
+        {/* Active Filters (if any) */}
+        {(eventFilter || searchFilter) && (
+          <div className="px-5 py-2.5 border-b border-gray-100 dark:border-[#1A1A1A] flex flex-wrap items-center gap-2 bg-gray-50/50 dark:bg-[#111111]">
+            <span className="text-[11px] font-semibold text-slate-400">Active Filters:</span>
+            {eventFilter && (
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
+                Event: {eventFilter.replace(/_/g, ' ')}
+              </span>
+            )}
+            {searchFilter && (
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
+                Query: {searchFilter}
+              </span>
+            )}
+          </div>
+        )}
 
         {loading ? (
-          <div style={{ padding: '1.5rem' }}>
-            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-              <div key={i} className="skeleton" style={{ height: '54px', marginBottom: '8px', borderRadius: '10px', animationDelay: `${i * 0.07}s` }} />
+          <div className="p-6 space-y-3">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="h-10 bg-slate-100 dark:bg-zinc-900 rounded-lg animate-pulse" />
             ))}
           </div>
         ) : error ? (
-          <div style={{ padding: '3rem', textAlign: 'center' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-              <AlertTriangle size={28} color="#EF4444" />
+          <div className="p-12 text-center">
+            <div className="w-12 h-12 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 flex items-center justify-center mx-auto mb-3">
+              <AlertTriangle className="w-6 h-6 text-rose-600" />
             </div>
-            <p style={{ margin: 0, fontWeight: 700, color: '#991B1B' }}>{error}</p>
-            <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Make sure you are signed in as SuperAdmin.</p>
+            <p className="text-sm font-bold text-rose-800 dark:text-rose-200">{error}</p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">Make sure you are signed in as SuperAdmin or Admin.</p>
           </div>
         ) : !data || data.results.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'var(--surface-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-              <Activity size={28} color="var(--text-muted)" />
-            </div>
-            <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-secondary)' }}>No audit events match your filters.</p>
+          <div className="p-12 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A]">
+            No audit events match your filters.
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="data-table" style={{ minWidth: '750px' }}>
+          <div className="overflow-x-auto">
+            <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
               <thead>
-                <tr>
-                  <th>Timestamp (UTC)</th>
-                  <th>Event</th>
-                  <th>Username</th>
-                  <th>Browser / Agent</th>
-                  <th style={{ textAlign: 'center' }}>Details</th>
+                <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                    TIMESTAMP
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                    EVENT
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                    NAME
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                    ROLE
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                    EMAIL
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                    LRN
+                  </th>
                 </tr>
               </thead>
-              <tbody>
-                {data.results.map((log, idx) => {
-                  const meta = getMeta(log.action);
-                  const isExpanded = expandedId === log.id;
-                  const hasDetails = log.details && Object.keys(log.details).length > 0;
-                  const shortAgent = log.user_agent
-                    ? log.user_agent.replace(/\(.*?\)/g, '').replace(/AppleWebKit\/[\d.]+/, '').trim().slice(0, 40)
-                    : '';
-
+              <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+                {data.results.map((log) => {
                   return (
-                    <React.Fragment key={log.id}>
-                      <tr
-                        style={{ animationDelay: `${idx * 0.03}s` }}
-                        className="animate-fade-in"
-                      >
-                        <td>
-                          <span style={{ fontSize: '0.78rem', fontFamily: 'monospace', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                            {log.timestamp}
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '5px',
-                            padding: '3px 10px 3px 7px', borderRadius: '99px',
-                            fontSize: '0.68rem', fontWeight: 600, letterSpacing: '0.02em',
-                            background: meta.bg, color: meta.color,
-                            border: `1px solid ${meta.border}`,
-                            whiteSpace: 'nowrap',
-                          }}>
-                            {meta.icon}
-                            {log.action.replace(/_/g, ' ')}
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                            {log.username}
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }} title={log.user_agent}>
-                            {shortAgent || '—'}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          {hasDetails ? (
-                            <button
-                              type="button"
-                              onClick={() => setExpandedId(isExpanded ? null : log.id)}
-                              style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '4px',
-                                padding: '3px 10px', borderRadius: '8px',
-                                background: isExpanded ? 'var(--brand-light)' : 'var(--surface-muted)',
-                                border: `1px solid ${isExpanded ? 'var(--brand-border)' : 'var(--slate-200)'}`,
-                                color: isExpanded ? 'var(--brand-dark)' : 'var(--text-muted)',
-                                fontSize: '0.75rem', fontWeight: 600,
-                                cursor: 'pointer', fontFamily: 'var(--font-body)',
-                                transition: 'all 0.15s',
-                              }}
-                            >
-                              <Eye size={12} /> {isExpanded ? 'Hide' : 'View'}
-                            </button>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-disabled)' }}>—</span>
-                          )}
-                        </td>
-                      </tr>
+                    <tr
+                      key={log.id}
+                      className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/[0.02]"
+                    >
+                      {/* TIMESTAMP */}
+                      <td className="px-4 py-3 text-xs font-mono text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                        {log.timestamp}
+                      </td>
 
-                      {/* Expandable details row */}
-                      {isExpanded && hasDetails && (
-                        <tr>
-                          <td colSpan={5} style={{ padding: '0 1.25rem 1rem', background: 'var(--surface-muted)' }}>
-                            <div style={{
-                              background: '#0F172A',
-                              borderRadius: '12px',
-                              padding: '1rem 1.25rem',
-                              fontFamily: 'monospace',
-                              fontSize: '0.82rem',
-                              lineHeight: 1.8,
-                              color: '#94A3B8',
-                              overflow: 'auto',
-                            }}>
-                              <div style={{ color: '#64748B', marginBottom: '0.5rem', fontSize: '0.72rem', letterSpacing: '0.05em' }}>
-                                // {log.action} — {log.timestamp}
-                              </div>
-                              {Object.entries(log.details).map(([k, v]) => (
-                                <div key={k}>
-                                  <span style={{ color: '#7DD3FC' }}>{k}</span>
-                                  <span style={{ color: '#94A3B8' }}>{': '}</span>
-                                  <span style={{ color: '#6EE7B7' }}>{JSON.stringify(v)}</span>
-                                </div>
-                              ))}
-                              {log.user_agent && (
-                                <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)', color: '#64748B', fontSize: '0.72rem' }}>
-                                  user_agent: {log.user_agent}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
+                      {/* EVENT */}
+                      <td className="px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-900 dark:text-slate-100">
+                        {log.action.replace(/_/g, ' ')}
+                      </td>
+
+                      {/* NAME */}
+                      <td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 whitespace-nowrap">
+                        {log.name || 'System'}
+                      </td>
+
+                      {/* ROLE */}
+                      <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-700 dark:text-slate-300">
+                        {log.role || '—'}
+                      </td>
+
+                      {/* EMAIL */}
+                      <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                        {log.email || '—'}
+                      </td>
+
+                      {/* LRN */}
+                      <td className="px-4 py-3 text-xs font-mono text-gray-700 dark:text-slate-300 whitespace-nowrap">
+                        {log.lrn || '—'}
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
         )}
+
+        {/* ── Pagination Footer ── */}
+        {data && data.count > 0 && (
+          <TablePagination
+            currentPage={page}
+            totalItems={data.count}
+            totalPages={data.total_pages}
+            pageSize={30}
+            onPageChange={setPage}
+            customShowingText={
+              <span>
+                Showing <strong className="font-semibold text-gray-800 dark:text-slate-200">{data.results.length}</strong> of{' '}
+                <strong className="font-semibold text-gray-800 dark:text-slate-200">{data.count}</strong> events (30 per page)
+              </span>
+            }
+          />
+        )}
       </div>
-
-      {/* ── Pagination ── */}
-      {data && data.total_pages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-            Page <strong>{data.page}</strong> of <strong>{data.total_pages}</strong> — {data.count.toLocaleString()} total events
-          </span>
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="btn btn-secondary btn-sm"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', opacity: page <= 1 ? 0.4 : 1 }}
-            >
-              <ChevronLeft size={15} /> Previous
-            </button>
-            {/* Page number pills */}
-            {Array.from({ length: Math.min(data.total_pages, 5) }, (_, i) => {
-              const p = Math.max(1, Math.min(data.total_pages - 4, page - 2)) + i;
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPage(p)}
-                  style={{
-                    width: '34px', height: '34px', borderRadius: '9px', border: 'none',
-                    background: p === page ? 'linear-gradient(135deg, var(--brand), var(--brand-hover))' : 'var(--surface-muted)',
-                    color: p === page ? '#fff' : 'var(--text-secondary)',
-                    fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
-                    fontFamily: 'var(--font-body)',
-                    boxShadow: p === page ? '0 4px 12px rgba(16,185,129,0.3)' : 'none',
-                  }}
-                >
-                  {p}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              disabled={page >= data.total_pages}
-              onClick={() => setPage((p) => p + 1)}
-              className="btn btn-secondary btn-sm"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', opacity: page >= data.total_pages ? 0.4 : 1 }}
-            >
-              Next <ChevronRight size={15} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Legend ── */}
     </div>
   );
 };
+
+export default AuditLog;
+

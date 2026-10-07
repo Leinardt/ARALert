@@ -22,6 +22,7 @@ from apps.academics.models import (
     ApiGrade,
 )
 from apps.accounts.models import User
+from utilities.audit import log_audit_event
 
 from .serializers import (
     AcademicRiskSerializer,
@@ -233,6 +234,20 @@ class GradeListCreateView(generics.ListCreateAPIView):
         grade = serializer.save(tutor=user, created_at=timezone.now())
         if grade.student:
             evaluate_student_aral_progression(grade.student)
+            log_audit_event(
+                'GRADE_RECORDED',
+                user=user,
+                request=self.request,
+                details={
+                    'student_id': str(grade.student.id),
+                    'student_name': grade.student.get_full_name(),
+                    'lrn': grade.student.lrn,
+                    'subject': grade.subject,
+                    'score': float(grade.score) if grade.score is not None else 0,
+                    'total_score': float(grade.total_score) if grade.total_score else 40,
+                    'quarter': grade.quarter,
+                }
+            )
 
 
 class GradeDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -247,9 +262,44 @@ class GradeDetailView(generics.RetrieveUpdateDestroyAPIView):
     lookup_field       = 'id'
 
     def perform_update(self, serializer):
+        instance = self.get_object()
+        old_score = float(instance.score) if instance.score is not None else 0
+        old_total = float(instance.total_score) if instance.total_score else 40
         grade = serializer.save()
         if grade.student:
             evaluate_student_aral_progression(grade.student)
+            log_audit_event(
+                'GRADE_UPDATED',
+                user=self.request.user,
+                request=self.request,
+                details={
+                    'student_id': str(grade.student.id),
+                    'student_name': grade.student.get_full_name(),
+                    'lrn': grade.student.lrn,
+                    'subject': grade.subject,
+                    'previous_score': old_score,
+                    'new_score': float(grade.score) if grade.score is not None else 0,
+                    'previous_total': old_total,
+                    'total_score': float(grade.total_score) if grade.total_score else 40,
+                }
+            )
+
+    def perform_destroy(self, instance):
+        if instance.student:
+            log_audit_event(
+                'GRADE_DELETED',
+                user=self.request.user,
+                request=self.request,
+                details={
+                    'student_id': str(instance.student.id),
+                    'student_name': instance.student.get_full_name(),
+                    'lrn': instance.student.lrn,
+                    'subject': instance.subject,
+                    'score': float(instance.score) if instance.score is not None else 0,
+                    'total_score': float(instance.total_score) if instance.total_score else 40,
+                }
+            )
+        instance.delete()
 
 
 
@@ -341,7 +391,22 @@ class AcademicRiskListCreateView(generics.ListCreateAPIView):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('Unauthorized to create risk alerts.')
         from django.utils import timezone as tz
-        serializer.save(date_created=tz.now())
+        risk = serializer.save(date_created=tz.now())
+        if risk.student:
+            log_audit_event(
+                'ACADEMIC_RISK_NOTE_RECORDED',
+                user=user,
+                request=self.request,
+                details={
+                    'risk_id': risk.id,
+                    'student_id': str(risk.student.id),
+                    'student_name': risk.student.get_full_name(),
+                    'lrn': risk.student.lrn,
+                    'risk_level': risk.risk_level,
+                    'details': risk.details,
+                    'resolved': risk.resolved,
+                }
+            )
 
 
 class AcademicRiskDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -354,6 +419,27 @@ class AcademicRiskDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
     queryset           = ApiAcademicRisk.objects.select_related('student').all()
     lookup_field       = 'id'
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        old_risk = self.get_object()
+        risk = serializer.save()
+
+        # Check if student acknowledged
+        if not old_risk.student_acknowledged and risk.student_acknowledged:
+            log_audit_event(
+                'STUDENT_INTERVENTION_ACKNOWLEDGED',
+                user=user,
+                request=self.request,
+                details={
+                    'risk_id': risk.id,
+                    'student_id': str(risk.student.id) if risk.student else '',
+                    'student_name': risk.student.get_full_name() if risk.student else user.get_full_name(),
+                    'lrn': risk.student.lrn if risk.student else getattr(user, 'lrn', ''),
+                    'risk_level': risk.risk_level,
+                    'details': risk.details,
+                }
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -434,6 +520,20 @@ class AttendanceSessionCreateView(APIView):
             expires_at   = timezone.now() + timedelta(minutes=expires_in_minutes),
             is_active    = True,
         )
+
+        log_audit_event(
+            'ATTENDANCE_SESSION_CREATED',
+            user=user,
+            request=request,
+            details={
+                'session_id': str(session.id),
+                'session_type': session_type,
+                'action': action or 'all_day',
+                'expires_at': str(session.expires_at),
+                'aral_activity': aral_activity.title if aral_activity else '',
+            }
+        )
+
         return Response(AttendanceSessionSerializer(session).data, status=status.HTTP_201_CREATED)
 
 
@@ -455,6 +555,16 @@ class AttendanceSessionCloseView(APIView):
 
         session.is_active = False
         session.save(update_fields=['is_active'])
+
+        log_audit_event(
+            'ATTENDANCE_SESSION_CLOSED',
+            user=request.user,
+            request=request,
+            details={
+                'session_id': str(session.id),
+                'session_type': session.session_type,
+            }
+        )
 
         return Response({
             'message': 'Attendance session closed successfully.',
@@ -507,6 +617,24 @@ class AttendanceScanView(APIView):
                 aral_activity = session.aral_activity,
                 session       = session,
             )
+
+            log_audit_event(
+                'ATTENDANCE_QR_SCANNED',
+                user=user,
+                request=request,
+                details={
+                    'student_id': str(user.id),
+                    'student_name': user.get_full_name(),
+                    'lrn': user.lrn,
+                    'tutor_id': str(session.creator.id) if session.creator else '',
+                    'tutor_name': session.creator.get_full_name() if session.creator else '',
+                    'session_id': str(session.id),
+                    'aral_activity': session.aral_activity.title if session.aral_activity else '',
+                    'date': str(today),
+                    'status': 'present',
+                }
+            )
+
             return Response({
                 'message': 'Attendance recorded successfully!',
                 'attendance': AttendanceSerializer(attendance).data,
@@ -529,6 +657,21 @@ class AttendanceScanView(APIView):
                     status  = 'present',
                     session = session,
                 )
+
+                log_audit_event(
+                    'ATTENDANCE_STAFF_CLOCK_IN',
+                    user=user,
+                    request=request,
+                    details={
+                        'staff_id': str(user.id),
+                        'staff_name': user.get_full_name(),
+                        'role': user.role,
+                        'session_id': str(session.id),
+                        'date': str(today),
+                        'time_in': str(attendance.time_in),
+                    }
+                )
+
                 return Response({
                     'message': 'Clock In recorded!',
                     'attendance': AttendanceSerializer(attendance).data,
@@ -545,6 +688,21 @@ class AttendanceScanView(APIView):
 
                 attendance.time_out = timezone.now().time()
                 attendance.save(update_fields=['time_out'])
+
+                log_audit_event(
+                    'ATTENDANCE_STAFF_CLOCK_OUT',
+                    user=user,
+                    request=request,
+                    details={
+                        'staff_id': str(user.id),
+                        'staff_name': user.get_full_name(),
+                        'role': user.role,
+                        'session_id': str(session.id),
+                        'date': str(today),
+                        'time_out': str(attendance.time_out),
+                    }
+                )
+
                 return Response({
                     'message': 'Clock Out recorded!',
                     'attendance': AttendanceSerializer(attendance).data,
@@ -615,6 +773,19 @@ class AttendanceManualLogView(APIView):
                 attendance.aral_activity = aral_activity
             attendance.save(update_fields=['status', 'aral_activity'])
 
+        log_audit_event(
+            'ATTENDANCE_MANUAL_LOGGED',
+            user=user,
+            request=request,
+            details={
+                'student_id': str(student.id),
+                'student_name': student.get_full_name(),
+                'lrn': student.lrn,
+                'date': str(log_date),
+                'status': status_val,
+            }
+        )
+
         return Response({
             'message': 'Attendance logged manually.',
             'attendance': AttendanceSerializer(attendance).data,
@@ -656,7 +827,7 @@ class AttendanceHistoryView(generics.ListAPIView):
             return qs.filter(user=user)
         if user.role == 'tutor':
             assigned_ids = user.assigned_students.values_list('id', flat=True)
-            return qs.filter(Q(user=user) | Q(user_id__in=assigned_ids))
+            return qs.filter(Q(user=user) | Q(tutor=user) | Q(session__creator=user) | Q(user_id__in=assigned_ids))
         if user.role == 'faculty':
             return qs.filter(user=user)
         return qs.none()
