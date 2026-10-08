@@ -101,6 +101,22 @@ html, body, #root {
   animation: borderTraceClockwise 3.5s linear infinite;
 }
 
+/* ── View Cross-fade Animation ── */
+@keyframes viewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-view-fade-in {
+  animation: viewFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 .glass-btn {
   background-color: transparent;
   backdrop-filter: blur(12px);

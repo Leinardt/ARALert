@@ -22,6 +22,8 @@ export interface User {
   date_joined: string;
   last_login: string | null;
   has_logged_in?: boolean;
+  is_first_login?: boolean;
+  privacy_consent_accepted_at?: string | null;
   assigned_tutor: string | null;
   assigned_tutor_name: string | null;
   assessment_weight: number;

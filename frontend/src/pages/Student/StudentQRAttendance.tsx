@@ -850,7 +850,17 @@ export const StudentQRAttendance: React.FC = () => {
         <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE ATTENDANCE RATE</p>
-            <p className="text-2xl font-extrabold mt-0.5 text-gray-900 dark:text-slate-100">
+            <p
+              className={`text-2xl font-extrabold mt-0.5 ${
+                !hasAttendanceData
+                  ? 'text-gray-900 dark:text-slate-100'
+                  : attendanceRate >= 81
+                  ? 'text-risk-low text-emerald-600 dark:text-emerald-400'
+                  : attendanceRate >= 75
+                  ? 'text-risk-medium text-amber-600 dark:text-amber-400'
+                  : 'text-risk-high text-rose-600 dark:text-rose-400'
+              }`}
+            >
               {hasAttendanceData ? `${smartPct(attendanceRate)}%` : '—'}
             </p>
             <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s average attendance rate</p>

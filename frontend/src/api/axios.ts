@@ -149,9 +149,13 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
         return api(originalRequest);
-      } catch (refreshErr) {
+      } catch (refreshErr: any) {
         processQueue(refreshErr, null);
-        handleForceLogout();
+        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+        const isNetworkError = refreshErr?.code === 'ERR_NETWORK' || !refreshErr?.response;
+        if (!isOffline && !isNetworkError) {
+          handleForceLogout();
+        }
         return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;

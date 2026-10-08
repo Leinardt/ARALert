@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAuth } from '../../hooks/useAuth';
-import { AlertCircle } from 'lucide-react';
+import api from '../../api/axios';
+import type { User } from '../../types';
+import { PrivacyConsentModal } from '../../components/PrivacyConsentModal';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
+import aralertLogo from '../../assets/ARALert_Logo_LIGHT.png';
 
 // ── Student Login Schema (LRN only) ───────────────────────────────
 const studentLoginSchema = z.object({
@@ -58,7 +62,7 @@ declare global {
 }
 
 export const Login: React.FC = () => {
-  const { googleLogin, studentLogin } = useAuth();
+  const { googleLogin, studentLogin, logout } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loginType, setLoginType] = useState<LoginType>('select');
@@ -66,6 +70,12 @@ export const Login: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
+
+  // Privacy Consent Modal state (intermediate gate)
+  const [pendingUser, setPendingUser] = useState<User | null>(null);
+  const [pendingRedirect, setPendingRedirect] = useState<string>('/login');
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [consentLoading, setConsentLoading] = useState(false);
 
   const isSessionExpired = searchParams.get('expired') === 'true';
 
@@ -79,6 +89,51 @@ export const Login: React.FC = () => {
     defaultValues: { lrn: '' },
   });
 
+  const handleSuccessfulAuth = (res: any) => {
+    const user = res.user;
+    const isFirstTime = !user?.privacy_consent_accepted_at || user?.is_first_login;
+    if (isFirstTime) {
+      setPendingUser(user);
+      setPendingRedirect(res.redirect ?? '/login');
+      setShowConsentModal(true);
+    } else {
+      sessionStorage.setItem('aralert_is_first_login', 'false');
+      navigate(res.redirect ?? '/login');
+    }
+  };
+
+  const handleAcceptConsent = async () => {
+    setConsentLoading(true);
+    try {
+      await api.post('/auth/consent/');
+      if (pendingUser) {
+        const updatedUser = {
+          ...pendingUser,
+          privacy_consent_accepted_at: new Date().toISOString(),
+          is_first_login: false,
+        };
+        sessionStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+      sessionStorage.setItem('aralert_is_first_login', 'true');
+      setShowConsentModal(false);
+      navigate(pendingRedirect);
+    } catch (err) {
+      console.warn('Consent recording error:', err);
+      sessionStorage.setItem('aralert_is_first_login', 'true');
+      setShowConsentModal(false);
+      navigate(pendingRedirect);
+    } finally {
+      setConsentLoading(false);
+    }
+  };
+
+  const handleDeclineConsent = async () => {
+    setShowConsentModal(false);
+    setPendingUser(null);
+    await logout();
+    setServerError('You must accept the Data Privacy Terms to access the system.');
+  };
+
   // Handle Google OAuth Credential Response
   const handleGoogleCredentialResponse = async (response: any) => {
     if (!response || !response.credential) {
@@ -89,7 +144,7 @@ export const Login: React.FC = () => {
     setServerError(null);
     try {
       const res = await googleLogin(response.credential);
-      navigate(res.redirect ?? '/login');
+      handleSuccessfulAuth(res);
     } catch (error: any) {
       setServerError(
         parseApiError(error, 'Google Sign-In failed. Check your email domain permissions.')
@@ -99,12 +154,22 @@ export const Login: React.FC = () => {
     }
   };
 
-  // Initialize Google Identity Services Script
+  // Preload Google Identity Services Script on initial mount
+  useEffect(() => {
+    if (!window.google?.accounts?.id) {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // Initialize & Render Google Button when in staff view
   useEffect(() => {
     if (loginType !== 'staff') return;
 
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-
     if (!clientId) {
       setServerError(
         'Google Client ID is not configured. Please add VITE_GOOGLE_CLIENT_ID to your frontend/.env file.'
@@ -112,8 +177,8 @@ export const Login: React.FC = () => {
       return;
     }
 
-    const initializeGsi = () => {
-      if (window.google?.accounts?.id) {
+    const renderGoogleButton = () => {
+      if (window.google?.accounts?.id && googleBtnRef.current) {
         try {
           window.google.accounts.id.initialize({
             client_id: clientId,
@@ -121,32 +186,30 @@ export const Login: React.FC = () => {
             auto_select: false,
           });
 
-          if (googleBtnRef.current) {
-            const btnWidth = Math.min(340, Math.max(220, window.innerWidth - 72));
-            window.google.accounts.id.renderButton(googleBtnRef.current, {
-              theme: 'outline',
-              size: 'large',
-              width: btnWidth,
-              text: 'continue_with',
-              shape: 'rectangular',
-              logo_alignment: 'center',
-            });
-          }
+          const btnWidth = Math.min(340, Math.max(220, window.innerWidth - 72));
+          window.google.accounts.id.renderButton(googleBtnRef.current, {
+            theme: 'outline',
+            size: 'large',
+            width: btnWidth,
+            text: 'continue_with',
+            shape: 'rectangular',
+            logo_alignment: 'center',
+          });
+          return true;
         } catch (err) {
           console.warn('Google Identity Services initialization error:', err);
         }
       }
+      return false;
     };
 
-    if (window.google?.accounts?.id) {
-      initializeGsi();
-    } else {
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = initializeGsi;
-      document.body.appendChild(script);
+    if (!renderGoogleButton()) {
+      const interval = setInterval(() => {
+        if (renderGoogleButton()) {
+          clearInterval(interval);
+        }
+      }, 50);
+      return () => clearInterval(interval);
     }
   }, [loginType]);
 
@@ -155,7 +218,7 @@ export const Login: React.FC = () => {
     setServerError(null);
     try {
       const response = await studentLogin(data.lrn);
-      navigate(response.redirect ?? '/student');
+      handleSuccessfulAuth(response);
     } catch (error: any) {
       setServerError(parseApiError(error, 'Invalid student credentials or LRN.'));
     } finally {
@@ -170,9 +233,9 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 w-full my-auto flex flex-col items-center justify-center px-3.5 sm:px-6 py-8 sm:py-12 md:py-16 box-border bg-white dark:bg-black text-slate-900 dark:text-white transition-colors">
+    <div className="w-full min-h-[100dvh] flex flex-col items-center justify-center px-3.5 sm:px-6 py-12 sm:py-16 box-border bg-white dark:bg-black text-slate-900 dark:text-white transition-colors">
       <div
-        className="w-full transition-all duration-300 mx-auto"
+        className="w-full transition-all duration-300 ease-out mx-auto"
         style={{
           maxWidth: loginType === 'select' ? '540px' : '440px',
         }}
@@ -185,37 +248,50 @@ export const Login: React.FC = () => {
           </div>
         )}
 
-        {/* Server error alert */}
+        {/* Server error / Notification alert */}
         {serverError && (
-          <div className="mb-4 p-3.5 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-xs sm:text-sm flex items-center gap-2.5">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-600 dark:text-red-400" />
+          <div className="mb-4 p-3.5 rounded-xl border border-orange-200 dark:border-orange-900/60 bg-orange-50 dark:bg-orange-950/30 text-orange-800 dark:text-orange-300 text-xs sm:text-sm flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 text-orange-600 dark:text-orange-400" />
             <span>{serverError}</span>
           </div>
         )}
 
         {/* ── Card ── */}
-        <div className="bg-white dark:bg-neutral-950 rounded-2xl border border-slate-200/90 dark:border-neutral-800 shadow-sm overflow-hidden">
-          {/* Card Header (No icons) */}
-          <div className="p-5 sm:p-8 sm:pb-0 text-center">
+        <div className="bg-white dark:bg-neutral-950 rounded-2xl border border-slate-200/90 dark:border-neutral-800 shadow-sm overflow-hidden relative">
+          {/* Card Header */}
+          <div className="p-6 sm:p-8 sm:pb-0 text-center flex flex-col items-center relative">
+            {/* Back to Options button on upper left with generous bottom spacing */}
             {loginType !== 'select' && (
-              <button
-                onClick={handleBack}
-                type="button"
-                className="glass-btn inline-flex items-center text-xs font-semibold px-3.5 py-1.5 rounded-full mb-4 cursor-pointer"
-              >
-                &larr; Back to options
-              </button>
+              <div className="w-full flex items-center justify-start mb-6 sm:mb-7 animate-view-fade-in">
+                <button
+                  onClick={handleBack}
+                  type="button"
+                  className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-500 hover:text-[#0052B7] dark:text-slate-400 dark:hover:text-blue-400 transition-colors cursor-pointer bg-transparent border-0 p-0 outline-none select-none group"
+                >
+                  <ArrowLeft className="w-4 h-4 shrink-0 transition-transform duration-150 group-hover:-translate-x-1 text-slate-500 group-hover:text-[#0052B7] dark:text-slate-400 dark:group-hover:text-blue-400" />
+                  <span>Back to Options</span>
+                </button>
+              </div>
             )}
+
+            {/* ARALert Logo Icon */}
+            <div className="mb-3.5 flex items-center justify-center">
+              <img
+                src={aralertLogo}
+                alt="ARALert Logo"
+                className="w-12 h-12 sm:w-14 sm:h-14 object-contain transition-transform duration-200 hover:scale-105"
+              />
+            </div>
 
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">
               {loginType === 'select' && 'Sign In Options'}
-              {loginType === 'staff' && 'Staff Google Login'}
+              {loginType === 'staff' && 'PNAHS Personnel Login'}
               {loginType === 'student' && 'Student Login'}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-6">
-              {loginType === 'select' && 'Select your portal to access the ARALert system.'}
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-6 whitespace-nowrap overflow-hidden text-ellipsis text-center w-full px-2">
+              {loginType === 'select' && 'Select your portal to access ARALert.'}
               {loginType === 'staff' && 'Sign in using your pre-registered Google account.'}
-              {loginType === 'student' && 'Enter your 12-digit Learner Reference Number to continue.'}
+              {loginType === 'student' && 'Enter your 12-digit Learner Reference Number.'}
             </p>
           </div>
 
@@ -223,8 +299,8 @@ export const Login: React.FC = () => {
           <div className="p-5 sm:p-8 pt-0 sm:pt-0">
             {/* ── Option Cards (Glass Style, Border-Only Blue Hover Effect) ── */}
             {loginType === 'select' && (
-              <div className="flex flex-col gap-3.5">
-                {/* Staff Google Login Option */}
+              <div className="flex flex-col gap-3.5 animate-view-fade-in">
+                {/* PNAHS Personnel Google Login Option */}
                 <button
                   type="button"
                   onClick={() => {
@@ -234,10 +310,10 @@ export const Login: React.FC = () => {
                   className="glass-card-btn group flex flex-col p-4 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none"
                 >
                   <div className="card-title font-semibold text-sm sm:text-base text-slate-900 dark:text-white mb-1 transition-colors duration-200">
-                    Staff & Faculty Portal
+                    PNAHS Personnel Portal
                   </div>
-                  <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Sign in using your pre-registered Google account (Principal, Admin, Tutor, Faculty).
+                  <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed whitespace-nowrap overflow-hidden text-ellipsis">
+                    Sign in using your pre-registered Google account.
                   </div>
                 </button>
 
@@ -253,8 +329,8 @@ export const Login: React.FC = () => {
                   <div className="card-title font-semibold text-sm sm:text-base text-slate-900 dark:text-white mb-1 transition-colors duration-200">
                     Student Learner Portal
                   </div>
-                  <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Sign in directly with your 12-digit Learner Reference Number (LRN).
+                  <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed whitespace-nowrap overflow-hidden text-ellipsis">
+                    Sign in using your 12-digit Learner Reference Number.
                   </div>
                 </button>
               </div>
@@ -262,12 +338,12 @@ export const Login: React.FC = () => {
 
             {/* ── Staff Google Login (Glass Style, Border-Only Blue Hover Effect) ── */}
             {loginType === 'staff' && (
-              <div className="flex flex-col items-center gap-4">
-                <div className="relative w-full max-w-[340px] mx-auto">
+              <div className="flex flex-col items-center gap-4 animate-view-fade-in">
+                <div className="relative w-full max-w-[340px] h-[42px] mx-auto">
                   <button
                     type="button"
                     disabled={googleLoading}
-                    className="glass-btn group w-full flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-xl font-medium text-sm cursor-pointer select-none"
+                    className="glass-btn group w-full h-full flex items-center justify-center gap-2.5 px-4 rounded-xl font-medium text-sm cursor-pointer select-none"
                   >
                     <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                       <path
@@ -296,8 +372,8 @@ export const Login: React.FC = () => {
                   />
                 </div>
 
-                <div className="text-xs text-slate-500 dark:text-slate-400 text-center mt-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 leading-relaxed w-full">
-                  Only authorized DepEd / ARALert accounts are permitted to access.
+                <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 text-center mt-2 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 w-full whitespace-nowrap overflow-hidden text-ellipsis select-none tracking-tight">
+                  Only authorized Google accounts are permitted to access.
                 </div>
               </div>
             )}
@@ -306,7 +382,7 @@ export const Login: React.FC = () => {
             {loginType === 'student' && (
               <form
                 onSubmit={studentForm.handleSubmit(onStudentSubmit)}
-                className="flex flex-col gap-4"
+                className="flex flex-col gap-4 animate-view-fade-in"
               >
                 <div>
                   <label
@@ -322,18 +398,17 @@ export const Login: React.FC = () => {
                     placeholder="Enter 12-digit LRN"
                     maxLength={12}
                     {...studentForm.register('lrn')}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border bg-slate-50/50 dark:bg-neutral-900 text-slate-900 dark:text-white text-sm tracking-wide placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0052B7]/20 focus:border-[#0052B7] dark:focus:border-blue-500 transition-all duration-150 ${
-                      studentForm.formState.errors.lrn
-                        ? 'border-red-500 dark:border-red-500'
-                        : 'border-slate-200 dark:border-neutral-800'
-                    }`}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border bg-slate-50/50 dark:bg-neutral-900 text-slate-900 dark:text-white text-sm tracking-wide placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0052B7]/20 focus:border-[#0052B7] dark:focus:border-blue-500 transition-all duration-150 ${studentForm.formState.errors.lrn
+                      ? 'border-red-500 dark:border-red-500'
+                      : 'border-slate-200 dark:border-neutral-800'
+                      }`}
                   />
                   {studentForm.formState.errors.lrn && (
                     <p className="mt-1 text-xs text-red-500">
                       {studentForm.formState.errors.lrn.message}
                     </p>
                   )}
-                  <p className="mt-1.5 text-[11px] text-slate-400 dark:text-neutral-500">
+                  <p className="mt-1.5 text-[11px] text-slate-400 dark:text-neutral-500 whitespace-nowrap overflow-hidden text-ellipsis">
                     Official 12-digit number issued by the Department of Education.
                   </p>
                 </div>
@@ -349,9 +424,30 @@ export const Login: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Footer Legal Links */}
+        <div className="mt-6 text-center text-xs text-slate-500 dark:text-neutral-500 flex items-center justify-center gap-1.5 flex-wrap">
+          <span>By continuing, you acknowledge our</span>
+          <Link to="/terms" className="text-[#0052B7] dark:text-blue-400 hover:underline font-medium">
+            Terms of Service
+          </Link>
+          <span>&bull;</span>
+          <Link to="/privacy" className="text-[#0052B7] dark:text-blue-400 hover:underline font-medium">
+            Privacy Policy
+          </Link>
+        </div>
       </div>
+
+      {/* Privacy Consent Modal Gate for First-Time Logins */}
+      <PrivacyConsentModal
+        isOpen={showConsentModal}
+        onAccept={handleAcceptConsent}
+        onDecline={handleDeclineConsent}
+        isLoading={consentLoading}
+      />
     </div>
   );
 };
 
 export default Login;
+

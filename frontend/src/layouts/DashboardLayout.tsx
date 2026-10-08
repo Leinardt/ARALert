@@ -357,8 +357,8 @@ export const DashboardLayout: React.FC = () => {
     return 'Dashboard';
   };
 
-  const [highRiskCount, setHighRiskCount] = useState(0);
   const [highRiskStudents, setHighRiskStudents] = useState<StudentRiskRow[]>([]);
+  const highRiskCount = highRiskStudents.length;
   const [moderateRiskStudents, setModerateRiskStudents] = useState<StudentRiskRow[]>([]);
   const [showRiskList, setShowRiskList] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -430,13 +430,13 @@ export const DashboardLayout: React.FC = () => {
     if (!user || user.role !== 'tutor') return;
     try {
       const [studentRes, gradesRaw, attRaw, risksRaw] = await Promise.all([
-        userService.getUsers({ role: 'student', assigned_tutor: user.id }),
+        userService.getAllUsers({ role: 'student', assigned_tutor: user.id }),
         academicService.getGrades(),
         academicService.getAttendanceHistory(),
         academicService.getAcademicRisks(),
       ]);
 
-      const students = Array.isArray(studentRes.results) ? studentRes.results : [];
+      const students = Array.isArray(studentRes) ? studentRes : [];
       const grades = Array.isArray(gradesRaw) ? gradesRaw : (gradesRaw as any)?.results ?? [];
       const attendanceLogs = Array.isArray(attRaw) ? attRaw : (attRaw as any)?.results ?? [];
       const riskRecords = Array.isArray(risksRaw) ? risksRaw : (risksRaw as any)?.results ?? [];
@@ -534,7 +534,7 @@ export const DashboardLayout: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchRiskStudents(); }, [user]);
+  useEffect(() => { fetchRiskStudents(); }, [user, location.pathname]);
   useEffect(() => { if (!showRiskList) return; fetchRiskStudents(); }, [showRiskList]);
   useEffect(() => { fetchStudentNotes(); }, [user]);
   useEffect(() => { fetchEditRequests(); }, [user, location.pathname]);

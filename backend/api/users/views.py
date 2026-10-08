@@ -4,7 +4,7 @@ SuperAdmin and Admin endpoints for user management with audit logging, bulk tuto
 and user login/logout activity history.
 """
 
-from django.db.models import Q
+from django.db.models import Avg, Count, Q
 from django.db.models.functions import Lower
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
@@ -36,30 +36,51 @@ class UserStatsView(APIView):
     permission_classes = [IsAdmin]
 
     def get(self, request):
-        users = User.objects.filter(is_superuser=False)
-        attendance_logs = StudentAttendance.objects.all()
-        assessment_entries = AssessmentScore.objects.all()
+        base_qs = User.objects.filter(is_superuser=False)
+        if not request.user.is_superuser:
+            base_qs = base_qs.exclude(role='admin')
 
-        total_att = attendance_logs.count()
-        present_att = attendance_logs.filter(status__iexact='PRESENT').count()
-        absent_att = attendance_logs.filter(status__iexact='ABSENT').count()
+        user_aggregates = base_qs.aggregate(
+            total_users=Count('id'),
+            active_users=Count('id', filter=Q(is_active=True)),
+            inactive_users=Count('id', filter=Q(is_active=False)),
+            admins=Count('id', filter=Q(role='admin')),
+            principals=Count('id', filter=Q(role='principal')),
+            faculty=Count('id', filter=Q(role='faculty')),
+            tutors=Count('id', filter=Q(role='tutor')),
+            students=Count('id', filter=Q(role='student')),
+            assigned_students=Count('id', filter=Q(role='student', assigned_tutor__isnull=False)),
+            unassigned_students=Count('id', filter=Q(role='student', assigned_tutor__isnull=True)),
+        )
 
+        att_aggregates = StudentAttendance.objects.aggregate(
+            total_logs=Count('id'),
+            present=Count('id', filter=Q(status__iexact='PRESENT')),
+            absent=Count('id', filter=Q(status__iexact='ABSENT')),
+        )
+
+        score_aggregates = AssessmentScore.objects.filter(score__isnull=False).aggregate(
+            avg_score=Avg('score'),
+            total_assessments=Count('id'),
+        )
+
+        total_att = att_aggregates['total_logs'] or 0
+        present_att = att_aggregates['present'] or 0
+        absent_att = att_aggregates['absent'] or 0
         att_rate = round((present_att / total_att * 100.0), 1) if total_att > 0 else 0
-
-        scores = [float(s.score) for s in assessment_entries if s.score is not None]
-        avg_score = round(sum(scores) / len(scores), 1) if scores else 0
+        avg_score = round(float(score_aggregates['avg_score']), 1) if score_aggregates['avg_score'] is not None else 0
 
         stats = {
-            'total_users': users.count(),
-            'active_users': users.filter(is_active=True).count(),
-            'inactive_users': users.filter(is_active=False).count(),
-            'admins': users.filter(role='admin').count(),
-            'principals': users.filter(role='principal').count(),
-            'faculty': users.filter(role='faculty').count(),
-            'tutors': users.filter(role='tutor').count(),
-            'students': users.filter(role='student').count(),
-            'assigned_students': users.filter(role='student', assigned_tutor__isnull=False).count(),
-            'unassigned_students': users.filter(role='student', assigned_tutor__isnull=True).count(),
+            'total_users': user_aggregates['total_users'] or 0,
+            'active_users': user_aggregates['active_users'] or 0,
+            'inactive_users': user_aggregates['inactive_users'] or 0,
+            'admins': user_aggregates['admins'] or 0,
+            'principals': user_aggregates['principals'] or 0,
+            'faculty': user_aggregates['faculty'] or 0,
+            'tutors': user_aggregates['tutors'] or 0,
+            'students': user_aggregates['students'] or 0,
+            'assigned_students': user_aggregates['assigned_students'] or 0,
+            'unassigned_students': user_aggregates['unassigned_students'] or 0,
             'attendance_summary': {
                 'total_logs': total_att,
                 'present': present_att,
@@ -68,7 +89,7 @@ class UserStatsView(APIView):
             'academic_summary': {
                 'average_score': avg_score,
                 'average_attendance_rate': att_rate,
-                'total_assessments': len(scores),
+                'total_assessments': score_aggregates['total_assessments'] or 0,
             },
         }
         return Response(stats)
@@ -96,10 +117,14 @@ class UserListCreateView(generics.ListCreateAPIView):
         return UserListSerializer
 
     def get_queryset(self):
-        queryset = User.objects.filter(is_superuser=False)
+        queryset = User.objects.filter(is_superuser=False).select_related('assigned_tutor')
         user = getattr(self.request, 'user', None)
         if not user or not user.is_authenticated:
             return queryset.none()
+
+        if not user.is_superuser:
+            # School Admins cannot view or manage Admin accounts; only SuperAdmin can
+            queryset = queryset.exclude(role='admin')
 
         if not user.is_superuser and getattr(user, 'role', None) == 'tutor':
             role = self.request.query_params.get('role', '').strip()
@@ -182,6 +207,13 @@ class UserListCreateView(generics.ListCreateAPIView):
         return queryset
 
     def create(self, request, *args, **kwargs):
+        target_role = request.data.get('role')
+        if not request.user.is_superuser and target_role == 'admin':
+            return Response(
+                {'detail': 'Only SuperAdmin can register School Admin accounts.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         serializer = UserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -220,10 +252,10 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         if not user or not user.is_authenticated:
             return User.objects.none()
         if user.is_superuser:
-            return User.objects.all()
+            return User.objects.all().select_related('assigned_tutor')
         if getattr(user, 'role', None) == 'tutor':
-            return User.objects.filter(role='student', assigned_tutor=user, is_superuser=False)
-        return User.objects.filter(is_superuser=False)
+            return User.objects.filter(role='student', assigned_tutor=user, is_superuser=False).select_related('assigned_tutor')
+        return User.objects.filter(is_superuser=False).exclude(role='admin').select_related('assigned_tutor')
 
     def get_serializer_class(self):
         if self.request.method in ('PATCH', 'PUT'):
@@ -412,6 +444,8 @@ class UserActivityHistoryView(APIView):
 
     def get(self, request, id):
         target_user = get_object_or_404(User, id=id)
+        if not request.user.is_superuser and target_user.role == 'admin':
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
         # Match by user FK, or email/username
         qs = AuditLog.objects.filter(
@@ -485,12 +519,22 @@ class AuditLogListView(APIView):
 
         action_filter = request.query_params.get('action', '').strip()
         search_filter = (request.query_params.get('search') or request.query_params.get('username') or '').strip()
+        date_filter = request.query_params.get('date', '').strip()
+        date_from = request.query_params.get('date_from', '').strip()
+        date_to = request.query_params.get('date_to', '').strip()
         page = max(1, int(request.query_params.get('page', 1)))
         page_size = 30
 
         qs = AuditLog.objects.select_related('user').all().order_by('-timestamp')
         if action_filter:
             qs = qs.filter(action__iexact=action_filter) if '_' in action_filter else qs.filter(action__icontains=action_filter)
+        if date_filter:
+            qs = qs.filter(timestamp__date=date_filter)
+        else:
+            if date_from:
+                qs = qs.filter(timestamp__date__gte=date_from)
+            if date_to:
+                qs = qs.filter(timestamp__date__lte=date_to)
         if search_filter:
             qs = qs.filter(
                 Q(username__icontains=search_filter) |

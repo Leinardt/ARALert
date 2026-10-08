@@ -182,9 +182,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     weekly_tasks_weight = models.IntegerField(default=30, verbose_name='Weekly Tasks Weight (%)')
     attendance_weight   = models.IntegerField(default=20, verbose_name='Attendance Weight (%)')
 
-    # Timestamps
+    # Timestamps & Regulatory Consent
     date_joined = models.DateTimeField(default=timezone.now)
     last_login  = models.DateTimeField(null=True, blank=True)
+    privacy_consent_accepted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Privacy Consent Accepted At',
+        help_text='Timestamp when the user accepted the ARALert Data Privacy Statement & Terms.',
+    )
 
     objects = CustomUserManager()
 

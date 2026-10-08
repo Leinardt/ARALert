@@ -132,6 +132,12 @@ export const EditUser: React.FC = () => {
           userService.getTutors(),
         ]);
 
+        if (!currentUser?.is_superuser && userData.role === 'admin') {
+          setFetchError('School Administrators cannot view or edit Administrator accounts. This action is restricted to SuperAdmin.');
+          setIsLoading(false);
+          return;
+        }
+
         let initialGrade = 'GRADE 7';
         let initialSection = '';
         if (userData.grade_level) {
@@ -181,7 +187,7 @@ export const EditUser: React.FC = () => {
       }
     };
     loadData();
-  }, [id, reset]);
+  }, [id, reset, currentUser]);
 
   const onSubmit = async (data: EditUserFields) => {
     if (!id) return;
@@ -220,7 +226,6 @@ export const EditUser: React.FC = () => {
           if (data.role === 'admin') return '/superadmin/admins';
           return '/superadmin/users';
         }
-        if (data.role === 'admin') return '/admin/admins';
         if (data.role === 'principal') return '/admin/principals';
         if (data.role === 'faculty') return '/admin/faculty';
         if (data.role === 'tutor') return '/admin/tutors';

@@ -255,6 +255,35 @@ class ProfileView(GenericAPIView):
 
 
 # ---------------------------------------------------------------------------
+# Privacy Consent Acceptance (RA 10173)
+# ---------------------------------------------------------------------------
+
+class ConsentAcceptView(GenericAPIView):
+    """
+    POST /api/auth/consent/ — Record user acceptance of RA 10173 Data Privacy & Terms.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserProfileSerializer
+
+    def post(self, request):
+        user = request.user
+        if not user.privacy_consent_accepted_at:
+            user.privacy_consent_accepted_at = timezone.now()
+            user.save(update_fields=['privacy_consent_accepted_at'])
+            log_audit_event(
+                'PRIVACY_CONSENT_ACCEPTED',
+                user=user,
+                request=request,
+                details={'accepted_at': user.privacy_consent_accepted_at.isoformat()}
+            )
+
+        return Response({
+            'detail': 'Privacy consent successfully recorded.',
+            'user': UserProfileSerializer(user, context={'request': request}).data,
+        }, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
 # Allowed Email Management (SuperAdmin only)
 # ---------------------------------------------------------------------------
 

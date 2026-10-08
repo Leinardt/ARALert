@@ -3,9 +3,10 @@ Root API URL configuration.
 """
 
 from django.urls import path, include
-from .time_views import ServerTimeView
+from .time_views import ServerTimeView, HealthCheckView
 
 urlpatterns = [
+    path('health/', HealthCheckView.as_view(), name='health-check'),
     path('time/', ServerTimeView.as_view(), name='server-time'),
     path('auth/', include('api.auth.urls')),
     path('users/', include('api.users.urls')),

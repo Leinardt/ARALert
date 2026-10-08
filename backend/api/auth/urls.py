@@ -13,6 +13,7 @@ from .views import (
     GoogleLoginView,
     LogoutView,
     StudentLoginView,
+    ConsentAcceptView,
 )
 
 urlpatterns = [
@@ -21,6 +22,9 @@ urlpatterns = [
 
     # Student login (First Name + Middle Name + Last Name + LRN)
     path('student-login/', StudentLoginView.as_view(), name='auth-student-login'),
+
+    # Privacy consent acceptance
+    path('consent/', ConsentAcceptView.as_view(), name='auth-consent'),
 
     # Common endpoints
     path('logout/', LogoutView.as_view(), name='auth-logout'),

@@ -199,6 +199,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     avatar    = serializers.SerializerMethodField()
     faculty_type = serializers.SerializerMethodField()
     subject = serializers.SerializerMethodField()
+    is_first_login = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -206,9 +207,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'id', 'email', 'first_name', 'middle_name', 'last_name',
             'full_name', 'role', 'is_active', 'is_superuser',
             'date_joined', 'last_login', 'avatar', 'lrn', 'faculty_type',
-            'aral_level', 'subject',
+            'aral_level', 'subject', 'privacy_consent_accepted_at', 'is_first_login',
         ]
         read_only_fields = fields
+
+    def get_is_first_login(self, obj):
+        return obj.privacy_consent_accepted_at is None
 
     def get_full_name(self, obj):
         return obj.get_full_name()

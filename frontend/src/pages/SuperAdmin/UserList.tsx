@@ -43,15 +43,16 @@ export const UserList: React.FC = () => {
   const { user: currentUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const isSuperUser = Boolean(currentUser?.is_superuser);
 
   // Determine active tab from URL pathname
   const initialTab = useMemo<AccountTab>(() => {
-    if (location.pathname.includes('/admins')) return 'admin';
+    if (location.pathname.includes('/admins') && isSuperUser) return 'admin';
     if (location.pathname.includes('/principals')) return 'principal';
     if (location.pathname.includes('/faculty')) return 'faculty';
     if (location.pathname.includes('/tutors')) return 'tutor';
     return 'student';
-  }, [location.pathname]);
+  }, [location.pathname, isSuperUser]);
 
   const [activeTab, setActiveTab] = useState<AccountTab>(initialTab);
   const [users, setUsers] = useState<User[]>([]);
@@ -81,8 +82,12 @@ export const UserList: React.FC = () => {
 
   // Sync tab with pathname on URL change
   useEffect(() => {
-    if (location.pathname.includes('/admins') && activeTab !== 'admin') {
-      setActiveTab('admin');
+    if (location.pathname.includes('/admins')) {
+      if (isSuperUser && activeTab !== 'admin') {
+        setActiveTab('admin');
+      } else if (!isSuperUser) {
+        navigate('/admin/students', { replace: true });
+      }
     } else if (location.pathname.includes('/principals') && activeTab !== 'principal') {
       setActiveTab('principal');
     } else if (location.pathname.includes('/faculty') && activeTab !== 'faculty') {
@@ -92,9 +97,10 @@ export const UserList: React.FC = () => {
     } else if (location.pathname.includes('/students') && activeTab !== 'student') {
       setActiveTab('student');
     }
-  }, [location.pathname]);
+  }, [location.pathname, isSuperUser, activeTab, navigate]);
 
   const handleTabChange = (newTab: AccountTab) => {
+    if (!isSuperUser && newTab === 'admin') return;
     setActiveTab(newTab);
     setPage(1);
     setSearch('');
@@ -108,7 +114,6 @@ export const UserList: React.FC = () => {
         newTab === 'student' ? '/admin/students' :
         newTab === 'tutor' ? '/admin/tutors' :
         newTab === 'principal' ? '/admin/principals' :
-        newTab === 'admin' ? '/admin/admins' :
         '/admin/faculty';
       navigate(targetPath, { replace: true });
     } else if (location.pathname.startsWith('/superadmin/')) {
@@ -121,6 +126,19 @@ export const UserList: React.FC = () => {
       navigate(targetPath, { replace: true });
     }
   };
+
+  const availableTabs = useMemo<[AccountTab, string][]>(() => {
+    const tabs: [AccountTab, string][] = [
+      ['student', 'STUDENTS'],
+      ['tutor', 'TUTORS'],
+      ['faculty', 'FACULTY'],
+      ['principal', 'PRINCIPALS'],
+    ];
+    if (isSuperUser) {
+      tabs.push(['admin', 'ADMINS']);
+    }
+    return tabs;
+  }, [isSuperUser]);
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -299,7 +317,6 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
     if (activeTab === 'student') return '/admin/students/create?role=student';
     if (activeTab === 'tutor') return '/admin/tutors/create?role=tutor';
     if (activeTab === 'principal') return '/admin/principals/create?role=principal';
-    if (activeTab === 'admin') return '/admin/admins/create?role=admin';
     return '/admin/faculty/create?role=faculty';
   };
 
@@ -341,13 +358,7 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
         role="tablist"
         aria-label="User account management tabs"
       >
-        {([
-          ['student', 'STUDENTS'],
-          ['tutor', 'TUTORS'],
-          ['faculty', 'FACULTY'],
-          ['principal', 'PRINCIPALS'],
-          ['admin', 'ADMINS'],
-        ] as const).map(([tabRole, label]) => (
+        {availableTabs.map(([tabRole, label]) => (
           <button
             key={tabRole}
             type="button"
