@@ -30,6 +30,7 @@ import { AuditLog } from '../pages/SuperAdmin/AuditLog';
 // Role placeholder pages
 import { AdminHome } from '../pages/Admin/AdminHome';
 import { AdminAttendanceQR } from '../pages/Admin/AdminAttendanceQR';
+import { AdminEvaluationHub } from '../pages/Admin/AdminEvaluationHub';
 import { PrincipalHome } from '../pages/Principal/PrincipalHome';
 import { FacultyHome } from '../pages/Faculty/FacultyHome';
 import { TutorHome } from '../pages/Tutor/TutorHome';
@@ -82,6 +83,7 @@ export const AppRouter: React.FC = () => {
           <Route path="/superadmin/profile" element={<Profile />} />
           <Route path="/superadmin/settings" element={<Settings />} />
           <Route path="/superadmin/audit-logs" element={<AuditLog />} />
+          <Route path="/superadmin/evaluations" element={<AdminEvaluationHub />} />
         </Route>
 
         {/* ── Admin routes ──────────────────────────── */}
@@ -107,6 +109,7 @@ export const AppRouter: React.FC = () => {
           <Route path="/admin/principals/create" element={<CreateUser />} />
           <Route path="/admin/principals/edit/:id" element={<EditUser />} />
           <Route path="/admin/attendance" element={<AdminAttendanceQR />} />
+          <Route path="/admin/evaluations" element={<AdminEvaluationHub />} />
           <Route path="/admin/audit-logs" element={<AuditLog />} />
           <Route path="/admin/profile" element={<Profile />} />
           <Route path="/admin/settings" element={<Settings />} />

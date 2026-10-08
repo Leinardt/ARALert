@@ -5,6 +5,7 @@ Role profile tables (School, Admin, Principal, Tutor, Faculty, Student)
 plus all attendance, assessment, grade, report, prediction and alert tables.
 """
 
+import uuid
 from django.db import models
 from django.utils import timezone
 
@@ -298,6 +299,258 @@ class AralEnrollment(models.Model):
 
     def __str__(self):
         return f'{self.student} — {self.school_year}'
+
+
+# ---------------------------------------------------------------------------
+# School Year & Student Enrollment History
+# ---------------------------------------------------------------------------
+
+class SchoolYear(models.Model):
+    """Represents an academic school year (e.g., 2025-2026)."""
+    class Status(models.TextChoices):
+        ACTIVE   = 'ACTIVE',   'Active'
+        ARCHIVED = 'ARCHIVED', 'Archived'
+
+    school_year = models.CharField(max_length=20, unique=True, verbose_name='School Year')
+    status      = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    is_active   = models.BooleanField(default=True)
+    start_date  = models.DateField(null=True, blank=True)
+    end_date    = models.DateField(null=True, blank=True)
+    created_at  = models.DateTimeField(default=timezone.now)
+    archived_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'school_year'
+        verbose_name = 'School Year'
+        verbose_name_plural = 'School Years'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.school_year} ({self.status})'
+
+
+class StudentEnrollment(models.Model):
+    """
+    Every school year has its own StudentEnrollment record.
+    Historical records must never be overwritten.
+    """
+    class Program(models.TextChoices):
+        BASIC  = 'basic',  'Basic'
+        PLUS   = 'plus',   'Plus'
+        SUMMER = 'summer', 'Summer'
+
+    class EnrollmentStatus(models.TextChoices):
+        ACTIVE    = 'active',    'Active'
+        COMPLETED = 'completed', 'Completed'
+        DROPPED   = 'dropped',   'Dropped'
+        INACTIVE  = 'inactive',  'Inactive'
+
+    class EvaluationResult(models.TextChoices):
+        PENDING   = 'pending',   'Pending'
+        PASSED    = 'passed',    'Passed'
+        FAILED    = 'failed',    'Failed'
+        EXEMPTED  = 'exempted',  'Exempted'
+        NOT_TAKEN = 'not_taken', 'Not Taken'
+
+    class EvaluationStatus(models.TextChoices):
+        PENDING     = 'pending',     'Pending'
+        IN_PROGRESS = 'in_progress', 'In Progress'
+        COMPLETED   = 'completed',   'Completed'
+
+    class GraduationStatus(models.TextChoices):
+        NOT_ELIGIBLE = 'not_eligible', 'Not Eligible'
+        ELIGIBLE     = 'eligible',     'Eligible'
+        GRADUATED    = 'graduated',    'Graduated'
+
+    class SummerStatus(models.TextChoices):
+        NONE      = 'none',               'None'
+        REQUIRED  = 'summer_required',    'Summer Required'
+        ACTIVE    = 'summer_active',      'Summer Active'
+        PENDING   = 'evaluation_pending', 'Summer Evaluation Pending'
+        PASSED    = 'summer_passed',      'Summer Passed'
+        FAILED    = 'summer_failed',      'Summer Failed'
+        COMPLETED = 'summer_completed',   'Summer Completed'
+
+    student           = models.ForeignKey(
+        'accounts.User', on_delete=models.PROTECT, related_name='enrollments',
+        limit_choices_to={'role': 'student'}
+    )
+    school_year       = models.ForeignKey(
+        SchoolYear, on_delete=models.PROTECT, related_name='enrollments'
+    )
+    grade_level       = models.CharField(max_length=50, default='Grade 8')
+    program           = models.CharField(max_length=20, choices=Program.choices, default=Program.BASIC)
+    assigned_tutor    = models.ForeignKey(
+        'accounts.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='tutor_enrollments',
+        limit_choices_to={'role': 'tutor'}
+    )
+    enrollment_status = models.CharField(
+        max_length=30, choices=EnrollmentStatus.choices, default=EnrollmentStatus.ACTIVE
+    )
+    mosy_result       = models.CharField(
+        max_length=20, choices=EvaluationResult.choices, default=EvaluationResult.PENDING
+    )
+    eosy_result       = models.CharField(
+        max_length=20, choices=EvaluationResult.choices, default=EvaluationResult.PENDING
+    )
+    final_result      = models.CharField(max_length=50, null=True, blank=True, default='')
+    evaluation_status = models.CharField(
+        max_length=20, choices=EvaluationStatus.choices, default=EvaluationStatus.PENDING
+    )
+    graduation_status = models.CharField(
+        max_length=20, choices=GraduationStatus.choices, default=GraduationStatus.NOT_ELIGIBLE
+    )
+    summer_status     = models.CharField(
+        max_length=30, choices=SummerStatus.choices, default=SummerStatus.NONE
+    )
+    enrollment_date   = models.DateField(default=timezone.localdate)
+    completion_date   = models.DateField(null=True, blank=True)
+    created_at        = models.DateTimeField(default=timezone.now)
+    updated_at        = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'student_enrollment'
+        unique_together = [('student', 'school_year')]
+        verbose_name = 'Student Enrollment'
+        verbose_name_plural = 'Student Enrollments'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.student.get_full_name()} – {self.school_year.school_year} ({self.program})'
+
+
+class TutorAssignmentHistory(models.Model):
+    """
+    Every tutor assignment must be historical and tied to the correct school year or evaluation period.
+    Never overwrite previous tutor assignments.
+    """
+    class Period(models.TextChoices):
+        MOSY      = 'MOSY',      'MOSY'
+        EOSY      = 'EOSY',      'EOSY'
+        FULL_YEAR = 'FULL_YEAR', 'Full School Year'
+
+    student     = models.ForeignKey(
+        'accounts.User', on_delete=models.CASCADE, related_name='tutor_assignment_histories',
+        limit_choices_to={'role': 'student'}
+    )
+    tutor       = models.ForeignKey(
+        'accounts.User', on_delete=models.PROTECT, related_name='student_assignment_histories',
+        limit_choices_to={'role': 'tutor'}
+    )
+    school_year = models.ForeignKey(
+        SchoolYear, on_delete=models.PROTECT, related_name='tutor_assignments'
+    )
+    period      = models.CharField(max_length=20, choices=Period.choices, default=Period.FULL_YEAR)
+    program     = models.CharField(max_length=20, default='basic')
+    assigned_by = models.ForeignKey(
+        'accounts.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='assignments_made'
+    )
+    start_date  = models.DateField(default=timezone.localdate)
+    end_date    = models.DateField(null=True, blank=True)
+    is_active   = models.BooleanField(default=True)
+    notes       = models.TextField(blank=True, default='')
+    created_at  = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'tutor_assignment_history'
+        verbose_name = 'Tutor Assignment History'
+        verbose_name_plural = 'Tutor Assignment Histories'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.student.get_full_name()} -> {self.tutor.get_full_name()} [{self.school_year.school_year} {self.period}]'
+
+
+class SummerRecord(models.Model):
+    """
+    Summer must be tracked as a separate program/intervention record.
+    It must NOT simply overwrite the student's normal school-year enrollment.
+    """
+    class Reason(models.TextChoices):
+        BASIC_FAILED_TWICE = 'BASIC_FAILED_TWICE', 'Basic Failed Twice'
+        PLUS_FAILED        = 'PLUS_FAILED',        'Plus Evaluation Failed'
+        ADMIN_REFERRED     = 'ADMIN_REFERRED',     'Admin Intervention Referral'
+
+    class Status(models.TextChoices):
+        REQUIRED           = 'summer_required',    'Summer Required'
+        ACTIVE             = 'summer_active',      'Summer Active'
+        EVALUATION_PENDING = 'evaluation_pending', 'Summer Evaluation Pending'
+        PASSED             = 'summer_passed',      'Summer Passed'
+        FAILED             = 'summer_failed',      'Summer Failed'
+        COMPLETED          = 'summer_completed',   'Summer Completed'
+
+    class EvaluationStatus(models.TextChoices):
+        PENDING   = 'pending',   'Pending'
+        COMPLETED = 'completed', 'Completed'
+
+    class EvaluationResult(models.TextChoices):
+        PASSED = 'passed', 'Passed'
+        FAILED = 'failed', 'Failed'
+
+    student                  = models.ForeignKey(
+        'accounts.User', on_delete=models.PROTECT, related_name='summer_records',
+        limit_choices_to={'role': 'student'}
+    )
+    previous_enrollment      = models.ForeignKey(
+        StudentEnrollment, on_delete=models.PROTECT, related_name='summer_followups',
+        null=True, blank=True
+    )
+    previous_program         = models.CharField(max_length=20, default='basic')
+    previous_school_year     = models.CharField(max_length=20)
+    reason                   = models.CharField(max_length=100, choices=Reason.choices)
+    summer_status            = models.CharField(max_length=30, choices=Status.choices, default=Status.REQUIRED)
+    summer_evaluation_status = models.CharField(max_length=20, choices=EvaluationStatus.choices, default=EvaluationStatus.PENDING)
+    summer_result            = models.CharField(max_length=20, choices=EvaluationResult.choices, null=True, blank=True)
+    start_date               = models.DateField(null=True, blank=True)
+    completion_date          = models.DateField(null=True, blank=True)
+    evaluating_tutor         = models.ForeignKey(
+        'accounts.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='evaluated_summer_students',
+        limit_choices_to={'role': 'tutor'}
+    )
+    notes                    = models.TextField(blank=True, default='')
+    created_at               = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'summer_record'
+        verbose_name = 'Summer Record'
+        verbose_name_plural = 'Summer Records'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Summer: {self.student.get_full_name()} ({self.reason}) - {self.summer_status}'
+
+
+class TransitionAuditLog(models.Model):
+    """
+    Detailed audit log whenever Admin starts a new school year transition.
+    """
+    id                   = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    admin                = models.ForeignKey(
+        'accounts.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='transitions_executed'
+    )
+    admin_name           = models.CharField(max_length=255, blank=True, default='')
+    previous_school_year = models.CharField(max_length=20)
+    new_school_year      = models.CharField(max_length=20)
+    timestamp            = models.DateTimeField(default=timezone.now)
+    basic_to_plus        = models.IntegerField(default=0)
+    plus_to_graduated    = models.IntegerField(default=0)
+    basic_continuing     = models.IntegerField(default=0)
+    sent_to_summer       = models.IntegerField(default=0)
+    inactive_dropped     = models.IntegerField(default=0)
+    tutor_changes        = models.IntegerField(default=0)
+    unassigned_students  = models.IntegerField(default=0)
+    transition_result    = models.CharField(max_length=50, default='SUCCESS')
+    error_message        = models.TextField(blank=True, default='')
+    details              = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'transition_audit_log'
+        verbose_name = 'Transition Audit Log'
+        verbose_name_plural = 'Transition Audit Logs'
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f'Transition {self.previous_school_year} -> {self.new_school_year} by {self.admin_name} ({self.transition_result})'
 
 
 # ---------------------------------------------------------------------------

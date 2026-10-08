@@ -27,7 +27,9 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
+  History,
 } from 'lucide-react';
+import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 import { getStudentAvatarColor as avatarColor } from '../../utils/studentFormatters';
@@ -100,6 +102,7 @@ export const TutorStudentProfile: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overall' | 'attendance' | 'score'>('overall');
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const { attendanceRate, scoreAvg, compositeScore, riskTier } = useMemo(() => {
     if (!profile) return { attendanceRate: 100, scoreAvg: 100, compositeScore: 100, riskTier: 'Low' };
@@ -584,6 +587,15 @@ export const TutorStudentProfile: React.FC = () => {
             >
               <Edit3 className="w-3.5 h-3.5" />
               <span>{pendingEditRequest ? 'View Pending Request' : 'Edit Student Details'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowHistoryModal(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold border border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:bg-[var(--brand-light)] dark:hover:bg-[#161616] text-gray-700 dark:text-slate-300 hover:text-[var(--brand-dark)] transition cursor-pointer"
+            >
+              <History className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Academic History</span>
             </button>
           </div>
         </div>
@@ -1195,6 +1207,14 @@ export const TutorStudentProfile: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ── Complete Academic History Modal ─────────────────── */}
+      <StudentProfileHistoryModal
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        studentId={id || null}
+        studentName={profile?.student?.name}
+      />
     </div>
   );
 };
@@ -2197,6 +2217,7 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
           </div>
         )
       )}
+
     </div>
   );
 };

@@ -169,13 +169,13 @@ export const AuditLog: React.FC = () => {
       </div>
 
       {/* ── Filters ── */}
-      <form onSubmit={handleSearch} style={{
+      <form onSubmit={handleSearch} className="p-3.5 sm:p-5" style={{
         background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)',
-        border: '1px solid var(--slate-200)', padding: '1.25rem 1.5rem',
+        border: '1px solid var(--slate-200)',
         boxShadow: 'var(--shadow-xs)',
         display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end',
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', flex: '1', minWidth: '200px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', flex: '1', minWidth: '140px' }}>
           <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Filter by Action
           </label>
@@ -199,7 +199,7 @@ export const AuditLog: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', flex: '1', minWidth: '200px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', flex: '1', minWidth: '140px' }}>
           <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Filter by Username
           </label>

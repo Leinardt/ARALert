@@ -21,6 +21,25 @@ from .views import (
     StudentAcademicProfileView,
 )
 
+from .evaluation_views import (
+    SchoolYearListView,
+    CurrentSchoolYearView,
+    MosyMonitoringView,
+    MosyProcessView,
+    MosyAssignmentsView,
+    EosyMonitoringView,
+    TransitionSummaryPreviewView,
+    StartNewSchoolYearView,
+    AvailableTutorsView,
+    AssignTutorView,
+    SummerListView,
+    SummerStartView,
+    SummerEvaluateView,
+    SchoolYearArchiveListView,
+    SchoolYearArchiveDetailView,
+    StudentCompleteHistoryView,
+)
+
 urlpatterns = [
     # Grades
     path('grades/', GradeListCreateView.as_view(), name='grade-list-create'),
@@ -50,5 +69,35 @@ urlpatterns = [
 
     # Principal Dashboard
     path('principal-dashboard/', PrincipalDashboardView.as_view(), name='principal-dashboard'),
+
+    # School Year Management
+    path('school-years/', SchoolYearListView.as_view(), name='school-year-list'),
+    path('school-years/current/', CurrentSchoolYearView.as_view(), name='current-school-year'),
+
+    # MOSY Evaluation & Tutor Assignment
+    path('evaluations/mosy-monitoring/', MosyMonitoringView.as_view(), name='mosy-monitoring'),
+    path('evaluations/mosy-process/', MosyProcessView.as_view(), name='mosy-process'),
+    path('evaluations/mosy-assignments/', MosyAssignmentsView.as_view(), name='mosy-assignments'),
+
+    # EOSY Evaluation & Transition
+    path('evaluations/eosy-monitoring/', EosyMonitoringView.as_view(), name='eosy-monitoring'),
+    path('evaluations/transition-summary/', TransitionSummaryPreviewView.as_view(), name='transition-summary'),
+    path('evaluations/start-new-school-year/', StartNewSchoolYearView.as_view(), name='start-new-school-year'),
+
+    # Available Tutors (No Capacity) & Assignment
+    path('tutors/available/', AvailableTutorsView.as_view(), name='tutors-available'),
+    path('tutors/assign/', AssignTutorView.as_view(), name='tutor-assign'),
+
+    # Summer Remediation Program
+    path('summer/', SummerListView.as_view(), name='summer-list'),
+    path('summer/<int:id>/start/', SummerStartView.as_view(), name='summer-start'),
+    path('summer/<int:id>/evaluate/', SummerEvaluateView.as_view(), name='summer-evaluate'),
+
+    # School Year Archive
+    path('archive/', SchoolYearArchiveListView.as_view(), name='archive-list'),
+    path('archive/<str:school_year>/', SchoolYearArchiveDetailView.as_view(), name='archive-detail'),
+
+    # Student Full Academic, Tutor & Summer History
+    path('students/<uuid:student_id>/history/', StudentCompleteHistoryView.as_view(), name='student-complete-history'),
 ]
 

@@ -328,8 +328,8 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                   </div>
 
                   {/* Side-by-Side Comparison Table */}
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="w-full text-xs border-collapse">
+                  <div className="mt-4 overflow-x-auto mobile-scroll-table -mx-2 px-2 sm:mx-0 sm:px-0">
+                    <table className="w-full min-w-[460px] text-xs border-collapse">
                       <thead>
                         <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
                           <th className="py-2 px-3 text-left w-1/4">Field</th>
@@ -504,7 +504,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-end gap-2.5">
+                        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-2.5">
                           <button
                             type="button"
                             onClick={() => {
@@ -512,7 +512,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                               setRejectionReason('');
                             }}
                             disabled={isItemProcessing}
-                            className="px-4 py-2 rounded-xl text-xs font-bold border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer inline-flex items-center gap-1.5"
+                            className="w-full sm:w-auto min-h-[42px] justify-center px-4 py-2 rounded-xl text-xs font-bold border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer inline-flex items-center gap-1.5"
                           >
                             <X className="w-3.5 h-3.5" /> Reject Request
                           </button>
@@ -520,7 +520,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                             type="button"
                             onClick={() => handleApprove(req)}
                             disabled={isItemProcessing}
-                            className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-50"
+                            className="w-full sm:w-auto min-h-[42px] justify-center px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-50"
                           >
                             {isItemProcessing ? (
                               <>

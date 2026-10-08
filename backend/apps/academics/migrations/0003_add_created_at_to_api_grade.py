@@ -3,11 +3,13 @@ from django.db import migrations
 
 def add_created_at_if_missing(apps, schema_editor):
     from django.db import connection
+    if 'api_grade' not in connection.introspection.table_names():
+        return
     with connection.cursor() as cursor:
         if connection.vendor == 'sqlite':
             cursor.execute("PRAGMA table_info(api_grade)")
             cols = [row[1] for row in cursor.fetchall()]
-            if 'created_at' not in cols:
+            if cols and 'created_at' not in cols:
                 cursor.execute("ALTER TABLE api_grade ADD COLUMN created_at datetime")
                 cursor.execute("UPDATE api_grade SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
         else:

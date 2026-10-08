@@ -40,6 +40,7 @@ import scoreDarkDefault from '../assets/icons/score_entry_dark.png';
 import scoreDarkActive from '../assets/icons/score_entry_dark_active.png';
 import scoreLightDefault from '../assets/icons/score_entry_light.png';
 import scoreLightActive from '../assets/icons/score_entry_light_active.png';
+import aralertLogo from '../assets/ARALert_Logo_LIGHT.png';
 
 const SidebarIcon: React.FC<{
   Icon: React.ComponentType<{ className?: string; size?: number; strokeWidth?: number; fill?: string; style?: React.CSSProperties }>;
@@ -135,6 +136,7 @@ export const DashboardLayout: React.FC = () => {
   const getPageTitle = () => {
     const p = location.pathname;
     if (p.includes('/audit-logs')) return 'Audit Log';
+    if (p.includes('/evaluations')) return 'Evaluation & Transition Hub';
     if (p.includes('/superadmin/users')) return 'User Management';
     if (p.includes('/admin/students') || p.includes('/admin/tutors') || p.includes('/admin/faculty') || p.includes('/admin/principals') || p.includes('/admin/users')) return 'User Management';
     if (p.includes('/tutor/students')) return 'Assigned Students';
@@ -361,6 +363,15 @@ export const DashboardLayout: React.FC = () => {
               {!collapsed && <span className="truncate">User Management</span>}
             </Link>
             <Link
+              to="/superadmin/evaluations"
+              onClick={onItemClick}
+              className={navLinkClass(isActivePrefix('/superadmin/evaluations'), collapsed)}
+              title="Evaluation & Transition"
+            >
+              <SidebarIcon Icon={Award} active={isActivePrefix('/superadmin/evaluations')} />
+              {!collapsed && <span className="truncate">Evaluation & Transition</span>}
+            </Link>
+            <Link
               to="/superadmin/audit-logs"
               onClick={onItemClick}
               className={navLinkClass(isActivePrefix('/superadmin/audit-logs'), collapsed)}
@@ -405,6 +416,15 @@ export const DashboardLayout: React.FC = () => {
                 theme={theme}
               />
               {!collapsed && <span className="truncate">User Management</span>}
+            </Link>
+            <Link
+              to="/admin/evaluations"
+              onClick={onItemClick}
+              className={navLinkClass(isActivePrefix('/admin/evaluations'), collapsed)}
+              title="Evaluation & Transition"
+            >
+              <SidebarIcon Icon={Award} active={isActivePrefix('/admin/evaluations')} />
+              {!collapsed && <span className="truncate">Evaluation & Transition</span>}
             </Link>
             <Link
               to="/admin/audit-logs"
@@ -719,7 +739,7 @@ export const DashboardLayout: React.FC = () => {
                 className="w-8 h-8 flex items-center justify-center select-none transition-all duration-200 ease-in-out opacity-100 scale-100 group-hover/header:opacity-0 group-hover/header:scale-75 pointer-events-none"
               >
                 <img
-                  src="/src/assets/ARALert_Logo_LIGHT.png"
+                  src={aralertLogo}
                   alt="ARALert"
                   className="w-full h-full object-contain block"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
@@ -830,7 +850,7 @@ export const DashboardLayout: React.FC = () => {
             }}
           >
             <img
-              src="/src/assets/ARALert_Logo_LIGHT.png"
+              src={aralertLogo}
               alt="ARALert"
               style={{
                 width: '32px',
@@ -882,7 +902,7 @@ export const DashboardLayout: React.FC = () => {
 
         {/* ── Top Bar ── */}
         <header
-          className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 lg:px-8 shrink-0 z-10"
+          className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 z-10"
           style={{
             background: 'var(--glass-bg)',
             backdropFilter: 'blur(12px)',
@@ -890,7 +910,7 @@ export const DashboardLayout: React.FC = () => {
           }}
         >
           {/* Page title & Mobile Menu Toggle */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
             <button
               type="button"
               onClick={() => setIsMobileDrawerOpen(true)}
@@ -901,7 +921,7 @@ export const DashboardLayout: React.FC = () => {
               <Menu size={20} />
             </button>
             <h1
-              className="truncate text-xs sm:text-sm md:text-base font-bold text-slate-900 dark:text-white uppercase tracking-tight max-w-[130px] xs:max-w-[190px] sm:max-w-xs md:max-w-none"
+              className="truncate text-xs sm:text-sm md:text-base font-bold text-slate-900 dark:text-white uppercase tracking-tight"
               style={{
                 margin: 0,
                 fontFamily: 'var(--font-heading)',
@@ -913,7 +933,7 @@ export const DashboardLayout: React.FC = () => {
           </div>
 
           {/* Right controls */}
-          <div className="flex items-center gap-1.5 sm:gap-3 relative shrink-0">
+          <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 relative shrink-0">
             <ThemeToggle />
 
             {/* Edit Requests Bell (School Admin & Super Admin) */}
@@ -1090,130 +1110,135 @@ export const DashboardLayout: React.FC = () => {
 
                 {/* Risk dropdown */}
                 {showRiskList && (
-                  <div
-                    className="animate-fade-in-scale"
-                    style={{
-                      position: 'absolute',
-                      right: 0,
-                      top: 'calc(100% + 8px)',
-                      width: '380px',
-                      background: 'var(--surface-card)',
-                      border: '1px solid var(--slate-200)',
-                      borderRadius: '12px',
-                      boxShadow: 'var(--shadow-xl)',
-                      zIndex: 50,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {/* Dropdown header */}
+                  <>
+                    {/* Mobile Backdrop */}
                     <div
-                      style={{
-                        padding: '0.875rem 1.25rem',
-                        background: 'var(--surface-muted)',
-                        borderBottom: '1px solid var(--slate-200)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
+                      className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
+                      onClick={() => setShowRiskList(false)}
+                      aria-hidden="true"
+                    />
+
+                    {/* Notification Panel */}
+                    <div
+                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[380px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 overflow-hidden"
                     >
-                      <div>
-                        <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase' }}>
-                          HIGH RISK STUDENTS ALERT
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowRiskList(false)}
+                      {/* Dropdown header */}
+                      <div
                         style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '6px',
-                          border: 'none',
-                          background: 'transparent',
+                          padding: '0.875rem 1.25rem',
+                          background: 'var(--surface-muted)',
+                          borderBottom: '1px solid var(--slate-200)',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          color: 'var(--text-muted)',
+                          justifyContent: 'space-between',
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                       >
-                        <X size={15} />
-                      </button>
-                    </div>
-
-                    {/* Risk list body */}
-                    <div style={{ maxHeight: '380px', overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {/* High risk */}
-                      <div style={{ background: 'var(--risk-high-bg)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                          <div>
-                            <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: 'var(--risk-high-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>High Risk</p>
-                          </div>
-                          <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.7rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid var(--risk-high-border)' }}>
-                            {highRiskStudents.length}
-                          </span>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                            HIGH RISK STUDENTS ALERT
+                          </p>
                         </div>
-                        {highRiskStudents.length === 0 ? (
-                          <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>No high-risk students detected.</p>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                            {highRiskStudents.map((row) => (
-                              <div key={`high-${row.student.id}`} style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '6px', padding: '0.5rem 0.65rem' }}>
-                                <Link
-                                  to={`/tutor/students/${row.student.id}`}
-                                  state={{ from: 'dashboard' }}
-                                  onClick={() => setShowRiskList(false)}
-                                  style={{ textDecoration: 'none', display: 'block' }}
-                                  className="group"
-                                >
-                                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                    <div>
-                                      <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }} className="group-hover:text-[var(--brand)] transition-colors">
-                                        {row.student.full_name}
-                                      </p>
-                                      <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                        Composite: <span style={{ fontWeight: 600, color: 'var(--risk-high-text)' }}>{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
-                                      </p>
-                                      {acknowledgedNotes[row.student.id] && (
-                                        <div style={{ marginTop: '4px' }}>
-                                          <p style={{ margin: '2px 0 0', fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>{acknowledgedNotes[row.student.id]}</p>
-                                        </div>
-                                      )}
-                                    </div>
-                                    <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.62rem', fontWeight: 800, borderRadius: '4px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0, border: '1px solid var(--risk-high-border)' }}>HIGH</span>
-                                  </div>
-                                </Link>
-                                <button
-                                  type="button"
-                                  onClick={() => handleAcknowledgeInitiate(row)}
-                                  style={{
-                                    marginTop: '0.4rem',
-                                    width: '100%',
-                                    padding: '4px 8px',
-                                    borderRadius: '4px',
-                                    border: '1px solid var(--slate-200)',
-                                    background: 'var(--surface-muted)',
-                                    color: 'var(--text-secondary)',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    transition: 'var(--transition-fast)',
-                                    fontFamily: 'var(--font-body)',
-                                  }}
-                                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand-dark)'; }}
-                                  onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                                >
-                                  {acknowledgedNotes[row.student.id] ? 'Edit Note' : 'Acknowledge Risk'}
-                                </button>
-                              </div>
-                            ))}
+                        <button
+                          type="button"
+                          onClick={() => setShowRiskList(false)}
+                          aria-label="Close alerts"
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: 'var(--text-muted)',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      {/* Risk list body */}
+                      <div style={{ maxHeight: 'min(420px, calc(100vh - 140px))', overflowY: 'auto', padding: '0.75rem sm:1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                        {/* High risk */}
+                        <div style={{ background: 'var(--risk-high-bg)', border: '1px solid var(--risk-high-border)', borderRadius: '10px', padding: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                            <div>
+                              <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 800, color: 'var(--risk-high-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>High Risk</p>
+                            </div>
+                            <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.72rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid var(--risk-high-border)' }}>
+                              {highRiskStudents.length}
+                            </span>
                           </div>
-                        )}
+                          {highRiskStudents.length === 0 ? (
+                            <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0, padding: '0.5rem 0' }}>No high-risk students detected.</p>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              {highRiskStudents.map((row) => (
+                                <div key={`high-${row.student.id}`} style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.65rem 0.75rem' }}>
+                                  <Link
+                                    to={`/tutor/students/${row.student.id}`}
+                                    state={{ from: 'dashboard' }}
+                                    onClick={() => setShowRiskList(false)}
+                                    style={{ textDecoration: 'none', display: 'block' }}
+                                    className="group"
+                                  >
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                      <div className="min-w-0 flex-1">
+                                        <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }} className="group-hover:text-[var(--brand)] transition-colors break-words">
+                                          {row.student.full_name}
+                                        </p>
+                                        <p style={{ margin: '3px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                          Composite: <span style={{ fontWeight: 700, color: 'var(--risk-high-text)' }}>{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
+                                        </p>
+                                        {acknowledgedNotes[row.student.id] && (
+                                          <div style={{ marginTop: '5px' }}>
+                                            <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4, wordBreak: 'break-word' }}>
+                                              {acknowledgedNotes[row.student.id]}
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.65rem', fontWeight: 800, borderRadius: '4px', padding: '2px 6px', textTransform: 'uppercase', flexShrink: 0, border: '1px solid var(--risk-high-border)' }}>HIGH</span>
+                                    </div>
+                                  </Link>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAcknowledgeInitiate(row)}
+                                    style={{
+                                      marginTop: '0.5rem',
+                                      width: '100%',
+                                      minHeight: '38px',
+                                      padding: '6px 10px',
+                                      borderRadius: '6px',
+                                      border: '1px solid var(--slate-200)',
+                                      background: 'var(--surface-muted)',
+                                      color: 'var(--text-secondary)',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      transition: 'var(--transition-fast)',
+                                      fontFamily: 'var(--font-body)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                    }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-light)'; e.currentTarget.style.color = 'var(--brand-dark)'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                                  >
+                                    {acknowledgedNotes[row.student.id] ? 'Edit Note' : 'Acknowledge Risk'}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
             )}
@@ -1300,55 +1325,85 @@ export const DashboardLayout: React.FC = () => {
                 </button>
 
                 {showStudentNotes && (
-                  <div className="animate-fade-in-scale" style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', width: '360px', background: 'var(--surface-card)', border: '1px solid var(--slate-200)', borderRadius: '12px', boxShadow: 'var(--shadow-xl)', zIndex: 50, overflow: 'hidden' }}>
-                    <div style={{ padding: '0.875rem 1.25rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-200)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div>
-                        <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase' }}>TUTOR NOTES</p>
+                  <>
+                    {/* Mobile Backdrop */}
+                    <div
+                      className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
+                      onClick={() => setShowStudentNotes(false)}
+                      aria-hidden="true"
+                    />
+
+                    {/* Student Notes Panel */}
+                    <div
+                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[380px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 overflow-hidden"
+                    >
+                      <div style={{ padding: '0.875rem 1.25rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-200)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>TUTOR NOTES</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowStudentNotes(false)}
+                          aria-label="Close tutor notes"
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: 'var(--text-muted)',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowStudentNotes(false)}
-                        aria-label="Close tutor notes"
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '6px',
-                          border: 'none',
-                          background: 'transparent',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          color: 'var(--text-muted)',
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                      >
-                        <X size={15} />
-                      </button>
-                    </div>
-                    <div style={{ maxHeight: '380px', overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {studentNotes.length === 0 ? (
-                        <p style={{ margin: 0, padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>No current tutor notes.</p>
-                      ) : studentNotes.map((note) => {
-                        const colors = studentNoteStyle(note.risk_level);
-                        return (
-                          <div key={note.id} style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: '8px', padding: '0.75rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
-                              <span style={{ fontSize: '0.68rem', fontWeight: 800, color: colors.label, textTransform: 'uppercase' }}>{note.risk_level_display} risk</span>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{new Date(note.date_created).toLocaleDateString()}</span>
+                      <div style={{ maxHeight: 'min(420px, calc(100vh - 140px))', overflowY: 'auto', padding: '0.75rem sm:1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                        {studentNotes.length === 0 ? (
+                          <p style={{ margin: 0, padding: '1.5rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>No current tutor notes.</p>
+                        ) : studentNotes.map((note) => {
+                          const colors = studentNoteStyle(note.risk_level);
+                          return (
+                            <div key={note.id} style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: '10px', padding: '0.75rem 0.85rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontSize: '0.72rem', fontWeight: 800, color: colors.label, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{note.risk_level_display} risk</span>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{new Date(note.date_created).toLocaleDateString()}</span>
+                              </div>
+                              <p style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: colors.text, lineHeight: 1.45, wordBreak: 'break-word' }}>{note.details}</p>
+                              {note.student_acknowledged ? (
+                                <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', fontWeight: 700, color: colors.acknowledged }}>✓ Acknowledged</p>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => acknowledgeStudentNote(note.id)}
+                                  style={{
+                                    marginTop: '0.55rem',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    padding: '6px 12px',
+                                    background: colors.button,
+                                    color: '#fff',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    fontFamily: 'var(--font-body)',
+                                    minHeight: '36px',
+                                  }}
+                                >
+                                  Acknowledge Note
+                                </button>
+                              )}
                             </div>
-                            <p style={{ margin: '0.45rem 0 0', fontSize: '0.8rem', color: colors.text, lineHeight: 1.4 }}>{note.details}</p>
-                            {note.student_acknowledged ? (
-                              <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', fontWeight: 700, color: colors.acknowledged }}>Acknowledged</p>
-                            ) : (
-                              <button type="button" onClick={() => acknowledgeStudentNote(note.id)} style={{ marginTop: '0.5rem', border: 'none', borderRadius: '4px', padding: '5px 9px', background: colors.button, color: '#fff', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Acknowledge</button>
-                            )}
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
             )}
@@ -1401,21 +1456,15 @@ export const DashboardLayout: React.FC = () => {
               </button>
 
               {profileMenuOpen && (
-                <div
-                  className="animate-fade-in-scale"
-                  style={{
-                    position: 'absolute',
-                    right: 0,
-                    top: 'calc(100% + 8px)',
-                    width: '220px',
-                    background: 'var(--surface-card)',
-                    border: '1px solid var(--slate-200)',
-                    borderRadius: '12px',
-                    boxShadow: 'var(--shadow-xl)',
-                    zIndex: 50,
-                    overflow: 'hidden',
-                  }}
-                >
+                <>
+                  <div
+                    className="fixed inset-0 z-40 bg-transparent sm:hidden"
+                    onClick={() => setProfileMenuOpen(false)}
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="animate-fade-in-scale fixed inset-x-4 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[220px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl sm:shadow-xl z-50 overflow-hidden"
+                  >
                   {/* User info */}
                   <div style={{ padding: '0.75rem 1rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-100)' }}>
                     <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>
@@ -1498,13 +1547,14 @@ export const DashboardLayout: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              )}
+              </>
+            )}
             </div>
           </div>
         </header>
 
         {/* ── Content body ── */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 md:p-6 lg:p-8">
+        <main className="flex-1 w-full min-w-0 max-w-full overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 md:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

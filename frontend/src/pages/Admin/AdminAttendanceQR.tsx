@@ -181,33 +181,33 @@ export const AdminAttendanceQR: React.FC = () => {
                 </div>
                 <span className="text-[11px] text-slate-400">Staff area poster</span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                 <button
                   type="button"
                   onClick={() => exportPrintFile('png')}
                   disabled={exportingFormat !== null}
-                  className="inline-flex items-center justify-center gap-1 rounded-md border border-slate-300 dark:border-[#222222] bg-white dark:bg-[#161616] px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-[#222222] disabled:opacity-60 cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1 rounded-md border border-slate-300 dark:border-[#222222] bg-white dark:bg-[#161616] px-1.5 sm:px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-[#222222] disabled:opacity-60 cursor-pointer"
                 >
-                  <FileImage className="h-3.5 w-3.5" />
-                  {exportingFormat === 'png' ? 'Creating…' : 'PNG'}
+                  <FileImage className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+                  <span className="truncate">{exportingFormat === 'png' ? 'Creating…' : 'PNG'}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => exportPrintFile('jpeg')}
                   disabled={exportingFormat !== null}
-                  className="inline-flex items-center justify-center gap-1 rounded-md border border-slate-300 dark:border-[#222222] bg-white dark:bg-[#161616] px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-[#222222] disabled:opacity-60 cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1 rounded-md border border-slate-300 dark:border-[#222222] bg-white dark:bg-[#161616] px-1.5 sm:px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-[#222222] disabled:opacity-60 cursor-pointer"
                 >
-                  <FileImage className="h-3.5 w-3.5" />
-                  {exportingFormat === 'jpeg' ? 'Creating…' : 'JPEG'}
+                  <FileImage className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+                  <span className="truncate">{exportingFormat === 'jpeg' ? 'Creating…' : 'JPEG'}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => exportPrintFile('pdf')}
                   disabled={exportingFormat !== null}
-                  className="inline-flex items-center justify-center gap-1 rounded-md bg-[var(--brand)] px-2.5 py-1.5 text-xs font-medium text-white transition hover:bg-[var(--brand-dark)] disabled:opacity-60 cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1 rounded-md bg-[var(--brand)] px-1.5 sm:px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-white transition hover:bg-[var(--brand-dark)] disabled:opacity-60 cursor-pointer"
                 >
-                  <FileText className="h-3.5 w-3.5" />
-                  {exportingFormat === 'pdf' ? 'Creating…' : 'PDF'}
+                  <FileText className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+                  <span className="truncate">{exportingFormat === 'pdf' ? 'Creating…' : 'PDF'}</span>
                 </button>
               </div>
             </div>

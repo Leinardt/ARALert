@@ -305,9 +305,34 @@ class BulkAssignTutorView(APIView):
         student_ids = serializer.validated_data['student_ids']
         tutor = serializer.validated_data.get('tutor_id')  # User instance or None
 
-        students = User.objects.filter(id__in=student_ids, role='student', is_superuser=False)
-        updated_count = students.update(assigned_tutor=tutor)
+        students = list(User.objects.filter(id__in=student_ids, role='student', is_superuser=False))
 
+        from services.tutor_service import assign_tutor_to_student, validate_tutor_compatibility
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from rest_framework.exceptions import ValidationError as RestValidationError
+
+        # Compatibility pre-check for all selected students
+        if tutor:
+            for s in students:
+                s_prog = s.aral_level or 'basic'
+                try:
+                    validate_tutor_compatibility(tutor, s_prog)
+                except DjangoValidationError as e:
+                    raise RestValidationError({
+                        'tutor_id': f"Cannot assign {tutor.get_full_name()} to {s.get_full_name()}: this tutor teaches {tutor.tutor_type} only while the student is in {s_prog.capitalize()}."
+                    })
+
+        # Process assignments
+        for s in students:
+            assign_tutor_to_student(
+                student=s,
+                tutor=tutor,
+                assigned_by=request.user,
+                period='MOSY',
+                notes='Bulk tutor assignment',
+            )
+
+        updated_count = len(students)
         tutor_name = tutor.get_full_name() if tutor else 'TBA'
         log_audit_event(
             'BULK_TUTOR_ASSIGNED',
@@ -316,7 +341,7 @@ class BulkAssignTutorView(APIView):
             details={
                 'updated_count': updated_count,
                 'tutor': tutor_name,
-                'student_ids': [str(s) for s in student_ids],
+                'student_ids': [str(s.id) for s in students],
             },
         )
 

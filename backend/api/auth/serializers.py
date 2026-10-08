@@ -20,35 +20,45 @@ logger = logging.getLogger(__name__)
 def _verify_google_id_token(id_token: str) -> dict:
     """
     Verify a Google ID token and return its payload.
-    Requires google-auth to be installed.
-    Falls back to a direct HTTP request to Google's tokeninfo endpoint when
-    google-auth is not available (useful during development).
+    Uses clock_skew_in_seconds=60 to accommodate minor NTP clock differences between
+    local machine and Google servers (e.g. 'Token used too early').
+    Falls back to Google's tokeninfo endpoint if local verification fails.
     """
+    from django.conf import settings
+
+    client_id = getattr(settings, 'GOOGLE_CLIENT_ID', '')
+    if not client_id:
+        raise ValueError('GOOGLE_CLIENT_ID is not configured in settings.')
+
+    # Attempt 1: Local verification with clock skew tolerance
     try:
         from google.oauth2 import id_token as google_id_token
         from google.auth.transport import requests as google_requests
-        from django.conf import settings
-
-        client_id = getattr(settings, 'GOOGLE_CLIENT_ID', '')
-        if not client_id:
-            raise ValueError('GOOGLE_CLIENT_ID is not configured in settings.')
 
         idinfo = google_id_token.verify_oauth2_token(
             id_token,
             google_requests.Request(),
             client_id,
+            clock_skew_in_seconds=60,
         )
         return idinfo
+    except Exception as local_exc:
+        logger.warning('Local Google token verification failed (attempting tokeninfo endpoint): %s', local_exc)
 
-    except ImportError:
-        # Fallback: call Google's tokeninfo endpoint
-        import urllib.request, json, urllib.error
-        url = f'https://oauth2.googleapis.com/tokeninfo?id_token={id_token}'
-        try:
-            with urllib.request.urlopen(url, timeout=5) as resp:
-                return json.loads(resp.read().decode())
-        except urllib.error.HTTPError as exc:
-            raise ValueError(f'Google token verification failed: {exc}') from exc
+    # Attempt 2: Fallback to Google's tokeninfo endpoint
+    import urllib.request, json, urllib.error
+    url = f'https://oauth2.googleapis.com/tokeninfo?id_token={id_token}'
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+            aud = data.get('aud')
+            if aud != client_id:
+                raise ValueError(f'Token audience mismatch: {aud} != {client_id}')
+            return data
+    except urllib.error.HTTPError as exc:
+        raise ValueError(f'Google token verification failed: {exc}') from exc
+    except Exception as exc:
+        raise ValueError(f'Google token verification failed: {exc}') from exc
 
 
 class GoogleLoginSerializer(serializers.Serializer):

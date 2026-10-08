@@ -409,13 +409,13 @@ export const Settings: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1000px', margin: '0 auto' }}>
       {/* Page header */}
-      <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', padding: '1.75rem 2rem', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
+      <div className="p-4 sm:p-6 md:p-7" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              System & Security Settings
+            <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              System &amp; Security Settings
             </h1>
-            <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               Manage authentication policies, session limits, and review the full audit trail.
             </p>
           </div>
@@ -425,7 +425,7 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* Tab switcher */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', background: 'var(--surface-muted)', padding: '0.35rem', borderRadius: '12px', width: 'fit-content' }}>
+        <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-4" style={{ background: 'var(--surface-muted)', padding: '0.35rem', borderRadius: '12px', width: 'fit-content' }}>
           <button type="button" style={tabStyle('security')} onClick={() => setActiveTab('security')}>
             <Shield size={16} /> Security Policy
           </button>
@@ -446,11 +446,11 @@ export const Settings: React.FC = () => {
 
           <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {/* Authentication & Security */}
-            <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '1.75rem', boxShadow: 'var(--shadow-xs)' }}>
+            <div className="p-4 sm:p-6" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--slate-100)' }}>
                 <Shield size={20} color="var(--brand)" />
                 <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Authentication & Security Policy
+                  Authentication &amp; Security Policy
                 </h2>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -486,11 +486,11 @@ export const Settings: React.FC = () => {
             </div>
 
             {/* Rate Limiting */}
-            <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '1.75rem', boxShadow: 'var(--shadow-xs)' }}>
+            <div className="p-4 sm:p-6" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--slate-100)' }}>
                 <Lock size={20} color="#EAB308" />
                 <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Rate Limiting & Anti-Brute-Force Safeguards
+                  Rate Limiting &amp; Anti-Brute-Force Safeguards
                 </h2>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>

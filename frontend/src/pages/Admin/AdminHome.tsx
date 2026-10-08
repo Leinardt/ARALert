@@ -23,7 +23,19 @@ interface AdminChartPoint {
   assessmentLabels: string[];
 }
 
-const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[] }> = ({ data }) => {
+const formatShortDateRange = (label: string): string => {
+  const match = label.match(/^([A-Za-z]+)\s+(\d+)\s*[–—\-]\s*([A-Za-z]+)\s+(\d+)$/);
+  if (match) {
+    const [, m1, d1, m2, d2] = match;
+    if (m1.toLowerCase() === m2.toLowerCase()) {
+      return `${m1} ${d1}–${d2}`;
+    }
+    return `${m1} ${d1}–${m2} ${d2}`;
+  }
+  return label;
+};
+
+const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; trendFilter?: TrendFilter }> = ({ data, trendFilter = 'week' }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 260 });
@@ -60,10 +72,12 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[] }> = 
   }, []);
 
   const { width, height } = dimensions;
-  const paddingLeft = 28;
-  const paddingRight = 14;
-  const paddingTop = 22;
-  const paddingBottom = 26;
+  const isMobile = width < 520;
+  const isSmallMobile = width < 380;
+  const paddingLeft = isMobile ? 32 : 28;
+  const paddingRight = isMobile ? 20 : 14;
+  const paddingTop = isMobile ? 18 : 20;
+  const paddingBottom = isMobile ? 26 : 24;
 
   const chartW = Math.max(10, width - paddingLeft - paddingRight);
   const chartH = Math.max(10, height - paddingTop - paddingBottom);
@@ -92,9 +106,64 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[] }> = 
     ? `${pathD} L ${points[points.length - 1].x} ${paddingTop + chartH} L ${points[0].x} ${paddingTop + chartH} Z`
     : '';
 
+  // Dynamic tick density to prevent all label overlap
+  const visibleIndices = useMemo(() => {
+    const total = data.length;
+    if (total <= 1) return new Set([0]);
+    if (!isMobile) {
+      return new Set(Array.from({ length: total }, (_, i) => i));
+    }
+    if (trendFilter === 'month') {
+      if (width < 380) {
+        return new Set([0, 2, 4, total - 1]);
+      }
+      return new Set(Array.from({ length: total }, (_, i) => i));
+    }
+    if (trendFilter === 'week') {
+      if (width < 430) {
+        return new Set([0, 2, 4, total - 1]);
+      }
+      return new Set(Array.from({ length: total }, (_, i) => i));
+    }
+    // Day mode (10 school days)
+    const step = isSmallMobile ? 3 : 2;
+    const indices: number[] = [];
+    for (let i = 0; i < total; i += step) {
+      indices.push(i);
+    }
+    const lastIdx = total - 1;
+    const prevIdx = indices[indices.length - 1];
+    if (lastIdx - prevIdx >= 2) {
+      indices.push(lastIdx);
+    } else if (indices.length > 1) {
+      indices[indices.length - 1] = lastIdx;
+    }
+    const set = new Set(indices);
+    data.forEach((p, idx) => {
+      if (p.assessmentLabels.length > 0 && !set.has(idx - 1) && !set.has(idx + 1)) {
+        set.add(idx);
+      }
+    });
+    return set;
+  }, [data, isMobile, isSmallMobile, trendFilter, width]);
+
+  const getFormattedLabel = (p: AdminChartPoint) => {
+    if (!isMobile) return p.label;
+    if (trendFilter === 'week') {
+      return formatShortDateRange(p.label);
+    }
+    if (trendFilter === 'month') {
+      if (width < 400) {
+        return p.label.split(' ')[0] || p.label;
+      }
+      return p.label.replace(/\s+20(\d\d)/, " '$1");
+    }
+    return p.label;
+  };
+
   return (
-    <div ref={containerRef} className="relative w-full h-full">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
+    <div ref={containerRef} className="relative w-full h-full select-none min-w-0">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full block" role="img" aria-label="Performance Trend Chart">
         <defs>
           <linearGradient id="adminChartFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.22" />
@@ -123,7 +192,7 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[] }> = 
                 strokeDasharray="3 3"
                 opacity="0.6"
               />
-              <text x={paddingLeft - 6} y={y + 3} className="fill-slate-400 font-semibold text-[8px]" textAnchor="end">
+              <text x={paddingLeft - 6} y={y + 3} className="fill-slate-400 font-semibold text-[9px] xs:text-[10px]" textAnchor="end">
                 {val}%
               </text>
             </g>
@@ -150,19 +219,33 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[] }> = 
           );
         })}
 
-        {/* X-axis date labels */}
-        {points.map((p, idx) => (
-          <text
-            key={`label-${idx}`}
-            x={p.x}
-            y={height - 5}
-            className="fill-slate-500 font-semibold text-[8px]"
-            textAnchor="middle"
-            style={{ whiteSpace: 'nowrap' }}
-          >
-            {p.label}
-          </text>
-        ))}
+        {/* X-axis date labels with collision and clipping prevention */}
+        {points.map((p, idx) => {
+          if (!visibleIndices.has(idx)) return null;
+
+          let textAnchor: 'start' | 'middle' | 'end' = 'middle';
+          let labelX = p.x;
+          if (idx === 0) {
+            textAnchor = 'start';
+            labelX = Math.max(paddingLeft, p.x - 3);
+          } else if (idx === points.length - 1) {
+            textAnchor = 'end';
+            labelX = Math.min(width - paddingRight, p.x + 3);
+          }
+
+          return (
+            <text
+              key={`label-${idx}`}
+              x={labelX}
+              y={height - (isMobile ? 6 : 5)}
+              className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px] xs:text-[10px]"
+              textAnchor={textAnchor}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              {getFormattedLabel(p)}
+            </text>
+          );
+        })}
 
         {/* Brand Trend Line & Area */}
         {points.length > 0 && (
@@ -245,26 +328,37 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[] }> = 
               className="cursor-pointer"
               onMouseEnter={() => setHoveredIdx(idx)}
               onMouseLeave={() => setHoveredIdx(null)}
+              onTouchStart={() => setHoveredIdx(idx)}
+              onClick={() => setHoveredIdx(hoveredIdx === idx ? null : idx)}
             />
           );
         })}
       </svg>
 
-      {/* Floating Tooltip */}
+      {/* Floating Tooltip (Viewport-safe & touch-friendly on mobile) */}
       {hoveredIdx !== null && points[hoveredIdx] && (() => {
         const p = points[hoveredIdx];
         const pointXPct = (p.x / width) * 100;
-        const isNearRight = pointXPct > 75;
-        const gapPx = 14;
+        const isNearRight = pointXPct > 70;
+        const tooltipW = 180;
+        const mobileLeft = Math.max(12, Math.min(width - tooltipW - 12, p.x - tooltipW / 2));
 
         return (
           <div
-            className="pointer-events-none absolute z-10 min-w-[170px] rounded-xl border border-slate-700/50 bg-slate-900/95 p-3 text-left text-[11px] font-medium leading-normal text-white shadow-xl"
-            style={{
-              left: isNearRight ? `calc(${pointXPct}% - ${gapPx}px)` : `calc(${pointXPct}% + ${gapPx}px)`,
-              top: '50%',
-              transform: isNearRight ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
-            }}
+            className="pointer-events-none absolute z-20 min-w-[160px] max-w-[240px] rounded-xl border border-slate-700/60 bg-slate-900/95 p-3 text-left text-[11px] font-medium leading-normal text-white shadow-2xl backdrop-blur-md transition-all duration-150"
+            style={
+              isMobile
+                ? {
+                    left: `${mobileLeft}px`,
+                    top: '10px',
+                    transform: 'none',
+                  }
+                : {
+                    left: isNearRight ? `calc(${pointXPct}% - 14px)` : `calc(${pointXPct}% + 14px)`,
+                    top: '50%',
+                    transform: isNearRight ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
+                  }
+            }
           >
             <div className="font-extrabold text-[11px] text-[#60A5FA] whitespace-nowrap">
               {p.fullDateLabel || p.label}
@@ -748,30 +842,30 @@ export const AdminHome: React.FC = () => {
           </div>
 
           {/* Academic Health KPIs (5 cols) */}
-          <div className="lg:col-span-5 grid grid-cols-3 gap-2 sm:gap-0 sm:divide-x sm:divide-slate-200/60 dark:sm:divide-zinc-800/60 lg:pl-4">
-            <div className="px-3 py-1 sm:first:pl-0">
+          <div className="lg:col-span-5 grid grid-cols-3 gap-1 sm:gap-0 sm:divide-x sm:divide-slate-200/60 dark:sm:divide-zinc-800/60 lg:pl-4 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-zinc-800/80">
+            <div className="px-1.5 sm:px-3 py-1 sm:first:pl-0">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 truncate" title="Overall Attendance Rate">
-                {tutorFirstName ? `${tutorFirstName}'s Attendance` : 'Attendance'}
+                {tutorFirstName ? `${tutorFirstName}'s Att.` : 'Attendance'}
               </p>
-              <p className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5">
+              <p className="text-base xs:text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5 truncate">
                 {!hasAttendanceData ? '—' : `${overallAttendanceRate}%`}
               </p>
             </div>
 
-            <div className="px-3 py-1">
+            <div className="px-1.5 sm:px-3 py-1">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 truncate" title="Average Assessment Score">
                 {tutorFirstName ? `${tutorFirstName}'s Avg` : 'Avg Score'}
               </p>
-              <p className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5">
+              <p className="text-base xs:text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5 truncate">
                 {!hasScoreData ? '—' : `${overallAvgScore}%`}
               </p>
             </div>
 
-            <div className="px-3 py-1 sm:last:pr-0">
+            <div className="px-1.5 sm:px-3 py-1 sm:last:pr-0">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 truncate" title="Overall Composite Rating">
                 Composite
               </p>
-              <p className="text-xl sm:text-2xl font-extrabold text-[#0052B7] dark:text-blue-400 mt-0.5">
+              <p className="text-base xs:text-xl sm:text-2xl font-extrabold text-[#0052B7] dark:text-blue-400 mt-0.5 truncate">
                 {!hasAttendanceData && !hasScoreData ? '—' : `${overallCompositeScore}%`}
               </p>
             </div>
@@ -799,13 +893,13 @@ export const AdminHome: React.FC = () => {
             </div>
 
             {/* Single Tutor Filter Dropdown */}
-            <div className="relative flex items-center shrink-0">
+            <div className="relative flex items-center shrink-0 w-full xs:w-auto flex-1 xs:flex-initial">
               <select
                 aria-label="Filter by Tutor Class"
                 value={selectedTutorId}
                 onChange={(e) => setSelectedTutorId(e.target.value)}
                 style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
-                className="h-8 px-3 pr-7 rounded-lg text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-800 cursor-pointer outline-none transition focus:border-[var(--brand)] dark:bg-zinc-900 dark:border-zinc-800 dark:text-slate-200 max-w-[150px] xs:max-w-[200px] sm:max-w-[250px] md:max-w-[320px] truncate"
+                className="h-8 px-2.5 sm:px-3 pr-7 rounded-lg text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-800 cursor-pointer outline-none transition focus:border-[var(--brand)] dark:bg-zinc-900 dark:border-zinc-800 dark:text-slate-200 w-full xs:w-auto max-w-full xs:max-w-[220px] sm:max-w-[280px] md:max-w-[320px] truncate"
               >
                 <option value="all" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                   ALL TUTORS
@@ -850,9 +944,9 @@ export const AdminHome: React.FC = () => {
 
         {/* Chart Canvas */}
         <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3">
-          <div className="relative flex-1 min-h-[220px] w-full bg-slate-50/50 dark:bg-[#0e0e0e] border border-slate-100 dark:border-zinc-800/60 rounded-lg px-4 py-2 sm:px-6 sm:py-2.5">
+          <div className="relative flex-1 h-[220px] xs:h-[240px] sm:h-[280px] lg:h-full lg:min-h-[300px] w-full min-w-0 max-w-full bg-slate-50/50 dark:bg-[#0e0e0e] border border-slate-100 dark:border-zinc-800/60 rounded-lg px-2 py-2 sm:px-6 sm:py-2.5">
             {chartTrendData.length > 0 ? (
-              <InteractiveAdminPerformanceChart data={chartTrendData} />
+              <InteractiveAdminPerformanceChart data={chartTrendData} trendFilter={trendFilter} />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 select-none">
                 <BarChart2 className="w-8 h-8 text-slate-300 dark:text-zinc-700" />

@@ -15,6 +15,7 @@ export const FacultyHome: React.FC = () => {
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   useEffect(() => {
     if (!user?.id) {
@@ -62,8 +63,8 @@ export const FacultyHome: React.FC = () => {
 
   const facultyType = user?.faculty_type?.trim() || 'Not assigned';
   const chartWidth = 420;
-  const chartHeight = 210;
-  const chartPadding = { top: 18, right: 18, bottom: 38, left: 36 };
+  const chartHeight = 220;
+  const chartPadding = { top: 20, right: 20, bottom: 36, left: 38 };
   const plotWidth = chartWidth - chartPadding.left - chartPadding.right;
   const plotHeight = chartHeight - chartPadding.top - chartPadding.bottom;
   const pointCoordinates = chartPoints.map((point, index) => ({
@@ -137,14 +138,67 @@ export const FacultyHome: React.FC = () => {
         ) : chartPoints.length === 0 ? (
           <p className="py-10 text-center text-sm text-slate-500 dark:text-slate-400">No attendance records yet.</p>
         ) : (
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Faculty attendance rate chart" className="mt-4 h-[210px] w-full overflow-visible">
-            {[0, 50, 100].map((rate) => {
-              const y = chartPadding.top + plotHeight - (rate / 100) * plotHeight;
-              return <g key={rate}><line x1={chartPadding.left} y1={y} x2={chartWidth - chartPadding.right} y2={y} stroke="var(--slate-200, #E2E8F0)" strokeDasharray="3 3" opacity="0.7" /><text x={chartPadding.left - 8} y={y + 4} textAnchor="end" fontSize="10" fill="#94A3B8">{rate}%</text></g>;
-            })}
-            <path d={linePath} fill="none" stroke="var(--brand)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            {pointCoordinates.map((point) => <g key={`${point.label}-${point.x}`}><circle cx={point.x} cy={point.y} r="3.5" fill="var(--brand)" stroke="#B6D4F8" strokeWidth="1.5" /><text x={point.x} y={chartHeight - 12} textAnchor="middle" fontSize="10" fill="#94A3B8">{point.label}</text></g>)}
-          </svg>
+          <div className="relative">
+            <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Faculty attendance rate chart" className="mt-4 min-h-[220px] xs:min-h-[240px] sm:min-h-[260px] w-full overflow-visible">
+              {[0, 50, 100].map((rate) => {
+                const y = chartPadding.top + plotHeight - (rate / 100) * plotHeight;
+                return (
+                  <g key={rate}>
+                    <line x1={chartPadding.left} y1={y} x2={chartWidth - chartPadding.right} y2={y} stroke="var(--slate-200, #E2E8F0)" strokeDasharray="3 3" opacity="0.7" />
+                    <text x={chartPadding.left - 8} y={y + 3.5} textAnchor="end" fontSize="10" fontWeight="bold" fill="#94A3B8">{rate}%</text>
+                  </g>
+                );
+              })}
+              <path d={linePath} fill="none" stroke="var(--brand)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              {pointCoordinates.map((point, index) => {
+                const shouldShowLabel = pointCoordinates.length <= 6 || index % 2 === 0 || index === pointCoordinates.length - 1;
+                return (
+                  <g key={`${point.label}-${point.x}`}>
+                    <circle cx={point.x} cy={point.y} r={hoveredIdx === index ? 5 : 3.5} fill="var(--brand)" stroke="#B6D4F8" strokeWidth="1.5" />
+                    {shouldShowLabel && (
+                      <text x={point.x} y={chartHeight - 12} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#94A3B8">{point.label}</text>
+                    )}
+                    <circle
+                      cx={point.x}
+                      cy={point.y}
+                      r="18"
+                      fill="transparent"
+                      className="cursor-pointer"
+                      onMouseEnter={() => setHoveredIdx(index)}
+                      onMouseLeave={() => setHoveredIdx(null)}
+                      onTouchStart={(e) => { e.preventDefault(); setHoveredIdx(index); }}
+                      onClick={() => setHoveredIdx(hoveredIdx === index ? null : index)}
+                    />
+                  </g>
+                );
+              })}
+            </svg>
+            {hoveredIdx !== null && pointCoordinates[hoveredIdx] && (() => {
+              const p = pointCoordinates[hoveredIdx];
+              const pointXPct = (p.x / chartWidth) * 100;
+              const isNearRight = pointXPct > 75;
+              const gapPx = 14;
+              const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+              const mobileLeftPct = Math.max(5, Math.min(65, pointXPct - 20));
+
+              return (
+                <div
+                  className="pointer-events-none absolute z-10 min-w-[130px] rounded-xl border border-slate-700/50 bg-slate-900/95 p-2.5 text-left text-[11px] leading-normal text-white shadow-xl"
+                  style={{
+                    left: isMobile ? `${mobileLeftPct}%` : isNearRight ? `calc(${pointXPct}% - ${gapPx}px)` : `calc(${pointXPct}% + ${gapPx}px)`,
+                    top: isMobile ? '8px' : '35%',
+                    transform: isMobile ? 'none' : isNearRight ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
+                  }}
+                >
+                  <div className="text-[10px] font-extrabold uppercase text-slate-300">{p.label}</div>
+                  <div className="mt-1 flex items-baseline gap-1.5">
+                    <span className="text-sm font-extrabold text-emerald-400">{p.rate}%</span>
+                    <span className="text-[10px] text-slate-300">Attendance Rate</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         )}
       </section>
     </div>

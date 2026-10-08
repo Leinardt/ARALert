@@ -144,7 +144,7 @@ export const Landing: React.FC = () => {
           ═══════════════════════════════════════════════════════════════ */}
       <section
         id="home"
-        className="relative min-h-screen flex flex-col justify-center items-center px-4 sm:px-8 lg:px-12 pt-20 sm:pt-24 pb-8 sm:pb-12 bg-white dark:bg-black text-slate-900 dark:text-white overflow-hidden border-b border-slate-200/80 dark:border-neutral-800"
+        className="relative min-h-[calc(100svh-4rem)] sm:min-h-screen flex flex-col justify-center items-center px-4 sm:px-8 lg:px-12 pt-20 sm:pt-24 pb-10 sm:pb-16 bg-white dark:bg-black text-slate-900 dark:text-white overflow-hidden border-b border-slate-200/80 dark:border-neutral-800"
       >
         <div className="max-w-7xl mx-auto w-full flex-1 flex items-center justify-center my-auto">
           <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-center py-2 sm:py-4">
@@ -160,7 +160,7 @@ export const Landing: React.FC = () => {
                 <img
                   src={HERO_ILLUSTRATIONS[currentImageIndex].src}
                   alt={HERO_ILLUSTRATIONS[currentImageIndex].alt}
-                  className={`relative z-10 w-full h-auto max-h-[260px] sm:max-h-[380px] lg:max-h-[520px] object-contain drop-shadow-sm transition-all duration-300 transform group-hover:scale-[1.02] group-active:scale-95 ${
+                  className={`relative z-10 w-full h-auto max-h-[220px] xs:max-h-[260px] sm:max-h-[380px] lg:max-h-[520px] object-contain drop-shadow-sm transition-all duration-300 transform group-hover:scale-[1.02] group-active:scale-95 ${
                     isFading ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
                   }`}
                 />
@@ -168,9 +168,9 @@ export const Landing: React.FC = () => {
             </div>
 
             {/* Right Column: Hero Content (Centered & Aesthetic) */}
-            <div className="lg:col-span-6 flex flex-col justify-center items-center text-center space-y-5 sm:space-y-6 md:space-y-7 order-1 lg:order-2 scroll-reveal scroll-delay-100">
+            <div className="lg:col-span-6 flex flex-col justify-center items-center text-center space-y-4 sm:space-y-6 md:space-y-7 order-1 lg:order-2 scroll-reveal scroll-delay-100">
               {/* Main Hero Headline */}
-              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight flex items-center justify-center gap-1 sm:gap-1.5 leading-none select-none max-w-xl mx-auto">
+              <h1 className="text-3xl xs:text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight flex items-center justify-center gap-1 sm:gap-1.5 leading-none select-none max-w-xl mx-auto">
                 <img
                   src={LogoImg}
                   alt="A"
@@ -182,7 +182,7 @@ export const Landing: React.FC = () => {
               </h1>
 
               {/* Subtitle */}
-              <p className="text-sm sm:text-base lg:text-lg text-slate-600 dark:text-slate-300 leading-relaxed font-normal max-w-lg mx-auto px-2 sm:px-0">
+              <p className="text-xs xs:text-sm sm:text-base lg:text-lg text-slate-600 dark:text-slate-300 leading-relaxed font-normal max-w-lg mx-auto px-1 sm:px-0">
                 A Web-Based Student Performance Monitoring and Early Academic Risk Detection System for the ARAL Program of{' '}
                 <span className="text-[#0052B7] dark:text-blue-400 font-semibold">
                   Palanas National Agriculture High School
@@ -194,7 +194,7 @@ export const Landing: React.FC = () => {
               <div className="flex items-center justify-center pt-1 w-full max-w-xs sm:max-w-none">
                 <Link
                   to={isAuthenticated ? getDashboardLink() : '/login'}
-                  className="glass-btn group inline-flex items-center justify-center gap-2.5 px-6 sm:px-7 py-3 sm:py-3.5 font-semibold rounded-2xl cursor-pointer select-none text-sm sm:text-base"
+                  className="glass-btn group inline-flex items-center justify-center gap-2.5 px-6 sm:px-7 py-3 sm:py-3.5 font-semibold rounded-2xl cursor-pointer select-none text-sm sm:text-base w-full xs:w-auto min-h-[46px]"
                 >
                   <span>{isAuthenticated ? 'Go to Dashboard' : 'Access System Portal'}</span>
                   <ArrowRight className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-[#0052B7] dark:group-hover:text-blue-300 transition-colors duration-200 shrink-0" />
@@ -210,22 +210,22 @@ export const Landing: React.FC = () => {
           ═══════════════════════════════════════════════════════════════ */}
       <section
         id="about"
-        className="px-6 sm:px-8 lg:px-12 py-24 sm:py-32 bg-white dark:bg-black border-b border-slate-100 dark:border-neutral-900"
+        className="px-4 sm:px-8 lg:px-12 py-14 sm:py-20 lg:py-28 bg-white dark:bg-black border-b border-slate-100 dark:border-neutral-900"
       >
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-20 items-start">
             {/* Left Column (5 cols): Clean, Spacious Intro */}
-            <div className="lg:col-span-5 flex flex-col space-y-5 lg:sticky lg:top-28 scroll-reveal">
+            <div className="lg:col-span-5 flex flex-col space-y-4 sm:space-y-5 lg:sticky lg:top-28 scroll-reveal">
               <span className="text-xs font-semibold tracking-wider uppercase text-[#0052B7] dark:text-blue-400">
                 About the Initiative
               </span>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight leading-snug">
+              <h2 className="text-xl xs:text-2xl sm:text-3xl lg:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight leading-snug">
                 Bridging learning gaps through purposeful academic monitoring.
               </h2>
-              <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                 Designed for Palanas National Agriculture High School, ARALert provides educators and tutors with clear insight into student performance and attendance.
               </p>
-              <div className="pt-6 border-t border-slate-100 dark:border-neutral-900">
+              <div className="pt-4 sm:pt-6 border-t border-slate-100 dark:border-neutral-900">
                 <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
                   Aligned with Republic Act No. 12028 (Academic Recovery and Accessible Learning Program Act) to support educational recovery and equity.
                 </p>
@@ -235,31 +235,31 @@ export const Landing: React.FC = () => {
             {/* Right Column (7 cols): Three Clean Content Items */}
             <div className="lg:col-span-7 flex flex-col divide-y divide-slate-100 dark:divide-neutral-900 scroll-reveal scroll-delay-100">
               {/* Item 1 */}
-              <div className="space-y-2.5 pb-8 first:pt-0">
-                <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
+              <div className="space-y-2 pb-6 sm:pb-8 first:pt-0">
+                <h3 className="text-base sm:text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
                   Core learning recovery
                 </h3>
-                <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                   Focuses on essential competencies in English, Science, and Mathematics through structured, tutor-led sessions tailored to individual student needs.
                 </p>
               </div>
 
               {/* Item 2 */}
-              <div className="space-y-2.5 py-8">
-                <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
+              <div className="space-y-2 py-6 sm:py-8">
+                <h3 className="text-base sm:text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
                   Early risk detection
                 </h3>
-                <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                   Replaces end-of-term surprises with continuous monitoring. Performance dips and attendance patterns are identified early so teachers can adapt their support.
                 </p>
               </div>
 
               {/* Item 3 */}
-              <div className="space-y-2.5 pt-8">
-                <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
+              <div className="space-y-2 pt-6 sm:pt-8">
+                <h3 className="text-base sm:text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
                   Connected school community
                 </h3>
-                <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                   Brings school administrators, subject teachers, tutors, and students together onto a unified, transparent record for shared accountability.
                 </p>
               </div>
@@ -273,22 +273,22 @@ export const Landing: React.FC = () => {
           ═══════════════════════════════════════════════════════════════ */}
       <section
         id="features"
-        className="px-6 sm:px-8 lg:px-12 py-24 sm:py-32 bg-white dark:bg-black border-b border-slate-100 dark:border-neutral-900"
+        className="px-4 sm:px-8 lg:px-12 py-14 sm:py-20 lg:py-28 bg-white dark:bg-black border-b border-slate-100 dark:border-neutral-900"
       >
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-20 items-start">
             {/* Left Column (5 cols): Clean, Spacious Intro */}
-            <div className="lg:col-span-5 flex flex-col space-y-5 lg:sticky lg:top-28 scroll-reveal">
+            <div className="lg:col-span-5 flex flex-col space-y-4 sm:space-y-5 lg:sticky lg:top-28 scroll-reveal">
               <span className="text-xs font-semibold tracking-wider uppercase text-[#0052B7] dark:text-blue-400">
                 Platform Capabilities
               </span>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight leading-snug">
+              <h2 className="text-xl xs:text-2xl sm:text-3xl lg:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight leading-snug">
                 Practical tools designed for everyday classroom workflow.
               </h2>
-              <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                 Three essential modules that simplify daily administrative routines and keep instructional time focused on student mentorship.
               </p>
-              <div className="pt-6 border-t border-slate-100 dark:border-neutral-900">
+              <div className="pt-4 sm:pt-6 border-t border-slate-100 dark:border-neutral-900">
                 <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
                   Synchronized in real time across daily check-ins, assessment scoring, and official DepEd reporting formats.
                 </p>
@@ -298,31 +298,31 @@ export const Landing: React.FC = () => {
             {/* Right Column (7 cols): Three Clean Feature Items */}
             <div className="lg:col-span-7 flex flex-col divide-y divide-slate-100 dark:divide-neutral-900 scroll-reveal scroll-delay-100">
               {/* Feature 1 */}
-              <div className="space-y-2.5 pb-8 first:pt-0">
-                <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
+              <div className="space-y-2 pb-6 sm:pb-8 first:pt-0">
+                <h3 className="text-base sm:text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
                   Automated performance tracking
                 </h3>
-                <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                   Consolidates formative assessments, weekly quizzes, and tasks into clear summaries with automatic weighted calculations—saving teachers hours of spreadsheet work.
                 </p>
               </div>
 
               {/* Feature 2 */}
-              <div className="space-y-2.5 py-8">
-                <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
+              <div className="space-y-2 py-6 sm:py-8">
+                <h3 className="text-base sm:text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
                   Academic risk alerts
                 </h3>
-                <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                   Flags learners who fall below target passing thresholds or incur unexcused absences, prompting timely intervention before learning gaps widen.
                 </p>
               </div>
 
               {/* Feature 3 */}
-              <div className="space-y-2.5 pt-8">
-                <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
+              <div className="space-y-2 pt-6 sm:pt-8">
+                <h3 className="text-base sm:text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
                   Quick QR attendance
                 </h3>
-                <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                   Fast session check-in and check-out via dynamic QR codes, keeping attendance records verified and tamper-proof without paper sign-in sheets.
                 </p>
               </div>
@@ -336,16 +336,16 @@ export const Landing: React.FC = () => {
           ═══════════════════════════════════════════════════════════════ */}
       <section
         id="faq"
-        className="px-6 sm:px-8 lg:px-12 py-24 sm:py-32 max-w-4xl mx-auto"
+        className="px-4 sm:px-8 lg:px-12 py-14 sm:py-20 lg:py-28 max-w-4xl mx-auto"
       >
-        <div className="space-y-4 mb-14 scroll-reveal">
+        <div className="space-y-3 sm:space-y-4 mb-8 sm:mb-14 scroll-reveal">
           <span className="text-xs font-bold tracking-widest uppercase text-[#0052B7] dark:text-blue-400">
             Frequently Asked Questions
           </span>
-          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.15]">
+          <h2 className="text-xl xs:text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.15]">
             Lorem Ipsum Dolor Sit Amet
           </h2>
-          <p className="text-sm sm:text-base lg:text-lg text-slate-600 dark:text-slate-400 leading-relaxed pt-1">
+          <p className="text-xs xs:text-sm sm:text-base lg:text-lg text-slate-600 dark:text-slate-400 leading-relaxed pt-0.5 sm:pt-1">
             Cras mattis consectetur purus sit amet fermentum donec sed odio dui vivamus sagittis.
           </p>
         </div>
@@ -370,9 +370,9 @@ export const Landing: React.FC = () => {
                   aria-expanded={isOpen}
                   aria-controls={`faq-answer-${faq.id}`}
                   onClick={() => toggleFAQ(faq.id)}
-                  className="w-full flex items-center justify-between py-5 sm:py-6 px-4 sm:px-6 text-left group cursor-pointer select-none transition-colors"
+                  className="w-full flex items-center justify-between py-4 sm:py-5 px-3 sm:px-6 text-left group cursor-pointer select-none transition-colors min-h-[48px]"
                 >
-                  <div className="flex items-center gap-3 sm:gap-4 pr-4">
+                  <div className="flex items-center gap-2.5 sm:gap-4 pr-2 sm:pr-4 min-w-0">
                     {/* Left subtle brand accent indicator */}
                     <span
                       className={`w-1 h-5 rounded-full transition-colors duration-200 shrink-0 ${
@@ -389,7 +389,7 @@ export const Landing: React.FC = () => {
                       {itemNumber}
                     </span>
                     <span
-                      className={`text-base sm:text-lg tracking-tight transition-colors ${
+                      className={`text-sm sm:text-base lg:text-lg tracking-tight transition-colors truncate sm:whitespace-normal ${
                         isOpen
                           ? 'text-[#0052B7] dark:text-blue-400 font-bold'
                           : 'text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 font-semibold'
@@ -415,8 +415,8 @@ export const Landing: React.FC = () => {
                   }`}
                 >
                   <div className="overflow-hidden">
-                    <div className="pb-6 pt-0 px-4 sm:px-6 pl-8 sm:pl-11">
-                      <p className="text-sm sm:text-[15px] text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                    <div className="pb-5 pt-0 px-3 sm:px-6 pl-6 sm:pl-10 pr-2 sm:pr-6">
+                      <p className="text-xs sm:text-sm md:text-[15px] text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                         {faq.answer}
                       </p>
                     </div>

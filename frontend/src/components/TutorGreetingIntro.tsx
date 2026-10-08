@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { User } from '../types';
+import aralertLogo from '../assets/ARALert_Logo_LIGHT.png';
 
 interface TutorGreetingIntroProps {
   user: User | null;
@@ -241,7 +242,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
               }}
             >
               <img
-                src="/src/assets/ARALert_Logo_LIGHT.png"
+                src={aralertLogo}
                 alt="ARALert Mascot Logo"
                 className="w-full h-full object-contain filter drop-shadow-[0_12px_28px_var(--brand-glow)]"
                 style={{ backfaceVisibility: 'hidden', transform: 'translateZ(0)' }}
@@ -313,7 +314,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
           }}
         >
           <img
-            src="/src/assets/ARALert_Logo_LIGHT.png"
+            src={aralertLogo}
             alt="ARALert Flying Mascot"
             style={{
               width: '100%',

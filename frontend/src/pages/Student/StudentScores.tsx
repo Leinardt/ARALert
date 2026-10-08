@@ -419,107 +419,208 @@ export const StudentScores: React.FC = () => {
   };
 
   const renderTable = (records: Grade[]) => (
-    <div className="overflow-x-auto -mx-2 px-2">
-      <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
-        <thead>
-          <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-            <th className="w-[22%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-              <SortableHeader label="STUDENT" sortKey="student" />
-            </th>
-            <th className="w-[18%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-              <SortableHeader label="DESCRIPTION" sortKey="description" />
-            </th>
-            <th className="w-[10%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-              <SortableHeader label="SCORE" sortKey="score" />
-            </th>
-            <th className="w-[12%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-              <SortableHeader label="REMARK" sortKey="remarks" />
-            </th>
-            <th className="w-[10%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-              <SortableHeader label="STATUS" sortKey="status" />
-            </th>
-            <th className="w-[14%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-              <SortableHeader label="DATE" sortKey="date" />
-            </th>
-            <th className="w-[8%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-              <SortableHeader label="TIME" sortKey="time" />
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
-          {records.map((grade) => {
-            const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
-            const totalScore = Number(grade.total_score) || 100;
-            const scorePct = (Number(grade.score) / totalScore) * 100;
-            const isPassed = !isNotTaken && scorePct >= 70;
-            const desc = getScoreDescription(grade);
-            const name = user?.full_name || grade.student_name || 'Student';
+    <div>
+      {/* Desktop Table View (>= 768px) */}
+      <div className="hidden md:block overflow-x-auto mobile-scroll-table -mx-2 px-2">
+        <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
+          <thead>
+            <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
+              <th className="w-[22%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                <SortableHeader label="STUDENT" sortKey="student" />
+              </th>
+              <th className="w-[18%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                <SortableHeader label="DESCRIPTION" sortKey="description" />
+              </th>
+              <th className="w-[10%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                <SortableHeader label="SCORE" sortKey="score" />
+              </th>
+              <th className="w-[12%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                <SortableHeader label="REMARK" sortKey="remarks" />
+              </th>
+              <th className="w-[10%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                <SortableHeader label="STATUS" sortKey="status" />
+              </th>
+              <th className="w-[14%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                <SortableHeader label="DATE" sortKey="date" />
+              </th>
+              <th className="w-[8%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                <SortableHeader label="TIME" sortKey="time" />
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+            {records.map((grade) => {
+              const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
+              const totalScore = Number(grade.total_score) || 100;
+              const scorePct = (Number(grade.score) / totalScore) * 100;
+              const isPassed = !isNotTaken && scorePct >= 70;
+              const desc = getScoreDescription(grade);
+              const name = user?.full_name || grade.student_name || 'Student';
 
-            return (
-              <tr key={grade.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#111111]/80">
-                {/* STUDENT */}
-                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
-                  {name}
-                </td>
+              return (
+                <tr key={grade.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#111111]/80">
+                  {/* STUDENT */}
+                  <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
+                    {name}
+                  </td>
 
-                {/* DESCRIPTION */}
-                <td className="px-4 py-3 text-left whitespace-nowrap">
+                  {/* DESCRIPTION */}
+                  <td className="px-4 py-3 text-left whitespace-nowrap">
+                    <span
+                      className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${
+                        desc !== 'Intervention Activity'
+                          ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
+                          : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                      }`}
+                    >
+                      {desc}
+                    </span>
+                  </td>
+
+                  {/* SCORE */}
+                  <td className="px-4 py-3 text-xs text-gray-700 dark:text-slate-300 whitespace-nowrap">
+                    {grade.score} / {grade.total_score || 100}
+                  </td>
+
+                  {/* REMARK */}
+                  <td className="px-4 py-3 text-left whitespace-nowrap">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${isNotTaken
+                        ? 'border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                        : isPassed
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                          : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                        }`}
+                    >
+                      {isNotTaken ? 'Not Taken' : isPassed ? 'Passed' : 'Failed'}
+                    </span>
+                  </td>
+
+                  {/* STATUS */}
+                  <td className="px-4 py-3 text-left whitespace-nowrap">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${isNotTaken
+                        ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                        }`}
+                    >
+                      {isNotTaken ? 'Not Taken' : 'Taken'}
+                    </span>
+                  </td>
+
+                  {/* DATE */}
+                  <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
+                    {formatDateString(grade.date_logged)}
+                  </td>
+
+                  {/* TIME */}
+                  <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
+                    {grade.created_at ? formatTimeString(grade.created_at) : '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Card Layout (< 768px) */}
+      <div className="md:hidden space-y-3">
+        {records.map((grade) => {
+          const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
+          const totalScore = Number(grade.total_score) || 100;
+          const scorePct = (Number(grade.score) / totalScore) * 100;
+          const isPassed = !isNotTaken && scorePct >= 70;
+          const desc = getScoreDescription(grade);
+
+          return (
+            <div
+              key={`mobile-card-${grade.id}`}
+              className="rounded-xl border border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#111111] p-4 space-y-3 shadow-xs"
+            >
+              {/* Header: Description + Status Pills */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span
+                  className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                    desc !== 'Intervention Activity'
+                      ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
+                      : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                  }`}
+                >
+                  {desc}
+                </span>
+
+                <div className="flex items-center gap-1.5 shrink-0">
                   <span
-                    className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${
-                      desc !== 'Intervention Activity'
-                        ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
-                        : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                    }`}
-                  >
-                    {desc}
-                  </span>
-                </td>
-
-                {/* SCORE */}
-                <td className="px-4 py-3 text-xs text-gray-700 dark:text-slate-300 whitespace-nowrap">
-                  {grade.score} / {grade.total_score || 100}
-                </td>
-
-                {/* REMARK */}
-                <td className="px-4 py-3 text-left whitespace-nowrap">
-                  <span
-                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${isNotTaken
-                      ? 'border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'
-                      : isPassed
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-bold ${
+                      isNotTaken
+                        ? 'border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                        : isPassed
                         ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
                         : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-                      }`}
+                    }`}
                   >
                     {isNotTaken ? 'Not Taken' : isPassed ? 'Passed' : 'Failed'}
                   </span>
-                </td>
-
-                {/* STATUS */}
-                <td className="px-4 py-3 text-left whitespace-nowrap">
                   <span
-                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${isNotTaken
-                      ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
-                      : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                      }`}
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                      isNotTaken
+                        ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                    }`}
                   >
                     {isNotTaken ? 'Not Taken' : 'Taken'}
                   </span>
-                </td>
+                </div>
+              </div>
 
-                {/* DATE */}
-                <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
-                  {formatDateString(grade.date_logged)}
-                </td>
+              {/* Score Hero Row */}
+              <div className="flex items-baseline justify-between py-2 px-3 rounded-lg bg-gray-50/80 dark:bg-[#161616] border border-gray-100 dark:border-[#222222]">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+                    Score
+                  </span>
+                  <p className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">
+                    {grade.score}{' '}
+                    <span className="text-xs font-semibold text-gray-400 dark:text-slate-500">
+                      / {grade.total_score || 100}
+                    </span>
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+                    Percentage
+                  </span>
+                  <p
+                    className={`text-xl sm:text-2xl font-black mt-0.5 ${
+                      isNotTaken
+                        ? 'text-gray-400 dark:text-slate-500'
+                        : isPassed
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-rose-600 dark:text-rose-400'
+                    }`}
+                  >
+                    {isNotTaken ? '0%' : `${smartPct(scorePct)}%`}
+                  </p>
+                </div>
+              </div>
 
-                {/* TIME */}
-                <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
-                  {grade.created_at ? formatTimeString(grade.created_at) : '—'}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+              {/* Timestamp Row */}
+              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400 pt-0.5">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <span>{formatDateString(grade.date_logged)}</span>
+                </div>
+                {grade.created_at && (
+                  <span className="text-[11px] text-gray-400 dark:text-slate-500">
+                    {formatTimeString(grade.created_at)}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 
@@ -635,7 +736,7 @@ export const StudentScores: React.FC = () => {
                     setViewMode(mode);
                     setJumpDate(null);
                   }}
-                  className={`h-7 whitespace-nowrap rounded-sm px-3 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
+                  className={`h-8 sm:h-7 whitespace-nowrap rounded-sm px-3 text-xs sm:text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
                     ? 'bg-[var(--brand)] text-white'
                     : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                     }`}
