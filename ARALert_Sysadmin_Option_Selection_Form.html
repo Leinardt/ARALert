@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARALert - Sysadmin Option Selection Form</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 7mm 10mm 6mm 10mm;
+        }
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            font-size: 8.2pt;
+            line-height: 1.28;
+            color: #1e293b;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #0f766e;
+            padding-bottom: 4px;
+            margin-bottom: 6px;
+        }
+        .header h1 {
+            font-size: 11.5pt;
+            margin: 0 0 2px 0;
+            color: #0f766e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+        }
+        .header p {
+            font-size: 8pt;
+            margin: 0;
+            color: #64748b;
+            font-weight: 600;
+        }
+        table.form-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6px;
+            background: #ffffff;
+        }
+        table.form-table th, 
+        table.form-table td {
+            border: 1px solid #94a3b8;
+            padding: 4px 7.5px;
+            vertical-align: top;
+        }
+        table.form-table td.field-label {
+            width: 25%;
+            font-weight: 700;
+            color: #0f172a;
+            background-color: #f8fafc;
+            font-size: 8.2pt;
+        }
+        table.form-table td.field-value {
+            width: 75%;
+            color: #334155;
+            font-size: 8.2pt;
+        }
+        .badge {
+            display: inline-block;
+            padding: 1px 5px;
+            font-weight: 700;
+            font-size: 8pt;
+            border-radius: 3px;
+            background-color: #0f766e;
+            color: #ffffff;
+        }
+        .badge-secondary {
+            background-color: #0284c7;
+        }
+        .risk-item {
+            margin-bottom: 3px;
+        }
+        .risk-item:last-child {
+            margin-bottom: 0;
+        }
+        .risk-title {
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .risk-handling {
+            color: #334155;
+            margin-top: 1px;
+        }
+        .faculty-box {
+            background-color: #f8fafc;
+            border: 1px dashed #64748b;
+            border-radius: 4px;
+            padding: 6px 10px;
+            margin-top: 4px;
+        }
+        .faculty-title {
+            font-size: 7.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #475569;
+            margin-bottom: 3px;
+        }
+        .faculty-fields {
+            display: flex;
+            justify-content: space-between;
+            font-size: 8pt;
+            color: #334155;
+        }
+        .line-blank {
+            border-bottom: 1px solid #475569;
+            display: inline-block;
+            min-width: 120px;
+            height: 11px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Sysadmin Option Selection & Project Information Form</h1>
+        <p>Information Technology Department • Bicol University College of Science</p>
+    </div>
+
+    <table class="form-table">
+        <tr>
+            <td class="field-label">Group Name</td>
+            <td class="field-value"><strong>ARALert</strong></td>
+        </tr>
+        <tr>
+            <td class="field-label">Members</td>
+            <td class="field-value">
+                <strong>Group Leader :</strong> OMADTO, Leinardt R.<br>
+                <strong>Members :</strong> ALCOVINDAS, Nyan Jean Q. &nbsp;|&nbsp; LICUP, Jorge Benidict C.
+            </td>
+        </tr>
+        <tr>
+            <td class="field-label">Capstone Application Title</td>
+            <td class="field-value">
+                <strong>ARALert: A Student Performance Monitoring and Early Academic Risk Detection System for the ARAL Program of Palanas National Agriculture High School</strong>
+            </td>
+        </tr>
+        <tr>
+            <td class="field-label">What the application does and who uses it</td>
+            <td class="field-value">
+                ARALert is a web-based student performance monitoring and early academic risk detection system designed for Palanas National Agriculture High School (PNAHS). The system allows attendance logging through QR code scans for students and faculty, enables tutors to efficiently record weekly student scores, and utilizes data analytics to predict each student’s academic risk level (High Risk, Moderate Risk, Low Risk). Furthermore, the system provides role-based access control (RBAC) to ARAL program tutors, students, faculty, and the school principal, where each distinct user role has a dedicated dashboard to ensure data integrity and facilitate timely academic interventions.
+            </td>
+        </tr>
+        <tr>
+            <td class="field-label">Technology stack<br><small style="color:#64748b; font-weight:normal;">(server, language, database)</small></td>
+            <td class="field-value">
+                <strong>Server:</strong> Railway (Cloud) / Gunicorn & Nginx (Linux VM)<br>
+                <strong>Language:</strong> Python (Django REST Framework), TypeScript (React 19, Vite)<br>
+                <strong>Database:</strong> PostgreSQL
+            </td>
+        </tr>
+        <tr>
+            <td class="field-label">Current server<br><small style="color:#64748b; font-weight:normal;">(Linux, VM, XAMPP on Windows, Cloud, None)</small></td>
+            <td class="field-value">
+                <strong>Cloud (Railway) / Windows Localhost</strong>
+            </td>
+        </tr>
+        <tr>
+            <td class="field-label">Laptop that will run your project VM<br><small style="color:#64748b; font-weight:normal;">(owner, RAM, free disk)</small></td>
+            <td class="field-value">
+                <strong>Owner:</strong> Leinardt R. Omadto (ASUS TUF F15) &nbsp;|&nbsp; <strong>RAM:</strong> 16 GB DDR4 &nbsp;|&nbsp; <strong>Free Disk:</strong> 500 GB+ available (1 TB SSD)
+            </td>
+        </tr>
+        <tr>
+            <td class="field-label">First choice<br><small style="color:#64748b; font-weight:normal;">(1A, 1B, 1C, or 2)</small></td>
+            <td class="field-value">
+                <span class="badge">1B</span> &nbsp;<strong>Option 1B: Service Lifecycle Control</strong> (Installation, Start/Stop, Status & Monitor, Update & Patch, Pause & Resume, Maintenance Mode)
+            </td>
+        </tr>
+        <tr>
+            <td class="field-label">Second choice<br><small style="color:#64748b; font-weight:normal;">(1A, 1B, 1C, or 2)</small></td>
+            <td class="field-value">
+                <span class="badge badge-secondary">1A</span> &nbsp;<strong>Option 1A: Operations and Data Protection</strong> (Installation, Backup & Verify, Restore, Log Summary, Health Report, Disk Alert)
+            </td>
+        </tr>
+        <tr>
+            <td class="field-label">Why this option fits your application</td>
+            <td class="field-value">
+                <div style="margin-bottom: 3px;">
+                    <strong>For 1B (First Choice):</strong> ARALert is an active web platform utilized daily by tutors, students, and administrators for live QR attendance tracking and weekly assessment scoring. Maintaining high availability and zero downtime during operational school hours is crucial. Option 1B provides complete service lifecycle automation—enabling smooth deployment, daemon process control (start/stop/pause/resume), active status monitoring, safe patching with failure detection and rollback, and a dedicated maintenance mode so users receive clear notices rather than server errors during updates.
+                </div>
+                <div>
+                    <strong>For 1A (Second Choice):</strong> ARALert manages critical DepEd student records, Phil-IRI reading scores, and attendance histories in PostgreSQL. Option 1A directly ensures data resilience through automated backups, backup verification, rapid disaster recovery (&lt;10 minutes), disk threshold alerts, and health logging to guarantee zero data loss.
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td class="field-label">Risks you expect and how you will handle them</td>
+            <td class="field-value">
+                <div class="risk-item">
+                    <span class="risk-title">1. Risk: Broken updates, package conflicts, or failed migrations during patching that disrupt live attendance or scoring.</span>
+                    <div class="risk-handling"><strong>Handling:</strong> The update script performs an automatic pre-deployment database backup, executes post-update health checks, and automatically rolls back to the previous stable Git commit and database state if errors or non-200 responses are detected.</div>
+                </div>
+                <div class="risk-item">
+                    <span class="risk-title">2. Risk: Abrupt daemon termination causing locked PostgreSQL connections, incomplete transactions, or orphaned processes.</span>
+                    <div class="risk-handling"><strong>Handling:</strong> Implement graceful shutdown procedures using SIGTERM signal trapping to complete pending HTTP requests and activate a maintenance mode notice before stopping backend services.</div>
+                </div>
+                <div class="risk-item">
+                    <span class="risk-title">3. Risk: Resource exhaustion (CPU/RAM spikes) during peak concurrent QR scanning periods across multiple classrooms.</span>
+                    <div class="risk-handling"><strong>Handling:</strong> Monitoring and health scripts track system metrics continuously, logging performance summaries and issuing automated threshold warnings before service degradation occurs.</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="faculty-box">
+        <div class="faculty-title">Faculty Use Only</div>
+        <div class="faculty-fields">
+            <div><strong>Option Assigned:</strong> <span class="line-blank"></span></div>
+            <div><strong>Date & Time Received:</strong> <span class="line-blank"></span></div>
+            <div><strong>Faculty Signature:</strong> <span class="line-blank"></span></div>
+        </div>
+    </div>
+
+</body>
+</html>

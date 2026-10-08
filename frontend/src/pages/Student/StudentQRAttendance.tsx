@@ -201,15 +201,14 @@ const CustomCalendarDropdown: React.FC<{
                 onSelectDate(cellDateKey);
                 onClose();
               }}
-              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                isSelected
+              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-lg text-xs font-semibold transition-all cursor-pointer ${isSelected
                   ? 'bg-[var(--brand)] text-white font-bold shadow-sm'
                   : isToday
-                  ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
-                  : hasLogs
-                  ? 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-800 dark:text-slate-200 font-semibold hover:bg-gray-200 dark:hover:bg-[#222222]'
-                  : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-              }`}
+                    ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
+                    : hasLogs
+                      ? 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-800 dark:text-slate-200 font-semibold hover:bg-gray-200 dark:hover:bg-[#222222]'
+                      : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                }`}
             >
               <span>{dayNum}</span>
               {hasLogs && !isSelected && (
@@ -464,11 +463,10 @@ export const StudentQRAttendance: React.FC = () => {
                 </td>
                 <td className="px-4 py-3 text-left whitespace-nowrap">
                   <span
-                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${
-                      isPresent
+                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${isPresent
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
                         : 'bg-rose-50 text-rose-700 border-rose-200 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-                    }`}
+                      }`}
                   >
                     {log.status_display || (isPresent ? 'Present' : 'Absent')}
                   </span>
@@ -605,7 +603,7 @@ export const StudentQRAttendance: React.FC = () => {
             }
             handleScanSubmit(decodedText);
           },
-          () => {}
+          () => { }
         );
 
         scannerRef.current = scanner;
@@ -647,11 +645,10 @@ export const StudentQRAttendance: React.FC = () => {
               {/* Notification Banner */}
               {scanResult && (
                 <div
-                  className={`flex items-start justify-between gap-2.5 w-full rounded-md p-3 text-xs font-medium animate-fade-in ${
-                    scanResult.type === 'success'
+                  className={`flex items-start justify-between gap-2.5 w-full rounded-md p-3 text-xs font-medium animate-fade-in ${scanResult.type === 'success'
                       ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50'
                       : 'bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2">
                     {scanResult.type === 'success' ? (
@@ -727,7 +724,7 @@ export const StudentQRAttendance: React.FC = () => {
                   >
                     <input
                       type="text"
-                      placeholder="Enter 6-char code (e.g. 550E84) or session ID..."
+                      placeholder="Enter 6-digit code (e.g. 550E84)..."
                       value={manualCode}
                       onChange={(e) => setManualCode(e.target.value.toUpperCase())}
                       maxLength={36}
@@ -851,15 +848,14 @@ export const StudentQRAttendance: React.FC = () => {
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE ATTENDANCE RATE</p>
             <p
-              className={`text-2xl font-extrabold mt-0.5 ${
-                !hasAttendanceData
+              className={`text-2xl font-extrabold mt-0.5 ${!hasAttendanceData
                   ? 'text-gray-900 dark:text-slate-100'
                   : attendanceRate >= 81
-                  ? 'text-risk-low text-emerald-600 dark:text-emerald-400'
-                  : attendanceRate >= 75
-                  ? 'text-risk-medium text-amber-600 dark:text-amber-400'
-                  : 'text-risk-high text-rose-600 dark:text-rose-400'
-              }`}
+                    ? 'text-risk-low text-emerald-600 dark:text-emerald-400'
+                    : attendanceRate >= 75
+                      ? 'text-risk-medium text-amber-600 dark:text-amber-400'
+                      : 'text-risk-high text-rose-600 dark:text-rose-400'
+                }`}
             >
               {hasAttendanceData ? `${smartPct(attendanceRate)}%` : '—'}
             </p>
@@ -894,11 +890,10 @@ export const StudentQRAttendance: React.FC = () => {
                     setViewMode(mode);
                     setJumpDate(null);
                   }}
-                  className={`h-7 whitespace-nowrap rounded-sm px-3 text-[10px] font-bold uppercase transition-all cursor-pointer ${
-                    viewMode === mode && !jumpDate
+                  className={`h-7 whitespace-nowrap rounded-sm px-3 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
                       ? 'bg-[var(--brand)] text-white'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                  }`}
+                    }`}
                 >
                   {mode}
                 </button>
@@ -911,11 +906,10 @@ export const StudentQRAttendance: React.FC = () => {
                 type="button"
                 id="student-attendance-calendar-btn"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border p-0 transition-all ${
-                  jumpDate
+                className={`flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border p-0 transition-all ${jumpDate
                     ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
                     : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)]'
-                }`}
+                  }`}
                 title="Select a specific date from calendar"
                 aria-label="Open score calendar"
               >

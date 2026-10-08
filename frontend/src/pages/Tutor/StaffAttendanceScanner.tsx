@@ -138,7 +138,7 @@ const CustomCalendarDropdown: React.FC<{
         </button>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center font-bold text-slate-400 py-2 text-[10px] uppercase tracking-wider">
-        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => <span key={d}>{d}</span>)}
+        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => <span key={d}>{d}</span>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
         {calendarCells.map((dayNum, idx) => {
@@ -152,15 +152,14 @@ const CustomCalendarDropdown: React.FC<{
               key={cellDateKey}
               type="button"
               onClick={() => { onSelectDate(cellDateKey); onClose(); }}
-              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                isSelected
-                  ? 'bg-[var(--brand)] text-white font-bold'
-                  : isToday
+              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${isSelected
+                ? 'bg-[var(--brand)] text-white font-bold'
+                : isToday
                   ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
                   : hasLogs
-                  ? 'bg-slate-100 dark:bg-[#1A1A1A] text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-200 dark:hover:bg-[#222222]'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1A1A1A]'
-              }`}
+                    ? 'bg-slate-100 dark:bg-[#1A1A1A] text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-200 dark:hover:bg-[#222222]'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1A1A1A]'
+                }`}
             >
               <span>{dayNum}</span>
               {hasLogs && !isSelected && <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-[var(--brand)]" />}
@@ -328,9 +327,8 @@ export const StaffAttendanceScanner: React.FC = () => {
       <button
         type="button"
         onClick={() => toggleSort(sortKey)}
-        className={`inline-flex items-center gap-1.5 transition-colors hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer ${
-          align === 'center' ? 'justify-center w-full' : ''
-        }`}
+        className={`inline-flex items-center gap-1.5 transition-colors hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer ${align === 'center' ? 'justify-center w-full' : ''
+          }`}
         aria-label={`Sort by ${label}`}
       >
         <span>{label}</span>
@@ -449,7 +447,7 @@ export const StaffAttendanceScanner: React.FC = () => {
           scannerRef.current = scanner;
           scanner.render(
             (decodedText) => { void handleScanSuccess(decodedText); },
-            () => {}
+            () => { }
           );
         } catch (err: any) {
           if (!cancelled) {
@@ -679,11 +677,10 @@ export const StaffAttendanceScanner: React.FC = () => {
                 <h2 className="text-base font-bold text-gray-900 dark:text-slate-100">SCAN QR CODE</h2>
               </div>
               {scanResult && (
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border ${
-                  scanResult.type === 'success'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border-rose-200 dark:border-rose-900'
-                }`}>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border ${scanResult.type === 'success'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 border-rose-200 dark:border-rose-900'
+                  }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${scanResult.type === 'success' ? 'bg-emerald-500' : 'bg-rose-400'}`} />
                   {scanResult.type === 'success' ? 'Logged' : 'Error'}
                 </span>
@@ -694,11 +691,10 @@ export const StaffAttendanceScanner: React.FC = () => {
 
               {/* Scan result banner */}
               {scanResult && (
-                <div className={`w-full flex items-start gap-3 p-3.5 rounded-md border text-left ${
-                  scanResult.type === 'success'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
-                    : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200'
-                }`}>
+                <div className={`w-full flex items-start gap-3 p-3.5 rounded-md border text-left ${scanResult.type === 'success'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+                  : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200'
+                  }`}>
                   {scanResult.type === 'success' ? (
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                   ) : (
@@ -777,15 +773,12 @@ export const StaffAttendanceScanner: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">MANUAL ENTRY</h3>
-                      <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">
-                        Enter the 6-character code from the terminal screen or full session ID
-                      </p>
                     </div>
                   </div>
                   <form onSubmit={handleManualSubmit} className="space-y-2">
                     <input
                       type="text"
-                      placeholder="Enter 6-char code (e.g. 550E84) or session ID..."
+                      placeholder="Enter 6-char code (e.g. 550E84)..."
                       value={manualCode}
                       onChange={(e) => setManualCode(e.target.value.toUpperCase())}
                       maxLength={36}
@@ -857,12 +850,11 @@ export const StaffAttendanceScanner: React.FC = () => {
                         </p>
                       </div>
                       <div className="text-right shrink-0 space-y-0.5">
-                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
-                          st === 'Completed' ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800' :
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${st === 'Completed' ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800' :
                           st === 'Late' ? 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-amber-100 dark:border-amber-800' :
-                          st === 'Early Out' ? 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-100 dark:border-rose-800' :
-                          'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800'
-                        }`}>
+                            st === 'Early Out' ? 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-100 dark:border-rose-800' :
+                              'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800'
+                          }`}>
                           <CheckCircle2 className="w-3 h-3" />
                           {log.date ? `${formatDateString(log.date)} | ` : ''}{timeDisplay}
                         </span>
@@ -902,11 +894,10 @@ export const StaffAttendanceScanner: React.FC = () => {
                   id={`dtr-view-${mode}`}
                   type="button"
                   onClick={() => { setViewMode(mode); setJumpDate(null); }}
-                  className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
-                    viewMode === mode && !jumpDate
-                      ? 'bg-[var(--brand)] text-white'
-                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                  }`}
+                  className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
+                    ? 'bg-[var(--brand)] text-white'
+                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                    }`}
                 >
                   {mode}
                 </button>
@@ -919,11 +910,10 @@ export const StaffAttendanceScanner: React.FC = () => {
                 type="button"
                 id="dtr-calendar-btn"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`p-2 rounded-md border transition-all flex items-center justify-center cursor-pointer ${
-                  jumpDate
-                    ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
-                    : 'border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#222222]'
-                }`}
+                className={`p-2 rounded-md border transition-all flex items-center justify-center cursor-pointer ${jumpDate
+                  ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
+                  : 'border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#222222]'
+                  }`}
                 title="Select a specific date from calendar"
                 aria-label="Open Calendar"
               >

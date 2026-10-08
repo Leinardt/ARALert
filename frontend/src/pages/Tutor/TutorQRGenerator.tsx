@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import QRCode from 'qrcode';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
 import { timeService } from '../../services/timeService';
@@ -631,13 +632,12 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
                   type="button"
                   disabled={!hasRecord}
                   onClick={() => onSelectDate(dateStr)}
-                  className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all ${
-                    hasRecord
-                      ? isSelected
-                        ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
-                        : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
-                      : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
-                  }`}
+                  className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all ${hasRecord
+                    ? isSelected
+                      ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
+                      : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
+                    : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
+                    }`}
                   title={hasRecord ? (isSelected ? `Active: ${label}` : `View ${label}`) : `No records on ${label}`}
                   aria-label={label}
                 >
@@ -672,6 +672,8 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
 /* ─────────────────────────── component ─────────────────────────── */
 export const TutorQRGenerator: React.FC = () => {
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [students, setStudents] = useState<User[]>([]);
   const [expiresIn, setExpiresIn] = useState<number>(5);
   const [session, setSession] = useState<AttendanceSession | null>(null);
@@ -1013,7 +1015,7 @@ export const TutorQRGenerator: React.FC = () => {
     setConfirmAction({
       isOpen: true,
       title: 'Cancel Attendance Session',
-      message: 'Are you sure you want to close this attendance session? Students will no longer be able to scan this QR code.',
+      message: 'Are you sure you want to close this attendance session? Students will no longer be able to scan this QR code or type the manual entry code.',
       confirmText: 'Yes, Close Session',
       confirmStyle: 'danger',
       onConfirm: () => {
@@ -1134,7 +1136,7 @@ export const TutorQRGenerator: React.FC = () => {
 
   /* ─────────────────────────── render ─────────────────────────── */
   return (
-    <div className="space-y-6 max-w-6xl mx-auto data-loaded-content">
+    <div className="flex flex-col space-y-4 max-w-6xl mx-auto data-loaded-content">
 
       {/* ── Main Grid ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1149,11 +1151,45 @@ export const TutorQRGenerator: React.FC = () => {
                 <h2 className="text-base font-bold text-gray-900 dark:text-slate-100">SESSION SETUP</h2>
               </div>
               {session && (
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border ${session.is_active
-                  ? 'bg-[var(--brand-light)] text-[var(--brand)] border-[var(--brand-border)]'
-                  : 'bg-red-50 text-red-600 border-red-200'
-                  }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${session.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-red-400'}`} />
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold transition-all"
+                  style={
+                    isDark
+                      ? session.is_active
+                        ? {
+                          backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                          color: '#34D399',
+                          border: '1px solid rgba(52, 211, 153, 0.3)',
+                        }
+                        : {
+                          backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                          color: '#F87171',
+                          border: '1px solid rgba(248, 113, 113, 0.3)',
+                        }
+                      : session.is_active
+                        ? {
+                          backgroundColor: '#ECFDF5',
+                          color: '#047857',
+                          border: '1px solid #A7F3D0',
+                        }
+                        : {
+                          backgroundColor: '#FEF2F2',
+                          color: '#DC2626',
+                          border: '1px solid #FECACA',
+                        }
+                  }
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full animate-pulse"
+                    style={{
+                      backgroundColor: isDark
+                        ? (session.is_active ? '#34D399' : '#F87171')
+                        : (session.is_active ? '#10B981' : '#EF4444'),
+                      boxShadow: isDark
+                        ? (session.is_active ? '0 0 6px rgba(52, 211, 153, 0.6)' : '0 0 6px rgba(248, 113, 113, 0.6)')
+                        : undefined,
+                    }}
+                  />
                   {session.is_active ? 'Active' : 'Expired'}
                 </span>
               )}
@@ -1305,20 +1341,12 @@ export const TutorQRGenerator: React.FC = () => {
                           Manual Entry Code
                         </span>
                         <span className="text-[11px] text-gray-500 dark:text-slate-400">
-                          Students can enter this 6-char code
+                          Students can enter this code
                         </span>
                       </div>
                       <span className="text-base font-extrabold font-mono tracking-widest text-[var(--brand)] dark:text-blue-400 bg-white dark:bg-[#1A1A1A] px-3 py-1 rounded border border-gray-200 dark:border-[#2A2A2A] shadow-xs select-all">
                         {String(session.id).slice(0, 6).toUpperCase()}
                       </span>
-                    </div>
-
-                    {/* Session meta */}
-                    <div className="flex items-center justify-between text-xs py-0.5 text-gray-500 dark:text-slate-400">
-                      <span className="font-semibold text-[11px]">Full Session ID:</span>
-                      <code className="text-[11px] font-mono font-medium text-gray-700 dark:text-slate-300 select-all truncate max-w-[180px] tracking-wide" title={session.id}>
-                        {session.id}
-                      </code>
                     </div>
 
                     <button
@@ -1341,7 +1369,7 @@ export const TutorQRGenerator: React.FC = () => {
             {/* Feed header */}
             <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">RECENT STUDENT QR SCANS</h3>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">RECENT STUDENT QR ATTENDANCES</h3>
               </div>
               <div>
                 <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
@@ -1358,7 +1386,7 @@ export const TutorQRGenerator: React.FC = () => {
                     <UserCheck className="w-7 h-7 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center whitespace-nowrap">Students that scan the QR code appears here</p>
+                    <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center whitespace-nowrap">Students who enter or scan the QR code appears here</p>
                   </div>
                   {!session && (
                     <p className="text-[11px] text-gray-300 dark:text-slate-600 font-medium">Generate a QR session to begin</p>
@@ -1389,7 +1417,7 @@ export const TutorQRGenerator: React.FC = () => {
       </div>
 
       {/* ── Attendance History ───────────────────────────────────── */}
-      <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <div className="order-4 mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
         {/* Section header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -1511,15 +1539,15 @@ export const TutorQRGenerator: React.FC = () => {
                 {studentSearch.trim()
                   ? 'No matching attendance records'
                   : jumpDate
-                  ? 'No records for this date'
-                  : 'No attendance records yet'}
+                    ? 'No records for this date'
+                    : 'No attendance records yet'}
               </p>
               <p className="text-xs text-gray-400 dark:text-slate-500">
                 {studentSearch.trim()
                   ? 'Try a different student name or LRN'
                   : jumpDate
-                  ? 'Try a different date or clear the filter'
-                  : 'Records will appear once students start scanning'}
+                    ? 'Try a different date or clear the filter'
+                    : 'Records will appear once students start scanning'}
               </p>
             </div>
           ) : (

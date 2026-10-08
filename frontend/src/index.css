@@ -461,7 +461,7 @@ html, body, #root {
   --sidebar-item:       #A1A1AA;
   --sidebar-item-hover: #18181B;
   --sidebar-active-border: rgba(56, 189, 248, 0.50);
-  --sidebar-active-text: #38BDF8;
+  --sidebar-active-text: #FFFFFF;
   --sidebar-heading:    #71717A;
 
   --glass-bg:     #000000;
@@ -1523,6 +1523,16 @@ tbody > tr:nth-child(6) [class*="dark:bg-gray-"] { animation-delay: 2.20s !impor
 .sidebar-item.active .sidebar-icon {
   color: var(--sidebar-icon-active-color);
   stroke-width: 2.3;
+}
+
+.dark .sidebar-item.active,
+:root.dark .sidebar-item.active {
+  color: #FFFFFF !important;
+}
+
+.dark .sidebar-item.active:hover,
+:root.dark .sidebar-item.active:hover {
+  color: #FFFFFF !important;
 }
 
 .dark .sidebar-item.active .sidebar-icon,

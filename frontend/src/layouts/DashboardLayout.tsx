@@ -1127,10 +1127,10 @@ export const DashboardLayout: React.FC = () => {
               aria-expanded={profileMenuOpen}
               aria-haspopup="menu"
               aria-label="Profile and account menu"
-              className={`w-full flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
+              className={`w-full flex items-center gap-2.5 p-2 border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
                 profileMenuOpen
-                  ? 'border-slate-300 dark:border-zinc-700 bg-slate-100/90 dark:bg-zinc-800/80 shadow-xs'
-                  : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
+                  ? 'rounded-b-xl rounded-t-none border-slate-300 dark:border-zinc-700 bg-slate-100/90 dark:bg-zinc-800/80 shadow-xs'
+                  : 'rounded-xl border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
               }`}
             >
               {user?.avatar ? (
@@ -1280,10 +1280,10 @@ export const DashboardLayout: React.FC = () => {
             aria-expanded={profileMenuOpen}
             aria-haspopup="menu"
             aria-label="Profile and account menu"
-            className={`w-full flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
+            className={`w-full flex items-center gap-2.5 p-2 border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
               profileMenuOpen
-                ? 'border-slate-300 dark:border-zinc-700 bg-slate-100/90 dark:bg-zinc-800/80 shadow-xs'
-                : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
+                ? 'rounded-b-xl rounded-t-none border-slate-300 dark:border-zinc-700 bg-slate-100/90 dark:bg-zinc-800/80 shadow-xs'
+                : 'rounded-xl border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
             }`}
           >
             {user?.avatar ? (
@@ -2508,20 +2508,24 @@ export const DashboardLayout: React.FC = () => {
       {profileMenuOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/10 dark:bg-black/25 backdrop-blur-[1px] lg:bg-transparent"
+            className="fixed inset-0 z-40 bg-transparent"
             onClick={() => setProfileMenuOpen(false)}
             aria-hidden="true"
           />
           <div
-            className="fixed z-50 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-neutral-800 shadow-xl dark:shadow-2xl overflow-hidden text-slate-700 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-150"
+            className={`fixed z-50 bg-white dark:bg-[#111111] border border-slate-200 dark:border-[#1A1A1A] shadow-xl dark:shadow-2xl overflow-hidden text-slate-700 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-150 ${
+              isSidebarCollapsed && !isMobileDrawerOpen
+                ? 'rounded-xl'
+                : 'rounded-t-xl rounded-b-none border-b border-slate-200 dark:border-[#1A1A1A]'
+            }`}
             style={{
-              bottom: isSidebarCollapsed && !isMobileDrawerOpen ? '12px' : '64px',
-              left: isMobileDrawerOpen ? '12px' : isSidebarCollapsed ? '76px' : '12px',
+              bottom: isSidebarCollapsed && !isMobileDrawerOpen ? '12px' : '56px',
+              left: isMobileDrawerOpen ? '8px' : isSidebarCollapsed ? '76px' : '8px',
               width: isMobileDrawerOpen
-                ? 'min(264px, calc(85vw - 24px))'
+                ? 'min(272px, calc(85vw - 16px))'
                 : isSidebarCollapsed
                   ? '224px'
-                  : '236px',
+                  : '244px',
             }}
             role="menu"
           >

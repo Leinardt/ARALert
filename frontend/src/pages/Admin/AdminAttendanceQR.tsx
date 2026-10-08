@@ -8,8 +8,9 @@ import {
   ArrowUpDown, Download, Search, Users, AlertCircle, UserCheck, ClipboardCheck
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
 import QRCode from 'qrcode';
-import { exportStaffQrPrintFile, type ExportFormat } from '../../utils/staffQrPrintExport';
+import { ExportStaffQrModal } from '../../components/ExportStaffQrModal';
 import { ExportDtrModal } from '../../components/ExportDtrModal';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
 
@@ -125,7 +126,7 @@ const CustomCalendarDropdown: React.FC<{
         </button>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center font-bold text-slate-400 py-2 text-[10px] uppercase tracking-wider">
-        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => <span key={d}>{d}</span>)}
+        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => <span key={d}>{d}</span>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
         {calendarCells.map((dayNum, idx) => {
@@ -139,15 +140,14 @@ const CustomCalendarDropdown: React.FC<{
               key={cellDateKey}
               type="button"
               onClick={() => { onSelectDate(cellDateKey); onClose(); }}
-              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                isSelected
-                  ? 'bg-[var(--brand)] text-white font-bold'
-                  : isToday
+              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${isSelected
+                ? 'bg-[var(--brand)] text-white font-bold'
+                : isToday
                   ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
                   : hasLogs
-                  ? 'bg-slate-100 dark:bg-[#1A1A1A] text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-200 dark:hover:bg-[#222222]'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1A1A1A]'
-              }`}
+                    ? 'bg-slate-100 dark:bg-[#1A1A1A] text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-200 dark:hover:bg-[#222222]'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1A1A1A]'
+                }`}
             >
               <span>{dayNum}</span>
               {hasLogs && !isSelected && <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-[var(--brand)]" />}
@@ -169,13 +169,15 @@ const CustomCalendarDropdown: React.FC<{
 
 export const AdminAttendanceQR: React.FC = () => {
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   // QR Session state
   const [session, setSession] = useState<any>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [isGeneratingQR, setIsGeneratingQR] = useState<boolean>(false);
   const [qrError, setQrError] = useState<string | null>(null);
-  const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null);
+  const [showStaffQrExportModal, setShowStaffQrExportModal] = useState<boolean>(false);
   const [isEnlarged, setIsEnlarged] = useState<boolean>(false);
 
   // DTR Logs state
@@ -270,24 +272,6 @@ export const AdminAttendanceQR: React.FC = () => {
       setQrDataUrl(null);
     }
   }, [session]);
-
-  const exportPrintFile = async (format: ExportFormat) => {
-    if (!session) return;
-    setExportingFormat(format);
-    try {
-      await exportStaffQrPrintFile({
-        sessionId: session.id,
-        action: 'staff_day',
-        expiresAt: session.expires_at,
-        format,
-      });
-    } catch (exportError) {
-      console.error('Staff QR print export failed:', exportError);
-      setQrError('Unable to create the print-ready QR file.');
-    } finally {
-      setExportingFormat(null);
-    }
-  };
 
   // ── Unified Staff Map (Tutors + Faculty) ───────────────────────
   const allStaffUsers = useMemo(() => {
@@ -470,9 +454,8 @@ export const AdminAttendanceQR: React.FC = () => {
       <button
         type="button"
         onClick={() => toggleSort(sortKey)}
-        className={`inline-flex items-center gap-1.5 transition-colors hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer ${
-          align === 'center' ? 'justify-center w-full' : ''
-        }`}
+        className={`inline-flex items-center gap-1.5 transition-colors hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer ${align === 'center' ? 'justify-center w-full' : ''
+          }`}
         aria-label={`Sort by ${label}`}
       >
         <span>{label}</span>
@@ -496,28 +479,49 @@ export const AdminAttendanceQR: React.FC = () => {
     >
       {/* ── Main Grid: Left QR Generator & Right Recent Scans ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+
         {/* ── LEFT: QR Code Terminal & Export Card ── */}
         <div className="lg:col-span-7">
           <div className="h-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden flex flex-col justify-between">
-            
+
             {/* Card Header */}
             <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
                 <h2 className="text-base font-bold text-gray-900 dark:text-slate-100 uppercase">
-                  STAFF DTR TERMINAL QR
+                  STAFF DTR QR CODE
                 </h2>
               </div>
               {session && (
-                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold transition-all"
+                  style={
+                    isDark
+                      ? {
+                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                        color: '#34D399',
+                        border: '1px solid rgba(52, 211, 153, 0.3)',
+                      }
+                      : {
+                        backgroundColor: '#ECFDF5',
+                        color: '#047857',
+                        border: '1px solid #A7F3D0',
+                      }
+                  }
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full animate-pulse"
+                    style={{
+                      backgroundColor: isDark ? '#34D399' : '#10B981',
+                      boxShadow: isDark ? '0 0 6px rgba(52, 211, 153, 0.6)' : undefined,
+                    }}
+                  />
                   Active
                 </span>
               )}
             </div>
 
             <div className="p-6 flex flex-col items-center gap-5 flex-1 justify-between">
-              
+
               {/* QR Error message */}
               {qrError && (
                 <div className="w-full flex items-start gap-3 p-3.5 rounded-md border text-left bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200">
@@ -579,7 +583,7 @@ export const AdminAttendanceQR: React.FC = () => {
                         Staff DTR Manual Code
                       </span>
                       <span className="text-[11px] text-gray-500 dark:text-slate-400">
-                        Tutors &amp; Faculty can enter this 6-char code
+                        Tutors &amp; Faculty members can enter this code
                       </span>
                     </div>
                     <span className="text-base font-extrabold font-mono tracking-widest text-[var(--brand)] dark:text-blue-400 bg-white dark:bg-[#1A1A1A] px-3 py-1 rounded border border-gray-200 dark:border-[#2A2A2A] shadow-xs select-all">
@@ -589,47 +593,17 @@ export const AdminAttendanceQR: React.FC = () => {
                 </div>
               )}
 
-              {/* Export DOCX, PDF, or JPG Toolbar (Neutral Monochrome Style) */}
+              {/* Export DTR Log QR Code Button */}
               <div className="w-full">
-                <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50/60 dark:bg-[#161616] p-4 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
-                      Export Terminal Poster
-                    </h3>
-                    <span className="text-[10px] text-gray-400 dark:text-slate-500 font-semibold">
-                      Long Bond (8.5 × 13 in)
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => exportPrintFile('docx')}
-                      disabled={!session || exportingFormat !== null}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer disabled:opacity-50"
-                    >
-                      <FileText className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                      DOCX
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => exportPrintFile('pdf')}
-                      disabled={!session || exportingFormat !== null}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer disabled:opacity-50"
-                    >
-                      <FileText className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                      PDF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => exportPrintFile('jpg')}
-                      disabled={!session || exportingFormat !== null}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer disabled:opacity-50"
-                    >
-                      <FileImage className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                      JPG
-                    </button>
-                  </div>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowStaffQrExportModal(true)}
+                  disabled={!session}
+                  className="w-full inline-flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2.5 rounded-md text-sm font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Download className="w-4 h-4 text-white" />
+                  Export DTR Log QR Code
+                </button>
               </div>
 
             </div>
@@ -639,12 +613,12 @@ export const AdminAttendanceQR: React.FC = () => {
         {/* ── RIGHT: Recent Scans of Today Card ── */}
         <div className="lg:col-span-5">
           <div className="flex h-full min-h-[480px] flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden">
-            
+
             {/* Feed Header */}
             <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">
-                  TODAY'S RECENT SCANS
+                  TODAY'S RECENT ATTENDANCES
                 </h3>
               </div>
               <div>
@@ -662,7 +636,7 @@ export const AdminAttendanceQR: React.FC = () => {
                     <UserCheck className="w-7 h-7 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
                   </div>
                   <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center">
-                    Staff QR scans of today will appear here
+                    Staff manual and QR scans for today will appear here
                   </p>
                 </div>
               ) : (
@@ -688,13 +662,12 @@ export const AdminAttendanceQR: React.FC = () => {
                         </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
-                          st === 'Completed' ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800' :
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${st === 'Completed' ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800' :
                           st === 'Present' ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border-blue-100 dark:border-blue-800' :
-                          st === 'Late' ? 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-amber-100 dark:border-amber-800' :
-                          st === 'Early Out' ? 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-100 dark:border-rose-800' :
-                          'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800'
-                        }`}>
+                            st === 'Late' ? 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-amber-100 dark:border-amber-800' :
+                              st === 'Early Out' ? 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-100 dark:border-rose-800' :
+                                'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800'
+                          }`}>
                           <CheckCircle2 className="w-3 h-3" />
                           {timeDisplay}
                         </span>
@@ -734,11 +707,10 @@ export const AdminAttendanceQR: React.FC = () => {
                   type="button"
                   id={`dtr-role-${role}-btn`}
                   onClick={() => setRoleFilter(role)}
-                  className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
-                    roleFilter === role
-                      ? 'bg-[var(--brand)] text-white'
-                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                  }`}
+                  className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${roleFilter === role
+                    ? 'bg-[var(--brand)] text-white'
+                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                    }`}
                 >
                   {role}
                 </button>
@@ -752,11 +724,10 @@ export const AdminAttendanceQR: React.FC = () => {
                   key={mode}
                   type="button"
                   onClick={() => { setViewMode(mode); setJumpDate(null); }}
-                  className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
-                    viewMode === mode && !jumpDate
-                      ? 'bg-[var(--brand)] text-white'
-                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                  }`}
+                  className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
+                    ? 'bg-[var(--brand)] text-white'
+                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                    }`}
                 >
                   {mode}
                 </button>
@@ -769,11 +740,10 @@ export const AdminAttendanceQR: React.FC = () => {
                 type="button"
                 id="dtr-calendar-btn"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`p-2 rounded-md border transition-all flex items-center justify-center cursor-pointer ${
-                  jumpDate
-                    ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
-                    : 'border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#222222]'
-                }`}
+                className={`p-2 rounded-md border transition-all flex items-center justify-center cursor-pointer ${jumpDate
+                  ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
+                  : 'border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#222222]'
+                  }`}
                 title="Select a specific date from calendar"
                 aria-label="Open Calendar"
               >
@@ -991,37 +961,32 @@ export const AdminAttendanceQR: React.FC = () => {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2 w-full">
               <button
                 type="button"
-                onClick={() => exportPrintFile('docx')}
-                disabled={!session || exportingFormat !== null}
-                className="px-3.5 py-1.5 rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                onClick={() => {
+                  setIsEnlarged(false);
+                  setShowStaffQrExportModal(true);
+                }}
+                disabled={!session}
+                className="w-full inline-flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2 rounded-md text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
               >
-                <FileText className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                DOCX
-              </button>
-              <button
-                type="button"
-                onClick={() => exportPrintFile('pdf')}
-                disabled={!session || exportingFormat !== null}
-                className="px-3.5 py-1.5 rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-              >
-                <FileText className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                PDF
-              </button>
-              <button
-                type="button"
-                onClick={() => exportPrintFile('jpg')}
-                disabled={!session || exportingFormat !== null}
-                className="px-3.5 py-1.5 rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-              >
-                <FileImage className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                JPG
+                <Download className="w-3.5 h-3.5 text-white" />
+                Export DTR Log QR Code
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Export Staff DTR QR Terminal Poster Modal ── */}
+      {showStaffQrExportModal && (
+        <ExportStaffQrModal
+          isOpen={showStaffQrExportModal}
+          onClose={() => setShowStaffQrExportModal(false)}
+          session={session}
+          qrDataUrl={qrDataUrl}
+        />
       )}
 
       {/* ── Export DTR Modal ── */}

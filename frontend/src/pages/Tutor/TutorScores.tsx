@@ -1808,10 +1808,9 @@ export const TutorScores: React.FC = () => {
 
                         return (
                           <tr key={student.id} className="divide-x divide-gray-100 dark:divide-slate-800 transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800/60">
-                            <td className="px-4 py-2.5">
+                            <td className="px-4 py-3">
                               <div className="min-w-0">
-                                <p className="truncate text-xs font-bold text-gray-900 dark:text-slate-100">{student.full_name}</p>
-                                <p className="truncate text-[10px] text-gray-400 dark:text-slate-500">LRN: {student.lrn || 'N/A'}</p>
+                                <p className="truncate text-sm font-bold text-gray-900 dark:text-slate-100">{student.full_name}</p>
                               </div>
                             </td>
                             <td className="px-4 py-2.5">
@@ -1888,11 +1887,8 @@ export const TutorScores: React.FC = () => {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
-                              <p className="font-bold text-sm text-gray-900 dark:text-slate-100 break-words">
+                              <p className="font-bold text-base text-gray-900 dark:text-slate-100 break-words">
                                 {student.full_name}
-                              </p>
-                              <p className="text-[11px] font-medium text-gray-400 dark:text-slate-500 mt-0.5">
-                                LRN: {student.lrn || 'N/A'}
                               </p>
                             </div>
                             <div className="shrink-0">
