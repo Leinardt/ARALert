@@ -263,12 +263,13 @@
 
 .notebook-red-margin-line {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: -5rem;
+  bottom: -4rem;
   left: 2rem; /* 32px on mobile */
   width: 2px;
   background-color: rgba(26, 93, 173, 0.45); /* Classic ballpoint blue ink margin rule */
   pointer-events: none;
+  z-index: 1;
 }
 
 @media (min-width: 640px) {

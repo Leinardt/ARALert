@@ -246,7 +246,7 @@ export const Landing: React.FC = () => {
             {/* Subtitle / Accompanying Description Text with Clean Pen Underlines & Encircled School Accent */}
             <p className="text-base sm:text-lg lg:text-[1.25rem] leading-[2.25rem] sm:leading-[2.5rem] text-slate-700 dark:text-slate-200 font-medium max-w-3xl mx-auto px-2 mb-8">
               A Web-Based Student Performance Monitoring and{' '}
-              <span className="relative inline-block text-slate-900 dark:text-white font-bold">
+              <span className="relative inline-block text-red-600 dark:text-red-500 font-bold">
                 Early Academic Risk Detection
                 <PenRoughUnderline variant="single" className="text-[#1A5DAD]/80 dark:text-blue-400/80" />
               </span>{' '}
@@ -522,9 +522,9 @@ export const Landing: React.FC = () => {
                       : 'hover:bg-slate-50/30 dark:hover:bg-neutral-900/10'
                     }`}
                 >
-                  {/* Left Margin Gutter Question Indicator */}
+                  {/* Left Margin Gutter Question Indicator (Comfortably left of vertical margin guide line) */}
                   <div
-                    className="absolute -left-8 sm:-left-10 lg:-left-12 top-5 font-mono font-bold text-xs sm:text-sm text-[#1A5DAD] dark:text-blue-400 select-none text-right w-8"
+                    className="absolute right-[calc(100%+1.25rem)] sm:right-[calc(100%+1.75rem)] lg:right-[calc(100%+2.25rem)] top-5 font-mono font-bold text-xs sm:text-sm text-[#1A5DAD] dark:text-blue-400 select-none text-right whitespace-nowrap"
                     aria-hidden="true"
                   >
                     {faq.questionNumber}
@@ -554,7 +554,7 @@ export const Landing: React.FC = () => {
                               : 'text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 font-semibold'
                             }`}
                         >
-                          Question {index + 1}: {faq.question}
+                          {faq.question}
                         </span>
                       </div>
                     </div>

@@ -6,6 +6,36 @@ import { ThemeToggle } from '../components/ThemeToggle';
 
 import aralertLogo from '../assets/ARALert_Logo_LIGHT.png';
 
+/* ── 🖊️ Hand-Drawn Ballpoint Pen Underline Stroke for Navbar Navigation ── */
+const PenNavUnderline: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <svg
+    viewBox="0 0 100 12"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    preserveAspectRatio="none"
+    className={`absolute -bottom-1 left-0 w-full h-2.5 pointer-events-none overflow-visible select-none ${className}`}
+    aria-hidden="true"
+  >
+    {/* Organic primary pen pass with hand-drawn subtle curve */}
+    <path
+      d="M2 6 C 24 3.5, 48 8.5, 74 4.5 C 84 3.2, 94 5.8, 98 5"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="pen-nav-stroke"
+    />
+    {/* Secondary faint ballpoint ink pass for authentic organic sketch realism */}
+    <path
+      d="M5 7.5 C 28 5.2, 54 9.2, 82 5.5 C 89 4.8, 94 6.2, 96 5.8"
+      stroke="currentColor"
+      strokeWidth="1.1"
+      strokeLinecap="round"
+      className="pen-nav-stroke-secondary opacity-60"
+    />
+  </svg>
+);
+
 export const PublicLayout: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const location = useLocation();
@@ -88,15 +118,18 @@ export const PublicLayout: React.FC = () => {
 
 
             {/* Navigation links (Desktop & Tablet landscape) */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden md:flex items-center gap-1 sm:gap-2">
               {navLinks.map((item) => (
                 <a
                   key={item.id}
                   href={item.to}
                   onClick={(e) => handleNavClick(e, item.id)}
-                  className="landing-nav-link text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-[#0052B7] dark:hover:text-blue-400 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 hover:backdrop-blur-md border border-transparent transition-all duration-200 cursor-pointer"
+                  className="landing-nav-link group relative inline-flex items-center text-xs sm:text-sm font-semibold px-2.5 py-1.5 text-slate-600 dark:text-slate-300 hover:text-[#0052B7] dark:hover:text-blue-400 transition-colors duration-200 cursor-pointer bg-transparent border-0 shadow-none"
                 >
-                  {item.label}
+                  <span className="relative inline-block">
+                    {item.label}
+                    <PenNavUnderline className="text-[#0052B7] dark:text-blue-400" />
+                  </span>
                 </a>
               ))}
             </nav>
@@ -149,9 +182,12 @@ export const PublicLayout: React.FC = () => {
                       key={item.id}
                       href={item.to}
                       onClick={(e) => handleNavClick(e, item.id)}
-                      className="landing-nav-link min-h-[44px] flex items-center px-4 py-3 rounded-xl text-base font-semibold text-slate-700 dark:text-slate-200 hover:text-[#0052B7] dark:hover:text-blue-400 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 transition-colors"
+                      className="landing-nav-link group relative min-h-[44px] flex items-center px-4 py-3 text-base font-semibold text-slate-700 dark:text-slate-200 hover:text-[#0052B7] dark:hover:text-blue-400 transition-colors bg-transparent border-0 shadow-none"
                     >
-                      {item.label}
+                      <span className="relative inline-block">
+                        {item.label}
+                        <PenNavUnderline className="text-[#0052B7] dark:text-blue-400" />
+                      </span>
                     </a>
                   ))}
                 </nav>

@@ -192,18 +192,49 @@ html, body, #root {
   box-shadow: 0 0 6px rgba(96, 165, 250, 0.2) !important;
 }
 
-/* ── Landing Page Navbar Text Hover States ── */
+/* ── Landing Page Navbar Pen Stroke Hover Animation ── */
 .landing-nav-link {
-  transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.landing-nav-link .pen-nav-stroke {
+  stroke-dasharray: 105;
+  stroke-dashoffset: 105;
+  opacity: 0;
+  transition: stroke-dashoffset 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;
+}
+
+.landing-nav-link .pen-nav-stroke-secondary {
+  stroke-dasharray: 105;
+  stroke-dashoffset: 105;
+  opacity: 0;
+  transition: stroke-dashoffset 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) 0.04s, opacity 0.2s ease 0.04s;
+}
+
+.landing-nav-link:hover .pen-nav-stroke {
+  stroke-dashoffset: 0;
+  opacity: 1;
+}
+
+.landing-nav-link:hover .pen-nav-stroke-secondary {
+  stroke-dashoffset: 0;
+  opacity: 0.65;
 }
 
 .landing-nav-link:hover {
   color: #0052B7 !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .dark .landing-nav-link:hover,
 :where(.dark, .dark *) .landing-nav-link:hover {
   color: #60a5fa !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .landing-brand-link:hover span {
