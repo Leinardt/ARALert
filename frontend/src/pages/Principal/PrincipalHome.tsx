@@ -2,18 +2,9 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import type { Attendance, PrincipalDashboardResponse, PrincipalDashboardTrendPoint } from '../../types';
-import {
-  RefreshCw,
-  Download,
-  Users,
-  GraduationCap,
-  TrendingUp,
-  AlertTriangle,
-  CheckCircle2,
-  BookOpen,
-  Filter,
-} from 'lucide-react';
 import { ExportDtrModal } from '../../components/ExportDtrModal';
+import { AlertCircle, RefreshCw, Download, ArrowUpRight, BarChart2 } from 'lucide-react';
+import { StatsGridSkeleton, CardSkeleton } from '../../components/SkeletonLoader';
 
 export const PrincipalHome: React.FC = () => {
   const { user } = useAuth();
@@ -164,407 +155,537 @@ export const PrincipalHome: React.FC = () => {
       label: 'Tutors',
       value: dashboardData?.program_summary.total_tutors ?? '—',
       subtext: 'Assigned mentors',
-      icon: Users,
-      color: 'text-indigo-600 dark:text-indigo-400',
     },
     {
       label: 'Faculty',
       value: dashboardData?.program_summary.total_faculty ?? '—',
       subtext: 'Teaching staff',
-      icon: BookOpen,
-      color: 'text-violet-600 dark:text-violet-400',
     },
     {
       label: 'Students',
       value: totalStudents > 0 ? totalStudents : '—',
       subtext: 'Enrolled learners',
-      icon: GraduationCap,
-      color: 'text-sky-600 dark:text-sky-400',
     },
     {
       label: 'Avg Score',
       value: avgClassScore > 0 ? `${avgClassScore}%` : '—',
       subtext: 'Class evaluation',
-      icon: TrendingUp,
-      color: 'text-emerald-600 dark:text-emerald-400',
     },
     {
       label: 'Attendance Rate',
       value: avgClassAtt > 0 ? `${avgClassAtt}%` : '—',
       subtext: 'Session check-ins',
-      icon: CheckCircle2,
-      color: 'text-blue-600 dark:text-blue-400',
     },
     {
       label: 'High Risk',
       value: highRiskCount,
       subtext: `${highRiskPct}% of students`,
-      icon: AlertTriangle,
-      color: 'text-rose-600 dark:text-rose-400',
     },
   ];
 
+  if (dashboardLoading) {
+    return (
+      <div className="flex flex-col gap-4 data-loaded-content w-full min-w-0 max-w-full">
+        <StatsGridSkeleton count={4} cols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div className="lg:col-span-7 space-y-4">
+            <CardSkeleton rows={6} />
+            <CardSkeleton rows={5} />
+            <CardSkeleton rows={5} />
+          </div>
+          <div className="lg:col-span-5 space-y-4">
+            <CardSkeleton rows={4} />
+            <CardSkeleton rows={5} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (dashboardError) {
+    return (
+      <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/20 p-5 sm:p-6 text-rose-800 dark:text-rose-200">
+        <p className="text-sm font-bold text-rose-900 dark:text-rose-200">Failed to load principal analytics</p>
+        <p className="text-xs text-rose-700 dark:text-rose-300 mt-1">{dashboardError}</p>
+        <button
+          type="button"
+          onClick={fetchDashboardData}
+          className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-rose-300 dark:border-rose-800 bg-white dark:bg-rose-900/40 text-rose-700 dark:text-rose-200 text-xs font-semibold hover:bg-rose-100/60 transition-colors cursor-pointer"
+        >
+          <RefreshCw className="w-3.5 h-3.5" /> Retry
+        </button>
+      </div>
+    );
+  }
+
+  const staffTotal = (dashboardData?.program_summary.total_tutors || 0) + (dashboardData?.program_summary.total_faculty || 0);
+
   return (
-    <div className="space-y-4">
-      {/* ── Header ── */}
-      <div className="bg-white dark:bg-[#0c111c] p-4 rounded-md border border-gray-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-            Academic Oversight
-          </p>
-          <h2 className="mt-0.5 text-lg font-semibold text-gray-900 dark:text-white">
-            Welcome, Principal {user?.last_name}!
-          </h2>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-400 font-normal">
-            Comprehensive student performance, risk distribution, and tutor analytics.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 items-center shrink-0 w-full sm:w-auto">
-          <select
-            value={dashboardDays}
-            onChange={(e) => setDashboardDays(Number(e.target.value))}
-            className="flex-1 sm:flex-initial px-2.5 sm:px-3 py-2 min-h-[38px] border border-gray-200 dark:border-slate-700 rounded-md text-xs font-medium bg-white dark:bg-[#0c111c] text-gray-700 dark:text-slate-200"
-          >
-            <option value={7}>Last 7 days</option>
-            <option value={14}>Last 14 days</option>
-            <option value={30}>Last 30 days</option>
-          </select>
-          <button
-            type="button"
-            onClick={fetchDashboardData}
-            className="inline-flex items-center justify-center bg-[var(--brand-light)] text-[var(--brand-text)] hover:bg-[var(--surface-muted)] px-3 py-2 min-h-[38px] rounded-md text-xs font-medium border border-[var(--brand-border)] transition-colors cursor-pointer flex-1 xs:flex-initial"
-          >
-            <RefreshCw className="w-3.5 h-3.5 mr-1 sm:mr-1.5" />
-            Refresh
-          </button>
-          <button
-            type="button"
-            onClick={openDtrExport}
-            disabled={isLoadingDtr}
-            className="inline-flex items-center justify-center bg-[var(--brand)] text-white hover:bg-[var(--brand-dark)] px-3 py-2 min-h-[38px] rounded-md text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer flex-1 xs:flex-initial"
-          >
-            <Download className="w-3.5 h-3.5 mr-1 sm:mr-1.5" />
-            {isLoadingDtr ? 'Loading…' : 'Export DTR'}
-          </button>
-        </div>
-      </div>
-
-      {/* ── Key Metrics Cards (6-column) ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3">
-        {statCards.map((card) => {
-          const IconComp = card.icon;
-          return (
-            <div
-              key={card.label}
-              className="bg-white dark:bg-[#0c111c] p-2.5 sm:p-3.5 rounded-md border border-gray-200 dark:border-slate-800 flex flex-col justify-between min-w-0"
-            >
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
-                  {card.label}
-                </span>
-                <IconComp className={`w-3.5 h-3.5 shrink-0 ${card.color}`} />
-              </div>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-1 sm:mt-1.5 truncate">
-                {card.value}
-              </p>
-              <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-                {card.subtext}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ── Student Distribution & Academic Risk Section ── */}
-      <div className="bg-white dark:bg-[#0c111c] p-4 rounded-md border border-gray-200 dark:border-slate-800">
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-slate-800/80">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              Students Analytics
-            </p>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">
-              Academic Risk Distribution
-            </h3>
-          </div>
-          <span className="text-xs text-slate-500 dark:text-slate-400">
-            Total Enrolled: <strong className="font-semibold text-slate-800 dark:text-slate-200">{totalStudents}</strong>
+    <div className="flex flex-col gap-4 data-loaded-content w-full min-w-0 max-w-full">
+      {/* ── 1. Top Metrics KPI Strip (Clean, Minimalist, Generous Whitespace) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1: Total Learners */}
+        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
+          <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
+            Enrolled Learners
           </span>
+          <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
+            {totalStudents > 0 ? totalStudents.toLocaleString() : '—'}
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 truncate">
+            {lowRiskCount} low risk • {highRiskCount} high risk ({highRiskPct}%)
+          </p>
         </div>
 
-        {/* Progress Bar Distribution Indicator */}
-        <div className="mt-4">
-          <div className="h-2.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex gap-0.5">
-            <div
-              style={{ width: `${lowRiskPct}%` }}
-              className="bg-emerald-500 transition-all duration-300"
-              title={`Low Risk: ${lowRiskCount} (${lowRiskPct}%)`}
-            />
-            <div
-              style={{ width: `${medRiskPct}%` }}
-              className="bg-amber-500 transition-all duration-300"
-              title={`Medium Risk: ${medRiskCount} (${medRiskPct}%)`}
-            />
-            <div
-              style={{ width: `${highRiskPct}%` }}
-              className="bg-rose-500 transition-all duration-300"
-              title={`High Risk: ${highRiskCount} (${highRiskPct}%)`}
-            />
-          </div>
-
-          {/* Risk Level Metrics Breakdown */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3.5">
-            <div className="rounded-md border border-emerald-100 dark:border-emerald-950/40 bg-emerald-50/40 dark:bg-emerald-950/10 p-2.5 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-xs font-medium text-emerald-800 dark:text-emerald-300">Low Risk</span>
-              </div>
-              <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">
-                {lowRiskCount} <span className="text-[11px] font-normal text-emerald-600 dark:text-emerald-400">({lowRiskPct}%)</span>
-              </span>
-            </div>
-
-            <div className="rounded-md border border-amber-100 dark:border-amber-950/40 bg-amber-50/40 dark:bg-amber-950/10 p-2.5 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                <span className="text-xs font-medium text-amber-800 dark:text-amber-300">Medium Risk</span>
-              </div>
-              <span className="text-xs font-semibold text-amber-900 dark:text-amber-200">
-                {medRiskCount} <span className="text-[11px] font-normal text-amber-600 dark:text-amber-400">({medRiskPct}%)</span>
-              </span>
-            </div>
-
-            <div className="rounded-md border border-rose-100 dark:border-rose-950/40 bg-rose-50/40 dark:bg-rose-950/10 p-2.5 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-rose-500" />
-                <span className="text-xs font-medium text-rose-800 dark:text-rose-300">High Risk</span>
-              </div>
-              <span className="text-xs font-semibold text-rose-900 dark:text-rose-200">
-                {highRiskCount} <span className="text-[11px] font-normal text-rose-600 dark:text-rose-400">({highRiskPct}%)</span>
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Student Performance & Staff Attendance Charts ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        {/* Composite Performance Chart */}
-        <div className="bg-white dark:bg-[#0c111c] rounded-md border border-gray-200 dark:border-slate-800 p-4">
-          <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 mb-3">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-                Student Performance Analytics
-              </p>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">
-                {selectedTutorId !== 'all' ? `${selectedTutorName}'s Cohort Trend` : 'Overall Program Composite Trend'}
-              </h3>
-            </div>
-            <select
-              value={selectedTutorId}
-              onChange={(e) => setSelectedTutorId(e.target.value)}
-              className="px-2.5 py-1.5 border border-gray-200 dark:border-slate-700 rounded-md text-xs font-medium bg-white dark:bg-[#0c111c] text-gray-700 dark:text-slate-200 w-full xs:w-auto"
-            >
-              <option value="all">All Tutors</option>
-              {dashboardData?.per_tutor_performance && dashboardData.per_tutor_performance.length > 0 ? (
-                dashboardData.per_tutor_performance.map((tutor) => (
-                  <option key={tutor.tutor_id} value={tutor.tutor_id}>
-                    {tutor.tutor_name}
-                  </option>
-                ))
-              ) : null}
-            </select>
-          </div>
-
-          {dashboardLoading ? (
-            <div className="flex justify-center items-center h-40">
-              <div className="w-6 h-6 border-2 border-[var(--brand)] border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : dashboardError ? (
-            <div className="rounded-md border border-red-100 bg-red-50 p-3 text-xs text-red-700">{dashboardError}</div>
-          ) : hasClassTrendData ? (
-            <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2 sm:mx-0 sm:px-0 dashboard-chart">
-              <svg width={classChartWidth} height={chartHeight} className="block mx-auto">
-                {[0, 1, 2, 3, 4].map((line) => {
-                  const y = chartPadding + ((chartHeight - chartPadding * 1.5) / 4) * line;
-                  return <line key={line} x1={chartPadding} y1={y} x2={classChartWidth - chartPadding} y2={y} stroke="#E5E7EB" strokeWidth="1" />;
-                })}
-                <polyline fill="none" stroke="var(--brand)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" points={buildCompositePoints(classTrend, classStepX)} />
-                {classTrend.map((point, index) => {
-                  const x = chartPadding + index * classStepX;
-                  const compositeValue = compositeFromPrincipalPoint(point);
-                  const compositeY = chartHeight - chartPadding - ((compositeValue / 100) * (chartHeight - chartPadding * 1.5));
-                  return (
-                    <g key={point.date}>
-                      <circle cx={x} cy={compositeY} r="3.5" fill="var(--brand)" />
-                    </g>
-                  );
-                })}
-                {classTrend.map((point, index) => {
-                  const x = chartPadding + index * classStepX;
-                  return (
-                    <text key={point.date} x={x} y={chartHeight - chartPadding / 2.5} textAnchor="middle" fontSize="10" className="fill-slate-600 dark:fill-slate-400 font-semibold">
-                      {formatDateLabel(point.date)}
-                    </text>
-                  );
-                })}
-              </svg>
-            </div>
-          ) : (
-            <div className="rounded-md border border-dashed border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/30 p-6 text-center text-xs text-gray-500 dark:text-slate-400">
-              No class performance data available for this window.
-            </div>
-          )}
-        </div>
-
-        {/* Staff Attendance Chart */}
-        <div className="bg-white dark:bg-[#0c111c] rounded-md border border-gray-200 dark:border-slate-800 p-4">
-          <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 mb-3">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-                Staff Activity Analytics
-              </p>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">
-                Tutor &amp; Faculty Attendance
-              </h3>
-            </div>
-            <div className="flex items-center gap-3 text-[10px] text-gray-500">
-              <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[var(--brand)]"></span>Tutors</span>
-              <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>Faculty</span>
-            </div>
-          </div>
-
-          {dashboardLoading ? (
-            <div className="flex justify-center items-center h-40">
-              <div className="w-7 h-7 border-4 border-[var(--brand)] border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : dashboardError ? (
-            <div className="rounded-md border border-red-100 bg-red-50 p-3 text-xs text-red-700">{dashboardError}</div>
-          ) : hasStaffTrendData ? (
-            <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2 sm:mx-0 sm:px-0 dashboard-chart">
-              <svg width={staffChartWidth} height={chartHeight} className="block mx-auto">
-                {[0, 1, 2, 3, 4].map((line) => {
-                  const y = chartPadding + ((chartHeight - chartPadding * 1.5) / 4) * line;
-                  return <line key={line} x1={chartPadding} y1={y} x2={staffChartWidth - chartPadding} y2={y} stroke="#E5E7EB" strokeWidth="1" />;
-                })}
-                <polyline fill="none" stroke="var(--brand)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" points={buildRatePoints('tutor', staffStepX)} />
-                <polyline fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" points={buildRatePoints('faculty', staffStepX)} />
-                {staffTrend.map((point, index) => {
-                  const x = chartPadding + index * staffStepX;
-                  const tutorY = chartHeight - chartPadding - ((point.tutor_attendance_rate / 100) * (chartHeight - chartPadding * 1.5));
-                  const facultyY = chartHeight - chartPadding - ((point.faculty_attendance_rate / 100) * (chartHeight - chartPadding * 1.5));
-                  return (
-                    <g key={point.date}>
-                      <circle cx={x} cy={tutorY} r="3.5" fill="var(--brand)" />
-                      <circle cx={x} cy={facultyY} r="3.5" fill="#10B981" />
-                    </g>
-                  );
-                })}
-                {staffTrend.map((point, index) => {
-                  const x = chartPadding + index * staffStepX;
-                  return (
-                    <text key={point.date} x={x} y={chartHeight - chartPadding / 2.5} textAnchor="middle" fontSize="10" className="fill-slate-600 dark:fill-slate-400 font-semibold">
-                      {formatDateLabel(point.date)}
-                    </text>
-                  );
-                })}
-              </svg>
-            </div>
-          ) : (
-            <div className="rounded-md border border-dashed border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/30 p-6 text-center text-xs text-gray-500 dark:text-slate-400">
-              No staff attendance data available for this window.
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Tutor Performance & Distribution Section ── */}
-      <div className="bg-white dark:bg-[#0c111c] rounded-md border border-gray-200 dark:border-slate-800 p-4">
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-slate-800/80">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              Tutor Analytics &amp; Distribution
-            </p>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">
-              Tutor Cohort Performance Overview
-            </h3>
-          </div>
-          <span className="text-xs text-slate-500 dark:text-slate-400">
-            {tutorCohortStats.length} Tutors Active
+        {/* Metric 2: Academic Staff */}
+        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
+          <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
+            Academic Staff
           </span>
+          <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
+            {staffTotal.toLocaleString()}
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 truncate">
+            {dashboardData?.program_summary.total_tutors ?? 0} Tutors • {dashboardData?.program_summary.total_faculty ?? 0} Faculty
+          </p>
         </div>
 
-        {tutorCohortStats.length === 0 ? (
-          <div className="p-8 text-center text-xs text-slate-400">
-            No tutor performance records found for this period.
+        {/* Metric 3: Session Attendance */}
+        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
+          <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
+            Session Attendance
+          </span>
+          <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
+            {avgClassAtt > 0 ? `${avgClassAtt}%` : '—'}
           </div>
-        ) : (
-          <div className="overflow-x-auto mobile-scroll-table mt-2 -mx-2 px-2 sm:mx-0 sm:px-0">
-            <table className="w-full min-w-[620px] text-left text-xs">
-              <thead>
-                <tr className="border-b border-gray-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-wider">
-                  <th className="py-2.5 px-3 font-semibold">Tutor Name</th>
-                  <th className="py-2.5 px-3 font-semibold text-center">Tracked Days</th>
-                  <th className="py-2.5 px-3 font-semibold text-center">Cohort Avg Score</th>
-                  <th className="py-2.5 px-3 font-semibold text-center">Cohort Attendance</th>
-                  <th className="py-2.5 px-3 font-semibold text-center">Status</th>
-                  <th className="py-2.5 px-3 font-semibold text-right">Quick Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-800/70">
-                {tutorCohortStats.map((tutor) => (
-                  <tr
-                    key={tutor.tutor_id}
-                    className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
-                  >
-                    <td className="py-2.5 px-3 font-medium text-slate-800 dark:text-slate-200">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+            Overall class session attendance rate
+          </p>
+        </div>
+
+        {/* Metric 4: Evaluation Average */}
+        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
+          <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
+            Evaluation Average
+          </span>
+          <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
+            {avgClassScore > 0 ? `${avgClassScore}%` : '—'}
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+            Cohort student assessment performance
+          </p>
+        </div>
+      </div>
+
+      {/* ── 2. Streamlined Dashboard Layout (Clean Surfaces, Focused Hierarchy) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        {/* ── Left Column (7 cols): Class Performance, Staff Attendance, and Tutor Cohorts ── */}
+        <div className="lg:col-span-7 space-y-4">
+          {/* Class Performance Trend Card */}
+          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-neutral-800">
+              <div className="min-w-0">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight truncate">
+                  {selectedTutorId !== 'all' && selectedTutorName
+                    ? `${selectedTutorName.toUpperCase()}'S COHORT TREND`
+                    : 'CLASS PERFORMANCE TREND'}
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Student progress and composite scores over time
+                </p>
+              </div>
+
+              {/* Tutor Filter Select */}
+              <div className="shrink-0">
+                <select
+                  aria-label="Filter by Tutor Cohort"
+                  value={selectedTutorId}
+                  onChange={(e) => setSelectedTutorId(e.target.value)}
+                  style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+                  className="h-8 px-2.5 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 text-slate-800 dark:text-slate-200 cursor-pointer outline-none transition focus:border-[var(--brand)] max-w-[190px] truncate"
+                >
+                  <option value="all">ALL TUTORS</option>
+                  {dashboardData?.per_tutor_performance?.map((tutor) => (
+                    <option key={tutor.tutor_id} value={tutor.tutor_id}>
                       {tutor.tutor_name}
-                    </td>
-                    <td className="py-2.5 px-3 text-center text-slate-500 dark:text-slate-400 font-mono">
-                      {tutor.sessionDays}
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                        tutor.avgScore >= 75
-                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                          : tutor.avgScore > 0
-                          ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
-                          : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                      }`}>
-                        {tutor.avgScore > 0 ? `${tutor.avgScore}%` : '—'}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      <span className="font-mono text-slate-700 dark:text-slate-300">
-                        {tutor.avgAtt > 0 ? `${tutor.avgAtt}%` : '—'}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                        tutor.status === 'On Track'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                          : tutor.status === 'Needs Support'
-                          ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
-                          : 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
-                      }`}>
-                        {tutor.status}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTutorId(tutor.tutor_id)}
-                        className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--brand)] hover:underline cursor-pointer"
-                      >
-                        <Filter className="w-3 h-3" />
-                        View Trend
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Chart Area */}
+            <div className="relative min-h-[200px] w-full mt-4 bg-slate-50/50 dark:bg-neutral-950/40 border border-slate-100 dark:border-neutral-800/80 rounded-lg p-3 overflow-hidden">
+              {hasClassTrendData ? (
+                <div className="overflow-x-auto mobile-scroll-table -mx-1 px-1">
+                  <svg width={classChartWidth} height={chartHeight} className="block mx-auto">
+                    {[0, 1, 2, 3, 4].map((line) => {
+                      const y = chartPadding + ((chartHeight - chartPadding * 1.5) / 4) * line;
+                      return (
+                        <line
+                          key={line}
+                          x1={chartPadding}
+                          y1={y}
+                          x2={classChartWidth - chartPadding}
+                          y2={y}
+                          stroke="rgba(148, 163, 184, 0.2)"
+                          strokeWidth="1"
+                        />
+                      );
+                    })}
+                    <polyline
+                      fill="none"
+                      stroke="var(--brand)"
+                      strokeWidth="2.5"
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                      points={buildCompositePoints(classTrend, classStepX)}
+                    />
+                    {classTrend.map((point, index) => {
+                      const x = chartPadding + index * classStepX;
+                      const compositeValue = compositeFromPrincipalPoint(point);
+                      const compositeY = chartHeight - chartPadding - ((compositeValue / 100) * (chartHeight - chartPadding * 1.5));
+                      return (
+                        <circle key={point.date} cx={x} cy={compositeY} r="3.5" fill="var(--brand)" />
+                      );
+                    })}
+                    {classTrend.map((point, index) => {
+                      const x = chartPadding + index * classStepX;
+                      return (
+                        <text
+                          key={point.date}
+                          x={x}
+                          y={chartHeight - chartPadding / 2.5}
+                          textAnchor="middle"
+                          fontSize="10"
+                          className="fill-slate-500 dark:fill-slate-400 font-semibold"
+                        >
+                          {formatDateLabel(point.date)}
+                        </text>
+                      );
+                    })}
+                  </svg>
+                </div>
+              ) : (
+                <div className="py-12 text-center text-xs text-slate-400 dark:text-slate-500">
+                  No class performance data available for this window.
+                </div>
+              )}
+            </div>
           </div>
-        )}
+
+          {/* Staff Attendance Trend Card */}
+          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-neutral-800">
+              <div className="min-w-0">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">
+                  Staff Attendance Trend
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Tutor and faculty session participation
+                </p>
+              </div>
+              <div className="flex items-center gap-3 text-xs shrink-0 font-medium">
+                <span className="inline-flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                  <span className="w-2 h-2 rounded-full bg-[var(--brand)]" />
+                  Tutors
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  Faculty
+                </span>
+              </div>
+            </div>
+
+            {/* Staff Chart Area */}
+            <div className="relative min-h-[200px] w-full mt-4 bg-slate-50/50 dark:bg-neutral-950/40 border border-slate-100 dark:border-neutral-800/80 rounded-lg p-3 overflow-hidden">
+              {hasStaffTrendData ? (
+                <div className="overflow-x-auto mobile-scroll-table -mx-1 px-1">
+                  <svg width={staffChartWidth} height={chartHeight} className="block mx-auto">
+                    {[0, 1, 2, 3, 4].map((line) => {
+                      const y = chartPadding + ((chartHeight - chartPadding * 1.5) / 4) * line;
+                      return (
+                        <line
+                          key={line}
+                          x1={chartPadding}
+                          y1={y}
+                          x2={staffChartWidth - chartPadding}
+                          y2={y}
+                          stroke="rgba(148, 163, 184, 0.2)"
+                          strokeWidth="1"
+                        />
+                      );
+                    })}
+                    <polyline
+                      fill="none"
+                      stroke="var(--brand)"
+                      strokeWidth="2.5"
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                      points={buildRatePoints('tutor', staffStepX)}
+                    />
+                    <polyline
+                      fill="none"
+                      stroke="#10B981"
+                      strokeWidth="2.5"
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                      points={buildRatePoints('faculty', staffStepX)}
+                    />
+                    {staffTrend.map((point, index) => {
+                      const x = chartPadding + index * staffStepX;
+                      const tutorY = chartHeight - chartPadding - ((point.tutor_attendance_rate / 100) * (chartHeight - chartPadding * 1.5));
+                      const facultyY = chartHeight - chartPadding - ((point.faculty_attendance_rate / 100) * (chartHeight - chartPadding * 1.5));
+                      return (
+                        <g key={point.date}>
+                          <circle cx={x} cy={tutorY} r="3.5" fill="var(--brand)" />
+                          <circle cx={x} cy={facultyY} r="3.5" fill="#10B981" />
+                        </g>
+                      );
+                    })}
+                    {staffTrend.map((point, index) => {
+                      const x = chartPadding + index * staffStepX;
+                      return (
+                        <text
+                          key={point.date}
+                          x={x}
+                          y={chartHeight - chartPadding / 2.5}
+                          textAnchor="middle"
+                          fontSize="10"
+                          className="fill-slate-500 dark:fill-slate-400 font-semibold"
+                        >
+                          {formatDateLabel(point.date)}
+                        </text>
+                      );
+                    })}
+                  </svg>
+                </div>
+              ) : (
+                <div className="py-12 text-center text-xs text-slate-400 dark:text-slate-500">
+                  No staff attendance data available for this window.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Tutor Cohort Performance Card */}
+          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-neutral-800">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">
+                  Tutor Cohort Performance
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Evaluation metrics across active tutoring groups
+                </p>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-neutral-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-neutral-800">
+                {tutorCohortStats.length} Tutors Active
+              </span>
+            </div>
+
+            {tutorCohortStats.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400 dark:text-slate-500">
+                No tutor performance records found for this period.
+              </div>
+            ) : (
+              <div className="overflow-x-auto mobile-scroll-table mt-1">
+                <table className="w-full min-w-[560px] text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 dark:border-neutral-800 text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-wider">
+                      <th className="py-3 px-2 font-semibold">Tutor Name</th>
+                      <th className="py-3 px-2 font-semibold text-center">Tracked Days</th>
+                      <th className="py-3 px-2 font-semibold text-center">Avg Score</th>
+                      <th className="py-3 px-2 font-semibold text-center">Attendance</th>
+                      <th className="py-3 px-2 font-semibold text-center">Status</th>
+                      <th className="py-3 px-2 font-semibold text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-neutral-800/80">
+                    {tutorCohortStats.map((tutor) => (
+                      <tr
+                        key={tutor.tutor_id}
+                        className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors"
+                      >
+                        <td className="py-3 px-2 font-semibold text-slate-800 dark:text-slate-200">
+                          {tutor.tutor_name}
+                        </td>
+                        <td className="py-3 px-2 text-center text-slate-500 dark:text-slate-400 font-mono">
+                          {tutor.sessionDays}
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                            tutor.avgScore >= 75
+                              ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40'
+                              : tutor.avgScore > 0
+                              ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40'
+                              : 'bg-slate-100 dark:bg-neutral-900 text-slate-600 dark:text-slate-400'
+                          }`}>
+                            {tutor.avgScore > 0 ? `${tutor.avgScore}%` : '—'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-center font-mono text-slate-700 dark:text-slate-300">
+                          {tutor.avgAtt > 0 ? `${tutor.avgAtt}%` : '—'}
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                            tutor.status === 'On Track'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40'
+                              : tutor.status === 'Needs Support'
+                              ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800/40'
+                              : 'bg-slate-100 dark:bg-neutral-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-neutral-800'
+                          }`}>
+                            {tutor.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTutorId(tutor.tutor_id)}
+                            className="text-xs font-semibold text-[#0052B7] dark:text-blue-400 hover:underline cursor-pointer"
+                          >
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Right Column (5 cols): Executive Controls & Academic Risk ── */}
+        <div className="lg:col-span-5 space-y-4">
+          {/* Executive Controls Card */}
+          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight pb-4 border-b border-slate-100 dark:border-neutral-800">
+              Executive Controls
+            </h2>
+
+            {/* Timeframe Selector */}
+            <div className="mt-4">
+              <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
+                Analytics Timeframe
+              </label>
+              <select
+                value={dashboardDays}
+                onChange={(e) => setDashboardDays(Number(e.target.value))}
+                style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+                className="w-full h-9 px-3 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 text-slate-800 dark:text-slate-200 cursor-pointer outline-none transition focus:border-[var(--brand)]"
+              >
+                <option value={7}>Last 7 days</option>
+                <option value={14}>Last 14 days</option>
+                <option value={30}>Last 30 days</option>
+              </select>
+            </div>
+
+            {/* Quick Action Tiles */}
+            <div className="grid grid-cols-2 gap-2.5 mt-3.5">
+              <button
+                type="button"
+                onClick={openDtrExport}
+                disabled={isLoadingDtr}
+                className="p-3.5 rounded-lg border border-slate-200 dark:border-neutral-800 hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors text-left group cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors">
+                  {isLoadingDtr ? 'Loading…' : 'Export DTR'}
+                </span>
+                <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">
+                  Staff logs report
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={fetchDashboardData}
+                className="p-3.5 rounded-lg border border-slate-200 dark:border-neutral-800 hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors text-left group cursor-pointer"
+              >
+                <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors">
+                  Refresh
+                </span>
+                <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">
+                  Reload metrics
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Academic Risk Distribution Card */}
+          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-neutral-800">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">
+                  Academic Risk Distribution
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Cohort breakdown based on attendance & scores
+                </p>
+              </div>
+              <span className="text-xs text-slate-400 dark:text-slate-500">
+                Total: <strong className="font-semibold text-slate-900 dark:text-white">{totalStudents}</strong>
+              </span>
+            </div>
+
+            {/* Stacked Progress Bar */}
+            <div className="mt-4">
+              <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-neutral-900 overflow-hidden flex gap-0.5">
+                <div
+                  style={{ width: `${lowRiskPct}%` }}
+                  className="bg-emerald-500 transition-all duration-300"
+                  title={`Low Risk: ${lowRiskCount} (${lowRiskPct}%)`}
+                />
+                <div
+                  style={{ width: `${medRiskPct}%` }}
+                  className="bg-amber-500 transition-all duration-300"
+                  title={`Medium Risk: ${medRiskCount} (${medRiskPct}%)`}
+                />
+                <div
+                  style={{ width: `${highRiskPct}%` }}
+                  className="bg-rose-500 transition-all duration-300"
+                  title={`High Risk: ${highRiskCount} (${highRiskPct}%)`}
+                />
+              </div>
+
+              {/* Risk Tier List Rows */}
+              <div className="divide-y divide-slate-100 dark:divide-neutral-800/80 mt-3">
+                <div className="py-2.5 px-2 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span className="font-medium text-slate-800 dark:text-slate-200">Low Risk (On Track)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">{lowRiskPct}%</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{lowRiskCount}</span>
+                  </div>
+                </div>
+
+                <div className="py-2.5 px-2 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    <span className="font-medium text-slate-800 dark:text-slate-200">Medium Risk (Watchlist)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">{medRiskPct}%</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{medRiskCount}</span>
+                  </div>
+                </div>
+
+                <div className="py-2.5 px-2 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    <span className="font-medium text-slate-800 dark:text-slate-200">High Risk (Intervention)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">{highRiskPct}%</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{highRiskCount}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <ExportDtrModal

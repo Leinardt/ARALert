@@ -24,7 +24,10 @@ import {
   type MilestoneType,
   getScoreDescription,
   getAttendanceDescription,
-  getTutorAssignedMilestone,
+  getCurrentSemesterMilestone,
+  getActiveSystemMilestone,
+  getActiveSystemSemester,
+  setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
 
@@ -253,7 +256,7 @@ const TrendChart: React.FC<{ data: TrendPoint[]; color: string; emptyLabel: stri
   if (data.length === 0) return <div className="flex min-h-[260px] items-center justify-center text-xs text-gray-400 dark:text-slate-500">{emptyLabel}</div>;
 
   return (
-    <div className="relative">
+    <div className="relative overflow-hidden">
       <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="min-h-[260px] xs:min-h-[290px] sm:min-h-[320px] w-full overflow-visible" role="img" aria-label="Trend chart">
         <defs>
           <linearGradient id="riskChartFill" x1="0" y1="0" x2="0" y2="1">
@@ -322,25 +325,44 @@ const TrendChart: React.FC<{ data: TrendPoint[]; color: string; emptyLabel: stri
       </svg>
       {hoveredIdx !== null && points[hoveredIdx] && (() => {
         const p = points[hoveredIdx];
-        const pointXPct = (p.x / width) * 100;
-        const isNearRight = pointXPct > 75;
-        const gapPx = 14;
+        const isRightHalf = p.x > width * 0.5;
+        const maxTooltipWidth = Math.min(240, Math.max(150, width - 24));
         const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-        const mobileLeftPct = Math.max(5, Math.min(65, pointXPct - 25));
+
+        let tooltipStyle: React.CSSProperties;
+
+        if (isMobile) {
+          const leftPos = Math.max(10, Math.min(width - maxTooltipWidth - 10, p.x - maxTooltipWidth / 2));
+          tooltipStyle = {
+            left: `${leftPos}px`,
+            top: '8px',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        } else if (isRightHalf) {
+          tooltipStyle = {
+            right: `${Math.max(10, width - p.x + 14)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        } else {
+          tooltipStyle = {
+            left: `${Math.max(10, p.x + 14)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        }
 
         return (
           <div
-            className="pointer-events-none absolute z-10 min-w-[150px] max-w-[260px] rounded-xl border border-slate-700/50 bg-slate-900/95 p-3 text-left text-[11px] leading-normal text-white shadow-xl"
-            style={{
-              left: isMobile ? `${mobileLeftPct}%` : isNearRight ? `calc(${pointXPct}% - ${gapPx}px)` : `calc(${pointXPct}% + ${gapPx}px)`,
-              top: isMobile ? '8px' : '50%',
-              transform: isMobile ? 'none' : isNearRight ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
-            }}
+            className="pointer-events-none absolute z-10 w-max rounded-xl border border-slate-200 dark:border-zinc-700/50 bg-white/95 dark:bg-zinc-900/95 p-3 text-left text-[11px] leading-normal text-slate-800 dark:text-white shadow-xl shadow-slate-900/10 dark:shadow-black/60 overflow-hidden backdrop-blur-md"
+            style={tooltipStyle}
           >
-            <div className="text-[10px] font-extrabold uppercase text-slate-300">{p.label}</div>
+            <div className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-zinc-400 break-words">{p.label}</div>
             <div className="mt-1 flex items-baseline gap-1.5 flex-wrap">
               <span className="text-sm font-extrabold" style={{ color }}>{p.value}%</span>
-              <span className="text-[10px] font-medium text-slate-300 truncate max-w-[180px]" title={valueLabel}>{valueLabel}</span>
+              <span className="text-[10px] font-medium text-slate-500 dark:text-zinc-400 truncate max-w-[180px]" title={valueLabel}>{valueLabel}</span>
             </div>
           </div>
         );
@@ -394,7 +416,7 @@ const DesktopRiskTrendChart: React.FC<{
     paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1 || 1);
 
   return (
-    <div className="relative">
+    <div className="relative overflow-hidden">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
@@ -489,24 +511,35 @@ const DesktopRiskTrendChart: React.FC<{
       </svg>
       {hoveredIdx !== null && data[hoveredIdx] && (() => {
         const barX = getBarX(hoveredIdx);
-        const barLeftPct = ((barX - barWidth / 2) / width) * 100;
-        const barRightPct = ((barX + barWidth / 2) / width) * 100;
-        const isNearRight = barRightPct > 75;
-        const gapPx = 14;
+        const isRightHalf = barX > width * 0.5;
+        const maxTooltipWidth = Math.min(240, Math.max(150, width - 24));
+
+        let tooltipStyle: React.CSSProperties;
+        if (isRightHalf) {
+          tooltipStyle = {
+            right: `${Math.max(10, width - (barX - barWidth / 2) + 14)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        } else {
+          tooltipStyle = {
+            left: `${Math.max(10, barX + barWidth / 2 + 14)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        }
 
         return (
           <div
-            className="pointer-events-none absolute z-10 min-w-[150px] max-w-[260px] rounded-xl border border-slate-700/50 bg-slate-900/95 p-3 text-left text-[11px] leading-normal text-white shadow-xl"
-            style={{
-              left: isNearRight ? `calc(${barLeftPct}% - ${gapPx}px)` : `calc(${barRightPct}% + ${gapPx}px)`,
-              top: '50%',
-              transform: isNearRight ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
-            }}
+            className="pointer-events-none absolute z-10 w-max rounded-xl border border-slate-200 dark:border-zinc-700/50 bg-white/95 dark:bg-zinc-900/95 p-3 text-left text-[11px] leading-normal text-slate-800 dark:text-white shadow-xl shadow-slate-900/10 dark:shadow-black/60 overflow-hidden backdrop-blur-md"
+            style={tooltipStyle}
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] font-extrabold uppercase text-slate-300">{data[hoveredIdx].label}</span>
+              <span className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-zinc-400 break-words">{data[hoveredIdx].label}</span>
               {isSingleStudent && studentName && (
-                <span className="text-[9.5px] font-semibold text-slate-300 truncate max-w-[140px]" title={studentName}>
+                <span className="text-[9.5px] font-semibold text-slate-500 dark:text-zinc-400 truncate max-w-[140px]" title={studentName}>
                   {studentName}
                 </span>
               )}
@@ -514,7 +547,7 @@ const DesktopRiskTrendChart: React.FC<{
             {series.map((item) => (
               <div key={item.key} className="mt-1 flex items-center justify-between gap-4">
                 <span style={{ color: item.color }}>{item.label}</span>
-                <span className="font-bold">{data[hoveredIdx][item.key]}</span>
+                <span className="font-bold text-slate-800 dark:text-white">{data[hoveredIdx][item.key]}</span>
               </div>
             ))}
           </div>
@@ -720,16 +753,16 @@ const MobileRiskTrendChart: React.FC<{
 
         return (
           <div
-            className="pointer-events-none absolute z-20 min-w-[160px] max-w-[calc(100vw-3rem)] rounded-xl border border-slate-700/60 bg-slate-900/95 p-3 text-left text-xs leading-normal text-white shadow-2xl backdrop-blur-sm"
+            className="pointer-events-none absolute z-20 min-w-[160px] max-w-[calc(100vw-3rem)] rounded-xl border border-slate-200 dark:border-zinc-700/60 bg-white/95 dark:bg-zinc-900/95 p-3 text-left text-xs leading-normal text-slate-800 dark:text-white shadow-xl dark:shadow-2xl shadow-slate-900/10 dark:shadow-black/60 backdrop-blur-sm"
             style={{
               left: `${mobileLeftPct}%`,
               top: '12px',
             }}
           >
-            <div className="flex items-center justify-between gap-2 border-b border-slate-700/80 pb-1.5 mb-2">
-              <span className="text-xs font-bold uppercase text-slate-200">{p.label}</span>
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-zinc-700/80 pb-1.5 mb-2">
+              <span className="text-xs font-bold uppercase text-slate-700 dark:text-zinc-200">{p.label}</span>
               {isSingleStudent && studentName && (
-                <span className="text-[11px] font-semibold text-slate-300 truncate max-w-[120px]" title={studentName}>
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 truncate max-w-[120px]" title={studentName}>
                   {studentName}
                 </span>
               )}
@@ -745,7 +778,7 @@ const MobileRiskTrendChart: React.FC<{
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                       {item.label}
                     </span>
-                    <span className="font-bold text-white">
+                    <span className="font-bold text-slate-800 dark:text-white">
                       {isSingleStudent ? (count > 0 ? 'Active' : 'No') : `${count} (${pct}%)`}
                     </span>
                   </div>
@@ -754,9 +787,9 @@ const MobileRiskTrendChart: React.FC<{
             </div>
 
             {!isSingleStudent && (
-              <div className="mt-2 pt-1.5 border-t border-slate-700/80 flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+              <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-zinc-700/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 font-semibold">
                 <span>Total evaluated</span>
-                <span className="text-white">{pointTotal} students</span>
+                <span className="text-slate-800 dark:text-white">{pointTotal} students</span>
               </div>
             )}
           </div>
@@ -845,7 +878,7 @@ const RiskRangeInfo: React.FC<{ range: string }> = ({ range }) => (
     >
       <Info className="h-3.5 w-3.5" />
     </button>
-    <span className="pointer-events-none absolute right-full top-1/2 z-20 mr-2 hidden -translate-y-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg group-hover:block group-focus-within:block">
+    <span className="pointer-events-none absolute right-full top-1/2 z-20 mr-2 hidden -translate-y-1/2 whitespace-nowrap rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-slate-800 dark:text-white shadow-lg group-hover:block group-focus-within:block">
       {range}
     </span>
   </span>
@@ -867,7 +900,7 @@ const RiskCalculationInfo: React.FC = () => (
     >
       <Info className="h-3.5 w-3.5" />
     </button>
-    <span className="pointer-events-none absolute left-0 top-full mt-2 sm:left-full sm:top-1/2 sm:mt-0 sm:ml-2 z-20 hidden w-72 sm:w-80 max-w-[calc(100vw-2rem)] sm:-translate-y-1/2 rounded-lg bg-slate-900 p-2.5 sm:px-3 sm:py-2 text-left text-xs font-semibold leading-relaxed text-white shadow-lg group-hover:block group-focus-within:block">
+    <span className="pointer-events-none absolute left-0 top-full mt-2 sm:left-full sm:top-1/2 sm:mt-0 sm:ml-2 z-20 hidden w-72 sm:w-80 max-w-[calc(100vw-2rem)] sm:-translate-y-1/2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2.5 sm:px-3 sm:py-2 text-left text-xs font-semibold leading-relaxed text-slate-800 dark:text-white shadow-lg group-hover:block group-focus-within:block">
       Risk level is calculated from the composite score of a student. Composite Score = 40% (Attendance Rate) + 60% (Average Score)
     </span>
   </span>
@@ -961,9 +994,28 @@ export const TutorAnalytics: React.FC = () => {
   const [scoreSortField, setScoreSortField] = useState<ScoreDetailSortField | null>(null);
   const [scoreSortAsc, setScoreSortAsc] = useState(true);
 
+  const [activeSystemSem, setActiveSystemSem] = useState(() => getActiveSystemSemester());
+
+  useEffect(() => {
+    academicService.getCurrentSchoolYear().then((sy) => {
+      if (sy && sy.current_semester) {
+        setActiveSystemSemester(sy.current_semester as any);
+        setActiveSystemSem(sy.current_semester as any);
+      }
+    }).catch(() => {});
+
+    const handleSemChange = (e: any) => {
+      const newSem = e?.detail?.semester || getActiveSystemSemester();
+      setActiveSystemSem(newSem);
+    };
+
+    window.addEventListener('system_semester_changed', handleSemChange);
+    return () => window.removeEventListener('system_semester_changed', handleSemChange);
+  }, []);
+
   const assignedMilestone = useMemo<MilestoneType>(() => {
-    return getTutorAssignedMilestone(user?.aral_level);
-  }, [user?.aral_level]);
+    return getActiveSystemMilestone();
+  }, [activeSystemSem]);
 
 
 
@@ -1399,7 +1451,7 @@ export const TutorAnalytics: React.FC = () => {
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="relative rounded-md border risk-card-high p-4 min-h-[100px] flex flex-col justify-center">
                   <div className="absolute right-3 top-3">
-                    <RiskRangeInfo range="Composite score is below 70%" />
+                    <RiskRangeInfo range="Composite score is 69% and below" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-high">
@@ -1690,7 +1742,7 @@ export const TutorAnalytics: React.FC = () => {
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600">Failed Today</p>
                     <p className="text-2xl font-extrabold text-rose-900 mt-0.5">{scoreSummary.failed}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Assessments scored &lt; 70% today</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Assessments scored ≤ 69% today</p>
                   </div>
                 </div>
                 <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">

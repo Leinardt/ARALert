@@ -22,10 +22,6 @@ import {
 } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useAuth } from '../../hooks/useAuth';
-import {
-  getAttendanceDescription,
-  getTutorAssignedMilestone,
-} from '../../utils/sessionDescriptionHelpers';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 
@@ -283,7 +279,7 @@ export const StudentQRAttendance: React.FC = () => {
   }, []);
 
   // Sort state
-  type SortKey = 'student' | 'description' | 'date' | 'time' | 'status';
+  type SortKey = 'student' | 'date' | 'time' | 'status';
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({
     key: 'date',
     direction: 'desc',
@@ -377,9 +373,6 @@ export const StudentQRAttendance: React.FC = () => {
       if (sortConfig.key === 'student') {
         aVal = user?.full_name || '';
         bVal = user?.full_name || '';
-      } else if (sortConfig.key === 'description') {
-        aVal = getAttendanceDescription(a);
-        bVal = getAttendanceDescription(b);
       } else if (sortConfig.key === 'date') {
         aVal = a.date;
         bVal = b.date;
@@ -422,19 +415,16 @@ export const StudentQRAttendance: React.FC = () => {
       <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
         <thead>
           <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-            <th className="w-[28%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+            <th className="w-[35%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
               <SortableHeader label="STUDENT" sortKey="student" />
             </th>
-            <th className="w-[22%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-              <SortableHeader label="DESCRIPTION" sortKey="description" />
-            </th>
-            <th className="w-[18%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+            <th className="w-[25%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
               <SortableHeader label="DATE" sortKey="date" />
             </th>
-            <th className="w-[14%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+            <th className="w-[20%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
               <SortableHeader label="TIME" sortKey="time" />
             </th>
-            <th className="w-[18%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+            <th className="w-[20%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
               <SortableHeader label="STATUS" sortKey="status" />
             </th>
           </tr>
@@ -442,8 +432,6 @@ export const StudentQRAttendance: React.FC = () => {
         <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
           {records.map((log) => {
             const isPresent = log.status === 'present';
-            const desc = getAttendanceDescription(log);
-            const isMilestone = desc !== 'Intervention Activity';
             return (
               <tr
                 key={log.id}
@@ -451,17 +439,6 @@ export const StudentQRAttendance: React.FC = () => {
               >
                 <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
                   {user?.full_name || studentFirstName}
-                </td>
-                <td className="px-4 py-3 text-left whitespace-nowrap">
-                  <span
-                    className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${
-                      isMilestone
-                        ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
-                        : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                    }`}
-                  >
-                    {desc}
-                  </span>
                 </td>
                 <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
                   {formatDateString(log.date)}

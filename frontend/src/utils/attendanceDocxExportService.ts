@@ -224,7 +224,7 @@ export const exportAttendanceToDocx = async (data: AttendanceExportData): Promis
     spacing: { before: 15, after: 240, line: 220 },
     children: [
       new TextRun({
-        text: data.gradeSection.toUpperCase(),
+        text: (data.gradeSection || 'MIXED (GRADES 7-10)').toUpperCase(),
         font: 'Times New Roman',
         size: 19, // 9.5pt
         bold: true,

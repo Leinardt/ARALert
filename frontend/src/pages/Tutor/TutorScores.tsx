@@ -5,7 +5,13 @@ import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
 import type { Grade, User } from '../../types';
 import { ExportScoreModal } from '../../components/ExportScoreModal';
-import { getScoreDescription } from '../../utils/sessionDescriptionHelpers';
+import {
+  getScoreDescription,
+  getCurrentSemesterMilestone,
+  getActiveSystemMilestone,
+  getActiveSystemSemester,
+  setActiveSystemSemester,
+} from '../../utils/sessionDescriptionHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
 import {
   BookOpen,
@@ -34,10 +40,10 @@ import {
 type ScoreEntryKind = 'daily' | 'mosy' | 'eosy' | 'endline';
 type ScorePeriod = 'ARAL Summer Assessment' | 'MOSY' | 'EOSY';
 
-const levelScoreEntry = {
-  basic: { kind: 'mosy' as const, buttonLabel: 'Add MOSY Score Entry', title: 'MOSY Reading Score (Q1/Q2)', subject: 'MOSY Reading' },
-  plus: { kind: 'eosy' as const, buttonLabel: 'Add EOSY Score Entry', title: 'EOSY Reading Score (Q3/Q4)', subject: 'EOSY Reading' },
-  summer: { kind: 'endline' as const, buttonLabel: 'Add ARAL Summer Assessment Entry', title: 'ARAL Summer Assessment', subject: 'ARAL Summer Assessment' },
+const semesterScoreEntry: Record<ScorePeriod, { kind: ScoreEntryKind; buttonLabel: string; title: string; subject: string }> = {
+  MOSY: { kind: 'mosy', buttonLabel: 'Add MOSY Score', title: 'MOSY Reading Score (Q1/Q2)', subject: 'MOSY Reading' },
+  EOSY: { kind: 'eosy', buttonLabel: 'Add EOSY Score', title: 'EOSY Reading Score (Q3/Q4)', subject: 'EOSY Reading' },
+  'ARAL Summer Assessment': { kind: 'endline', buttonLabel: 'Add ARAL Summer Assessment', title: 'ARAL Summer Assessment', subject: 'ARAL Summer Assessment' },
 };
 
 const generateUuid = () =>
@@ -47,8 +53,83 @@ const generateUuid = () =>
     return v.toString(16);
   });
 
-const scoreColor = (pct: number) => pct >= 70 ? 'text-emerald-600' : pct >= 60 ? 'text-amber-500' : 'text-rose-500';
-const scoreBg = (pct: number) => pct >= 70 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : pct >= 60 ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-rose-50 border-rose-200 text-rose-700';
+const DRAFT_STORAGE_KEY_PREFIX = 'aralert_score_entry_draft_';
+const STUDENTS_CACHE_KEY_PREFIX = 'aralert_assigned_students_';
+
+interface SingleDraftState {
+  entryScores: Record<string, number | ''>;
+  entryStatus: Record<string, 'Taken' | 'Not'>;
+  totalScore: number | '';
+  logDate: string;
+}
+
+interface ScoreDraftData {
+  draftsByKind?: Partial<Record<ScoreEntryKind, SingleDraftState>>;
+  entryScores?: Record<string, number | ''>;
+  entryStatus?: Record<string, 'Taken' | 'Not'>;
+  totalScore?: number | '';
+  entryKind: ScoreEntryKind;
+  logDate?: string;
+  showAddEntry: boolean;
+  updatedAt: number;
+}
+
+const getStoredDraft = (userId?: number | string): ScoreDraftData | null => {
+  if (!userId) return null;
+  try {
+    // Purge any lingering legacy draft from localStorage so it never persists across logins
+    try {
+      localStorage.removeItem(`${DRAFT_STORAGE_KEY_PREFIX}${userId}`);
+    } catch {
+      // ignore
+    }
+    const raw = sessionStorage.getItem(`${DRAFT_STORAGE_KEY_PREFIX}${userId}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (!parsed.draftsByKind) {
+        const legacyKind: ScoreEntryKind = parsed.entryKind || 'daily';
+        return {
+          draftsByKind: {
+            [legacyKind]: {
+              entryScores: parsed.entryScores || {},
+              entryStatus: parsed.entryStatus || {},
+              totalScore: parsed.totalScore !== undefined && parsed.totalScore !== '' ? parsed.totalScore : (legacyKind === 'daily' ? 20 : 40),
+              logDate: parsed.logDate || new Date().toLocaleDateString('en-CA'),
+            },
+          },
+          entryKind: legacyKind,
+          showAddEntry: parsed.showAddEntry ?? true,
+          updatedAt: parsed.updatedAt || Date.now(),
+        };
+      }
+      return parsed;
+    }
+  } catch (e) {
+    console.error('Failed to parse score draft:', e);
+  }
+  return null;
+};
+
+const getCachedStudents = (userId?: number | string): User[] => {
+  if (!userId) return [];
+  try {
+    const raw = localStorage.getItem(`${STUDENTS_CACHE_KEY_PREFIX}${userId}`);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error('Failed to parse cached students:', e);
+  }
+  return [];
+};
+
+const scoreColor = (pct: number) => {
+  if (isNaN(pct)) return 'text-rose-500';
+  return pct >= 70 ? 'text-emerald-600' : pct >= 60 ? 'text-amber-500' : 'text-rose-500';
+};
+
+const scoreBg = (pct: number) => {
+  if (isNaN(pct)) return 'bg-rose-50 border-rose-200 text-rose-700';
+  return pct >= 70 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : pct >= 60 ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-rose-50 border-rose-200 text-rose-700';
+};
 
 const sanitizeScoreInput = (rawVal: string, maxVal?: number): number | '' => {
   const digitsOnly = rawVal.replace(/\D/g, '');
@@ -61,10 +142,11 @@ const sanitizeScoreInput = (rawVal: string, maxVal?: number): number | '' => {
 
 /** Show up to 2 decimal places but omit trailing zeros (100.00 → 100, 99.5 → 99.5, 99.57 → 99.57) */
 const smartPct = (n: number): string => {
+  if (n === null || n === undefined || isNaN(n)) return '0';
   const fixed2 = n.toFixed(2);
   // Remove trailing zeros after decimal point
   const trimmed = parseFloat(fixed2).toString();
-  return trimmed;
+  return isNaN(Number(trimmed)) ? '0' : trimmed;
 };
 
 const blockSymbolKeys = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -247,11 +329,15 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
     const direction = sortConfig.direction === 'asc' ? 1 : -1;
     const getScoreValue = (grade: Grade) => {
       const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
-      const scorePercentage = (Number(grade.score) / (Number(grade.total_score) || 100)) * 100;
+      const scoreNum = Number(grade.score);
+      const totalNum = Number(grade.total_score);
+      const validTotal = !isNaN(totalNum) && totalNum > 0 ? totalNum : 100;
+      const validScore = !isNaN(scoreNum) ? scoreNum : 0;
+      const scorePercentage = (validScore / validTotal) * 100;
       switch (sortConfig.key) {
         case 'student': return grade.student_name || '';
         case 'description': return getScoreDescription(grade);
-        case 'score': return Number(grade.score);
+        case 'score': return validScore;
         case 'remark': return isNotTaken ? 'Not Taken' : scorePercentage >= 70 ? 'Passed' : 'Failed';
         case 'status': return isNotTaken ? 'Not Taken' : 'Taken';
         case 'date': return grade.date_logged || '';
@@ -307,7 +393,11 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
               const isEditing = editingGradeId === grade.id;
               const isLastSaved = grade.batch_id === lastSavedBatchId;
               const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
-              const scorePercentage = (Number(grade.score) / (Number(grade.total_score) || 100)) * 100;
+              const scoreNum = Number(grade.score);
+              const totalNum = Number(grade.total_score);
+              const validTotal = !isNaN(totalNum) && totalNum > 0 ? totalNum : 100;
+              const validScore = !isNaN(scoreNum) ? scoreNum : 0;
+              const scorePercentage = (validScore / validTotal) * 100;
               const descriptionVal = getScoreDescription(grade);
               return (
                 <tr
@@ -411,7 +501,11 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
           const isEditing = editingGradeId === grade.id;
           const isLastSaved = grade.batch_id === lastSavedBatchId;
           const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
-          const scorePercentage = (Number(grade.score) / (Number(grade.total_score) || 100)) * 100;
+          const scoreNum = Number(grade.score);
+          const totalNum = Number(grade.total_score);
+          const validTotal = !isNaN(totalNum) && totalNum > 0 ? totalNum : 100;
+          const validScore = !isNaN(scoreNum) ? scoreNum : 0;
+          const scorePercentage = (validScore / validTotal) * 100;
           const descriptionVal = getScoreDescription(grade);
 
           return (
@@ -597,22 +691,52 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
 /* ─── Component ────────────────────────────────────────────────── */
 export const TutorScores: React.FC = () => {
   const { user } = useAuth();
-  const [students, setStudents] = useState<User[]>([]);
+  const [students, setStudents] = useState<User[]>(() => getCachedStudents(user?.id));
   const [grades, setGrades] = useState<Grade[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => getCachedStudents(user?.id).length === 0);
   const [gradesLoading, setGradesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const avatarColor = useMemo(() => buildAvatarColorMap(students), [students]);
 
-  // Form State
-  const [showAddEntry, setShowAddEntry] = useState(false);
-  const [entryKind, setEntryKind] = useState<ScoreEntryKind>('daily');
+  // Form State - initialized synchronously from draft/cache so the container never flashes/reloads
+  const [draftsByKind, setDraftsByKind] = useState<Partial<Record<ScoreEntryKind, SingleDraftState>>>(() => {
+    const draft = getStoredDraft(user?.id);
+    return draft?.draftsByKind || {};
+  });
+  const [showAddEntry, setShowAddEntry] = useState<boolean>(() => {
+    const draft = getStoredDraft(user?.id);
+    return draft?.showAddEntry ?? true;
+  });
+  const [entryKind, setEntryKind] = useState<ScoreEntryKind>(() => {
+    const draft = getStoredDraft(user?.id);
+    return draft?.entryKind ?? 'daily';
+  });
   const autoOpenedEntryRef = useRef(false);
-  const [entryScores, setEntryScores] = useState<Record<string, number | ''>>({});
-  const [entryStatus, setEntryStatus] = useState<Record<string, 'Taken' | 'Not'>>({});
-  const [totalScore, setTotalScore] = useState<number | ''>(20);
-  const [logDate, setLogDate] = useState<string>(new Date().toLocaleDateString('en-CA'));
+  const [entryScores, setEntryScores] = useState<Record<string, number | ''>>(() => {
+    const draft = getStoredDraft(user?.id);
+    const activeKind = draft?.entryKind ?? 'daily';
+    return draft?.draftsByKind?.[activeKind]?.entryScores ?? {};
+  });
+  const [entryStatus, setEntryStatus] = useState<Record<string, 'Taken' | 'Not'>>(() => {
+    const draft = getStoredDraft(user?.id);
+    const activeKind = draft?.entryKind ?? 'daily';
+    return draft?.draftsByKind?.[activeKind]?.entryStatus ?? {};
+  });
+  const [totalScore, setTotalScore] = useState<number | ''>(() => {
+    const draft = getStoredDraft(user?.id);
+    const activeKind = draft?.entryKind ?? 'daily';
+    const draftTotal = draft?.draftsByKind?.[activeKind]?.totalScore;
+    if (draftTotal !== undefined && draftTotal !== '') {
+      return draftTotal;
+    }
+    return activeKind === 'daily' ? 20 : 40;
+  });
+  const [logDate, setLogDate] = useState<string>(() => {
+    const draft = getStoredDraft(user?.id);
+    const activeKind = draft?.entryKind ?? 'daily';
+    return draft?.draftsByKind?.[activeKind]?.logDate || new Date().toLocaleDateString('en-CA');
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [showMilestoneConfirmation, setShowMilestoneConfirmation] = useState(false);
@@ -665,6 +789,13 @@ export const TutorScores: React.FC = () => {
       if (!user) return;
       const data = await userService.getAllUsers({ role: 'student', assigned_tutor: user.id });
       setStudents(data);
+      if (user?.id) {
+        try {
+          localStorage.setItem(`${STUDENTS_CACHE_KEY_PREFIX}${user.id}`, JSON.stringify(data));
+        } catch (e) {
+          // ignore localStorage quota error
+        }
+      }
     } catch (err) {
       console.error(err);
       setError('Failed to load assigned students.');
@@ -674,18 +805,44 @@ export const TutorScores: React.FC = () => {
   };
 
   const handleOpenAddEntry = (kind: ScoreEntryKind = 'daily') => {
-    const initialScores: Record<string, number | ''> = {};
-    const initialStatus: Record<string, 'Taken' | 'Not'> = {};
-    (students || []).forEach((student) => {
-      initialScores[student.id] = '';
-      initialStatus[student.id] = 'Taken';
-    });
-    setEntryScores(initialScores);
-    setEntryStatus(initialStatus);
-    setTotalScore(kind !== 'daily' ? 40 : 20);
+    // 1. Snapshot current form inputs into draftsByKind under the previous entryKind
+    const updatedDrafts = {
+      ...draftsByKind,
+      [entryKind]: {
+        entryScores,
+        entryStatus,
+        totalScore,
+        logDate,
+      },
+    };
+
+    setDraftsByKind(updatedDrafts);
     setEntryKind(kind);
-    setLogDate(new Date().toLocaleDateString('en-CA'));
     setShowAddEntry(true);
+
+    // 2. Load the target kind's isolated draft (if any), or start with clean defaults
+    const targetDraft = updatedDrafts[kind];
+    const targetTotal = targetDraft?.totalScore !== undefined && targetDraft?.totalScore !== ''
+      ? targetDraft.totalScore
+      : (kind === 'daily' ? 20 : 40);
+    const targetLogDate = targetDraft?.logDate || new Date().toLocaleDateString('en-CA');
+
+    const nextScores: Record<string, number | ''> = { ...(targetDraft?.entryScores || {}) };
+    const nextStatus: Record<string, 'Taken' | 'Not'> = { ...(targetDraft?.entryStatus || {}) };
+
+    (students || []).forEach((student) => {
+      if (nextScores[student.id] === undefined) {
+        nextScores[student.id] = '';
+      }
+      if (nextStatus[student.id] === undefined) {
+        nextStatus[student.id] = 'Taken';
+      }
+    });
+
+    setEntryScores(nextScores);
+    setEntryStatus(nextStatus);
+    setTotalScore(targetTotal);
+    setLogDate(targetLogDate);
     setSaveSuccessMsg(null);
   };
 
@@ -706,7 +863,9 @@ export const TutorScores: React.FC = () => {
   const handleAddScore = async () => {
     const activeTotal = totalScore === '' ? 0 : Number(totalScore);
     if (activeTotal <= 0) return alert('Please specify a valid total score greater than 0.');
-    if (Object.values(entryScores).every((score) => score === '')) return alert('Please enter a score for at least one student.');
+    if (Object.values(entryScores).every((score) => score === '' || score === undefined || score === null)) {
+      return alert('Please enter a score for at least one student.');
+    }
 
     setIsSaving(true);
     setSaveSuccessMsg(null);
@@ -714,7 +873,10 @@ export const TutorScores: React.FC = () => {
       const batchId = generateUuid();
       const todayDateStr = logDate || new Date().toLocaleDateString('en-CA');
       const entries: Partial<Grade>[] = (students || [])
-        .filter((student) => entryScores[student.id] !== '' || entryStatus[student.id] === 'Not')
+        .filter((student) => {
+          const rawScore = entryScores[student.id];
+          return (rawScore !== '' && rawScore !== undefined && rawScore !== null) || entryStatus[student.id] === 'Not';
+        })
         .map((student) => ({
           student: student.id,
           component_type: 'assessment' as Grade['component_type'],
@@ -730,13 +892,44 @@ export const TutorScores: React.FC = () => {
       if (entries.length === 0) { setIsSaving(false); return alert('No scores entered.'); }
 
       await Promise.all(entries.map((entry) => academicService.createGrade(entry)));
-      setEntryScores({});
-      setEntryStatus({});
+
+      // Cleanly reset current entry kind draft and form state
+      const resetScores: Record<string, number | ''> = {};
+      const resetStatus: Record<string, 'Taken' | 'Not'> = {};
+      (students || []).forEach((student) => {
+        resetScores[student.id] = '';
+        resetStatus[student.id] = 'Taken';
+      });
+      setEntryScores(resetScores);
+      setEntryStatus(resetStatus);
+      setTotalScore(entryKind === 'daily' ? 20 : 40);
+
+      // Remove the submitted entry kind from draftsByKind
+      const updatedDrafts = { ...draftsByKind };
+      delete updatedDrafts[entryKind];
+      setDraftsByKind(updatedDrafts);
+
+      // Save updated draftsByKind to sessionStorage (only for current session)
+      if (user?.id) {
+        try {
+          const draftKey = `${DRAFT_STORAGE_KEY_PREFIX}${user.id}`;
+          const draft: ScoreDraftData = {
+            draftsByKind: updatedDrafts,
+            entryKind,
+            showAddEntry,
+            updatedAt: Date.now(),
+          };
+          sessionStorage.setItem(draftKey, JSON.stringify(draft));
+        } catch (e) {
+          // ignore sessionStorage error
+        }
+      }
+
       await fetchGrades();
 
       // ── Attendance-pattern: store batch ID → highlights the DTR row ──
       setLastSavedBatchId(batchId);
-      const titleName = entryKind === 'daily' ? 'Intervention Activity' : (Object.values(levelScoreEntry).find((e) => e.kind === entryKind)?.title || assignedPeriod);
+      const titleName = entryKind === 'daily' ? 'Intervention Activity' : (Object.values(semesterScoreEntry).find((e) => e.kind === entryKind)?.title || assignedPeriod);
       setSaveSuccessMsg(`${titleName} scores saved and highlighted below.`);
       setShowSuccessModal(true);
       setTimeout(() => {
@@ -833,37 +1026,124 @@ export const TutorScores: React.FC = () => {
     }
   }, [lastSavedBatchId, grades]);
 
+  // Ensure default entries exist for all loaded students while strictly preserving existing inputted scores
+  useEffect(() => {
+    if (students.length === 0) return;
+    setEntryScores((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      students.forEach((s) => {
+        if (next[s.id] === undefined) {
+          next[s.id] = '';
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+    setEntryStatus((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      students.forEach((s) => {
+        if (next[s.id] === undefined) {
+          next[s.id] = 'Taken';
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [students]);
+
+  // Re-sync draft when user changes
+  useEffect(() => {
+    if (!user?.id) return;
+    const cachedStudents = getCachedStudents(user.id);
+    if (cachedStudents.length > 0) {
+      setStudents(cachedStudents);
+    }
+    const draft = getStoredDraft(user.id);
+    if (draft) {
+      const activeKind = draft.entryKind ?? 'daily';
+      const kindDraft = draft.draftsByKind?.[activeKind];
+      setDraftsByKind(draft.draftsByKind || {});
+      setShowAddEntry(draft.showAddEntry ?? true);
+      setEntryKind(activeKind);
+      setEntryScores(kindDraft?.entryScores ?? {});
+      setEntryStatus(kindDraft?.entryStatus ?? {});
+      setTotalScore(kindDraft?.totalScore !== undefined && kindDraft?.totalScore !== '' ? kindDraft.totalScore : (activeKind === 'daily' ? 20 : 40));
+      setLogDate(kindDraft?.logDate || new Date().toLocaleDateString('en-CA'));
+    }
+  }, [user?.id]);
+
+  // Persist draft in sessionStorage whenever score entry state changes (survives refreshes/tab switching during active session only)
+  useEffect(() => {
+    if (!user?.id) return;
+    const draftKey = `${DRAFT_STORAGE_KEY_PREFIX}${user.id}`;
+    const currentKindDraft: SingleDraftState = {
+      entryScores,
+      entryStatus,
+      totalScore,
+      logDate,
+    };
+    const updatedDraftsByKind: Partial<Record<ScoreEntryKind, SingleDraftState>> = {
+      ...draftsByKind,
+      [entryKind]: currentKindDraft,
+    };
+    const draft: ScoreDraftData = {
+      draftsByKind: updatedDraftsByKind,
+      entryKind,
+      showAddEntry,
+      updatedAt: Date.now(),
+    };
+    try {
+      sessionStorage.setItem(draftKey, JSON.stringify(draft));
+    } catch (e) {
+      // ignore sessionStorage quota errors
+    }
+  }, [user?.id, entryScores, entryStatus, totalScore, entryKind, logDate, showAddEntry, draftsByKind]);
+
+  const [activeSystemSem, setActiveSystemSem] = useState(() => getActiveSystemSemester());
+
+  useEffect(() => {
+    academicService.getCurrentSchoolYear().then((sy) => {
+      if (sy && sy.current_semester) {
+        setActiveSystemSemester(sy.current_semester as any);
+        setActiveSystemSem(sy.current_semester as any);
+      }
+    }).catch(() => {});
+
+    const handleSemChange = (e: any) => {
+      const newSem = e?.detail?.semester || getActiveSystemSemester();
+      setActiveSystemSem(newSem);
+    };
+
+    window.addEventListener('system_semester_changed', handleSemChange);
+    return () => window.removeEventListener('system_semester_changed', handleSemChange);
+  }, []);
+
   useEffect(() => { fetchStudents(); }, [user]);
   useEffect(() => { fetchGrades(); }, [user]);
-  useEffect(() => {
-    if (!isLoading && students.length > 0 && !autoOpenedEntryRef.current) {
-      autoOpenedEntryRef.current = true;
-      handleOpenAddEntry('daily');
-    }
-  }, [isLoading, students.length]);
 
   const safeGrades = useMemo(() => (Array.isArray(grades) ? grades : []), [grades]);
   const assignedPeriod = useMemo<ScorePeriod>(() => {
-    if (user?.aral_level === 'summer') return 'ARAL Summer Assessment';
-    if (user?.aral_level === 'plus') return 'EOSY';
-    return 'MOSY';
-  }, [user?.aral_level]);
+    return getActiveSystemMilestone();
+  }, [activeSystemSem]);
   const tutorSubject = user?.subject || 'Reading';
   const levelEntry = useMemo(() => {
-    const base = levelScoreEntry[user?.aral_level && (user.aral_level in levelScoreEntry) ? (user.aral_level as keyof typeof levelScoreEntry) : 'basic'];
-    if (user?.aral_level === 'summer') {
+    const base = semesterScoreEntry[assignedPeriod] || semesterScoreEntry.MOSY;
+    if (assignedPeriod === 'ARAL Summer Assessment') {
       return {
         ...base,
         title: 'ARAL Summer Assessment',
         subject: 'ARAL Summer Assessment',
       };
     }
+    const semesterQuarter = assignedPeriod === 'MOSY' ? '(Q1/Q2)' : '(Q3/Q4)';
     return {
       ...base,
-      title: `${assignedPeriod} ${tutorSubject} Score`,
+      title: `${assignedPeriod} ${tutorSubject} Score ${semesterQuarter}`,
       subject: `${assignedPeriod} ${tutorSubject}`,
     };
-  }, [assignedPeriod, tutorSubject, user?.aral_level]);
+  }, [assignedPeriod, tutorSubject]);
   const dailyGrades = useMemo(() => safeGrades.filter((grade) => grade.component_type === 'assessment'), [safeGrades]);
   const studentsWithEntries = useMemo(() => new Set(dailyGrades.map((g) => g.student)).size, [dailyGrades]);
   const avgScoreAll = useMemo(() => {
@@ -1063,52 +1343,7 @@ export const TutorScores: React.FC = () => {
     [students, studentSearch]
   );
 
-  if (isLoading) return (
-    <div className="flex flex-col space-y-6 max-w-6xl mx-auto skeleton-container">
-      {/* Header controls skeleton */}
-      <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-pulse skeleton-row-1">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
-          <div className="space-y-2">
-            <div className="h-4 w-40 rounded bg-gray-200 dark:bg-gray-700" />
-            <div className="h-3 w-28 rounded bg-gray-100 dark:bg-gray-800" />
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="h-9 w-32 rounded-xl bg-gray-200 dark:bg-gray-700" />
-          <div className="h-9 w-28 rounded-xl bg-gray-200 dark:bg-gray-700" />
-        </div>
-      </div>
 
-      {/* Filter controls skeleton */}
-      <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-5 flex flex-wrap items-center gap-3 animate-pulse skeleton-row-2">
-        <div className="h-9 w-32 rounded-xl bg-gray-200 dark:bg-gray-700" />
-        <div className="h-9 w-32 rounded-xl bg-gray-200 dark:bg-gray-700" />
-        <div className="h-9 w-32 rounded-xl bg-gray-200 dark:bg-gray-700" />
-        <div className="ml-auto h-9 w-36 rounded-xl bg-gray-200 dark:bg-gray-700" />
-      </div>
-
-      {/* Score entry panel skeleton */}
-      <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-6 space-y-4 animate-pulse skeleton-row-3">
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
-          <div className="space-y-1.5">
-            <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-700" />
-            <div className="h-3 w-56 rounded bg-gray-100 dark:bg-gray-800" />
-          </div>
-          <div className="h-8 w-28 rounded-xl bg-gray-200 dark:bg-gray-700" />
-        </div>
-        {/* Student rows */}
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="flex items-center gap-4 py-2 border-b border-gray-50 dark:border-gray-900/50">
-            <div className="w-8 h-8 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
-            <div className="h-4 flex-1 rounded bg-gray-200 dark:bg-gray-700" />
-            <div className="h-8 w-24 rounded-xl bg-gray-100 dark:bg-gray-800" />
-            <div className="h-8 w-24 rounded-xl bg-gray-100 dark:bg-gray-800" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 
   if (error) return (
     <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-2xl p-5 shadow-sm max-w-6xl mx-auto">
@@ -1138,22 +1373,24 @@ export const TutorScores: React.FC = () => {
               <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm uppercase">
                 {entryKind === 'daily' ? 'Add Intervention Activity Scores' : levelEntry.title}
               </h3>
-              {/* Live Evaluation Progress Pill */}
-              <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/80 text-xs">
-                <span className="text-gray-500 dark:text-slate-400 text-[11px] font-semibold">{assignedPeriod} Progress:</span>
-                <span className="font-extrabold text-gray-800 dark:text-slate-200 text-xs">
-                  {evaluatedStudentsCount}/{students.length} Evaluated
-                </span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                  evaluationStatus === 'Completed'
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                    : evaluationStatus === 'In Progress'
-                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-                    : 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-slate-400'
-                }`}>
-                  {evaluationStatus}
-                </span>
-              </div>
+              {/* Live Evaluation Progress Pill (shows only when adding milestone assessment scores e.g., MOSY / EOSY / Summer) */}
+              {entryKind !== 'daily' && (
+                <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/80 text-xs">
+                  <span className="text-gray-500 dark:text-slate-400 text-[11px] font-semibold">{assignedPeriod} Progress:</span>
+                  <span className="font-extrabold text-gray-800 dark:text-slate-200 text-xs">
+                    {evaluatedStudentsCount}/{students.length} Evaluated
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                    evaluationStatus === 'Completed'
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                      : evaluationStatus === 'In Progress'
+                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+                      : 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-slate-400'
+                  }`}>
+                    {evaluationStatus}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
               <button
@@ -1170,7 +1407,7 @@ export const TutorScores: React.FC = () => {
                 className={`inline-flex min-h-[44px] sm:min-h-0 sm:h-8 w-full sm:w-auto shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-xs font-bold transition ${entryKind !== 'daily' ? 'border-[var(--brand)] bg-[var(--brand-light)] text-[var(--brand-dark)]' : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-[var(--brand-border)] hover:text-[var(--brand)] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}
               >
                 <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                Add {assignedPeriod} Score
+                {assignedPeriod === 'ARAL Summer Assessment' ? 'Add ARAL Summer Assessment' : `Add ${assignedPeriod} Score`}
               </button>
             </div>
           </div>
@@ -1234,7 +1471,21 @@ export const TutorScores: React.FC = () => {
             </div>
 
             {students.length === 0 ? (
-              <p className="text-center py-6 text-xs text-gray-400">No assigned students found.</p>
+              isLoading ? (
+                <div className="flex flex-col rounded-md border border-gray-200 dark:border-slate-800 p-6 space-y-4 animate-pulse">
+                  <div className="h-4 w-48 bg-gray-200 dark:bg-gray-700 rounded" />
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex items-center gap-4 py-2 border-b border-gray-100 dark:border-slate-800">
+                      <div className="w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-700 shrink-0" />
+                      <div className="h-4 flex-1 rounded bg-gray-200 dark:bg-gray-700" />
+                      <div className="h-8 w-24 rounded-md bg-gray-100 dark:bg-gray-800" />
+                      <div className="h-8 w-24 rounded-md bg-gray-100 dark:bg-gray-800" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center py-6 text-xs text-gray-400">No assigned students found.</p>
+              )
             ) : (
               <div className="flex flex-col rounded-md border border-gray-200 dark:border-slate-800 sm:min-h-0 sm:flex-1 sm:overflow-hidden">
                 <div className="flex shrink-0 flex-col gap-3 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 sm:py-2.5 sm:flex-row sm:items-center sm:justify-between">
@@ -1288,12 +1539,13 @@ export const TutorScores: React.FC = () => {
                         const isNotTaken = status === 'Not';
                         const rawScore = entryScores[student.id];
                         const activeTotal = Number(totalScore) || 0;
+                        const hasValidScore = rawScore !== '' && rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore));
                         const pct = isNotTaken
                           ? 0
-                          : (!isNotTaken && rawScore !== '' && activeTotal > 0
+                          : (hasValidScore && activeTotal > 0
                             ? Math.round((Number(rawScore) / activeTotal) * 100 * 10) / 10
                             : null);
-                        const isPassingMilestone = entryKind !== 'daily' && pct !== null && pct >= 70;
+                        const isPassingMilestone = entryKind !== 'daily' && pct !== null && !isNaN(pct) && pct >= 70;
 
                         return (
                           <tr key={student.id} className="divide-x divide-gray-100 dark:divide-slate-800 transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800/60">
@@ -1319,7 +1571,7 @@ export const TutorScores: React.FC = () => {
                               />
                             </td>
                             <td className="px-4 py-2.5 text-center">
-                              {pct !== null ? (
+                              {pct !== null && !isNaN(pct) ? (
                                 <div>
                                   <span className={`block text-xs font-extrabold ${scoreColor(pct)}`}>{pct}%</span>
                                   {entryKind !== 'daily' && (
@@ -1362,12 +1614,13 @@ export const TutorScores: React.FC = () => {
                       const isNotTaken = status === 'Not';
                       const rawScore = entryScores[student.id];
                       const activeTotal = Number(totalScore) || 0;
+                      const hasValidScore = rawScore !== '' && rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore));
                       const pct = isNotTaken
                         ? 0
-                        : (!isNotTaken && rawScore !== '' && activeTotal > 0
+                        : (hasValidScore && activeTotal > 0
                           ? Math.round((Number(rawScore) / activeTotal) * 100 * 10) / 10
                           : null);
-                      const isPassingMilestone = entryKind !== 'daily' && pct !== null && pct >= 70;
+                      const isPassingMilestone = entryKind !== 'daily' && pct !== null && !isNaN(pct) && pct >= 70;
 
                       return (
                         <div
@@ -1423,7 +1676,7 @@ export const TutorScores: React.FC = () => {
 
                             <div className="flex items-center gap-1.5 shrink-0">
                               <span className="text-xs font-medium text-gray-400">Preview:</span>
-                              {pct !== null ? (
+                              {pct !== null && !isNaN(pct) ? (
                                 <div className="flex items-center gap-1">
                                   <span className={`text-sm font-black ${scoreColor(pct)}`}>{pct}%</span>
                                   {entryKind !== 'daily' && (
@@ -1618,9 +1871,11 @@ export const TutorScores: React.FC = () => {
         >
           <div className="relative w-full max-w-sm rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl space-y-3 animate-fade-in-scale">
             <div>
-              <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">Add {assignedPeriod} Score</h3>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">
+                {assignedPeriod === 'ARAL Summer Assessment' ? 'Add ARAL Summer Assessment' : `Add ${assignedPeriod} Score`}
+              </h3>
               <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-slate-400">
-                Are you sure you want to add a {assignedPeriod} score?
+                Are you sure you want to add {assignedPeriod === 'ARAL Summer Assessment' ? 'an ARAL Summer Assessment entry' : `a ${assignedPeriod} score`}?
               </p>
             </div>
             <div className="flex items-center justify-end gap-2 pt-2">
@@ -1636,7 +1891,7 @@ export const TutorScores: React.FC = () => {
                 onClick={confirmMilestoneEntry}
                 className="rounded-md bg-[var(--brand)] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer"
               >
-                Add {assignedPeriod}
+                {assignedPeriod === 'ARAL Summer Assessment' ? 'Add Summer Assessment' : `Add ${assignedPeriod}`}
               </button>
             </div>
           </div>

@@ -76,10 +76,8 @@ export const exportScoresToPdf = async (
     dayColW = remDays / totalDayCols;
   }
 
-  // Header row heights (2-row header for all modes: Row 1 Date, Row 2 Session #)
-  const totalHeaderHeight = 24;
-  const headRow1Height = 12;
-  const headRow2Height = 12;
+  // Header row height (Single row: Session Dates)
+  const totalHeaderHeight = 18;
 
   // Signatures vertical budget (expanded with generous 28pt signing clearance & comfortable gap above signatures)
   const signatureBlockGap = totalStudents > 22 ? 22 : 28;
@@ -96,7 +94,6 @@ export const exportScoresToPdf = async (
   // Typography scaled proportionately to guarantee crisp legibility
   const headerFontSize = isMonthly ? 7.5 : 8.5;
   const dateHeaderFontSize = dayColW >= 38 ? 7.5 : dayColW >= 28 ? 6.5 : 5.5;
-  const sessionLabelBaseFontSize = dayColW >= 38 ? 7.5 : dayColW >= 28 ? 6.5 : 5.5;
   const studentFontSize = totalStudents > 22 ? 8.25 : totalStudents > 16 ? 8.75 : 9.5;
   const scoreFontSize = totalStudents > 22 ? 8.5 : 9.5;
 
@@ -179,7 +176,7 @@ export const exportScoresToPdf = async (
 
     pdf.setFontSize(9.5);
     pdf.setTextColor(51, 65, 85); // #334155
-    pdf.text((data.gradeSection || 'GRADE 8-MANGO').toUpperCase(), pageWidth / 2, curY + 21, { align: 'center' });
+    pdf.text((data.gradeSection || 'MIXED (GRADES 7-10)').toUpperCase(), pageWidth / 2, curY + 21, { align: 'center' });
 
     if (data.taskTitle) {
       pdf.setFont('times', 'normal');
@@ -232,7 +229,7 @@ export const exportScoresToPdf = async (
     return curY;
   };
 
-  // Helper: Render Table Header (Row 1: Session Date, Row 2: Session #)
+  // Helper: Render Table Header (Single Row: Session Date)
   const renderTableHeaders = (tableTopY: number): void => {
     pdf.setDrawColor(30, 41, 59); // #1E293B border
     pdf.setLineWidth(0.5);
@@ -252,11 +249,11 @@ export const exportScoresToPdf = async (
     pdf.setTextColor(15, 23, 42);
     renderCenteredFitText('NAME OF THE STUDENTS', nameX + nameColW / 2, tableTopY + totalHeaderHeight / 2 + 2.5, nameColW - 6, headerFontSize, 7);
 
-    // 3. Session Dates (Top Row 1)
+    // 3. Session Dates
     let curEntryX = nameX + nameColW;
     allEntryCols.forEach((col) => {
       pdf.setFillColor(248, 250, 252);
-      pdf.rect(curEntryX, tableTopY, dayColW, headRow1Height, 'FD');
+      pdf.rect(curEntryX, tableTopY, dayColW, totalHeaderHeight, 'FD');
       pdf.setFont('times', 'bold');
       pdf.setTextColor(15, 23, 42);
       let dateText = formatSessionDateHeader(col.dateKey);
@@ -266,7 +263,7 @@ export const exportScoresToPdf = async (
           dateText = `${parts[1]}/${parts[2]}`;
         }
       }
-      renderCenteredFitText(dateText, curEntryX + dayColW / 2, tableTopY + headRow1Height / 2 + 2.5, dayColW - 2, dateHeaderFontSize, 4.5);
+      renderCenteredFitText(dateText, curEntryX + dayColW / 2, tableTopY + totalHeaderHeight / 2 + 2.5, dayColW - 2, dateHeaderFontSize, 4.5);
       curEntryX += dayColW;
     });
 
@@ -276,24 +273,6 @@ export const exportScoresToPdf = async (
     pdf.setFont('times', 'bold');
     pdf.setTextColor(15, 23, 42);
     renderCenteredFitText('TOTAL SCORE', curEntryX + totalColW / 2, tableTopY + totalHeaderHeight / 2 + 2.5, totalColW - 4, headerFontSize, 6.5);
-
-    // 5. Session Labels (Bottom Row 2)
-    const row2Y = tableTopY + headRow1Height;
-    curEntryX = nameX + nameColW;
-    allEntryCols.forEach((col, idx) => {
-      pdf.setFillColor(255, 255, 255);
-      pdf.rect(curEntryX, row2Y, dayColW, headRow2Height, 'FD');
-      pdf.setFont('times', 'bold');
-      pdf.setTextColor(15, 23, 42);
-      let labelText = col.entryLabel;
-      if (dayColW < 22) {
-        labelText = `S${idx + 1}`;
-      } else if (dayColW < 32) {
-        labelText = `S#${idx + 1}`;
-      }
-      renderCenteredFitText(labelText, curEntryX + dayColW / 2, row2Y + headRow2Height / 2 + 2.5, dayColW - 2, sessionLabelBaseFontSize, 4.5);
-      curEntryX += dayColW;
-    });
   };
 
   // Helper: Render Signatures Block

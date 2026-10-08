@@ -14,6 +14,12 @@ import {
 } from 'lucide-react';
 import { computeStudentRiskRows, type StudentRiskRow, getRiskAvatarClass } from '../../utils/analyticsHelpers';
 import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
+import {
+  getCurrentSemesterMilestone,
+  getActiveSystemMilestone,
+  getActiveSystemSemester,
+  setActiveSystemSemester,
+} from '../../utils/sessionDescriptionHelpers';
 
 interface TutorChartPoint {
   label: string;
@@ -164,7 +170,7 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[]; trendFilter: Tr
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-full select-none min-w-0">
+    <div ref={containerRef} className="relative w-full h-full select-none min-w-0 overflow-hidden">
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full block" role="img" aria-label="Students Performance Trend Chart">
         <defs>
           <linearGradient id="tutorChartFill" x1="0" y1="0" x2="0" y2="1">
@@ -296,32 +302,43 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[]; trendFilter: Tr
         })}
       </svg>
 
-      {/* Floating Tooltip (Viewport-safe & touch-friendly on mobile) */}
+      {/* Floating Tooltip (Guaranteed zero-overflow) */}
       {hoveredIdx !== null && points[hoveredIdx] && (() => {
         const p = points[hoveredIdx];
-        const pointXPct = (p.x / width) * 100;
-        const isNearRight = pointXPct > 70;
-        const tooltipW = 180;
-        const mobileLeft = Math.max(12, Math.min(width - tooltipW - 12, p.x - tooltipW / 2));
+        const isRightHalf = p.x > width * 0.5;
+        const maxTooltipWidth = Math.min(230, Math.max(160, width - 24));
+
+        let tooltipStyle: React.CSSProperties;
+
+        if (isMobile) {
+          const leftPos = Math.max(10, Math.min(width - maxTooltipWidth - 10, p.x - maxTooltipWidth / 2));
+          tooltipStyle = {
+            left: `${leftPos}px`,
+            top: '8px',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        } else if (isRightHalf) {
+          tooltipStyle = {
+            right: `${Math.max(10, width - p.x + 12)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        } else {
+          tooltipStyle = {
+            left: `${Math.max(10, p.x + 12)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        }
 
         return (
           <div
-            className="pointer-events-none absolute z-20 min-w-[160px] max-w-[240px] rounded-xl border border-slate-700/60 bg-slate-900/95 p-3 text-left text-[11px] font-medium leading-normal text-white shadow-2xl backdrop-blur-md transition-all duration-150"
-            style={
-              isMobile
-                ? {
-                    left: `${mobileLeft}px`,
-                    top: '10px',
-                    transform: 'none',
-                  }
-                : {
-                    left: isNearRight ? `calc(${pointXPct}% - 14px)` : `calc(${pointXPct}% + 14px)`,
-                    top: '50%',
-                    transform: isNearRight ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
-                  }
-            }
+            className="pointer-events-none absolute z-20 w-max rounded-xl border border-slate-200 dark:border-zinc-700/60 bg-white/95 dark:bg-zinc-900/95 p-3 text-left text-[11px] font-medium leading-normal text-slate-800 dark:text-white shadow-xl dark:shadow-2xl shadow-slate-900/10 dark:shadow-black/60 backdrop-blur-md transition-all duration-150 overflow-hidden"
+            style={tooltipStyle}
           >
-            <div className="font-extrabold text-[11px] text-[#60A5FA] whitespace-nowrap">
+            <div className="font-extrabold text-[11px] text-[#0052B7] dark:text-[#60A5FA] break-words">
               {p.fullDateLabel || p.label}
             </div>
             <div className="flex items-baseline gap-1 mt-1">
@@ -333,15 +350,15 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[]; trendFilter: Tr
               >
                 {p.value}%
               </span>
-              <span className="text-[9px] text-slate-400">Total Composite Rating</span>
+              <span className="text-[9px] text-slate-500 dark:text-zinc-400">Total Composite Rating</span>
             </div>
             {p.assessmentLabels.length > 0 && (
-              <div className="mt-1.5 bg-[#0284C7]/20 border border-[#0284C7]/40 text-[#38BDF8] px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5 shadow-[0_0_8px_rgba(2,132,199,0.25)]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#38BDF8] shadow-[0_0_6px_rgba(56,189,248,0.8)] inline-block" />
+              <div className="mt-1.5 bg-sky-50 dark:bg-[#0284C7]/20 border border-sky-200 dark:border-[#0284C7]/40 text-sky-700 dark:text-[#38BDF8] px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5 shadow-sm dark:shadow-[0_0_8px_rgba(2,132,199,0.25)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-600 dark:bg-[#38BDF8] shadow-none dark:shadow-[0_0_6px_rgba(56,189,248,0.8)] inline-block" />
                 <span className="uppercase tracking-wider">{p.assessmentLabels.join(', ')}</span>
               </div>
             )}
-            <div className="text-[9px] text-slate-400 mt-1 border-t border-slate-800 pt-1 space-y-0.5">
+            <div className="text-[9px] text-slate-500 dark:text-zinc-400 mt-1 border-t border-slate-100 dark:border-zinc-800 pt-1 space-y-0.5">
               <div>
                 {p.actualCount > 0
                   ? `${p.actualCount} ${p.actualCount === 1 ? 'score' : 'scores'} logged`
@@ -438,12 +455,28 @@ export const TutorHome: React.FC = () => {
     [studentStats]
   );
 
+  const [activeSystemSem, setActiveSystemSem] = useState(() => getActiveSystemSemester());
+
+  useEffect(() => {
+    academicService.getCurrentSchoolYear().then((sy) => {
+      if (sy && sy.current_semester) {
+        setActiveSystemSemester(sy.current_semester as any);
+        setActiveSystemSem(sy.current_semester as any);
+      }
+    }).catch(() => {});
+
+    const handleSemChange = (e: any) => {
+      const newSem = e?.detail?.semester || getActiveSystemSemester();
+      setActiveSystemSem(newSem);
+    };
+
+    window.addEventListener('system_semester_changed', handleSemChange);
+    return () => window.removeEventListener('system_semester_changed', handleSemChange);
+  }, []);
+
   const tutorMilestone = useMemo(() => {
-    const level = (user?.aral_level || 'basic').toLowerCase();
-    if (level === 'plus') return 'EOSY';
-    if (level === 'summer') return 'ARAL Summer Assessment';
-    return 'MOSY'; // for basic
-  }, [user?.aral_level]);
+    return getActiveSystemMilestone();
+  }, [activeSystemSem]);
 
   const last4WeeksData = useMemo(() => {
     if (students.length === 0 || grades.length === 0) return [];
@@ -790,7 +823,7 @@ export const TutorHome: React.FC = () => {
           </div>
 
           <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3 sm:mt-4">
-            <div className="relative flex-1 h-[220px] xs:h-[240px] sm:h-[280px] lg:h-full lg:min-h-[300px] w-full min-w-0 max-w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-md px-2 py-2 sm:px-5 sm:py-2.5">
+            <div className="relative flex-1 min-h-[180px] xs:min-h-[220px] sm:min-h-[240px] w-full min-w-0 max-w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-5 sm:py-2.5 overflow-hidden">
               {last4WeeksData.length > 0 ? (
                 <InteractiveTutorChart data={last4WeeksData} trendFilter={trendFilter} />
               ) : (
@@ -806,47 +839,45 @@ export const TutorHome: React.FC = () => {
               )}
             </div>
 
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1 shrink-0">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
-                {[
-                  {
-                    label: 'Highest',
-                    value: last4WeeksData.length === 0 ? '—' : `${highestScore}%`,
-                    color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : highestScore >= 81 ? 'text-risk-low' : highestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
-                  },
-                  {
-                    label: 'Lowest',
-                    value: last4WeeksData.length === 0 ? '—' : `${lowestScore}%`,
-                    color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : lowestScore >= 81 ? 'text-risk-low' : lowestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
-                  },
-                ].map((stat) => (
-                  <div key={stat.label} className="bg-gray-50 dark:bg-[#111111] p-2 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
-                    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">{stat.label}</p>
-                    <p className={`text-lg font-extrabold mt-0.5 ${stat.color}`}>{stat.value}</p>
-                  </div>
-                ))}
-                <div className="bg-gray-50 dark:bg-[#111111] p-2 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">Trend</p>
-                  <div className="mt-0.5">
-                    {last4WeeksData.length === 0 ? (
-                      <span className="text-lg font-extrabold text-gray-400 dark:text-slate-500">—</span>
-                    ) : tutorTrendDir === 'up' ? (
-                      <span className="text-lg font-extrabold text-risk-low">Improving</span>
-                    ) : tutorTrendDir === 'down' ? (
-                      <span className="text-lg font-extrabold text-risk-high">Declining</span>
-                    ) : (
-                      <span className="text-lg font-extrabold text-gray-500 dark:text-slate-400">Stable</span>
-                    )}
-                  </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0 pt-1">
+              {[
+                {
+                  label: 'Highest',
+                  value: last4WeeksData.length === 0 ? '—' : `${highestScore}%`,
+                  color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : highestScore >= 81 ? 'text-risk-low' : highestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
+                },
+                {
+                  label: 'Lowest',
+                  value: last4WeeksData.length === 0 ? '—' : `${lowestScore}%`,
+                  color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : lowestScore >= 81 ? 'text-risk-low' : lowestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
+                },
+              ].map((stat) => (
+                <div key={stat.label} className="bg-gray-50/80 dark:bg-[#111111] p-2.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">{stat.label}</p>
+                  <p className={`text-base sm:text-lg font-extrabold mt-0.5 ${stat.color}`}>{stat.value}</p>
                 </div>
-                <Link
-                  to="/tutor/analytics"
-                  className="flex items-center justify-center gap-1.5 rounded-md border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-4 py-2 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300"
-                >
-                  <span>See More</span>
-                  <span className="font-bold" aria-hidden="true">&gt;</span>
-                </Link>
+              ))}
+              <div className="bg-gray-50/80 dark:bg-[#111111] p-2.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
+                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">Trend</p>
+                <div className="mt-0.5">
+                  {last4WeeksData.length === 0 ? (
+                    <span className="text-base sm:text-lg font-extrabold text-gray-400 dark:text-slate-500">—</span>
+                  ) : tutorTrendDir === 'up' ? (
+                    <span className="text-base sm:text-lg font-extrabold text-risk-low">Improving</span>
+                  ) : tutorTrendDir === 'down' ? (
+                    <span className="text-base sm:text-lg font-extrabold text-risk-high">Declining</span>
+                  ) : (
+                    <span className="text-base sm:text-lg font-extrabold text-gray-500 dark:text-slate-400">Stable</span>
+                  )}
+                </div>
               </div>
+              <Link
+                to="/tutor/analytics"
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-4 py-2.5 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300"
+              >
+                <span>See More</span>
+                <span className="font-bold" aria-hidden="true">&gt;</span>
+              </Link>
             </div>
           </div>
         </div>

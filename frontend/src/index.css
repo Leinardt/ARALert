@@ -21,7 +21,7 @@ input[type="time"],
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 64px;
+  scroll-padding-top: 0px;
 }
 
 html, body, #root {
@@ -88,23 +88,25 @@ html, body, #root {
    Glassmorphism Interactive Buttons & Border Hover Effects
    ═══════════════════════════════════════════════════════════════ */
 .glass-btn {
-  background-color: rgba(255, 255, 255, 0.65);
+  background-color: transparent;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  color: #0f172a;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  color: #0052B7;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-              color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-btn:hover {
-  border-color: #0052B7;
-  color: #0052B7;
+  background-color: #0052B7 !important;
+  border-color: #0052B7 !important;
+  color: #ffffff !important;
   transform: translateY(-1.5px);
-  box-shadow: 0 2px 8px rgba(0, 82, 183, 0.12);
+  box-shadow: 0 4px 14px rgba(0, 82, 183, 0.25);
+}
+
+.glass-btn:hover * {
+  color: #ffffff !important;
 }
 
 .glass-btn:focus-visible {
@@ -115,7 +117,9 @@ html, body, #root {
 
 .glass-btn:active {
   transform: translateY(0);
-  border-color: #004294;
+  background-color: #004294 !important;
+  border-color: #004294 !important;
+  color: #ffffff !important;
 }
 
 /* Glass Card Option Buttons */
@@ -154,19 +158,24 @@ html, body, #root {
 /* ── Dark Mode States (Visible High-Contrast Blue Border with Subtle Glow) ── */
 .dark .glass-btn,
 :where(.dark, .dark *) .glass-btn {
-  background-color: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #f8fafc;
+  background-color: transparent;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #60a5fa;
   box-shadow: none;
 }
 
 .dark .glass-btn:hover,
 :where(.dark, .dark *) .glass-btn:hover {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border-color: #60a5fa !important;
-  color: #93c5fd !important;
+  background-color: #0052B7 !important;
+  border-color: #0052B7 !important;
+  color: #ffffff !important;
   transform: translateY(-1.5px);
-  box-shadow: 0 0 12px rgba(96, 165, 250, 0.3), inset 0 0 0 1px rgba(96, 165, 250, 0.2) !important;
+  box-shadow: 0 4px 14px rgba(0, 82, 183, 0.35) !important;
+}
+
+.dark .glass-btn:hover *,
+:where(.dark, .dark *) .glass-btn:hover * {
+  color: #ffffff !important;
 }
 
 .dark .glass-btn:focus-visible,
@@ -261,17 +270,17 @@ html, body, #root {
   --yellow-border:        #FDE047;
   --yellow-glow:          rgba(245, 158, 11, 0.35);
 
-  /* ── Neutral / Slate Palette ── */
+  /* ── Neutral / Slate Palette (Darkened for high-contrast legibility) ── */
   --slate-50:  #F8FAFC;
   --slate-100: #F1F5F9;
   --slate-200: #E2E8F0;
   --slate-300: #CBD5E1;
-  --slate-400: #94A3B8;
-  --slate-500: #64748B;
-  --slate-600: #475569;
-  --slate-700: #334155;
-  --slate-800: #1E293B;
-  --slate-900: #0F172A;
+  --slate-400: #475569;
+  --slate-500: #334155;
+  --slate-600: #1E293B;
+  --slate-700: #0F172A;
+  --slate-800: #0F172A;
+  --slate-900: #020617;
 
   /* ── Surface & Background ── */
   --surface-bg:    #FFFFFF;
@@ -281,9 +290,9 @@ html, body, #root {
 
   /* ── Text ── */
   --text-primary:   #0F172A;
-  --text-secondary: #475569;
-  --text-muted:     #64748B;
-  --text-disabled:  #94A3B8;
+  --text-secondary: #334155;
+  --text-muted:     #334155;
+  --text-disabled:  #64748B;
 
   /* ── Semantic Colors & Academic Risk Hierarchy ── */
   --color-success: var(--risk-low);
@@ -347,39 +356,39 @@ html, body, #root {
   color-scheme: dark;
 
   --sidebar-icon-color: #FFFFFF;
-  --sidebar-icon-active-color: #FFFFFF;
+  --sidebar-icon-active-color: #38BDF8;
 
   /* Note: Dark mode brand adaptations are centralized in ./theme.css */
 
   --yellow-accent:        #FBBF24;
   --yellow-hover:         #F59E0B;
   --yellow-dark:          #D97706;
-  --yellow-light:         rgba(245, 158, 11, 0.12);
-  --yellow-lighter:       rgba(245, 158, 11, 0.06);
-  --yellow-border:        rgba(245, 158, 11, 0.25);
-  --yellow-glow:          rgba(251, 191, 36, 0.18);
+  --yellow-light:         rgba(251, 191, 36, 0.14);
+  --yellow-lighter:       rgba(251, 191, 36, 0.08);
+  --yellow-border:        rgba(251, 191, 36, 0.35);
+  --yellow-glow:          rgba(251, 191, 36, 0.20);
 
-  /* True Pure Black (#000000) & OLED Slate Surfaces */
+  /* Pitch-Black Dark Mode System (OLED / True Black #000000 Surfaces) */
   --slate-50:  #000000;
-  --slate-100: #0A0A0A;
-  --slate-200: #222222;
-  --slate-300: #333333;
-  --slate-400: #71717A;
-  --slate-500: #A1A1AA;
-  --slate-600: #D4D4D8;
-  --slate-700: #E4E4E7;
-  --slate-800: #F4F4F5;
-  --slate-900: #FFFFFF;
+  --slate-100: #09090b;
+  --slate-200: #27272a;
+  --slate-300: #3f3f46;
+  --slate-400: #a1a1aa;
+  --slate-500: #71717a;
+  --slate-600: #a1a1aa;
+  --slate-700: #d4d4d8;
+  --slate-800: #f4f4f5;
+  --slate-900: #ffffff;
 
-  /* Pure black background with sleek elevated cards */
+  /* Cohesive pitch-black OLED surfaces */
   --surface-bg:    #000000;
-  --surface-card:  #0A0A0A;
-  --container-bg:  #0A0A0A;
-  --surface-muted: #141414;
+  --surface-card:  #000000;
+  --container-bg:  #000000;
+  --surface-muted: #09090b;
 
-  /* High contrast text hierarchy */
+  /* High-Contrast, Crisp Text Hierarchy against Pure Black */
   --text-primary:   #FFFFFF;
-  --text-secondary: #D4D4D8;
+  --text-secondary: #E4E4E7;
   --text-muted:     #A1A1AA;
   --text-disabled:  #71717A;
 
@@ -398,36 +407,51 @@ html, body, #root {
   --color-danger-border:  var(--risk-high-border);
   --color-info-border:    var(--brand-border);
 
-  /* ── Solid Clean Academic Risk & Status Hierarchy in Dark Mode (Clean Borderless Outline) ── */
-  --risk-low:            #22C55E;
-  --risk-low-bg:         #052E16;
-  --risk-low-border:     transparent;
-  --risk-low-text:       #4ADE80;
-  --risk-low-badge-bg:   #064E3B;
+  /* ── High-Contrast Risk & Status Hierarchy in Dark Mode (Vibrant against #000000) ── */
+  --risk-low:            #34D399;
+  --risk-low-bg:         rgba(52, 211, 153, 0.14);
+  --risk-low-border:     rgba(52, 211, 153, 0.40);
+  --risk-low-text:       #34D399;
+  --risk-low-badge-bg:   rgba(52, 211, 153, 0.20);
 
-  --risk-medium:         #F59E0B;
-  --risk-medium-bg:      #451A03;
-  --risk-medium-border:  transparent;
+  --risk-medium:         #FBBF24;
+  --risk-medium-bg:      rgba(251, 191, 36, 0.14);
+  --risk-medium-border:  rgba(251, 191, 36, 0.40);
   --risk-medium-text:    #FBBF24;
-  --risk-medium-badge-bg:#78350F;
+  --risk-medium-badge-bg:rgba(251, 191, 36, 0.20);
 
-  --risk-high:           #EF4444;
-  --risk-high-bg:        #450A0A;
-  --risk-high-border:    transparent;
-  --risk-high-text:      #F87171;
-  --risk-high-badge-bg:  #881337;
+  --risk-high:           #FB7185;
+  --risk-high-bg:        rgba(251, 113, 133, 0.14);
+  --risk-high-border:    rgba(251, 113, 133, 0.40);
+  --risk-high-text:      #FB7185;
+  --risk-high-badge-bg:  rgba(251, 113, 133, 0.20);
 
   --sidebar-bg:         #000000;
-  --sidebar-border:     #1F1F1F;
+  --sidebar-border:     #27272a;
   --sidebar-item:       #A1A1AA;
-  --sidebar-item-hover: #181818;
-  --sidebar-active-border: rgba(96, 165, 250, 0.60);
-  --sidebar-active-text: #93C5FD;
+  --sidebar-item-hover: #18181B;
+  --sidebar-active-border: rgba(56, 189, 248, 0.50);
+  --sidebar-active-text: #38BDF8;
   --sidebar-heading:    #71717A;
 
-  --glass-bg:     rgba(0, 0, 0, 0.90);
-  --glass-border: rgba(255, 255, 255, 0.12);
-  --glass-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.80);
+  --glass-bg:     #000000;
+  --glass-border: #27272a;
+  --glass-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.95);
+}
+
+/* ── OLED / True Black Surfaces System (#000000) ── */
+.dark,
+.dark body,
+.dark #root,
+.dark main {
+  background-color: #000000 !important;
+}
+
+.dark [role="dialog"],
+.dark .modal-content,
+.dark .modal-box {
+  background-color: #000000 !important;
+  border-color: #27272a !important;
 }
 
 :root {
@@ -461,6 +485,21 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
+}
+
+/* ── Global Contrast Enhancement: Darken muted gray text across the app to high-contrast dark slate/charcoal ── */
+:root:not(.dark) .text-slate-400,
+:root:not(.dark) .text-gray-400,
+:root:not(.dark) .text-zinc-400,
+:root:not(.dark) .text-neutral-400 {
+  color: #475569;
+}
+
+:root:not(.dark) .text-slate-500,
+:root:not(.dark) .text-gray-500,
+:root:not(.dark) .text-zinc-500,
+:root:not(.dark) .text-neutral-500 {
+  color: #334155;
 }
 
 h1, h2, h3, h4, h5, h6, .font-heading {
@@ -1834,17 +1873,17 @@ table.divide-y > tbody > tr:first-child > td {
 }
 
 /* Hover row */
-.dark .hover\:bg-gray-50:hover  { background-color: #161616 !important; }
-.dark .hover\:bg-gray-100:hover { background-color: #161616 !important; }
-.dark .hover\:bg-slate-50:hover { background-color: #161616 !important; }
-.dark .hover\:bg-slate-100:hover { background-color: #161616 !important; }
+.dark .hover\:bg-gray-50:hover  { background-color: var(--surface-muted) !important; }
+.dark .hover\:bg-gray-100:hover { background-color: var(--surface-muted) !important; }
+.dark .hover\:bg-slate-50:hover { background-color: var(--surface-muted) !important; }
+.dark .hover\:bg-slate-100:hover { background-color: var(--surface-muted) !important; }
 
 /* Badge Utilities in Dark Mode */
 .dark .badge-green, .dark .badge-risk-low    { background: var(--risk-low-bg) !important; color: var(--risk-low-text) !important; border: 1px solid var(--risk-low-border) !important; }
 .dark .badge-red, .dark .badge-risk-high     { background: var(--risk-high-bg) !important; color: var(--risk-high-text) !important; border: 1px solid var(--risk-high-border) !important; }
 .dark .badge-amber, .dark .badge-risk-medium { background: var(--risk-medium-bg) !important; color: var(--risk-medium-text) !important; border: 1px solid var(--risk-medium-border) !important; }
-.dark .badge-blue                            { background: rgba(56, 189, 248, 0.12) !important; color: #7DD3FC !important; border: 1px solid rgba(56, 189, 248, 0.25) !important; }
-.dark .badge-slate                           { background: #161616 !important; color: #D4D4D8 !important; border: 1px solid #2D2D2D !important; }
+.dark .badge-blue                            { background: rgba(56, 189, 248, 0.10) !important; color: #7DD3FC !important; border: 1px solid rgba(56, 189, 248, 0.22) !important; }
+.dark .badge-slate                           { background: var(--surface-muted) !important; color: var(--text-secondary) !important; border: 1px solid var(--slate-200) !important; }
 
 /* Alert Utilities in Dark Mode */
 .dark .alert-success { background: rgba(16, 185, 129, 0.12) !important; color: #6EE7B7 !important; border-color: rgba(16, 185, 129, 0.25) !important; }
@@ -1972,16 +2011,28 @@ table.divide-y > tbody > tr:first-child > td {
   border-color: var(--glass-border);
 }
 
-/* Fix hardcoded pitch-black cards and borders across tutor/analytics pages */
-.dark .dark\:bg-\[\#0A0A0A\] { background-color: var(--surface-card) !important; }
-.dark .dark\:bg-\[\#111111\] { background-color: var(--surface-muted) !important; }
-.dark .dark\:border-\[\#1A1A1A\] { border-color: var(--slate-200) !important; }
+/* Remap dark card, container, and border utility classes to cohesive dark slate palette */
+.dark .dark\:bg-\[\#0A0A0A\],
+.dark .dark\:bg-\[\#0c111c\],
+.dark .dark\:bg-slate-900,
+.dark .dark\:bg-zinc-900 { background-color: var(--surface-card) !important; }
+
+.dark .dark\:bg-\[\#111111\],
+.dark .dark\:bg-slate-800,
+.dark .dark\:bg-zinc-800 { background-color: var(--surface-muted) !important; }
+
+.dark .dark\:border-\[\#1A1A1A\],
+.dark .dark\:border-slate-800,
+.dark .dark\:border-slate-700,
+.dark .dark\:border-zinc-800,
+.dark .dark\:border-zinc-700 { border-color: var(--slate-200) !important; }
+
 .dark .dark\:bg-\[\#000000\] { background-color: var(--surface-bg) !important; }
-.dark .dark\:bg-slate-900 { background-color: var(--surface-card) !important; }
-.dark .dark\:bg-slate-800 { background-color: var(--surface-muted) !important; }
-.dark .dark\:border-slate-800 { border-color: var(--slate-200) !important; }
-.dark .dark\:border-slate-700 { border-color: var(--slate-200) !important; }
-.dark .dark\:divide-slate-700 > * + * { border-color: var(--slate-200) !important; }
+
+.dark .dark\:divide-slate-700 > * + *,
+.dark .dark\:divide-slate-800 > * + *,
+.dark .dark\:divide-zinc-800 > * + *,
+.dark .dark\:divide-\[\#1A1A1A\] > * + * { border-color: var(--slate-200) !important; }
 
 /* Fix .auth-bg and .auth-card */
 .dark .auth-bg { background: var(--surface-bg); }
@@ -2005,7 +2056,8 @@ table.divide-y > tbody > tr:first-child > td {
 .dark .text-indigo-600 { color: var(--brand) !important; }
 .dark .border-indigo-100 { border-color: var(--brand-border) !important; }
 
-/* Solid Red in Dark Mode (Clean Seamless Outline) */
+/* ── Dark Mode Outlined Container / Ghost Border System ──────────────────────── */
+/* Red / Rose Outlined Containers */
 .dark .bg-rose-50,
 .dark .bg-rose-100,
 .dark .bg-red-50,
@@ -2017,9 +2069,9 @@ table.divide-y > tbody > tr:first-child > td {
 .dark .bg-rose-950\/60,
 .dark .bg-red-950\/30,
 .dark .bg-red-950\/40 { 
-  background-color: #450A0A !important; 
+  background-color: transparent !important; 
   color: #F87171 !important; 
-  border-color: transparent !important;
+  border-color: rgba(239, 68, 68, 0.45) !important;
 }
 .dark .bg-rose-50 *,
 .dark .bg-rose-100 *,
@@ -2053,9 +2105,9 @@ table.divide-y > tbody > tr:first-child > td {
 .dark .border-rose-900,
 .dark .border-red-100,
 .dark .border-red-200,
-.dark .border-red-900   { border-color: transparent !important; }
+.dark .border-red-900   { border-color: rgba(239, 68, 68, 0.45) !important; }
 
-/* Solid Orange / Amber in Dark Mode (Clean Seamless Outline) */
+/* Orange / Amber Outlined Containers (e.g. Transition Locked, warnings) */
 .dark .bg-amber-50,
 .dark .bg-amber-100,
 .dark .bg-orange-50,
@@ -2064,11 +2116,13 @@ table.divide-y > tbody > tr:first-child > td {
 .dark .bg-amber-950\/20,
 .dark .bg-amber-950\/30,
 .dark .bg-amber-950\/40,
+.dark .bg-amber-950\/50,
+.dark .bg-amber-950\/60,
 .dark .bg-orange-950\/30,
 .dark .bg-orange-950\/40 { 
-  background-color: #451A03 !important; 
+  background-color: transparent !important; 
   color: #FBBF24 !important; 
-  border-color: transparent !important;
+  border-color: rgba(245, 158, 11, 0.45) !important;
 }
 .dark .bg-amber-50 *,
 .dark .bg-amber-100 *,
@@ -2078,6 +2132,8 @@ table.divide-y > tbody > tr:first-child > td {
 .dark .bg-amber-950\/20 *,
 .dark .bg-amber-950\/30 *,
 .dark .bg-amber-950\/40 *,
+.dark .bg-amber-950\/50 *,
+.dark .bg-amber-950\/60 *,
 .dark .bg-orange-950\/30 *,
 .dark .bg-orange-950\/40 * { 
   color: #FBBF24 !important; 
@@ -2100,9 +2156,9 @@ table.divide-y > tbody > tr:first-child > td {
 .dark .border-amber-800,
 .dark .border-amber-900,
 .dark .border-orange-100,
-.dark .border-orange-200 { border-color: transparent !important; }
+.dark .border-orange-200 { border-color: rgba(245, 158, 11, 0.45) !important; }
 
-/* Solid Green / Emerald in Dark Mode (Clean Seamless Outline) */
+/* Green / Emerald Outlined Containers */
 .dark .bg-emerald-50,
 .dark .bg-emerald-100,
 .dark .bg-green-50,
@@ -2110,11 +2166,13 @@ table.divide-y > tbody > tr:first-child > td {
 .dark .bg-emerald-950\/20,
 .dark .bg-emerald-950\/30,
 .dark .bg-emerald-950\/40,
+.dark .bg-emerald-950\/50,
+.dark .bg-emerald-950\/60,
 .dark .bg-green-950\/30,
 .dark .bg-green-950\/40 { 
-  background-color: #052E16 !important; 
+  background-color: transparent !important; 
   color: #4ADE80 !important; 
-  border-color: transparent !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
 }
 .dark .bg-emerald-50 *,
 .dark .bg-emerald-100 *,
@@ -2123,6 +2181,8 @@ table.divide-y > tbody > tr:first-child > td {
 .dark .bg-emerald-950\/20 *,
 .dark .bg-emerald-950\/30 *,
 .dark .bg-emerald-950\/40 *,
+.dark .bg-emerald-950\/50 *,
+.dark .bg-emerald-950\/60 *,
 .dark .bg-green-950\/30 *,
 .dark .bg-green-950\/40 * { 
   color: #4ADE80 !important; 
@@ -2139,6 +2199,28 @@ table.divide-y > tbody > tr:first-child > td {
 .dark .text-green-700,
 .dark .text-emerald-200,
 .dark .text-emerald-300  { color: #4ADE80 !important; }
+
+/* Blue / Sky Outlined Containers */
+.dark .bg-blue-50,
+.dark .bg-blue-100,
+.dark .bg-sky-50,
+.dark .bg-sky-100,
+.dark .bg-blue-950\/20,
+.dark .bg-blue-950\/30,
+.dark .bg-blue-950\/40 {
+  background-color: transparent !important;
+  color: #60A5FA !important;
+  border-color: rgba(59, 130, 246, 0.45) !important;
+}
+.dark .bg-blue-50 *,
+.dark .bg-blue-100 *,
+.dark .bg-sky-50 *,
+.dark .bg-sky-100 *,
+.dark .bg-blue-950\/20 *,
+.dark .bg-blue-950\/30 *,
+.dark .bg-blue-950\/40 * {
+  color: #60A5FA !important;
+}
 
 .dark .border-emerald-100,
 .dark .border-emerald-200,

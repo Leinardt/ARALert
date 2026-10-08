@@ -187,64 +187,69 @@ def process_mosy_completion(admin_user: User | None = None) -> dict:
                     enrollment.program = 'plus'
                     student.aral_level = 'plus'
 
-            # Rule 5.1: Plus Students After MOSY
-            # Must become Unassigned / Awaiting Plus Tutor Assignment.
-            if student.aral_level == 'plus' or enrollment.program == 'plus':
-                previous_tutor = student.assigned_tutor
-                if previous_tutor:
-                    # Deactivate current assignment history but preserve record
-                    TutorAssignmentHistory.objects.filter(
+            # CLEAN-SLATE RESET: All students (Plus and Basic) are unassigned after MOSY.
+            # Every active TutorAssignmentHistory record is concluded with an end date.
+            # Admin will reassign fresh cohorts to all tutors (who become fully vacant).
+            previous_tutor = student.assigned_tutor
+            mosy_result_label = result if eval_status == 'completed' else 'pending'
+
+            if previous_tutor:
+                updated_count = TutorAssignmentHistory.objects.filter(
+                    student=student,
+                    school_year=active_sy,
+                    is_active=True,
+                ).update(
+                    is_active=False,
+                    end_date=timezone.localdate(),
+                    period='MOSY',
+                    notes=f'Concluded after MOSY period — MOSY result: {mosy_result_label}. (Previously: {previous_tutor.get_full_name()})'
+                )
+                if updated_count == 0:
+                    TutorAssignmentHistory.objects.create(
                         student=student,
+                        tutor=previous_tutor,
                         school_year=active_sy,
-                        is_active=True,
-                    ).update(
-                        is_active=False,
+                        period='MOSY',
+                        program=student.aral_level or 'basic',
+                        start_date=timezone.localdate(),
                         end_date=timezone.localdate(),
-                        notes=f'Deassigned after MOSY for Plus tutor reassignment (Previously: {previous_tutor.get_full_name()})'
+                        is_active=False,
+                        notes=f'Concluded after MOSY period — MOSY result: {mosy_result_label}.'
                     )
 
-                student.assigned_tutor = None
-                student.save(update_fields=['assigned_tutor', 'aral_level'])
-                enrollment.assigned_tutor = None
-                enrollment.save(update_fields=['assigned_tutor', 'program', 'mosy_result', 'updated_at'])
-                plus_unassigned_count += 1
+            student.assigned_tutor = None
+            save_fields = ['assigned_tutor', 'aral_level'] if (student.aral_level == 'plus' or enrollment.program == 'plus') else ['assigned_tutor']
+            student.save(update_fields=save_fields)
+            enrollment.assigned_tutor = None
+            enrollment.save(update_fields=['assigned_tutor', 'program', 'mosy_result', 'updated_at'])
 
-            # Rule 6: Basic Students After MOSY
-            # Keep existing compatible Basic tutor
-            elif student.aral_level == 'basic' or enrollment.program == 'basic':
-                # Check if current tutor is still compatible
-                current_tutor = student.assigned_tutor
-                if current_tutor and current_tutor.tutor_type == 'plus':
-                    # Incompatible: unassign
-                    student.assigned_tutor = None
-                    student.save(update_fields=['assigned_tutor'])
-                    enrollment.assigned_tutor = None
-                    enrollment.save(update_fields=['assigned_tutor', 'mosy_result', 'updated_at'])
-                else:
-                    enrollment.save(update_fields=['mosy_result', 'updated_at'])
-                    basic_retained_count += 1
+            if student.aral_level == 'plus' or enrollment.program == 'plus':
+                plus_unassigned_count += 1
+            else:
+                basic_retained_count += 1
 
     return {
         'status': 'SUCCESS',
-        'message': f'MOSY processing completed: {plus_unassigned_count} Plus student(s) awaiting Plus tutor assignment; {basic_retained_count} Basic student(s) retained with their tutor.',
+        'message': f'MOSY period finalized. All student-tutor pairings concluded: {plus_unassigned_count} Plus student(s) and {basic_retained_count} Basic student(s) are now unassigned and ready for cohort reassignment by Admin.',
         'plus_unassigned_count': plus_unassigned_count,
-        'basic_retained_count': basic_retained_count,
+        'basic_unassigned_count': basic_retained_count,
     }
 
 
 def get_mosy_assignment_dashboard_data(school_year: SchoolYear | None = None) -> dict:
     """
-    Returns data for the Admin MOSY Tutor Assignment Dashboard:
-    - Unassigned Plus Students
-    - Basic Students (assigned and continuing)
+    Returns data for the Admin MOSY Tutor Assignment Dashboard after clean-slate reset:
+    - Unassigned Plus Students (leveled up from Basic, or already Plus)
+    - Unassigned Basic Students (failed MOSY retake, or pending evaluation)
     - Graduated Students
+    All tutors are vacant; Admin assigns fresh cohorts of 15-25 mixed-grade students.
     """
     if not school_year:
         school_year = SchoolYear.objects.filter(is_active=True).first()
 
     active_sy_str = school_year.school_year if school_year else '2025-2026'
 
-    # 1. Unassigned Plus Students
+    # 1. Unassigned Plus Students (leveled up from Basic or already Plus)
     unassigned_plus = []
     plus_students = User.objects.filter(
         role='student',
@@ -260,6 +265,15 @@ def get_mosy_assignment_dashboard_data(school_year: SchoolYear | None = None) ->
 
         status, result, pct = get_student_mosy_status(s, school_year)
 
+        # Determine retake status badge
+        prev_program = last_assignment.program if last_assignment else 'basic'
+        if prev_program == 'basic' and result == 'passed':
+            status_badge = 'Leveled Up to PLUS'
+            status_color = 'green'
+        else:
+            status_badge = 'Ready for Q3/Q4 PLUS Cohort'
+            status_color = 'blue'
+
         unassigned_plus.append({
             'id': str(s.id),
             'full_name': s.get_full_name(),
@@ -271,30 +285,49 @@ def get_mosy_assignment_dashboard_data(school_year: SchoolYear | None = None) ->
             'mosy_score_pct': pct,
             'previous_tutor': prev_tutor_name,
             'assignment_status': 'Awaiting Plus Tutor Assignment',
+            'status_badge': status_badge,
+            'status_color': status_color,
         })
 
-    # 2. Basic Students
-    basic_students_list = []
+    # 2. Unassigned Basic Students (failed MOSY — retake needed)
+    unassigned_basic = []
     basic_students = User.objects.filter(
         role='student',
         aral_level='basic',
+        assigned_tutor__isnull=True,
         is_active=True,
     )
     for s in basic_students:
         status, result, pct = get_student_mosy_status(s, school_year)
-        tutor_name = s.assigned_tutor.get_full_name() if s.assigned_tutor else 'Unassigned'
+        last_assignment = TutorAssignmentHistory.objects.filter(
+            student=s
+        ).order_by('-start_date', '-created_at').first()
+        prev_tutor_name = last_assignment.tutor.get_full_name() if last_assignment else 'None'
 
-        basic_students_list.append({
+        if result == 'failed':
+            status_badge = 'Needs Basic Retake (Q3/Q4 or Summer)'
+            status_color = 'yellow'
+        elif result == 'passed':
+            # Passed but not yet promoted — edge case (process not yet finalized)
+            status_badge = 'Passed MOSY — Awaiting Level-Up'
+            status_color = 'green'
+        else:
+            status_badge = 'Pending MOSY Evaluation'
+            status_color = 'gray'
+
+        unassigned_basic.append({
             'id': str(s.id),
             'full_name': s.get_full_name(),
             'lrn': s.lrn,
             'program': 'Basic',
             'school_year': active_sy_str,
-            'current_tutor': tutor_name,
-            'tutor_id': str(s.assigned_tutor.id) if s.assigned_tutor else None,
             'mosy_status': 'Completed' if status == 'completed' else 'Pending',
             'mosy_result': result.capitalize() if result != 'pending' else 'Pending',
-            'assignment_status': 'Assigned' if s.assigned_tutor else 'Unassigned',
+            'mosy_score_pct': pct,
+            'previous_tutor': prev_tutor_name,
+            'assignment_status': 'Awaiting Basic Tutor Reassignment',
+            'status_badge': status_badge,
+            'status_color': status_color,
         })
 
     # 3. Graduated Students
@@ -314,9 +347,161 @@ def get_mosy_assignment_dashboard_data(school_year: SchoolYear | None = None) ->
             'requires_tutor': False,
         })
 
+    total_unassigned = len(unassigned_plus) + len(unassigned_basic)
+
     return {
         'school_year': active_sy_str,
         'unassigned_plus_students': unassigned_plus,
-        'basic_students': basic_students_list,
+        'unassigned_basic_students': unassigned_basic,
+        # Keep for backward compat
+        'basic_students': unassigned_basic,
         'graduated_students': graduated_list,
+        'total_unassigned': total_unassigned,
+    }
+
+
+
+def get_unified_assignment_queue(school_year=None):
+    """
+    Returns a unified view of ALL non-graduated, unassigned students categorized
+    by their required program level and progression status reason.
+
+    Used by the Admin Post-Milestone Reassignment Queue panel.
+
+    Returns:
+    {
+        school_year: str,
+        total_unassigned: int,
+        plus_queue: [
+            {id, full_name, lrn, required_program, mosy_result, eosy_result, status_reason,
+             status_badge, status_color, previous_tutor, mosy_score_pct}
+        ],
+        basic_queue: [...],
+        summary: {
+            total_plus_queue: int,
+            total_basic_queue: int,
+            needs_plus_tutor: int,
+            needs_basic_tutor: int,
+        }
+    }
+    """
+    from apps.academics.models import TutorAssignmentHistory, StudentEnrollment, SummerRecord
+    from apps.accounts.models import User
+    from apps.academics.models import SchoolYear
+
+    if not school_year:
+        school_year = SchoolYear.objects.filter(is_active=True).first()
+
+    active_sy_str = school_year.school_year if school_year else '2025-2026'
+
+    plus_queue = []
+    basic_queue = []
+
+    # --- All unassigned non-graduated active students ---
+    unassigned_students = User.objects.filter(
+        role='student',
+        is_active=True,
+        assigned_tutor__isnull=True,
+    ).exclude(aral_level='graduated')
+
+    for s in unassigned_students:
+        level = (s.aral_level or 'basic').lower()
+
+        last_assignment = TutorAssignmentHistory.objects.filter(
+            student=s
+        ).order_by('-start_date', '-created_at').first()
+        prev_tutor = last_assignment.tutor.get_full_name() if last_assignment and last_assignment.tutor else 'None'
+        prev_program = (last_assignment.program or 'basic').lower() if last_assignment else 'basic'
+
+        # Enrollment data for result context
+        enrollment = StudentEnrollment.objects.filter(
+            student=s,
+            school_year=school_year,
+        ).order_by('-created_at').first()
+
+        mosy_result = (enrollment.mosy_result or 'pending').lower() if enrollment else 'pending'
+        eosy_result = (enrollment.eosy_result or 'pending').lower() if enrollment else 'pending'
+
+        # Summer context
+        summer_rec = SummerRecord.objects.filter(student=s).order_by('-created_at').first()
+        summer_status = summer_rec.summer_status if summer_rec else None
+
+        # Determine status reason and badge
+        if level == 'plus':
+            if prev_program == 'basic' and mosy_result == 'passed':
+                status_reason = 'Leveled up from Basic after MOSY'
+                status_badge = 'Leveled Up to PLUS'
+                status_color = 'green'
+            elif summer_status in ('summer_failed',):
+                status_reason = 'Failed Summer — eligible for early Q1/Q2 Plus retake'
+                status_badge = 'Early Plus Retake (Q1/Q2)'
+                status_color = 'orange'
+            elif eosy_result == 'failed':
+                status_reason = 'Failed EOSY — enrolled in Summer remediation'
+                status_badge = 'Summer Remediation Queued'
+                status_color = 'red'
+            else:
+                status_reason = 'Continuing Plus student — ready for Q3/Q4 cohort'
+                status_badge = 'Ready for Q3/Q4 PLUS Cohort'
+                status_color = 'blue'
+
+            plus_queue.append({
+                'id': str(s.id),
+                'full_name': s.get_full_name(),
+                'lrn': s.lrn,
+                'required_program': 'plus',
+                'mosy_result': mosy_result.capitalize(),
+                'eosy_result': eosy_result.capitalize(),
+                'mosy_score_pct': None,
+                'previous_tutor': prev_tutor,
+                'status_reason': status_reason,
+                'status_badge': status_badge,
+                'status_color': status_color,
+            })
+
+        elif level == 'basic':
+            if mosy_result == 'failed':
+                status_reason = 'Failed MOSY — eligible for Q3/Q4 Basic retake or Summer'
+                status_badge = 'Needs Basic Retake (Q3/Q4 or Summer)'
+                status_color = 'yellow'
+            elif mosy_result == 'passed':
+                status_reason = 'Passed MOSY — awaiting level-up confirmation'
+                status_badge = 'Passed MOSY - Awaiting Levelup'
+                status_color = 'green'
+            elif summer_status in ('summer_failed',):
+                status_reason = 'Failed Summer — eligible for early Plus retake'
+                status_badge = 'Failed Summer Retake'
+                status_color = 'orange'
+            else:
+                status_reason = 'Pending MOSY evaluation or new enrollment'
+                status_badge = 'Pending Evaluation'
+                status_color = 'gray'
+
+            basic_queue.append({
+                'id': str(s.id),
+                'full_name': s.get_full_name(),
+                'lrn': s.lrn,
+                'required_program': 'basic',
+                'mosy_result': mosy_result.capitalize(),
+                'eosy_result': eosy_result.capitalize(),
+                'mosy_score_pct': None,
+                'previous_tutor': prev_tutor,
+                'status_reason': status_reason,
+                'status_badge': status_badge,
+                'status_color': status_color,
+            })
+
+    total_unassigned = len(plus_queue) + len(basic_queue)
+
+    return {
+        'school_year': active_sy_str,
+        'total_unassigned': total_unassigned,
+        'plus_queue': plus_queue,
+        'basic_queue': basic_queue,
+        'summary': {
+            'total_plus_queue': len(plus_queue),
+            'total_basic_queue': len(basic_queue),
+            'needs_plus_tutor': len(plus_queue),
+            'needs_basic_tutor': len(basic_queue),
+        },
     }

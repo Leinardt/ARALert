@@ -19,17 +19,79 @@ export type EntryDescriptionType =
 export const SESSION_DESCRIPTIONS_STORAGE_KEY = 'aralert_attendance_session_descriptions';
 export const MANUAL_ATTENDANCE_DESCRIPTIONS_KEY = 'aralert_manual_attendance_descriptions';
 
+export type SemesterType = '1st' | '2nd' | 'summer';
+
+export const ACTIVE_SYSTEM_SEMESTER_KEY = 'aralert_active_system_semester';
+export const ACTIVE_SYSTEM_SCHOOL_YEAR_KEY = 'aralert_active_system_school_year';
+
 /**
- * Determine the milestone assigned to a tutor based on their ARAL level:
- * - Basic  -> MOSY
- * - Plus   -> EOSY
- * - Summer -> ARAL Summer Assessment
+ * Get the currently active semester in the system ('1st' | '2nd' | 'summer').
+ * Based on system configuration / active academic state, NOT automatically calculated from calendar date.
  */
-export const getTutorAssignedMilestone = (aralLevel?: string | null): MilestoneType => {
-  const level = (aralLevel || 'basic').toLowerCase();
-  if (level === 'summer') return 'ARAL Summer Assessment';
-  if (level === 'plus') return 'EOSY';
+export const getActiveSystemSemester = (): SemesterType => {
+  try {
+    const stored = localStorage.getItem(ACTIVE_SYSTEM_SEMESTER_KEY);
+    if (stored === '1st' || stored === '2nd' || stored === 'summer') {
+      return stored;
+    }
+  } catch {
+    // ignore localStorage errors
+  }
+  return '1st';
+};
+
+/**
+ * Set the currently active semester in the system and broadcast the change event.
+ */
+export const setActiveSystemSemester = (semester: SemesterType): void => {
+  try {
+    localStorage.setItem(ACTIVE_SYSTEM_SEMESTER_KEY, semester);
+    window.dispatchEvent(new CustomEvent('system_semester_changed', { detail: { semester } }));
+  } catch {
+    // ignore localStorage errors
+  }
+};
+
+/**
+ * Get the evaluation milestone corresponding to what is active on the system:
+ * - 1st Semester active -> 'MOSY' (Add MOSY Score)
+ * - 2nd Semester active -> 'EOSY' (Add EOSY Score)
+ * - Summer active       -> 'ARAL Summer Assessment' (Add ARAL Summer Assessment)
+ */
+export const getActiveSystemMilestone = (): MilestoneType => {
+  const sem = getActiveSystemSemester();
+  if (sem === 'summer') return 'ARAL Summer Assessment';
+  if (sem === '2nd') return 'EOSY';
   return 'MOSY';
+};
+
+/**
+ * Determine the evaluation milestone based on what the current semester for the school year is active on the system.
+ * If an explicit semester or milestone override is passed, maps it; otherwise defaults to the system's active milestone.
+ */
+export const getCurrentSemesterMilestone = (explicitSemesterOrMilestone?: string | null): MilestoneType => {
+  if (explicitSemesterOrMilestone) {
+    const val = explicitSemesterOrMilestone.trim();
+    const lower = val.toLowerCase();
+    if (lower === '1st' || lower === '1st semester' || lower === 'mosy' || lower.includes('mosy')) {
+      return 'MOSY';
+    }
+    if (lower === '2nd' || lower === '2nd semester' || lower === 'eosy' || lower.includes('eosy')) {
+      return 'EOSY';
+    }
+    if (lower === 'summer' || lower.includes('summer')) {
+      return 'ARAL Summer Assessment';
+    }
+  }
+  return getActiveSystemMilestone();
+};
+
+/**
+ * Determine the milestone for tutor score logging and evaluations.
+ * Decoupled from tutor level and tied directly to what the current semester for the school year is active on the system.
+ */
+export const getTutorAssignedMilestone = (explicitSemesterOrMilestone?: string | null): MilestoneType => {
+  return getCurrentSemesterMilestone(explicitSemesterOrMilestone);
 };
 
 /**
