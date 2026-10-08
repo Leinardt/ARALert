@@ -254,6 +254,24 @@ export const PublicLayout: React.FC = () => {
                     FAQ
                   </a>
                 </li>
+                <li>
+                  <Link
+                    to="/terms"
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className="hover:text-[var(--brand)] dark:hover:text-blue-400 transition-colors"
+                  >
+                    Terms of Service
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/privacy"
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className="hover:text-[var(--brand)] dark:hover:text-blue-400 transition-colors"
+                  >
+                    Privacy Policy
+                  </Link>
+                </li>
               </ul>
             </div>
 
@@ -281,18 +299,20 @@ export const PublicLayout: React.FC = () => {
               <p className="leading-relaxed text-slate-500 dark:text-slate-400">
                 Authorized staff sign in via Google OAuth. Learners access their portal using their registered 12-digit LRN.
               </p>
-              <div className="pt-1">
-                <Link
-                  to={isAuthenticated ? getDashboardLink() : '/login'}
-                  onClick={() => {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="inline-flex items-center gap-1 text-[var(--brand)] dark:text-blue-400 hover:underline font-bold"
-                >
-                  <span>{isAuthenticated ? 'Go to Dashboard' : 'Portal Login'}</span>
-                  <ArrowRight size={13} />
-                </Link>
-              </div>
+              {(!isLoginPage || isAuthenticated) && (
+                <div className="pt-1">
+                  <Link
+                    to={isAuthenticated ? getDashboardLink() : '/login'}
+                    onClick={() => {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="inline-flex items-center gap-1 text-[var(--brand)] dark:text-blue-400 hover:underline font-bold"
+                  >
+                    <span>{isAuthenticated ? 'Go to Dashboard' : 'Portal Login'}</span>
+                    <ArrowRight size={13} />
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
 
@@ -301,9 +321,13 @@ export const PublicLayout: React.FC = () => {
             <p>
               &copy; {new Date().getFullYear()} ARALert &bull; Palanas National Agriculture High School. All rights reserved.
             </p>
-            <p className="text-center sm:text-right">
-              Academic Recovery and Accessible Learning (ARAL) Program
-            </p>
+            <div className="flex items-center gap-3 text-[11px]">
+              <Link to="/terms" className="hover:text-[var(--brand)] dark:hover:text-blue-400 transition-colors">Terms of Service</Link>
+              <span>&bull;</span>
+              <Link to="/privacy" className="hover:text-[var(--brand)] dark:hover:text-blue-400 transition-colors">Privacy Policy</Link>
+              <span>&bull;</span>
+              <span>RA 10173 &amp; RA 12028 Compliant</span>
+            </div>
           </div>
         </div>
       </footer>

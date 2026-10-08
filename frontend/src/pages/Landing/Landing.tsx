@@ -251,11 +251,11 @@ export const Landing: React.FC = () => {
                 <PenRoughUnderline variant="single" className="text-[#1A5DAD]/80 dark:text-blue-400/80" />
               </span>{' '}
               System for the ARAL Program of{' '}
-              <span className="relative inline-block px-4 py-1 mx-2 font-bold text-[#0052B7] dark:text-blue-400 whitespace-nowrap">
+              <span className="relative inline-block px-3.5 py-0.5 mx-1 font-bold text-[#0052B7] dark:text-blue-400 whitespace-normal sm:whitespace-nowrap break-words">
                 Palanas National Agriculture High School
                 <PenDoodleOval className="text-[#0052B7] dark:text-blue-400" />
               </span>
-              <span className="inline-block pl-1">.</span>
+              <span className="inline-block pl-0.5">.</span>
             </p>
 
             {/* Primary Action Group: 2-line buttons (64px, borders flush with rules) */}

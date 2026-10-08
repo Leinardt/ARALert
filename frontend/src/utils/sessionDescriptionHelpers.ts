@@ -59,10 +59,15 @@ export const getAssessmentWindowKey = (semester?: SemesterType): string => {
 
 export const isAssessmentWindowOpen = (semester?: SemesterType): boolean => {
   try {
-    const key = getAssessmentWindowKey(semester);
+    const sem = semester || getActiveSystemSemester();
+    const key = getAssessmentWindowKey(sem);
     const stored = localStorage.getItem(key);
     if (stored !== null) {
       return stored === 'true';
+    }
+    const defaultStored = localStorage.getItem('aralert_assessment_window_open_default');
+    if (defaultStored !== null) {
+      return defaultStored === 'true';
     }
   } catch {
     // ignore localStorage errors
@@ -75,6 +80,7 @@ export const setAssessmentWindowOpen = (isOpen: boolean, semester?: SemesterType
     const sem = semester || getActiveSystemSemester();
     const key = getAssessmentWindowKey(sem);
     localStorage.setItem(key, isOpen ? 'true' : 'false');
+    localStorage.setItem('aralert_assessment_window_open_default', isOpen ? 'true' : 'false');
     window.dispatchEvent(new CustomEvent('assessment_window_changed', { detail: { isOpen, semester: sem } }));
   } catch {
     // ignore localStorage errors

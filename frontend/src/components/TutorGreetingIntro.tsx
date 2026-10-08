@@ -271,13 +271,15 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
                 aria-hidden="true"
               />
 
-              {/* Dynamic Greeting Message Only (Guaranteed Single Line) */}
+              {/* Dynamic Greeting Message (Welcome to ARALert for first-time, Welcome back for returning) */}
               <p className="text-base sm:text-lg font-bold text-gray-900 dark:text-slate-100 leading-normal tracking-tight whitespace-nowrap">
                 {timeGreeting}, {greetingRolePrefix}
                 <span className="text-[var(--brand)] dark:text-blue-400 font-extrabold">
                   {firstName}
                 </span>
-                ! Welcome back!
+                {sessionStorage.getItem('aralert_is_first_login') === 'true' || user?.is_first_login
+                  ? '! Welcome to ARALert!'
+                  : '! Welcome back!'}
               </p>
 
               {/* 5-second animated progress indicator bar (Gray) */}

@@ -78,20 +78,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    if (!user) return;
-
-    const reloadProfile = async () => {
-      try {
-        const profile = await authService.getProfile();
-        setUser(profile);
-        sessionStorage.setItem('user', JSON.stringify(profile));
-        localStorage.removeItem('user');
-      } catch {
-        await logout();
-      }
-    };
-
-    reloadProfile();
+    // If no access token exists in session, clear user state
+    const accessToken = sessionStorage.getItem('access_token');
+    if (!accessToken) {
+      setUser(null);
+    }
   }, []);
 
   // ── 30-Minute AFK Inactivity Detection ─────────────────────────────────

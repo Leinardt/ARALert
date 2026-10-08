@@ -1298,10 +1298,27 @@ export const TutorQRGenerator: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* Manual Entry Short Code */}
+                    <div className="flex items-center justify-between p-3 rounded-md border border-[var(--brand)]/30 bg-[var(--brand)]/5 dark:bg-[var(--brand)]/10">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 block">
+                          Manual Entry Code
+                        </span>
+                        <span className="text-[11px] text-gray-500 dark:text-slate-400">
+                          Students can enter this 6-char code
+                        </span>
+                      </div>
+                      <span className="text-base font-extrabold font-mono tracking-widest text-[var(--brand)] dark:text-blue-400 bg-white dark:bg-[#1A1A1A] px-3 py-1 rounded border border-gray-200 dark:border-[#2A2A2A] shadow-xs select-all">
+                        {String(session.id).slice(0, 6).toUpperCase()}
+                      </span>
+                    </div>
+
                     {/* Session meta */}
-                    <div className="flex items-center justify-between text-xs py-1">
-                      <span className="font-semibold text-gray-500 dark:text-slate-400">Session ID:</span>
-                      <code className="text-xs font-mono font-bold text-gray-900 dark:text-slate-100 select-all truncate tracking-wider">{session.id}</code>
+                    <div className="flex items-center justify-between text-xs py-0.5 text-gray-500 dark:text-slate-400">
+                      <span className="font-semibold text-[11px]">Full Session ID:</span>
+                      <code className="text-[11px] font-mono font-medium text-gray-700 dark:text-slate-300 select-all truncate max-w-[180px] tracking-wide" title={session.id}>
+                        {session.id}
+                      </code>
                     </div>
 
                     <button

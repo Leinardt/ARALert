@@ -7,7 +7,6 @@ import type { User, Grade, Attendance } from '../../types';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
 import { User as UserIcon, Search, ArrowUpDown, Users, ChevronUp, ChevronDown, AlertCircle, History, Calendar, CheckCircle2, Award, Clock } from 'lucide-react';
 import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
-import { ExportBosyListModal } from '../../components/ExportBosyListModal';
 import type { TutorCohortHistoryData, TutorHistoricalCohortRecord } from '../../types';
 
 /* ─── Badge helpers ────────────────────────────────────────────── */
@@ -98,7 +97,6 @@ export const TutorStudentDirectory: React.FC = () => {
   const [selectedPastPeriodFilter, setSelectedPastPeriodFilter] = useState<string>('all');
   const [historyStudentId, setHistoryStudentId] = useState<string | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
-  const [isBosyModalOpen, setIsBosyModalOpen] = useState<boolean>(false);
 
   const currentSchoolYear = useMemo(() => getDepEdSchoolYear(), []);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>(
@@ -507,14 +505,6 @@ const aralLevelRank: Record<string, number> = {
                 <ChevronDown className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-[var(--brand)] opacity-75" />
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsBosyModalOpen(true)}
-                className="h-8.5 inline-flex items-center justify-center bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3.5 rounded-md text-xs font-bold transition-all cursor-pointer shadow-2xs"
-              >
-                Export List
-              </button>
-
               <label className="relative flex w-full sm:w-auto sm:min-w-52 items-center">
                 <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-gray-400" />
                 <input
@@ -608,16 +598,6 @@ const aralLevelRank: Record<string, number> = {
           </div>
         </div>
       )}
-
-      {/* Export BOSY List Modal */}
-      <ExportBosyListModal
-        isOpen={isBosyModalOpen}
-        onClose={() => setIsBosyModalOpen(false)}
-        students={students}
-        tutors={user ? [user] : []}
-        currentUser={user}
-        defaultTutorId={user?.id}
-      />
     </div>
   );
 };

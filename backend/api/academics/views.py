@@ -585,15 +585,63 @@ class AttendanceScanView(APIView):
 
     def post(self, request):
         user       = request.user
-        session_id = request.data.get('session_id')
+        raw_session_id = request.data.get('session_id')
 
-        if not session_id:
+        if not raw_session_id:
             return Response({'error': 'session_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        clean_code = str(raw_session_id).strip()
+        norm_code = clean_code.lower().replace('-', '').replace(' ', '')
+
+        session = None
+        # 1. Try exact UUID lookup first (QR scanner or full UUID entry)
         try:
-            session = ApiAttendanceSession.objects.get(id=session_id)
-        except (ApiAttendanceSession.DoesNotExist, ValueError):
-            return Response({'error': 'Invalid session ID.'}, status=status.HTTP_404_NOT_FOUND)
+            val_uuid = uuid.UUID(clean_code)
+            session = ApiAttendanceSession.objects.filter(id=val_uuid).first()
+        except (ValueError, TypeError):
+            pass
+
+        # 2. Try prefix / short code match on active, unexpired sessions
+        if not session and len(norm_code) >= 4:
+            now = timezone.now()
+            active_qs = ApiAttendanceSession.objects.filter(
+                is_active=True,
+                expires_at__gt=now
+            )
+            matching = []
+            for s in active_qs:
+                s_id_str = str(s.id).lower()
+                s_hex = s_id_str.replace('-', '')
+                if s_hex.startswith(norm_code) or s_id_str.startswith(norm_code):
+                    matching.append(s)
+
+            if user.role == 'student':
+                student_matching = [s for s in matching if s.session_type == 'student']
+                if len(student_matching) == 1:
+                    session = student_matching[0]
+                elif len(student_matching) > 1:
+                    assigned_tutor_id = getattr(user, 'assigned_tutor_id', None)
+                    tutor_matching = [s for s in student_matching if s.creator_id == assigned_tutor_id]
+                    if len(tutor_matching) == 1:
+                        session = tutor_matching[0]
+                    else:
+                        return Response({
+                            'error': 'Multiple active student sessions match this code. Please scan the QR code directly.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+            elif user.role in ('tutor', 'faculty', 'admin', 'principal'):
+                staff_matching = [s for s in matching if s.session_type == 'staff']
+                if len(staff_matching) == 1:
+                    session = staff_matching[0]
+                elif len(staff_matching) > 1:
+                    return Response({
+                        'error': 'Multiple active staff sessions match this code. Please scan the QR code directly.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+            if not session and len(matching) == 1:
+                session = matching[0]
+
+        if not session:
+            return Response({'error': 'Invalid or expired session code.'}, status=status.HTTP_404_NOT_FOUND)
 
         if not session.is_active or timezone.now() > session.expires_at:
             return Response({'error': 'QR code has expired.'}, status=status.HTTP_400_BAD_REQUEST)

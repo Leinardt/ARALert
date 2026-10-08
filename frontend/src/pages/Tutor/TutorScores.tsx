@@ -12,6 +12,7 @@ import {
   getActiveSystemSemester,
   setActiveSystemSemester,
   isAssessmentWindowOpen,
+  type SemesterType,
 } from '../../utils/sessionDescriptionHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
@@ -22,6 +23,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Plus,
+  Lock,
+  Award,
   Download,
   X,
   CalendarDays,
@@ -449,10 +452,11 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                     {grade.student_name || 'Unknown student'}
                   </td>
                   <td className="px-4 py-3 text-left whitespace-nowrap">
-                    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${descriptionVal !== 'Intervention Activity'
-                        ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
+                    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap ${
+                      descriptionVal !== 'Intervention Activity'
+                        ? 'border-orange-300 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950/50 dark:text-orange-300 font-bold'
                         : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                      }`}>
+                    }`}>
                       {descriptionVal}
                     </span>
                   </td>
@@ -585,9 +589,9 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
               {/* Badges: Description & Status */}
               <div className="flex flex-wrap items-center gap-1.5">
                 <span
-                  className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
+                  className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
                     descriptionVal !== 'Intervention Activity'
-                      ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
+                      ? 'border-orange-300 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950/50 dark:text-orange-300 font-bold'
                       : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
                   }`}
                 >
@@ -806,6 +810,17 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
     return tableGroup.rows.filter((r) => r.date_logged.slice(0, 10) === selectedDate);
   }, [tableGroup.rows, selectedDate, isOpen]);
 
+  const milestoneTypes = useMemo(() => {
+    const types = new Set<string>();
+    displayRows.forEach((grade) => {
+      const desc = getScoreDescription(grade);
+      if (desc !== 'Intervention Activity') {
+        types.add(desc);
+      }
+    });
+    return Array.from(types);
+  }, [displayRows]);
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -820,22 +835,29 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
               const hasRecord = datesWithRecords.has(dateStr);
               const isSelected = selectedDate === dateStr;
               const label = formatDateButtonLabel(dateStr);
+              const dateGrades = tableGroup.rows.filter((r) => r.date_logged.slice(0, 10) === dateStr);
+              const hasMilestone = dateGrades.some((g) => getScoreDescription(g) !== 'Intervention Activity');
               return (
                 <button
                   key={dateStr}
                   type="button"
                   disabled={!hasRecord}
                   onClick={() => onSelectDate(dateStr)}
-                  className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all ${
+                  className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all inline-flex items-center gap-1.5 ${
                     hasRecord
                       ? isSelected
                         ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
+                        : hasMilestone
+                        ? 'bg-orange-50 text-orange-700 border border-orange-300 hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800/60 cursor-pointer font-semibold'
                         : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
                       : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
                   }`}
-                  title={hasRecord ? (isSelected ? `Active: ${label}` : `View ${label}`) : `No records on ${label}`}
+                  title={hasRecord ? (isSelected ? `Active: ${label}` : `View ${label}${hasMilestone ? ' (Milestone Assessment)' : ''}`) : `No records on ${label}`}
                   aria-label={label}
                 >
+                  {hasMilestone && (
+                    <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-orange-300' : 'bg-orange-500'}`} />
+                  )}
                   {label}
                 </button>
               );
@@ -851,10 +873,30 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
         )}
       </div>
       {isOpen && (
-        <ScoreEntryTable
-          rows={displayRows}
-          {...tableProps}
-        />
+        <div className="space-y-2.5">
+          {milestoneTypes.map((milestone) => (
+            <div
+              key={milestone}
+              className="flex items-center justify-between gap-3 px-3.5 py-2 rounded-md border border-orange-200 dark:border-orange-900/60 bg-gradient-to-r from-orange-50/90 to-amber-50/50 dark:from-orange-950/40 dark:to-amber-950/20 text-orange-900 dark:text-orange-200"
+            >
+              <div className="flex items-center gap-2">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-500 text-white shadow-xs">
+                  <Award className="h-3 w-3" />
+                </span>
+                <span className="text-xs font-bold uppercase tracking-wider text-orange-900 dark:text-orange-100">
+                  {milestone === 'ARAL Summer Assessment' ? 'ARAL Summer Assessment' : `${milestone} Assessment Score Sheet`}
+                </span>
+                <span className="rounded bg-orange-100 dark:bg-orange-900/60 px-1.5 py-0.5 text-[10px] font-bold uppercase text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
+                  Official Assessment
+                </span>
+              </div>
+            </div>
+          ))}
+          <ScoreEntryTable
+            rows={displayRows}
+            {...tableProps}
+          />
+        </div>
       )}
     </div>
   );
@@ -1004,7 +1046,19 @@ export const TutorScores: React.FC = () => {
 
     (students || []).forEach((student) => {
       if (nextScores[student.id] === undefined) {
-        nextScores[student.id] = '';
+        if (kind !== 'daily') {
+          const existingGrade = periodGrades.find((g) => String(g.student) === String(student.id));
+          if (existingGrade) {
+            nextScores[student.id] = existingGrade.remarks === 'Not Taken' ? 0 : existingGrade.score;
+            nextStatus[student.id] = existingGrade.remarks === 'Not Taken' ? 'Not' : 'Taken';
+          } else {
+            nextScores[student.id] = '';
+            nextStatus[student.id] = 'Taken';
+          }
+        } else {
+          nextScores[student.id] = '';
+          nextStatus[student.id] = 'Taken';
+        }
       }
       if (nextStatus[student.id] === undefined) {
         nextStatus[student.id] = 'Taken';
@@ -1019,7 +1073,7 @@ export const TutorScores: React.FC = () => {
   };
 
   const handleMilestoneEntryClick = () => {
-    if (!isAssessmentWindowOpen(activeSystemSem)) {
+    if (!isWindowOpen) {
       alert(`The ${assignedPeriod} assessment window is currently closed by administration.`);
       return;
     }
@@ -1048,26 +1102,58 @@ export const TutorScores: React.FC = () => {
     try {
       const batchId = generateUuid();
       const todayDateStr = logDate || new Date().toLocaleDateString('en-CA');
-      const entries: Partial<Grade>[] = (students || [])
-        .filter((student) => {
-          const rawScore = entryScores[student.id];
-          return (rawScore !== '' && rawScore !== undefined && rawScore !== null) || entryStatus[student.id] === 'Not';
-        })
-        .map((student) => ({
+      const entriesToCreate: Partial<Grade>[] = [];
+      const entriesToUpdate: { id: number; data: Partial<Grade> }[] = [];
+
+      (students || []).forEach((student) => {
+        const rawScore = entryScores[student.id];
+        const hasScore = (rawScore !== '' && rawScore !== undefined && rawScore !== null) || entryStatus[student.id] === 'Not';
+        if (!hasScore) return;
+
+        const isNotTaken = entryStatus[student.id] === 'Not';
+        const numScore = isNotTaken ? 0 : Number(entryScores[student.id] || 0);
+        const remarks = isNotTaken ? 'Not Taken' : (numScore / activeTotal >= 0.7 ? 'Passed' : 'Failed');
+        const subject = entryKind === 'daily' ? `${user?.subject || 'Reading'} Intervention Activity` : levelEntry.subject;
+
+        if (entryKind !== 'daily') {
+          const existingGrade = periodGrades.find((g) => String(g.student) === String(student.id));
+          if (existingGrade) {
+            entriesToUpdate.push({
+              id: existingGrade.id,
+              data: {
+                score: numScore,
+                total_score: activeTotal,
+                remarks: remarks,
+                date_logged: todayDateStr,
+                subject: subject,
+              },
+            });
+            return;
+          }
+        }
+
+        entriesToCreate.push({
           student: student.id,
           component_type: 'assessment' as Grade['component_type'],
-          subject: entryKind === 'daily' ? `${user?.subject || 'Reading'} Intervention Activity` : levelEntry.subject,
+          subject: subject,
           quarter: Math.ceil((new Date().getMonth() + 1) / 3),
-          score: Number(entryScores[student.id] || 0),
+          score: numScore,
           total_score: activeTotal,
-          remarks: entryStatus[student.id] === 'Taken' ? 'Taken' : 'Not Taken',
+          remarks: remarks,
           date_logged: todayDateStr,
           batch_id: batchId,
-        }));
+        });
+      });
 
-      if (entries.length === 0) { setIsSaving(false); return alert('No scores entered.'); }
+      if (entriesToCreate.length === 0 && entriesToUpdate.length === 0) {
+        setIsSaving(false);
+        return alert('No scores entered.');
+      }
 
-      await Promise.all(entries.map((entry) => academicService.createGrade(entry)));
+      await Promise.all([
+        ...entriesToCreate.map((entry) => academicService.createGrade(entry)),
+        ...entriesToUpdate.map(({ id, data }) => academicService.updateGrade(id, data)),
+      ]);
 
       // Cleanly reset current entry kind draft and form state
       const resetScores: Record<string, number | ''> = {};
@@ -1277,28 +1363,40 @@ export const TutorScores: React.FC = () => {
     }
   }, [user?.id, entryScores, entryStatus, totalScore, entryKind, logDate, showAddEntry, draftsByKind]);
 
-  const [activeSystemSem, setActiveSystemSem] = useState(() => getActiveSystemSemester());
+  const [activeSystemSem, setActiveSystemSem] = useState<SemesterType>(() => getActiveSystemSemester());
+  const [isWindowOpen, setIsWindowOpen] = useState<boolean>(() => isAssessmentWindowOpen(getActiveSystemSemester()));
 
   useEffect(() => {
     academicService.getCurrentSchoolYear().then((sy) => {
       if (sy && sy.current_semester) {
-        setActiveSystemSemester(sy.current_semester as any);
-        setActiveSystemSem(sy.current_semester as any);
+        const sem = sy.current_semester as any;
+        setActiveSystemSemester(sem);
+        setActiveSystemSem(sem);
+        setIsWindowOpen(isAssessmentWindowOpen(sem));
       }
     }).catch(() => {});
 
     const handleSemChange = (e: any) => {
       const newSem = e?.detail?.semester || getActiveSystemSemester();
       setActiveSystemSem(newSem);
+      setIsWindowOpen(isAssessmentWindowOpen(newSem));
+    };
+
+    const handleWindowChange = (e: any) => {
+      if (typeof e?.detail?.isOpen === 'boolean') {
+        setIsWindowOpen(e.detail.isOpen);
+      } else {
+        setIsWindowOpen(isAssessmentWindowOpen(activeSystemSem));
+      }
     };
 
     window.addEventListener('system_semester_changed', handleSemChange);
-    window.addEventListener('assessment_window_changed', handleSemChange);
+    window.addEventListener('assessment_window_changed', handleWindowChange);
     return () => {
       window.removeEventListener('system_semester_changed', handleSemChange);
-      window.removeEventListener('assessment_window_changed', handleSemChange);
+      window.removeEventListener('assessment_window_changed', handleWindowChange);
     };
-  }, []);
+  }, [activeSystemSem]);
 
   useEffect(() => { fetchStudents(); }, [user]);
   useEffect(() => { fetchGrades(); }, [user]);
@@ -1333,11 +1431,20 @@ export const TutorScores: React.FC = () => {
   }, [dailyGrades]);
 
   // Live evaluation progress tracking for milestone periods (MOSY / EOSY / Summer)
-  const periodGrades = useMemo(() => safeGrades.filter((grade) =>
-    grade.component_type === 'assessment' &&
-    (grade.subject?.toLowerCase().includes(assignedPeriod.toLowerCase()) ||
-     grade.subject?.toLowerCase().includes('reading'))
-  ), [safeGrades, assignedPeriod]);
+  const periodGrades = useMemo(() => safeGrades.filter((grade) => {
+    if (grade.component_type !== 'assessment') return false;
+    const subj = (grade.subject || '').toLowerCase();
+    if (assignedPeriod === 'MOSY') {
+      return subj.includes('mosy');
+    }
+    if (assignedPeriod === 'EOSY') {
+      return subj.includes('eosy');
+    }
+    if (assignedPeriod === 'ARAL Summer Assessment') {
+      return subj.includes('summer') || subj.includes('endline');
+    }
+    return false;
+  }), [safeGrades, assignedPeriod]);
 
   const evaluatedStudentIds = useMemo(() => new Set(periodGrades.map((g) => String(g.student))), [periodGrades]);
   const evaluatedStudentsCount = useMemo(() => {
@@ -1350,6 +1457,8 @@ export const TutorScores: React.FC = () => {
     if (evaluatedStudentsCount > 0) return 'In Progress';
     return 'Pending';
   }, [students.length, evaluatedStudentsCount]);
+
+  const isPending = evaluationStatus === 'Pending' || evaluationStatus === 'In Progress';
 
   // ── DTR-mirror: batchRows (mirrors dtrRows in StaffAttendanceScanner) ──
   // Each unique batch_id → one row in the table, newest-first
@@ -1528,24 +1637,6 @@ export const TutorScores: React.FC = () => {
               <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm uppercase">
                 {entryKind === 'daily' ? 'Add Intervention Activity Scores' : levelEntry.title}
               </h3>
-              {/* Live Evaluation Progress Pill (shows only when adding milestone assessment scores e.g., MOSY / EOSY / Summer) */}
-              {entryKind !== 'daily' && (
-                <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/80 text-xs">
-                  <span className="text-gray-500 dark:text-slate-400 text-[11px] font-semibold">{assignedPeriod} Progress:</span>
-                  <span className="font-extrabold text-gray-800 dark:text-slate-200 text-xs">
-                    {evaluatedStudentsCount}/{students.length} Evaluated
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                    evaluationStatus === 'Completed'
-                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                      : evaluationStatus === 'In Progress'
-                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-                      : 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-slate-400'
-                  }`}>
-                    {evaluationStatus}
-                  </span>
-                </div>
-              )}
             </div>
             <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
               <button
@@ -1559,9 +1650,21 @@ export const TutorScores: React.FC = () => {
               <button
                 type="button"
                 onClick={handleMilestoneEntryClick}
-                className={`inline-flex min-h-[44px] sm:min-h-0 sm:h-8 w-full sm:w-auto shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-xs font-bold transition ${entryKind !== 'daily' ? 'border-[var(--brand)] bg-[var(--brand-light)] text-[var(--brand-dark)]' : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-[var(--brand-border)] hover:text-[var(--brand)] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}
+                disabled={!isWindowOpen}
+                title={!isWindowOpen ? `The ${assignedPeriod} assessment window is closed by administration.` : undefined}
+                className={`inline-flex min-h-[44px] sm:min-h-0 sm:h-8 w-full sm:w-auto shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-xs font-bold transition ${
+                  !isWindowOpen
+                    ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-500'
+                    : entryKind !== 'daily'
+                    ? 'border-[var(--brand)] bg-[var(--brand-light)] text-[var(--brand-dark)] cursor-pointer'
+                    : 'border-orange-500 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-orange-500 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700/60 cursor-pointer'
+                }`}
               >
-                <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                {!isWindowOpen ? (
+                  <Lock className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                ) : (
+                  <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                )}
                 {assignedPeriod === 'ARAL Summer Assessment' ? 'Add ARAL Summer Assessment' : `Add ${assignedPeriod} Score`}
               </button>
             </div>
@@ -1728,10 +1831,10 @@ export const TutorScores: React.FC = () => {
                             </td>
                             <td className="px-4 py-2.5 text-center">
                               {pct !== null && !isNaN(pct) ? (
-                                <div>
-                                  <span className={`block text-xs font-extrabold ${scoreColor(pct)}`}>{pct}%</span>
+                                <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+                                  <span className={`text-xs font-extrabold ${scoreColor(pct)}`}>{pct}%</span>
                                   {entryKind !== 'daily' && (
-                                    <span className={`block text-[9px] font-bold ${isPassingMilestone ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                    <span className={`text-[10px] font-bold ${isPassingMilestone ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
                                       {isPassingMilestone ? '✓ Pass' : '✕ Fail'}
                                     </span>
                                   )}
@@ -2035,7 +2138,7 @@ export const TutorScores: React.FC = () => {
                 {assignedPeriod === 'ARAL Summer Assessment' ? 'Add ARAL Summer Assessment' : `Add ${assignedPeriod} Score`}
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-slate-400">
-                Are you sure you want to add {assignedPeriod === 'ARAL Summer Assessment' ? 'an ARAL Summer Assessment entry' : `a ${assignedPeriod} score`}?
+                This is a one-time milestone evaluation for your assigned students. Please ensure all student scores and statuses are accurate before proceeding. You can still edit individual student results in the score records until the semester or school year is transitioned by administration.
               </p>
             </div>
             <div className="flex items-center justify-end gap-2 pt-2">
@@ -2069,9 +2172,13 @@ export const TutorScores: React.FC = () => {
         >
           <div className="relative w-full max-w-sm rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl space-y-3 animate-fade-in-scale">
             <div>
-              <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">Save Scores</h3>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">
+                {entryKind === 'daily' ? 'Save Intervention Scores' : `Submit ${assignedPeriod} Scores`}
+              </h3>
               <p className="mt-1 text-xs font-normal text-gray-500 dark:text-slate-400 leading-relaxed">
-                Are you sure you want to save {entryKind === 'daily' ? 'these intervention activity scores' : `these ${assignedPeriod} scores`}?
+                {entryKind === 'daily'
+                  ? 'Are you sure you want to save these intervention activity scores?'
+                  : `Are you sure you want to submit these ${assignedPeriod} evaluation scores? You can continue to edit individual scores in the records below until the semester or school year is transitioned.`}
               </p>
             </div>
             <div className="flex items-center justify-end gap-2 pt-2">

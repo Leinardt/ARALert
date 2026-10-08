@@ -76,7 +76,7 @@ export const AdminEvaluationHub: React.FC = () => {
   const [currentSY, setCurrentSY] = useState<SchoolYear | null>(null);
   const [activeSystemSem, setActiveSystemSem] = useState(() => getActiveSystemSemester());
   const [isSettingSemester, setIsSettingSemester] = useState<boolean>(false);
-  const [isWindowOpen, setIsWindowOpen] = useState<boolean>(() => isAssessmentWindowOpen());
+  const [isWindowOpen, setIsWindowOpen] = useState<boolean>(() => isAssessmentWindowOpen(getActiveSystemSemester()));
 
   // Tutors and Students Directory
   const [tutors, setTutors] = useState<User[]>([]);
@@ -129,21 +129,25 @@ export const AdminEvaluationHub: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const currentActiveSemester = (currentSY?.current_semester || activeSystemSem) as '1st' | '2nd' | 'summer';
+
   useEffect(() => {
-    const handleWindowChange = () => {
-      setIsWindowOpen(isAssessmentWindowOpen());
+    const handleWindowChange = (e: any) => {
+      if (typeof e?.detail?.isOpen === 'boolean') {
+        setIsWindowOpen(e.detail.isOpen);
+      } else {
+        setIsWindowOpen(isAssessmentWindowOpen(currentActiveSemester));
+      }
     };
     window.addEventListener('assessment_window_changed', handleWindowChange);
     return () => window.removeEventListener('assessment_window_changed', handleWindowChange);
-  }, []);
+  }, [currentActiveSemester]);
 
   const handleToggleAssessmentWindow = () => {
     const nextState = !isWindowOpen;
-    setAssessmentWindowOpen(nextState);
+    setAssessmentWindowOpen(nextState, currentActiveSemester);
     setIsWindowOpen(nextState);
   };
-
-  const currentActiveSemester = (currentSY?.current_semester || activeSystemSem) as '1st' | '2nd' | 'summer';
 
   useEffect(() => {
     loadInitialData();

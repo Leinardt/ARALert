@@ -744,7 +744,17 @@ export const TutorStudentProfile: React.FC = () => {
               <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center">
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE ATTENDANCE RATE</p>
-                  <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">
+                  <p
+                    className={`text-2xl font-extrabold mt-0.5 ${
+                      !hasAttendanceData
+                        ? 'text-gray-900 dark:text-slate-100'
+                        : attendanceRate >= 81
+                        ? 'text-risk-low text-emerald-600 dark:text-emerald-400'
+                        : attendanceRate >= 75
+                        ? 'text-risk-medium text-amber-600 dark:text-amber-400'
+                        : 'text-risk-high text-rose-600 dark:text-rose-400'
+                    }`}
+                  >
                     {hasAttendanceData ? `${smartPct(attendanceRate)}%` : '—'}
                   </p>
                   <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s average attendance rate</p>
@@ -781,7 +791,17 @@ export const TutorStudentProfile: React.FC = () => {
               <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center">
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE SCORE</p>
-                  <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">
+                  <p
+                    className={`text-2xl font-extrabold mt-0.5 ${
+                      !hasScoreData
+                        ? 'text-gray-900 dark:text-slate-100'
+                        : calculatedAvgScore >= 81
+                        ? 'text-risk-low text-emerald-600 dark:text-emerald-400'
+                        : calculatedAvgScore >= 70
+                        ? 'text-risk-medium text-amber-600 dark:text-amber-400'
+                        : 'text-risk-high text-rose-600 dark:text-rose-400'
+                    }`}
+                  >
                     {hasScoreData ? `${smartPct(calculatedAvgScore)}%` : '—'}
                   </p>
                   <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s average score</p>

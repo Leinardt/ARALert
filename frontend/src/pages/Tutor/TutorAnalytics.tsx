@@ -550,10 +550,42 @@ const DesktopRiskTrendChart: React.FC<{
   const paddingBottom = 28;
   const chartWidth = width - paddingLeft - paddingRight;
   const chartHeight = height - paddingTop - paddingBottom;
-  const maxValue = isSingleStudent ? 1 : Math.max(5, Math.ceil(total / 5) * 5);
-  const axisSteps = isSingleStudent
-    ? [0, 1]
-    : Array.from({ length: maxValue / 5 + 1 }, (_, index) => index * 5);
+  const { maxValue, axisSteps } = useMemo(() => {
+    if (isSingleStudent) {
+      return { maxValue: 1, axisSteps: [0, 1] };
+    }
+    const safeTotal = Math.max(1, total);
+    // Target ~4 to 6 intervals so Y-axis tick numbers are never cramped
+    let step = 5;
+    if (safeTotal <= 10) {
+      step = 2;
+    } else if (safeTotal <= 35) {
+      step = 5;
+    } else if (safeTotal <= 70) {
+      step = 10;
+    } else if (safeTotal <= 120) {
+      step = safeTotal % 15 === 0 ? 15 : 20;
+    } else if (safeTotal <= 250) {
+      step = safeTotal % 25 === 0 ? 25 : 50;
+    } else if (safeTotal <= 500) {
+      step = 50;
+    } else {
+      const rawStep = safeTotal / 5;
+      const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+      const residual = rawStep / magnitude;
+      if (residual <= 1.5) step = magnitude;
+      else if (residual <= 3) step = 2 * magnitude;
+      else if (residual <= 7) step = 5 * magnitude;
+      else step = 10 * magnitude;
+    }
+
+    const calculatedMax = Math.max(step, Math.ceil(safeTotal / step) * step);
+    const steps: number[] = [];
+    for (let val = 0; val <= calculatedMax; val += step) {
+      steps.push(val);
+    }
+    return { maxValue: calculatedMax, axisSteps: steps };
+  }, [total, isSingleStudent]);
   const series = [
     { key: 'high' as const, color: '#EF4444', label: 'High Risk' },
     { key: 'medium' as const, color: '#F59E0B', label: 'Medium Risk' },

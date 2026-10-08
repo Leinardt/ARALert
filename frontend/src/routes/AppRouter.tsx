@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 // Layouts
@@ -8,66 +8,84 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 // Route guard
 import { ProtectedRoute } from './ProtectedRoute';
 
-// Public pages
-import { Landing } from '../pages/Landing/Landing';
-import { Login } from '../pages/Login/Login';
-import { ActivateAccount } from '../pages/Auth/ActivateAccount';
-import { ForgotPassword } from '../pages/Auth/ForgotPassword';
-import { ResetPassword } from '../pages/Auth/ResetPassword';
-import { InvalidLink } from '../pages/Auth/InvalidLink';
-import { SuccessPage } from '../pages/Auth/SuccessPage';
-import { MFA } from '../pages/Auth/MFA';
+// Dynamic / Lazy-loaded Public pages
+const Landing = React.lazy(() => import('../pages/Landing/Landing').then(m => ({ default: m.Landing })));
+const Login = React.lazy(() => import('../pages/Login/Login').then(m => ({ default: m.Login })));
+const TermsOfService = React.lazy(() => import('../pages/Legal/TermsOfService').then(m => ({ default: m.TermsOfService })));
+const PrivacyPolicy = React.lazy(() => import('../pages/Legal/PrivacyPolicy').then(m => ({ default: m.PrivacyPolicy })));
+const ActivateAccount = React.lazy(() => import('../pages/Auth/ActivateAccount').then(m => ({ default: m.ActivateAccount })));
+const ForgotPassword = React.lazy(() => import('../pages/Auth/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
+const ResetPassword = React.lazy(() => import('../pages/Auth/ResetPassword').then(m => ({ default: m.ResetPassword })));
+const InvalidLink = React.lazy(() => import('../pages/Auth/InvalidLink').then(m => ({ default: m.InvalidLink })));
+const SuccessPage = React.lazy(() => import('../pages/Auth/SuccessPage').then(m => ({ default: m.SuccessPage })));
+const MFA = React.lazy(() => import('../pages/Auth/MFA').then(m => ({ default: m.MFA })));
 
-// SuperAdmin pages
-import { Dashboard } from '../pages/SuperAdmin/Dashboard';
-import { UserList } from '../pages/SuperAdmin/UserList';
-import { CreateUser } from '../pages/SuperAdmin/CreateUser';
-import { EditUser } from '../pages/SuperAdmin/EditUser';
-import { Profile } from '../pages/SuperAdmin/Profile';
-import { Settings } from '../pages/SuperAdmin/Settings';
-import { AuditLog } from '../pages/SuperAdmin/AuditLog';
+// SuperAdmin / Admin pages
+const UserList = React.lazy(() => import('../pages/SuperAdmin/UserList').then(m => ({ default: m.UserList })));
+const CreateUser = React.lazy(() => import('../pages/SuperAdmin/CreateUser').then(m => ({ default: m.CreateUser })));
+const EditUser = React.lazy(() => import('../pages/SuperAdmin/EditUser').then(m => ({ default: m.EditUser })));
+const Profile = React.lazy(() => import('../pages/SuperAdmin/Profile').then(m => ({ default: m.Profile })));
+const Settings = React.lazy(() => import('../pages/SuperAdmin/Settings').then(m => ({ default: m.Settings })));
+const AuditLog = React.lazy(() => import('../pages/SuperAdmin/AuditLog').then(m => ({ default: m.AuditLog })));
 
-// Role placeholder pages
-import { AdminHome } from '../pages/Admin/AdminHome';
-import { AdminAttendanceQR } from '../pages/Admin/AdminAttendanceQR';
-import { AdminEvaluationHub } from '../pages/Admin/AdminEvaluationHub';
-import { AssessmentsArchive } from '../pages/Admin/AssessmentsArchive';
-import { PrincipalHome } from '../pages/Principal/PrincipalHome';
-import { FacultyHome } from '../pages/Faculty/FacultyHome';
-import { TutorHome } from '../pages/Tutor/TutorHome';
-import { TutorQRGenerator } from '../pages/Tutor/TutorQRGenerator';
-import { TutorStudentDirectory } from '../pages/Tutor/TutorStudentDirectory';
-import { TutorStudentProfile } from '../pages/Tutor/TutorStudentProfile';
-import { TutorAnalytics } from '../pages/Tutor/TutorAnalytics';
-import { StaffAttendanceScanner } from '../pages/Tutor/StaffAttendanceScanner';
-import TutorScores from '../pages/Tutor/TutorScores';
-import { StudentHome } from '../pages/Student/StudentHome';
-import { StudentQRAttendance } from '../pages/Student/StudentQRAttendance';
-import { StudentScores } from '../pages/Student/StudentScores';
-import { StudentAnalytics } from '../pages/Student/StudentAnalytics';
+// Role pages
+const AdminHome = React.lazy(() => import('../pages/Admin/AdminHome').then(m => ({ default: m.AdminHome })));
+const AdminAttendanceQR = React.lazy(() => import('../pages/Admin/AdminAttendanceQR').then(m => ({ default: m.AdminAttendanceQR })));
+const AdminEvaluationHub = React.lazy(() => import('../pages/Admin/AdminEvaluationHub').then(m => ({ default: m.AdminEvaluationHub })));
+const AssessmentsArchive = React.lazy(() => import('../pages/Admin/AssessmentsArchive').then(m => ({ default: m.AssessmentsArchive })));
+const PrincipalHome = React.lazy(() => import('../pages/Principal/PrincipalHome').then(m => ({ default: m.PrincipalHome })));
+const PrincipalAnalytics = React.lazy(() => import('../pages/Principal/PrincipalAnalytics').then(m => ({ default: m.PrincipalAnalytics })));
+const FacultyHome = React.lazy(() => import('../pages/Faculty/FacultyHome').then(m => ({ default: m.FacultyHome })));
+const TutorHome = React.lazy(() => import('../pages/Tutor/TutorHome').then(m => ({ default: m.TutorHome })));
+const TutorQRGenerator = React.lazy(() => import('../pages/Tutor/TutorQRGenerator').then(m => ({ default: m.TutorQRGenerator })));
+const TutorStudentDirectory = React.lazy(() => import('../pages/Tutor/TutorStudentDirectory').then(m => ({ default: m.TutorStudentDirectory })));
+const TutorStudentProfile = React.lazy(() => import('../pages/Tutor/TutorStudentProfile').then(m => ({ default: m.TutorStudentProfile })));
+const TutorAnalytics = React.lazy(() => import('../pages/Tutor/TutorAnalytics').then(m => ({ default: m.TutorAnalytics })));
+const StaffAttendanceScanner = React.lazy(() => import('../pages/Tutor/StaffAttendanceScanner').then(m => ({ default: m.StaffAttendanceScanner })));
+const TutorScores = React.lazy(() => import('../pages/Tutor/TutorScores'));
+const StudentHome = React.lazy(() => import('../pages/Student/StudentHome').then(m => ({ default: m.StudentHome })));
+const StudentQRAttendance = React.lazy(() => import('../pages/Student/StudentQRAttendance').then(m => ({ default: m.StudentQRAttendance })));
+const StudentScores = React.lazy(() => import('../pages/Student/StudentScores').then(m => ({ default: m.StudentScores })));
+const StudentAnalytics = React.lazy(() => import('../pages/Student/StudentAnalytics').then(m => ({ default: m.StudentAnalytics })));
 
 // Error pages
-import { Forbidden403 } from '../pages/errors/Forbidden403';
-import { NotFound404 } from '../pages/errors/NotFound404';
-import { ServerError500 } from '../pages/errors/ServerError500';
+const Forbidden403 = React.lazy(() => import('../pages/errors/Forbidden403').then(m => ({ default: m.Forbidden403 })));
+const NotFound404 = React.lazy(() => import('../pages/errors/NotFound404').then(m => ({ default: m.NotFound404 })));
+const ServerError500 = React.lazy(() => import('../pages/errors/ServerError500').then(m => ({ default: m.ServerError500 })));
+
+const PageFallback: React.FC = () => (
+  <div className="flex-1 min-h-[50vh] flex items-center justify-center p-8 bg-transparent">
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-8 h-8 rounded-full border-2 border-[#0052B7] dark:border-blue-400 border-t-transparent animate-spin" />
+      <span className="text-xs font-medium text-slate-400 dark:text-neutral-500 tracking-wide">
+        Loading...
+      </span>
+    </div>
+  </div>
+);
 
 export const AppRouter: React.FC = () => {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* ── Public routes (Landing & Login) ───────── */}
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-        </Route>
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          {/* ── Public routes (Landing, Login, Legal) ── */}
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/terms-of-service" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          </Route>
 
-        {/* ── Auth routes ───────────────────────────── */}
-        <Route path="/activate" element={<ActivateAccount />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/mfa" element={<MFA />} />
-        <Route path="/invalid-link" element={<InvalidLink />} />
-        <Route path="/success" element={<SuccessPage />} />
+          {/* ── Auth routes ───────────────────────────── */}
+          <Route path="/activate" element={<ActivateAccount />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/mfa" element={<MFA />} />
+          <Route path="/invalid-link" element={<InvalidLink />} />
+          <Route path="/success" element={<SuccessPage />} />
 
         {/* ── SuperAdmin routes ─────────────────────── */}
         <Route
@@ -146,6 +164,7 @@ export const AppRouter: React.FC = () => {
           }
         >
           <Route path="/principal" element={<PrincipalHome />} />
+          <Route path="/principal/analytics" element={<PrincipalAnalytics />} />
         </Route>
 
         {/* ── Faculty routes ────────────────────────── */}
@@ -178,7 +197,7 @@ export const AppRouter: React.FC = () => {
         {/* ── Shared Staff routes ──────────────────── */}
         <Route
           element={
-            <ProtectedRoute allowedRoles={['admin', 'tutor', 'principal', 'faculty', 'student']}>
+            <ProtectedRoute allowedRoles={['admin', 'tutor', 'faculty', 'student']}>
               <DashboardLayout />
             </ProtectedRoute>
           }
@@ -219,6 +238,8 @@ export const AppRouter: React.FC = () => {
         {/* ── Catch-all ─────────────────────────────── */}
         <Route path="*" element={<NotFound404 />} />
       </Routes>
-    </BrowserRouter>
-  );
+    </Suspense>
+  </BrowserRouter>
+);
 };
+

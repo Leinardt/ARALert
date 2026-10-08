@@ -22,6 +22,7 @@ export interface GetGradesParams {
   student_id?: string;
   subject?: string;
   quarter?: number;
+  page?: number;
 }
 
 export interface GetAralActivitiesParams {
@@ -36,6 +37,7 @@ export interface GetAttendanceParams {
   role?: string;
   status?: string;
   user_id?: string;
+  page?: number;
 }
 
 export interface PrincipalDashboardTrendPoint {
@@ -82,9 +84,12 @@ export const academicService = {
     if (Array.isArray(data)) return data;
 
     const grades = [...(data?.results ?? [])];
+    if (params.page !== undefined) return grades;
+
     let page = 1;
     let next = data?.next;
-    while (next) {
+    const MAX_PAGES = 5;
+    while (next && page < MAX_PAGES) {
       page += 1;
       const nextResponse = await api.get<Grade[] | { results: Grade[]; next?: string | null }>('/academics/grades/', { params: { ...params, page } });
       const nextData = nextResponse.data as any;
@@ -204,9 +209,12 @@ export const academicService = {
     if (Array.isArray(data)) return data;
 
     const records = [...(data?.results ?? [])];
+    if (params.page !== undefined) return records;
+
     let page = 1;
     let next = data?.next;
-    while (next) {
+    const MAX_PAGES = 5;
+    while (next && page < MAX_PAGES) {
       page += 1;
       const nextRes = await api.get<Attendance[] | { results: Attendance[]; next?: string | null }>('/academics/attendance/history/', { params: { ...params, page } });
       const nextData = nextRes.data as any;

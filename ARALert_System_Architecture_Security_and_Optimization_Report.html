@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARALert — System Architecture, Security & Optimization Audit Report</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    @page {
+      size: A4 portrait;
+      margin: 18mm 16mm 18mm 16mm;
+      @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: 'Inter', sans-serif;
+        font-size: 8pt;
+        color: #64748b;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #1e293b;
+      background-color: #ffffff;
+      line-height: 1.55;
+      font-size: 9.5pt;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .cover-header {
+      border-bottom: 2px solid #2563eb;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .cover-title {
+      font-size: 20pt;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .cover-subtitle {
+      font-size: 11pt;
+      font-weight: 600;
+      color: #2563eb;
+      margin-top: 4px;
+    }
+
+    .meta-box {
+      font-size: 8pt;
+      color: #64748b;
+      text-align: right;
+      line-height: 1.4;
+    }
+
+    .meta-box strong {
+      color: #0f172a;
+    }
+
+    h2 {
+      font-size: 12pt;
+      font-weight: 700;
+      color: #0f172a;
+      border-left: 4px solid #2563eb;
+      padding-left: 8px;
+      margin-top: 22px;
+      margin-bottom: 10px;
+      page-break-after: avoid;
+    }
+
+    h3 {
+      font-size: 10pt;
+      font-weight: 600;
+      color: #1e293b;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      page-break-after: avoid;
+    }
+
+    p {
+      margin-bottom: 8px;
+      color: #334155;
+    }
+
+    ul, ol {
+      margin-left: 18px;
+      margin-bottom: 10px;
+      color: #334155;
+    }
+
+    li {
+      margin-bottom: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      margin-bottom: 14px;
+      font-size: 8pt;
+      page-break-inside: avoid;
+    }
+
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background-color: #f8fafc;
+      color: #0f172a;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 7.5pt;
+      letter-spacing: 0.03em;
+    }
+
+    tr:nth-child(even) td {
+      background-color: #fafafa;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 7.5pt;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-green { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .badge-amber { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge-red   { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    .badge-blue  { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+
+    .callout {
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin: 10px 0;
+      font-size: 8.5pt;
+      page-break-inside: avoid;
+    }
+
+    .callout-critical {
+      background-color: #fef2f2;
+      border-left: 4px solid #ef4444;
+      color: #991b1b;
+    }
+
+    .callout-warning {
+      background-color: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      color: #92400e;
+    }
+
+    .callout-info {
+      background-color: #f0fdf4;
+      border-left: 4px solid #10b981;
+      color: #065f46;
+    }
+
+    .code-snippet {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 7.5pt;
+      background: #f1f5f9;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      margin: 8px 0;
+      line-height: 1.4;
+      color: #0f172a;
+      overflow-x: auto;
+      page-break-inside: avoid;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+
+    .footer-note {
+      margin-top: 30px;
+      padding-top: 10px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 7.5pt;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- COVER / HEADER -->
+  <div class="cover-header">
+    <div>
+      <div class="cover-title">ARALert System Technical & Security Audit</div>
+      <div class="cover-subtitle">Architecture, Data Safety, RBAC, RA 10173 Compliance & Performance Report</div>
+    </div>
+    <div class="meta-box">
+      <strong>System:</strong> ARALert Full-Stack Platform<br>
+      <strong>Date:</strong> October 8, 2026<br>
+      <strong>Version:</strong> 2.0 (Production Architecture)<br>
+      <strong>Status:</strong> Validated & Audited
+    </div>
+  </div>
+
+  <!-- SECTION 1 -->
+  <h2>1. Executive Summary</h2>
+  <p>
+    This audit provides an exhaustive evaluation of the <strong>ARALert</strong> platform across its entire architecture: Django REST Framework backend, PostgreSQL/SQLite database models, Google OAuth 2.0 authentication, and React 19/TypeScript frontend. The report answers all critical questions concerning data safety, user permissions, edge case resilience, Philippine regulatory compliance (Data Privacy Act of 2012 / RA 10173), rate limiting, and system latency.
+  </p>
+
+  <!-- SECTION 2 -->
+  <h2>2. Data Safety, Storage & Access Control (RBAC Matrix)</h2>
+  <p>
+    <strong>Data at Rest & Identity Security:</strong>
+  </p>
+  <ul>
+    <li><strong>Staff Accounts (SuperAdmin, Admin, Principal, Faculty, Tutor):</strong> Protected with zero plaintext or hashed passwords stored in the database. Authentication is 100% delegated to Google OAuth 2.0 via verified OpenID Connect Subject IDs (<code>google_sub</code>).</li>
+    <li><strong>Student Accounts:</strong> Authenticated using Full Name (First Name, Middle Name, Last Name) and 12-digit Learner Reference Number (LRN).</li>
+    <li><strong>Database Security:</strong> Production is configured for PostgreSQL with SSL encryption required (<code>ssl_require=True</code> in <code>settings.py</code>). SQLite is isolated to local development environments.</li>
+    <li><strong>Session Lifecycle:</strong> JWT access tokens (30-minute lifespan) and refresh tokens are stored in browser <code>sessionStorage</code>, which automatically flushes upon tab or browser termination.</li>
+  </ul>
+
+  <h3>Role-Based Access Control (RBAC) Matrix</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Role</th>
+        <th>User Management</th>
+        <th>Academic Records / Grades</th>
+        <th>Attendance Records</th>
+        <th>Analytics / Reports</th>
+        <th>Audit Trail</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>SuperAdmin</strong></td>
+        <td><span class="badge badge-green">Full CRUD (All Roles)</span></td>
+        <td><span class="badge badge-green">Global Read / Audit</span></td>
+        <td><span class="badge badge-green">Global Read / Audit</span></td>
+        <td><span class="badge badge-green">System-Wide</span></td>
+        <td><span class="badge badge-green">Full Global Access</span></td>
+      </tr>
+      <tr>
+        <td><strong>School Admin</strong></td>
+        <td><span class="badge badge-green">School Staff & Students</span></td>
+        <td><span class="badge badge-blue">School-Wide Oversight</span></td>
+        <td><span class="badge badge-blue">School-Wide Oversight</span></td>
+        <td><span class="badge badge-blue">Transition & School KPIs</span></td>
+        <td><span class="badge badge-blue">School Activity Logs</span></td>
+      </tr>
+      <tr>
+        <td><strong>Principal</strong></td>
+        <td><span class="badge badge-blue">Read-Only (School Staff)</span></td>
+        <td><span class="badge badge-blue">Read-Only (School Grades)</span></td>
+        <td><span class="badge badge-blue">Read-Only (Attendance)</span></td>
+        <td><span class="badge badge-blue">Executive Dashboards</span></td>
+        <td><span class="badge badge-amber">Read-Only (Limited)</span></td>
+      </tr>
+      <tr>
+        <td><strong>Faculty</strong></td>
+        <td><span class="badge badge-red">None</span></td>
+        <td><span class="badge badge-blue">Subject-Specific Performance</span></td>
+        <td><span class="badge badge-blue">Read-Only (Class Attendance)</span></td>
+        <td><span class="badge badge-blue">Subject Analytics</span></td>
+        <td><span class="badge badge-red">None</span></td>
+      </tr>
+      <tr>
+        <td><strong>Tutor</strong></td>
+        <td><span class="badge badge-amber">Edit Request Submission Only</span></td>
+        <td><span class="badge badge-green">Assigned Students Only</span></td>
+        <td><span class="badge badge-green">Assigned Students Only</span></td>
+        <td><span class="badge badge-blue">Tutor Cohort Metrics</span></td>
+        <td><span class="badge badge-red">None</span></td>
+      </tr>
+      <tr>
+        <td><strong>Student</strong></td>
+        <td><span class="badge badge-red">None (Self Profile Only)</span></td>
+        <td><span class="badge badge-blue">Self Grades Only</span></td>
+        <td><span class="badge badge-blue">Self Attendance Only</span></td>
+        <td><span class="badge badge-blue">Self Progress Analytics</span></td>
+        <td><span class="badge badge-red">None</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- SECTION 3 -->
+  <h2>3. Data Integrity & Ingestion Failures (Handling Bad Data)</h2>
+  <ul>
+    <li><strong>Serializer Regex & Sanitization:</strong> All user and academic inputs undergo strict pattern verification (<code>NAME_PATTERN</code>, <code>PHONE_PATTERN</code>, <code>SECTION_PATTERN</code>, <code>DANGEROUS_INJECTION_PATTERN</code> in <code>api/users/serializers.py</code>). HTML tags (<code>&lt;script&gt;</code>, <code>&lt;iframe&gt;</code>) are automatically stripped by <code>sanitize_input_text()</code>.</li>
+    <li><strong>Database Integrity Constraints:</strong> Unique constraints on <code>email</code>, <code>lrn</code>, <code>google_sub</code>, <code>(student, school_year)</code>, and <code>(student, date)</code> attendance records prevent duplicate or conflicting data at the storage layer.</li>
+    <li><strong>Cascading Protection:</strong> Academic tables enforce <code>on_delete=models.PROTECT</code>, preventing accidental deletion of students with active records.</li>
+    <li><strong>Fail-Safe Error Handler:</strong> Unhandled exceptions trigger <code>custom_exception_handler</code> in <code>utilities/exceptions.py</code>, logging the trace to server logs and returning a standardized <code>500 Internal Server Error</code> (<code>{"detail": "An unexpected error occurred."}</code>) rather than exposing backend code structures.</li>
+  </ul>
+
+  <!-- SECTION 4 -->
+  <h2>4. Backend Access Control & Role Permissions Audit</h2>
+  <ul>
+    <li><strong>Permissions Layer:</strong> Django REST Framework permission classes (<code>IsSuperAdmin</code>, <code>IsAdmin</code>, <code>IsTutor</code>, <code>IsStudent</code>, <code>IsPrincipal</code>, <code>IsFaculty</code>, and <code>role_required(...)</code>) protect all API views.</li>
+    <li><strong>Object-Level Scoping:</strong> In individual detail views (e.g. updating grades or activities), explicit checks ensure that a tutor can only view or mutate records belonging to students assigned to their ID.</li>
+    <li><strong>Middleware Cleanup:</strong> <code>RoleMiddleware</code> in <code>backend/middleware/role_middleware.py</code> was identified as an empty pass-through and can be replaced with active role header validation or retired.</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <!-- SECTION 5 -->
+  <h2>5. API Keys, Secrets & Frontend Exposure Audit</h2>
+  <div class="callout callout-critical">
+    <strong>CRITICAL AUDIT FINDING IN <code>frontend/.env</code>:</strong><br>
+    The local <code>frontend/.env</code> file contained backend configuration keys: <code>SECRET_KEY</code>, <code>SMTP_EMAIL</code>, <code>SMTP_PASSWORD</code> (Google App Password), and <code>DB_PASSWORD</code>.
+  </div>
+  <ul>
+    <li><strong>Client Bundle Analysis:</strong> Vite strictly bundles only environment variables prefixed with <code>VITE_</code> into compiled assets (e.g., <code>VITE_GOOGLE_CLIENT_ID</code> and <code>VITE_API_URL</code>). Raw database and SMTP passwords are <em>not</em> included in the compiled JavaScript bundle.</li>
+    <li><strong>Exposure Vector:</strong> Keeping backend credentials inside the <code>frontend/</code> directory creates a risk if the repository is committed to GitHub or deployed to static hosts (Vercel, Netlify).</li>
+    <li><strong>Remediation:</strong> Remove all non-<code>VITE_</code> variables from <code>frontend/.env</code>. All secrets must remain exclusively in <code>backend/.env</code>.</li>
+  </ul>
+
+  <!-- SECTION 6 -->
+  <h2>6. Stress Testing "Ugly Scenarios" & Edge Cases</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">Ugly Scenario</th>
+        <th style="width: 35%;">Current System Reaction</th>
+        <th style="width: 40%;">Hardened Resilience Implementation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Wrong Password / Invalid Login</strong></td>
+        <td>Staff: Google OAuth rejects unregistered emails with <code>403 Forbidden</code>.<br>Students: Name/LRN mismatch returns <code>400 Bad Request</code>.<br>Brute Force: 10 failed attempts trigger <code>429 Too Many Requests</code> (15-min IP lock).</td>
+        <td>Add an active countdown cooldown banner in the frontend UI when a <code>429</code> status code is received.</td>
+      </tr>
+      <tr>
+        <td><strong>No Internet / Network Loss</strong></td>
+        <td>Axios triggers an unhandled network error. If a token refresh is attempted while offline, <code>axios.ts</code> calls <code>handleForceLogout()</code>, prematurely terminating the user's session.</td>
+        <td>Distinguish true <code>401 Unauthorized</code> from offline network errors (<code>!window.navigator.onLine</code> / <code>ERR_NETWORK</code>). Display a persistent "Offline — Reconnecting..." banner without clearing session tokens.</td>
+      </tr>
+      <tr>
+        <td><strong>Unexpected / Malicious Input</strong></td>
+        <td>Django ORM parameterized SQL blocks SQL injection. Regex filters block <code>&lt;script&gt;</code> and SQL keywords.</td>
+        <td>Enforce frontend <code>maxLength</code> on all form fields and configure backend maximum JSON payload size limits.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- SECTION 7 -->
+  <h2>7. Error Logging, Backup & Basic Monitoring</h2>
+  <ul>
+    <li><strong>Existing Security Audit Trail:</strong> The <code>AuditLog</code> table logs major security events (<code>LOGIN_SUCCESS</code>, <code>LOGOUT_SUCCESS</code>, <code>STUDENT_LOGIN_FAILED</code>, <code>PROFILE_UPDATED</code>, <code>ALLOWED_EMAIL_ADDED</code>) along with client IP address, user agent, and timestamp.</li>
+    <li><strong>Monitoring Enhancements to Implement:</strong>
+      <ol>
+        <li><strong>Rotating Disk Logging:</strong> Configure <code>logging.handlers.RotatingFileHandler</code> in <code>settings.py</code> writing to <code>backend/logs/aralert_errors.log</code> (5MB max file size, 5 backups).</li>
+        <li><strong>Automated Error Webhook:</strong> Dispatch an alert (via Email or Webhook) if 500 error counts spike.</li>
+        <li><strong>Health Check Endpoint:</strong> Expose an unauthenticated <code>/api/health/</code> route for external uptime pings (e.g., UptimeRobot).</li>
+      </ol>
+    </li>
+  </ul>
+
+  <!-- SECTION 8 -->
+  <h2>8. API Request Efficiency & Redundant Call Elimination</h2>
+  <ul>
+    <li><strong>Redundant Profile Mounting:</strong> <code>useAuth.tsx</code> called <code>authService.getProfile()</code> on every page mount, even when user data was already stored in <code>sessionStorage</code>.</li>
+    <li><strong>Sequential Pagination Loops:</strong> In <code>academicService.ts</code> (<code>getGrades</code> and <code>getAttendanceHistory</code>), a <code>while (next)</code> loop sequentially requested every page of records across the network, causing significant browser stalls.</li>
+    <li><strong>Remediation:</strong> Rely on cached session state on mount and use server-side pagination (<code>page</code>, <code>page_size</code>) in table components rather than fetching full datasets upfront.</li>
+  </ul>
+
+  <!-- SECTION 9 -->
+  <h2>9. Rate Limiting & Usage Limits Architecture</h2>
+  <div class="code-snippet">
+# Recommended REST_FRAMEWORK Throttling Configuration in backend/config/settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '60/minute',
+        'user': '300/minute',
+        'login': '10/minute',
+        'scan': '30/minute',
+        'export': '10/minute',
+    }
+}
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- SECTION 10 & 11 -->
+  <h2>10. Retry Policies & Infinite Loop Protections</h2>
+  <ul>
+    <li><strong>Refresh Token Loop Prevention:</strong> In <code>axios.ts</code>, <code>originalRequest._retry = true</code> prevents recursive 401 refresh loops.</li>
+    <li><strong>Exponential Backoff:</strong> Network retry policies must cap at a <strong>maximum of 3 retries</strong> with exponential delays (1s, 2s, 4s).</li>
+    <li><strong>Idempotency Rule:</strong> Retries must strictly apply only to idempotent requests (<code>GET</code>, <code>HEAD</code>), never to data-mutating <code>POST</code> or <code>DELETE</code> calls.</li>
+  </ul>
+
+  <h2>11. Understanding & Implementing "Catching" (Error Handling)</h2>
+  <div class="callout callout-info">
+    <strong>Technical Explanation of "Catching":</strong><br>
+    In software engineering, <strong>"Catching"</strong> refers to structured Exception Handling (<code>try ... catch</code> in TypeScript and <code>try ... except</code> in Python). When an unexpected failure occurs (network timeout, database deadlock, null reference), the environment throws an <strong>Error</strong>. If uncaught, the entire application crashes or produces a blank screen. "Catching" intercepts the error, writes diagnostics to logs, and provides a graceful user experience (such as an informative toast message) without crashing the interface.
+  </div>
+
+  <!-- SECTION 12 & 13 -->
+  <h2>12. Abnormal Usage & Security Alerting</h2>
+  <ul>
+    <li><strong>Spike Monitoring:</strong> Alert system administrators if 500 error counts exceed 20 events in 5 minutes.</li>
+    <li><strong>Brute Force Alerts:</strong> Notify administrators when an IP generates &gt;15 failed authentication attempts within 10 minutes.</li>
+    <li><strong>Traffic Anomalies:</strong> Flag IPs generating &gt;500 requests/minute.</li>
+  </ul>
+
+  <h2>13. Endpoint Vulnerabilities & Abuse Vectors (Bot Protections)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Endpoint</th>
+        <th>Vulnerability / Abuse Vector</th>
+        <th>Protective Countermeasure</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>/api/auth/student-login/</code></td>
+        <td>12-digit LRN enumeration and brute forcing</td>
+        <td>IP-based rate limit (10/min) + Cloudflare Turnstile / CAPTCHA on repeat failure</td>
+      </tr>
+      <tr>
+        <td><code>/api/academics/attendance/scan/</code></td>
+        <td>QR attendance token flooding and replay</td>
+        <td>Single-use session tokens + rate limit (30 scans/min)</td>
+      </tr>
+      <tr>
+        <td><code>/api/academics/archive/.../export/</code></td>
+        <td>Heavy PDF/Excel export CPU/RAM exhaustion</td>
+        <td>Asynchronous background exports + rate limit (10 exports/min)</td>
+      </tr>
+      <tr>
+        <td><code>/api/time/</code></td>
+        <td>Unauthenticated DDoS flood target</td>
+        <td>Anonymous throttling (60/min)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- SECTION 14 -->
+  <h2>14. Operational API & Infrastructure Cost Estimation at Scale</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Component</th>
+        <th>100 – 500 Students</th>
+        <th>1,000 – 5,000 Students</th>
+        <th>10,000+ Students</th>
+        <th>Notes & Limits</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Google OAuth</strong></td>
+        <td><span class="badge badge-green">$0 / mo</span></td>
+        <td><span class="badge badge-green">$0 / mo</span></td>
+        <td><span class="badge badge-green">$0 / mo</span></td>
+        <td>Google Identity Services authentication is completely free.</td>
+      </tr>
+      <tr>
+        <td><strong>Frontend Hosting</strong></td>
+        <td><span class="badge badge-green">$0 / mo (Vercel)</span></td>
+        <td><span class="badge badge-green">$0 / mo (Free Tier)</span></td>
+        <td><span class="badge badge-blue">$20 / mo (Vercel Pro)</span></td>
+        <td>Free tier covers up to 100GB monthly bandwidth.</td>
+      </tr>
+      <tr>
+        <td><strong>Backend Server</strong></td>
+        <td><span class="badge badge-green">$5 – $7 / mo</span></td>
+        <td><span class="badge badge-blue">$15 – $25 / mo</span></td>
+        <td><span class="badge badge-blue">$50 – $80 / mo</span></td>
+        <td>Render / Railway / AWS Lightsail (Gunicorn workers).</td>
+      </tr>
+      <tr>
+        <td><strong>PostgreSQL DB</strong></td>
+        <td><span class="badge badge-green">$0 / mo (Supabase/Neon)</span></td>
+        <td><span class="badge badge-blue">$15 – $25 / mo</span></td>
+        <td><span class="badge badge-blue">$50 – $100 / mo</span></td>
+        <td>Managed PostgreSQL with daily backups and connection pooling.</td>
+      </tr>
+      <tr>
+        <td><strong>Transactional Email</strong></td>
+        <td><span class="badge badge-green">$0 / mo</span></td>
+        <td><span class="badge badge-green">$0 – $15 / mo</span></td>
+        <td><span class="badge badge-blue">$15 – $35 / mo</span></td>
+        <td>Resend / Brevo / AWS SES (Gmail free SMTP caps at 500/day).</td>
+      </tr>
+      <tr style="font-weight: 700; background-color: #f1f5f9;">
+        <td><strong>Total Monthly Cost</strong></td>
+        <td><strong>~$5 – $7 / mo</strong></td>
+        <td><strong>~$30 – $65 / mo</strong></td>
+        <td><strong>~$135 – $235 / mo</strong></td>
+        <td><strong>Highly cost-effective infrastructure for school deployment.</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- SECTION 15 -->
+  <h2>15. Philippine Data Privacy Act of 2012 (RA 10173) & Terms and Conditions</h2>
+  <p>
+    The ARALert system processes <strong>Sensitive Personal Information (SPI) of Minors</strong> (Grade 7/8 students under 18 years old: LRN, academic risk status, quarterly grades, parental contact numbers). Under Republic Act No. 10173:
+  </p>
+  <ul>
+    <li><strong>Parental/Guardian Consent:</strong> Processing minor data requires verified parental consent or school institutional mandate under DepEd guidelines.</li>
+    <li><strong>Mandatory Privacy Statement Items:</strong>
+      <ul>
+        <li><strong>Purpose:</strong> Academic progress tracking, intervention alerts, and DepEd ARAL program monitoring.</li>
+        <li><strong>Data Retention:</strong> Stored for the duration of student enrollment plus statutory retention (5 academic years).</li>
+        <li><strong>Data Sharing:</strong> Strictly limited to authorized school personnel, assigned tutors, and DepEd division offices.</li>
+        <li><strong>Data Subject Rights:</strong> Right to be informed, right to access, right to rectify (via Student Edit Requests), and right to erasure.</li>
+        <li><strong>Data Protection Officer (DPO):</strong> Designated school DPO contact information.</li>
+      </ul>
+    </li>
+  </ul>
+  <h3>Placement in the Application:</h3>
+  <ol>
+    <li><strong>First-Time Login Consent Modal:</strong> Non-dismissible modal displaying the Privacy Policy with an "Accept & Continue" button, storing <code>privacy_consent_accepted_at: timestamp</code> in the database.</li>
+    <li><strong>Login Screen Footer:</strong> Direct links to <code>/terms-of-service</code> and <code>/privacy-policy</code> below the login buttons.</li>
+  </ol>
+
+  <!-- SECTION 16 -->
+  <h2>16. Root Cause Analysis of System Slowness & Performance Bottlenecks</h2>
+  <div class="callout callout-warning">
+    <strong>Identified Latency Bottlenecks in the Codebase:</strong>
+  </div>
+  <ol>
+    <li><strong>N+1 SQL Queries in <code>UserListSerializer</code>:</strong> In <code>backend/api/users/views.py</code>, the user queryset does not use <code>select_related('assigned_tutor')</code>. Rendering 50 students executes <strong>51 separate SQL queries</strong> to resolve tutor names.</li>
+    <li><strong>Sequential <code>while (next)</code> Frontend Pagination:</strong> In <code>academicService.ts</code>, fetching grades loops through every paginated page over the network before displaying data.</li>
+    <li><strong>Duplicate Profile Mount Requests:</strong> <code>useAuth.tsx</code> fires a redundant GET request to <code>/api/profile/</code> on mount despite cached session data.</li>
+    <li><strong>SQLite Write Locks (Development):</strong> With <code>USE_SQLITE=True</code>, SQLite locks the entire database file during write transactions (audit logging, attendance marks), stalling concurrent reads.</li>
+    <li><strong>Dashboard Aggregation Queries:</strong> <code>UserStatsView</code> executes 12+ separate unindexed <code>.count()</code> queries on every admin dashboard load.</li>
+  </ol>
+
+  <!-- SECTION 17 -->
+  <h2>17. Code Optimization, Dead Code Removal & Refactoring Plan</h2>
+  <ul>
+    <li><strong>Backend Query Optimization:</strong> Add <code>select_related('assigned_tutor')</code> to <code>UserListCreateView</code> and combine <code>UserStatsView</code> counts into a single <code>User.objects.aggregate(...)</code> query.</li>
+    <li><strong>Retire Dummy Middleware:</strong> Remove the no-op <code>RoleMiddleware</code> in <code>backend/middleware/role_middleware.py</code>.</li>
+    <li><strong>Frontend Data Layer:</strong> Replace <code>while (next)</code> loops in <code>academicService.ts</code> with direct server-side page requests and rely on <code>sessionStorage</code> in <code>useAuth.tsx</code>.</li>
+    <li><strong>Environment Hygiene:</strong> Sanitize <code>frontend/.env</code> by removing all backend credentials.</li>
+    <li><strong>Test Suite Maintenance:</strong> Update legacy assertions in <code>backend/api/auth/tests.py</code> to reflect current Google OAuth and LRN authentication workflows.</li>
+  </ul>
+
+  <!-- FOOTER -->
+  <div class="footer-note">
+    <span>ARALert Platform Technical Report</span>
+    <span>Generated: October 8, 2026 | Antigravity AI Engineering</span>
+  </div>
+
+</body>
+</html>

@@ -29,6 +29,8 @@ interface PerformanceRow {
   scoreAvg: number;
   compositeScore: number;
   riskTier: string;
+  neededPresentAttendance: number;
+  neededPassedScores: number;
 }
 
 /** Show up to 2 decimal places but trim trailing zeros (100.00 → 100, 99.5 → 99.5) */
@@ -729,6 +731,8 @@ export const StudentAnalytics: React.FC = () => {
         scoreAvg: riskRow.scoreAvg,
         compositeScore: riskRow.compositeScore,
         riskTier: riskRow.riskTier,
+        neededPresentAttendance: riskRow.neededPresentAttendance,
+        neededPassedScores: riskRow.neededPassedScores,
       },
     ];
   }, [user, riskRow]);
@@ -1006,6 +1010,7 @@ export const StudentAnalytics: React.FC = () => {
                     <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">AVERAGE SCORE</th>
                     <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">COMPOSITE SCORE</th>
                     <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">RISK LEVEL</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">RISK LEVEL REMARKS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
@@ -1036,6 +1041,49 @@ export const StudentAnalytics: React.FC = () => {
                         <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold border ${getTierCls(row.riskTier)}`}>
                           {row.riskTier}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 align-middle">
+                        {row.riskTier === 'High' ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {row.neededPresentAttendance > 0 && (
+                              <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-300">
+                                Need +{row.neededPresentAttendance} more Present records to improve risk level
+                              </span>
+                            )}
+                            {row.neededPassedScores > 0 && (
+                              <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300">
+                                Need +{row.neededPassedScores} more Passed records to improve risk level
+                              </span>
+                            )}
+                            {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
+                              <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300">
+                                Need +1 more Passed record to improve risk level
+                              </span>
+                            )}
+                          </div>
+                        ) : row.riskTier === 'Medium' ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {row.neededPresentAttendance > 0 && (
+                              <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                Need +{row.neededPresentAttendance} more Present records to improve risk level
+                              </span>
+                            )}
+                            {row.neededPassedScores > 0 && (
+                              <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                Need +{row.neededPassedScores} more Passed records to improve risk level
+                              </span>
+                            )}
+                            {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
+                              <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                Moderate Standing (On Track)
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900/40 dark:text-emerald-300">
+                            On Track (Safe Standing)
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}

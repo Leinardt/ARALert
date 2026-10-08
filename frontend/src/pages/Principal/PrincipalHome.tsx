@@ -1,704 +1,1278 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
-import type { Attendance, PrincipalDashboardResponse, PrincipalDashboardTrendPoint } from '../../types';
-import { ExportDtrModal } from '../../components/ExportDtrModal';
-import { StatsGridSkeleton, CardSkeleton } from '../../components/SkeletonLoader';
-import { RefreshCw } from 'lucide-react';
+import { userService } from '../../services/userService';
+import type { Attendance, Grade, PrincipalDashboardResponse, User } from '../../types';
+import {
+  BarChart2,
+  AlertCircle,
+  RefreshCw,
+  Search,
+} from 'lucide-react';
+import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
+import {
+  getActiveSystemMilestone,
+  getActiveSystemSemester,
+  SemesterType,
+} from '../../utils/sessionDescriptionHelpers';
+import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
+
+// ─── Chart Types & Interactive Chart Component ─────────────────────────────────
+
+interface PrincipalChartPoint {
+  label: string;
+  fullDateLabel?: string;
+  dateRange: string;
+  value: number;
+  actualCount: number;
+  attendanceCount?: number;
+  assessmentLabels: string[];
+}
+
+const formatShortDateRange = (label: string): string => {
+  const match = label.match(/^([A-Za-z]+)\s+(\d+)\s*[–—\-]\s*([A-Za-z]+)\s+(\d+)$/);
+  if (match) {
+    const [, m1, d1, m2, d2] = match;
+    if (m1.toLowerCase() === m2.toLowerCase()) {
+      return `${m1} ${d1}–${d2}`;
+    }
+    return `${m1} ${d1}–${m2} ${d2}`;
+  }
+  return label;
+};
+
+type TrendFilter = 'day' | 'week' | 'month';
+
+const InteractivePrincipalPerformanceChart: React.FC<{
+  data: PrincipalChartPoint[];
+  trendFilter: TrendFilter;
+}> = ({ data, trendFilter }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 260 });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setDimensions({
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+        });
+      }
+    };
+
+    updateSize();
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          setDimensions({
+            width: Math.round(width),
+            height: Math.round(height),
+          });
+        }
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const { width, height } = dimensions;
+  const isMobile = width < 520;
+  const isSmallMobile = width < 380;
+  const paddingLeft = isMobile ? 44 : 50;
+  const paddingRight = isMobile ? 20 : 14;
+  const paddingTop = isMobile ? 18 : 20;
+  const paddingBottom = isMobile ? 26 : 24;
+
+  const chartW = Math.max(10, width - paddingLeft - paddingRight);
+  const chartH = Math.max(10, height - paddingTop - paddingBottom);
+
+  const points = data.map((d, idx) => {
+    const x = paddingLeft + (idx * chartW) / (data.length - 1 || 1);
+    const y = paddingTop + chartH - (d.value / 100) * chartH;
+    return { x, y, ...d };
+  });
+
+  let pathD = '';
+  if (points.length > 0) {
+    pathD = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      const p0 = points[i - 1];
+      const p1 = points[i];
+      const cp1x = p0.x + (p1.x - p0.x) / 3;
+      const cp1y = p0.y;
+      const cp2x = p1.x - (p1.x - p0.x) / 3;
+      const cp2y = p1.y;
+      pathD += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p1.x} ${p1.y}`;
+    }
+  }
+
+  const areaD =
+    points.length > 0
+      ? `${pathD} L ${points[points.length - 1].x} ${paddingTop + chartH} L ${points[0].x} ${paddingTop + chartH} Z`
+      : '';
+
+  // Dynamic tick density to prevent label overlap
+  const visibleIndices = useMemo(() => {
+    const total = data.length;
+    if (total <= 1) return new Set([0]);
+    if (!isMobile) {
+      return new Set(Array.from({ length: total }, (_, i) => i));
+    }
+    if (trendFilter === 'month') {
+      if (width < 380) {
+        return new Set([0, 2, 4, total - 1]);
+      }
+      return new Set(Array.from({ length: total }, (_, i) => i));
+    }
+    if (trendFilter === 'week') {
+      if (width < 430) {
+        return new Set([0, 2, 4, total - 1]);
+      }
+      return new Set(Array.from({ length: total }, (_, i) => i));
+    }
+    // Day mode
+    const step = isSmallMobile ? 3 : 2;
+    const indices: number[] = [];
+    for (let i = 0; i < total; i += step) {
+      indices.push(i);
+    }
+    const lastIdx = total - 1;
+    const prevIdx = indices[indices.length - 1];
+    if (lastIdx - prevIdx >= 2) {
+      indices.push(lastIdx);
+    } else if (indices.length > 1) {
+      indices[indices.length - 1] = lastIdx;
+    }
+    const set = new Set(indices);
+    data.forEach((p, idx) => {
+      if (p.assessmentLabels.length > 0 && !set.has(idx - 1) && !set.has(idx + 1)) {
+        set.add(idx);
+      }
+    });
+    return set;
+  }, [data, isMobile, isSmallMobile, trendFilter, width]);
+
+  const getFormattedLabel = (p: PrincipalChartPoint) => {
+    if (!isMobile) return p.label;
+    if (trendFilter === 'week') {
+      return formatShortDateRange(p.label);
+    }
+    if (trendFilter === 'month') {
+      if (width < 400) {
+        return p.label.split(' ')[0] || p.label;
+      }
+      return p.label.replace(/\s+20(\d\d)/, " '$1");
+    }
+    return p.label;
+  };
+
+  return (
+    <div ref={containerRef} className="relative w-full h-full select-none min-w-0 overflow-hidden">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-full block"
+        role="img"
+        aria-label="Performance Trend Chart"
+      >
+        <defs>
+          <linearGradient id="principalChartFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="var(--brand)" stopOpacity="0.01" />
+          </linearGradient>
+          <filter id="principalChartGlow" x="-20%" y="-30%" width="140%" height="160%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        {[0, 25, 50, 75, 100].map((val) => {
+          const y = paddingTop + chartH - (val / 100) * chartH;
+          return (
+            <g key={val}>
+              <line
+                x1={paddingLeft}
+                y1={y}
+                x2={width - paddingRight}
+                y2={y}
+                stroke="var(--slate-200)"
+                strokeWidth="0.5"
+                strokeDasharray="3 3"
+                opacity="0.6"
+              />
+              <text
+                x={paddingLeft - 8}
+                y={y + 3}
+                className="fill-slate-400 font-semibold text-[9px] xs:text-[10px]"
+                textAnchor="end"
+              >
+                {val}%
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Milestone guide lines */}
+        {points.map((p, idx) => {
+          if (p.assessmentLabels.length === 0) return null;
+          return (
+            <g key={`milestone-${idx}`}>
+              <title>{p.assessmentLabels.join(', ')}</title>
+              <line
+                x1={p.x}
+                y1={paddingTop}
+                x2={p.x}
+                y2={paddingTop + chartH}
+                stroke="#38BDF8"
+                strokeWidth="1"
+                strokeDasharray="3 3"
+                opacity="0.35"
+              />
+            </g>
+          );
+        })}
+
+        {/* X-axis date labels */}
+        {points.map((p, idx) => {
+          if (!visibleIndices.has(idx)) return null;
+
+          let textAnchor: 'start' | 'middle' | 'end' = 'middle';
+          let labelX = p.x;
+          if (idx === 0) {
+            textAnchor = 'start';
+            labelX = Math.max(paddingLeft, p.x - 3);
+          } else if (idx === points.length - 1) {
+            textAnchor = 'end';
+            labelX = Math.min(width - paddingRight, p.x + 3);
+          }
+
+          return (
+            <text
+              key={`label-${idx}`}
+              x={labelX}
+              y={height - (isMobile ? 6 : 5)}
+              className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px] xs:text-[10px]"
+              textAnchor={textAnchor}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              {getFormattedLabel(p)}
+            </text>
+          );
+        })}
+
+        {/* Brand Trend Line & Area */}
+        {points.length > 0 && (
+          <>
+            <path d={areaD} fill="url(#principalChartFill)" />
+            <path
+              d={pathD}
+              fill="none"
+              stroke="var(--brand)"
+              strokeWidth="5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.28"
+              filter="url(#principalChartGlow)"
+            />
+            <path
+              d={pathD}
+              fill="none"
+              stroke="var(--brand)"
+              strokeWidth="2.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        )}
+
+        {/* Data point markers */}
+        {points.map((p, idx) => (
+          <circle
+            key={`data-dot-${idx}`}
+            cx={p.x}
+            cy={p.y}
+            r="3.5"
+            fill="var(--brand)"
+            stroke="#B6D4F8"
+            strokeWidth="1.5"
+          />
+        ))}
+
+        {/* Milestone assessment dots */}
+        {points.map((p, idx) =>
+          p.assessmentLabels.length > 0 ? (
+            <g key={`milestone-dot-${idx}`}>
+              <circle cx={p.x} cy={p.y} r="8.5" fill="#38BDF8" opacity="0.45" filter="url(#principalChartGlow)" />
+              <circle cx={p.x} cy={p.y} r="4.5" fill="#0284C7" stroke="#BAE6FD" strokeWidth="2" />
+            </g>
+          ) : null
+        )}
+
+        {/* Vertical line and dots on hover */}
+        {hoveredIdx !== null && points[hoveredIdx] && (
+          <g>
+            <line
+              x1={points[hoveredIdx].x}
+              y1={paddingTop}
+              x2={points[hoveredIdx].x}
+              y2={paddingTop + chartH}
+              stroke="var(--brand)"
+              strokeWidth="1.5"
+              opacity="0.7"
+            />
+            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill="var(--brand)" />
+            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="8" fill="var(--brand)" opacity="0.25" />
+          </g>
+        )}
+
+        {/* Hover hit test regions */}
+        {points.map((p, idx) => {
+          const barW = chartW / (data.length - 1 || 1);
+          const xStart = idx === 0 ? paddingLeft : p.x - barW / 2;
+          const xEnd = idx === data.length - 1 ? width - paddingRight : p.x + barW / 2;
+          return (
+            <rect
+              key={idx}
+              x={xStart}
+              y={paddingTop}
+              width={xEnd - xStart}
+              height={chartH}
+              fill="transparent"
+              className="cursor-pointer"
+              onMouseEnter={() => setHoveredIdx(idx)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              onTouchStart={() => setHoveredIdx(idx)}
+              onClick={() => setHoveredIdx(hoveredIdx === idx ? null : idx)}
+            />
+          );
+        })}
+      </svg>
+
+      {/* Floating Tooltip */}
+      {hoveredIdx !== null && points[hoveredIdx] && (() => {
+        const p = points[hoveredIdx];
+        const isRightHalf = p.x > width * 0.5;
+        const maxTooltipWidth = Math.min(230, Math.max(160, width - 24));
+
+        let tooltipStyle: React.CSSProperties;
+
+        if (isMobile) {
+          const leftPos = Math.max(10, Math.min(width - maxTooltipWidth - 10, p.x - maxTooltipWidth / 2));
+          tooltipStyle = {
+            left: `${leftPos}px`,
+            top: '8px',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        } else if (isRightHalf) {
+          tooltipStyle = {
+            right: `${Math.max(10, width - p.x + 12)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        } else {
+          tooltipStyle = {
+            left: `${Math.max(10, p.x + 12)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        }
+
+        return (
+          <div
+            className="pointer-events-none absolute z-20 w-max rounded-xl border border-slate-200 dark:border-neutral-800 bg-white/95 dark:bg-[#000000]/95 p-3 text-left text-[11px] font-medium leading-normal text-slate-800 dark:text-white shadow-xl dark:shadow-2xl shadow-slate-900/10 dark:shadow-black/60 backdrop-blur-md transition-all duration-150 overflow-hidden"
+            style={tooltipStyle}
+          >
+            <div className="font-extrabold text-[11px] text-[#0052B7] dark:text-[#60A5FA] break-words">
+              {p.fullDateLabel || p.label}
+            </div>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span
+                className="text-sm font-extrabold"
+                style={{
+                  color: p.value >= 81 ? '#22C55E' : p.value >= 75 ? '#F59E0B' : '#EF4444',
+                }}
+              >
+                {p.value}%
+              </span>
+              <span className="text-[9px] text-slate-500 dark:text-zinc-400">Average Composite Rating</span>
+            </div>
+            {p.assessmentLabels.length > 0 && (
+              <div className="mt-1.5 bg-sky-50 dark:bg-[#0284C7]/20 border border-sky-200 dark:border-[#0284C7]/40 text-sky-700 dark:text-[#38BDF8] px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5 shadow-sm dark:shadow-[0_0_8px_rgba(2,132,199,0.25)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-600 dark:bg-[#38BDF8] shadow-none dark:shadow-[0_0_6px_rgba(56,189,248,0.8)] inline-block" />
+                <span className="uppercase tracking-wider">{p.assessmentLabels.join(', ')}</span>
+              </div>
+            )}
+            <div className="text-[9px] text-slate-500 dark:text-zinc-400 mt-1 border-t border-slate-100 dark:border-zinc-800 pt-1 space-y-0.5">
+              <div>
+                {p.actualCount > 0
+                  ? `${p.actualCount} ${p.actualCount === 1 ? 'assessment' : 'assessments'} logged`
+                  : 'No assessments logged'}
+              </div>
+              <div>
+                {(p.attendanceCount ?? 0) > 0
+                  ? `${p.attendanceCount} attendance record${p.attendanceCount === 1 ? '' : 's'}`
+                  : 'No attendance records'}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+};
+
+// ─── Main PrincipalHome Component ──────────────────────────────────────────────
 
 export const PrincipalHome: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
   const [dashboardData, setDashboardData] = useState<PrincipalDashboardResponse | null>(null);
-  const [dashboardLoading, setDashboardLoading] = useState(true);
-  const [dashboardError, setDashboardError] = useState<string | null>(null);
-  const [dashboardDays, setDashboardDays] = useState<number>(7);
+  const [grades, setGrades] = useState<Grade[]>([]);
+  const [attendance, setAttendance] = useState<Attendance[]>([]);
+  const [students, setStudents] = useState<User[]>([]);
+  const [tutorsList, setTutorsList] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [trendFilter, setTrendFilter] = useState<TrendFilter>('week');
   const [selectedTutorId, setSelectedTutorId] = useState<string>('all');
-  const [tutorPage, setTutorPage] = useState<number>(1);
-  const [staffAttendance, setStaffAttendance] = useState<Attendance[]>([]);
-  const [isDtrExportOpen, setIsDtrExportOpen] = useState(false);
-  const [isLoadingDtr, setIsLoadingDtr] = useState(false);
+  const [activeSystemSem, setActiveSystemSem] = useState<SemesterType>(() => getActiveSystemSemester());
 
-  const openDtrExport = async () => {
-    setIsLoadingDtr(true);
+  const loadDashboard = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      const records = await academicService.getAttendanceHistory();
-      setStaffAttendance(records.filter((record) => ['tutor', 'faculty'].includes(record.role)));
-      setIsDtrExportOpen(true);
-    } catch (err) {
-      console.error('Failed to load staff attendance for DTR export.', err);
-      setDashboardError('Failed to load tutor and faculty attendance for the DTR export.');
-    } finally {
-      setIsLoadingDtr(false);
-    }
-  };
+      const [principalData, gradesData, attendanceData, studentsData, tutorsData] = await Promise.all([
+        academicService.getPrincipalDashboard({ days: 30 }),
+        academicService.getGrades().catch((err) => {
+          console.warn('Could not load grades for principal dashboard:', err);
+          return [] as Grade[];
+        }),
+        academicService.getAttendanceHistory().catch(() => [] as Attendance[]),
+        userService.getAllUsers({ role: 'student' }).catch(() => [] as User[]),
+        userService.getTutors().catch(() => [] as User[]),
+      ]);
 
-  const fetchDashboardData = async () => {
-    setDashboardLoading(true);
-    setDashboardError(null);
-    try {
-      const data = await academicService.getPrincipalDashboard({ days: dashboardDays });
-      setDashboardData(data);
-    } catch (err) {
-      console.error(err);
-      setDashboardError('Failed to load principal dashboard analytics.');
+      setDashboardData(principalData);
+      setGrades(Array.isArray(gradesData) ? gradesData : []);
+      setAttendance(Array.isArray(attendanceData) ? attendanceData : []);
+      setStudents(Array.isArray(studentsData) ? studentsData : []);
+      setTutorsList(Array.isArray(tutorsData) ? tutorsData : []);
+    } catch (err: any) {
+      console.error('PrincipalHome fetch error:', err);
+      setError(err?.response?.data?.detail || 'Failed to load school administration dashboard.');
     } finally {
-      setDashboardLoading(false);
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [dashboardDays]);
+    loadDashboard();
+  }, []);
 
-  const classTrend = selectedTutorId !== 'all'
-    ? (dashboardData?.per_tutor_performance?.find((t) => t.tutor_id === selectedTutorId)?.trend ?? [])
-    : (dashboardData?.class_performance_trend ?? []);
-  const staffTrend = dashboardData?.staff_attendance_trend ?? [];
+  useEffect(() => {
+    academicService
+      .getCurrentSchoolYear()
+      .then((sy) => {
+        if (sy && sy.current_semester) {
+          setActiveSystemSem(sy.current_semester as any);
+        }
+      })
+      .catch(() => {});
 
-  const hasClassTrendData = classTrend.some(
-    (point) => point.attendance_rate > 0 || point.average_score > 0
-  );
-  const hasStaffTrendData = staffTrend.some(
-    (point) => point.tutor_attendance_rate > 0 || point.faculty_attendance_rate > 0
-  );
-  const selectedTutorName = selectedTutorId !== 'all'
-    ? dashboardData?.per_tutor_performance?.find((t) => t.tutor_id === selectedTutorId)?.tutor_name
-    : null;
+    const handleSemChange = (e: any) => {
+      const newSem = e?.detail?.semester || getActiveSystemSemester();
+      setActiveSystemSem(newSem);
+    };
 
-  // Student and risk metrics
-  const totalStudents = dashboardData?.program_summary.total_students || 0;
-  const lowRiskCount = dashboardData?.risk_summary.low || 0;
-  const medRiskCount = dashboardData?.risk_summary.medium || 0;
-  const highRiskCount = dashboardData?.risk_summary.high || 0;
+    window.addEventListener('system_semester_changed', handleSemChange);
+    return () => {
+      window.removeEventListener('system_semester_changed', handleSemChange);
+    };
+  }, []);
 
-  const lowRiskPct = totalStudents > 0 ? Math.round((lowRiskCount / totalStudents) * 100) : 0;
-  const medRiskPct = totalStudents > 0 ? Math.round((medRiskCount / totalStudents) * 100) : 0;
-  const highRiskPct = totalStudents > 0 ? Math.round((highRiskCount / totalStudents) * 100) : 0;
+  const adminMilestone = useMemo(() => {
+    return getActiveSystemMilestone();
+  }, [activeSystemSem]);
 
-  // Aggregate averages across class trend
-  const validScorePoints = classTrend.filter((p) => (p.average_score || 0) > 0);
-  const avgClassScore = validScorePoints.length > 0
-    ? Math.round(validScorePoints.reduce((acc, p) => acc + p.average_score, 0) / validScorePoints.length)
-    : 0;
+  // Tutors list from per_tutor_performance and tutorsList
+  const tutors = useMemo(() => {
+    const map = new Map<string, string>();
+    (dashboardData?.per_tutor_performance || []).forEach((t) => {
+      if (t.tutor_id) map.set(String(t.tutor_id), t.tutor_name);
+    });
+    tutorsList.forEach((t) => {
+      const name = t.full_name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || t.username;
+      if (t.id) map.set(String(t.id), name);
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [dashboardData, tutorsList]);
 
-  const validAttPoints = classTrend.filter((p) => (p.attendance_rate || 0) > 0);
-  const avgClassAtt = validAttPoints.length > 0
-    ? Math.round(validAttPoints.reduce((acc, p) => acc + p.attendance_rate, 0) / validAttPoints.length)
-    : 0;
+  const selectedTutorObj = useMemo(() => {
+    if (selectedTutorId === 'all') return null;
+    return tutors.find((t) => String(t.id) === String(selectedTutorId)) || null;
+  }, [tutors, selectedTutorId]);
 
-  // Per-tutor aggregated metrics
-  const tutorCohortStats = useMemo(() => {
-    return (dashboardData?.per_tutor_performance || []).map((tutor) => {
-      const scores = tutor.trend.filter((t) => (t.average_score || 0) > 0);
-      const avgScore = scores.length > 0
-        ? Math.round(scores.reduce((acc, t) => acc + t.average_score, 0) / scores.length)
-        : 0;
-      const atts = tutor.trend.filter((t) => (t.attendance_rate || 0) > 0);
-      const avgAtt = atts.length > 0
-        ? Math.round(atts.reduce((acc, t) => acc + t.attendance_rate, 0) / atts.length)
-        : 0;
+  // ── Ranked Tutors for TOP PERFORMING CLASSES ──
+  const [tutorSearch, setTutorSearch] = useState('');
+
+  const rankedTutorClasses = useMemo(() => {
+    const studentRiskRows = computeStudentRiskRows(students, grades, attendance);
+
+    const tutorResults = tutors.map((tutor) => {
+      const tutorIdStr = String(tutor.id);
+
+      // Find students assigned to this tutor
+      const assignedStudents = studentRiskRows.filter((r) => {
+        const assigned = (r.student as any).assigned_tutor;
+        const assignedId =
+          typeof assigned === 'object' && assigned !== null
+            ? String(assigned.id ?? assigned.pk ?? '')
+            : String(assigned ?? '');
+        return assignedId === tutorIdStr;
+      });
+
+      let studentCount = assignedStudents.length;
+      let compositeScore = 0;
+      let attendanceRate = 0;
+      let averageScore = 0;
+
+      if (assignedStudents.length > 0) {
+        const totalComp = assignedStudents.reduce((acc, s) => acc + s.compositeScore, 0);
+        compositeScore = Math.round((totalComp / assignedStudents.length) * 10) / 10;
+
+        const totalAtt = assignedStudents.reduce((acc, s) => acc + s.attendanceRate, 0);
+        attendanceRate = Math.round((totalAtt / assignedStudents.length) * 10) / 10;
+
+        const totalSc = assignedStudents.reduce((acc, s) => acc + s.scoreAvg, 0);
+        averageScore = Math.round((totalSc / assignedStudents.length) * 10) / 10;
+      } else {
+        // Fallback to per_tutor_performance trend points if direct student records aren't loaded
+        const tutorTrend =
+          dashboardData?.per_tutor_performance?.find((t) => String(t.tutor_id) === tutorIdStr)?.trend || [];
+        const validPoints = tutorTrend.filter((p) => p.attendance_rate > 0 || p.average_score > 0);
+        if (validPoints.length > 0) {
+          const avgAtt = validPoints.reduce((acc, p) => acc + p.attendance_rate, 0) / validPoints.length;
+          const avgSc = validPoints.reduce((acc, p) => acc + p.average_score, 0) / validPoints.length;
+          attendanceRate = Math.round(avgAtt * 10) / 10;
+          averageScore = Math.round(avgSc * 10) / 10;
+          compositeScore = Math.round(((attendanceRate * 0.4) + (averageScore * 0.6)) * 10) / 10;
+        }
+      }
+
       return {
-        tutor_id: tutor.tutor_id,
-        tutor_name: tutor.tutor_name,
-        sessionDays: tutor.trend.length,
-        avgScore,
-        avgAtt,
-        status: avgScore >= 75 ? 'On Track' : avgScore > 0 ? 'Needs Support' : 'Active',
+        tutorId: tutorIdStr,
+        tutorName: tutor.name,
+        studentCount,
+        compositeScore,
+        attendanceRate,
+        averageScore,
       };
     });
-  }, [dashboardData]);
 
-  const paginatedTutorCohortStats = useMemo(() => {
-    return tutorCohortStats.slice((tutorPage - 1) * 30, tutorPage * 30);
-  }, [tutorCohortStats, tutorPage]);
+    // Sort descending by compositeScore, secondary by averageScore, tertiary alphabetically
+    tutorResults.sort((a, b) => {
+      if (b.compositeScore !== a.compositeScore) {
+        return b.compositeScore - a.compositeScore;
+      }
+      if (b.averageScore !== a.averageScore) {
+        return b.averageScore - a.averageScore;
+      }
+      return a.tutorName.localeCompare(b.tutorName);
+    });
 
-  const chartHeight = 220;
-  const chartPadding = 36;
-  const classChartWidth = Math.max(340, classTrend.length * 56);
-  const staffChartWidth = Math.max(340, staffTrend.length * 56);
-  const classStepX = classTrend.length > 1 ? (classChartWidth - chartPadding * 2) / (classTrend.length - 1) : 0;
-  const staffStepX = staffTrend.length > 1 ? (staffChartWidth - chartPadding * 2) / (staffTrend.length - 1) : 0;
+    return tutorResults.map((t, idx) => ({
+      ...t,
+      rank: idx + 1,
+    }));
+  }, [tutors, students, grades, attendance, dashboardData]);
 
-  const compositeFromPrincipalPoint = (point: PrincipalDashboardTrendPoint) =>
-    Math.round(((point.attendance_rate || 0) + (point.average_score || 0)) / 2);
+  const filteredRankedTutors = useMemo(() => {
+    if (!tutorSearch.trim()) return rankedTutorClasses;
+    const query = tutorSearch.toLowerCase().trim();
+    return rankedTutorClasses.filter((t) => t.tutorName.toLowerCase().includes(query));
+  }, [rankedTutorClasses, tutorSearch]);
 
-  const buildCompositePoints = (points: PrincipalDashboardTrendPoint[], stepX: number) => {
-    if (!points.length) return '';
-    return points
-      .map((point, index) => {
-        const x = chartPadding + index * stepX;
-        const compositeValue = compositeFromPrincipalPoint(point);
-        const y = chartHeight - chartPadding - ((compositeValue / 100) * (chartHeight - chartPadding * 1.5));
-        return `${x},${y}`;
-      })
-      .join(' ');
-  };
+  // ── Metrics Calculations ──
+  const totalStudentsCount = dashboardData?.program_summary.total_students ?? 0;
+  const highRiskStudentsCount = dashboardData?.risk_summary.high ?? 0;
+  const totalTutorsCount = dashboardData?.program_summary.total_tutors ?? 0;
+  const totalFacultyCount = dashboardData?.program_summary.total_faculty ?? 0;
 
-  const buildRatePoints = (field: 'tutor' | 'faculty', stepX: number) => {
-    if (!staffTrend.length) return '';
-    return staffTrend
-      .map((point, index) => {
-        const x = chartPadding + index * stepX;
-        const value = field === 'tutor' ? point.tutor_attendance_rate : point.faculty_attendance_rate;
-        const y = chartHeight - chartPadding - ((value / 100) * (chartHeight - chartPadding * 1.5));
-        return `${x},${y}`;
-      })
-      .join(' ');
-  };
+  const hasAttendanceData = useMemo(() => {
+    if (attendance.length > 0) return true;
+    return (dashboardData?.class_performance_trend || []).some((p) => p.attendance_rate > 0);
+  }, [attendance, dashboardData]);
 
-  const formatDateLabel = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return `${date.getMonth() + 1}/${date.getDate()}`;
-    } catch {
-      return dateString;
+  const hasScoreData = useMemo(() => {
+    if (grades.some((g) => g.component_type !== 'attendance')) return true;
+    return (dashboardData?.class_performance_trend || []).some((p) => p.average_score > 0);
+  }, [grades, dashboardData]);
+
+  const overallAttendanceRate = useMemo(() => {
+    if (attendance.length > 0) {
+      const studentAtt = attendance.filter((a) => a.role === 'student' || (!a.role && a.status));
+      if (studentAtt.length > 0) {
+        const present = studentAtt.filter((a) => a.status === 'present').length;
+        return Math.round((present / studentAtt.length) * 1000) / 10;
+      }
     }
-  };
+    const validPoints = (dashboardData?.class_performance_trend || []).filter((p) => p.attendance_rate > 0);
+    if (validPoints.length > 0) {
+      return Math.round((validPoints.reduce((acc, p) => acc + p.attendance_rate, 0) / validPoints.length) * 10) / 10;
+    }
+    return 0;
+  }, [attendance, dashboardData]);
 
-  const statCards = [
-    {
-      label: 'Tutors',
-      value: dashboardData?.program_summary.total_tutors ?? '—',
-      subtext: 'Assigned mentors',
-    },
-    {
-      label: 'Faculty',
-      value: dashboardData?.program_summary.total_faculty ?? '—',
-      subtext: 'Teaching staff',
-    },
-    {
-      label: 'Students',
-      value: totalStudents > 0 ? totalStudents : '—',
-      subtext: 'Enrolled learners',
-    },
-    {
-      label: 'Avg Score',
-      value: avgClassScore > 0 ? `${avgClassScore}%` : '—',
-      subtext: 'Class evaluation',
-    },
-    {
-      label: 'Attendance Rate',
-      value: avgClassAtt > 0 ? `${avgClassAtt}%` : '—',
-      subtext: 'Session check-ins',
-    },
-    {
-      label: 'High Risk',
-      value: highRiskCount,
-      subtext: `${highRiskPct}% of students`,
-    },
-  ];
+  const overallAvgScore = useMemo(() => {
+    if (grades.length > 0) {
+      const validScores = grades.filter((g) => g.score !== null && g.score !== undefined && g.component_type !== 'attendance');
+      if (validScores.length > 0) {
+        const total = validScores.reduce((sum, g) => {
+          const scorePercent = g.total_score && g.total_score > 0 ? (g.score / g.total_score) * 100 : g.score;
+          return sum + scorePercent;
+        }, 0);
+        return Math.round((total / validScores.length) * 10) / 10;
+      }
+    }
+    const validPoints = (dashboardData?.class_performance_trend || []).filter((p) => p.average_score > 0);
+    if (validPoints.length > 0) {
+      return Math.round((validPoints.reduce((acc, p) => acc + p.average_score, 0) / validPoints.length) * 10) / 10;
+    }
+    return 0;
+  }, [grades, dashboardData]);
 
-  if (dashboardLoading) {
+  const overallCompositeScore = useMemo(() => {
+    if (overallAttendanceRate > 0 && overallAvgScore > 0) {
+      return Math.round(((overallAttendanceRate * 0.4) + (overallAvgScore * 0.6)) * 10) / 10;
+    }
+    if (overallAttendanceRate > 0) return overallAttendanceRate;
+    if (overallAvgScore > 0) return overallAvgScore;
+    return 0;
+  }, [overallAttendanceRate, overallAvgScore]);
+
+  // ── Compute performance trend data matching Admin ──
+  const chartTrendData = useMemo<PrincipalChartPoint[]>(() => {
+    const assessmentGrades = grades.filter((g) => {
+      const matchesTutor = selectedTutorId === 'all' || String(g.tutor) === String(selectedTutorId);
+      return matchesTutor && g.component_type === 'assessment';
+    });
+
+    const now = new Date();
+    const oneDay = 24 * 60 * 60 * 1000;
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const formatMonth = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+
+    let periods: {
+      label: string;
+      fullDateLabel?: string;
+      dateRange: string;
+      start: Date;
+      end: Date;
+      scores: number[];
+      attendanceCount: number;
+      assessmentLabels: Set<string>;
+    }[];
+
+    if (trendFilter === 'day') {
+      const schoolDays = getRecentSchoolWeekdays(10, now);
+      periods = schoolDays.map((d) => {
+        const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+        const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
+        const weekdayName = start.toLocaleDateString('en-US', { weekday: 'long' });
+        const monthFull = start.toLocaleDateString('en-US', { month: 'long' });
+        const dayNum = start.getDate();
+        const year = start.getFullYear();
+        const label = formatDate(start);
+        const fullDateLabel = `${monthFull} ${dayNum}, ${year} | ${weekdayName}`;
+        return {
+          label,
+          fullDateLabel,
+          dateRange: fullDateLabel,
+          start,
+          end,
+          scores: [] as number[],
+          attendanceCount: 0,
+          assessmentLabels: new Set<string>(),
+        };
+      });
+    } else {
+      const periodCount = 6;
+      periods = Array.from({ length: periodCount }).map((_, index) => {
+        let start: Date, end: Date, label: string, fullDateLabel: string;
+        if (trendFilter === 'month') {
+          const offset = periodCount - 1 - index;
+          start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+          end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
+          label = formatMonth(start);
+          const monthFull = start.toLocaleDateString('en-US', { month: 'long' });
+          const year = start.getFullYear();
+          fullDateLabel = `${monthFull} ${year}`;
+        } else {
+          // week (Mon–Fri)
+          const offset = periodCount - 1 - index;
+          const dayOfWeek = now.getDay();
+          const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+          const currentWeekMon = new Date(startOfToday.getTime() + diffToMon * oneDay);
+          start = new Date(currentWeekMon.getTime() - offset * 7 * oneDay);
+          const fri = new Date(start.getTime() + 4 * oneDay);
+          end = new Date(start.getTime() + 5 * oneDay);
+          label = `${formatDate(start)} – ${formatDate(fri)}`;
+          const startMonth = start.toLocaleDateString('en-US', { month: 'long' });
+          const friMonth = fri.toLocaleDateString('en-US', { month: 'long' });
+          const startDay = start.getDate();
+          const friDay = fri.getDate();
+          const friYear = fri.getFullYear();
+          const rangeText =
+            startMonth === friMonth
+              ? `${startMonth} ${startDay}–${friDay}, ${friYear}`
+              : `${startMonth} ${startDay} – ${friMonth} ${friDay}, ${friYear}`;
+          fullDateLabel = `${rangeText} | Monday – Friday`;
+        }
+        return {
+          label,
+          fullDateLabel,
+          dateRange: fullDateLabel,
+          start,
+          end,
+          scores: [] as number[],
+          attendanceCount: 0,
+          assessmentLabels: new Set<string>(),
+        };
+      });
+    }
+
+    if (assessmentGrades.length > 0) {
+      assessmentGrades.forEach((g) => {
+        const dateStr = g.date_logged ? g.date_logged.slice(0, 10) : '';
+        if (!dateStr) return;
+        const gDate = new Date(`${dateStr}T00:00:00`);
+        if (isNaN(gDate.getTime())) return;
+        for (const p of periods) {
+          if (gDate >= p.start && gDate < p.end) {
+            const scorePercent = g.total_score && g.total_score > 0 ? (g.score / g.total_score) * 100 : g.score;
+            p.scores.push(scorePercent);
+            const assessmentText = `${g.subject} ${g.remarks ?? ''}`.toUpperCase();
+            if (assessmentText.includes(adminMilestone.toUpperCase())) {
+              p.assessmentLabels.add(adminMilestone);
+            }
+          }
+        }
+      });
+
+      attendance.forEach((a) => {
+        if (!a.date) return;
+        const aDate = new Date(`${a.date}T00:00:00`);
+        if (isNaN(aDate.getTime())) return;
+        for (const p of periods) {
+          if (aDate >= p.start && aDate < p.end) {
+            p.attendanceCount++;
+          }
+        }
+      });
+
+      return periods.map((p) => {
+        const scoreAvg = p.scores.length > 0 ? p.scores.reduce((sum, s) => sum + s, 0) / p.scores.length : 0;
+        const composite = scoreAvg > 0 ? Math.round(scoreAvg * 10) / 10 : 0;
+        return {
+          label: p.label,
+          fullDateLabel: p.fullDateLabel,
+          dateRange: p.dateRange,
+          value: composite,
+          actualCount: p.scores.length,
+          attendanceCount: p.attendanceCount,
+          assessmentLabels: Array.from(p.assessmentLabels),
+        };
+      });
+    }
+
+    // Fallback if grades aren't populated: project from dashboardData.class_performance_trend
+    const trendPoints =
+      selectedTutorId !== 'all'
+        ? dashboardData?.per_tutor_performance?.find((t) => t.tutor_id === selectedTutorId)?.trend ?? []
+        : dashboardData?.class_performance_trend ?? [];
+
+    if (trendPoints.length === 0) return [];
+
+    return trendPoints.slice(-10).map((pt) => {
+      const d = new Date(pt.date);
+      const label = isNaN(d.getTime()) ? pt.date : formatDate(d);
+      const scoreVal = pt.average_score || 0;
+      const attVal = pt.attendance_rate || 0;
+      const compositeVal = scoreVal > 0 && attVal > 0
+        ? Math.round((attVal * 0.4 + scoreVal * 0.6) * 10) / 10
+        : scoreVal > 0
+        ? scoreVal
+        : attVal;
+
+      return {
+        label,
+        fullDateLabel: isNaN(d.getTime()) ? pt.date : d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+        dateRange: pt.date,
+        value: Math.round(compositeVal * 10) / 10,
+        actualCount: scoreVal > 0 ? 1 : 0,
+        attendanceCount: attVal > 0 ? 1 : 0,
+        assessmentLabels: [],
+      };
+    });
+  }, [grades, attendance, selectedTutorId, trendFilter, adminMilestone, dashboardData]);
+
+  // High/Low score calculations
+  const numericScores = useMemo(
+    () => chartTrendData.map((d) => d.value).filter((v) => v > 0),
+    [chartTrendData]
+  );
+  const highestScore = numericScores.length > 0 ? Math.max(...numericScores) : 0;
+  const lowestScore = numericScores.length > 0 ? Math.min(...numericScores) : 0;
+
+  const trendDir = useMemo(() => {
+    if (chartTrendData.length < 2) return 'neutral';
+    const nonZero = chartTrendData.filter((d) => d.value > 0);
+    if (nonZero.length < 2) return 'neutral';
+    const first = nonZero[0].value;
+    const last = nonZero[nonZero.length - 1].value;
+    if (last > first + 2) return 'up';
+    if (last < first - 2) return 'down';
+    return 'neutral';
+  }, [chartTrendData]);
+
+  // ─── Loading Skeleton ────────────────────────────────────────────────────────
+  if (isLoading) {
     return (
-      <div className="flex flex-col gap-4 data-loaded-content w-full min-w-0 max-w-full">
-        <StatsGridSkeleton count={4} cols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" />
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div className="lg:col-span-7 space-y-4">
-            <CardSkeleton rows={6} />
-            <CardSkeleton rows={5} />
-            <CardSkeleton rows={5} />
-          </div>
-          <div className="lg:col-span-5 space-y-4">
-            <CardSkeleton rows={4} />
-            <CardSkeleton rows={5} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (dashboardError) {
-    return (
-      <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/20 p-5 sm:p-6 text-rose-800 dark:text-rose-200">
-        <p className="text-sm font-bold text-rose-900 dark:text-rose-200">Failed to load principal analytics</p>
-        <p className="text-xs text-rose-700 dark:text-rose-300 mt-1">{dashboardError}</p>
-        <button
-          type="button"
-          onClick={fetchDashboardData}
-          className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-rose-300 dark:border-rose-800 bg-white dark:bg-rose-900/40 text-rose-700 dark:text-rose-200 text-xs font-semibold hover:bg-rose-100/60 transition-colors cursor-pointer"
-        >
-          <RefreshCw className="w-3.5 h-3.5" /> Retry
-        </button>
-      </div>
-    );
-  }
-
-  const staffTotal = (dashboardData?.program_summary.total_tutors || 0) + (dashboardData?.program_summary.total_faculty || 0);
-
-  return (
-    <div className="flex flex-col gap-4 data-loaded-content w-full min-w-0 max-w-full">
-      {/* ── 1. Top Metrics KPI Strip (Clean, Minimalist, Generous Whitespace) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Total Learners */}
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-          <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
-            Enrolled Learners
-          </span>
-          <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
-            {totalStudents > 0 ? totalStudents.toLocaleString() : '—'}
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 truncate">
-            {lowRiskCount} low risk • {highRiskCount} high risk ({highRiskPct}%)
-          </p>
-        </div>
-
-        {/* Metric 2: Academic Staff */}
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-          <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
-            Academic Staff
-          </span>
-          <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
-            {staffTotal.toLocaleString()}
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 truncate">
-            {dashboardData?.program_summary.total_tutors ?? 0} Tutors • {dashboardData?.program_summary.total_faculty ?? 0} Faculty
-          </p>
-        </div>
-
-        {/* Metric 3: Session Attendance */}
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-          <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
-            Session Attendance
-          </span>
-          <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
-            {avgClassAtt > 0 ? `${avgClassAtt}%` : '—'}
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-            Overall class session attendance rate
-          </p>
-        </div>
-
-        {/* Metric 4: Evaluation Average */}
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-          <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
-            Evaluation Average
-          </span>
-          <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
-            {avgClassScore > 0 ? `${avgClassScore}%` : '—'}
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-            Cohort student assessment performance
-          </p>
-        </div>
-      </div>
-
-      {/* ── 2. Streamlined Dashboard Layout (Clean Surfaces, Focused Hierarchy) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-        {/* ── Left Column (7 cols): Class Performance, Staff Attendance, and Tutor Cohorts ── */}
-        <div className="lg:col-span-7 space-y-4">
-          {/* Class Performance Trend Card */}
-          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-neutral-800">
-              <div className="min-w-0">
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight truncate">
-                  {selectedTutorId !== 'all' && selectedTutorName
-                    ? `${selectedTutorName.toUpperCase()}'S COHORT TREND`
-                    : 'CLASS PERFORMANCE TREND'}
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Student progress and composite scores over time
-                </p>
+      <div className="flex flex-col gap-3 data-loaded-content w-full min-w-0 max-w-full">
+        {/* Row 1 Skeleton: 3 Multi-Layer Top KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0">
+          {/* Card 1 Skeleton: 2 layers (Total Students & High Risk) */}
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-2xs">
+            {[1, 2].map((i) => (
+              <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-2">
+                <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-5 w-12 rounded bg-gray-200 dark:bg-gray-800" />
               </div>
+            ))}
+          </div>
+          {/* Card 2 Skeleton: 2 layers (Tutors, Faculty) */}
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-2xs">
+            {[1, 2].map((i) => (
+              <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-2">
+                <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-5 w-8 rounded bg-gray-200 dark:bg-gray-800" />
+              </div>
+            ))}
+          </div>
+          {/* Card 3 Skeleton: 3 layers (Attendance, Score, Composite) */}
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-2xs">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-1.5">
+                <div className="h-2.5 w-28 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-4 w-10 rounded bg-gray-200 dark:bg-gray-800" />
+              </div>
+            ))}
+          </div>
+        </div>
 
-              {/* Tutor Filter Select */}
-              <div className="shrink-0">
+        {/* Row 2 Skeleton: Main Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
+          <div className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3">
+            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-2xs flex flex-col justify-between">
+              <div className="h-4 w-56 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="my-4 flex-1 bg-gray-50/60 dark:bg-[#111111] rounded-lg min-h-[200px]" />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map((j) => (
+                  <div key={j} className="h-12 rounded bg-gray-50 dark:bg-[#111111]" />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3">
+            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-2xs">
+              <div className="h-4 w-36 rounded bg-gray-200 dark:bg-gray-800 mb-3" />
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5].map((k) => (
+                  <div key={k} className="h-12 rounded bg-gray-50 dark:bg-[#111111]" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Error State ─────────────────────────────────────────────────────────────
+  if (error) {
+    return (
+      <div className="flex items-start gap-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200 rounded-md p-4">
+        <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-bold">Failed to load dashboard</p>
+          <p className="text-xs mt-0.5 text-rose-700 dark:text-rose-300">{error}</p>
+          <button
+            type="button"
+            onClick={loadDashboard}
+            className="mt-3 inline-flex items-center gap-1.5 px-4 py-1.5 bg-rose-600 text-white rounded-md text-xs font-bold hover:bg-rose-700 transition cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Main Render ─────────────────────────────────────────────────────────────
+  return (
+    <div className="flex flex-col gap-3 data-loaded-content w-full min-w-0 max-w-full">
+      {/* ── 1. Top Summary KPI Cards (3 Multi-Layer Containers) ─────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 w-full min-w-0 max-w-full">
+        {/* Container 1: TOTAL STUDENTS & OVERALL HIGH RISK STUDENTS (2 Layers) */}
+        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+          <div className="flex-1 flex items-center justify-between px-3.5 py-2 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              TOTAL STUDENTS
+            </p>
+            <p className="text-base sm:text-lg font-extrabold tracking-tight text-gray-900 dark:text-slate-100 shrink-0">
+              {totalStudentsCount.toLocaleString()}
+            </p>
+          </div>
+          <div className="flex-1 flex items-center justify-between px-3.5 py-2 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              OVERALL HIGH RISK STUDENTS
+            </p>
+            <p className="text-base sm:text-lg font-extrabold text-risk-high shrink-0">
+              {highRiskStudentsCount.toLocaleString()}
+            </p>
+          </div>
+        </div>
+
+        {/* Container 2: TUTORS & FACULTY (2 Layers — Admin, Superadmin & Principal removed) */}
+        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+          <div className="flex-1 flex items-center justify-between px-3.5 py-2 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              TUTORS
+            </p>
+            <p className="text-base sm:text-lg font-extrabold tracking-tight text-gray-900 dark:text-slate-100 shrink-0">
+              {totalTutorsCount.toLocaleString()}
+            </p>
+          </div>
+          <div className="flex-1 flex items-center justify-between px-3.5 py-2 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              FACULTY
+            </p>
+            <p className="text-base sm:text-lg font-extrabold tracking-tight text-gray-900 dark:text-slate-100 shrink-0">
+              {totalFacultyCount.toLocaleString()}
+            </p>
+          </div>
+        </div>
+
+        {/* Container 3: OVERALL AVERAGE ATTENDANCE, OVERALL AVERAGE SCORE, OVERALL COMPOSITE SCORE (3 Layers) */}
+        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+          <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              OVERALL AVERAGE ATTENDANCE
+            </p>
+            <p
+              className={`text-xs sm:text-sm font-extrabold shrink-0 ${
+                !hasAttendanceData
+                  ? 'text-gray-400 dark:text-slate-500'
+                  : overallAttendanceRate >= 81
+                  ? 'text-risk-low'
+                  : overallAttendanceRate >= 75
+                  ? 'text-risk-medium'
+                  : 'text-risk-high'
+              }`}
+            >
+              {!hasAttendanceData ? '—' : `${overallAttendanceRate}%`}
+            </p>
+          </div>
+          <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              OVERALL AVERAGE SCORE
+            </p>
+            <p
+              className={`text-xs sm:text-sm font-extrabold shrink-0 ${
+                !hasScoreData
+                  ? 'text-gray-400 dark:text-slate-500'
+                  : overallAvgScore >= 81
+                  ? 'text-risk-low'
+                  : overallAvgScore >= 75
+                  ? 'text-risk-medium'
+                  : 'text-risk-high'
+              }`}
+            >
+              {!hasScoreData ? '—' : `${overallAvgScore}%`}
+            </p>
+          </div>
+          <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+              OVERALL COMPOSITE SCORE
+            </p>
+            <p
+              className={`text-xs sm:text-sm font-extrabold shrink-0 ${
+                !hasAttendanceData && !hasScoreData
+                  ? 'text-gray-400 dark:text-slate-500'
+                  : overallCompositeScore >= 81
+                  ? 'text-risk-low'
+                  : overallCompositeScore >= 75
+                  ? 'text-risk-medium'
+                  : 'text-risk-high'
+              }`}
+            >
+              {!hasAttendanceData && !hasScoreData ? '—' : `${overallCompositeScore}%`}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 2. Main Section: Trend Chart (Left) & Top Performing Classes (Right) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch w-full min-w-0 max-w-full">
+        {/* ── Left Column (9 cols on lg & xl: ~75% width): Performance Trend Chart ── */}
+        <div className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3 w-full min-w-0 max-w-full">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 w-full min-w-0 max-w-full shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 shrink-0 pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate">
+                  {selectedTutorObj
+                    ? `${selectedTutorObj.name.toUpperCase()}'S STUDENTS PERFORMANCE TREND`
+                    : 'PNAHS ARAL PERFORMANCE TREND CHART'}
+                </h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 justify-between sm:justify-end min-w-0 shrink-0">
+                {/* Tutor Filter Dropdown */}
                 <select
-                  aria-label="Filter by Tutor Cohort"
+                  aria-label="Filter by Tutor Class"
                   value={selectedTutorId}
                   onChange={(e) => setSelectedTutorId(e.target.value)}
-                  style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
-                  className="h-8 px-2.5 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 text-slate-800 dark:text-slate-200 cursor-pointer outline-none transition focus:border-[var(--brand)] max-w-[190px] truncate"
+                  className="h-7 sm:h-8 px-2 rounded-sm text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[140px] sm:max-w-[170px] whitespace-nowrap truncate shrink-0"
                 >
                   <option value="all">ALL TUTORS</option>
-                  {dashboardData?.per_tutor_performance?.map((tutor) => (
-                    <option key={tutor.tutor_id} value={tutor.tutor_id}>
-                      {tutor.tutor_name}
+                  {tutors.map((tutor) => (
+                    <option key={tutor.id} value={tutor.id}>
+                      {tutor.name.toUpperCase()}
                     </option>
                   ))}
                 </select>
+
+                {/* Legend */}
+                <div className="flex items-center gap-2 xs:gap-3 shrink-0 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                    <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
+                    <span className="hidden xs:inline whitespace-nowrap">Composite rating</span>
+                    <span className="xs:hidden whitespace-nowrap">Composite</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400 whitespace-nowrap">
+                    <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block shrink-0" />
+                    <span className="truncate max-w-[120px] xs:max-w-none whitespace-nowrap">{adminMilestone}</span>
+                  </div>
+                </div>
+
+                {/* Period Toggles */}
+                <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
+                  {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setTrendFilter(filter)}
+                      className={`rounded-sm px-2.5 sm:px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
+                        trendFilter === filter
+                          ? 'bg-[var(--brand)] text-white shadow-xs'
+                          : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      {filter}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Chart Area */}
-            <div className="relative min-h-[200px] w-full mt-4 bg-slate-50/50 dark:bg-neutral-950/40 border border-slate-100 dark:border-neutral-800/80 rounded-lg p-3 overflow-hidden">
-              {hasClassTrendData ? (
-                <div className="overflow-x-auto mobile-scroll-table -mx-1 px-1">
-                  <svg width={classChartWidth} height={chartHeight} className="block mx-auto">
-                    {[0, 1, 2, 3, 4].map((line) => {
-                      const y = chartPadding + ((chartHeight - chartPadding * 1.5) / 4) * line;
-                      return (
-                        <line
-                          key={line}
-                          x1={chartPadding}
-                          y1={y}
-                          x2={classChartWidth - chartPadding}
-                          y2={y}
-                          stroke="rgba(148, 163, 184, 0.2)"
-                          strokeWidth="1"
-                        />
-                      );
-                    })}
-                    <polyline
-                      fill="none"
-                      stroke="var(--brand)"
-                      strokeWidth="2.5"
-                      strokeLinejoin="round"
-                      strokeLinecap="round"
-                      points={buildCompositePoints(classTrend, classStepX)}
-                    />
-                    {classTrend.map((point, index) => {
-                      const x = chartPadding + index * classStepX;
-                      const compositeValue = compositeFromPrincipalPoint(point);
-                      const compositeY = chartHeight - chartPadding - ((compositeValue / 100) * (chartHeight - chartPadding * 1.5));
-                      return (
-                        <circle key={point.date} cx={x} cy={compositeY} r="3.5" fill="var(--brand)" />
-                      );
-                    })}
-                    {classTrend.map((point, index) => {
-                      const x = chartPadding + index * classStepX;
-                      return (
-                        <text
-                          key={point.date}
-                          x={x}
-                          y={chartHeight - chartPadding / 2.5}
-                          textAnchor="middle"
-                          fontSize="10"
-                          className="fill-slate-500 dark:fill-slate-400 font-semibold"
-                        >
-                          {formatDateLabel(point.date)}
-                        </text>
-                      );
-                    })}
-                  </svg>
-                </div>
+            {/* Chart Canvas */}
+            <div className="relative min-h-[220px] sm:min-h-[260px] flex-1 w-full mt-3 sm:mt-4 bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-4 sm:py-3 overflow-hidden">
+              {chartTrendData.length > 0 ? (
+                <InteractivePrincipalPerformanceChart data={chartTrendData} trendFilter={trendFilter} />
               ) : (
-                <div className="py-12 text-center text-xs text-slate-400 dark:text-slate-500">
-                  No class performance data available for this window.
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 select-none">
+                  <BarChart2 className="w-8 h-8 text-gray-200 dark:text-gray-700" />
+                  <p className="text-xs font-semibold text-gray-400 dark:text-slate-500 whitespace-nowrap">
+                    {trendFilter === 'day'
+                      ? 'No recorded score today'
+                      : trendFilter === 'week'
+                      ? 'No recorded score this week'
+                      : 'No recorded score this month'}
+                  </p>
+                  <p className="text-[11px] text-gray-300 dark:text-slate-600 whitespace-nowrap">
+                    Data will appear once scores and attendance are logged for students
+                  </p>
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Staff Attendance Trend Card */}
-          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-neutral-800">
-              <div className="min-w-0">
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">
-                  Staff Attendance Trend
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Tutor and faculty session participation
-                </p>
-              </div>
-              <div className="flex items-center gap-3 text-xs shrink-0 font-medium">
-                <span className="inline-flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                  <span className="w-2 h-2 rounded-full bg-[var(--brand)]" />
-                  Tutors
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  Faculty
-                </span>
-              </div>
-            </div>
-
-            {/* Staff Chart Area */}
-            <div className="relative min-h-[200px] w-full mt-4 bg-slate-50/50 dark:bg-neutral-950/40 border border-slate-100 dark:border-neutral-800/80 rounded-lg p-3 overflow-hidden">
-              {hasStaffTrendData ? (
-                <div className="overflow-x-auto mobile-scroll-table -mx-1 px-1">
-                  <svg width={staffChartWidth} height={chartHeight} className="block mx-auto">
-                    {[0, 1, 2, 3, 4].map((line) => {
-                      const y = chartPadding + ((chartHeight - chartPadding * 1.5) / 4) * line;
-                      return (
-                        <line
-                          key={line}
-                          x1={chartPadding}
-                          y1={y}
-                          x2={staffChartWidth - chartPadding}
-                          y2={y}
-                          stroke="rgba(148, 163, 184, 0.2)"
-                          strokeWidth="1"
-                        />
-                      );
-                    })}
-                    <polyline
-                      fill="none"
-                      stroke="var(--brand)"
-                      strokeWidth="2.5"
-                      strokeLinejoin="round"
-                      strokeLinecap="round"
-                      points={buildRatePoints('tutor', staffStepX)}
-                    />
-                    <polyline
-                      fill="none"
-                      stroke="#10B981"
-                      strokeWidth="2.5"
-                      strokeLinejoin="round"
-                      strokeLinecap="round"
-                      points={buildRatePoints('faculty', staffStepX)}
-                    />
-                    {staffTrend.map((point, index) => {
-                      const x = chartPadding + index * staffStepX;
-                      const tutorY = chartHeight - chartPadding - ((point.tutor_attendance_rate / 100) * (chartHeight - chartPadding * 1.5));
-                      const facultyY = chartHeight - chartPadding - ((point.faculty_attendance_rate / 100) * (chartHeight - chartPadding * 1.5));
-                      return (
-                        <g key={point.date}>
-                          <circle cx={x} cy={tutorY} r="3.5" fill="var(--brand)" />
-                          <circle cx={x} cy={facultyY} r="3.5" fill="#10B981" />
-                        </g>
-                      );
-                    })}
-                    {staffTrend.map((point, index) => {
-                      const x = chartPadding + index * staffStepX;
-                      return (
-                        <text
-                          key={point.date}
-                          x={x}
-                          y={chartHeight - chartPadding / 2.5}
-                          textAnchor="middle"
-                          fontSize="10"
-                          className="fill-slate-500 dark:fill-slate-400 font-semibold"
-                        >
-                          {formatDateLabel(point.date)}
-                        </text>
-                      );
-                    })}
-                  </svg>
+            {/* Bottom Metrics Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 mt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
+              {[
+                {
+                  label: 'Highest',
+                  value: chartTrendData.length === 0 ? '—' : `${highestScore}%`,
+                  color:
+                    chartTrendData.length === 0
+                      ? 'text-gray-400 dark:text-slate-500'
+                      : highestScore >= 81
+                      ? 'text-risk-low'
+                      : highestScore >= 75
+                      ? 'text-risk-medium'
+                      : 'text-risk-high',
+                },
+                {
+                  label: 'Lowest',
+                  value: chartTrendData.length === 0 ? '—' : `${lowestScore}%`,
+                  color:
+                    chartTrendData.length === 0
+                      ? 'text-gray-400 dark:text-slate-500'
+                      : lowestScore >= 81
+                      ? 'text-risk-low'
+                      : lowestScore >= 75
+                      ? 'text-risk-medium'
+                      : 'text-risk-high',
+                },
+              ].map((stat) => (
+                <div
+                  key={stat.label}
+                  className="bg-gray-50/80 dark:bg-[#111111] p-2.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center min-w-0"
+                >
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap truncate">
+                    {stat.label}
+                  </p>
+                  <p className={`text-base sm:text-lg font-extrabold mt-0.5 whitespace-nowrap truncate ${stat.color}`}>
+                    {stat.value}
+                  </p>
                 </div>
-              ) : (
-                <div className="py-12 text-center text-xs text-slate-400 dark:text-slate-500">
-                  No staff attendance data available for this window.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Tutor Cohort Performance Card */}
-          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-neutral-800">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">
-                  Tutor Cohort Performance
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Evaluation metrics across active tutoring groups
+              ))}
+              <div className="bg-gray-50/80 dark:bg-[#111111] p-2.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center min-w-0">
+                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap truncate">
+                  Trend
                 </p>
+                <div className="mt-0.5 whitespace-nowrap truncate">
+                  {chartTrendData.length === 0 ? (
+                    <span className="text-base sm:text-lg font-extrabold text-gray-400 dark:text-slate-500 whitespace-nowrap">
+                      —
+                    </span>
+                  ) : trendDir === 'up' ? (
+                    <span className="text-base sm:text-lg font-extrabold text-risk-low whitespace-nowrap">
+                      Improving
+                    </span>
+                  ) : trendDir === 'down' ? (
+                    <span className="text-base sm:text-lg font-extrabold text-risk-high whitespace-nowrap">
+                      Declining
+                    </span>
+                  ) : (
+                    <span className="text-base sm:text-lg font-extrabold text-gray-500 dark:text-slate-400 whitespace-nowrap">
+                      Stable
+                    </span>
+                  )}
+                </div>
               </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-neutral-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-neutral-800">
-                {tutorCohortStats.length} Tutors Active
-              </span>
+              <Link
+                to="/principal/analytics"
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-4 py-2.5 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300 whitespace-nowrap"
+              >
+                <span className="whitespace-nowrap">See More</span>
+                <span className="font-bold" aria-hidden="true">&gt;</span>
+              </Link>
             </div>
-
-            {tutorCohortStats.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400 dark:text-slate-500">
-                No tutor performance records found for this period.
-              </div>
-            ) : (
-              <div className="overflow-x-auto mobile-scroll-table mt-1">
-                <table className="w-full min-w-[560px] text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-100 dark:border-neutral-800 text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-wider">
-                      <th className="py-3 px-2 font-semibold">Tutor Name</th>
-                      <th className="py-3 px-2 font-semibold text-center">Tracked Days</th>
-                      <th className="py-3 px-2 font-semibold text-center">Avg Score</th>
-                      <th className="py-3 px-2 font-semibold text-center">Attendance</th>
-                      <th className="py-3 px-2 font-semibold text-center">Status</th>
-                      <th className="py-3 px-2 font-semibold text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-neutral-800/80">
-                    {paginatedTutorCohortStats.map((tutor) => (
-                      <tr
-                        key={tutor.tutor_id}
-                        className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors"
-                      >
-                        <td className="py-3 px-2 font-semibold text-slate-800 dark:text-slate-200">
-                          {tutor.tutor_name}
-                        </td>
-                        <td className="py-3 px-2 text-center text-slate-500 dark:text-slate-400 font-mono">
-                          {tutor.sessionDays}
-                        </td>
-                        <td className="py-3 px-2 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
-                            tutor.avgScore >= 75
-                              ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40'
-                              : tutor.avgScore > 0
-                              ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40'
-                              : 'bg-slate-100 dark:bg-neutral-900 text-slate-600 dark:text-slate-400'
-                          }`}>
-                            {tutor.avgScore > 0 ? `${tutor.avgScore}%` : '—'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-2 text-center font-mono text-slate-700 dark:text-slate-300">
-                          {tutor.avgAtt > 0 ? `${tutor.avgAtt}%` : '—'}
-                        </td>
-                        <td className="py-3 px-2 text-center">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                            tutor.status === 'On Track'
-                              ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40'
-                              : tutor.status === 'Needs Support'
-                              ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800/40'
-                              : 'bg-slate-100 dark:bg-neutral-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-neutral-800'
-                          }`}>
-                            {tutor.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-2 text-right">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedTutorId(tutor.tutor_id)}
-                            className="text-xs font-semibold text-[#0052B7] dark:text-blue-400 hover:underline cursor-pointer"
-                          >
-                            View
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* ── Right Column (5 cols): Executive Controls & Academic Risk ── */}
-        <div className="lg:col-span-5 space-y-4">
-          {/* Executive Controls Card */}
-          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight pb-4 border-b border-slate-100 dark:border-neutral-800">
-              Executive Controls
-            </h2>
-
-            {/* Timeframe Selector */}
-            <div className="mt-4">
-              <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
-                Analytics Timeframe
-              </label>
-              <select
-                value={dashboardDays}
-                onChange={(e) => setDashboardDays(Number(e.target.value))}
-                style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
-                className="w-full h-9 px-3 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 text-slate-800 dark:text-slate-200 cursor-pointer outline-none transition focus:border-[var(--brand)]"
-              >
-                <option value={7}>Last 7 days</option>
-                <option value={14}>Last 14 days</option>
-                <option value={30}>Last 30 days</option>
-              </select>
+        {/* ── Right Column (3 cols on lg & xl: ~25% width): TOP PERFORMING CLASSES ── */}
+        <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3 w-full min-w-0 max-w-full">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 h-full min-h-[420px] shadow-2xs">
+            {/* Header */}
+            <div className="pb-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
+              <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight truncate">
+                TOP PERFORMING CLASSES
+              </h3>
             </div>
 
-            {/* Quick Action Tiles */}
-            <div className="grid grid-cols-2 gap-2.5 mt-3.5">
-              <button
-                type="button"
-                onClick={openDtrExport}
-                disabled={isLoadingDtr}
-                className="p-3.5 rounded-lg border border-slate-200 dark:border-neutral-800 hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors text-left group cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors">
-                  {isLoadingDtr ? 'Loading…' : 'Export DTR'}
-                </span>
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">
-                  Staff logs report
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={fetchDashboardData}
-                className="p-3.5 rounded-lg border border-slate-200 dark:border-neutral-800 hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors text-left group cursor-pointer"
-              >
-                <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors">
-                  Refresh
-                </span>
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">
-                  Reload metrics
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* Academic Risk Distribution Card */}
-          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-neutral-800">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">
-                  Academic Risk Distribution
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Cohort breakdown based on attendance & scores
-                </p>
-              </div>
-              <span className="text-xs text-slate-400 dark:text-slate-500">
-                Total: <strong className="font-semibold text-slate-900 dark:text-white">{totalStudents}</strong>
-              </span>
+            {/* Quick Search */}
+            <div className="mt-3 relative w-full shrink-0">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={tutorSearch}
+                onChange={(e) => setTutorSearch(e.target.value)}
+                placeholder="Search Tutor Name"
+                className="w-full h-7.5 pl-8 pr-2.5 rounded-sm bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-xs text-gray-800 dark:text-slate-200 placeholder-gray-400 focus:outline-none focus:border-[var(--brand)]"
+              />
             </div>
 
-            {/* Stacked Progress Bar */}
-            <div className="mt-4">
-              <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-neutral-900 overflow-hidden flex gap-0.5">
-                <div
-                  style={{ width: `${lowRiskPct}%` }}
-                  className="bg-emerald-500 transition-all duration-300"
-                  title={`Low Risk: ${lowRiskCount} (${lowRiskPct}%)`}
-                />
-                <div
-                  style={{ width: `${medRiskPct}%` }}
-                  className="bg-amber-500 transition-all duration-300"
-                  title={`Medium Risk: ${medRiskCount} (${medRiskPct}%)`}
-                />
-                <div
-                  style={{ width: `${highRiskPct}%` }}
-                  className="bg-rose-500 transition-all duration-300"
-                  title={`High Risk: ${highRiskCount} (${highRiskPct}%)`}
-                />
-              </div>
-
-              {/* Risk Tier List Rows */}
-              <div className="divide-y divide-slate-100 dark:divide-neutral-800/80 mt-3">
-                <div className="py-2.5 px-2 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="font-medium text-slate-800 dark:text-slate-200">Low Risk (On Track)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">{lowRiskPct}%</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">{lowRiskCount}</span>
-                  </div>
+            {/* Ranked Tutors List */}
+            <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5">
+              {filteredRankedTutors.length === 0 ? (
+                <div className="py-8 text-center text-xs text-gray-400 dark:text-slate-500">
+                  {rankedTutorClasses.length === 0 ? 'No tutor classes found' : 'No tutors matching search filter'}
                 </div>
+              ) : (
+                filteredRankedTutors.map((item) => {
+                  return (
+                    <div
+                      key={item.tutorId}
+                      onClick={() => navigate(`/principal/analytics?tutorId=${item.tutorId}`)}
+                      className="block p-2.5 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111]/70 hover:bg-gray-100/60 dark:hover:bg-white/[0.03] hover:border-gray-300 dark:hover:border-zinc-700 transition-colors group cursor-pointer shadow-2xs"
+                      title={`Click to view data analytics for ${item.tutorName}`}
+                    >
+                      <div className="flex items-center justify-between gap-2.5">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-gray-900 dark:text-slate-100 group-hover:text-[var(--brand)] transition-colors truncate">
+                            {item.tutorName}
+                          </p>
+                          <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5 truncate">
+                            {item.studentCount} student{item.studentCount === 1 ? '' : 's'}
+                          </p>
+                        </div>
 
-                <div className="py-2.5 px-2 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    <span className="font-medium text-slate-800 dark:text-slate-200">Medium Risk (Watchlist)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">{medRiskPct}%</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">{medRiskCount}</span>
-                  </div>
-                </div>
-
-                <div className="py-2.5 px-2 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-rose-500" />
-                    <span className="font-medium text-slate-800 dark:text-slate-200">High Risk (Intervention)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">{highRiskPct}%</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">{highRiskCount}</span>
-                  </div>
-                </div>
-              </div>
+                        {/* Composite Score Pill */}
+                        <div className="text-right shrink-0">
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-extrabold border ${
+                              item.compositeScore === 0
+                                ? 'text-gray-400 dark:text-slate-500 border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111]'
+                                : item.compositeScore >= 81
+                                ? 'text-risk-low border-emerald-200 bg-emerald-50 dark:border-emerald-800/80 dark:bg-emerald-950/40'
+                                : item.compositeScore >= 70
+                                ? 'text-risk-medium border-amber-200 bg-amber-50 dark:border-amber-800/80 dark:bg-amber-950/40'
+                                : 'text-risk-high border-rose-200 bg-rose-50 dark:border-rose-800/80 dark:bg-rose-950/40'
+                            }`}
+                          >
+                            {item.compositeScore === 0 ? '—' : `${item.compositeScore}%`}
+                          </span>
+                          <p className="text-[8.5px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500 mt-0.5 text-right">
+                            COMPOSITE
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
       </div>
-
-      <ExportDtrModal
-        isOpen={isDtrExportOpen}
-        onClose={() => setIsDtrExportOpen(false)}
-        currentUser={user}
-        attendanceLogs={staffAttendance}
-      />
     </div>
   );
 };
+
+export default PrincipalHome;

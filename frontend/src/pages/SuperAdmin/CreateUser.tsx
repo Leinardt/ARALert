@@ -116,11 +116,15 @@ export const CreateUser: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tutors, setTutors] = useState<User[]>([]);
 
+  const isSuperUser = Boolean(currentUser?.is_superuser);
   const searchParams = new URLSearchParams(location.search);
   const requestedRole = searchParams.get('role');
-  const initialRole = (requestedRole === 'student' || requestedRole === 'tutor' || requestedRole === 'faculty' || requestedRole === 'admin' || requestedRole === 'principal')
-    ? requestedRole
-    : (currentUser?.is_superuser ? 'tutor' : 'student');
+  const allowedRoles = isSuperUser
+    ? ['student', 'tutor', 'faculty', 'principal', 'admin']
+    : ['student', 'tutor', 'faculty', 'principal'];
+  const initialRole = (requestedRole && allowedRoles.includes(requestedRole))
+    ? (requestedRole as CreateUserFields['role'])
+    : (isSuperUser ? 'tutor' : 'student');
 
   const {
     register,
@@ -151,6 +155,12 @@ export const CreateUser: React.FC = () => {
   });
 
   const selectedRole = watch('role');
+
+  useEffect(() => {
+    if (!isSuperUser && requestedRole === 'admin') {
+      navigate('/admin/students', { replace: true });
+    }
+  }, [isSuperUser, requestedRole, navigate]);
 
   useEffect(() => {
     const loadTutors = async () => {
@@ -206,7 +216,6 @@ export const CreateUser: React.FC = () => {
     if (selectedRole === 'tutor') return '/admin/tutors';
     if (selectedRole === 'faculty') return '/admin/faculty';
     if (selectedRole === 'principal') return '/admin/principals';
-    if (selectedRole === 'admin') return '/admin/admins';
     return '/admin/students';
   };
 
