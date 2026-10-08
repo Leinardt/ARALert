@@ -8,6 +8,7 @@ from pathlib import Path
 from datetime import timedelta
 
 from decouple import config, Csv
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -54,6 +55,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -91,6 +93,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Development fallback: allow using SQLite when `USE_SQLITE=True` in .env
 USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
+DATABASE_URL = config('DATABASE_URL', default=None)
 
 if USE_SQLITE:
     DATABASES = {
@@ -98,6 +101,10 @@ if USE_SQLITE:
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
         }
+    }
+elif DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=True)
     }
 else:
     DATABASES = {
@@ -136,6 +143,17 @@ USE_TZ = True
 # --------------------------------------------------------------------------
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
