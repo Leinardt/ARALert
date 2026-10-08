@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { ArrowRight, School, Menu, X } from 'lucide-react';
+import { ArrowRight, Menu, X, School, Mail } from 'lucide-react';
 import { ThemeToggle } from '../components/ThemeToggle';
 
 import aralertLogo from '../assets/ARALert_Logo_LIGHT.png';
@@ -53,7 +53,7 @@ export const PublicLayout: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen flex flex-col font-sans bg-white dark:bg-black text-slate-900 dark:text-white relative"
+      className="min-h-screen min-h-[100dvh] flex flex-col font-sans bg-white dark:bg-black text-slate-900 dark:text-white relative w-full overflow-x-clip"
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       {/* ── Dynamic Navbar ── */}
@@ -73,26 +73,19 @@ export const PublicLayout: React.FC = () => {
           <div className="flex items-center gap-2 sm:gap-4">
             <Link
               to="/"
-              className="landing-brand-link flex items-center gap-2 text-decoration-none group px-2 py-1.5 rounded-xl hover:bg-slate-100/80 dark:hover:bg-white/[0.08] hover:backdrop-blur-md transition-all duration-200"
+              className="landing-brand-link flex items-center gap-2 text-decoration-none group px-2 py-1.5 rounded-xl hover:bg-blue-50/80 dark:hover:bg-blue-950/40 hover:backdrop-blur-md transition-all duration-200"
               onClick={(e) => handleNavClick(e, 'home')}
             >
               <img
                 src={logoSrc}
                 alt="ARALert logo"
-                className="w-7 h-7 object-contain transition-transform duration-200 group-hover:scale-105"
+                className="w-8 h-8 sm:w-8.5 sm:h-8.5 object-contain transition-transform duration-200 group-hover:scale-105"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).style.display = 'none';
                 }}
               />
-              <span className="text-xs sm:text-sm font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                ARALert
-              </span>
             </Link>
 
-            {/* Slash Divider between ARALert and Home (Desktop only) */}
-            <span className="hidden md:inline font-light text-sm select-none text-slate-300 dark:text-neutral-700">
-              /
-            </span>
 
             {/* Navigation links (Desktop & Tablet landscape) */}
             <nav className="hidden md:flex items-center gap-1">
@@ -101,7 +94,7 @@ export const PublicLayout: React.FC = () => {
                   key={item.id}
                   href={item.to}
                   onClick={(e) => handleNavClick(e, item.id)}
-                  className="landing-nav-link text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100/80 dark:hover:bg-white/[0.08] hover:backdrop-blur-md border border-transparent transition-all duration-200 cursor-pointer"
+                  className="landing-nav-link text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-[#0052B7] dark:hover:text-blue-400 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 hover:backdrop-blur-md border border-transparent transition-all duration-200 cursor-pointer"
                 >
                   {item.label}
                 </a>
@@ -116,10 +109,15 @@ export const PublicLayout: React.FC = () => {
             {(!isLoginPage || isAuthenticated) && (
               <Link
                 to={isAuthenticated ? getDashboardLink() : '/login'}
-                className="glass-btn group hidden sm:inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl font-semibold text-xs sm:text-sm hover:text-blue-600 dark:hover:text-blue-400"
+                onClick={() => {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="glass-btn group hidden sm:inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm !text-[#0052B7] dark:!text-blue-400 hover:!bg-[#0052B7] hover:!text-white hover:!border-[#0052B7] dark:hover:!bg-[#0052B7] dark:hover:!text-white hover:shadow-md hover:shadow-blue-600/20 transition-all duration-200"
               >
-                <span className="group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">{isAuthenticated ? 'Dashboard' : 'Sign In'}</span>
-                <ArrowRight size={14} className="text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200" />
+                <span className="text-[#0052B7] dark:text-blue-400 group-hover:!text-white font-bold transition-colors duration-200">
+                  {isAuthenticated ? 'Dashboard' : 'Sign In'}
+                </span>
+                <ArrowRight size={14} className="text-[#0052B7] dark:text-blue-400 group-hover:!text-white group-hover:translate-x-0.5 transition-all duration-200" />
               </Link>
             )}
 
@@ -151,7 +149,7 @@ export const PublicLayout: React.FC = () => {
                       key={item.id}
                       href={item.to}
                       onClick={(e) => handleNavClick(e, item.id)}
-                      className="landing-nav-link min-h-[44px] flex items-center px-4 py-3 rounded-xl text-base font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-neutral-900 transition-colors"
+                      className="landing-nav-link min-h-[44px] flex items-center px-4 py-3 rounded-xl text-base font-semibold text-slate-700 dark:text-slate-200 hover:text-[#0052B7] dark:hover:text-blue-400 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 transition-colors"
                     >
                       {item.label}
                     </a>
@@ -162,11 +160,16 @@ export const PublicLayout: React.FC = () => {
                   <div className="pt-2 border-t border-slate-200 dark:border-neutral-800 flex flex-col gap-2">
                     <Link
                       to={isAuthenticated ? getDashboardLink() : '/login'}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="glass-btn group w-full min-h-[46px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-base hover:text-blue-600 dark:hover:text-blue-400"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="glass-btn group w-full min-h-[44px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm !text-[#0052B7] dark:!text-blue-400 hover:!bg-[#0052B7] hover:!text-white hover:!border-[#0052B7] dark:hover:!bg-[#0052B7] dark:hover:!text-white transition-all duration-200"
                     >
-                      <span className="group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">{isAuthenticated ? 'Go to Dashboard' : 'Sign In to Portal'}</span>
-                      <ArrowRight size={16} className="text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200" />
+                      <span className="text-[#0052B7] dark:text-blue-400 group-hover:!text-white font-bold transition-colors duration-200">
+                        {isAuthenticated ? 'Go to Dashboard' : 'Sign In to Portal'}
+                      </span>
+                      <ArrowRight size={16} className="text-[#0052B7] dark:text-blue-400 group-hover:!text-white group-hover:translate-x-0.5 transition-all duration-200" />
                     </Link>
                   </div>
                 )}
@@ -177,41 +180,44 @@ export const PublicLayout: React.FC = () => {
       </div>
 
       {/* ── Main Content Area ── */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col w-full">
         <Outlet />
       </main>
 
-      {/* ── Footer ── */}
-      <footer className="bg-white dark:bg-black text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-neutral-800 relative z-10">
-        <div className="max-w-6xl mx-auto px-6 py-12">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
-            {/* Col 1: Brand & DepEd Affiliation */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
+      {/* ── Compact Restored Sticky Footer ── */}
+      <footer className="w-full mt-auto bg-white/95 dark:bg-neutral-950/95 backdrop-blur-md border-t border-slate-200/80 dark:border-neutral-800 text-slate-500 dark:text-slate-400 relative z-10 shrink-0">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-7">
+          {/* 4-Column Restored Content Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 text-xs">
+            {/* Col 1: Brand & DepEd Program */}
+            <div className="space-y-2">
+              <Link
+                to="/"
+                onClick={(e) => handleNavClick(e, 'home')}
+                className="inline-flex items-center gap-1.5 font-bold text-slate-800 dark:text-white hover:text-[var(--brand)] transition-colors no-underline"
+              >
                 <img
                   src={logoSrc}
-                  alt="ARALert logo"
-                  className="w-7 h-7 object-contain"
+                  alt="ARALert"
+                  className="w-5 h-5 object-contain shrink-0"
                 />
-                <span className="font-extrabold text-lg text-slate-900 dark:text-white tracking-tight">
-                  ARALert
-                </span>
-              </div>
-              <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-                Student Performance Monitoring &amp; Early Academic Risk Detection system for the Academic Recovery and Accessible Learning (ARAL) initiative.
+                <span className="font-extrabold text-sm tracking-tight">ARALert</span>
+              </Link>
+              <p className="leading-relaxed text-slate-500 dark:text-slate-400">
+                Student Performance Monitoring & Early Academic Risk Detection platform for the Academic Recovery and Accessible Learning (ARAL) initiative.
               </p>
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 pt-1">
-                <School className="w-3.5 h-3.5 text-[var(--brand)]" />
+              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-medium pt-0.5">
+                <School className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
                 <span>Palanas National Agriculture High School</span>
               </div>
             </div>
 
-            {/* Col 2: Navigation Links */}
+            {/* Col 2: Quick Navigation */}
             <div>
-              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-3">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2.5">
                 Quick Navigation
               </h4>
-              <ul className="space-y-2 text-xs font-medium">
+              <ul className="space-y-1.5 font-medium">
                 <li>
                   <a
                     href="/#home"
@@ -251,41 +257,53 @@ export const PublicLayout: React.FC = () => {
               </ul>
             </div>
 
-            {/* Col 3: Institutional Details */}
+            {/* Col 3: School Information */}
             <div>
-              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-3">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2.5">
                 School Information
               </h4>
-              <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-                Palanas National Agriculture High School<br />
+              <p className="leading-relaxed text-slate-500 dark:text-slate-400">
+                <strong className="text-slate-700 dark:text-slate-300 font-medium">Palanas National Agriculture High School</strong><br />
                 Division of Masbate • Region V (Bicol)<br />
                 Dedicated implementation partner for the DepEd ARAL Program.
               </p>
+              <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 mt-2">
+                <Mail className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
+                <a href="mailto:contact@aralert.ph" className="hover:underline hover:text-[var(--brand)]">contact@aralert.ph</a>
+              </div>
             </div>
 
-            {/* Col 4: Portals & Security */}
+            {/* Col 4: System Access */}
             <div className="space-y-2">
-              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-3">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2.5">
                 System Access
               </h4>
-              <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+              <p className="leading-relaxed text-slate-500 dark:text-slate-400">
                 Authorized staff sign in via Google OAuth. Learners access their portal using their registered 12-digit LRN.
               </p>
-              <div className="pt-2">
+              <div className="pt-1">
                 <Link
-                  to="/login"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--brand)] dark:text-blue-400 hover:underline"
+                  to={isAuthenticated ? getDashboardLink() : '/login'}
+                  onClick={() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="inline-flex items-center gap-1 text-[var(--brand)] dark:text-blue-400 hover:underline font-bold"
                 >
-                  <span>Portal Login</span>
-                  <ArrowRight size={12} />
+                  <span>{isAuthenticated ? 'Go to Dashboard' : 'Portal Login'}</span>
+                  <ArrowRight size={13} />
                 </Link>
               </div>
             </div>
           </div>
 
-          <div className="mt-10 pt-6 border-t border-slate-200 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
-            <p>&copy; {new Date().getFullYear()} ARALert. Palanas National Agriculture High School.</p>
-            <p className="text-[11px]">Academic Recovery and Accessible Learning Management System</p>
+          {/* Bottom Copyright & Status Bar */}
+          <div className="mt-5 pt-3.5 border-t border-slate-200/80 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400 dark:text-slate-500">
+            <p>
+              &copy; {new Date().getFullYear()} ARALert &bull; Palanas National Agriculture High School. All rights reserved.
+            </p>
+            <p className="text-center sm:text-right">
+              Academic Recovery and Accessible Learning (ARAL) Program
+            </p>
           </div>
         </div>
       </footer>
