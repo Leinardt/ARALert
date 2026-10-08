@@ -14,7 +14,6 @@ import {
   X,
   AlertCircle,
   BookOpen,
-  UserCheck,
 } from 'lucide-react';
 import { getScoreDescription } from '../../utils/sessionDescriptionHelpers';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
@@ -731,8 +730,7 @@ export const StudentScores: React.FC = () => {
                   {/* HANDLED BY */}
                   <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
                     <div className="flex flex-col">
-                      <span className="font-semibold text-gray-800 dark:text-slate-100 flex items-center gap-1.5 text-xs">
-                        <UserCheck className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
+                      <span className="font-semibold text-gray-800 dark:text-slate-100 text-xs">
                         {handlerName}
                       </span>
                       <span className="text-[10px] text-gray-400 dark:text-slate-500 font-medium">
@@ -895,9 +893,8 @@ export const StudentScores: React.FC = () => {
               {/* Handled By & Timestamp Row */}
               <div className="flex flex-col gap-1.5 pt-1 border-t border-gray-100 dark:border-[#222222] text-xs">
                 <div className="flex items-center justify-between text-slate-700 dark:text-zinc-300">
-                  <span className="flex items-center gap-1.5 text-[11px] font-medium">
-                    <UserCheck className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
-                    <span>Handled by: <strong className="font-bold text-slate-900 dark:text-white">{handlerName}</strong></span>
+                  <span className="text-[11px] font-medium">
+                    Handled by: <strong className="font-bold text-slate-900 dark:text-white">{handlerName}</strong>
                   </span>
                   <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">{semLabel}</span>
                 </div>
@@ -992,7 +989,17 @@ export const StudentScores: React.FC = () => {
         <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE SCORE</p>
-            <p className="text-2xl font-extrabold mt-0.5 text-gray-900 dark:text-slate-100">
+            <p
+              className={`text-2xl font-extrabold mt-0.5 ${
+                !hasScoreData
+                  ? 'text-gray-900 dark:text-slate-100'
+                  : calculatedAvgScore >= 81
+                  ? 'text-risk-low text-emerald-600 dark:text-emerald-400'
+                  : calculatedAvgScore >= 70
+                  ? 'text-risk-medium text-amber-600 dark:text-amber-400'
+                  : 'text-risk-high text-rose-600 dark:text-rose-400'
+              }`}
+            >
               {hasScoreData ? `${smartPct(calculatedAvgScore)}%` : '—'}
             </p>
             <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s average score</p>
