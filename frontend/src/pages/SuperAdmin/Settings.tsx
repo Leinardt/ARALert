@@ -321,46 +321,6 @@ const AuditLogTab: React.FC = () => {
         )}
       </div>
 
-      {/* Pagination */}
-      {data && data.total_pages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            Page {data.page} of {data.total_pages} — {data.count} total events
-          </span>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '4px',
-                padding: '0.45rem 0.9rem', borderRadius: 'var(--radius-md)',
-                background: page <= 1 ? 'var(--surface-muted)' : 'var(--surface-card)',
-                border: '1px solid var(--slate-200)', color: page <= 1 ? 'var(--text-disabled)' : 'var(--text-secondary)',
-                fontSize: '0.8rem', fontWeight: 600, cursor: page <= 1 ? 'not-allowed' : 'pointer',
-                fontFamily: 'var(--font-body)',
-              }}
-            >
-              <ChevronLeft size={14} /> Prev
-            </button>
-            <button
-              type="button"
-              disabled={page >= data.total_pages}
-              onClick={() => setPage((p) => p + 1)}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '4px',
-                padding: '0.45rem 0.9rem', borderRadius: 'var(--radius-md)',
-                background: page >= data.total_pages ? 'var(--surface-muted)' : 'var(--surface-card)',
-                border: '1px solid var(--slate-200)', color: page >= data.total_pages ? 'var(--text-disabled)' : 'var(--text-secondary)',
-                fontSize: '0.8rem', fontWeight: 600, cursor: page >= data.total_pages ? 'not-allowed' : 'pointer',
-                fontFamily: 'var(--font-body)',
-              }}
-            >
-              Next <ChevronRight size={14} />
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

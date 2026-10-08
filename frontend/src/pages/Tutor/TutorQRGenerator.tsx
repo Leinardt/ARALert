@@ -31,6 +31,7 @@ import {
 import type { Attendance, User, AttendanceSession } from '../../types';
 import { ExportAttendanceModal } from '../../components/ExportAttendanceModal';
 import { matchesSearch } from '../../utils/searchHelpers';
+import { compareNamesByLastName } from '../../utils/studentFormatters';
 
 interface StoredSessionData {
   session: AttendanceSession;
@@ -320,10 +321,15 @@ const AttendanceTable: React.FC<{
     };
 
     return [...logs].sort((a, b) => {
-      const result = String(getSortValue(a)).localeCompare(String(getSortValue(b)), undefined, {
-        numeric: true,
-        sensitivity: 'base',
-      });
+      let result = 0;
+      if (sortConfig.key === 'student') {
+        result = compareNamesByLastName(a.user_name || '', b.user_name || '');
+      } else {
+        result = String(getSortValue(a)).localeCompare(String(getSortValue(b)), undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        });
+      }
       return sortConfig.direction === 'asc' ? result : -result;
     });
   }, [logs, sortConfig]);
@@ -518,6 +524,151 @@ const AttendanceTable: React.FC<{
   );
 };
 
+const formatDateButtonLabel = (dateStr: string) => {
+  const d = new Date(`${dateStr}T00:00:00`);
+  const month = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${month} ${day}`;
+};
+
+const getWeekdaysForMonday = (mondayStr: string, extraDates: string[] = []): string[] => {
+  const dates: string[] = [];
+  const monday = new Date(`${mondayStr}T00:00:00`);
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    dates.push(d.toLocaleDateString('en-CA'));
+  }
+  extraDates.forEach((d) => {
+    if (d && !dates.includes(d)) dates.push(d);
+  });
+  return dates.sort();
+};
+
+const computeWeekOfMonth = (dateObj: Date): number => {
+  const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+  const day = d.getDay();
+  const wedDiff = day === 0 ? 3 : 3 - day;
+  const wednesday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + wedDiff);
+  const firstDay = new Date(wednesday.getFullYear(), wednesday.getMonth(), 1).getDay();
+  return Math.ceil((wednesday.getDate() + (firstDay === 0 ? 6 : firstDay - 1)) / 7);
+};
+
+const getWeekTitle = (mondayStr: string) => {
+  const d = new Date(`${mondayStr}T00:00:00`);
+  const weekNum = computeWeekOfMonth(d);
+  return `WEEK ${weekNum}`;
+};
+
+type AttendanceTableGroup = {
+  key: string;
+  title: string;
+  weekMonday?: string;
+  isMonthGroup?: boolean;
+  records: Attendance[];
+};
+
+interface AttendanceHistoryGroupSectionProps {
+  group: AttendanceTableGroup;
+  selectedDate: string | null;
+  onSelectDate: (dateStr: string) => void;
+  statusBadge: (status: string, display: string) => React.ReactNode;
+  avatarColor: (name: string) => string;
+  formatDateString: (value: string | null) => string;
+  formatTimeString: (t?: string | null) => string;
+  onUpdate: (id: number, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>) => Promise<Attendance>;
+}
+
+const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps> = ({
+  group,
+  selectedDate,
+  onSelectDate,
+  statusBadge,
+  avatarColor,
+  formatDateString,
+  formatTimeString,
+  onUpdate,
+}) => {
+  const datesWithRecords = useMemo(() => {
+    return new Set(group.records.map((r) => r.date?.slice(0, 10)));
+  }, [group.records]);
+
+  const groupDates = useMemo(() => {
+    if (group.isMonthGroup) {
+      return Array.from(datesWithRecords).sort();
+    }
+    const recordDates = Array.from(datesWithRecords);
+    return getWeekdaysForMonday(group.weekMonday || group.key, recordDates);
+  }, [group.isMonthGroup, group.weekMonday, group.key, datesWithRecords]);
+
+  const isOpen = useMemo(() => {
+    if (!selectedDate) return false;
+    return groupDates.includes(selectedDate);
+  }, [groupDates, selectedDate]);
+
+  const displayRecords = useMemo(() => {
+    if (!selectedDate || !isOpen) return group.records;
+    return group.records.filter((r) => r.date?.slice(0, 10) === selectedDate);
+  }, [group.records, selectedDate, isOpen]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 py-0.5">
+            <span className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none">
+              {group.title}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {groupDates.map((dateStr) => {
+              const hasRecord = datesWithRecords.has(dateStr);
+              const isSelected = selectedDate === dateStr;
+              const label = formatDateButtonLabel(dateStr);
+              return (
+                <button
+                  key={dateStr}
+                  type="button"
+                  disabled={!hasRecord}
+                  onClick={() => onSelectDate(dateStr)}
+                  className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all ${
+                    hasRecord
+                      ? isSelected
+                        ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
+                        : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
+                      : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
+                  }`}
+                  title={hasRecord ? (isSelected ? `Active: ${label}` : `View ${label}`) : `No records on ${label}`}
+                  aria-label={label}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {isOpen && (
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-gray-400">
+              {displayRecords.length} Record{displayRecords.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+      </div>
+      {isOpen && (
+        <AttendanceTable
+          logs={displayRecords}
+          statusBadge={statusBadge}
+          avatarColor={avatarColor}
+          formatDateString={formatDateString}
+          formatTimeString={formatTimeString}
+          onUpdate={onUpdate}
+        />
+      )}
+    </div>
+  );
+};
+
 /* ─────────────────────────── component ─────────────────────────── */
 export const TutorQRGenerator: React.FC = () => {
   const { user } = useAuth();
@@ -536,8 +687,8 @@ export const TutorQRGenerator: React.FC = () => {
   // ── Attendance history view state ─────────────────────────────────
   // viewMode: how records are displayed / grouped
   // jumpDate: when set, filters the view to exactly that date
-  type ViewMode = 'day' | 'week' | 'month';
-  const [viewMode, setViewMode] = useState<ViewMode>('day');
+  type ViewMode = 'week' | 'month';
+  const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
@@ -892,47 +1043,66 @@ export const TutorQRGenerator: React.FC = () => {
   );
 
   const filteredHistory = useMemo(() => {
-    return sortedHistory.filter((log) =>
+    let list = sortedHistory.filter((log) =>
       matchesSearch(studentSearch, log.user_name, log.user_lrn)
     );
-  }, [sortedHistory, studentSearch]);
+    if (jumpDate) {
+      return list.filter((log) => log.date === jumpDate);
+    }
+    return list;
+  }, [sortedHistory, studentSearch, jumpDate]);
 
-  // When jumpDate is active, we always show a flat filtered list
-  const jumpFiltered = useMemo(
-    () => jumpDate ? filteredHistory.filter(l => l.date === jumpDate) : null,
-    [filteredHistory, jumpDate]
-  );
+  const activeHistoryRecords = filteredHistory;
 
-  // Group by week key "YYYY-Www" (ISO Mon-Sun)
+  const mostRecentDateWithEntry = useMemo(() => {
+    if (activeHistoryRecords.length === 0) return null;
+    return activeHistoryRecords[0].date?.slice(0, 10) || null;
+  }, [activeHistoryRecords]);
+
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (jumpDate) {
+      setSelectedDate(jumpDate);
+    } else if (mostRecentDateWithEntry) {
+      setSelectedDate(mostRecentDateWithEntry);
+    } else {
+      setSelectedDate(null);
+    }
+  }, [jumpDate, mostRecentDateWithEntry, viewMode, studentSearch]);
+
+  // Group by week key "YYYY-MM-DD" (Local Monday)
   const getWeekKey = (dateStr: string) => {
     const d = new Date(dateStr + 'T00:00:00');
     const day = d.getDay();
     const mon = new Date(d);
     mon.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-    return mon.toISOString().slice(0, 10); // Monday of that week
+    return mon.toLocaleDateString('en-CA');
   };
 
-  const weekLabel = (mondayStr: string) => {
-    const mon = new Date(mondayStr + 'T00:00:00');
-    const fri = new Date(mon); fri.setDate(mon.getDate() + 4);
-    const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    return `${fmt(mon)} – ${fmt(fri)}, ${fri.getFullYear()}`;
-  };
-
-  // Group by month key "YYYY-MM"
   const getMonthKey = (dateStr: string) => dateStr.slice(0, 7);
-  const monthLabel = (key: string) => {
-    const d = new Date(key + '-01T00:00:00');
-    return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+  const getMonthTitle = (monthKey: string) => {
+    const d = new Date(`${monthKey}-01T00:00:00`);
+    return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
   };
 
   // Build grouped structure for weekly / monthly views
-  type Group = { key: string; label: string; records: typeof sortedHistory };
-  const groupedHistory = useMemo((): Group[] => {
-    if (jumpFiltered !== null) return []; // not used when jumping
+  const groupedHistory = useMemo((): AttendanceTableGroup[] => {
+    if (jumpDate) {
+      return [{
+        key: jumpDate,
+        title: viewMode === 'week' ? getWeekTitle(getWeekKey(jumpDate)) : getMonthTitle(getMonthKey(jumpDate)),
+        weekMonday: getWeekKey(jumpDate),
+        isMonthGroup: viewMode === 'month',
+        records: activeHistoryRecords,
+      }];
+    }
     const grouped = new Map<string, typeof sortedHistory>();
-    for (const log of filteredHistory) {
-      const key = viewMode === 'week' ? getWeekKey(log.date) : getMonthKey(log.date);
+    for (const log of activeHistoryRecords) {
+      const dateKey = log.date?.slice(0, 10) || log.date;
+      if (!dateKey) continue;
+      const key = viewMode === 'week' ? getWeekKey(dateKey) : getMonthKey(dateKey);
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key)!.push(log);
     }
@@ -941,126 +1111,13 @@ export const TutorQRGenerator: React.FC = () => {
       .sort(([a], [b]) => (b > a ? 1 : -1))
       .map(([key, records]) => ({
         key,
-        label: viewMode === 'week' ? weekLabel(key) : monthLabel(key),
+        title: viewMode === 'week' ? getWeekTitle(key) : getMonthTitle(key),
+        weekMonday: viewMode === 'week' ? key : undefined,
+        isMonthGroup: viewMode === 'month',
         records,
       }));
-  }, [filteredHistory, viewMode, jumpFiltered]);
+  }, [activeHistoryRecords, jumpDate, viewMode]);
 
-  const timeGroupedHistory = useMemo((): Group[] => {
-    const source = jumpFiltered ?? filteredHistory;
-    const byDate = new Map<string, typeof sortedHistory>();
-    for (const log of source) {
-      if (!byDate.has(log.date)) byDate.set(log.date, []);
-      byDate.get(log.date)!.push(log);
-    }
-
-    const groups: (Group & { sortTime: number })[] = [];
-
-    for (const [date, dateLogs] of byDate.entries()) {
-      const sessionMap = new Map<string, typeof sortedHistory>();
-      const unassociatedWithTime: typeof sortedHistory = [];
-      const unassociatedWithoutTime: typeof sortedHistory = [];
-
-      for (const log of dateLogs) {
-        if (log.session) {
-          if (!sessionMap.has(log.session)) sessionMap.set(log.session, []);
-          sessionMap.get(log.session)!.push(log);
-        } else if (log.time_in) {
-          unassociatedWithTime.push(log);
-        } else {
-          unassociatedWithoutTime.push(log);
-        }
-      }
-
-      // Process explicit sessions (each QR code generation session)
-      for (const [sessionId, sLogs] of sessionMap.entries()) {
-        let sessionTime = sessionLaunchTimes[sessionId] || null;
-        let earliestMin: number | null = null;
-
-        for (const log of sLogs) {
-          const mins = timeToMinutes(log.time_in);
-          if (mins !== null && (earliestMin === null || mins < earliestMin)) {
-            earliestMin = mins;
-            if (!sessionTime) {
-              sessionTime = formatTimeString(log.time_in);
-            }
-          }
-        }
-
-        if (!sessionTime) sessionTime = '—';
-
-        const sortTime = new Date(`${date}T00:00:00`).getTime() + (earliestMin ?? 0) * 60 * 1000;
-
-        groups.push({
-          key: `${date}|${sessionId}`,
-          label: sessionTime !== '—' ? `${formatDateString(date)} | ${sessionTime}` : formatDateString(date),
-          records: sLogs,
-          sortTime,
-        });
-      }
-
-      // Process unassociated records (e.g. manual logs or seeded data)
-      if (unassociatedWithTime.length > 0 || unassociatedWithoutTime.length > 0) {
-        unassociatedWithTime.sort((a, b) => (timeToMinutes(a.time_in) ?? 0) - (timeToMinutes(b.time_in) ?? 0));
-
-        const clusters: {
-          baseMinutes: number;
-          earliestMinutes: number;
-          sessionTime: string;
-          records: typeof sortedHistory;
-        }[] = [];
-
-        for (const log of unassociatedWithTime) {
-          const mins = timeToMinutes(log.time_in) ?? 0;
-          let foundCluster = false;
-          for (const cluster of clusters) {
-            if (Math.abs(mins - cluster.baseMinutes) <= 90) {
-              cluster.records.push(log);
-              if (mins < cluster.earliestMinutes) {
-                cluster.earliestMinutes = mins;
-                cluster.sessionTime = formatTimeString(log.time_in);
-              }
-              foundCluster = true;
-              break;
-            }
-          }
-          if (!foundCluster) {
-            clusters.push({
-              baseMinutes: mins,
-              earliestMinutes: mins,
-              sessionTime: formatTimeString(log.time_in),
-              records: [log],
-            });
-          }
-        }
-
-        // Attach unassociated records without time (e.g. absent) to the primary cluster or fallback
-        if (clusters.length > 0) {
-          clusters[0].records.push(...unassociatedWithoutTime);
-        } else if (unassociatedWithoutTime.length > 0) {
-          clusters.push({
-            baseMinutes: 0,
-            earliestMinutes: 0,
-            sessionTime: '—',
-            records: unassociatedWithoutTime,
-          });
-        }
-
-        clusters.forEach((cluster, idx) => {
-          const key = `${date}|cluster-${idx}`;
-          const sortTime = new Date(`${date}T00:00:00`).getTime() + cluster.earliestMinutes * 60 * 1000;
-          groups.push({
-            key,
-            label: cluster.sessionTime !== '—' ? `${formatDateString(date)} | ${cluster.sessionTime}` : formatDateString(date),
-            records: cluster.records,
-            sortTime,
-          });
-        });
-      }
-    }
-
-    return groups.sort((a, b) => b.sortTime - a.sortTime);
-  }, [filteredHistory, jumpFiltered, sessionLaunchTimes]);
 
   const statusBadge = (status: string, display: string) => {
     const map: Record<string, string> = {
@@ -1315,14 +1372,14 @@ export const TutorQRGenerator: React.FC = () => {
       </div>
 
       {/* ── Attendance History ───────────────────────────────────── */}
-      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
         {/* Section header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
           <div>
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">STUDENTS ATTENDANCE HISTORY</h3>
-            <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
-              {jumpFiltered !== null ? jumpFiltered.length : filteredHistory.length} Record{(jumpFiltered !== null ? jumpFiltered.length : filteredHistory.length) !== 1 ? 's' : ''}
+            <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">
+              {activeHistoryRecords.length} Record{activeHistoryRecords.length !== 1 ? 's' : ''}
             </p>
           </div>
 
@@ -1342,7 +1399,7 @@ export const TutorQRGenerator: React.FC = () => {
 
             {/* View mode toggle styled like TutorHome trend filter */}
             <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5">
-              {(['day', 'week', 'month'] as const).map((mode) => (
+              {(['week', 'month'] as const).map((mode) => (
                 <button
                   key={mode}
                   id={`qr-view-${mode}`}
@@ -1430,77 +1487,40 @@ export const TutorQRGenerator: React.FC = () => {
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
               {attendanceHistoryError}
             </div>
-          ) : filteredHistory.length === 0 ? (
+          ) : activeHistoryRecords.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
               <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
               <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">
-                {studentSearch.trim() ? 'No matching attendance records' : 'No attendance records yet'}
+                {studentSearch.trim()
+                  ? 'No matching attendance records'
+                  : jumpDate
+                  ? 'No records for this date'
+                  : 'No attendance records yet'}
               </p>
               <p className="text-xs text-gray-400 dark:text-slate-500">
-                {studentSearch.trim() ? 'Try a different student name or LRN' : 'Records will appear once students start scanning'}
+                {studentSearch.trim()
+                  ? 'Try a different student name or LRN'
+                  : jumpDate
+                  ? 'Try a different date or clear the filter'
+                  : 'Records will appear once students start scanning'}
               </p>
             </div>
-
-          ) : jumpFiltered !== null ? (
-            /* ── Jump-to-date: flat list for that specific day ── */
-            jumpFiltered.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-12 text-center">
-                <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
-                <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No records for this date</p>
-                <p className="text-xs text-gray-400 dark:text-slate-500">Try a different date or clear the filter</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {timeGroupedHistory.map((group) => (
-                  <div key={group.key}>
-                    <div className="mb-3 flex items-center gap-3">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{group.label}</span>
-                      <div className="h-px flex-1 bg-gray-100 dark:bg-[#1A1A1A]" />
-                      <span className="text-[11px] font-semibold text-gray-400">{group.records.length} Record{group.records.length !== 1 ? 's' : ''}</span>
-                    </div>
-                    <AttendanceTable key={group.key} logs={group.records} statusBadge={statusBadge} avatarColor={avatarColor} formatDateString={formatDateString} formatTimeString={formatTimeString} onUpdate={handleUpdateAttendance} />
-                  </div>
-                ))}
-              </div>
-            )
-
-          ) : viewMode === 'day' ? (
-            /* ── Day: grouped by date and time ── */
+          ) : (
             <div className="space-y-6">
-              {timeGroupedHistory.map((group) => (
-                <div key={group.key}>
-                  <div className="mb-3 flex items-center gap-3">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{group.label}</span>
-                    <div className="h-px flex-1 bg-gray-100 dark:bg-[#1A1A1A]" />
-                    <span className="text-[11px] font-semibold text-gray-400">{group.records.length} Record{group.records.length !== 1 ? 's' : ''}</span>
-                  </div>
-                  <AttendanceTable key={group.key} logs={group.records} statusBadge={statusBadge} avatarColor={avatarColor} formatDateString={formatDateString} formatTimeString={formatTimeString} onUpdate={handleUpdateAttendance} />
-                </div>
+              {groupedHistory.map((group) => (
+                <AttendanceHistoryGroupSection
+                  key={group.key}
+                  group={group}
+                  selectedDate={selectedDate}
+                  onSelectDate={setSelectedDate}
+                  statusBadge={statusBadge}
+                  avatarColor={avatarColor}
+                  formatDateString={formatDateString}
+                  formatTimeString={formatTimeString}
+                  onUpdate={handleUpdateAttendance}
+                />
               ))}
             </div>
-
-          ) : (
-            /* ── Weekly / Monthly: grouped ── */
-            groupedHistory.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-12 text-center">
-                <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
-                <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No records to display</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {groupedHistory.map((group) => (
-                  <div key={group.key}>
-                    {/* Group divider header */}
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{group.label}</span>
-                      <div className="flex-1 h-px bg-gray-100 dark:bg-[#1A1A1A]" />
-                      <span className="text-[11px] font-semibold text-gray-400">{group.records.length} Record{group.records.length !== 1 ? 's' : ''}</span>
-                    </div>
-                    <AttendanceTable key={group.key} logs={group.records} statusBadge={statusBadge} avatarColor={avatarColor} formatDateString={formatDateString} formatTimeString={formatTimeString} onUpdate={handleUpdateAttendance} />
-                  </div>
-                ))}
-              </div>
-            )
           )}
         </div>
       </div>

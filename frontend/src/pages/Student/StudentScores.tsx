@@ -17,6 +17,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { getScoreDescription } from '../../utils/sessionDescriptionHelpers';
+import { compareNamesByLastName } from '../../utils/studentFormatters';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 
@@ -84,10 +85,10 @@ export const resolveTutorForPeriod = (
 };
 
 export const getSchoolYearFromDate = (dateStr: string | null | undefined): string => {
-  if (!dateStr) return '2025-2026';
+  if (!dateStr) return '2026-2027';
   const clean = dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`;
   const d = new Date(clean);
-  if (isNaN(d.getTime())) return '2025-2026';
+  if (isNaN(d.getTime())) return '2026-2027';
   const year = d.getFullYear();
   const month = d.getMonth() + 1; // 1-12
   // DepEd academic school year runs July/August through May/June of next year
@@ -554,9 +555,20 @@ export const StudentScores: React.FC = () => {
     return filteredGrades.some((g) => g.remarks?.trim().toLowerCase() !== 'not taken');
   }, [filteredGrades]);
 
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedPeriod, jumpDate, viewMode]);
+
   const sortedHistory = useMemo(
     () => [...filteredGrades].sort((a, b) => (b.date_logged > a.date_logged ? 1 : b.date_logged < a.date_logged ? -1 : 0)),
     [filteredGrades]
+  );
+
+  const paginatedRecords = useMemo(
+    () => sortedHistory.slice((currentPage - 1) * 30, currentPage * 30),
+    [sortedHistory, currentPage]
   );
 
   type Group = { key: string; label: string; records: typeof sortedHistory };
@@ -564,7 +576,7 @@ export const StudentScores: React.FC = () => {
   const groupedHistory = useMemo((): Group[] => {
     if (jumpDate !== null) return [];
     const grouped = new Map<string, typeof sortedHistory>();
-    for (const log of sortedHistory) {
+    for (const log of paginatedRecords) {
       const key = viewMode === 'week' ? getWeekKey(log.date_logged) : getMonthKey(log.date_logged);
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key)!.push(log);
@@ -576,10 +588,10 @@ export const StudentScores: React.FC = () => {
         label: viewMode === 'week' ? weekLabel(key) : monthLabel(key),
         records,
       }));
-  }, [sortedHistory, viewMode, jumpDate]);
+  }, [paginatedRecords, viewMode, jumpDate]);
 
   const timeGroupedHistory = useMemo((): Group[] => {
-    const source = sortedHistory;
+    const source = paginatedRecords;
     const grouped = new Map<string, typeof sortedHistory>();
     for (const log of source) {
       const timeStr = log.created_at ? formatTimeString(log.created_at) : '—';
@@ -595,7 +607,7 @@ export const StudentScores: React.FC = () => {
         records,
       };
     });
-  }, [sortedHistory]);
+  }, [paginatedRecords]);
 
   const toggleSort = (key: SortKey) => {
     setSortConfig((prev) => ({
@@ -617,8 +629,8 @@ export const StudentScores: React.FC = () => {
       const bNotTaken = b.remarks?.trim().toLowerCase() === 'not taken';
 
       if (sortConfig.key === 'student') {
-        aVal = a.student_name || user?.full_name || '';
-        bVal = b.student_name || user?.full_name || '';
+        const cmp = compareNamesByLastName(a.student_name || user?.full_name || '', b.student_name || user?.full_name || '');
+        return sortConfig.direction === 'asc' ? cmp : -cmp;
       } else if (sortConfig.key === 'description') {
         aVal = getScoreDescription(a);
         bVal = getScoreDescription(b);
@@ -918,13 +930,13 @@ export const StudentScores: React.FC = () => {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 flex items-center gap-3.5 animate-pulse"
+              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 min-h-[100px] flex items-center gap-3.5 animate-pulse"
             >
-              <div className="w-10 h-10 rounded-md bg-gray-200 dark:bg-gray-800 shrink-0" />
-              <div className="space-y-2 flex-1">
-                <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-6 w-16 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-2 w-36 rounded bg-gray-100 dark:bg-gray-800" />
+              {i < 3 && <div className="w-6 h-6 rounded-md bg-gray-200 dark:bg-gray-800 shrink-0" />}
+              <div className="flex-1 min-w-0">
+                <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
+                <div className="h-7 w-14 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-2 w-44 rounded bg-gray-100 dark:bg-gray-800/60 mt-2" />
               </div>
             </div>
           ))}
@@ -957,40 +969,33 @@ export const StudentScores: React.FC = () => {
       {/* ── Top KPI Stat Containers ──────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* TOTAL PASSED */}
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800/40 dark:bg-emerald-950/20 p-4 flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-md bg-emerald-100 dark:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center shrink-0">
-            <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
-          </div>
+        <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+          <Check className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">TOTAL PASSED</p>
             <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{passedCount}</p>
-            <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s total passed score records</p>
+            <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s total passed score records</p>
           </div>
         </div>
 
         {/* TOTAL FAILED */}
-        <div className="rounded-md border border-rose-200 bg-rose-50 dark:border-rose-800/40 dark:bg-rose-950/20 p-4 flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-md bg-rose-100 dark:bg-rose-900/50 border border-rose-200 dark:border-rose-800/60 flex items-center justify-center shrink-0">
-            <X className="w-5 h-5 text-rose-600 dark:text-rose-400" strokeWidth={3} />
-          </div>
+        <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+          <X className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">TOTAL FAILED</p>
             <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{failedCount}</p>
-            <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s total failed score records</p>
+            <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s total failed score records</p>
           </div>
         </div>
 
         {/* AVERAGE SCORE */}
-        <div className="rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-4 flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-md bg-indigo-100 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shrink-0">
-            <BookOpen className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-          </div>
+        <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE SCORE</p>
             <p className="text-2xl font-extrabold mt-0.5 text-gray-900 dark:text-slate-100">
               {hasScoreData ? `${smartPct(calculatedAvgScore)}%` : '—'}
             </p>
-            <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{studentFirstName}'s average score</p>
+            <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s average score</p>
           </div>
         </div>
       </div>

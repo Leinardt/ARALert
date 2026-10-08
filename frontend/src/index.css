@@ -87,6 +87,20 @@ html, body, #root {
 /* ═══════════════════════════════════════════════════════════════
    Glassmorphism Interactive Buttons & Border Hover Effects
    ═══════════════════════════════════════════════════════════════ */
+/* ── Clockwise Glowing Border Beam for Active Status ── */
+@keyframes borderTraceClockwise {
+  0% {
+    stroke-dashoffset: 100;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-glow-border-clockwise {
+  animation: borderTraceClockwise 3.5s linear infinite;
+}
+
 .glass-btn {
   background-color: transparent;
   backdrop-filter: blur(12px);

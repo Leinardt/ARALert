@@ -25,6 +25,7 @@ import {
 import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
 import { useAuth } from '../../hooks/useAuth';
 import { ExportDtrModal } from '../../components/ExportDtrModal';
+import { compareNamesByLastName } from '../../utils/studentFormatters';
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
@@ -283,10 +284,7 @@ export const StaffAttendanceScanner: React.FC = () => {
       let result = 0;
       switch (sortConfig.key) {
         case 'tutor':
-          result = (a.user_name || '').localeCompare(b.user_name || '', undefined, {
-            numeric: true,
-            sensitivity: 'base',
-          });
+          result = compareNamesByLastName(a.user_name || '', b.user_name || '');
           break;
         case 'date':
           result = (a.date || '').localeCompare(b.date || '');
@@ -317,6 +315,8 @@ export const StaffAttendanceScanner: React.FC = () => {
       return sortConfig.direction === 'asc' ? result : -result;
     });
   }, [filteredDtrRows, sortConfig]);
+
+  const paginatedDtrRows = sortedDtrRows;
 
   const SortableHeader: React.FC<{ label: string; sortKey: SortKey; align?: 'left' | 'center' }> = ({
     label,
@@ -873,7 +873,7 @@ export const StaffAttendanceScanner: React.FC = () => {
       </div>
 
       {/* ── TUTOR DTR HISTORY Table ──────────────────────────────── */}
-      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
         {/* Section header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -881,7 +881,7 @@ export const StaffAttendanceScanner: React.FC = () => {
             <div className="flex items-center gap-3">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">{tutorFirstName}'S DTR HISTORY</h3>
-                <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
+                <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">
                   {filteredDtrRows.length} Record{filteredDtrRows.length !== 1 ? 's' : ''}
                 </p>
               </div>
@@ -1001,7 +1001,7 @@ export const StaffAttendanceScanner: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
-                  {sortedDtrRows.map((log) => {
+                  {paginatedDtrRows.map((log) => {
                     // Derive effective time in / out for tutors
                     // Use time_in / time_out directly (tutor DTR uses these fields)
                     const legacyIn = timeToMinutes(log.time_in);

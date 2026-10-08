@@ -81,7 +81,7 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
   const { width, height } = dimensions;
   const isMobile = width < 520;
   const isSmallMobile = width < 380;
-  const paddingLeft = isMobile ? 32 : 26;
+  const paddingLeft = isMobile ? 44 : 50;
   const paddingRight = isMobile ? 20 : 14;
   const paddingTop = isMobile ? 18 : 20;
   const paddingBottom = isMobile ? 26 : 24;
@@ -201,7 +201,7 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
                 opacity="0.6"
               />
               <text
-                x={paddingLeft - 6}
+                x={paddingLeft - 8}
                 y={y + 3}
                 className="fill-slate-400 font-semibold text-[9px] xs:text-[10px]"
                 textAnchor="end"

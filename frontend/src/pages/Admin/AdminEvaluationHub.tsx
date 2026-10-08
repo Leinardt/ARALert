@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Calendar, Check, CheckCircle2, AlertCircle, AlertTriangle,
-  Users, UserCheck, Shield, ChevronRight, History, RefreshCw,
-  Search, X, ArrowRight
+  Search, X, Lock, Unlock, AlertCircle,
+  ChevronUp, ChevronDown, ChevronRight, ArrowUpDown
 } from 'lucide-react';
 import { academicService } from '../../services/academicService';
+import { userService } from '../../services/userService';
 import { AssignTutorModal } from '../../components/AssignTutorModal';
 import { BulkAssignCohortModal } from '../../components/BulkAssignCohortModal';
 import { TransitionConfirmationModal } from '../../components/TransitionConfirmationModal';
@@ -17,46 +17,78 @@ import {
   EosyMonitoringData,
   SummerRecord,
   SchoolYear,
-  ArchivedSchoolYearSnapshot,
   AssignmentQueueData,
-  AssignmentQueueItem
+  User,
+  Grade,
+  Attendance
 } from '../../types';
 import {
   getActiveSystemSemester,
   setActiveSystemSemester,
+  isAssessmentWindowOpen,
+  setAssessmentWindowOpen,
 } from '../../utils/sessionDescriptionHelpers';
 
+/* ─── Normalize ARAL Level to strictly BASIC / PLUS / SUMMER ──────── */
+const normalizeAralLevel = (val?: string | null): 'BASIC' | 'PLUS' | 'SUMMER' => {
+  if (!val) return 'BASIC';
+  const clean = val.trim().toLowerCase();
+  if (clean.includes('summer')) return 'SUMMER';
+  if (clean.includes('plus')) return 'PLUS';
+  return 'BASIC';
+};
+
+/* ─── Interfaces ─────────────────────────────────────────────────── */
+interface StudentMetric {
+  id: string;
+  name: string;
+  lrn: string;
+  aralLevel: 'BASIC' | 'PLUS' | 'SUMMER';
+  attendanceRate: number;
+  avgScore: number;
+  assessmentScoreStr: string;
+  compositeScore: number;
+  status: 'PASSED' | 'RETAINED' | 'PENDING';
+}
+
+interface TutorEvaluationRow {
+  id: string;
+  tutorName: string;
+  gradeLevel: string;
+  section: string;
+  subject: string;
+  aralLevel: 'BASIC' | 'PLUS' | 'SUMMER';
+  assignedCount: number;
+  evaluatedCount: number;
+  status: 'Pending' | 'Completed';
+  students: StudentMetric[];
+}
+
 export const AdminEvaluationHub: React.FC = () => {
-  const getInitialTab = (): 'mosy' | 'eosy' | 'summer' | 'archive' => {
+  const getInitialTab = (): 'mosy' | 'eosy' | 'summer' => {
     const sem = getActiveSystemSemester();
     if (sem === '2nd') return 'eosy';
     if (sem === 'summer') return 'summer';
     return 'mosy';
   };
 
-  const [activeTab, setActiveTab] = useState<'mosy' | 'eosy' | 'summer' | 'archive'>(getInitialTab);
+  const [activeTab, setActiveTab] = useState<'mosy' | 'eosy' | 'summer'>(getInitialTab);
   const [currentSY, setCurrentSY] = useState<SchoolYear | null>(null);
   const [activeSystemSem, setActiveSystemSem] = useState(() => getActiveSystemSemester());
   const [isSettingSemester, setIsSettingSemester] = useState<boolean>(false);
+  const [isWindowOpen, setIsWindowOpen] = useState<boolean>(() => isAssessmentWindowOpen());
 
-  const isSchoolYearActive = activeTab !== 'archive' && currentSY?.is_active !== false && currentSY?.status !== 'ARCHIVED';
-  const currentActiveSemester = (currentSY?.current_semester || activeSystemSem) as '1st' | '2nd' | 'summer';
+  // Tutors and Students Directory
+  const [tutors, setTutors] = useState<User[]>([]);
+  const [students, setStudents] = useState<User[]>([]);
+  const [grades, setGrades] = useState<Grade[]>([]);
+  const [attendance, setAttendance] = useState<Attendance[]>([]);
+  const [expandedTutorIds, setExpandedTutorIds] = useState<Set<string>>(new Set());
+  const [tutorSearch, setTutorSearch] = useState<string>('');
 
-  const getPhaseButtonClass = (sem: '1st' | '2nd' | 'summer') => {
-    const isCurrent = currentActiveSemester === sem;
-    if (!isSchoolYearActive) {
-      return isCurrent
-        ? 'bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold cursor-not-allowed pointer-events-none'
-        : 'text-slate-400 dark:text-zinc-600 cursor-not-allowed pointer-events-none';
-    }
-    if (isCurrent) {
-      return 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white font-bold cursor-default';
-    }
-    if (isSettingSemester) {
-      return 'text-slate-400 dark:text-zinc-600 cursor-not-allowed';
-    }
-    return 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white cursor-pointer';
-  };
+  // Table Sorting State
+  const [sortField, setSortField] = useState<string>('tutorName');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // MOSY state
   const [mosyData, setMosyData] = useState<MosyMonitoringData | null>(null);
@@ -66,6 +98,7 @@ export const AdminEvaluationHub: React.FC = () => {
 
   // EOSY state
   const [eosyData, setEosyData] = useState<EosyMonitoringData | null>(null);
+  const [isProcessingEosy, setIsProcessingEosy] = useState<boolean>(false);
   const [isTransitionModalOpen, setIsTransitionModalOpen] = useState<boolean>(false);
   const [transitionSuccessMsg, setTransitionSuccessMsg] = useState<string | null>(null);
 
@@ -74,18 +107,9 @@ export const AdminEvaluationHub: React.FC = () => {
   const [selectedSummerRecord, setSelectedSummerRecord] = useState<SummerRecord | null>(null);
   const [isSummerModalOpen, setIsSummerModalOpen] = useState<boolean>(false);
 
-  // Archive state
-  const [archivedYears, setArchivedYears] = useState<SchoolYear[]>([]);
-  const [selectedArchiveYear, setSelectedArchiveYear] = useState<string>('');
-  const [archiveSnapshot, setArchiveSnapshot] = useState<ArchivedSchoolYearSnapshot | null>(null);
-  const [isLoadingArchiveDetail, setIsLoadingArchiveDetail] = useState<boolean>(false);
-
   // Unified Assignment Queue & Bulk Cohort State
   const [queueData, setQueueData] = useState<AssignmentQueueData | null>(null);
-  const [selectedQueueIds, setSelectedQueueIds] = useState<string[]>([]);
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState<boolean>(false);
-  const [queueFilter, setQueueFilter] = useState<'all' | 'plus' | 'basic'>('all');
-  const [queueSearch, setQueueSearch] = useState<string>('');
 
   // Modals state
   const [assignModalStudent, setAssignModalStudent] = useState<{
@@ -106,6 +130,22 @@ export const AdminEvaluationHub: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const handleWindowChange = () => {
+      setIsWindowOpen(isAssessmentWindowOpen());
+    };
+    window.addEventListener('assessment_window_changed', handleWindowChange);
+    return () => window.removeEventListener('assessment_window_changed', handleWindowChange);
+  }, []);
+
+  const handleToggleAssessmentWindow = () => {
+    const nextState = !isWindowOpen;
+    setAssessmentWindowOpen(nextState);
+    setIsWindowOpen(nextState);
+  };
+
+  const currentActiveSemester = (currentSY?.current_semester || activeSystemSem) as '1st' | '2nd' | 'summer';
+
+  useEffect(() => {
     loadInitialData();
 
     const handleSemChange = (e: any) => {
@@ -121,14 +161,17 @@ export const AdminEvaluationHub: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [sy, mosy, mosyAssign, eosy, summer, archives, queue] = await Promise.all([
+      const [sy, mosy, mosyAssign, eosy, summer, queue, tutorsList, studentsList, gradesList, attendanceList] = await Promise.all([
         academicService.getCurrentSchoolYear().catch(() => null),
         academicService.getMosyMonitoring().catch(() => null),
         academicService.getMosyAssignments().catch(() => null),
         academicService.getEosyMonitoring().catch(() => null),
         academicService.getSummerList().catch(() => []),
-        academicService.getArchivedSchoolYears().catch(() => []),
         academicService.getAssignmentQueue().catch(() => null),
+        userService.getAllUsers({ role: 'tutor' }).catch(() => [] as User[]),
+        userService.getAllUsers({ role: 'student' }).catch(() => [] as User[]),
+        academicService.getGrades().catch(() => [] as Grade[]),
+        academicService.getAttendanceHistory().catch(() => [] as Attendance[]),
       ]);
 
       setCurrentSY(sy);
@@ -136,9 +179,7 @@ export const AdminEvaluationHub: React.FC = () => {
         setActiveSystemSemester(sy.current_semester as any);
         setActiveSystemSem(sy.current_semester as any);
       }
-      if (sy?.status === 'ARCHIVED' || sy?.is_active === false) {
-        setActiveTab('archive');
-      } else if (sy?.current_semester === '2nd') {
+      if (sy?.current_semester === '2nd') {
         setActiveTab('eosy');
       } else if (sy?.current_semester === 'summer') {
         setActiveTab('summer');
@@ -150,40 +191,72 @@ export const AdminEvaluationHub: React.FC = () => {
       setMosyAssignments(mosyAssign);
       setEosyData(eosy);
       setSummerRecords(summer);
-      setArchivedYears(archives);
       setQueueData(queue);
-
-      if (archives.length > 0 && !selectedArchiveYear) {
-        setSelectedArchiveYear(archives[0].school_year);
-        loadArchiveSnapshot(archives[0].school_year);
-      }
+      setTutors(Array.isArray(tutorsList) ? tutorsList : []);
+      setStudents(Array.isArray(studentsList) ? studentsList : []);
+      setGrades(Array.isArray(gradesList) ? gradesList : []);
+      setAttendance(Array.isArray(attendanceList) ? attendanceList : []);
     } catch (err: any) {
-      console.error('Failed to load evaluation hub data:', err);
-      setError('Unable to load evaluation records. Please refresh the page.');
+      console.error('Failed to load assessment management data:', err);
+      setError('Unable to load assessment records. Please refresh the page.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const toggleTutorExpand = (tutorId: string) => {
+    setExpandedTutorIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(tutorId)) {
+        next.delete(tutorId);
+      } else {
+        next.add(tutorId);
+      }
+      return next;
+    });
   };
 
   const handleRefresh = async () => {
     await loadInitialData();
   };
 
-  const handleSetSemester = async (semester: '1st' | '2nd' | 'summer') => {
-    if (!isSchoolYearActive) return;
-    setIsSettingSemester(true);
-    try {
-      const res = await academicService.setActiveSemester(semester);
-      setCurrentSY(res.school_year);
-      setActiveSystemSemester(semester);
-      setActiveSystemSem(semester);
-      await loadInitialData();
-    } catch (err: any) {
-      console.error('Failed to update active semester:', err);
-      alert(err.response?.data?.error || 'Failed to update active semester.');
-    } finally {
-      setIsSettingSemester(false);
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
     }
+  };
+
+  const SortableHeader: React.FC<{ label: string; field: string; align?: 'left' | 'center' | 'right' }> = ({
+    label,
+    field,
+    align = 'left',
+  }) => {
+    const isActive = sortField === field;
+
+    return (
+      <button
+        type="button"
+        onClick={() => handleSort(field)}
+        className={`inline-flex items-center gap-1.5 text-${align} transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
+          isActive ? 'text-gray-700 dark:text-slate-200' : 'text-gray-400 dark:text-slate-400'
+        } cursor-pointer`}
+        aria-label={`Sort by ${label}`}
+      >
+        <span>{label}</span>
+        {isActive ? (
+          sortOrder === 'asc' ? (
+            <ChevronUp className="w-3.5 h-3.5" />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5" />
+          )
+        ) : (
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-40" />
+        )}
+      </button>
+    );
   };
 
   const handleProcessMosy = async () => {
@@ -197,6 +270,7 @@ export const AdminEvaluationHub: React.FC = () => {
       setMosyProcessSuccess(res.message);
       setActiveSystemSemester('2nd');
       setActiveSystemSem('2nd');
+      setActiveTab('eosy');
       const [m, ma, q] = await Promise.all([
         academicService.getMosyMonitoring(),
         academicService.getMosyAssignments(),
@@ -205,7 +279,6 @@ export const AdminEvaluationHub: React.FC = () => {
       setMosyData(m);
       setMosyAssignments(ma);
       setQueueData(q);
-      setSelectedQueueIds([]);
     } catch (err: any) {
       console.error('Failed to process MOSY completion:', err);
       alert(err.response?.data?.error || 'Failed to finalize MOSY.');
@@ -214,301 +287,374 @@ export const AdminEvaluationHub: React.FC = () => {
     }
   };
 
-  const handleOpenAssignModal = (student: { id: string; full_name: string; lrn?: string | null; program: string }, period: 'MOSY' | 'EOSY' | 'FULL_YEAR' = 'MOSY') => {
-    setAssignModalStudent(student);
-    setAssignModalPeriod(period);
-    setIsAssignModalOpen(true);
-  };
-
-  const handleOpenHistoryModal = (studentId: string) => {
-    setHistoryStudentId(studentId);
-    setIsHistoryModalOpen(true);
-  };
-
-  const handleStartSummer = async (recordId: number) => {
-    try {
-      await academicService.startSummerParticipation(recordId);
-      const summer = await academicService.getSummerList();
-      setSummerRecords(summer);
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to start summer participation.');
+  const handleProcessEosy = async () => {
+    if (!window.confirm(`Finalize EOSY evaluation period and start Summer Semester (${currentSchoolYearStr}, Summer)?`)) {
+      return;
     }
-  };
-
-  const loadArchiveSnapshot = async (year: string) => {
-    setIsLoadingArchiveDetail(true);
+    setIsProcessingEosy(true);
     try {
-      const snap = await academicService.getArchivedSchoolYearDetail(year);
-      setArchiveSnapshot(snap);
+      setActiveSystemSemester('summer');
+      setActiveSystemSem('summer');
+      setActiveTab('summer');
+      await handleRefresh();
     } catch (err: any) {
-      console.error('Failed to load archive snapshot:', err);
+      console.error('Failed to start summer semester:', err);
     } finally {
-      setIsLoadingArchiveDetail(false);
+      setIsProcessingEosy(false);
     }
   };
 
-  // Flattened queue items
-  const allQueueItems: AssignmentQueueItem[] = useMemo(() => {
-    if (queueData) {
-      return [...queueData.plus_queue, ...queueData.basic_queue];
+  // Helper to parse Grade and Section cleanly
+  const getGradeAndSection = (gradeLevel?: string | null, fallbackSection?: string | null) => {
+    if (!gradeLevel) return { grade: 'Grade 7', section: fallbackSection || 'HYACINTH' };
+    if (gradeLevel.includes(' - ')) {
+      const parts = gradeLevel.split(' - ');
+      const g = parts[0].trim();
+      const s = parts.slice(1).join(' - ').trim();
+      return {
+        grade: g.toLowerCase().startsWith('grade') ? g : `Grade ${g}`,
+        section: s || fallbackSection || 'HYACINTH',
+      };
     }
-    const plusItems: AssignmentQueueItem[] = (mosyAssignments?.unassigned_plus_students || []).map(s => ({
-      id: s.id,
-      full_name: s.full_name,
-      lrn: s.lrn,
-      required_program: 'plus',
-      mosy_result: 'Passed',
-      eosy_result: 'Pending',
-      mosy_score_pct: s.mosy_score_pct,
-      previous_tutor: s.previous_tutor,
-      status_reason: 'Leveled Up from Basic — Awaiting Plus Tutor',
-      status_badge: s.status_badge,
-      status_color: s.status_color,
-    }));
-    const basicItems: AssignmentQueueItem[] = (mosyAssignments?.unassigned_basic_students || mosyAssignments?.basic_students || []).map(s => ({
-      id: s.id,
-      full_name: s.full_name,
-      lrn: s.lrn,
-      required_program: 'basic',
-      mosy_result: s.mosy_result || 'Failed',
-      eosy_result: 'Pending',
-      mosy_score_pct: s.mosy_score_pct,
-      previous_tutor: s.previous_tutor,
-      status_reason: 'Retained in Basic — Midyear Cohort Retake',
-      status_badge: s.status_badge,
-      status_color: s.status_color,
-    }));
-    return [...plusItems, ...basicItems];
-  }, [queueData, mosyAssignments]);
+    const cleanG = gradeLevel.trim();
+    return {
+      grade: cleanG.toLowerCase().startsWith('grade') ? cleanG : `Grade ${cleanG}`,
+      section: fallbackSection || 'HYACINTH',
+    };
+  };
 
-  const filteredQueueItems = useMemo(() => {
-    return allQueueItems.filter(item => {
-      if (queueFilter === 'plus' && item.required_program !== 'plus') return false;
-      if (queueFilter === 'basic' && item.required_program !== 'basic') return false;
-      if (queueSearch.trim()) {
-        const q = queueSearch.toLowerCase();
-        const matchesName = item.full_name.toLowerCase().includes(q);
-        const matchesLrn = item.lrn ? item.lrn.toLowerCase().includes(q) : false;
-        const matchesTutor = item.previous_tutor ? item.previous_tutor.toLowerCase().includes(q) : false;
-        if (!matchesName && !matchesLrn && !matchesTutor) return false;
+  // ── Compute Tutors Evaluation Rows & Status ────────────────────────────────
+  const tutorRows = useMemo<TutorEvaluationRow[]>(() => {
+    return tutors.map((tutor) => {
+      const tutorStudents = students.filter((s) => String(s.assigned_tutor) === String(tutor.id));
+      const assignedCount = tutorStudents.length;
+
+      let evaluatedCount = 0;
+      let status: 'Pending' | 'Completed' = 'Pending';
+
+      if (activeTab === 'mosy') {
+        const p = mosyData?.tutors_progress?.find((tp) => tp.tutor_id === String(tutor.id));
+        if (p) {
+          evaluatedCount = p.evaluated_count;
+          status = p.status === 'Completed' || p.remaining_count === 0 ? 'Completed' : 'Pending';
+        } else if (assignedCount === 0) {
+          status = 'Completed';
+        } else {
+          const evaluatedStudents = tutorStudents.filter((s) => {
+            return grades.some((g) => {
+              const sid = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
+              return String(sid) === String(s.id) && (g.subject || '').toUpperCase().includes('MOSY') && g.remarks?.toLowerCase() !== 'not taken';
+            });
+          });
+          evaluatedCount = evaluatedStudents.length;
+          status = evaluatedCount >= assignedCount ? 'Completed' : 'Pending';
+        }
+      } else if (activeTab === 'eosy') {
+        const p = eosyData?.tutors_progress?.find((tp) => tp.tutor_id === String(tutor.id));
+        if (p) {
+          evaluatedCount = p.evaluated_count;
+          status = p.status === 'Completed' || p.remaining_count === 0 ? 'Completed' : 'Pending';
+        } else if (assignedCount === 0) {
+          status = 'Completed';
+        } else {
+          const evaluatedStudents = tutorStudents.filter((s) => {
+            return grades.some((g) => {
+              const sid = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
+              return String(sid) === String(s.id) && (g.subject || '').toUpperCase().includes('EOSY') && g.remarks?.toLowerCase() !== 'not taken';
+            });
+          });
+          evaluatedCount = evaluatedStudents.length;
+          status = evaluatedCount >= assignedCount ? 'Completed' : 'Pending';
+        }
+      } else {
+        // Summer
+        if (currentActiveSemester !== 'summer') {
+          evaluatedCount = 0;
+          status = 'Pending';
+        } else {
+          const tutorSummerRecords = summerRecords.filter((sr) => {
+            const st = students.find((s) => s.id === sr.student || s.lrn === sr.student_lrn);
+            return st && String(st.assigned_tutor) === String(tutor.id);
+          });
+          if (tutorSummerRecords.length === 0) {
+            status = 'Completed';
+          } else {
+            const comp = tutorSummerRecords.filter((sr) => sr.summer_status === 'summer_completed' || sr.summer_result).length;
+            evaluatedCount = comp;
+            status = comp >= tutorSummerRecords.length ? 'Completed' : 'Pending';
+          }
+        }
       }
-      return true;
+
+      const studentMetrics: StudentMetric[] = tutorStudents.map((st) => {
+        // Filter student grades
+        const sGrades = grades.filter((g) => {
+          const sid = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
+          return String(sid) === String(st.id);
+        });
+
+        // Filter student attendance
+        const sAtt = attendance.filter((a) => {
+          const uid = typeof a.user === 'object' && a.user !== null ? (a.user as any).id : a.user;
+          return String(uid) === String(st.id);
+        });
+
+        // Compute Attendance Rate
+        let attendanceRate = 100.0;
+        if (sAtt.length > 0) {
+          const presentCount = sAtt.filter((a) => a.status === 'present').length;
+          attendanceRate = Math.round((presentCount / sAtt.length) * 1000) / 10;
+        }
+
+        // Compute Average Score
+        let avgScore = 85.0;
+        if (sGrades.length > 0) {
+          const totalPct = sGrades.reduce((acc, g) => {
+            const ts = Number(g.total_score) || 100;
+            const sc = Number(g.score) || 0;
+            return acc + (sc / ts) * 100;
+          }, 0);
+          avgScore = Math.round((totalPct / sGrades.length) * 10) / 10;
+        }
+
+        // Compute Composite Score (40% Attendance + 60% Academic Performance)
+        const compositeScore = Math.round(((attendanceRate * 0.4) + (avgScore * 0.6)) * 10) / 10;
+
+        // Determine Status & Assessment Score: PASSED, RETAINED, or PENDING
+        const evalGrade = sGrades.find((g) => {
+          const subj = (g.subject || '').toUpperCase();
+          if (activeTab === 'mosy') return subj.includes('MOSY');
+          if (activeTab === 'eosy') return subj.includes('EOSY');
+          return subj.includes('SUMMER');
+        });
+
+        let assessmentScoreStr = '—';
+        let studentStatus: 'PASSED' | 'RETAINED' | 'PENDING' = 'PENDING';
+
+        if (activeTab === 'summer') {
+          const sr = summerRecords.find((r) => String(r.student) === String(st.id) || r.student_lrn === st.lrn);
+          if (sr?.summer_result) {
+            assessmentScoreStr = sr.summer_result === 'passed' ? '100.0%' : '50.0%';
+            studentStatus = sr.summer_result === 'passed' ? 'PASSED' : 'RETAINED';
+          } else if (evalGrade && evalGrade.remarks?.toLowerCase() !== 'not taken') {
+            const ts = Number(evalGrade.total_score) || 40;
+            const sc = Number(evalGrade.score) || 0;
+            const pct = Math.round((sc / ts) * 1000) / 10;
+            assessmentScoreStr = `${pct.toFixed(1)}%`;
+            const passedEval = ts === 40 ? sc >= 28 : (sc / ts) >= 0.7;
+            studentStatus = passedEval ? 'PASSED' : 'RETAINED';
+          }
+        } else if (evalGrade && evalGrade.remarks?.toLowerCase() !== 'not taken') {
+          const ts = Number(evalGrade.total_score) || 40;
+          const sc = Number(evalGrade.score) || 0;
+          const pct = Math.round((sc / ts) * 1000) / 10;
+          assessmentScoreStr = `${pct.toFixed(1)}%`;
+          const passedEval = ts === 40 ? sc >= 28 : (sc / ts) >= 0.7;
+          studentStatus = passedEval ? 'PASSED' : 'RETAINED';
+        }
+
+        return {
+          id: String(st.id),
+          name: st.full_name || `${st.first_name} ${st.last_name}`,
+          lrn: st.lrn || '—',
+          aralLevel: normalizeAralLevel(st.aral_level),
+          attendanceRate,
+          avgScore,
+          assessmentScoreStr,
+          compositeScore,
+          status: studentStatus,
+        };
+      });
+
+      const { grade, section } = getGradeAndSection(tutor.grade_level, tutor.section);
+
+      return {
+        id: String(tutor.id),
+        tutorName: tutor.full_name || `${tutor.first_name} ${tutor.last_name}`,
+        gradeLevel: grade,
+        section: section,
+        subject: tutor.subject || 'Reading',
+        aralLevel: normalizeAralLevel(tutor.tutor_type || tutor.aral_level),
+        assignedCount,
+        evaluatedCount,
+        status,
+        students: studentMetrics,
+      };
     });
-  }, [allQueueItems, queueFilter, queueSearch]);
+  }, [tutors, students, grades, attendance, mosyData, eosyData, summerRecords, activeTab, currentActiveSemester]);
 
-  const selectedStudentsForCohort = useMemo(() => {
-    return allQueueItems.filter(item => selectedQueueIds.includes(item.id));
-  }, [allQueueItems, selectedQueueIds]);
+  const totalTutorsCount = tutorRows.length;
+  const completedTutorsCount = tutorRows.filter((r) => r.status === 'Completed').length;
+  const pendingTutorsCount = Math.max(0, totalTutorsCount - completedTutorsCount);
+  const isAllTutorsComplete = totalTutorsCount > 0 && completedTutorsCount === totalTutorsCount;
 
-  // UX Check: Detect mixed levels to warn user early and prevent errors
-  const selectedLevelCounts = useMemo(() => {
-    const plus = selectedStudentsForCohort.filter(s => s.required_program === 'plus').length;
-    const basic = selectedStudentsForCohort.filter(s => s.required_program === 'basic').length;
-    return { plus, basic, isMixed: plus > 0 && basic > 0 };
-  }, [selectedStudentsForCohort]);
-
-  const toggleSelectStudent = (id: string) => {
-    setSelectedQueueIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  };
-
-  const handleSelectFilteredAll = () => {
-    const ids = filteredQueueItems.map(s => s.id);
-    setSelectedQueueIds(ids);
-  };
-
-  const handleQuickSelectCount = (count: number) => {
-    const ids = filteredQueueItems.slice(0, count).map(s => s.id);
-    setSelectedQueueIds(ids);
-  };
-
-  const handleClearSelection = () => {
-    setSelectedQueueIds([]);
-  };
-
-  const handleCohortDispatched = async () => {
-    setIsBulkAssignModalOpen(false);
-    setSelectedQueueIds([]);
-    await handleRefresh();
-  };
-
-  // EOSY completion calculation
-  const eosyEvaluatedPct = useMemo(() => {
-    if (!eosyData || eosyData.total_assigned_students === 0) {
-      return eosyData?.can_transition ? 100 : 0;
+  const sortedAndFilteredTutorRows = useMemo(() => {
+    let list = [...tutorRows];
+    if (tutorSearch.trim()) {
+      const q = tutorSearch.toLowerCase();
+      list = list.filter(
+        (r) =>
+          r.tutorName.toLowerCase().includes(q) ||
+          r.section.toLowerCase().includes(q) ||
+          r.gradeLevel.toLowerCase().includes(q) ||
+          r.subject.toLowerCase().includes(q) ||
+          r.aralLevel.toLowerCase().includes(q) ||
+          r.status.toLowerCase().includes(q) ||
+          r.students.some(
+            (st) =>
+              st.name.toLowerCase().includes(q) ||
+              st.lrn.toLowerCase().includes(q) ||
+              st.status.toLowerCase().includes(q)
+          )
+      );
     }
-    return Math.round((eosyData.total_students_evaluated / eosyData.total_assigned_students) * 100);
-  }, [eosyData]);
 
-  // Summer summary stats
-  const summerStats = useMemo(() => {
-    const required = summerRecords.filter(r => r.summer_status === 'summer_required').length;
-    const inProgress = summerRecords.filter(r => r.summer_status === 'summer_active' || r.summer_status === 'evaluation_pending').length;
-    const completed = summerRecords.filter(r => r.summer_status === 'summer_completed' || r.summer_status === 'summer_passed' || r.summer_status === 'summer_failed').length;
-    return { required, inProgress, completed, total: summerRecords.length };
-  }, [summerRecords]);
+    list.sort((a, b) => {
+      let aVal = (a as any)[sortField] || '';
+      let bVal = (b as any)[sortField] || '';
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+
+      if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return list;
+  }, [tutorRows, tutorSearch, sortField, sortOrder]);
+
+  const currentSchoolYearStr = useMemo(() => {
+    return currentSY?.school_year || '2025–2026';
+  }, [currentSY]);
+
+  const nextSchoolYear = useMemo(() => {
+    if (eosyData?.next_school_year) return eosyData.next_school_year;
+    const sy = currentSchoolYearStr;
+    const match = sy.match(/(\d{4})\s*[-–]\s*(\d{4})/);
+    if (match) {
+      const y1 = parseInt(match[1], 10) + 1;
+      const y2 = parseInt(match[2], 10) + 1;
+      return `${y1}–${y2}`;
+    }
+    return '2026–2027';
+  }, [currentSchoolYearStr, eosyData]);
+
+  const activePhaseLabel = activeTab.toUpperCase();
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:p-6 max-w-7xl mx-auto w-full">
-      {/* ── Minimalist Top Navigation & Active Phase Bar ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-zinc-800">
-        {/* Navigation Tabs with Active Phase Badges */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800">
-          <button
-            type="button"
-            onClick={() => setActiveTab('mosy')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
-              activeTab === 'mosy'
-                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white'
-                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <span>MOSY</span>
-            {currentActiveSemester === '1st' && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 leading-none">
-                Active
-              </span>
-            )}
-            {allQueueItems.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-zinc-700 text-[10px] text-slate-700 dark:text-zinc-300 font-bold">
-                {allQueueItems.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('eosy')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
-              activeTab === 'eosy'
-                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white'
-                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <span>EOSY</span>
-            {currentActiveSemester === '2nd' && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 leading-none">
-                Active
-              </span>
-            )}
-            {eosyData && !eosyData.can_transition && (
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Evaluations pending" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('summer')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
-              activeTab === 'summer'
-                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white'
-                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <span>Summer</span>
-            {currentActiveSemester === 'summer' && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 leading-none">
-                Active
-              </span>
-            )}
-            {summerRecords.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-zinc-700 text-[10px] text-slate-700 dark:text-zinc-300 font-bold">
-                {summerRecords.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('archive');
-              if (archivedYears.length > 0 && !archiveSnapshot) {
-                const year = selectedArchiveYear || archivedYears[0].school_year;
-                setSelectedArchiveYear(year);
-                loadArchiveSnapshot(year);
-              }
-            }}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
-              activeTab === 'archive'
-                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white'
-                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <span>Archive</span>
-          </button>
-        </div>
-
-        {/* School Year, Operating Phase Switcher & Refresh */}
-        <div className="flex items-center gap-2.5 text-xs">
-          <span className="font-semibold text-slate-500 dark:text-zinc-400">
-            SY {currentSY?.school_year || '2025–2026'}
+    <div className="flex flex-col gap-5 p-4 sm:p-6 max-w-7xl mx-auto w-full" style={{ fontFamily: 'var(--font-body)' }}>
+      {/* ── Top Bar: School Year (no icon) • MOSY(Q1 & Q2), EOSY(Q3 & Q4), SUMMER(Midyear) | Assessment Window Button ── */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-zinc-800">
+        {/* Left: School Year (No Icon) & Phase Navigation Tabs */}
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-bold text-sm sm:text-base text-slate-900 dark:text-white whitespace-nowrap">
+            {currentSchoolYearStr.startsWith('SY') ? currentSchoolYearStr : `SY ${currentSchoolYearStr}`}
           </span>
 
-          <span className="text-slate-300 dark:text-zinc-700">&bull;</span>
+          <span className="text-slate-300 dark:text-zinc-700 font-bold text-base select-none">&bull;</span>
 
-          <div
-            className={`flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-0.5 rounded-lg border border-slate-200 dark:border-zinc-800 transition ${
-              !isSchoolYearActive ? 'opacity-40 select-none cursor-not-allowed' : ''
-            }`}
-            title={!isSchoolYearActive ? 'Phase setting is disabled for archived or inactive school years' : undefined}
-          >
-            <span className="text-[11px] text-slate-400 px-1.5 hidden sm:inline">Set Phase:</span>
+          {/* Phase Switcher Tabs */}
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 overflow-x-auto">
             <button
               type="button"
-              onClick={() => isSchoolYearActive && handleSetSemester('1st')}
-              disabled={!isSchoolYearActive || isSettingSemester || currentActiveSemester === '1st'}
-              className={`px-2 py-0.5 rounded text-[11px] font-medium transition ${getPhaseButtonClass('1st')}`}
-              title={
-                !isSchoolYearActive
-                  ? 'Phase setting is disabled for archived or inactive school years'
-                  : currentActiveSemester === '1st'
-                  ? '1st Semester (MOSY) is currently active'
-                  : 'Set active semester to 1st (MOSY)'
-              }
+              onClick={() => setActiveTab('mosy')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                activeTab === 'mosy'
+                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
             >
-              1st (MOSY)
+              <span>MOSY (Q1 & Q2)</span>
+              {currentActiveSemester === '1st' && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60 leading-none inline-flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Active
+                </span>
+              )}
             </button>
+
             <button
               type="button"
-              onClick={() => isSchoolYearActive && handleSetSemester('2nd')}
-              disabled={!isSchoolYearActive || isSettingSemester || currentActiveSemester === '2nd'}
-              className={`px-2 py-0.5 rounded text-[11px] font-medium transition ${getPhaseButtonClass('2nd')}`}
-              title={
-                !isSchoolYearActive
-                  ? 'Phase setting is disabled for archived or inactive school years'
-                  : currentActiveSemester === '2nd'
-                  ? '2nd Semester (EOSY) is currently active'
-                  : 'Set active semester to 2nd (EOSY)'
-              }
+              onClick={() => setActiveTab('eosy')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                activeTab === 'eosy'
+                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
             >
-              2nd (EOSY)
+              <span>EOSY (Q3 & Q4)</span>
+              {currentActiveSemester === '2nd' && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60 leading-none inline-flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Active
+                </span>
+              )}
             </button>
+
             <button
               type="button"
-              onClick={() => isSchoolYearActive && handleSetSemester('summer')}
-              disabled={!isSchoolYearActive || isSettingSemester || currentActiveSemester === 'summer'}
-              className={`px-2 py-0.5 rounded text-[11px] font-medium transition ${getPhaseButtonClass('summer')}`}
-              title={
-                !isSchoolYearActive
-                  ? 'Phase setting is disabled for archived or inactive school years'
-                  : currentActiveSemester === 'summer'
-                  ? 'Summer Remediation is currently active'
-                  : 'Set active semester to Summer'
-              }
+              onClick={() => setActiveTab('summer')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                activeTab === 'summer'
+                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
             >
-              Summer
+              <span>SUMMER (Midyear)</span>
+              {currentActiveSemester === 'summer' && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60 leading-none inline-flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Active
+                </span>
+              )}
             </button>
           </div>
+        </div>
 
+        {/* Right: Assessment Window Control with Active Clockwise Glowing Outline */}
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={handleRefresh}
-            disabled={isLoading || isSettingSemester}
-            className="p-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition cursor-pointer"
-            title="Refresh Data"
+            onClick={handleToggleAssessmentWindow}
+            className={`relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold uppercase transition cursor-pointer border shadow-xs ${
+              isWindowOpen
+                ? 'border-emerald-400/80 dark:border-emerald-600/80 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/60 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+                : 'border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60'
+            }`}
+            title={isWindowOpen ? `Assessment window is OPEN. Click to close.` : `Assessment window is CLOSED. Click to open.`}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading || isSettingSemester ? 'animate-spin' : ''}`} />
+            {isWindowOpen && (
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none rounded-xl overflow-visible"
+                style={{ filter: 'drop-shadow(0 0 5px rgba(16, 185, 129, 0.95))' }}
+              >
+                <rect
+                  x="0.75"
+                  y="0.75"
+                  width="calc(100% - 1.5px)"
+                  height="calc(100% - 1.5px)"
+                  rx="11"
+                  fill="none"
+                  stroke="#10b981"
+                  strokeWidth="2"
+                  pathLength="100"
+                  strokeDasharray="10 40 10 40"
+                  className="animate-glow-border-clockwise"
+                />
+              </svg>
+            )}
+
+            {isWindowOpen ? (
+              <>
+                <Unlock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>{activePhaseLabel} ASSESSMENT: OPENED</span>
+              </>
+            ) : (
+              <>
+                <Lock className="w-4 h-4" />
+                <span>{activePhaseLabel} ASSESSMENT: CLOSED</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -526,7 +672,30 @@ export const AdminEvaluationHub: React.FC = () => {
         </div>
       )}
 
-      {/* ── Loading Skeleton State ────────────────────────────────────────────── */}
+      {/* Success Alerts */}
+      {mosyProcessSuccess && (
+        <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span>{mosyProcessSuccess}</span>
+          </div>
+          <button type="button" onClick={() => setMosyProcessSuccess(null)} className="p-1 hover:opacity-75">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {transitionSuccessMsg && (
+        <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span>{transitionSuccessMsg}</span>
+          </div>
+          <button type="button" onClick={() => setTransitionSuccessMsg(null)} className="p-1 hover:opacity-75">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* ── Main Loading Skeleton State ────────────────────────────────────────────── */}
       {isLoading ? (
         <div className="space-y-5">
           <StatsGridSkeleton count={4} cols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" />
@@ -534,732 +703,310 @@ export const AdminEvaluationHub: React.FC = () => {
             <CardSkeleton rows={4} />
             <CardSkeleton rows={4} />
           </div>
-          <TableSkeleton rows={6} cols={4} />
+          <TableSkeleton rows={6} cols={6} />
         </div>
       ) : (
-        <>
-          {/* ── TAB 1: MOSY ──────────────────────────────────────────────────────── */}
-          {activeTab === 'mosy' && (
         <div className="space-y-6">
-          {/* A. MOSY Evaluation Status */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Tutor Evaluation Stats */}
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-3">
-                Tutor Evaluations
-              </h2>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <p className="text-xl font-bold text-slate-900 dark:text-white">{mosyData?.total_tutors ?? '—'}</p>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">Total Tutors</p>
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{mosyData?.completed_tutors ?? '—'}</p>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">Completed</p>
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-amber-600 dark:text-amber-400">
-                    {mosyData ? (mosyData.in_progress_tutors + mosyData.pending_tutors) : '—'}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">Pending</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Student Evaluation Stats */}
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-3">
-                Student Evaluations
-              </h2>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <p className="text-xl font-bold text-slate-900 dark:text-white">{mosyData?.total_assigned_students ?? '—'}</p>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">Total Students</p>
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-slate-900 dark:text-white">{mosyData?.total_students_evaluated ?? '—'}</p>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">Evaluated</p>
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-slate-900 dark:text-white">{mosyData?.students_remaining ?? '—'}</p>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">Remaining</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* MOSY Process Success Alert */}
-          {mosyProcessSuccess && (
-            <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-600" />
-                <span>{mosyProcessSuccess}</span>
-              </div>
-              <button type="button" onClick={() => setMosyProcessSuccess(null)} className="p-1 hover:opacity-75">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-
-          {/* B. Pending Evaluations */}
-          <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white mb-2">
-              Pending Tutor Evaluations
-            </h2>
-
-            {mosyData && mosyData.incomplete_tutors.length > 0 ? (
-              <div className="overflow-x-auto mt-2">
-                <table className="w-full text-left text-xs">
-                  <thead className="text-slate-400 text-[11px] border-b border-slate-100 dark:border-zinc-800">
-                    <tr>
-                      <th className="py-2 pr-4 font-semibold">Tutor</th>
-                      <th className="py-2 px-4 font-semibold text-center">Evaluated</th>
-                      <th className="py-2 px-4 font-semibold text-center">Remaining</th>
-                      <th className="py-2 px-4 font-semibold text-center">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
-                    {mosyData.incomplete_tutors.map((t) => (
-                      <tr key={t.tutor_id}>
-                        <td className="py-2.5 pr-4 font-medium text-slate-900 dark:text-white">{t.tutor_name}</td>
-                        <td className="py-2.5 px-4 text-center text-slate-700 dark:text-zinc-300">{t.evaluated_count}</td>
-                        <td className="py-2.5 px-4 text-center font-medium text-amber-600 dark:text-amber-400">{t.remaining_count}</td>
-                        <td className="py-2.5 px-4 text-center">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900">
-                            {t.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-xs text-slate-500 dark:text-zinc-400 py-1 flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                <span>All tutor evaluations completed.</span>
-              </p>
-            )}
-
-            {/* Finalize MOSY Action */}
-            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold text-slate-900 dark:text-white">Finalize Mid-Year (MOSY) Evaluation</p>
-                <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-                  Promotes qualifying Basic students to Plus and releases tutor pairings for second-semester cohorts.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleProcessMosy}
-                disabled={isProcessingMosy}
-                className="px-3.5 py-1.5 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold hover:opacity-90 disabled:opacity-50 transition cursor-pointer shrink-0"
-              >
-                {isProcessingMosy ? 'Processing...' : 'Finalize MOSY'}
-              </button>
-            </div>
-          </div>
-
-          {/* C. Reassignment Queue (Main Focus) */}
-          <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">
-            {/* Queue Header & Filters */}
-            <div className="p-4 border-b border-slate-100 dark:border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Reassignment Queue ({allQueueItems.length})
+          {/* ── Assessment Status Card Container ──────────────────────────────────── */}
+          <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 sm:p-6 space-y-5 shadow-xs">
+            {/* 1. Header Row: Bold Evaluation Status Label on Left with Active Badge & Transition Button on Top Right */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                  {activePhaseLabel} Evaluation Status
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">
-                  Select students to dispatch in cohorts (15–25) to available tutors.
-                </p>
+                {((activeTab === 'mosy' && currentActiveSemester === '1st') ||
+                  (activeTab === 'eosy' && currentActiveSemester === '2nd') ||
+                  (activeTab === 'summer' && currentActiveSemester === 'summer')) && (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-400 dark:border-emerald-500/60 leading-none inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Active
+                  </span>
+                )}
               </div>
 
-              {/* Filter Tabs & Search */}
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-0.5 rounded-lg border border-slate-200 dark:border-zinc-800 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setQueueFilter('all')}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition cursor-pointer ${
-                      queueFilter === 'all'
-                        ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
-                        : 'text-slate-600 dark:text-zinc-400'
-                    }`}
-                  >
-                    All ({allQueueItems.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQueueFilter('plus')}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition cursor-pointer ${
-                      queueFilter === 'plus'
-                        ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
-                        : 'text-slate-600 dark:text-zinc-400'
-                    }`}
-                  >
-                    Plus ({allQueueItems.filter(s => s.required_program === 'plus').length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQueueFilter('basic')}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition cursor-pointer ${
-                      queueFilter === 'basic'
-                        ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
-                        : 'text-slate-600 dark:text-zinc-400'
-                    }`}
-                  >
-                    Basic ({allQueueItems.filter(s => s.required_program === 'basic').length})
-                  </button>
-                </div>
+              {/* Start New Semester / Start New School Year Action Button */}
+              {activeTab === 'mosy' && (
+                <button
+                  type="button"
+                  onClick={handleProcessMosy}
+                  disabled={!isAllTutorsComplete || isProcessingMosy}
+                  className={`px-5 py-2 rounded-xl text-xs font-bold border transition duration-150 shrink-0 whitespace-nowrap ${
+                    isAllTutorsComplete
+                      ? 'bg-[#0052B7] text-white hover:bg-[#004194] border-[#0052B7] shadow-xs cursor-pointer'
+                      : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 border-slate-200 dark:border-zinc-700 cursor-not-allowed opacity-60'
+                  }`}
+                  title={!isAllTutorsComplete ? 'All tutors must complete MOSY evaluation before starting the next semester' : 'Start New Semester'}
+                >
+                  {isProcessingMosy
+                    ? 'Processing MOSY...'
+                    : `Start New Semester (${currentSchoolYearStr}, Q3 & Q4)`}
+                </button>
+              )}
 
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search students..."
-                    value={queueSearch}
-                    onChange={(e) => setQueueSearch(e.target.value)}
-                    className="pl-8 pr-3 py-1 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none"
-                  />
-                </div>
-              </div>
-            </div>
+              {activeTab === 'eosy' && (
+                <button
+                  type="button"
+                  onClick={handleProcessEosy}
+                  disabled={!isAllTutorsComplete || isProcessingEosy}
+                  className={`px-5 py-2 rounded-xl text-xs font-bold border transition duration-150 shrink-0 whitespace-nowrap ${
+                    isAllTutorsComplete
+                      ? 'bg-[#0052B7] text-white hover:bg-[#004194] border-[#0052B7] shadow-xs cursor-pointer'
+                      : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 border-slate-200 dark:border-zinc-700 cursor-not-allowed opacity-60'
+                  }`}
+                  title={!isAllTutorsComplete ? 'All tutors must complete EOSY evaluation before starting summer semester' : 'Start Summer Semester'}
+                >
+                  {isProcessingEosy
+                    ? 'Starting Summer...'
+                    : `Start New Semester (${currentSchoolYearStr}, Summer)`}
+                </button>
+              )}
 
-            {/* Quick Selection Strip */}
-            <div className="px-4 py-2 bg-slate-50/50 dark:bg-zinc-900/40 border-b border-slate-100 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2 text-xs">
-              <div className="flex items-center gap-1.5 text-slate-500 dark:text-zinc-400">
-                <span className="font-semibold text-[11px] uppercase tracking-wider">Quick Select:</span>
+              {activeTab === 'summer' && (
                 <button
                   type="button"
-                  onClick={() => handleQuickSelectCount(15)}
-                  className="px-2 py-0.5 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-medium hover:bg-slate-50 cursor-pointer"
+                  onClick={() => setIsTransitionModalOpen(true)}
+                  disabled={!isAllTutorsComplete}
+                  className={`px-5 py-2 rounded-xl text-xs font-bold border transition duration-150 shrink-0 whitespace-nowrap ${
+                    isAllTutorsComplete
+                      ? 'bg-[#0052B7] text-white hover:bg-[#004194] border-[#0052B7] shadow-xs cursor-pointer'
+                      : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 border-slate-200 dark:border-zinc-700 cursor-not-allowed opacity-60'
+                  }`}
+                  title={!isAllTutorsComplete ? 'All tutors must complete summer evaluations before starting new school year' : 'Start New School Year'}
                 >
-                  15
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickSelectCount(20)}
-                  className="px-2 py-0.5 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-medium hover:bg-slate-50 cursor-pointer"
-                >
-                  20
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickSelectCount(25)}
-                  className="px-2 py-0.5 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-medium hover:bg-slate-50 cursor-pointer"
-                >
-                  25
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSelectFilteredAll}
-                  className="px-2 py-0.5 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-medium hover:bg-slate-50 cursor-pointer"
-                >
-                  All Filtered ({filteredQueueItems.length})
-                </button>
-              </div>
-
-              {selectedQueueIds.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearSelection}
-                  className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
-                >
-                  Clear Selection
+                  Start New School Year ({nextSchoolYear})
                 </button>
               )}
             </div>
 
-            {/* Compact Action Bar when students selected */}
-            {selectedQueueIds.length > 0 && (
-              <div className="px-4 py-2.5 bg-slate-100 dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-900 dark:text-white">
-                    {selectedQueueIds.length} students selected
+            {/* 2. Progression Bar (Connected Unified Bar with Divider Lines + tutors completed info) */}
+            <div className="w-full flex flex-wrap sm:flex-nowrap items-center gap-3 pt-1">
+              {/* Connected Bar */}
+              <div className="flex-1 min-w-[140px] w-full sm:w-auto h-4 rounded-full overflow-hidden flex border border-slate-300 dark:border-zinc-700 bg-slate-200 dark:bg-zinc-700 divide-x-2 divide-white dark:divide-[#0A0A0A] shadow-inner">
+                {totalTutorsCount === 0 ? (
+                  <div className="w-full h-full bg-slate-200 dark:bg-zinc-700" />
+                ) : (
+                  tutorRows.map((t, idx) => (
+                    <div
+                      key={t.id || idx}
+                      className={`flex-1 h-full transition-all duration-300 ${
+                        idx < completedTutorsCount
+                          ? 'bg-emerald-500 dark:bg-emerald-500'
+                          : 'bg-slate-200 dark:bg-zinc-700'
+                      }`}
+                      title={`${t.tutorName}: ${t.status}`}
+                    />
+                  ))
+                )}
+              </div>
+
+              {/* Numerical completion info */}
+              <div className="flex items-center shrink-0 whitespace-nowrap">
+                <span className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">
+                  {completedTutorsCount}/{totalTutorsCount} Tutor Evaluations
+                </span>
+              </div>
+            </div>
+
+            {/* 3. Table with Column Division Lines, Sortable Headers, and Strict ARAL Level */}
+            <div className="overflow-x-auto mobile-scroll-table w-full rounded-md border border-gray-200 dark:border-[#1A1A1A]">
+              {/* Table Search Toolbar */}
+              <div className="p-3 border-b border-gray-200 dark:border-[#1A1A1A] flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-[#0A0A0A]">
+                <div className="flex items-center">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                    Tutors List ({sortedAndFilteredTutorRows.length})
                   </span>
-                  {selectedLevelCounts.isMixed ? (
-                    <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900">
-                      Mixed programs ({selectedLevelCounts.basic} Basic, {selectedLevelCounts.plus} Plus). Tutors only teach one level.
-                    </span>
-                  ) : (
-                    <span className="text-slate-500 dark:text-zinc-400">
-                      {selectedLevelCounts.plus > 0 ? 'Plus Program' : 'Basic Program'}
-                    </span>
-                  )}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsBulkAssignModalOpen(true)}
-                  disabled={selectedLevelCounts.isMixed}
-                  className="px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
-                  title={selectedLevelCounts.isMixed ? 'Select only Basic or only Plus students' : 'Dispatch cohort to tutor'}
-                >
-                  Dispatch Cohort
-                </button>
+                <div className="relative w-full sm:w-72">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search tutor name, section, subject..."
+                    value={tutorSearch}
+                    onChange={(e) => setTutorSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-lg text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[var(--brand)]"
+                  />
+                </div>
               </div>
-            )}
 
-            {/* Table */}
-            {filteredQueueItems.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-500 dark:text-zinc-400">
-                No unassigned students in queue.
-              </div>
-            ) : (
-              <div className="overflow-x-auto max-h-[500px]">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50/80 dark:bg-zinc-900/60 text-slate-400 text-[11px] uppercase border-b border-slate-100 dark:border-zinc-800 sticky top-0 z-10">
-                    <tr>
-                      <th className="py-2.5 px-3 w-8 text-center">
-                        <input
-                          type="checkbox"
-                          checked={filteredQueueItems.length > 0 && selectedQueueIds.length >= filteredQueueItems.length}
-                          onChange={(e) => {
-                            if (e.target.checked) handleSelectFilteredAll();
-                            else handleClearSelection();
-                          }}
-                          className="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer"
-                        />
+              {sortedAndFilteredTutorRows.length === 0 ? (
+                <div className="p-12 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A]">
+                  {tutors.length === 0 ? 'No tutors enrolled in ARAL Program' : 'No tutors matching search filter'}
+                </div>
+              ) : (
+                <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
+                  <thead>
+                    <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
+                      <th className="px-4 py-2.5 text-left">
+                        <SortableHeader label="TUTOR NAME" field="tutorName" />
                       </th>
-                      <th className="py-2.5 px-3 font-semibold">Student</th>
-                      <th className="py-2.5 px-3 font-semibold">LRN</th>
-                      <th className="py-2.5 px-3 font-semibold">Program</th>
-                      <th className="py-2.5 px-3 font-semibold">Previous Tutor</th>
-                      <th className="py-2.5 px-3 font-semibold text-right">Actions</th>
+                      <th className="px-4 py-2.5 text-left">
+                        <SortableHeader label="GRADE LEVEL HANDLED" field="gradeLevel" />
+                      </th>
+                      <th className="px-4 py-2.5 text-left">
+                        <SortableHeader label="SECTION HANDLED" field="section" />
+                      </th>
+                      <th className="px-4 py-2.5 text-left">
+                        <SortableHeader label="SUBJECT HANDLED" field="subject" />
+                      </th>
+                      <th className="px-4 py-2.5 text-left">
+                        <SortableHeader label="ARAL LEVEL" field="aralLevel" />
+                      </th>
+                      <th className="px-4 py-2.5 text-center">
+                        <SortableHeader label="TOTAL STUDENTS" field="assignedCount" align="center" />
+                      </th>
+                      <th className="px-4 py-2.5 text-center">
+                        <SortableHeader label="STATUS" field="status" align="center" />
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
-                    {filteredQueueItems.map((student) => {
-                      const isSelected = selectedQueueIds.includes(student.id);
+                  <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+                    {sortedAndFilteredTutorRows.map((row) => {
+                      const isExpanded = expandedTutorIds.has(row.id);
 
                       return (
-                        <tr
-                          key={student.id}
-                          className={`hover:bg-slate-50/80 dark:hover:bg-zinc-900/40 transition ${
-                            isSelected ? 'bg-slate-50 dark:bg-zinc-900/60' : ''
-                          }`}
-                        >
-                          <td className="py-2.5 px-3 text-center">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleSelectStudent(student.id)}
-                              className="rounded border-slate-300 text-slate-900 focus:ring-0 cursor-pointer"
-                            />
-                          </td>
-                          <td className="py-2.5 px-3 font-medium text-slate-900 dark:text-white">
-                            {student.full_name}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono text-slate-500 dark:text-zinc-400">
-                            {student.lrn || 'N/A'}
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                              student.required_program === 'plus'
-                                ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-900'
-                                : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-900'
-                            }`}>
-                              {student.required_program}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 text-slate-600 dark:text-zinc-400">
-                            {student.previous_tutor || 'None'}
-                          </td>
-                          <td className="py-2.5 px-3 text-right space-x-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenHistoryModal(student.id)}
-                              className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-700 text-[11px] font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer"
-                            >
-                              History
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAssignModal({
-                                id: student.id,
-                                full_name: student.full_name,
-                                lrn: student.lrn,
-                                program: student.required_program,
-                              }, 'MOSY')}
-                              className="px-2 py-1 rounded bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[11px] font-semibold hover:opacity-90 cursor-pointer"
-                            >
-                              Assign
-                            </button>
-                          </td>
-                        </tr>
+                        <React.Fragment key={row.id}>
+                          {/* Tutor Main Row */}
+                          <tr
+                            onClick={() => toggleTutorExpand(row.id)}
+                            className={`group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors cursor-pointer select-none ${
+                              isExpanded
+                                ? 'bg-slate-50/80 dark:bg-white/[0.04]'
+                                : 'hover:bg-gray-50/80 dark:hover:bg-white/[0.02]'
+                            }`}
+                          >
+                            <td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                {isExpanded ? (
+                                  <ChevronDown className="w-4 h-4 text-[var(--brand)] shrink-0 transition-transform" />
+                                ) : (
+                                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:text-zinc-500 shrink-0 transition-transform" />
+                                )}
+                                <span>{row.tutorName}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
+                              {row.gradeLevel}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium uppercase">
+                              {row.section}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
+                              {row.subject}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium uppercase">
+                              {row.aralLevel}
+                            </td>
+                            <td className="px-4 py-3 text-center text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
+                              {row.assignedCount} Students
+                            </td>
+                            <td className="px-4 py-3 text-center whitespace-nowrap">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                                  row.status === 'Completed'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
+                                    : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60'
+                                }`}
+                              >
+                                {row.status}
+                              </span>
+                            </td>
+                          </tr>
+
+                          {/* Expandable Sub-Table: Students Handled by this Tutor */}
+                          {isExpanded && (
+                            <tr className="bg-slate-50/40 dark:bg-zinc-950/40">
+                              <td colSpan={7} className="p-0">
+                                <div className="p-4 sm:p-5 border-y border-slate-200 dark:border-zinc-800 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wide">
+                                      Students Handled by {row.tutorName} &bull; {row.section} ({row.students.length} Students)
+                                    </span>
+                                  </div>
+
+                                  {row.students.length === 0 ? (
+                                    <div className="p-6 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A] rounded-xl border border-slate-200 dark:border-zinc-800">
+                                      No students assigned to this tutor for this semester.
+                                    </div>
+                                  ) : (
+                                    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
+                                      <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+                                        <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                                          <tr>
+                                            <th className="w-10 px-3 py-2 text-center">#</th>
+                                            <th className="px-3 py-2 text-left">STUDENT NAME</th>
+                                            <th className="px-3 py-2 text-left">LRN</th>
+                                            <th className="px-3 py-2 text-left">ARAL LEVEL</th>
+                                            <th className="px-3 py-2 text-center">FINAL AVG ATTENDANCE RATE</th>
+                                            <th className="px-3 py-2 text-center">FINAL AVG SCORE</th>
+                                            <th className="px-3 py-2 text-center">FINAL AVG COMPOSITE</th>
+                                            <th className="px-3 py-2 text-center">
+                                              {activeTab === 'mosy' ? 'MOSY ASSESSMENT' : activeTab === 'eosy' ? 'EOSY ASSESSMENT' : 'SUMMER ASSESSMENT'}
+                                            </th>
+                                            <th className="px-3 py-2 text-center">STATUS</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+                                          {row.students.map((st, idx) => (
+                                            <tr
+                                              key={st.id}
+                                              className="divide-x divide-gray-100 dark:divide-[#1A1A1A] hover:bg-gray-50/70 dark:hover:bg-white/[0.02] transition-colors"
+                                            >
+                                              <td className="px-3 py-2.5 text-center text-slate-400 font-medium">{idx + 1}</td>
+                                              <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                                                {st.name}
+                                              </td>
+                                              <td className="px-3 py-2.5 font-mono text-slate-600 dark:text-slate-300">
+                                                {st.lrn}
+                                              </td>
+                                              <td className="px-3 py-2.5 font-medium uppercase text-slate-700 dark:text-slate-300">
+                                                {st.aralLevel}
+                                              </td>
+                                              <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
+                                                {st.attendanceRate.toFixed(1)}%
+                                              </td>
+                                              <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
+                                                {st.avgScore.toFixed(1)}%
+                                              </td>
+                                              <td className="px-3 py-2.5 text-center font-bold text-slate-900 dark:text-white">
+                                                {st.compositeScore.toFixed(1)}%
+                                              </td>
+                                              <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
+                                                {st.assessmentScoreStr}
+                                              </td>
+                                              <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                                                <span
+                                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                                                    st.status === 'PASSED'
+                                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
+                                                      : st.status === 'RETAINED'
+                                                      ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60'
+                                                      : 'bg-amber-50/70 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/40'
+                                                  }`}
+                                                >
+                                                  {st.status}
+                                                </span>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
                 </table>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── TAB 2: EOSY ──────────────────────────────────────────────────────── */}
-      {activeTab === 'eosy' && (
-        <div className="space-y-6">
-          {/* Step 1: Evaluation Completion Status */}
-          <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                  EOSY Evaluation Status
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                  100% of student evaluations must be submitted by tutors before starting the new school year.
-                </p>
-              </div>
-
-              {/* Completion Percentage Badge */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500 dark:text-zinc-400">Progress:</span>
-                <span className={`text-base font-bold ${eosyEvaluatedPct === 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
-                  {eosyEvaluatedPct}% Complete
-                </span>
-              </div>
-            </div>
-
-            {/* Compact Metric Numbers */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-              <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800">
-                <p className="text-lg font-bold text-slate-900 dark:text-white">{eosyData?.total_tutors ?? '—'}</p>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">Total Tutors</p>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800">
-                <p className="text-lg font-bold text-slate-900 dark:text-white">{eosyData?.completed_tutors ?? '—'}</p>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">Completed Tutors</p>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800">
-                <p className="text-lg font-bold text-slate-900 dark:text-white">{eosyData?.total_students_evaluated ?? '—'}</p>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">Students Evaluated</p>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800">
-                <p className="text-lg font-bold text-slate-900 dark:text-white">{eosyData?.students_remaining ?? '—'}</p>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">Students Remaining</p>
-              </div>
-            </div>
-
-            {/* Gate Status Banner */}
-            {eosyData && !eosyData.can_transition ? (
-              <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-900 dark:text-amber-200 space-y-2">
-                <div className="flex items-center gap-2 font-bold">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Transition Locked</span>
-                </div>
-                <p className="text-amber-800 dark:text-amber-300">
-                  All tutor EOSY evaluations must be completed before starting the new school year.
-                </p>
-
-                {/* Incomplete Tutors List */}
-                {eosyData.incomplete_tutors.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-amber-200 dark:border-amber-900">
-                    <p className="font-semibold mb-1.5">Tutors with pending evaluations ({eosyData.incomplete_tutors.length}):</p>
-                    <div className="overflow-x-auto mt-2">
-                      <table className="w-full text-left text-xs">
-                        <thead className="text-amber-900/60 dark:text-amber-300/60 text-[11px] border-b border-amber-200/80 dark:border-amber-900/60">
-                          <tr>
-                            <th className="py-1.5 pr-4 font-semibold">Tutor</th>
-                            <th className="py-1.5 px-4 font-semibold text-center">Evaluated</th>
-                            <th className="py-1.5 px-4 font-semibold text-center">Remaining</th>
-                            <th className="py-1.5 px-4 font-semibold text-center">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-amber-200/40 dark:divide-amber-900/40">
-                          {eosyData.incomplete_tutors.map((t) => (
-                            <tr key={t.tutor_id}>
-                              <td className="py-2 pr-4 font-medium text-amber-950 dark:text-amber-100">{t.tutor_name}</td>
-                              <td className="py-2 px-4 text-center">{t.evaluated_count}</td>
-                              <td className="py-2 px-4 text-center font-bold text-amber-700 dark:text-amber-300">{t.remaining_count}</td>
-                              <td className="py-2 px-4 text-center">
-                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-white/80 dark:bg-zinc-900 border border-amber-300 dark:border-amber-800">
-                                  {t.status}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-900 dark:text-emerald-200 space-y-1">
-                <div className="flex items-center gap-2 font-bold">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Ready for Transition</span>
-                </div>
-                <p className="text-emerald-800 dark:text-emerald-300">
-                  All EOSY evaluations are complete. The next school year can now be activated.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Success Transition Alert */}
-          {transitionSuccessMsg && (
-            <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-600" />
-                <span>{transitionSuccessMsg}</span>
-              </div>
-              <button type="button" onClick={() => setTransitionSuccessMsg(null)} className="p-1 hover:opacity-75">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-
-          {/* Step 2: Primary Action — Start New School Year */}
-          <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                Start New School Year
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                Advances the school year, archives current records, and transitions students based on evaluation results.
-              </p>
-            </div>
-
-            <div className="flex flex-col items-start sm:items-end gap-1.5">
-              <button
-                type="button"
-                onClick={() => setIsTransitionModalOpen(true)}
-                disabled={!eosyData?.can_transition}
-                className="px-5 py-2.5 rounded-lg text-xs font-bold transition duration-150 cursor-pointer shrink-0 shadow-xs border bg-[#0052B7] text-white border-[#0052B7] hover:bg-[#004194] dark:bg-white dark:text-slate-900 dark:border-white dark:hover:bg-slate-100 disabled:bg-slate-100 disabled:text-slate-500 disabled:border-slate-300 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500 dark:disabled:border-zinc-700 disabled:shadow-none disabled:cursor-not-allowed"
-              >
-                Start New School Year ({eosyData?.next_school_year || 'Next Year'})
-              </button>
-              {!eosyData?.can_transition && (
-                <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400">
-                  Evaluations must reach 100% completion first.
-                </span>
               )}
             </div>
           </div>
         </div>
-      )}
-
-      {/* ── TAB 3: SUMMER ────────────────────────────────────────────────────── */}
-      {activeTab === 'summer' && (
-        <div className="space-y-5">
-          {/* Summary Stats */}
-          <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-3">
-              Summer Remediation Summary
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div>
-                <p className="text-xl font-bold text-slate-900 dark:text-white">{summerStats.total}</p>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">Total Referred</p>
-              </div>
-              <div>
-                <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{summerStats.required}</p>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">Required</p>
-              </div>
-              <div>
-                <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{summerStats.inProgress}</p>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">In Progress</p>
-              </div>
-              <div>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{summerStats.completed}</p>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">Completed</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Student Table */}
-          <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">
-            {summerRecords.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-500 dark:text-zinc-400">
-                No students currently referred to summer remediation.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50/80 dark:bg-zinc-900/60 text-slate-400 text-[11px] uppercase border-b border-slate-100 dark:border-zinc-800">
-                    <tr>
-                      <th className="py-2.5 px-3 font-semibold">Student</th>
-                      <th className="py-2.5 px-3 font-semibold">LRN</th>
-                      <th className="py-2.5 px-3 font-semibold">Reason</th>
-                      <th className="py-2.5 px-3 font-semibold">Status</th>
-                      <th className="py-2.5 px-3 font-semibold">Outcome</th>
-                      <th className="py-2.5 px-3 font-semibold text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
-                    {summerRecords.map((sr) => (
-                      <tr key={sr.id} className="hover:bg-slate-50/60 dark:hover:bg-zinc-900/30">
-                        <td className="py-2.5 px-3 font-medium text-slate-900 dark:text-white">
-                          {sr.student_name}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono text-slate-500 dark:text-zinc-400">
-                          {sr.student_lrn}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-600 dark:text-zinc-300">
-                          {sr.reason_display}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <span className="capitalize text-slate-700 dark:text-zinc-300">
-                            {sr.status_display}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            sr.summer_result === 'passed'
-                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : sr.summer_result === 'failed'
-                              ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
-                              : 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400'
-                          }`}>
-                            {sr.summer_result || 'Pending'}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-right space-x-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenHistoryModal(sr.student)}
-                            className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-700 text-[11px] font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer"
-                          >
-                            History
-                          </button>
-                          {sr.summer_status === 'summer_required' && (
-                            <button
-                              type="button"
-                              onClick={() => handleStartSummer(sr.id)}
-                              className="px-2 py-1 rounded bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 text-[11px] font-semibold hover:bg-slate-200 cursor-pointer"
-                            >
-                              Start
-                            </button>
-                          )}
-                          {sr.summer_status !== 'summer_completed' && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedSummerRecord(sr);
-                                setIsSummerModalOpen(true);
-                              }}
-                              className="px-2 py-1 rounded bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[11px] font-semibold hover:opacity-90 cursor-pointer"
-                            >
-                              Record Evaluation
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── TAB 4: ARCHIVE ───────────────────────────────────────────────────── */}
-      {activeTab === 'archive' && (
-        <div className="space-y-4">
-          {/* Header & School Year Selector */}
-          <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                School Year Archive
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                Read-only records preserved from past school years.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-semibold text-slate-600 dark:text-zinc-400">School Year:</label>
-              <select
-                value={selectedArchiveYear}
-                onChange={(e) => {
-                  setSelectedArchiveYear(e.target.value);
-                  loadArchiveSnapshot(e.target.value);
-                }}
-                className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg text-xs font-bold text-slate-900 dark:text-white focus:outline-none"
-              >
-                {archivedYears.map((ay) => (
-                  <option key={ay.id} value={ay.school_year}>
-                    SY {ay.school_year} ({ay.is_active ? 'Active' : 'Archived'})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">
-            {isLoadingArchiveDetail ? (
-              <div className="p-8 text-center text-xs text-slate-500 dark:text-zinc-400">
-                Loading archived records...
-              </div>
-            ) : archiveSnapshot && archiveSnapshot.records.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50/80 dark:bg-zinc-900/60 text-slate-400 text-[11px] uppercase border-b border-slate-100 dark:border-zinc-800">
-                    <tr>
-                      <th className="py-2.5 px-3 font-semibold">Student</th>
-                      <th className="py-2.5 px-3 font-semibold">LRN</th>
-                      <th className="py-2.5 px-3 font-semibold">Grade</th>
-                      <th className="py-2.5 px-3 font-semibold">Program</th>
-                      <th className="py-2.5 px-3 font-semibold">Tutor</th>
-                      <th className="py-2.5 px-3 font-semibold">MOSY</th>
-                      <th className="py-2.5 px-3 font-semibold">EOSY</th>
-                      <th className="py-2.5 px-3 font-semibold">Outcome</th>
-                      <th className="py-2.5 px-3 font-semibold text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
-                    {archiveSnapshot.records.map((st) => (
-                      <tr key={st.enrollment_id} className="hover:bg-slate-50/60 dark:hover:bg-zinc-900/30">
-                        <td className="py-2.5 px-3 font-medium text-slate-900 dark:text-white">
-                          {st.student_name}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono text-slate-500 dark:text-zinc-400">
-                          {st.lrn || 'N/A'}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-600 dark:text-zinc-400">
-                          {st.grade_level}
-                        </td>
-                        <td className="py-2.5 px-3 uppercase text-slate-600 dark:text-zinc-400">
-                          {st.program}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-700 dark:text-zinc-300">
-                          {st.assigned_tutor}
-                        </td>
-                        <td className="py-2.5 px-3 capitalize text-slate-600 dark:text-zinc-400">
-                          {st.mosy_result}
-                        </td>
-                        <td className="py-2.5 px-3 capitalize text-slate-600 dark:text-zinc-400">
-                          {st.eosy_result}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-700 dark:text-zinc-300">
-                          {st.final_result}
-                        </td>
-                        <td className="py-2.5 px-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenHistoryModal(st.student_id)}
-                            className="px-2 py-1 rounded border border-slate-200 dark:border-zinc-700 text-[11px] font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer"
-                          >
-                            History
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="p-8 text-center text-xs text-slate-500 dark:text-zinc-400">
-                No archived records found for SY {selectedArchiveYear}.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-        </>
       )}
 
       {/* ── Sub-Modals ───────────────────────────────────────────────────────── */}
@@ -1301,9 +1048,12 @@ export const AdminEvaluationHub: React.FC = () => {
       <BulkAssignCohortModal
         isOpen={isBulkAssignModalOpen}
         onClose={() => setIsBulkAssignModalOpen(false)}
-        selectedStudents={selectedStudentsForCohort}
+        selectedStudents={[]}
         period="MOSY"
-        onDispatched={handleCohortDispatched}
+        onDispatched={async () => {
+          setIsBulkAssignModalOpen(false);
+          await handleRefresh();
+        }}
       />
     </div>
   );

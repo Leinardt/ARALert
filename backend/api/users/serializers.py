@@ -3,12 +3,29 @@ Users API Serializers.
 Handles validation for user CRUD, bulk tutor assignment, and directory listings.
 """
 
+import re
 import uuid
 
 from django.conf import settings
 from rest_framework import serializers
 
 from apps.accounts.models import User, StudentEditRequest
+
+NAME_PATTERN = re.compile(r"^[a-zA-Z\s.\-ñÑ']+$")
+SECTION_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-]+$")
+PHONE_PATTERN = re.compile(r"^[0-9+\-\s()]+$")
+DANGEROUS_INJECTION_PATTERN = re.compile(
+    r"(--|;|\/\*|\*\/|@@|char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update|<script|<\/script>)",
+    re.IGNORECASE
+)
+
+
+def sanitize_input_text(value: str) -> str:
+    """Strip HTML tags and normalize whitespace."""
+    if not value:
+        return ''
+    cleaned = re.sub(r'<[^>]*>', '', str(value))
+    return re.sub(r'\s+', ' ', cleaned).strip()
 
 
 class UserListSerializer(serializers.ModelSerializer):
@@ -26,7 +43,8 @@ class UserListSerializer(serializers.ModelSerializer):
             'username', 'email', 'role', 'lrn', 'status', 'is_active',
             'date_joined', 'last_login', 'has_logged_in',
             'assigned_tutor', 'assigned_tutor_name', 'assessment_weight', 'weekly_tasks_weight',
-            'attendance_weight', 'aral_level', 'subject', 'tutor_type', 'is_available_for_students'
+            'attendance_weight', 'aral_level', 'subject', 'tutor_type', 'is_available_for_students',
+            'grade_level', 'parent_guardian_name', 'contact_number', 'has_bosy', 'has_mosy', 'has_eosy', 'has_summer'
         ]
 
     def get_full_name(self, obj):
@@ -63,8 +81,57 @@ class UserCreateSerializer(serializers.ModelSerializer):
             'first_name', 'middle_name', 'last_name', 'username', 'email',
             'role', 'lrn', 'is_active',
             'assigned_tutor', 'assessment_weight', 'weekly_tasks_weight', 'attendance_weight',
-            'aral_level', 'subject', 'tutor_type', 'is_available_for_students'
+            'aral_level', 'subject', 'tutor_type', 'is_available_for_students',
+            'grade_level', 'parent_guardian_name', 'contact_number', 'has_bosy', 'has_mosy', 'has_eosy', 'has_summer'
         ]
+
+    def validate_first_name(self, value):
+        v = sanitize_input_text(value)
+        if not v:
+            raise serializers.ValidationError('First name cannot be empty.')
+        if not NAME_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v):
+            raise serializers.ValidationError('First name can only contain letters, spaces, hyphens, and periods.')
+        return v.upper()
+
+    def validate_middle_name(self, value):
+        if not value:
+            return ''
+        v = sanitize_input_text(value)
+        if v and (not NAME_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v)):
+            raise serializers.ValidationError('Middle name can only contain letters, spaces, hyphens, and periods.')
+        return v.upper()
+
+    def validate_last_name(self, value):
+        v = sanitize_input_text(value)
+        if not v:
+            raise serializers.ValidationError('Last name cannot be empty.')
+        if not NAME_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v):
+            raise serializers.ValidationError('Last name can only contain letters, spaces, hyphens, and periods.')
+        return v.upper()
+
+    def validate_parent_guardian_name(self, value):
+        if not value:
+            return ''
+        v = sanitize_input_text(value)
+        if v and (not NAME_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v)):
+            raise serializers.ValidationError('Parent / Guardian name can only contain letters, spaces, hyphens, and periods.')
+        return v.upper()
+
+    def validate_contact_number(self, value):
+        if not value:
+            return ''
+        v = sanitize_input_text(value)
+        if v and (not PHONE_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v)):
+            raise serializers.ValidationError('Contact number can only contain digits, spaces, hyphens, and plus sign (+).')
+        return v
+
+    def validate_grade_level(self, value):
+        if not value:
+            return ''
+        v = sanitize_input_text(value)
+        if v and (not SECTION_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v)):
+            raise serializers.ValidationError('Grade level / Section contains invalid characters.')
+        return v.upper()
 
     def validate_role(self, value):
         """Prevent SuperAdmin role assignment via API."""
@@ -92,7 +159,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({'lrn': 'LRN is required for student accounts.'})
             lrn = str(lrn).strip()
             if not lrn.isdigit() or len(lrn) != 12:
-                raise serializers.ValidationError({'lrn': 'LRN must be exactly 12 digits.'})
+                raise serializers.ValidationError({'lrn': 'LRN must be exactly 12 digits (numbers only).'})
             if User.objects.filter(lrn=lrn, role='student').exists():
                 raise serializers.ValidationError({'lrn': 'A student with this LRN already exists.'})
         else:
@@ -134,8 +201,65 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             'first_name', 'middle_name', 'last_name', 'email', 'role',
             'is_active', 'assigned_tutor', 'assessment_weight',
             'weekly_tasks_weight', 'attendance_weight', 'aral_level', 'lrn', 'subject',
-            'tutor_type', 'is_available_for_students'
+            'tutor_type', 'is_available_for_students',
+            'grade_level', 'parent_guardian_name', 'contact_number', 'has_bosy', 'has_mosy', 'has_eosy', 'has_summer'
         ]
+
+    def validate_first_name(self, value):
+        v = sanitize_input_text(value)
+        if not v:
+            raise serializers.ValidationError('First name cannot be empty.')
+        if not NAME_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v):
+            raise serializers.ValidationError('First name can only contain letters, spaces, hyphens, and periods.')
+        return v.upper()
+
+    def validate_middle_name(self, value):
+        if not value:
+            return ''
+        v = sanitize_input_text(value)
+        if v and (not NAME_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v)):
+            raise serializers.ValidationError('Middle name can only contain letters, spaces, hyphens, and periods.')
+        return v.upper()
+
+    def validate_last_name(self, value):
+        v = sanitize_input_text(value)
+        if not v:
+            raise serializers.ValidationError('Last name cannot be empty.')
+        if not NAME_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v):
+            raise serializers.ValidationError('Last name can only contain letters, spaces, hyphens, and periods.')
+        return v.upper()
+
+    def validate_parent_guardian_name(self, value):
+        if not value:
+            return ''
+        v = sanitize_input_text(value)
+        if v and (not NAME_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v)):
+            raise serializers.ValidationError('Parent / Guardian name can only contain letters, spaces, hyphens, and periods.')
+        return v.upper()
+
+    def validate_contact_number(self, value):
+        if not value:
+            return ''
+        v = sanitize_input_text(value)
+        if v and (not PHONE_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v)):
+            raise serializers.ValidationError('Contact number can only contain digits, spaces, hyphens, and plus sign (+).')
+        return v
+
+    def validate_grade_level(self, value):
+        if not value:
+            return ''
+        v = sanitize_input_text(value)
+        if v and (not SECTION_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v)):
+            raise serializers.ValidationError('Grade level / Section contains invalid characters.')
+        return v.upper()
+
+    def validate_lrn(self, value):
+        if value:
+            v = str(value).strip()
+            if not v.isdigit() or len(v) != 12:
+                raise serializers.ValidationError('LRN must be exactly 12 digits (numbers only).')
+            return v
+        return value
 
     def update(self, instance, validated_data):
         for attr, value in validated_data.items():

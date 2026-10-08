@@ -1,7 +1,8 @@
 import QRCode from 'qrcode';
+import { Document, Paragraph, ImageRun, AlignmentType, Packer } from 'docx';
 
 type StaffQrAction = 'arrival_am' | 'departure_am' | 'arrival_pm' | 'departure_pm' | 'staff_day';
-type ExportFormat = 'png' | 'jpeg' | 'pdf';
+export type ExportFormat = 'png' | 'jpeg' | 'jpg' | 'pdf' | 'docx';
 
 const LONG_BOND_WIDTH = 1275; // 8.5 inches at 150 DPI
 const LONG_BOND_HEIGHT = 1950; // 13 inches at 150 DPI
@@ -138,7 +139,7 @@ export const exportStaffQrPrintFile = async ({
   context.fillText('SCAN TO RECORD YOUR TIME', LONG_BOND_WIDTH / 2, 1345);
   context.font = '32px Arial';
   context.fillStyle = '#4B5563';
-  context.fillText('Open ARALert, go to Clock In / Out, then scan this code.', LONG_BOND_WIDTH / 2, 1415);
+  context.fillText('Open ARALert, go to DTR Log, then scan this code.', LONG_BOND_WIDTH / 2, 1415);
   context.fillText(action === 'staff_day'
     ? 'The system assigns your DTR punch automatically based on scan time.'
     : 'Use this code only for the indicated DTR punch above.', LONG_BOND_WIDTH / 2, 1465);
@@ -156,12 +157,51 @@ export const exportStaffQrPrintFile = async ({
   context.fillText('Print on long bond paper (8.5 x 13 inches)', LONG_BOND_WIDTH / 2, 1815);
 
   const filename = `ARALert_Staff_DTR_${action}_${new Date().toISOString().slice(0, 10)}`;
+
+  if (format === 'docx') {
+    const pngDataUrl = poster.toDataURL('image/png');
+    const pngBytes = base64ToBytes(pngDataUrl.split(',')[1]);
+    const doc = new Document({
+      sections: [{
+        properties: {
+          page: {
+            size: {
+              width: 12240, // 8.5 in twips
+              height: 18720, // 13 in twips
+            },
+            margin: { top: 720, bottom: 720, left: 720, right: 720 },
+          },
+        },
+        children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new ImageRun({
+                type: 'png',
+                data: pngBytes,
+                transformation: {
+                  width: 540,
+                  height: 825,
+                },
+              }),
+            ],
+          }),
+        ],
+      }],
+    });
+    const blob = await Packer.toBlob(doc);
+    downloadBlob(blob, `${filename}.docx`);
+    return;
+  }
+
   if (format === 'pdf') {
     const jpegData = poster.toDataURL('image/jpeg', 0.95).split(',')[1];
     downloadBlob(createPdfFromJpeg(base64ToBytes(jpegData)), `${filename}.pdf`);
     return;
   }
 
-  const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
-  downloadBlob(await canvasToBlob(poster, mimeType, 0.95), `${filename}.${format === 'png' ? 'png' : 'jpg'}`);
+  const isJpg = format === 'jpeg' || format === 'jpg';
+  const mimeType = isJpg ? 'image/jpeg' : 'image/png';
+  const ext = isJpg ? 'jpg' : 'png';
+  downloadBlob(await canvasToBlob(poster, mimeType, 0.95), `${filename}.${ext}`);
 };

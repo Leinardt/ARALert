@@ -31,6 +31,7 @@ import { AuditLog } from '../pages/SuperAdmin/AuditLog';
 import { AdminHome } from '../pages/Admin/AdminHome';
 import { AdminAttendanceQR } from '../pages/Admin/AdminAttendanceQR';
 import { AdminEvaluationHub } from '../pages/Admin/AdminEvaluationHub';
+import { AssessmentsArchive } from '../pages/Admin/AssessmentsArchive';
 import { PrincipalHome } from '../pages/Principal/PrincipalHome';
 import { FacultyHome } from '../pages/Faculty/FacultyHome';
 import { TutorHome } from '../pages/Tutor/TutorHome';
@@ -76,14 +77,31 @@ export const AppRouter: React.FC = () => {
             </ProtectedRoute>
           }
         >
-          <Route path="/superadmin" element={<Dashboard />} />
+          <Route path="/superadmin" element={<AdminHome />} />
           <Route path="/superadmin/users" element={<UserList />} />
           <Route path="/superadmin/users/create" element={<CreateUser />} />
           <Route path="/superadmin/users/edit/:id" element={<EditUser />} />
+          <Route path="/superadmin/students" element={<UserList />} />
+          <Route path="/superadmin/students/create" element={<CreateUser />} />
+          <Route path="/superadmin/students/edit/:id" element={<EditUser />} />
+          <Route path="/superadmin/tutors" element={<UserList />} />
+          <Route path="/superadmin/tutors/create" element={<CreateUser />} />
+          <Route path="/superadmin/tutors/edit/:id" element={<EditUser />} />
+          <Route path="/superadmin/faculty" element={<UserList />} />
+          <Route path="/superadmin/faculty/create" element={<CreateUser />} />
+          <Route path="/superadmin/faculty/edit/:id" element={<EditUser />} />
+          <Route path="/superadmin/principals" element={<UserList />} />
+          <Route path="/superadmin/principals/create" element={<CreateUser />} />
+          <Route path="/superadmin/principals/edit/:id" element={<EditUser />} />
+          <Route path="/superadmin/admins" element={<UserList />} />
+          <Route path="/superadmin/admins/create" element={<CreateUser />} />
+          <Route path="/superadmin/admins/edit/:id" element={<EditUser />} />
+          <Route path="/superadmin/attendance" element={<AdminAttendanceQR />} />
+          <Route path="/superadmin/evaluations" element={<AdminEvaluationHub />} />
+          <Route path="/superadmin/archive" element={<AssessmentsArchive />} />
+          <Route path="/superadmin/audit-logs" element={<AuditLog />} />
           <Route path="/superadmin/profile" element={<Profile />} />
           <Route path="/superadmin/settings" element={<Settings />} />
-          <Route path="/superadmin/audit-logs" element={<AuditLog />} />
-          <Route path="/superadmin/evaluations" element={<AdminEvaluationHub />} />
         </Route>
 
         {/* ── Admin routes ──────────────────────────── */}
@@ -108,8 +126,12 @@ export const AppRouter: React.FC = () => {
           <Route path="/admin/principals" element={<UserList />} />
           <Route path="/admin/principals/create" element={<CreateUser />} />
           <Route path="/admin/principals/edit/:id" element={<EditUser />} />
+          <Route path="/admin/admins" element={<UserList />} />
+          <Route path="/admin/admins/create" element={<CreateUser />} />
+          <Route path="/admin/admins/edit/:id" element={<EditUser />} />
           <Route path="/admin/attendance" element={<AdminAttendanceQR />} />
           <Route path="/admin/evaluations" element={<AdminEvaluationHub />} />
+          <Route path="/admin/archive" element={<AssessmentsArchive />} />
           <Route path="/admin/audit-logs" element={<AuditLog />} />
           <Route path="/admin/profile" element={<Profile />} />
           <Route path="/admin/settings" element={<Settings />} />

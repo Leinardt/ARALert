@@ -13,12 +13,10 @@ import {
   Users,
   Info,
   X,
-  Clock,
-  BookOpen,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Attendance, Grade, User } from '../../types';
-import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
+import { getRecentSchoolWeekdays, compareNamesByLastName } from '../../utils/studentFormatters';
 import {
   type EntryDescriptionType,
   type MilestoneType,
@@ -44,8 +42,19 @@ interface TrendPoint {
 type TrendFilter = 'day' | 'week' | 'month';
 type AnalyticsTab = 'overall' | 'attendance' | 'score';
 type RiskScope = 'all' | string;
+type OverallSortField = keyof ExtendedRiskRow | 'student' | 'aralLevel';
 type AttendanceDetailSortField = 'student' | 'aralLevel' | 'description' | 'present' | 'absent' | 'attendanceAverage';
 type ScoreDetailSortField = 'student' | 'aralLevel' | 'description' | 'passed' | 'failed' | 'scoreAverage';
+
+const aralLevelRank: Record<string, number> = {
+  basic: 1,
+  plus: 2,
+  summer: 3,
+  'aral summer': 3,
+  intervention: 1,
+  enrichment: 2,
+  advanced: 3,
+};
 
 interface RiskTrendPoint {
   dateKey: string;
@@ -54,6 +63,50 @@ interface RiskTrendPoint {
   medium: number;
   low: number;
 }
+
+const toLocalDateKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const getLogUserId = (log: Attendance | any): string => {
+  if (!log) return '';
+  if (typeof log.user === 'object' && log.user !== null) {
+    return String(log.user.id ?? log.user.pk ?? log.user.user_id ?? '');
+  }
+  if (typeof log.student === 'object' && log.student !== null) {
+    return String(log.student.id ?? log.student.pk ?? log.student.user_id ?? '');
+  }
+  return String(log.user ?? log.student ?? log.user_id ?? '');
+};
+
+const getGradeStudentId = (grade: Grade | any): string => {
+  if (!grade) return '';
+  if (typeof grade.student === 'object' && grade.student !== null) {
+    return String(grade.student.id ?? grade.student.pk ?? grade.student.user_id ?? '');
+  }
+  return String(grade.student ?? grade.student_id ?? '');
+};
+
+const getRecordDate = (rec: any): Date | null => {
+  if (!rec) return null;
+  const rawDate = rec.date || rec.date_logged || rec.created_at || rec.time_in || '';
+  if (!rawDate) return null;
+  const dateStr = typeof rawDate === 'string' ? rawDate.slice(0, 10) : '';
+  if (!dateStr || dateStr.length < 10) return null;
+  const d = new Date(`${dateStr}T00:00:00`);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+const isAttendedStatus = (status?: string | null): boolean => {
+  if (!status) return false;
+  const s = String(status).trim().toLowerCase();
+  return s === 'present' || s === 'p' || s === 'late';
+};
+
+const isAbsentStatus = (status?: string | null): boolean => {
+  if (!status) return false;
+  const s = String(status).trim().toLowerCase();
+  return s === 'absent' || s === 'a';
+};
 
 const buildTrendPoints = (
   students: User[],
@@ -64,17 +117,16 @@ const buildTrendPoints = (
 ): TrendPoint[] => {
   const studentIds = new Set(students.map((student) => String(student.id)));
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const dayMs = 24 * 60 * 60 * 1000;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
   let periods: { start: Date; end: Date; label: string; dateKey: string }[];
   if (filter === 'day') {
     const schoolDays = getRecentSchoolWeekdays(10, now);
     periods = schoolDays.map((d) => {
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
-      return { start, end, label: formatDate(start), dateKey: start.toISOString().slice(0, 10) };
+      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0);
+      return { start, end, label: formatDate(start), dateKey: toLocalDateKey(start) };
     });
   } else {
     const periodCount = 6;
@@ -84,56 +136,65 @@ const buildTrendPoints = (
       let end: Date;
       let label: string;
       if (filter === 'month') {
-        start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-        end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
+        start = new Date(now.getFullYear(), now.getMonth() - offset, 1, 0, 0, 0, 0);
+        end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1, 0, 0, 0, 0);
         label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
       } else {
         const dayOfWeek = now.getDay();
         const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-        const currentWeekMon = new Date(startOfToday.getTime() + diffToMon * dayMs);
-        start = new Date(currentWeekMon.getTime() - offset * 7 * dayMs);
-        const fri = new Date(start.getTime() + 4 * dayMs);
-        end = new Date(start.getTime() + 5 * dayMs);
+        const currentWeekMon = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + diffToMon, 0, 0, 0, 0);
+        start = new Date(currentWeekMon.getFullYear(), currentWeekMon.getMonth(), currentWeekMon.getDate() - offset * 7, 0, 0, 0, 0);
+        const fri = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 4, 0, 0, 0, 0);
+        end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7, 0, 0, 0, 0);
         label = `${formatDate(start)} – ${formatDate(fri)}`;
       }
-      return { start, end, label, dateKey: start.toISOString().slice(0, 10) };
+      return { start, end, label, dateKey: toLocalDateKey(start) };
     });
   }
 
   const points = periods.map((period) => {
-    let point: TrendPoint | null = null;
     if (metric === 'attendance') {
       const records = attendanceLogs.filter((log) => {
-        if (!studentIds.has(String(log.user)) || !log.date) return false;
-        const date = new Date(`${log.date.slice(0, 10)}T00:00:00`);
-        return date >= period.start && date < period.end;
+        const uid = getLogUserId(log);
+        if (!studentIds.has(uid)) return false;
+        const d = getRecordDate(log);
+        if (!d) return false;
+        return d >= period.start && d < period.end;
       });
-      if (records.length === 0) return { period, point };
-      const attended = records.filter((log) => log.status === 'present').length;
-      point = { dateKey: period.dateKey, label: period.label, value: Math.round((attended / records.length) * 100) };
+      if (records.length === 0) return { period, point: null };
+      const attended = records.filter((log) => isAttendedStatus(log.status)).length;
+      const point: TrendPoint = {
+        dateKey: period.dateKey,
+        label: period.label,
+        value: Math.round((attended / records.length) * 100),
+      };
       return { period, point };
     }
 
-    const scoreRecords = grades.filter((grade) => (
-      studentIds.has(String(grade.student))
-      && grade.component_type !== 'attendance'
-      && grade.date_logged
-      && new Date(`${grade.date_logged.slice(0, 10)}T00:00:00`) >= period.start
-      && new Date(`${grade.date_logged.slice(0, 10)}T00:00:00`) < period.end
-    ));
-    if (scoreRecords.length === 0) return { period, point };
+    const scoreRecords = grades.filter((grade) => {
+      const sid = getGradeStudentId(grade);
+      if (!studentIds.has(sid) || grade.component_type === 'attendance' || grade.remarks === 'Not Taken') return false;
+      const d = getRecordDate(grade);
+      if (!d) return false;
+      return d >= period.start && d < period.end;
+    });
+    if (scoreRecords.length === 0) return { period, point: null };
     const average = scoreRecords.reduce((total, grade) => {
-      const totalScore = Number(grade.total_score) || 100;
+      const totalScore = Number(grade.total_score) > 0 ? Number(grade.total_score) : 100;
       return total + (Number(grade.score) / totalScore) * 100;
     }, 0) / scoreRecords.length;
-    point = { dateKey: period.dateKey, label: period.label, value: Math.round(Math.min(Math.max(average, 0), 100)) };
+    const point: TrendPoint = {
+      dateKey: period.dateKey,
+      label: period.label,
+      value: Math.round(Math.min(Math.max(average, 0), 100)),
+    };
     return { period, point };
   });
 
-  const firstRecordedPoint = points.find(({ point }) => point !== null)?.point;
-  if (!firstRecordedPoint) return [];
+  if (points.every(({ point }) => point === null)) return [];
 
-  let lastValue = firstRecordedPoint.value;
+  const firstRecordedPoint = points.find(({ point }) => point !== null)?.point;
+  let lastValue = firstRecordedPoint ? firstRecordedPoint.value : (metric === 'attendance' ? 100 : 75);
   return points.map(({ period, point }) => {
     if (point) {
       lastValue = point.value;
@@ -151,17 +212,16 @@ const buildRiskTrendPoints = (
 ): RiskTrendPoint[] => {
   const studentIds = new Set(students.map((student) => String(student.id)));
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const dayMs = 24 * 60 * 60 * 1000;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
   let periods: { start: Date; end: Date; label: string; dateKey: string }[];
   if (filter === 'day') {
     const schoolDays = getRecentSchoolWeekdays(10, now);
     periods = schoolDays.map((d) => {
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
-      return { start, end, label: formatDate(start), dateKey: start.toISOString().slice(0, 10) };
+      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0);
+      return { start, end, label: formatDate(start), dateKey: toLocalDateKey(start) };
     });
   } else {
     const periodCount = 6;
@@ -171,33 +231,37 @@ const buildRiskTrendPoints = (
       let end: Date;
       let label: string;
       if (filter === 'month') {
-        start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-        end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
+        start = new Date(now.getFullYear(), now.getMonth() - offset, 1, 0, 0, 0, 0);
+        end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1, 0, 0, 0, 0);
         label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
       } else {
         const dayOfWeek = now.getDay();
         const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-        const currentWeekMon = new Date(startOfToday.getTime() + diffToMon * dayMs);
-        start = new Date(currentWeekMon.getTime() - offset * 7 * dayMs);
-        const fri = new Date(start.getTime() + 4 * dayMs);
-        end = new Date(start.getTime() + 5 * dayMs);
+        const currentWeekMon = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + diffToMon, 0, 0, 0, 0);
+        start = new Date(currentWeekMon.getFullYear(), currentWeekMon.getMonth(), currentWeekMon.getDate() - offset * 7, 0, 0, 0, 0);
+        const fri = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 4, 0, 0, 0, 0);
+        end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7, 0, 0, 0, 0);
         label = `${formatDate(start)} – ${formatDate(fri)}`;
       }
-      return { start, end, label, dateKey: start.toISOString().slice(0, 10) };
+      return { start, end, label, dateKey: toLocalDateKey(start) };
     });
   }
 
   const points = periods.map((period) => {
-    const periodGrades = grades.filter((grade) => (
-      studentIds.has(String(grade.student))
-      && grade.date_logged
-      && new Date(`${grade.date_logged.slice(0, 10)}T00:00:00`) < period.end
-    ));
-    const periodAttendance = attendanceLogs.filter((log) => (
-      studentIds.has(String(log.user))
-      && log.date
-      && new Date(`${log.date.slice(0, 10)}T00:00:00`) < period.end
-    ));
+    const periodGrades = grades.filter((grade) => {
+      const sid = getGradeStudentId(grade);
+      if (!studentIds.has(sid)) return false;
+      const d = getRecordDate(grade);
+      if (!d) return false;
+      return d < period.end;
+    });
+    const periodAttendance = attendanceLogs.filter((log) => {
+      const uid = getLogUserId(log);
+      if (!studentIds.has(uid)) return false;
+      const d = getRecordDate(log);
+      if (!d) return false;
+      return d < period.end;
+    });
     if (periodGrades.length === 0 && periodAttendance.length === 0) return { period, point: null };
     const snapshot = computeStudentRiskRows(students, periodGrades, periodAttendance);
     return {
@@ -212,6 +276,8 @@ const buildRiskTrendPoints = (
     };
   });
 
+  if (points.every(({ point }) => point === null)) return [];
+
   const firstRecordedPoint = points.find(({ point }) => point !== null)?.point;
   if (!firstRecordedPoint) return [];
   let lastPoint = firstRecordedPoint;
@@ -224,23 +290,138 @@ const buildRiskTrendPoints = (
   });
 };
 
-const TrendChart: React.FC<{ data: TrendPoint[]; color: string; emptyLabel: string; valueLabel?: string }> = ({ data, color, emptyLabel, valueLabel = 'Class Average' }) => {
+const formatShortDateRange = (label?: string | null): string => {
+  if (!label || typeof label !== 'string') return '';
+  const match = label.match(/^([A-Za-z]+)\s+(\d+)\s*[–—\-]\s*([A-Za-z]+)\s+(\d+)$/);
+  if (match) {
+    const [, m1, d1, m2, d2] = match;
+    if (m1.toLowerCase() === m2.toLowerCase()) {
+      return `${m1} ${d1}–${d2}`;
+    }
+    return `${m1} ${d1} – ${m2} ${d2}`;
+  }
+  return label;
+};
+
+const TrendChart: React.FC<{
+  data: TrendPoint[];
+  color: string;
+  emptyLabel: string;
+  valueLabel?: string;
+  trendFilter?: TrendFilter;
+}> = ({ data, color, emptyLabel, valueLabel = 'Class Average', trendFilter = 'week' }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 240 });
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const width = 800;
-  const height = 200;
-  const paddingLeft = 48;
-  const paddingRight = 16;
+
+  useEffect(() => {
+    setHoveredIdx(null);
+  }, [data, trendFilter]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (containerRef.current) {
+        const { clientWidth, clientHeight } = containerRef.current;
+        setDimensions({
+          width: Math.max(300, Math.round(clientWidth || 800)),
+          height: Math.max(180, Math.round(clientHeight || 240)),
+        });
+      }
+    };
+    updateSize();
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          setDimensions({
+            width: Math.round(width),
+            height: Math.round(height),
+          });
+        }
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const { width, height } = dimensions;
+  const isMobile = width < 520;
+  const isSmallMobile = width < 380;
+  const paddingLeft = isMobile ? 44 : 50;
+  const paddingRight = isMobile ? 18 : 20;
   const paddingTop = 20;
-  const paddingBottom = 32;
-  const chartWidth = width - paddingLeft - paddingRight;
-  const chartHeight = height - paddingTop - paddingBottom;
-  const points = data.map((point, index) => ({
-    ...point,
-    x: paddingLeft + (index * chartWidth) / (data.length - 1 || 1),
-    y: paddingTop + chartHeight - (point.value / 100) * chartHeight,
-  }));
+  const paddingBottom = isMobile ? 32 : 30;
+
+  const chartWidth = Math.max(10, width - paddingLeft - paddingRight);
+  const chartHeight = Math.max(10, height - paddingTop - paddingBottom);
+
+  const colorId = color.replace(/[^a-zA-Z0-9]/g, '');
+  const gradientId = `trendChartFill_${colorId}`;
+  const filterId = `trendChartGlow_${colorId}`;
+
+  const visibleIndices = useMemo(() => {
+    const total = data.length;
+    if (total <= 1) return new Set([0]);
+    if (!isMobile) {
+      return new Set(Array.from({ length: total }, (_, i) => i));
+    }
+    if (trendFilter === 'month') {
+      if (width < 380) return new Set([0, 2, 4, total - 1]);
+      return new Set(Array.from({ length: total }, (_, i) => i));
+    }
+    if (trendFilter === 'week') {
+      if (width < 430) return new Set([0, 2, 4, total - 1]);
+      return new Set(Array.from({ length: total }, (_, i) => i));
+    }
+    const step = isSmallMobile ? 3 : 2;
+    const indices: number[] = [];
+    for (let i = 0; i < total; i += step) {
+      indices.push(i);
+    }
+    const lastIdx = total - 1;
+    const prevIdx = indices[indices.length - 1];
+    if (lastIdx - prevIdx >= 2) {
+      indices.push(lastIdx);
+    } else if (indices.length > 1) {
+      indices[indices.length - 1] = lastIdx;
+    }
+    return new Set(indices);
+  }, [data.length, isMobile, isSmallMobile, trendFilter, width]);
+
+  const getFormattedLabel = (label?: string | null) => {
+    if (!label) return '';
+    if (trendFilter === 'week') return formatShortDateRange(label);
+    if (trendFilter === 'month' && isSmallMobile) {
+      return label.split(' ')[0] || label;
+    }
+    return label;
+  };
+
+  if (data.length === 0) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-xs font-medium text-gray-400 dark:text-slate-500">
+        {emptyLabel}
+      </div>
+    );
+  }
+
+  const points = data.map((point, index) => {
+    const val = typeof point.value === 'number' && !isNaN(point.value) ? point.value : 0;
+    return {
+      ...point,
+      value: val,
+      x: paddingLeft + (index * chartWidth) / (data.length - 1 || 1),
+      y: paddingTop + chartHeight - (val / 100) * chartHeight,
+    };
+  });
+
   let path = '';
-  if (points.length > 0) {
+  if (points.length === 1) {
+    path = `M ${paddingLeft} ${points[0].y} L ${width - paddingRight} ${points[0].y}`;
+  } else if (points.length > 1) {
     path = `M ${points[0].x} ${points[0].y}`;
     for (let index = 1; index < points.length; index += 1) {
       const previous = points[index - 1];
@@ -249,21 +430,22 @@ const TrendChart: React.FC<{ data: TrendPoint[]; color: string; emptyLabel: stri
       path += ` C ${previous.x + controlOffset} ${previous.y}, ${current.x - controlOffset} ${current.y}, ${current.x} ${current.y}`;
     }
   }
-  const areaPath = points.length > 0
+
+  const areaPath = points.length === 1
+    ? `M ${paddingLeft} ${points[0].y} L ${width - paddingRight} ${points[0].y} L ${width - paddingRight} ${paddingTop + chartHeight} L ${paddingLeft} ${paddingTop + chartHeight} Z`
+    : points.length > 1
     ? `${path} L ${points[points.length - 1].x} ${paddingTop + chartHeight} L ${points[0].x} ${paddingTop + chartHeight} Z`
     : '';
 
-  if (data.length === 0) return <div className="flex min-h-[260px] items-center justify-center text-xs text-gray-400 dark:text-slate-500">{emptyLabel}</div>;
-
   return (
-    <div className="relative overflow-hidden">
-      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="min-h-[260px] xs:min-h-[290px] sm:min-h-[320px] w-full overflow-visible" role="img" aria-label="Trend chart">
+    <div ref={containerRef} className="relative w-full h-full select-none min-w-0 overflow-hidden">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full block" role="img" aria-label="Trend chart">
         <defs>
-          <linearGradient id="riskChartFill" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity="0.22" />
             <stop offset="100%" stopColor={color} stopOpacity="0.01" />
           </linearGradient>
-          <filter id="riskChartGlow" x="-20%" y="-30%" width="140%" height="160%">
+          <filter id={filterId} x="-20%" y="-30%" width="140%" height="160%">
             <feGaussianBlur stdDeviation="3" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
@@ -280,25 +462,24 @@ const TrendChart: React.FC<{ data: TrendPoint[]; color: string; emptyLabel: stri
             </g>
           );
         })}
-        <path d={areaPath} fill="url(#riskChartFill)" />
-        <path d={path} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.28" filter="url(#riskChartGlow)" />
-        <path d={path} fill="none" stroke={color} strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />
+        {areaPath && <path d={areaPath} fill={`url(#${gradientId})`} />}
+        {path && <path d={path} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.28" filter={`url(#${filterId})`} />}
+        {path && <path d={path} fill="none" stroke={color} strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />}
         {points.map((point, idx) => {
-          const shouldShowLabel = data.length <= 6 || idx % 2 === 0 || idx === data.length - 1;
+          if (!visibleIndices.has(idx)) return null;
+          const formattedLabel = getFormattedLabel(point.label);
           return (
-            <g key={point.dateKey}>
+            <g key={point.dateKey || `pt-${idx}`}>
               <title>{`${point.label}: ${point.value}%`}</title>
-              <circle cx={point.x} cy={point.y} r="3.5" fill={color} stroke="#DCFCE7" strokeWidth="1.5" />
-              {shouldShowLabel && (
-                <text x={point.x} y={height - 6} textAnchor="middle" className="fill-slate-500 dark:fill-slate-400 font-bold text-[9px] xs:text-[10px]">{point.label}</text>
-              )}
+              <circle cx={point.x} cy={point.y} r="4" fill={color} stroke="#FFFFFF" strokeWidth="2" />
+              <text x={point.x} y={height - 8} textAnchor="middle" className="fill-slate-500 dark:fill-slate-400 font-bold text-[9px] xs:text-[10px]">{formattedLabel}</text>
             </g>
           );
         })}
         {hoveredIdx !== null && points[hoveredIdx] && (
           <g>
             <line x1={points[hoveredIdx].x} y1={paddingTop} x2={points[hoveredIdx].x} y2={paddingTop + chartHeight} stroke={color} strokeWidth="1.5" opacity="0.7" />
-            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill={color} />
+            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill={color} stroke="#FFFFFF" strokeWidth="2" />
             <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="8" fill={color} opacity="0.25" />
           </g>
         )}
@@ -308,7 +489,7 @@ const TrendChart: React.FC<{ data: TrendPoint[]; color: string; emptyLabel: stri
           const xEnd = index === data.length - 1 ? width - paddingRight : point.x + step / 2;
           return (
             <rect
-              key={`hover-${point.dateKey}`}
+              key={`hover-${point.dateKey || index}`}
               x={xStart}
               y={paddingTop}
               width={xEnd - xStart}
@@ -325,39 +506,18 @@ const TrendChart: React.FC<{ data: TrendPoint[]; color: string; emptyLabel: stri
       </svg>
       {hoveredIdx !== null && points[hoveredIdx] && (() => {
         const p = points[hoveredIdx];
-        const isRightHalf = p.x > width * 0.5;
-        const maxTooltipWidth = Math.min(240, Math.max(150, width - 24));
-        const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-
-        let tooltipStyle: React.CSSProperties;
-
-        if (isMobile) {
-          const leftPos = Math.max(10, Math.min(width - maxTooltipWidth - 10, p.x - maxTooltipWidth / 2));
-          tooltipStyle = {
-            left: `${leftPos}px`,
-            top: '8px',
-            maxWidth: `${maxTooltipWidth}px`,
-          };
-        } else if (isRightHalf) {
-          tooltipStyle = {
-            right: `${Math.max(10, width - p.x + 14)}px`,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            maxWidth: `${maxTooltipWidth}px`,
-          };
-        } else {
-          tooltipStyle = {
-            left: `${Math.max(10, p.x + 14)}px`,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            maxWidth: `${maxTooltipWidth}px`,
-          };
-        }
+        const percentX = (p.x / width) * 100;
+        const isRightHalf = percentX > 50;
 
         return (
           <div
             className="pointer-events-none absolute z-10 w-max rounded-xl border border-slate-200 dark:border-zinc-700/50 bg-white/95 dark:bg-zinc-900/95 p-3 text-left text-[11px] leading-normal text-slate-800 dark:text-white shadow-xl shadow-slate-900/10 dark:shadow-black/60 overflow-hidden backdrop-blur-md"
-            style={tooltipStyle}
+            style={{
+              left: `${percentX}%`,
+              top: '12%',
+              transform: isRightHalf ? 'translate(-105%, 0)' : 'translate(5%, 0)',
+              maxWidth: '240px',
+            }}
           >
             <div className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-zinc-400 break-words">{p.label}</div>
             <div className="mt-1 flex items-baseline gap-1.5 flex-wrap">
@@ -369,18 +529,6 @@ const TrendChart: React.FC<{ data: TrendPoint[]; color: string; emptyLabel: stri
       })()}
     </div>
   );
-};
-
-const formatShortDateRange = (label: string): string => {
-  const match = label.match(/^([A-Za-z]+)\s+(\d+)\s*[–—\-]\s*([A-Za-z]+)\s+(\d+)$/);
-  if (match) {
-    const [, m1, d1, m2, d2] = match;
-    if (m1.toLowerCase() === m2.toLowerCase()) {
-      return `${m1} ${d1}–${d2}`;
-    }
-    return `${m1} ${d1} – ${m2} ${d2}`;
-  }
-  return label;
 };
 
 
@@ -804,11 +952,12 @@ const RiskTrendChart: React.FC<{
   total: number;
   isSingleStudent: boolean;
   studentName?: string;
-}> = ({ data, total, isSingleStudent, studentName }) => {
+  emptyLabel?: string;
+}> = ({ data, total, isSingleStudent, studentName, emptyLabel = 'No recorded performance data' }) => {
   if (data.length === 0) {
     return (
-      <div className="flex h-52 items-center justify-center text-xs text-gray-400">
-        No risk trend data
+      <div className="flex h-52 items-center justify-center text-xs font-medium text-gray-400 dark:text-slate-500">
+        {emptyLabel}
       </div>
     );
   }
@@ -955,12 +1104,12 @@ const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; o
 };
 
 const getAralBadge = (level?: string | null) => {
-  switch (level?.toLowerCase()) {
-    case 'plus':      return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200">Plus</span>;
-    case 'summer':    return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Summer</span>;
-    case 'graduated': return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Graduated</span>;
-    default:          return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200">Basic</span>;
-  }
+  const formatted = level ? level.charAt(0).toUpperCase() + level.slice(1).toLowerCase() : 'Basic';
+  return (
+    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 dark:bg-[#1A1A1A] dark:text-slate-300 dark:border-[#262626]">
+      {formatted}
+    </span>
+  );
 };
 
 export const TutorAnalytics: React.FC = () => {
@@ -987,7 +1136,7 @@ export const TutorAnalytics: React.FC = () => {
   const [scoreSearch, setScoreSearch] = useState('');
   const [attendanceDescFilter, setAttendanceDescFilter] = useState<'all' | 'Intervention Activity' | 'milestone'>('all');
   const [scoreDescFilter, setScoreDescFilter] = useState<'all' | 'Intervention Activity' | 'milestone'>('all');
-  const [sortField, setSortField] = useState<keyof ExtendedRiskRow | null>(null);
+  const [sortField, setSortField] = useState<OverallSortField | null>(null);
   const [sortAsc, setSortAsc] = useState(true);
   const [attendanceSortField, setAttendanceSortField] = useState<AttendanceDetailSortField | null>(null);
   const [attendanceSortAsc, setAttendanceSortAsc] = useState(true);
@@ -1036,8 +1185,8 @@ export const TutorAnalytics: React.FC = () => {
       setGrades(Array.isArray(grades) ? grades : []);
       setAttendanceLogs(safeAttendance);
       const extendedRows: ExtendedRiskRow[] = baseRows.map((row) => {
-        const studentAtt = safeAttendance.filter((a: Attendance) => String(a.user) === String(row.student.id));
-        return { ...row, absentCount: studentAtt.filter((a: Attendance) => a.status === 'absent').length };
+        const studentAtt = safeAttendance.filter((a: Attendance) => getLogUserId(a) === String(row.student.id));
+        return { ...row, absentCount: studentAtt.filter((a: Attendance) => isAbsentStatus(a.status)).length };
       });
 
       const counts = extendedRows.reduce(
@@ -1062,10 +1211,15 @@ export const TutorAnalytics: React.FC = () => {
 
   useEffect(() => { fetchAnalytics(); }, [user]);
 
-  const handleSort = (field: keyof ExtendedRiskRow) => {
+  const handleSort = (field: OverallSortField) => {
     if (sortField === field) setSortAsc(!sortAsc);
     else { setSortField(field); setSortAsc(true); }
   };
+
+  const hasMultipleOverallAralLevels = useMemo(() => {
+    const distinct = new Set(rows.map((r) => (r.student.aral_level || '').trim().toLowerCase()).filter(Boolean));
+    return distinct.size > 1;
+  }, [rows]);
 
   const filteredAndSortedRows = useMemo(() => {
     return rows
@@ -1077,11 +1231,22 @@ export const TutorAnalytics: React.FC = () => {
           const riskComparison = riskTierOrder[a.riskTier] - riskTierOrder[b.riskTier];
           return sortField === null || sortAsc ? riskComparison : -riskComparison;
         }
-        let valA: any = a[sortField];
-        let valB: any = b[sortField];
-        if (sortField === 'student') { valA = a.student.full_name; valB = b.student.full_name; }
+        if (sortField === 'student') {
+          const cmp = compareNamesByLastName(a.student, b.student);
+          return sortAsc ? cmp : -cmp;
+        }
+        if (sortField === 'aralLevel') {
+          const valA = (a.student.aral_level || '').toLowerCase();
+          const valB = (b.student.aral_level || '').toLowerCase();
+          const rankA = aralLevelRank[valA] ?? 0;
+          const rankB = aralLevelRank[valB] ?? 0;
+          if (rankA !== rankB) return sortAsc ? rankA - rankB : rankB - rankA;
+          return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        let valA: any = a[sortField as keyof ExtendedRiskRow];
+        let valB: any = b[sortField as keyof ExtendedRiskRow];
         if (typeof valA === 'string') return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-        return sortAsc ? valA - valB : valB - valA;
+        return sortAsc ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
       });
   }, [rows, search, sortField, sortAsc]);
 
@@ -1108,6 +1273,7 @@ export const TutorAnalytics: React.FC = () => {
   const riskScopedRows = useMemo(() => (
     riskScope === 'all' ? rows : rows.filter((row) => String(row.student.id) === riskScope)
   ), [rows, riskScope]);
+  const highRiskRows = useMemo(() => rows.filter((row) => row.riskTier === 'High'), [rows]);
   const selectedRiskStudent = useMemo(() => (
     riskScope === 'all' ? null : rows.find((row) => String(row.student.id) === riskScope)?.student || null
   ), [rows, riskScope]);
@@ -1124,11 +1290,14 @@ export const TutorAnalytics: React.FC = () => {
     riskTrendFilter
   ), [riskScopedRows, grades, attendanceLogs, riskTrendFilter]);
   const attendanceSummary = useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const todayLogs = attendanceLogs.filter((log) => log.date && log.date.slice(0, 10) === todayStr);
+    const todayStr = toLocalDateKey(new Date());
+    const todayLogs = attendanceLogs.filter((log) => {
+      const d = getRecordDate(log);
+      return d ? toLocalDateKey(d) === todayStr : false;
+    });
     return {
-      present: todayLogs.filter((log) => log.status === 'present').length,
-      absent: todayLogs.filter((log) => log.status === 'absent').length,
+      present: todayLogs.filter((log) => isAttendedStatus(log.status)).length,
+      absent: todayLogs.filter((log) => isAbsentStatus(log.status)).length,
     };
   }, [attendanceLogs]);
 
@@ -1138,12 +1307,12 @@ export const TutorAnalytics: React.FC = () => {
   }, [rows]);
 
   const scoreSummary = useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const scoreRecords = grades.filter((grade) =>
-      grade.component_type !== 'attendance' &&
-      grade.remarks !== 'Not Taken' &&
-      grade.date_logged && grade.date_logged.slice(0, 10) === todayStr
-    );
+    const todayStr = toLocalDateKey(new Date());
+    const scoreRecords = grades.filter((grade) => {
+      if (grade.component_type === 'attendance' || grade.remarks === 'Not Taken') return false;
+      const d = getRecordDate(grade);
+      return d ? toLocalDateKey(d) === todayStr : false;
+    });
     return {
       passed: scoreRecords.filter((grade) => Number(grade.total_score) > 0 && (Number(grade.score) / Number(grade.total_score)) >= 0.7).length,
       failed: scoreRecords.filter((grade) => Number(grade.total_score) > 0 && (Number(grade.score) / Number(grade.total_score)) < 0.7).length,
@@ -1163,7 +1332,7 @@ export const TutorAnalytics: React.FC = () => {
     })[] = [];
 
     rows.forEach((row) => {
-      const allStudentLogs = attendanceLogs.filter((log) => String(log.user) === String(row.student.id));
+      const allStudentLogs = attendanceLogs.filter((log) => getLogUserId(log) === String(row.student.id));
 
       const typesToGenerate: EntryDescriptionType[] = attendanceDescFilter === 'all'
         ? ['Intervention Activity', assignedMilestone]
@@ -1180,15 +1349,14 @@ export const TutorAnalytics: React.FC = () => {
         if (attendanceDescFilter === 'all' && desc !== 'Intervention Activity' && studentLogs.length === 0) {
           return;
         }
-        const present = studentLogs.filter((log) => log.status === 'present').length;
-        const absent = studentLogs.filter((log) => log.status === 'absent').length;
-        const attended = studentLogs.filter((log) => log.status === 'present').length;
+        const present = studentLogs.filter((log) => isAttendedStatus(log.status)).length;
+        const absent = studentLogs.filter((log) => isAbsentStatus(log.status)).length;
         list.push({
           ...row,
           description: desc,
           present,
           absent,
-          attendanceAverage: studentLogs.length ? (attended / studentLogs.length) * 100 : 0,
+          attendanceAverage: studentLogs.length ? (present / studentLogs.length) * 100 : 0,
         });
       });
     });
@@ -1197,20 +1365,22 @@ export const TutorAnalytics: React.FC = () => {
       .filter((row) => matchesSearch(attendanceSearch, row.student.full_name, row.student.first_name, row.student.last_name, row.student.lrn, row.description))
       .sort((firstRow, secondRow) => {
         if (attendanceSortField === null) return 0;
+        if (attendanceSortField === 'aralLevel') {
+          const rankA = aralLevelRank[(firstRow.student.aral_level || '').toLowerCase()] ?? 0;
+          const rankB = aralLevelRank[(secondRow.student.aral_level || '').toLowerCase()] ?? 0;
+          if (rankA !== rankB) return attendanceSortAsc ? rankA - rankB : rankB - rankA;
+          return attendanceSortAsc ? (firstRow.student.aral_level || '').localeCompare(secondRow.student.aral_level || '') : (secondRow.student.aral_level || '').localeCompare(firstRow.student.aral_level || '');
+        }
+        if (attendanceSortField === 'student') {
+          const cmp = compareNamesByLastName(firstRow.student, secondRow.student);
+          return attendanceSortAsc ? cmp : -cmp;
+        }
         const firstValue =
-          attendanceSortField === 'student'
-            ? firstRow.student.full_name
-            : attendanceSortField === 'aralLevel'
-            ? firstRow.student.aral_level || ''
-            : attendanceSortField === 'description'
+          attendanceSortField === 'description'
             ? firstRow.description
             : (firstRow as unknown as Record<string, string | number>)[attendanceSortField];
         const secondValue =
-          attendanceSortField === 'student'
-            ? secondRow.student.full_name
-            : attendanceSortField === 'aralLevel'
-            ? secondRow.student.aral_level || ''
-            : attendanceSortField === 'description'
+          attendanceSortField === 'description'
             ? secondRow.description
             : (secondRow as unknown as Record<string, string | number>)[attendanceSortField];
         if (typeof firstValue === 'string' && typeof secondValue === 'string') {
@@ -1219,6 +1389,11 @@ export const TutorAnalytics: React.FC = () => {
         return attendanceSortAsc ? Number(firstValue) - Number(secondValue) : Number(secondValue) - Number(firstValue);
       });
   }, [rows, attendanceLogs, attendanceSearch, attendanceDescFilter, attendanceSortField, attendanceSortAsc]);
+
+  const hasMultipleAttendanceAralLevels = useMemo(() => {
+    const distinct = new Set(attendanceDetails.map((r) => (r.student.aral_level || '').trim().toLowerCase()).filter(Boolean));
+    return distinct.size > 1;
+  }, [attendanceDetails]);
 
   const scoreDetails = useMemo(() => {
     const list: (ExtendedRiskRow & {
@@ -1230,7 +1405,7 @@ export const TutorAnalytics: React.FC = () => {
 
     rows.forEach((row) => {
       const allStudentGrades = grades.filter(
-        (grade) => String(grade.student) === String(row.student.id) && grade.component_type !== 'attendance' && grade.remarks !== 'Not Taken'
+        (grade) => getGradeStudentId(grade) === String(row.student.id) && grade.component_type !== 'attendance' && grade.remarks !== 'Not Taken'
       );
 
       const typesToGenerate: EntryDescriptionType[] = scoreDescFilter === 'all'
@@ -1266,20 +1441,22 @@ export const TutorAnalytics: React.FC = () => {
       .filter((row) => matchesSearch(scoreSearch, row.student.full_name, row.student.first_name, row.student.last_name, row.student.lrn, row.description))
       .sort((firstRow, secondRow) => {
         if (scoreSortField === null) return 0;
+        if (scoreSortField === 'aralLevel') {
+          const rankA = aralLevelRank[(firstRow.student.aral_level || '').toLowerCase()] ?? 0;
+          const rankB = aralLevelRank[(secondRow.student.aral_level || '').toLowerCase()] ?? 0;
+          if (rankA !== rankB) return scoreSortAsc ? rankA - rankB : rankB - rankA;
+          return scoreSortAsc ? (firstRow.student.aral_level || '').localeCompare(secondRow.student.aral_level || '') : (secondRow.student.aral_level || '').localeCompare(firstRow.student.aral_level || '');
+        }
+        if (scoreSortField === 'student') {
+          const cmp = compareNamesByLastName(firstRow.student, secondRow.student);
+          return scoreSortAsc ? cmp : -cmp;
+        }
         const firstValue =
-          scoreSortField === 'student'
-            ? firstRow.student.full_name
-            : scoreSortField === 'aralLevel'
-            ? firstRow.student.aral_level || ''
-            : scoreSortField === 'description'
+          scoreSortField === 'description'
             ? firstRow.description
             : (firstRow as unknown as Record<string, string | number>)[scoreSortField];
         const secondValue =
-          scoreSortField === 'student'
-            ? secondRow.student.full_name
-            : scoreSortField === 'aralLevel'
-            ? secondRow.student.aral_level || ''
-            : scoreSortField === 'description'
+          scoreSortField === 'description'
             ? secondRow.description
             : (secondRow as unknown as Record<string, string | number>)[scoreSortField];
         if (typeof firstValue === 'string' && typeof secondValue === 'string') {
@@ -1288,11 +1465,17 @@ export const TutorAnalytics: React.FC = () => {
         return scoreSortAsc ? Number(firstValue) - Number(secondValue) : Number(secondValue) - Number(firstValue);
       });
   }, [rows, grades, scoreSearch, scoreDescFilter, scoreSortField, scoreSortAsc]);
+
+  const hasMultipleScoreAralLevels = useMemo(() => {
+    const distinct = new Set(scoreDetails.map((r) => (r.student.aral_level || '').trim().toLowerCase()).filter(Boolean));
+    return distinct.size > 1;
+  }, [scoreDetails]);
+
   const handleDetailSort = <Field extends string>(field: Field, currentField: Field | null, setField: React.Dispatch<React.SetStateAction<Field | null>>, setAscending: React.Dispatch<React.SetStateAction<boolean>>, ascending: boolean) => {
     if (currentField === field) setAscending(!ascending);
     else { setField(field); setAscending(true); }
   };
-  const SortHeader: React.FC<{ field: string; children: React.ReactNode; align?: string; activeField?: string | null; ascending?: boolean; onSort?: (field: string) => void }> = ({ field, children, align = 'left', activeField = sortField, ascending = sortAsc, onSort = (value) => handleSort(value as keyof ExtendedRiskRow) }) => (
+  const SortHeader: React.FC<{ field: string; children: React.ReactNode; align?: string; activeField?: string | null; ascending?: boolean; onSort?: (field: string) => void }> = ({ field, children, align = 'left', activeField = sortField, ascending = sortAsc, onSort = (value) => handleSort(value as OverallSortField) }) => (
     <th
       onClick={() => onSort(field)}
       className={`px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 cursor-pointer hover:text-gray-600 transition-colors select-none text-${align}`}
@@ -1458,7 +1641,7 @@ export const TutorAnalytics: React.FC = () => {
                       <p className="text-[10px] font-bold uppercase tracking-wider">High Risk</p>
                     </div>
                     <p className="text-2xl font-extrabold text-risk-high mt-0.5">{riskCounts.high}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Students needing immediate intervention</p>
+                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students needing immediate intervention</p>
                   </div>
                 </div>
 
@@ -1471,7 +1654,7 @@ export const TutorAnalytics: React.FC = () => {
                       <p className="text-[10px] font-bold uppercase tracking-wider">Medium Risk</p>
                     </div>
                     <p className="text-2xl font-extrabold text-risk-medium mt-0.5">{riskCounts.moderate}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Students requiring monitoring</p>
+                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students requiring monitoring</p>
                   </div>
                 </div>
 
@@ -1484,7 +1667,7 @@ export const TutorAnalytics: React.FC = () => {
                       <p className="text-[10px] font-bold uppercase tracking-wider">Low Risk</p>
                     </div>
                     <p className="text-2xl font-extrabold text-risk-low mt-0.5">{riskCounts.low}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Students performing well</p>
+                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students performing well</p>
                   </div>
                 </div>
               </div>
@@ -1515,7 +1698,13 @@ export const TutorAnalytics: React.FC = () => {
                 </div>
                 <div className="mt-4">
                   <div className="relative rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
-                    <RiskTrendChart data={riskTrend} total={riskScopedRows.length} isSingleStudent={riskScope !== 'all'} studentName={selectedRiskStudent?.full_name} />
+                    <RiskTrendChart
+                      data={riskTrend}
+                      total={riskScopedRows.length}
+                      isSingleStudent={riskScope !== 'all'}
+                      studentName={selectedRiskStudent?.full_name}
+                      emptyLabel={riskTrendFilter === 'day' ? 'No recorded performance data today' : riskTrendFilter === 'week' ? 'No recorded performance data this week' : 'No recorded performance data this month'}
+                    />
                   </div>
                 </div>
               </section>
@@ -1530,7 +1719,7 @@ export const TutorAnalytics: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <div>
                         <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT PERFORMANCE DETAILS</h3>
-                        <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{filteredAndSortedRows.length} Students</p>
+                        <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{filteredAndSortedRows.length} Students</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
@@ -1559,11 +1748,16 @@ export const TutorAnalytics: React.FC = () => {
                         <thead>
                           <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
                             <SortHeader field="student">Student</SortHeader>
-                            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">ARAL Level</th>
+                            {hasMultipleOverallAralLevels ? (
+                              <SortHeader field="aralLevel">ARAL Level</SortHeader>
+                            ) : (
+                              <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 select-none">ARAL Level</th>
+                            )}
                             <SortHeader field="attendanceRate">Average Attendance Rate</SortHeader>
                             <SortHeader field="scoreAvg">Average Score</SortHeader>
                             <SortHeader field="compositeScore">COMPOSITE SCORE</SortHeader>
                             <SortHeader field="riskTier">Risk Level</SortHeader>
+                            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">RISK LEVEL REMARKS</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
@@ -1596,6 +1790,49 @@ export const TutorAnalytics: React.FC = () => {
                                   {row.riskTier}
                                 </span>
                               </td>
+                              <td className="px-4 py-3 align-middle">
+                                {row.riskTier === 'High' ? (
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    {row.neededPresentAttendance > 0 && (
+                                      <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-300">
+                                        Need +{row.neededPresentAttendance} more Present records to improve risk level
+                                      </span>
+                                    )}
+                                    {row.neededPassedScores > 0 && (
+                                      <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300">
+                                        Need +{row.neededPassedScores} more Passed records to improve risk level
+                                      </span>
+                                    )}
+                                    {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
+                                      <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300">
+                                        Need +1 more Passed record to improve risk level
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : row.riskTier === 'Medium' ? (
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    {row.neededPresentAttendance > 0 && (
+                                      <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                        Need +{row.neededPresentAttendance} more Present records to improve risk level
+                                      </span>
+                                    )}
+                                    {row.neededPassedScores > 0 && (
+                                      <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                        Need +{row.neededPassedScores} more Passed records to improve risk level
+                                      </span>
+                                    )}
+                                    {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
+                                      <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                        Moderate Standing (On Track)
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="inline-flex items-center rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900/40 dark:text-emerald-300">
+                                    On Track (Safe Standing)
+                                  </span>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -1612,36 +1849,29 @@ export const TutorAnalytics: React.FC = () => {
             <>
               {/* 3 Attendance Summary Cards */}
               <div className="grid w-full gap-3 sm:grid-cols-3">
-                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 min-h-[100px] flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-md bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
-                    <Check className="w-5 h-5 text-emerald-600" strokeWidth={3} />
-                  </div>
+                <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+                  <Check className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Present Today</p>
-                    <p className="text-2xl font-extrabold text-emerald-900 mt-0.5">{attendanceSummary.present}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students marked present today</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Present Today</p>
+                    <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{attendanceSummary.present}</p>
+                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students marked present today</p>
                   </div>
                 </div>
-                <div className="rounded-md border border-rose-200 bg-rose-50 p-4 min-h-[100px] flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-md bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
-                    <X className="w-5 h-5 text-rose-600" strokeWidth={3} />
-                  </div>
+                <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+                  <X className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600">Absent Today</p>
-                    <p className="text-2xl font-extrabold text-rose-900 mt-0.5">{attendanceSummary.absent}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Students marked absent today</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Absent Today</p>
+                    <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{attendanceSummary.absent}</p>
+                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students marked absent today</p>
                   </div>
                 </div>
-                <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-                  <div className="w-10 h-10 rounded-md bg-indigo-100 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shrink-0">
-                    <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                  </div>
+                <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Attendance</p>
-                    <p className="text-2xl font-extrabold mt-0.5 text-gray-900 dark:text-slate-100">
+                    <p className={`text-2xl font-extrabold mt-0.5 ${attendanceLogs.length === 0 ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
                       {attendanceLogs.length === 0 ? '—' : `${smartPct(avgAttendance)}%`}
                     </p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Class average attendance rate</p>
+                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Class average attendance rate</p>
                   </div>
                 </div>
               </div>
@@ -1668,8 +1898,14 @@ export const TutorAnalytics: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="relative mt-4 h-56 w-full rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
-                  <TrendChart data={attendanceTrend} color="#0052B7" emptyLabel="No attendance trend data" valueLabel={selectedAttendanceStudent ? selectedAttendanceStudent.full_name : 'Class Average Attendance'} />
+                <div className="relative mt-4 h-64 sm:h-72 w-full rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+                  <TrendChart
+                    data={attendanceTrend}
+                    color="#0052B7"
+                    emptyLabel={attendanceFilter === 'day' ? 'No recorded attendance today' : attendanceFilter === 'week' ? 'No recorded attendance this week' : 'No recorded attendance this month'}
+                    valueLabel={selectedAttendanceStudent ? selectedAttendanceStudent.full_name : 'Class Average Attendance'}
+                    trendFilter={attendanceFilter}
+                  />
                 </div>
               </div>
 
@@ -1679,7 +1915,7 @@ export const TutorAnalytics: React.FC = () => {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
                     <div>
                       <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT ATTENDANCE DETAILS</h3>
-                      <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{attendanceDetails.length} Students</p>
+                      <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{attendanceDetails.length} Students</p>
                     </div>
                     <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
                       {/* Description Filter */}
@@ -1711,7 +1947,20 @@ export const TutorAnalytics: React.FC = () => {
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                      <thead><tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]"><SortHeader field="student" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Student</SortHeader><SortHeader field="aralLevel" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>ARAL Level</SortHeader><SortHeader field="description" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>DESCRIPTION</SortHeader><SortHeader field="present" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Present</SortHeader><SortHeader field="absent" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Absent</SortHeader><SortHeader field="attendanceAverage" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Average Attendance Rate</SortHeader></tr></thead>
+                      <thead>
+                        <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
+                          <SortHeader field="student" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Student</SortHeader>
+                          {hasMultipleAttendanceAralLevels ? (
+                            <SortHeader field="aralLevel" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>ARAL Level</SortHeader>
+                          ) : (
+                            <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 select-none text-left">ARAL Level</th>
+                          )}
+                          <SortHeader field="description" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>DESCRIPTION</SortHeader>
+                          <SortHeader field="present" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Present</SortHeader>
+                          <SortHeader field="absent" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Absent</SortHeader>
+                          <SortHeader field="attendanceAverage" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Average Attendance Rate</SortHeader>
+                        </tr>
+                      </thead>
                       <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{attendanceDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : attendanceDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 text-left"><span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${row.description !== 'Intervention Activity' ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300' : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{row.description}</span></td><td className="px-4 py-3 font-normal text-emerald-600 text-xs">{row.present}</td><td className="px-4 py-3 font-normal text-rose-600 text-xs">{row.absent}</td><td className="px-4 py-3 font-normal"><span className={`text-xs font-medium ${getAttendanceRateCls(row.attendanceAverage)}`}>{smartPct(row.attendanceAverage)}%</span></td></tr>)}</tbody>
                     </table>
                   </div>
@@ -1725,36 +1974,29 @@ export const TutorAnalytics: React.FC = () => {
             <>
               {/* 3 Score Summary Cards */}
               <div className="grid w-full gap-3 sm:grid-cols-3">
-                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 min-h-[100px] flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-md bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
-                    <Check className="w-5 h-5 text-emerald-600" strokeWidth={3} />
-                  </div>
+                <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+                  <Check className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Passed Today</p>
-                    <p className="text-2xl font-extrabold text-emerald-900 mt-0.5">{scoreSummary.passed}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Assessments scored ≥ 70% today</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Passed Today</p>
+                    <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{scoreSummary.passed}</p>
+                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Assessments scored ≥ 70% today</p>
                   </div>
                 </div>
-                <div className="rounded-md border border-rose-200 bg-rose-50 p-4 min-h-[100px] flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-md bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
-                    <X className="w-5 h-5 text-rose-600" strokeWidth={3} />
-                  </div>
+                <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+                  <X className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600">Failed Today</p>
-                    <p className="text-2xl font-extrabold text-rose-900 mt-0.5">{scoreSummary.failed}</p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500">Assessments scored ≤ 69% today</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Failed Today</p>
+                    <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{scoreSummary.failed}</p>
+                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Assessments scored ≤ 69% today</p>
                   </div>
                 </div>
-                <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-                  <div className="w-10 h-10 rounded-md bg-indigo-100 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shrink-0">
-                    <BookOpen className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                  </div>
+                <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Score</p>
-                    <p className="text-2xl font-extrabold mt-0.5 text-gray-900 dark:text-slate-100">
+                    <p className={`text-2xl font-extrabold mt-0.5 ${grades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
                       {grades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? '—' : `${smartPct(avgScore)}%`}
                     </p>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Class average score rate</p>
+                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Class average score rate</p>
                   </div>
                 </div>
               </div>
@@ -1781,8 +2023,14 @@ export const TutorAnalytics: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="relative mt-4 h-56 w-full rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
-                  <TrendChart data={scoreTrend} color="#0052B7" emptyLabel="No score trend data" valueLabel={selectedScoreStudent ? selectedScoreStudent.full_name : 'Class Average Score'} />
+                <div className="relative mt-4 h-64 sm:h-72 w-full rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+                  <TrendChart
+                    data={scoreTrend}
+                    color="#0052B7"
+                    emptyLabel={scoreFilter === 'day' ? 'No recorded score today' : scoreFilter === 'week' ? 'No recorded score this week' : 'No recorded score this month'}
+                    valueLabel={selectedScoreStudent ? selectedScoreStudent.full_name : 'Class Average Score'}
+                    trendFilter={scoreFilter}
+                  />
                 </div>
               </div>
 
@@ -1792,7 +2040,7 @@ export const TutorAnalytics: React.FC = () => {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
                     <div>
                       <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT SCORE DETAILS</h3>
-                      <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">{scoreDetails.length} Students</p>
+                      <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{scoreDetails.length} Students</p>
                     </div>
                     <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
                       {/* Description Filter */}
@@ -1824,7 +2072,20 @@ export const TutorAnalytics: React.FC = () => {
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                      <thead><tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]"><SortHeader field="student" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Student</SortHeader><SortHeader field="aralLevel" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>ARAL Level</SortHeader><SortHeader field="description" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>DESCRIPTION</SortHeader><SortHeader field="passed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Passed</SortHeader><SortHeader field="failed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Failed</SortHeader><SortHeader field="scoreAverage" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Average Score</SortHeader></tr></thead>
+                      <thead>
+                        <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
+                          <SortHeader field="student" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Student</SortHeader>
+                          {hasMultipleScoreAralLevels ? (
+                            <SortHeader field="aralLevel" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>ARAL Level</SortHeader>
+                          ) : (
+                            <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 select-none text-left">ARAL Level</th>
+                          )}
+                          <SortHeader field="description" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>DESCRIPTION</SortHeader>
+                          <SortHeader field="passed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Passed</SortHeader>
+                          <SortHeader field="failed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Failed</SortHeader>
+                          <SortHeader field="scoreAverage" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Average Score</SortHeader>
+                        </tr>
+                      </thead>
                       <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{scoreDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : scoreDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 text-left"><span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${row.description !== 'Intervention Activity' ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300' : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{row.description}</span></td><td className="px-4 py-3 font-normal text-emerald-600 text-xs">{row.passed}</td><td className="px-4 py-3 font-normal text-rose-600 text-xs">{row.failed}</td><td className="px-4 py-3 font-normal"><span className={`text-xs font-medium ${getScoreAvgCls(row.scoreAverage)}`}>{smartPct(row.scoreAverage)}%</span></td></tr>)}</tbody>
                     </table>
                   </div>

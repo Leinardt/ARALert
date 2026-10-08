@@ -55,7 +55,7 @@ api.interceptors.request.use((config) => {
     return Promise.reject(new Error('Session expired due to inactivity.'));
   }
 
-  const accessToken = localStorage.getItem('access_token');
+  const accessToken = sessionStorage.getItem('access_token') || localStorage.getItem('access_token');
   if (accessToken) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${accessToken}`;
@@ -98,7 +98,7 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      const refreshToken = localStorage.getItem('refresh_token');
+      const refreshToken = sessionStorage.getItem('refresh_token') || localStorage.getItem('refresh_token');
       // If no refresh token is available, or this request was already an auth endpoint, logout
       if (
         !refreshToken ||
@@ -137,8 +137,10 @@ api.interceptors.response.use(
         const newAccessToken = refreshResponse.data.access;
         const newRefreshToken = refreshResponse.data.refresh || refreshToken;
 
-        localStorage.setItem('access_token', newAccessToken);
-        localStorage.setItem('refresh_token', newRefreshToken);
+        sessionStorage.setItem('access_token', newAccessToken);
+        sessionStorage.setItem('refresh_token', newRefreshToken);
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
         recordActivity();
 
         processQueue(null, newAccessToken);

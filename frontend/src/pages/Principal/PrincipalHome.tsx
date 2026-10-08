@@ -3,8 +3,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import type { Attendance, PrincipalDashboardResponse, PrincipalDashboardTrendPoint } from '../../types';
 import { ExportDtrModal } from '../../components/ExportDtrModal';
-import { AlertCircle, RefreshCw, Download, ArrowUpRight, BarChart2 } from 'lucide-react';
 import { StatsGridSkeleton, CardSkeleton } from '../../components/SkeletonLoader';
+import { RefreshCw } from 'lucide-react';
 
 export const PrincipalHome: React.FC = () => {
   const { user } = useAuth();
@@ -13,6 +13,7 @@ export const PrincipalHome: React.FC = () => {
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [dashboardDays, setDashboardDays] = useState<number>(7);
   const [selectedTutorId, setSelectedTutorId] = useState<string>('all');
+  const [tutorPage, setTutorPage] = useState<number>(1);
   const [staffAttendance, setStaffAttendance] = useState<Attendance[]>([]);
   const [isDtrExportOpen, setIsDtrExportOpen] = useState(false);
   const [isLoadingDtr, setIsLoadingDtr] = useState(false);
@@ -106,6 +107,10 @@ export const PrincipalHome: React.FC = () => {
       };
     });
   }, [dashboardData]);
+
+  const paginatedTutorCohortStats = useMemo(() => {
+    return tutorCohortStats.slice((tutorPage - 1) * 30, tutorPage * 30);
+  }, [tutorCohortStats, tutorPage]);
 
   const chartHeight = 220;
   const chartPadding = 36;
@@ -502,7 +507,7 @@ export const PrincipalHome: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-neutral-800/80">
-                    {tutorCohortStats.map((tutor) => (
+                    {paginatedTutorCohortStats.map((tutor) => (
                       <tr
                         key={tutor.tutor_id}
                         className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors"

@@ -52,6 +52,35 @@ export const setActiveSystemSemester = (semester: SemesterType): void => {
   }
 };
 
+export const getAssessmentWindowKey = (semester?: SemesterType): string => {
+  const sem = semester || getActiveSystemSemester();
+  return `aralert_assessment_window_open_${sem}`;
+};
+
+export const isAssessmentWindowOpen = (semester?: SemesterType): boolean => {
+  try {
+    const key = getAssessmentWindowKey(semester);
+    const stored = localStorage.getItem(key);
+    if (stored !== null) {
+      return stored === 'true';
+    }
+  } catch {
+    // ignore localStorage errors
+  }
+  return true;
+};
+
+export const setAssessmentWindowOpen = (isOpen: boolean, semester?: SemesterType): void => {
+  try {
+    const sem = semester || getActiveSystemSemester();
+    const key = getAssessmentWindowKey(sem);
+    localStorage.setItem(key, isOpen ? 'true' : 'false');
+    window.dispatchEvent(new CustomEvent('assessment_window_changed', { detail: { isOpen, semester: sem } }));
+  } catch {
+    // ignore localStorage errors
+  }
+};
+
 /**
  * Get the evaluation milestone corresponding to what is active on the system:
  * - 1st Semester active -> 'MOSY' (Add MOSY Score)

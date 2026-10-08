@@ -107,12 +107,6 @@ class UserListCreateView(generics.ListCreateAPIView):
 
         role = self.request.query_params.get('role', '').strip()
 
-        if not user.is_superuser and getattr(user, 'role', None) == 'admin':
-            if not role:
-                queryset = queryset.filter(role__in=['student', 'tutor', 'faculty'])
-            elif role not in ('student', 'tutor', 'faculty'):
-                queryset = queryset.none()
-
         assigned_tutor = self.request.query_params.get('assigned_tutor', '').strip()
         if assigned_tutor:
             if assigned_tutor == 'none':
@@ -150,37 +144,44 @@ class UserListCreateView(generics.ListCreateAPIView):
         elif status_filter == 'inactive':
             queryset = queryset.filter(is_active=False)
 
-        ordering = self.request.query_params.get('ordering', '-date_joined')
-        allowed_orderings = [
-            'first_name', '-first_name',
-            'last_name', '-last_name',
-            'role', '-role',
-            'lrn', '-lrn',
-            'aral_level', '-aral_level',
-            'subject', '-subject',
-            'email', '-email',
-            'date_joined', '-date_joined',
-            'last_login', '-last_login',
-            'username', '-username',
-        ]
-        if ordering in allowed_orderings:
-            queryset = queryset.order_by(ordering)
+        ordering = self.request.query_params.get('ordering', 'last_name')
+        if ordering in ['last_name', 'first_name', 'name']:
+            queryset = queryset.order_by('last_name', 'first_name')
+        elif ordering in ['-last_name', '-first_name', '-name']:
+            queryset = queryset.order_by('-last_name', '-first_name')
+        elif ordering == 'assigned_tutor':
+            queryset = queryset.order_by('assigned_tutor__last_name', 'assigned_tutor__first_name')
+        elif ordering == '-assigned_tutor':
+            queryset = queryset.order_by('-assigned_tutor__last_name', '-assigned_tutor__first_name')
+        elif ordering in ['status', 'is_active']:
+            queryset = queryset.order_by('-is_active', 'last_name', 'first_name')
+        elif ordering in ['-status', '-is_active']:
+            queryset = queryset.order_by('is_active', 'last_name', 'first_name')
+        elif ordering in ['grade_level', 'section']:
+            queryset = queryset.order_by('grade_level', 'last_name', 'first_name')
+        elif ordering in ['-grade_level', '-section']:
+            queryset = queryset.order_by('-grade_level', 'last_name', 'first_name')
         else:
-            queryset = queryset.order_by('-date_joined')
+            allowed_orderings = [
+                'role', '-role',
+                'lrn', '-lrn',
+                'aral_level', '-aral_level',
+                'subject', '-subject',
+                'email', '-email',
+                'date_joined', '-date_joined',
+                'last_login', '-last_login',
+                'username', '-username',
+            ]
+            if ordering in allowed_orderings:
+                queryset = queryset.order_by(ordering)
+            else:
+                queryset = queryset.order_by('last_name', 'first_name')
 
         return queryset
 
     def create(self, request, *args, **kwargs):
         serializer = UserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        role = serializer.validated_data.get('role')
-        from rest_framework.exceptions import ValidationError
-        if not request.user.is_superuser and request.user.role == 'admin':
-            if role not in ('student', 'tutor'):
-                raise ValidationError(
-                    {'role': 'School Admins can only enroll student and tutor accounts.'}
-                )
 
         user = serializer.save()
         log_audit_event(
@@ -193,6 +194,9 @@ class UserListCreateView(generics.ListCreateAPIView):
             UserListSerializer(user).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph'
 
 
 class UserDetailView(generics.RetrieveUpdateAPIView):
@@ -210,13 +214,14 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         return [IsAdmin()]
 
     def get_queryset(self):
-        queryset = User.objects.filter(is_superuser=False)
         user = getattr(self.request, 'user', None)
         if not user or not user.is_authenticated:
-            return queryset.none()
+            return User.objects.none()
+        if user.is_superuser:
+            return User.objects.all()
         if getattr(user, 'role', None) == 'tutor':
-            queryset = queryset.filter(role='student', assigned_tutor=user)
-        return queryset
+            return User.objects.filter(role='student', assigned_tutor=user, is_superuser=False)
+        return User.objects.filter(is_superuser=False)
 
     def get_serializer_class(self):
         if self.request.method in ('PATCH', 'PUT'):
@@ -229,14 +234,43 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
             raise PermissionDenied(
                 'Student profile edits require administrative approval. Please submit a Student Edit Request.'
             )
-        if not self.request.user.is_superuser and self.request.user.role == 'admin':
-            role = serializer.validated_data.get('role', serializer.instance.role)
-            if role and role not in ('student', 'tutor'):
+
+        target_user = serializer.instance
+        if target_user.email and target_user.email.strip().lower() == ROOT_SUPERADMIN_EMAIL.lower():
+            if serializer.validated_data.get('is_active') is False:
                 from rest_framework.exceptions import ValidationError
-                raise ValidationError(
-                    {'role': 'School Admins can only manage student and tutor accounts.'}
-                )
+                raise ValidationError({'is_active': f'The Primary Root SuperAdmin account ({ROOT_SUPERADMIN_EMAIL}) cannot be deactivated.'})
+            if 'role' in serializer.validated_data and serializer.validated_data['role'] != target_user.role:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({'role': 'The Primary Root SuperAdmin role cannot be changed.'})
+
+        prev_tutor = target_user.assigned_tutor
         updated_user = serializer.save()
+
+        # Log individual tutor assignment if changed
+        if 'assigned_tutor' in serializer.validated_data and updated_user.assigned_tutor != prev_tutor:
+            tutor_obj = updated_user.assigned_tutor
+            from services.tutor_service import assign_tutor_to_student
+            assign_tutor_to_student(
+                student=updated_user,
+                tutor=tutor_obj,
+                assigned_by=self.request.user,
+                period='MOSY',
+                notes='Individual tutor assignment'
+            )
+            log_audit_event(
+                'TUTOR_ASSIGNED',
+                user=self.request.user,
+                request=self.request,
+                details={
+                    'student_id': str(updated_user.id),
+                    'student_name': updated_user.get_full_name(),
+                    'student_lrn': updated_user.lrn,
+                    'tutor_id': str(tutor_obj.id) if tutor_obj else None,
+                    'tutor_name': tutor_obj.get_full_name() if tutor_obj else 'TBA'
+                }
+            )
+
         log_audit_event(
             'USER_UPDATED',
             user=self.request.user,
@@ -251,18 +285,22 @@ class UserActivateView(APIView):
     permission_classes = [IsAdmin]
 
     def patch(self, request, id):
-        if not request.user.is_superuser and request.user.role == 'admin':
-            user = get_object_or_404(User, id=id, is_superuser=False, role='student')
+        if request.user.is_superuser:
+            user = get_object_or_404(User, id=id)
         else:
             user = get_object_or_404(User, id=id, is_superuser=False)
+
         user.is_active = True
         user.save(update_fields=['is_active'])
 
+        actor_role = getattr(request.user, 'role', '')
+        action = 'USER_ACTIVATED_BY_SUPERADMIN' if (actor_role == 'superadmin' or request.user.is_superuser) else 'USER_ACTIVATED_BY_ADMIN'
+
         log_audit_event(
-            'USER_ACTIVATED_BY_ADMIN',
+            action,
             user=request.user,
             request=request,
-            details={'target_user_id': str(user.id), 'target_username': user.username}
+            details={'target_user_id': str(user.id), 'target_username': user.username, 'target_role': user.role}
         )
         return Response({'detail': 'User activated successfully.'})
 
@@ -273,18 +311,26 @@ class UserDeactivateView(APIView):
     permission_classes = [IsAdmin]
 
     def patch(self, request, id):
-        if not request.user.is_superuser and request.user.role == 'admin':
-            user = get_object_or_404(User, id=id, is_superuser=False, role='student')
+        if request.user.is_superuser:
+            user = get_object_or_404(User, id=id)
         else:
             user = get_object_or_404(User, id=id, is_superuser=False)
+
+        if user.email and user.email.strip().lower() == ROOT_SUPERADMIN_EMAIL.lower():
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied(f'The Primary Root SuperAdmin account ({ROOT_SUPERADMIN_EMAIL}) is protected and cannot be deactivated.')
+
         user.is_active = False
         user.save(update_fields=['is_active'])
 
+        actor_role = getattr(request.user, 'role', '')
+        action = 'USER_DEACTIVATED_BY_SUPERADMIN' if (actor_role == 'superadmin' or request.user.is_superuser) else 'USER_DEACTIVATED_BY_ADMIN'
+
         log_audit_event(
-            'USER_DEACTIVATED_BY_ADMIN',
+            action,
             user=request.user,
             request=request,
-            details={'target_user_id': str(user.id), 'target_username': user.username}
+            details={'target_user_id': str(user.id), 'target_username': user.username, 'target_role': user.role}
         )
         return Response({'detail': 'User deactivated successfully.'})
 
@@ -432,35 +478,86 @@ class AuditLogListView(APIView):
         if not (request.user.is_superuser or request.user.role == 'admin'):
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
-        action_filter = request.query_params.get('action', '')
-        username_filter = request.query_params.get('username', '')
-        page = max(1, int(request.query_params.get('page', 1)))
-        page_size = 20
+        from django.db.models import Q
+        from django.utils.timezone import localtime
 
-        qs = AuditLog.objects.all().order_by('-timestamp')
+        action_filter = request.query_params.get('action', '').strip()
+        search_filter = (request.query_params.get('search') or request.query_params.get('username') or '').strip()
+        page = max(1, int(request.query_params.get('page', 1)))
+        page_size = 30
+
+        qs = AuditLog.objects.select_related('user').all().order_by('-timestamp')
         if action_filter:
-            qs = qs.filter(action__icontains=action_filter)
-        if username_filter:
-            qs = qs.filter(username__icontains=username_filter)
+            qs = qs.filter(action__iexact=action_filter) if '_' in action_filter else qs.filter(action__icontains=action_filter)
+        if search_filter:
+            qs = qs.filter(
+                Q(username__icontains=search_filter) |
+                Q(user__first_name__icontains=search_filter) |
+                Q(user__last_name__icontains=search_filter) |
+                Q(user__email__icontains=search_filter) |
+                Q(user__lrn__icontains=search_filter)
+            )
 
         total = qs.count()
         offset = (page - 1) * page_size
         logs = qs[offset: offset + page_size]
 
-        from django.utils.timezone import localtime
+        results = []
+        for log in logs:
+            # 1. Name
+            if log.user and (log.user.first_name or log.user.last_name):
+                name = log.user.get_full_name()
+            elif isinstance(log.details, dict) and (log.details.get('student_name') or log.details.get('user_name') or log.details.get('name')):
+                name = log.details.get('student_name') or log.details.get('user_name') or log.details.get('name')
+            elif log.username:
+                name = log.username
+            else:
+                name = 'System'
 
-        results = [
-            {
+            # 2. Role
+            if log.user:
+                if log.user.is_superuser:
+                    role = 'SuperAdmin'
+                elif log.user.role:
+                    role = log.user.get_role_display() if hasattr(log.user, 'get_role_display') else log.user.role.capitalize()
+                else:
+                    role = 'SuperAdmin'
+            elif isinstance(log.details, dict) and log.details.get('role'):
+                role = str(log.details.get('role')).capitalize()
+            else:
+                role = 'System'
+
+            # 3. Email
+            if log.user and log.user.email and not log.user.email.endswith('@aralert.local'):
+                email = log.user.email
+            elif isinstance(log.details, dict) and log.details.get('email'):
+                email = log.details.get('email')
+            elif log.user and log.user.email:
+                email = log.user.email
+            else:
+                email = '—'
+
+            # 4. LRN
+            if log.user and log.user.lrn:
+                lrn = log.user.lrn
+            elif isinstance(log.details, dict) and (log.details.get('lrn') or log.details.get('student_lrn') or log.details.get('proposed_lrn')):
+                lrn = log.details.get('lrn') or log.details.get('student_lrn') or log.details.get('proposed_lrn')
+            else:
+                lrn = '—'
+
+            results.append({
                 'id': str(log.id),
                 'timestamp': localtime(log.timestamp).strftime('%Y-%m-%d %I:%M:%S %p PHT'),
                 'action': log.action,
+                'name': name,
+                'role': role,
+                'email': email,
+                'lrn': lrn,
                 'username': log.username or (str(log.user) if log.user else 'Anonymous'),
-                'ip_address': str(log.ip_address) if log.ip_address else 'N/A',
-                'user_agent': log.user_agent[:100] if log.user_agent else '',
-                'details': log.details,
-            }
-            for log in logs
-        ]
+                'ip_address': log.ip_address or '—',
+                'user_agent': log.user_agent or '—',
+                'details': log.details or {},
+            })
 
         return Response({
             'count': total,

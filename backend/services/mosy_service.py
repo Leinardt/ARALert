@@ -127,7 +127,7 @@ def get_mosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
     is_all_complete = (students_remaining == 0 and total_assigned_students > 0)
 
     return {
-        'school_year': school_year.school_year if school_year else '2025-2026',
+        'school_year': school_year.school_year if school_year else '2026-2027',
         'total_tutors': tutors.count(),
         'completed_tutors': completed_tutors_count,
         'in_progress_tutors': in_progress_tutors_count,
@@ -153,7 +153,7 @@ def process_mosy_completion(admin_user: User | None = None) -> dict:
     active_sy = SchoolYear.objects.filter(is_active=True).first()
     if not active_sy:
         active_sy, _ = SchoolYear.objects.get_or_create(
-            school_year='2025-2026',
+            school_year='2026-2027',
             defaults={'status': 'ACTIVE', 'is_active': True}
         )
 
@@ -247,7 +247,7 @@ def get_mosy_assignment_dashboard_data(school_year: SchoolYear | None = None) ->
     if not school_year:
         school_year = SchoolYear.objects.filter(is_active=True).first()
 
-    active_sy_str = school_year.school_year if school_year else '2025-2026'
+    active_sy_str = school_year.school_year if school_year else '2026-2027'
 
     # 1. Unassigned Plus Students (leveled up from Basic or already Plus)
     unassigned_plus = []
@@ -392,7 +392,7 @@ def get_unified_assignment_queue(school_year=None):
     if not school_year:
         school_year = SchoolYear.objects.filter(is_active=True).first()
 
-    active_sy_str = school_year.school_year if school_year else '2025-2026'
+    active_sy_str = school_year.school_year if school_year else '2026-2027'
 
     plus_queue = []
     basic_queue = []

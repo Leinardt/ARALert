@@ -5,21 +5,22 @@ import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
 import type { User, Grade, Attendance } from '../../types';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
-import { User as UserIcon, Search, ArrowUpDown, Users, ChevronUp, ChevronDown, BookOpen, AlertCircle, Layers, History, Calendar, CheckCircle2, Award, Clock } from 'lucide-react';
+import { User as UserIcon, Search, ArrowUpDown, Users, ChevronUp, ChevronDown, AlertCircle, History, Calendar, CheckCircle2, Award, Clock } from 'lucide-react';
 import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
+import { ExportBosyListModal } from '../../components/ExportBosyListModal';
 import type { TutorCohortHistoryData, TutorHistoricalCohortRecord } from '../../types';
 
 /* ─── Badge helpers ────────────────────────────────────────────── */
 const getAralBadge = (level?: string | null) => {
-  switch (level?.toLowerCase()) {
-    case 'plus': return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200">Plus</span>;
-    case 'summer': return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Summer</span>;
-    case 'graduated': return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Graduated</span>;
-    default: return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200">Basic</span>;
-  }
+  const formatted = level ? level.charAt(0).toUpperCase() + level.slice(1).toLowerCase() : 'Basic';
+  return (
+    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 dark:bg-[#1A1A1A] dark:text-slate-300 dark:border-[#262626]">
+      {formatted}
+    </span>
+  );
 };
 
-import { buildAvatarColorMap } from '../../utils/studentFormatters';
+import { buildAvatarColorMap, compareNamesByLastName } from '../../utils/studentFormatters';
 import { matchesSearch } from '../../utils/searchHelpers';
 
 function getDepEdSchoolYear(date: Date = new Date()) {
@@ -48,10 +49,10 @@ function getDepEdSchoolYear(date: Date = new Date()) {
 }
 
 export const getSchoolYearFromDate = (dateStr: string | null | undefined): string => {
-  if (!dateStr) return '2025-2026';
+  if (!dateStr) return '2026-2027';
   const clean = dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00`;
   const d = new Date(clean);
-  if (isNaN(d.getTime())) return '2025-2026';
+  if (isNaN(d.getTime())) return '2026-2027';
   const year = d.getFullYear();
   const month = d.getMonth() + 1;
   if (month >= 7) {
@@ -97,6 +98,7 @@ export const TutorStudentDirectory: React.FC = () => {
   const [selectedPastPeriodFilter, setSelectedPastPeriodFilter] = useState<string>('all');
   const [historyStudentId, setHistoryStudentId] = useState<string | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
+  const [isBosyModalOpen, setIsBosyModalOpen] = useState<boolean>(false);
 
   const currentSchoolYear = useMemo(() => getDepEdSchoolYear(), []);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>(
@@ -312,17 +314,51 @@ export const TutorStudentDirectory: React.FC = () => {
     setIsHistoryModalOpen(true);
   };
 
+const aralLevelRank: Record<string, number> = {
+  basic: 1,
+  plus: 2,
+  summer: 3,
+  'aral summer': 3,
+  intervention: 1,
+  enrichment: 2,
+  advanced: 3,
+};
+
+  const hasMultipleAralLevels = useMemo(() => {
+    const distinct = new Set(studentRows.map((r) => (r.student.aral_level || '').trim().toLowerCase()).filter(Boolean));
+    return distinct.size > 1;
+  }, [studentRows]);
+
   const filteredAndSorted = useMemo(() => {
     return studentRows
       .filter((r) => {
         return matchesSearch(search, r.student.full_name, r.student.first_name, r.student.last_name, r.student.lrn);
       })
       .sort((a, b) => {
-        let valA: any = a.student.full_name;
-        let valB: any = b.student.full_name;
-        if (sortField === 'lrn') { valA = a.student.lrn || ''; valB = b.student.lrn || ''; }
-        else if (sortField === 'sex') { valA = a.student.sex || a.student.gender || ''; valB = b.student.sex || b.student.gender || ''; }
-        else if (sortField === 'level') { valA = a.student.aral_level || ''; valB = b.student.aral_level || ''; }
+        if (sortField === 'name' || !sortField) {
+          const cmp = compareNamesByLastName(a.student, b.student);
+          return sortAsc ? cmp : -cmp;
+        }
+        if (sortField === 'lrn') {
+          const valA = a.student.lrn || '';
+          const valB = b.student.lrn || '';
+          return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        if (sortField === 'sex') {
+          const valA = a.student.sex || a.student.gender || '';
+          const valB = b.student.sex || b.student.gender || '';
+          return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        if (sortField === 'level') {
+          const valA = (a.student.aral_level || '').toLowerCase();
+          const valB = (b.student.aral_level || '').toLowerCase();
+          const rankA = aralLevelRank[valA] ?? 0;
+          const rankB = aralLevelRank[valB] ?? 0;
+          if (rankA !== rankB) return sortAsc ? rankA - rankB : rankB - rankA;
+          return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        const valA: any = (a.student as any)[sortField] || '';
+        const valB: any = (b.student as any)[sortField] || '';
         if (typeof valA === 'string') return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
         return sortAsc ? valA - valB : valB - valA;
       });
@@ -355,13 +391,10 @@ export const TutorStudentDirectory: React.FC = () => {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 animate-pulse flex items-center gap-4"
+              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 animate-pulse flex flex-col justify-center space-y-2"
             >
-              <div className="w-10 h-10 rounded-md bg-gray-200 dark:bg-gray-800 shrink-0" />
-              <div className="space-y-2 flex-1">
-                <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-6 w-16 rounded bg-gray-200 dark:bg-gray-800" />
-              </div>
+              <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="h-6 w-16 rounded bg-gray-200 dark:bg-gray-800" />
             </div>
           ))}
         </div>
@@ -421,32 +454,17 @@ export const TutorStudentDirectory: React.FC = () => {
     <div className="space-y-6 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-md bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#222222] flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
-            <Users className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">TOTAL STUDENTS</p>
-            <p className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">{students.length}</p>
-          </div>
+        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">TOTAL STUDENTS</p>
+          <p className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">{students.length}</p>
         </div>
-        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-md bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#222222] flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
-            <BookOpen className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">SUBJECT</p>
-            <p className="mt-0.5 truncate text-xl font-extrabold text-gray-900 dark:text-slate-100" title={directorySubjects.join(', ')}>{directorySubjects.join(', ')}</p>
-          </div>
+        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">SUBJECT</p>
+          <p className="mt-0.5 truncate text-xl font-extrabold text-gray-900 dark:text-slate-100" title={directorySubjects.join(', ')}>{directorySubjects.join(', ')}</p>
         </div>
-        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-md bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#222222] flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
-            <Layers className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">ARAL LEVEL</p>
-            <p className="mt-0.5 truncate text-xl font-extrabold text-gray-900 dark:text-slate-100" title={tutorAralLevel}>{tutorAralLevel}</p>
-          </div>
+        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">ARAL LEVEL</p>
+          <p className="mt-0.5 truncate text-xl font-extrabold text-gray-900 dark:text-slate-100" title={tutorAralLevel}>{tutorAralLevel}</p>
         </div>
       </div>
 
@@ -465,7 +483,7 @@ export const TutorStudentDirectory: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div>
               <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">ASSIGNED STUDENTS DETAILS</h3>
-              <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
+              <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">
                 {filteredAndSorted.length} Student{filteredAndSorted.length !== 1 ? 's' : ''}
               </p>
             </div>
@@ -488,6 +506,14 @@ export const TutorStudentDirectory: React.FC = () => {
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-[var(--brand)] opacity-75" />
               </div>
+
+              <button
+                type="button"
+                onClick={() => setIsBosyModalOpen(true)}
+                className="h-8.5 inline-flex items-center justify-center bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3.5 rounded-md text-xs font-bold transition-all cursor-pointer shadow-2xs"
+              >
+                Export List
+              </button>
 
               <label className="relative flex w-full sm:w-auto sm:min-w-52 items-center">
                 <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-gray-400" />
@@ -529,7 +555,11 @@ export const TutorStudentDirectory: React.FC = () => {
                         <SortableHeader label="SEX" field="sex" />
                       </th>
                       <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                        <SortableHeader label="ARAL LEVEL" field="level" />
+                        {hasMultipleAralLevels ? (
+                          <SortableHeader label="ARAL LEVEL" field="level" />
+                        ) : (
+                          <span className="select-none">ARAL LEVEL</span>
+                        )}
                       </th>
                       <th className="w-16 px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
                         ACTION
@@ -578,6 +608,16 @@ export const TutorStudentDirectory: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Export BOSY List Modal */}
+      <ExportBosyListModal
+        isOpen={isBosyModalOpen}
+        onClose={() => setIsBosyModalOpen(false)}
+        students={students}
+        tutors={user ? [user] : []}
+        currentUser={user}
+        defaultTutorId={user?.id}
+      />
     </div>
   );
 };

@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
+from utilities.audit import log_audit_event
 from apps.academics.models import (
     SchoolYear,
     StudentEnrollment,
@@ -77,7 +78,7 @@ class CurrentSchoolYearView(APIView):
         sy = SchoolYear.objects.filter(is_active=True).first()
         if not sy:
             sy, _ = SchoolYear.objects.get_or_create(
-                school_year='2025-2026',
+                school_year='2026-2027',
                 defaults={'status': 'ACTIVE', 'is_active': True}
             )
         data = SchoolYearSerializer(sy).data
@@ -109,9 +110,21 @@ class CurrentSchoolYearView(APIView):
 
         sy = SchoolYear.objects.filter(is_active=True).first()
         milestone = 'MOSY' if semester == '1st' else ('EOSY' if semester == '2nd' else 'ARAL Summer Assessment')
+        
+        log_audit_event(
+            'SEMESTER_TRANSITION_SET',
+            user=request.user,
+            request=request,
+            details={
+                'school_year': sy.school_year if sy else '2026-2027',
+                'semester': semester,
+                'milestone': milestone,
+            }
+        )
+
         return Response({
             'status': 'SUCCESS',
-            'school_year': sy.school_year if sy else '2025-2026',
+            'school_year': sy.school_year if sy else '2026-2027',
             'current_semester': semester,
             'active_milestone': milestone,
             'message': f'Active semester updated to {semester} semester ({milestone}).'
@@ -137,6 +150,15 @@ class MosyProcessView(APIView):
 
     def post(self, request):
         result = process_mosy_completion(admin_user=request.user)
+        log_audit_event(
+            'MOSY_FINALIZED',
+            user=request.user,
+            request=request,
+            details={
+                'school_year': result.get('school_year', '2026-2027'),
+                'message': result.get('message', 'MOSY finalized'),
+            }
+        )
         return Response(result, status=status.HTTP_200_OK)
 
 
@@ -196,6 +218,16 @@ class StartNewSchoolYearView(APIView):
     def post(self, request):
         try:
             result = execute_school_year_transition(admin_user=request.user)
+            log_audit_event(
+                'SCHOOL_YEAR_TRANSITION',
+                user=request.user,
+                request=request,
+                details={
+                    'previous_school_year': result.get('previous_school_year'),
+                    'new_school_year': result.get('new_school_year'),
+                    'message': result.get('message', 'School year transition completed'),
+                }
+            )
             return Response(result, status=status.HTTP_200_OK)
         except DjangoValidationError as e:
             if hasattr(e, 'message_dict') and 'error' in e.message_dict:
@@ -251,6 +283,19 @@ class AssignTutorView(APIView):
                 period=period,
                 notes=notes,
             )
+            log_audit_event(
+                'TUTOR_ASSIGNED',
+                user=request.user,
+                request=request,
+                details={
+                    'student_id': str(student.id),
+                    'student_name': student.get_full_name(),
+                    'lrn': student.lrn,
+                    'tutor_id': str(tutor.id) if tutor else None,
+                    'tutor_name': tutor.get_full_name() if tutor else 'Unassigned',
+                    'period': period,
+                }
+            )
             return Response({
                 'message': f"Student {student.get_full_name()} successfully assigned to {tutor.get_full_name() if tutor else 'TBA'}.",
                 'student_id': str(student.id),
@@ -292,6 +337,17 @@ class BulkAssignTutorView(APIView):
                 period=period,
                 notes=notes,
             )
+            log_audit_event(
+                'BULK_TUTOR_ASSIGNED',
+                user=request.user,
+                request=request,
+                details={
+                    'tutor_id': tutor_id,
+                    'tutor_name': result.get('tutor_name', 'Tutor'),
+                    'assigned_count': len(result.get('assigned_students', [])),
+                    'period': period,
+                }
+            )
             return Response(result, status=status.HTTP_200_OK)
         except DjangoValidationError as e:
             msg = e.message_dict if hasattr(e, 'message_dict') else str(e)
@@ -318,6 +374,16 @@ class SummerStartView(APIView):
     def post(self, request, id):
         try:
             record = start_summer_participation(id)
+            log_audit_event(
+                'SUMMER_REMEDIATION_STARTED',
+                user=request.user,
+                request=request,
+                details={
+                    'student_id': str(record.student.id),
+                    'student_name': record.student.get_full_name(),
+                    'lrn': record.student.lrn,
+                }
+            )
             return Response({
                 'message': f"Summer participation started for {record.student.get_full_name()}.",
                 'record': SummerRecordSerializer(record).data,
@@ -348,6 +414,18 @@ class SummerEvaluateView(APIView):
                 evaluator=user,
                 notes=notes,
             )
+            log_audit_event(
+                'SUMMER_EVALUATION_RECORDED',
+                user=user,
+                request=request,
+                details={
+                    'student_id': str(record.student.id),
+                    'student_name': record.student.get_full_name(),
+                    'lrn': record.student.lrn,
+                    'result': res,
+                    'notes': notes,
+                }
+            )
             return Response({
                 'message': f"Summer evaluation recorded as {res.upper()} for {record.student.get_full_name()}.",
                 'record': SummerRecordSerializer(record).data,
@@ -363,12 +441,12 @@ class SummerEvaluateView(APIView):
 # ---------------------------------------------------------------------------
 
 class SchoolYearArchiveListView(APIView):
-    """GET /api/academics/archive/ — List archived school years."""
+    """GET /api/academics/archive/ — List archived and available school years."""
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        archived = SchoolYear.objects.filter(status='ARCHIVED').order_by('-created_at')
-        return Response(SchoolYearSerializer(archived, many=True).data, status=status.HTTP_200_OK)
+        years = SchoolYear.objects.all().order_by('-school_year')
+        return Response(SchoolYearSerializer(years, many=True).data, status=status.HTTP_200_OK)
 
 
 class SchoolYearArchiveDetailView(APIView):

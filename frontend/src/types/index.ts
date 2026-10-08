@@ -30,10 +30,16 @@ export interface User {
   aral_level?: 'basic' | 'plus' | 'summer' | 'graduated' | null;
   tutor_type?: 'basic' | 'plus' | 'summer' | null;
   is_available_for_students?: boolean;
-  subject?: 'Reading' | 'Science' | 'Math' | null;
+  subject?: 'Reading' | 'Science' | 'Math' | 'English' | string | null;
   faculty_type?: string | null;
   grade_level?: string | null;
   section?: string | null;
+  parent_guardian_name?: string | null;
+  contact_number?: string | null;
+  has_bosy?: boolean;
+  has_mosy?: boolean;
+  has_eosy?: boolean;
+  has_summer?: boolean;
 }
 
 export interface AralProgressionResult {
