@@ -75,13 +75,6 @@ const editUserSchema = z.object({
         path: ['grade_level_section'],
       });
     }
-    if (!data.assigned_tutor || !data.assigned_tutor.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Assigned Tutor is required.',
-        path: ['assigned_tutor'],
-      });
-    }
     if (!data.parent_guardian_name || !data.parent_guardian_name.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -545,7 +538,7 @@ export const EditUser: React.FC = () => {
 
                 <div>
                   <label htmlFor="assigned_tutor" className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                    Assigned Tutor <span className="text-red-500">*</span>
+                    Assigned Tutor
                   </label>
                   <select
                     id="assigned_tutor"
@@ -554,7 +547,7 @@ export const EditUser: React.FC = () => {
                       errors.assigned_tutor || serverErrors?.assigned_tutor ? 'border-red-300 dark:border-red-800' : 'border-gray-300 dark:border-[#1A1A1A]'
                     }`}
                   >
-                    <option value="">-- Select Assigned Tutor --</option>
+                    <option value="">To Be Assigned (TBA)</option>
                     {tutors.map((tutor) => (
                       <option key={tutor.id} value={tutor.id}>
                         {tutor.full_name || `${tutor.first_name} ${tutor.last_name}`} ({tutor.email})
