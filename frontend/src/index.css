@@ -123,12 +123,10 @@ html, body, #root {
 }
 
 .glass-btn {
-  background-color: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  background-color: #ffffff;
+  border: 1.5px solid #cbd5e1;
   color: #0052B7;
-  box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.08), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.08);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -159,11 +157,9 @@ html, body, #root {
 
 /* Glass Card Option Buttons */
 .glass-card-btn {
-  background-color: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.06), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
+  background-color: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 2px 10px -2px rgba(15, 23, 42, 0.06);
   transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);

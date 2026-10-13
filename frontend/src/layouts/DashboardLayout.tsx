@@ -363,9 +363,8 @@ export const DashboardLayout: React.FC = () => {
   const [showRiskList, setShowRiskList] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [acknowledgedAlerts, setAcknowledgedAlerts] = useState<Record<string, boolean>>({});
-  const [acknowledgedNotes, setAcknowledgedNotes] = useState<Record<string, string>>({});
   const [acknowledgedRiskIds, setAcknowledgedRiskIds] = useState<Record<string, number>>({});
-  const [studentNotes, setStudentNotes] = useState<AcademicRisk[]>([]);
+  const [studentRiskAlerts, setStudentRiskAlerts] = useState<AcademicRisk[]>([]);
   const [showStudentEditRequests, setShowStudentEditRequests] = useState(false);
   const [showStudentHighRisk, setShowStudentHighRisk] = useState(false);
   const [pendingEditRequestsCount, setPendingEditRequestsCount] = useState<number>(0);
@@ -395,7 +394,7 @@ export const DashboardLayout: React.FC = () => {
   const navLinkClass = (active: boolean, collapsed: boolean = isSidebarCollapsed) =>
     `sidebar-item ${active ? 'active' : ''} ${collapsed ? 'justify-center !p-0 w-10 h-10 mx-auto' : ''}`;
 
-  const studentNoteStyle = (riskLevel: AcademicRisk['risk_level']) => {
+  const studentAlertStyle = (riskLevel: AcademicRisk['risk_level']) => {
     if (riskLevel === 'high') {
       return {
         background: 'var(--risk-high-bg)',
@@ -456,9 +455,8 @@ export const DashboardLayout: React.FC = () => {
       setHighRiskStudents(highRiskRows);
       setModerateRiskStudents([]);
       // The alert badge and High Risk section both represent every student
-      // currently classified as High risk, regardless of acknowledgement notes.
+      // currently classified as High risk.
       setAcknowledgedAlerts(Object.fromEntries(Object.keys(latestResolvedRiskByStudent).map((id) => [id, true])));
-      setAcknowledgedNotes(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.details])));
       setAcknowledgedRiskIds(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.id])));
     } catch (error) {
       console.error('Failed to load tutor alerts', error);
@@ -471,45 +469,44 @@ export const DashboardLayout: React.FC = () => {
       row.riskTier === 'High' ? 'high'
         : row.riskTier === 'Medium' ? 'medium'
           : 'low';
-    const noteText = `Alert addressed by Tutor. Target: +${row.neededPresentAttendance} more present records, +${row.neededPassedScores} more passed records.`;
     try {
       if (existingRiskId) {
-        await academicService.updateAcademicRisk(existingRiskId, { details: noteText, resolved: true });
+        await academicService.updateAcademicRisk(existingRiskId, { resolved: true });
       } else {
         const newRisk = await academicService.createAcademicRisk({
           student: row.student.id,
           risk_level: studentRiskLevel,
-          details: noteText,
+          details: '',
           resolved: true,
         });
         setAcknowledgedRiskIds((prev) => ({ ...prev, [row.student.id]: newRisk.id }));
       }
       setAcknowledgedAlerts((prev) => ({ ...prev, [row.student.id]: true }));
-      setAcknowledgedNotes((prev) => ({ ...prev, [row.student.id]: noteText }));
     } catch (error) {
       console.error('Failed to acknowledge risk alert', error);
     }
   };
 
-  const fetchStudentNotes = async () => {
+  const fetchStudentRiskAlerts = async () => {
     if (user?.role !== 'student') return;
     try {
       const risks = await academicService.getAcademicRisks();
-      // Only show resolved intervention notes that have a details message from the tutor
-      setStudentNotes(risks.filter((risk) => risk.resolved && Boolean(risk.details)).sort(
-        (a, b) => new Date(b.date_created).getTime() - new Date(a.date_created).getTime()
-      ));
+      setStudentRiskAlerts(
+        risks
+          .filter((risk) => risk.resolved || risk.risk_level === 'high')
+          .sort((a, b) => new Date(b.date_created).getTime() - new Date(a.date_created).getTime())
+      );
     } catch (error) {
-      console.error('Failed to load student tutor notes', error);
+      console.error('Failed to load student risk alerts', error);
     }
   };
 
-  const acknowledgeStudentNote = async (riskId: number) => {
+  const acknowledgeStudentAlert = async (riskId: number) => {
     try {
       await academicService.updateAcademicRisk(riskId, { student_acknowledged: true });
-      await fetchStudentNotes();
+      await fetchStudentRiskAlerts();
     } catch (error) {
-      console.error('Failed to acknowledge tutor note', error);
+      console.error('Failed to acknowledge risk alert', error);
     }
   };
 
@@ -536,14 +533,14 @@ export const DashboardLayout: React.FC = () => {
 
   useEffect(() => { fetchRiskStudents(); }, [user, location.pathname]);
   useEffect(() => { if (!showRiskList) return; fetchRiskStudents(); }, [showRiskList]);
-  useEffect(() => { fetchStudentNotes(); }, [user]);
+  useEffect(() => { fetchStudentRiskAlerts(); }, [user]);
   useEffect(() => { fetchEditRequests(); }, [user, location.pathname]);
   useEffect(() => {
     if (showTutorNotifications || showStudentEditRequests || showEditRequestsModal) {
       fetchEditRequests();
     }
     if (showStudentHighRisk) {
-      fetchStudentNotes();
+      fetchStudentRiskAlerts();
     }
   }, [showTutorNotifications, showStudentEditRequests, showStudentHighRisk, showEditRequestsModal]);
   useEffect(() => {
@@ -2301,8 +2298,8 @@ export const DashboardLayout: React.FC = () => {
                     }}
                     aria-label="High Risk Alerts"
                     title={
-                      studentNotes.filter((note) => !note.student_acknowledged).length > 0
-                        ? `${studentNotes.filter((note) => !note.student_acknowledged).length} High Risk Alert(s)`
+                      studentRiskAlerts.filter((alert) => !alert.student_acknowledged).length > 0
+                        ? `${studentRiskAlerts.filter((alert) => !alert.student_acknowledged).length} High Risk Alert(s)`
                         : 'High Risk Alert'
                     }
                     style={{
@@ -2350,7 +2347,7 @@ export const DashboardLayout: React.FC = () => {
                     >
                       <AlertTriangle size={17} />
                     </span>
-                    {studentNotes.filter((note) => !note.student_acknowledged).length > 0 && (
+                    {studentRiskAlerts.filter((alert) => !alert.student_acknowledged).length > 0 && (
                       <span
                         className="animate-badge-pulse"
                         style={{
@@ -2372,7 +2369,7 @@ export const DashboardLayout: React.FC = () => {
                           boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)',
                         }}
                       >
-                        {studentNotes.filter((note) => !note.student_acknowledged).length}
+                        {studentRiskAlerts.filter((alert) => !alert.student_acknowledged).length}
                       </span>
                     )}
                   </button>
@@ -2430,37 +2427,41 @@ export const DashboardLayout: React.FC = () => {
                           </button>
                         </div>
 
-                        {/* Tutor Intervention Notes Body */}
+                        {/* High Risk Alerts Body */}
                         <div style={{ maxHeight: 'min(460px, calc(100vh - 140px))', overflowY: 'auto', padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                               <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Tutor Intervention Notes
+                                Academic Risk Alerts
                               </span>
                               <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--slate-200)', color: 'var(--text-secondary)', borderRadius: '99px', padding: '1px 7px' }}>
-                                {studentNotes.length}
+                                {studentRiskAlerts.length}
                               </span>
                             </div>
-                            {studentNotes.length === 0 ? (
+                            {studentRiskAlerts.length === 0 ? (
                               <div style={{ background: 'var(--surface-muted)', border: '1px dashed var(--slate-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
-                                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>No current tutor notes or risk alerts.</p>
+                                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>No high risk alerts.</p>
                               </div>
                             ) : (
-                              studentNotes.map((note) => {
-                                const colors = studentNoteStyle(note.risk_level);
+                              studentRiskAlerts.map((alert) => {
+                                const colors = studentAlertStyle(alert.risk_level);
                                 return (
-                                  <div key={note.id} style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: '10px', padding: '0.75rem 0.85rem', marginBottom: '0.5rem' }}>
+                                  <div key={alert.id} style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: '10px', padding: '0.75rem 0.85rem', marginBottom: '0.5rem' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-                                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: colors.label, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{note.risk_level_display || note.risk_level} risk</span>
-                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{new Date(note.date_created).toLocaleDateString()}</span>
+                                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: colors.label, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{alert.risk_level_display || alert.risk_level} risk</span>
+                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{new Date(alert.date_created).toLocaleDateString()}</span>
                                     </div>
-                                    <p style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: colors.text, lineHeight: 1.45, wordBreak: 'break-word' }}>{note.details}</p>
-                                    {note.student_acknowledged ? (
+                                    <p style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: colors.text, lineHeight: 1.45, wordBreak: 'break-word' }}>
+                                      {alert.resolved
+                                        ? 'Alert acknowledged by tutor. Continue attending sessions and completing activities to improve your academic performance.'
+                                        : 'Academic risk status flagged for tutor intervention. Please coordinate with your assigned tutor.'}
+                                    </p>
+                                    {alert.student_acknowledged ? (
                                       <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', fontWeight: 700, color: colors.acknowledged }}>✓ Acknowledged</p>
                                     ) : (
                                       <button
                                         type="button"
-                                        onClick={() => acknowledgeStudentNote(note.id)}
+                                        onClick={() => acknowledgeStudentAlert(alert.id)}
                                         style={{
                                           marginTop: '0.55rem',
                                           border: 'none',
@@ -2475,7 +2476,7 @@ export const DashboardLayout: React.FC = () => {
                                           minHeight: '36px',
                                         }}
                                       >
-                                        Acknowledge Note
+                                        Acknowledge Alert
                                       </button>
                                     )}
                                   </div>

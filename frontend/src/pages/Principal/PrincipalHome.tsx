@@ -554,6 +554,16 @@ const InteractiveStaffAttendanceChart: React.FC<{
     return new Set(indices);
   }, [data, isMobile, isSmallMobile, trendFilter, width]);
 
+  const getFormattedLabel = (p: StaffAttendanceChartPoint) => {
+    if (trendFilter === 'month') {
+      if (width < 400) {
+        return p.label.split(' ')[0] || p.label;
+      }
+      return p.label.replace(/\s+20(\d\d)/, " '$1");
+    }
+    return p.label;
+  };
+
   const target80Y = paddingTop + chartH - (80 / 100) * chartH;
 
   return (
@@ -566,8 +576,8 @@ const InteractiveStaffAttendanceChart: React.FC<{
       >
         <defs>
           <linearGradient id="staffAttendanceChartFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#10B981" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#10B981" stopOpacity="0.01" />
+            <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="var(--brand)" stopOpacity="0.01" />
           </linearGradient>
           <filter id="staffAttendanceGlow" x="-20%" y="-30%" width="140%" height="160%">
             <feGaussianBlur stdDeviation="3" result="blur" />
@@ -578,7 +588,7 @@ const InteractiveStaffAttendanceChart: React.FC<{
           </filter>
         </defs>
 
-        {/* Horizontal grid lines */}
+        {/* Horizontal grid lines and number labels (matching PNAHS ARAL Performance Trend Chart) */}
         {[0, 25, 50, 75, 100].map((val) => {
           const y = paddingTop + chartH - (val / 100) * chartH;
           return (
@@ -588,16 +598,16 @@ const InteractiveStaffAttendanceChart: React.FC<{
                 y1={y}
                 x2={width - paddingRight}
                 y2={y}
-                stroke="currentColor"
-                className="text-gray-200 dark:text-[#1F1F1F]"
-                strokeDasharray={val === 0 ? undefined : '3 3'}
-                strokeWidth={val === 0 ? 1.5 : 1}
+                stroke="var(--slate-200)"
+                strokeWidth="0.5"
+                strokeDasharray="3 3"
+                opacity="0.6"
               />
               <text
                 x={paddingLeft - 8}
                 y={y + 3}
+                className="fill-slate-400 font-semibold text-[9px] xs:text-[10px]"
                 textAnchor="end"
-                className="fill-gray-400 dark:fill-slate-500 font-mono text-[9px] sm:text-[10px] select-none"
               >
                 {val}%
               </text>
@@ -605,58 +615,80 @@ const InteractiveStaffAttendanceChart: React.FC<{
           );
         })}
 
-        {/* 80% Benchmark Reference Line */}
+        {/* 80% Benchmark Reference Line (Sky Blue Milestone Style) */}
         <line
           x1={paddingLeft}
           y1={target80Y}
           x2={width - paddingRight}
           y2={target80Y}
-          stroke="#10B981"
-          strokeDasharray="4 4"
-          strokeOpacity="0.4"
-          strokeWidth="1.2"
+          stroke="#38BDF8"
+          strokeDasharray="3 3"
+          strokeOpacity="0.45"
+          strokeWidth="1"
         />
 
-        {/* X-axis labels */}
+        {/* X-axis date labels */}
         {points.map((p, idx) => {
           if (!visibleIndices.has(idx)) return null;
+
+          let textAnchor: 'start' | 'middle' | 'end' = 'middle';
+          let labelX = p.x;
+          if (idx === 0) {
+            textAnchor = 'start';
+            labelX = Math.max(paddingLeft, p.x - 3);
+          } else if (idx === points.length - 1) {
+            textAnchor = 'end';
+            labelX = Math.min(width - paddingRight, p.x + 3);
+          }
+
           return (
             <text
               key={`staff-label-${idx}`}
-              x={p.x}
-              y={height - 4}
-              textAnchor="middle"
-              className="fill-gray-400 dark:fill-slate-500 font-sans text-[9px] sm:text-[10px] select-none"
+              x={labelX}
+              y={height - (isMobile ? 6 : 5)}
+              className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px] xs:text-[10px]"
+              textAnchor={textAnchor}
+              style={{ whiteSpace: 'nowrap' }}
             >
-              {p.label}
+              {getFormattedLabel(p)}
             </text>
           );
         })}
 
-        {/* Area fill */}
-        {areaD && <path d={areaD} fill="url(#staffAttendanceChartFill)" />}
-
-        {/* Line curve */}
-        {pathD && (
-          <path
-            d={pathD}
-            fill="none"
-            stroke="#10B981"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+        {/* Brand Trend Line & Area (Blue Theme) */}
+        {points.length > 0 && (
+          <>
+            <path d={areaD} fill="url(#staffAttendanceChartFill)" />
+            <path
+              d={pathD}
+              fill="none"
+              stroke="var(--brand)"
+              strokeWidth="5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.28"
+              filter="url(#staffAttendanceGlow)"
+            />
+            <path
+              d={pathD}
+              fill="none"
+              stroke="var(--brand)"
+              strokeWidth="2.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
         )}
 
-        {/* Point dots */}
+        {/* Data point markers */}
         {points.map((p, idx) => (
           <circle
             key={`staff-dot-${idx}`}
             cx={p.x}
             cy={p.y}
             r="3.5"
-            fill="#10B981"
-            stroke="#A7F3D0"
+            fill="var(--brand)"
+            stroke="#B6D4F8"
             strokeWidth="1.5"
           />
         ))}
@@ -669,12 +701,12 @@ const InteractiveStaffAttendanceChart: React.FC<{
               y1={paddingTop}
               x2={points[hoveredIdx].x}
               y2={paddingTop + chartH}
-              stroke="#10B981"
+              stroke="var(--brand)"
               strokeWidth="1.5"
               opacity="0.7"
             />
-            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill="#10B981" />
-            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="8" fill="#10B981" opacity="0.25" />
+            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill="var(--brand)" />
+            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="8" fill="var(--brand)" opacity="0.25" />
           </g>
         )}
 
@@ -737,7 +769,7 @@ const InteractiveStaffAttendanceChart: React.FC<{
             className="pointer-events-none absolute z-20 w-max rounded-xl border border-slate-200 dark:border-neutral-800 bg-white/95 dark:bg-[#000000]/95 p-3 text-left text-[11px] font-medium leading-normal text-slate-800 dark:text-white shadow-xl dark:shadow-2xl shadow-slate-900/10 dark:shadow-black/60 backdrop-blur-md transition-all duration-150 overflow-hidden"
             style={tooltipStyle}
           >
-            <div className="font-extrabold text-[11px] text-emerald-600 dark:text-emerald-400 break-words">
+            <div className="font-extrabold text-[11px] text-[#0052B7] dark:text-[#60A5FA] break-words">
               {p.fullDateLabel || p.label}
             </div>
             <div className="flex items-baseline gap-1 mt-1">
@@ -1882,13 +1914,13 @@ export const PrincipalHome: React.FC = () => {
 
                 {/* Legend */}
                 <div className="flex items-center gap-2 xs:gap-3 shrink-0 whitespace-nowrap">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                    <span className="h-2 w-2 rounded-full bg-[#10B981] inline-block shrink-0" />
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                    <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
                     <span className="hidden xs:inline whitespace-nowrap">Attendance Rate</span>
                     <span className="xs:hidden whitespace-nowrap">Rate</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 dark:text-slate-500 whitespace-nowrap">
-                    <span className="h-0.5 w-3 border-b-2 border-dashed border-emerald-500/60 inline-block shrink-0" />
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400 whitespace-nowrap">
+                    <span className="h-0.5 w-3 border-b-2 border-dashed border-sky-400 inline-block shrink-0" />
                     <span className="whitespace-nowrap">80% Target</span>
                   </div>
                 </div>
@@ -1902,7 +1934,7 @@ export const PrincipalHome: React.FC = () => {
                       onClick={() => setStaffTrendFilter(filter)}
                       className={`rounded-sm px-2.5 sm:px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                         staffTrendFilter === filter
-                          ? 'bg-[#10B981] text-white shadow-xs'
+                          ? 'bg-[var(--brand)] text-white shadow-xs'
                           : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                       }`}
                     >
