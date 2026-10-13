@@ -40,7 +40,7 @@ class UserListSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'full_name', 'first_name', 'middle_name', 'last_name',
-            'username', 'email', 'role', 'lrn', 'status', 'is_active',
+            'username', 'email', 'role', 'is_superuser', 'lrn', 'status', 'is_active',
             'date_joined', 'last_login', 'has_logged_in',
             'assigned_tutor', 'assigned_tutor_name', 'assessment_weight', 'weekly_tasks_weight',
             'attendance_weight', 'aral_level', 'subject', 'tutor_type', 'is_available_for_students',
@@ -79,7 +79,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'first_name', 'middle_name', 'last_name', 'username', 'email',
-            'role', 'lrn', 'is_active',
+            'role', 'is_superuser', 'lrn', 'is_active',
             'assigned_tutor', 'assessment_weight', 'weekly_tasks_weight', 'attendance_weight',
             'aral_level', 'subject', 'tutor_type', 'is_available_for_students',
             'grade_level', 'parent_guardian_name', 'contact_number', 'has_bosy', 'has_mosy', 'has_eosy', 'has_summer'
@@ -134,7 +134,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return v.upper()
 
     def validate_role(self, value):
-        """Prevent SuperAdmin role assignment via API."""
+        """Allow roles and permit None/empty if is_superuser is set."""
+        if value is None or value == '' or value == 'superadmin':
+            return None
         allowed_roles = [r[0] for r in User.Role.choices]
         if value not in allowed_roles:
             raise serializers.ValidationError(
@@ -177,6 +179,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         Students: created with LRN (log in via Name + LRN). Can be assigned to a tutor or set to TBA.
         """
         role = validated_data.get('role')
+        is_superuser = validated_data.get('is_superuser', False)
         email = validated_data.get('email', '').strip().lower()
 
         if not email and role == 'student':
@@ -185,6 +188,11 @@ class UserCreateSerializer(serializers.ModelSerializer):
         validated_data['email'] = email
         validated_data['username'] = email
         validated_data['is_active'] = True
+
+        if is_superuser:
+            validated_data['role'] = None
+            validated_data['is_staff'] = True
+            validated_data['is_superuser'] = True
 
         user = User(**validated_data)
         user.set_unusable_password()
