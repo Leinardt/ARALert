@@ -12,3 +12,8 @@ dist/
 *.tsbuildinfo
 .vite/
 scratch/
+
+# Secrets
+.env
+*.env
+!.env.example
