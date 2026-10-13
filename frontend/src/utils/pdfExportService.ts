@@ -215,6 +215,17 @@ export const downloadElementAsPdf = async (
           console.warn('Style sanitization warning:', e);
         }
 
+        // 3b. Fix html2canvas text baseline drift caused by Tailwind preflight (img { display:block }).
+        // html2canvas measures font baselines using an inline <img>; when it is block-level, every
+        // text run is painted a few pixels lower than in the browser, so borders appear to cut through text.
+        try {
+          const fixStyle = clonedDoc.createElement('style');
+          fixStyle.textContent = 'img { display: inline-block !important; }';
+          clonedDoc.head.appendChild(fixStyle);
+        } catch {
+          // ignore
+        }
+
         // 4. Locate target element and ensure clean print presentation
         const target = clonedEl || (clonedDoc.querySelector('[data-print-container]') as HTMLElement | null);
 
@@ -260,7 +271,15 @@ export const downloadElementAsPdf = async (
     if (canvas.height <= pageCanvasHeight * 1.05) {
       // Use PNG for 100% lossless, razor-sharp typography without JPEG artifacts
       const imgData = canvas.toDataURL('image/png');
-      pdf.addImage(imgData, 'PNG', 0, 0, dim.width, dim.height, undefined, 'SLOW');
+      // Preserve the preview's exact aspect ratio (never stretch/squash lines)
+      let drawW = dim.width;
+      let drawH = (canvas.height / canvas.width) * dim.width;
+      if (drawH > dim.height) {
+        drawH = dim.height;
+        drawW = (canvas.width / canvas.height) * dim.height;
+      }
+      const offsetX = (dim.width - drawW) / 2;
+      pdf.addImage(imgData, 'PNG', offsetX, 0, drawW, drawH, undefined, 'SLOW');
     } else {
       // Multi-page clean canvas slicing
       const numPages = Math.ceil(canvas.height / pageCanvasHeight);

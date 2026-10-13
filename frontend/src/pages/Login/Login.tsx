@@ -7,7 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import api from '../../api/axios';
 import type { User } from '../../types';
 import { PrivacyConsentModal } from '../../components/PrivacyConsentModal';
-import { AlertCircle, ArrowLeft } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ChevronRight } from 'lucide-react';
 import aralertLogo from '../../assets/ARALert_Logo_LIGHT.png';
 
 // ── Student Login Schema (LRN only) ───────────────────────────────
@@ -297,7 +297,7 @@ export const Login: React.FC = () => {
 
           {/* Card Body */}
           <div className="p-5 sm:p-8 pt-0 sm:pt-0">
-            {/* ── Option Cards (Glass Style, Border-Only Blue Hover Effect) ── */}
+            {/* ── Option Cards (Solid Visible Cards with Chevron and High-Contrast Hover) ── */}
             {loginType === 'select' && (
               <div className="flex flex-col gap-3.5 animate-view-fade-in">
                 {/* PNAHS Personnel Google Login Option */}
@@ -307,14 +307,17 @@ export const Login: React.FC = () => {
                     setLoginType('staff');
                     setServerError(null);
                   }}
-                  className="glass-card-btn group flex flex-col p-4 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none"
+                  className="group flex items-center justify-between p-4 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none transition-all duration-200 bg-slate-50 hover:bg-blue-50/70 dark:bg-neutral-900 dark:hover:bg-neutral-800/90 border border-slate-300 hover:border-[#0052B7] dark:border-neutral-700 dark:hover:border-blue-500 shadow-xs hover:shadow-md hover:-translate-y-0.5"
                 >
-                  <div className="card-title font-semibold text-sm sm:text-base text-slate-900 dark:text-white mb-1 transition-colors duration-200">
-                    PNAHS Personnel Portal
+                  <div className="min-w-0 pr-3">
+                    <div className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 mb-1 transition-colors duration-200">
+                      PNAHS Personnel Portal
+                    </div>
+                    <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed truncate">
+                      Sign in using your pre-registered Google account.
+                    </div>
                   </div>
-                  <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed whitespace-nowrap overflow-hidden text-ellipsis">
-                    Sign in using your pre-registered Google account.
-                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors shrink-0" />
                 </button>
 
                 {/* Student Login Option */}
@@ -324,26 +327,29 @@ export const Login: React.FC = () => {
                     setLoginType('student');
                     setServerError(null);
                   }}
-                  className="glass-card-btn group flex flex-col p-4 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none"
+                  className="group flex items-center justify-between p-4 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none transition-all duration-200 bg-slate-50 hover:bg-blue-50/70 dark:bg-neutral-900 dark:hover:bg-neutral-800/90 border border-slate-300 hover:border-[#0052B7] dark:border-neutral-700 dark:hover:border-blue-500 shadow-xs hover:shadow-md hover:-translate-y-0.5"
                 >
-                  <div className="card-title font-semibold text-sm sm:text-base text-slate-900 dark:text-white mb-1 transition-colors duration-200">
-                    Student Learner Portal
+                  <div className="min-w-0 pr-3">
+                    <div className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 mb-1 transition-colors duration-200">
+                      Student Portal
+                    </div>
+                    <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed truncate">
+                      Sign in using your 12-digit Learner Reference Number.
+                    </div>
                   </div>
-                  <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed whitespace-nowrap overflow-hidden text-ellipsis">
-                    Sign in using your 12-digit Learner Reference Number.
-                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors shrink-0" />
                 </button>
               </div>
             )}
 
-            {/* ── Staff Google Login (Glass Style, Border-Only Blue Hover Effect) ── */}
+            {/* ── Staff Google Login (Solid High-Contrast Button) ── */}
             {loginType === 'staff' && (
               <div className="flex flex-col items-center gap-4 animate-view-fade-in">
-                <div className="relative w-full max-w-[340px] h-[42px] mx-auto">
+                <div className="relative w-full max-w-[340px] h-[44px] mx-auto">
                   <button
                     type="button"
                     disabled={googleLoading}
-                    className="glass-btn group w-full h-full flex items-center justify-center gap-2.5 px-4 rounded-xl font-medium text-sm cursor-pointer select-none"
+                    className="group w-full h-full flex items-center justify-center gap-2.5 px-4 rounded-xl font-semibold text-sm cursor-pointer select-none transition-all duration-200 bg-white hover:bg-slate-50 dark:bg-neutral-900 dark:hover:bg-neutral-800 text-slate-800 dark:text-white border-2 border-slate-300 hover:border-[#0052B7] dark:border-neutral-700 dark:hover:border-blue-500 shadow-xs hover:shadow-md hover:-translate-y-0.5"
                   >
                     <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                       <path
@@ -378,7 +384,7 @@ export const Login: React.FC = () => {
               </div>
             )}
 
-            {/* ── Student Login Form (Glass Style, Border-Only Blue Hover Effect) ── */}
+            {/* ── Student Login Form (Solid Brand Button) ── */}
             {loginType === 'student' && (
               <form
                 onSubmit={studentForm.handleSubmit(onStudentSubmit)}
@@ -416,7 +422,7 @@ export const Login: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="glass-btn w-full py-2.5 px-4 rounded-xl font-semibold text-sm cursor-pointer mt-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full py-2.5 px-4 rounded-xl font-semibold text-sm cursor-pointer mt-1 text-white bg-[#0052B7] hover:bg-[#004294] transition-all duration-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
                 >
                   {isSubmitting ? 'Signing in...' : 'Sign In as Student'}
                 </button>

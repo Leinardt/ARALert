@@ -1392,37 +1392,37 @@ export const TutorQRGenerator: React.FC = () => {
       <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
         {/* Section header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
-          <div>
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">STUDENTS ATTENDANCE HISTORY</h3>
-            <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">
+        <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-2.5 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+          <div className="min-w-0 flex-1 truncate">
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase truncate">STUDENTS ATTENDANCE HISTORY</h3>
+            <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">
               {activeHistoryRecords.length} Record{activeHistoryRecords.length !== 1 ? 's' : ''}
             </p>
           </div>
 
           {/* ── Controls ── */}
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="relative flex w-full sm:w-auto sm:min-w-52 items-center">
-              <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-gray-400" />
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
+            <label className="relative flex w-28 xs:w-36 sm:w-52 items-center shrink-0">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
               <input
                 type="search"
                 value={studentSearch}
                 onChange={(event) => setStudentSearch(event.target.value)}
-                placeholder="Search Student Name"
+                placeholder="Search student..."
                 aria-label="Search attendance history by student"
-                className="h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-9 pr-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
+                className="h-7.5 sm:h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-8 pr-2.5 text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
               />
             </label>
 
             {/* View mode toggle styled like TutorHome trend filter */}
-            <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5">
+            <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
               {(['week', 'month'] as const).map((mode) => (
                 <button
                   key={mode}
                   id={`qr-view-${mode}`}
                   type="button"
                   onClick={() => { setViewMode(mode); setJumpDate(null); }}
-                  className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
+                  className={`rounded-sm px-2 sm:px-3 py-1 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${viewMode === mode && !jumpDate
                     ? 'bg-[var(--brand)] text-white'
                     : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                     }`}
@@ -1433,19 +1433,19 @@ export const TutorQRGenerator: React.FC = () => {
             </div>
 
             {/* Custom Calendar Dropdown Button in Poppins */}
-            <div className="relative inline-flex items-center">
+            <div className="relative inline-flex items-center shrink-0">
               <button
                 type="button"
                 id="qr-attendance-calendar-btn"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`p-2 rounded-md border transition-all flex items-center justify-center cursor-pointer ${jumpDate
+                className={`p-1.5 sm:p-2 rounded-md border transition-all flex items-center justify-center cursor-pointer ${jumpDate
                   ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
                   : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)]'
                   }`}
                 title="Select a specific date from calendar"
                 aria-label="Open Calendar"
               >
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
 
               {showCalendarPopover && (
@@ -1463,10 +1463,11 @@ export const TutorQRGenerator: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowExportModal(true)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-3 py-2 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer"
+              className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap"
             >
-              <Download className="w-3.5 h-3.5 text-white" />
-              Export Attendance Sheet
+              <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
+              <span className="hidden xs:inline">Export Sheet</span>
+              <span className="xs:hidden">Export</span>
             </button>
           </div>
         </div>

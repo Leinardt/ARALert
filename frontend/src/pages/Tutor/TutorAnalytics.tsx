@@ -1747,24 +1747,20 @@ export const TutorAnalytics: React.FC = () => {
                   <RiskCalculationInfo />
                 </div>
                 <div className="bg-white rounded-md border border-gray-200 overflow-hidden dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT PERFORMANCE DETAILS</h3>
-                        <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{filteredAndSortedRows.length} Students</p>
-                      </div>
+                  <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+                    <div className="min-w-0 flex-1 truncate">
+                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase truncate">STUDENT PERFORMANCE DETAILS</h3>
+                      <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">{filteredAndSortedRows.length} Students</p>
                     </div>
-                    <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                          type="search"
-                          placeholder="Search Student Name"
-                          value={search}
-                          onChange={(e) => setSearch(e.target.value)}
-                          className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200"
-                        />
-                      </div>
+                    <div className="relative w-28 xs:w-36 sm:w-56 shrink-0">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input
+                        type="search"
+                        placeholder="Search student..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="h-7.5 sm:h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-[11px] sm:text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200"
+                      />
                     </div>
                   </div>
 
@@ -1944,14 +1940,14 @@ export const TutorAnalytics: React.FC = () => {
               {/* Student Attendance Details Table */}
               <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
                 <div className="overflow-hidden">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT ATTENDANCE DETAILS</h3>
-                      <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{attendanceDetails.length} Students</p>
+                  <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+                    <div className="min-w-0 flex-1 truncate">
+                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase truncate">STUDENT ATTENDANCE DETAILS</h3>
+                      <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">{attendanceDetails.length} Students</p>
                     </div>
-                    <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
+                    <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
                       {/* Description Filter */}
-                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0">
+                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
                         {([
                           ['all', 'All'],
                           ['Intervention Activity', 'Intervention'],
@@ -1961,7 +1957,7 @@ export const TutorAnalytics: React.FC = () => {
                             key={val}
                             type="button"
                             onClick={() => setAttendanceDescFilter(val)}
-                            className={`rounded-sm px-2.5 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                            className={`rounded-sm px-2 sm:px-2.5 py-1 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                               attendanceDescFilter === val
                                 ? 'bg-[var(--brand)] text-white'
                                 : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
@@ -1971,9 +1967,9 @@ export const TutorAnalytics: React.FC = () => {
                           </button>
                         ))}
                       </div>
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input type="search" aria-label="Search attendance students" placeholder="Search Student Name" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
+                      <div className="relative w-28 xs:w-36 sm:w-48 shrink-0">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                        <input type="search" aria-label="Search attendance students" placeholder="Search student..." value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} className="h-7.5 sm:h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-[11px] sm:text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
                       </div>
                     </div>
                   </div>
@@ -2069,14 +2065,14 @@ export const TutorAnalytics: React.FC = () => {
               {/* Student Score Details Table */}
               <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
                 <div className="overflow-hidden">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT SCORE DETAILS</h3>
-                      <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{scoreDetails.length} Students</p>
+                  <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+                    <div className="min-w-0 flex-1 truncate">
+                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase truncate">STUDENT SCORE DETAILS</h3>
+                      <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">{scoreDetails.length} Students</p>
                     </div>
-                    <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
+                    <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
                       {/* Description Filter */}
-                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0">
+                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
                         {([
                           ['all', 'All'],
                           ['Intervention Activity', 'Intervention'],
@@ -2086,7 +2082,7 @@ export const TutorAnalytics: React.FC = () => {
                             key={val}
                             type="button"
                             onClick={() => setScoreDescFilter(val)}
-                            className={`rounded-sm px-2.5 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                            className={`rounded-sm px-2 sm:px-2.5 py-1 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                               scoreDescFilter === val
                                 ? 'bg-[var(--brand)] text-white'
                                 : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
@@ -2096,9 +2092,9 @@ export const TutorAnalytics: React.FC = () => {
                           </button>
                         ))}
                       </div>
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input type="search" aria-label="Search score students" placeholder="Search Student Name" value={scoreSearch} onChange={(event) => setScoreSearch(event.target.value)} className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
+                      <div className="relative w-28 xs:w-36 sm:w-48 shrink-0">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                        <input type="search" aria-label="Search score students" placeholder="Search student..." value={scoreSearch} onChange={(event) => setScoreSearch(event.target.value)} className="h-7.5 sm:h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-[11px] sm:text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
                       </div>
                     </div>
                   </div>

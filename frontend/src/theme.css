@@ -129,6 +129,32 @@
   --sidebar-active-glow: 0 0 10px rgba(56, 189, 248, 0.12);
 }
 
+/* ── 📐 Notebook Grid Tokens (shared by the landing page AND the public navbar) ── */
+:root {
+  --notebook-grid: 40px;
+  /* Vertical position of the ruled line inside each 40px row. Text set with a
+     40px line-height has its baseline ~27px into the row, so a rule at 30px
+     makes every line of text sit directly on a ruled line. */
+  --nb-rule-offset: 30px;
+  /* Horizontal gutter: x of the vertical margin rule, and x where text begins */
+  --nb-margin-x: 2rem;      /* 32px mobile */
+  --nb-content-x: 2.75rem;  /* 44px mobile */
+}
+
+@media (min-width: 640px) {
+  :root {
+    --nb-margin-x: 3.25rem;   /* 52px tablet */
+    --nb-content-x: 4.5rem;   /* 72px tablet */
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --nb-margin-x: 4.25rem;   /* 68px desktop */
+    --nb-content-x: 5.75rem;  /* 92px desktop */
+  }
+}
+
 /* ── 📓 Authentic Paper Texture & Defined Horizontal Notebook Rules ──────────────── */
 .notebook-paper {
   background-color: #FAF8F5;
@@ -139,6 +165,8 @@
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='paperGrain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch' result='noise'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.24  0 0 0 0 0.20  0 0 0 0 0.16  0.038 0.038 0.038 0 0.012'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23paperGrain)'/%3E%3C/svg%3E");
   background-size: 100% 40px, 240px 240px;
   background-repeat: repeat, repeat;
+  /* Shift the rules down so they act as baselines for 40px text rows */
+  background-position: 0 var(--nb-rule-offset), 0 0;
 }
 
 .dark .notebook-paper {
@@ -153,10 +181,6 @@
 }
 
 /* ── 📐 Typographic Baseline Alignment & Notebook Grid Rhythm (40px Unit) ──── */
-:root {
-  --notebook-grid: 40px;
-}
-
 .notebook-paper {
   --line-height-grid: 40px;
 }
@@ -193,98 +217,136 @@
     -1px 0 1px #000000;
 }
 
-/* Clean, legibly centered text between notebook rules (40px vertical rhythm) */
-.notebook-snap-p {
-  font-size: 1.0625rem; /* 17px */
-  line-height: 40px !important;
-  margin: 0;
-}
-
-.notebook-snap-sm {
-  font-size: 0.9375rem; /* 15px */
-  line-height: 40px !important;
-  margin: 0;
-}
-
-.notebook-snap-xs {
-  font-size: 0.8125rem; /* 13px */
-  line-height: 40px !important;
-  margin: 0;
-}
-
-.notebook-snap-h3 {
-  font-size: 1.25rem; /* 20px */
-  line-height: 40px !important;
-  margin: 0;
-}
-
-.notebook-snap-h2 {
-  font-size: 1.5rem; /* 24px */
-  line-height: 40px !important; /* 1 ruled line per text row */
-  margin: 0;
-}
-
-@media (max-width: 640px) {
-  .notebook-snap-h2 {
-    font-size: 1.375rem;
+/* Text rows locked to the 40px rhythm. Kept in the `components` layer so that
+   Tailwind spacing utilities (mt-10, mb-10…) can still add whole grid rows. */
+@layer components {
+  .notebook-snap-p {
+    font-size: 1.0625rem; /* 17px */
     line-height: 40px !important;
+    margin: 0;
+  }
+
+  .notebook-snap-lead {
+    font-size: 1.125rem; /* 18px */
+    line-height: 40px !important;
+    margin: 0;
+  }
+
+  @media (min-width: 1024px) {
+    .notebook-snap-lead {
+      font-size: 1.25rem; /* 20px */
+    }
+  }
+
+  .notebook-snap-sm {
+    font-size: 0.9375rem; /* 15px */
+    line-height: 40px !important;
+    margin: 0;
+  }
+
+  .notebook-snap-xs {
+    font-size: 0.8125rem; /* 13px */
+    line-height: 40px !important;
+    margin: 0;
+  }
+
+  .notebook-snap-h3 {
+    font-size: 1.25rem; /* 20px */
+    line-height: 40px !important;
+    margin: 0;
+  }
+
+  .notebook-snap-h2 {
+    font-size: 1.5rem; /* 24px */
+    line-height: 40px !important; /* 1 ruled line per text row */
+    margin: 0;
+  }
+
+  @media (max-width: 640px) {
+    .notebook-snap-h2 {
+      font-size: 1.375rem;
+      line-height: 40px !important;
+    }
+  }
+
+  .notebook-snap-h1 {
+    font-size: clamp(2.5rem, 5.5vw, 4rem);
+    line-height: 80px !important;
+    margin: 0;
   }
 }
 
-.notebook-snap-h1 {
-  font-size: clamp(2.5rem, 5.5vw, 4rem);
-  line-height: 80px !important;
-  margin: 0;
-}
-
-/* Notebook grid-aligned button (spans exactly 2 lines = 80px, borders flush with rules) */
+/* Notebook grid-aligned button: exactly 2 rows tall (80px) and nudged up so its
+   top and bottom borders sit precisely ON ruled lines instead of between them.
+   The paper fill hides the rule that would otherwise run through the label. */
 .notebook-btn-2line {
+  position: relative;
+  top: calc(var(--nb-rule-offset) - var(--notebook-grid));
   height: 80px !important;
   box-sizing: border-box !important;
+  background-color: #FAF8F5;
+}
+
+.notebook-btn-2line#hero-portal-cta:hover {
+  background-color: #0052B7 !important;
+  border-color: #0052B7 !important;
+  color: #ffffff !important;
+}
+
+.dark .notebook-btn-2line {
+  background-color: #000000;
+}
+
+.dark .notebook-btn-2line#hero-portal-cta:hover {
+  background-color: #0052B7 !important;
+  border-color: #0052B7 !important;
+  color: #ffffff !important;
 }
 
 /* ── 📏 Blue Vertical Margin Line (Authentic Loose-Leaf Notebook Paper) ─────── */
 .notebook-page-container {
   position: relative;
-  padding-left: 2.75rem; /* ~44px on mobile */
+  padding-left: var(--nb-content-x);
 }
 
-@media (min-width: 640px) {
-  .notebook-page-container {
-    padding-left: 4.5rem; /* ~72px on tablet */
-  }
+/* Symmetric variant for centered content (hero) so it clears the margin rule */
+.notebook-page-container--centered {
+  padding-right: var(--nb-content-x);
 }
 
-@media (min-width: 1024px) {
-  .notebook-page-container {
-    padding-left: 5.75rem; /* ~92px on desktop */
-  }
-}
-
+/* One continuous margin rule for the whole page (starts at the navbar's bottom rule) */
 .notebook-red-margin-line {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 2rem; /* 32px on mobile */
-  width: 2px;
-  background-color: rgba(26, 93, 173, 0.45); /* Classic ballpoint blue ink margin rule */
-  pointer-events: none;
-}
-
-@media (min-width: 640px) {
-  .notebook-red-margin-line {
-    left: 3.25rem; /* 52px on tablet */
-  }
-}
-
-@media (min-width: 1024px) {
-  .notebook-red-margin-line {
-    left: 4.25rem; /* 68px on desktop */
-  }
+  display: none !important;
 }
 
 .dark .notebook-red-margin-line {
-  background-color: rgba(74, 155, 245, 0.35);
+  display: none !important;
+}
+
+/* Margin annotations (PART I, Q01…): right-aligned in the gutter, on the row's rule */
+.notebook-gutter-label {
+  position: absolute;
+  left: 0;
+  width: calc(var(--nb-margin-x) - 0.625rem);
+  text-align: right;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.6875rem; /* 11px */
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 40px;
+  color: rgba(26, 93, 173, 0.85);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Same label, positioned from inside an already-indented content block */
+.notebook-gutter-label--nested {
+  left: calc(-1 * var(--nb-content-x));
+}
+
+.dark .notebook-gutter-label {
+  color: rgba(96, 165, 250, 0.8);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

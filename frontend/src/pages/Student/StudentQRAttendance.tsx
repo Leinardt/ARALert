@@ -20,7 +20,7 @@ import {
   Check,
   RefreshCw,
 } from 'lucide-react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useAuth } from '../../hooks/useAuth';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
@@ -267,7 +267,7 @@ export const StudentQRAttendance: React.FC = () => {
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
 
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
   // Live ticking clock
@@ -517,7 +517,10 @@ export const StudentQRAttendance: React.FC = () => {
   const stopScanner = async () => {
     if (scannerRef.current) {
       try {
-        await scannerRef.current.clear();
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
+        scannerRef.current.clear();
       } catch (err) {
         console.warn('Failed to clear scanner:', err);
       }
@@ -568,58 +571,81 @@ export const StudentQRAttendance: React.FC = () => {
     const timer = setTimeout(async () => {
       setCameraError(null);
       await stopScanner();
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach((track) => track.stop());
-      } catch (permErr: any) {
-        if (isMounted) {
-          setCameraError(
-            permErr?.name === 'NotAllowedError'
-              ? 'Camera permission denied. Please allow camera access in browser settings.'
-              : 'Could not access camera device.'
-          );
-        }
-        return;
-      }
-
       if (!isMounted) return;
 
       try {
-        const scanner = new Html5QrcodeScanner(
-          'student-qr-reader',
-          {
-            fps: 10,
-            qrbox: { width: 220, height: 220 },
-            aspectRatio: 1.0,
-            showTorchButtonIfSupported: true,
-          },
-          false
-        );
+        const qrContainer = document.getElementById('student-qr-reader');
+        if (!qrContainer) return;
 
-        scanner.render(
-          async (decodedText) => {
-            await stopScanner();
-            if (isMounted) {
-              setIsCameraActive(false);
-            }
-            handleScanSubmit(decodedText);
-          },
-          () => {}
-        );
+        const html5QrCode = new Html5Qrcode('student-qr-reader');
+        scannerRef.current = html5QrCode;
 
-        scannerRef.current = scanner;
+        const config = {
+          fps: 10,
+          qrbox: { width: 220, height: 220 },
+          aspectRatio: 1.0,
+        };
+
+        const cameras = await Html5Qrcode.getCameras().catch(() => []);
+        if (!isMounted) {
+          await stopScanner();
+          return;
+        }
+
+        const preferredCamera =
+          cameras.find((cam) => /back|rear|environment/i.test(cam.label)) ||
+          cameras.find((cam) => /integrated|built-?in|webcam|front|user|face/i.test(cam.label)) ||
+          cameras[0];
+
+        const cameraChoice = preferredCamera?.id ? preferredCamera.id : { facingMode: 'environment' };
+
+        try {
+          await html5QrCode.start(
+            cameraChoice,
+            config,
+            async (decodedText) => {
+              await stopScanner();
+              if (isMounted) {
+                setIsCameraActive(false);
+              }
+              handleScanSubmit(decodedText);
+            },
+            () => {}
+          );
+        } catch (initialErr) {
+          if (!isMounted) return;
+          // Fallback to front camera or default
+          await html5QrCode.start(
+            { facingMode: 'user' },
+            config,
+            async (decodedText) => {
+              await stopScanner();
+              if (isMounted) {
+                setIsCameraActive(false);
+              }
+              handleScanSubmit(decodedText);
+            },
+            () => {}
+          );
+        }
       } catch (err: any) {
         if (isMounted) {
-          setCameraError('Unable to start camera preview.');
+          console.error('Camera init error:', err);
+          if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+            setCameraError('Camera permission was denied. Please allow camera access in your browser settings and try again.');
+          } else if (err?.name === 'NotFoundError' || err?.message?.includes('No camera')) {
+            setCameraError('No camera was detected on this device.');
+          } else {
+            setCameraError(err?.message || 'Unable to access your camera. Please allow camera permission and try again.');
+          }
         }
       }
-    }, 300);
+    }, 150);
 
     return () => {
       isMounted = false;
       clearTimeout(timer);
-      stopScanner();
+      void stopScanner();
     };
   }, [isCameraActive]);
 
@@ -871,20 +897,20 @@ export const StudentQRAttendance: React.FC = () => {
       {/* ── Attendance History ──── */}
       <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
         {/* Section Header with Pills and Calendar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-          <div>
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm uppercase">
+        <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+          <div className="min-w-0 flex-1 truncate">
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase truncate">
               {studentFirstName}'S ATTENDANCE HISTORY
             </h3>
-            <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
+            <p className="mt-0.5 text-[10px] sm:text-xs font-medium text-gray-500 dark:text-slate-400 truncate">
               {currentRecordsCount} Record{currentRecordsCount !== 1 ? 's' : ''}
             </p>
           </div>
 
           {/* Controls */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
             {/* View Mode Toggle */}
-            <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5">
+            <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
               {(['day', 'week', 'month'] as const).map((mode) => (
                 <button
                   key={mode}
@@ -894,7 +920,7 @@ export const StudentQRAttendance: React.FC = () => {
                     setViewMode(mode);
                     setJumpDate(null);
                   }}
-                  className={`h-7 whitespace-nowrap rounded-sm px-3 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                  className={`h-7.5 sm:h-7 whitespace-nowrap rounded-sm px-2 sm:px-3 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer ${
                     viewMode === mode && !jumpDate
                       ? 'bg-[var(--brand)] text-white'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
@@ -906,20 +932,20 @@ export const StudentQRAttendance: React.FC = () => {
             </div>
 
             {/* Custom Calendar Dropdown Button */}
-            <div className="relative inline-flex items-center">
+            <div className="relative inline-flex items-center shrink-0">
               <button
                 type="button"
                 id="student-attendance-calendar-btn"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border p-0 transition-all ${
+                className={`flex h-7.5 w-7.5 sm:h-8 sm:w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border p-0 transition-all ${
                   jumpDate
                     ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
                     : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)]'
                 }`}
                 title="Select a specific date from calendar"
-                aria-label="Open score calendar"
+                aria-label="Open Calendar"
               >
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
 
               {showCalendarPopover && (

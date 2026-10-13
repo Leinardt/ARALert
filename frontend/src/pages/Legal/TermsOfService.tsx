@@ -1,7 +1,5 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShieldCheck, FileText, CheckCircle2, AlertTriangle, Scale, Lock, School } from 'lucide-react';
-import aralertLogo from '../../assets/ARALert_Logo_LIGHT.png';
 
 export const TermsOfService: React.FC = () => {
   const navigate = useNavigate();
@@ -11,174 +9,236 @@ export const TermsOfService: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex-1 w-full bg-slate-50 dark:bg-[#0A0A0A] text-slate-800 dark:text-slate-200 pt-28 sm:pt-32 pb-20 px-4 sm:px-6 lg:px-8 transition-colors">
-      <div className="max-w-4xl mx-auto bg-white dark:bg-[#111111] rounded-3xl border border-slate-200 dark:border-neutral-800 shadow-xl p-6 sm:p-12 space-y-10">
-        
-        {/* Navigation & Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-neutral-800 pb-6">
+    <div
+      className="min-h-screen w-full bg-slate-50 dark:bg-[#0A0A0A] text-slate-800 dark:text-slate-200 pt-24 sm:pt-28 pb-24 px-4 sm:px-6 lg:px-8 transition-colors"
+      style={{ fontFamily: "'Poppins', sans-serif" }}
+    >
+      <div className="max-w-4xl mx-auto space-y-8">
+
+        {/* Navigation */}
+        <div className="flex items-center justify-between pb-2">
           <button
             type="button"
             onClick={() => {
               if (window.history.length > 1) {
                 navigate(-1);
               } else {
-                navigate('/');
+                navigate('/login');
               }
             }}
-            className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-[#0052B7] dark:hover:text-blue-400 transition-colors cursor-pointer px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-neutral-800"
+            className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-[#0052B7] dark:hover:text-blue-400 transition-colors cursor-pointer py-1"
           >
-            <ArrowLeft className="w-4 h-4" /> Back
+            &larr; Return to Previous Page
           </button>
-          <div className="flex items-center gap-2.5">
-            <img src={aralertLogo} alt="ARALert Logo" className="h-7 sm:h-8 w-auto object-contain" />
-            <span className="font-extrabold text-lg sm:text-xl text-slate-900 dark:text-white tracking-tight">ARALert</span>
-          </div>
+          <span className="text-xs font-medium text-slate-500 dark:text-neutral-500">
+            Institutional Document
+          </span>
         </div>
 
-        {/* Title Badge & Heading */}
-        <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/50 text-[#0052B7] dark:text-blue-400 text-xs font-bold uppercase tracking-wider">
-            <FileText className="w-4 h-4" /> Official System Terms
+        {/* Institutional Document Header */}
+        <header className="border-b border-slate-300 dark:border-neutral-800 pb-8 space-y-4">
+          <div className="space-y-1 text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400">
+            <p className="font-semibold">Republic of the Philippines</p>
+            <p className="font-semibold">Department of Education &bull; Region V (Bicol) &bull; Division of Masbate</p>
+            <p className="font-bold text-slate-700 dark:text-slate-300">Palanas National Agriculture High School</p>
           </div>
-          <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Terms of Service
+
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight pt-2">
+            Terms of Service and Conditions of Platform Use
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-neutral-400">
-            Effective Date: School Year 2025–2026 &bull; Republic of the Philippines &bull; DepEd Region V (Masbate)
+
+          <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-y-1 gap-x-6 text-xs text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-neutral-800/80 pt-4">
+            <div>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Document Identifier: </span>
+              <span>DepEd-PNAHS-ARAL-TOS-2025</span>
+            </div>
+            <div>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Statutory Mandate: </span>
+              <span>Republic Act No. 12028 (ARAL Program Act)</span>
+            </div>
+            <div>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Effective Date: </span>
+              <span>School Year 2025–2026 onwards</span>
+            </div>
+            <div>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Jurisdiction: </span>
+              <span>Republic of the Philippines</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Preamble */}
+        <div className="space-y-4 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+          <p>
+            The <strong>ARALert Academic Early Warning and Intervention Platform</strong> (&ldquo;ARALert&rdquo; or the &ldquo;System&rdquo;) is an institutional information system deployed at Palanas National Agriculture High School. The platform provides continuous tracking of academic recovery indicators, attendance verification, risk cohort flagging, and assessment record management pursuant to the <strong>Academic Recovery and Accessible Learning (ARAL) Program Act (Republic Act No. 12028)</strong> and Department of Education regulations.
+          </p>
+          <p>
+            By accessing, authenticating into, or utilizing any portion of this platform, whether as a School Administrator, Principal, Faculty Member, ARAL Tutor, Student Learner, or Legal Guardian, you formally acknowledge that you have read, understood, and agreed to be bound by these Terms of Service in their entirety, alongside our <strong>Data Privacy Statement</strong>.
           </p>
         </div>
 
-        {/* Highlight Alert Box */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 flex items-start gap-3.5">
-          <Scale className="w-5 h-5 text-[#0052B7] dark:text-blue-400 shrink-0 mt-0.5" />
-          <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed space-y-1">
-            <strong className="text-slate-900 dark:text-white block">Academic Recovery & Accessible Learning (ARAL) Legal Mandate</strong>
-            <span>
-              ARALert operates under the mandate of <strong>Republic Act No. 12028 (ARAL Program Act)</strong> and Department of Education policies. By accessing this platform, all users agree to adhere strictly to Philippine laws, DepEd ethical standards, and academic integrity regulations.
-            </span>
+        {/* Section 1 */}
+        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+            Section 1. General Provisions and Scope of Applicability
+          </h2>
+          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+            <p>
+              <strong>1.1 Purpose.</strong> The platform is designed solely to facilitate educational assessment, intervention delivery, daily attendance recording, and progress reporting under the ARAL Program. Commercial exploitation, private utilization, or unauthorized administrative manipulation is strictly prohibited.
+            </p>
+            <p>
+              <strong>1.2 Institutional Scope.</strong> These Terms apply to all sessions, data exchanges, automated scoring procedures, and reporting modules conducted through ARALert under the jurisdiction of Palanas National Agriculture High School.
+            </p>
+            <p>
+              <strong>1.3 Discontinuation of Access.</strong> Any individual who does not consent to these Terms of Service or subsequent official amendments must immediately refrain from accessing or utilizing the platform.
+            </p>
           </div>
-        </div>
+        </section>
 
-        {/* Main Content Sections */}
-        <div className="space-y-8 text-xs sm:text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-          
-          {/* Section 1 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#0052B7] text-white text-xs font-bold">1</span>
-              Acceptance of Terms
-            </h2>
+        {/* Section 2 */}
+        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+            Section 2. User Classifications, Authentication, and Responsibilities
+          </h2>
+          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
             <p>
-              By accessing, browsing, or logging into the <strong>ARALert Monitoring and Early Warning System</strong> (&ldquo;System&rdquo;), whether as a School Administrator, Principal, Faculty Member, ARAL Tutor, Student Learner, or Parent/Guardian, you acknowledge that you have read, understood, and agreed to be bound by these Terms of Service, along with our <strong>Data Privacy Statement</strong>.
+              <strong>2.1 School Administrators and Principals.</strong> Administrative accounts possess privileged oversight for user lifecycle management, school year transitions, institutional evaluation tools, and school-wide analytics. Administrators are legally bound to enforce role-based access restrictions and ensure audit integrity.
             </p>
             <p>
-              If you do not agree with any part of these Terms, you must discontinue access to the platform immediately.
+              <strong>2.2 Faculty Members and ARAL Tutors.</strong> Instructional personnel must authenticate exclusively via authorized institutional Google accounts. Tutors are responsible for the prompt, accurate encoding of assessment scores and genuine verification of session attendance. Tutors may only access student records assigned directly to their instructional cohorts.
             </p>
-          </section>
+            <p>
+              <strong>2.3 Student Learners.</strong> Learners access personal performance trends, session attendance records, and risk level status using their official 12-digit Learner Reference Number (LRN). Learners are permitted to view only their own individual records.
+            </p>
+            <p>
+              <strong>2.4 Credential Confidentiality.</strong> Users are strictly prohibited from sharing, delegating, or disclosing access credentials. Any transaction performed under an authenticated profile shall be presumed to have been executed by the registered account holder.
+            </p>
+          </div>
+        </section>
 
-          {/* Section 2 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#0052B7] text-white text-xs font-bold">2</span>
-              Authorized User Accounts & Role Permissions
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-              <div className="p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/50 space-y-2">
-                <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 text-xs sm:text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  Staff & Faculty Accounts
-                </div>
-                <p className="text-xs text-slate-500 dark:text-neutral-400">
-                  Must authenticate via authorized, pre-registered institutional Google accounts (@deped.gov.ph or whitelisted domains). Sharing credentials or allowing unauthorized third parties access is strictly prohibited.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/50 space-y-2">
-                <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 text-xs sm:text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  Student Learner Accounts
-                </div>
-                <p className="text-xs text-slate-500 dark:text-neutral-400">
-                  Learners access personal scores and attendance using their verified 12-digit Learner Reference Number (LRN). Students may only view their own records.
-                </p>
-              </div>
+        {/* Section 3 */}
+        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+            Section 3. Standards of Academic Integrity and Prohibited Conduct
+          </h2>
+          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+            <p>
+              All interactions within the platform must strictly conform to Philippine civil service laws, the Code of Ethics for Professional Teachers (Resolution No. 435, s. 1997), and DepEd Child Protection guidelines. The following acts constitute grave violations:
+            </p>
+            <div className="pl-4 border-l-2 border-slate-300 dark:border-neutral-700 space-y-2.5">
+              <p>
+                <strong>3.1 Falsification of Academic Data.</strong> Tampering with, inflating, pre-dating, or retroactively falsifying formative scores, periodic assessment results (BOSY, MOSY, EOSY, or Summer), or learning recovery evaluations.
+              </p>
+              <p>
+                <strong>3.2 Attendance Fraud.</strong> Creating fraudulent QR codes, proxy scanning attendance for absent personnel or students, or certifying false Daily Time Record (DTR) entries.
+              </p>
+              <p>
+                <strong>3.3 Security Infiltration and Tampering.</strong> Engaging in reverse engineering, SQL injection, unauthorized API scraping, privilege escalation, or intentional denial of service against the school server infrastructure.
+              </p>
+              <p>
+                <strong>3.4 Identity Misrepresentation.</strong> Impersonating school officials, faculty members, tutors, or students, or submitting unauthorized profile modifications.
+              </p>
             </div>
-          </section>
-
-          {/* Section 3 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#0052B7] text-white text-xs font-bold">3</span>
-              Academic Integrity & Prohibited Actions
-            </h2>
             <p>
-              ARALert exists to evaluate student learning recovery accurately. Users agree to uphold complete academic and administrative honesty. The following actions are strictly prohibited:
+              <strong>3.5 Disciplinary Sanctions.</strong> Violations of this Section shall immediately trigger account suspension, administrative investigation under DepEd Order No. 49, s. 2006 (Revised Rules of Procedure of the Department of Education in Administrative Cases), and possible prosecution under the Cybercrime Prevention Act of 2012 (Republic Act No. 10175).
             </p>
-            <ul className="list-disc list-inside space-y-1.5 ml-2 text-slate-600 dark:text-slate-300">
-              <li>Falsifying, inflating, or unauthorized tampering with student assessment scores (BOSY, MOSY, EOSY, or Summer).</li>
-              <li>Generating fraudulent QR attendance logs or recording attendance for absent learners or staff.</li>
-              <li>Attempting unauthorized privilege escalation, SQL injection, automated scraping, or reverse engineering of the system.</li>
-              <li>Impersonating school officials, faculty members, tutors, or students.</li>
-            </ul>
-            <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2.5">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
-              <span>Violations are subject to disciplinary sanctions, revocation of system access, and administrative proceedings under DepEd Service Manual rules.</span>
+          </div>
+        </section>
+
+        {/* Section 4 */}
+        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+            Section 4. Data Privacy and Confidentiality Compliance
+          </h2>
+          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+            <p>
+              <strong>4.1 Statutory Compliance.</strong> All personal, academic, and biometric identifiers processed through ARALert are collected and handled in strict accordance with the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong>, its Implementing Rules and Regulations, and National Privacy Commission directives.
+            </p>
+            <p>
+              <strong>4.2 Scope of Data Processing.</strong> Personal information is collected exclusively to carry out the legitimate educational functions of the ARAL Program, compute risk tiers, track composite performance, and generate division-level statistical reports.
+            </p>
+            <p>
+              <strong>4.3 Detailed Privacy Statement.</strong> For specific terms regarding data retention, disclosure restrictions, and the rights of data subjects, users must consult the official{' '}
+              <Link to="/privacy" className="font-semibold text-[#0052B7] dark:text-blue-400 hover:underline">
+                Data Privacy Statement and Compliance Policy
+              </Link>.
+            </p>
+          </div>
+        </section>
+
+        {/* Section 5 */}
+        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+            Section 5. System Availability, Backups, and Service Limitations
+          </h2>
+          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+            <p>
+              <strong>5.1 Maintenance Schedules.</strong> Palanas National Agriculture High School reserves the right to suspend platform availability periodically for routine database optimization, server patching, security audits, and deployment of academic updates. Notice will be provided prior to scheduled downtime whenever practicable.
+            </p>
+            <p>
+              <strong>5.2 Service Warranty Disclaimer.</strong> While every reasonable technical measure is enacted to secure operational availability and data integrity, the platform is provided on an institutional &ldquo;as-available&rdquo; basis. The institution shall not be held liable for disruptions arising from telecommunications outages, local power disruptions, or unauthorized external cyber incidents beyond reasonable institutional control.
+            </p>
+          </div>
+        </section>
+
+        {/* Section 6 */}
+        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+            Section 6. Amendments, Governing Law, and Severability
+          </h2>
+          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+            <p>
+              <strong>6.1 Right of Amendment.</strong> The School Administration and the ARAL Program Implementation Committee reserve the right to amend or update these Terms to reflect legislative changes, DepEd orders, or technical enhancements. Continued use of the platform after publication of revised terms constitutes formal acceptance.
+            </p>
+            <p>
+              <strong>6.2 Governing Law.</strong> These Terms of Service shall be governed by and construed in conformity with the laws of the Republic of the Philippines and relevant Department of Education administrative regulations.
+            </p>
+            <p>
+              <strong>6.3 Severability.</strong> Should any provision of these Terms be adjudicated invalid, illegal, or unenforceable by a court of competent jurisdiction, such invalidity shall not affect the enforceability of the remaining sections.
+            </p>
+          </div>
+        </section>
+
+        {/* Section 7 */}
+        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+            Section 7. Institutional Inquiries and Official Contact
+          </h2>
+          <div className="space-y-2 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+            <p>
+              Official correspondence regarding the interpretation of these Terms, technical grievances, or academic disputes may be addressed to:
+            </p>
+            <div className="pl-4 border-l-2 border-slate-300 dark:border-neutral-700 space-y-1 text-xs sm:text-sm">
+              <p className="font-bold text-slate-900 dark:text-white">Office of the School Principal &bull; ARAL Program Committee</p>
+              <p className="text-slate-600 dark:text-slate-400">Palanas National Agriculture High School</p>
+              <p className="text-slate-600 dark:text-slate-400">Division of Masbate, Region V (Bicol), Philippines</p>
+              <p className="text-slate-600 dark:text-slate-400">
+                Official Email:{' '}
+                <a href="mailto:contact@aralert.ph" className="font-semibold text-[#0052B7] dark:text-blue-400 hover:underline">
+                  contact@aralert.ph
+                </a>
+              </p>
             </div>
-          </section>
+          </div>
+        </section>
 
-          {/* Section 4 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#0052B7] text-white text-xs font-bold">4</span>
-              Data Protection & Privacy Compliance (RA 10173)
-            </h2>
+        {/* Formal Document Footer */}
+        <footer className="pt-8 border-t border-slate-300 dark:border-neutral-800 text-xs text-slate-500 dark:text-neutral-500 space-y-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <p>
-              All personal and academic records collected through ARALert are governed by the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong>. Data is processed exclusively for official ARAL learning interventions, academic performance tracking, and statutory DepEd reporting.
+              &copy; {new Date().getFullYear()} Palanas National Agriculture High School. ARALert Educational System.
             </p>
             <p>
-              For full details regarding how your personal information is stored, processed, and protected, please review our comprehensive <Link to="/privacy" className="text-[#0052B7] dark:text-blue-400 font-semibold hover:underline">Privacy Policy</Link>.
+              Related Document:{' '}
+              <Link to="/privacy" className="font-semibold text-[#0052B7] dark:text-blue-400 hover:underline">
+                Data Privacy Statement &rarr;
+              </Link>
             </p>
-          </section>
-
-          {/* Section 5 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#0052B7] text-white text-xs font-bold">5</span>
-              System Availability & Service Level
-            </h2>
-            <p>
-              While ARALert strives for 99.9% uptime and high availability, system access may occasionally be interrupted for scheduled database backups, security patches, or server maintenance. Palanas National Agriculture High School and the development team are not liable for transient network dropouts outside the school server perimeter.
-            </p>
-          </section>
-
-          {/* Section 6 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#0052B7] text-white text-xs font-bold">6</span>
-              Contact & Inquiries
-            </h2>
-            <p>
-              For questions regarding these Terms of Service or to report system discrepancies, please contact:
-            </p>
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 space-y-1 text-xs sm:text-sm">
-              <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                <School className="w-4 h-4 text-[#0052B7] dark:text-blue-400" />
-                Palanas National Agriculture High School
-              </div>
-              <p className="text-slate-500 dark:text-neutral-400">ARAL Program Implementation Committee &bull; Division of Masbate, Region V</p>
-              <p className="text-slate-500 dark:text-neutral-400">Email: <a href="mailto:contact@aralert.ph" className="text-[#0052B7] dark:text-blue-400 hover:underline">contact@aralert.ph</a></p>
-            </div>
-          </section>
-
-        </div>
-
-        {/* Footer Link Switcher */}
-        <div className="pt-6 border-t border-slate-100 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-neutral-400">
-          <span>&copy; {new Date().getFullYear()} ARALert &bull; DepEd ARAL Program</span>
-          <Link to="/privacy" className="text-[#0052B7] dark:text-blue-400 hover:underline font-bold flex items-center gap-1">
-            Read Data Privacy Policy &rarr;
-          </Link>
-        </div>
+          </div>
+          <p className="text-[11px] text-slate-400 dark:text-neutral-600">
+            Published pursuant to DepEd ARAL Program operational standards. This document is officially cataloged and maintained by the School Administration.
+          </p>
+        </footer>
 
       </div>
     </div>

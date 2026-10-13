@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 
 /* ── 🖊️ Lightweight Hand-Drawn Pen Sketch Accents ────────────────────────── */
+/* Positioned so the stroke traces the ruled line the text sits on. */
 const PenRoughUnderline: React.FC<{ className?: string; variant?: 'single' | 'double' }> = ({
   className = 'text-[#1A5DAD]/80 dark:text-blue-400/80',
   variant = 'single',
@@ -16,7 +17,7 @@ const PenRoughUnderline: React.FC<{ className?: string; variant?: 'single' | 'do
     viewBox="0 0 240 12"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
-    className={`absolute -bottom-0.5 left-0 w-full h-2 pointer-events-none ${className}`}
+    className={`absolute bottom-[5px] left-0 w-full h-2 pointer-events-none ${className}`}
     preserveAspectRatio="none"
     aria-hidden="true"
   >
@@ -98,7 +99,7 @@ interface FAQItem {
 const FAQ_DATA: FAQItem[] = [
   {
     id: 1,
-    questionNumber: 'Q01',
+    questionNumber: 'Q1',
     topic: 'Mandate & Coverage',
     question: 'What is the primary mandate and coverage of the ARAL Program?',
     answer:
@@ -106,7 +107,7 @@ const FAQ_DATA: FAQItem[] = [
   },
   {
     id: 2,
-    questionNumber: 'Q02',
+    questionNumber: 'Q2',
     topic: 'Risk Detection',
     question: 'How does ARALert automatically identify learners at academic risk?',
     answer:
@@ -114,15 +115,15 @@ const FAQ_DATA: FAQItem[] = [
   },
   {
     id: 3,
-    questionNumber: 'Q03',
+    questionNumber: 'Q3',
     topic: 'Access & Roles',
     question: 'Who is authorized to access student performance records and evaluations?',
     answer:
-      'System access is strictly governed by institutional role: School Principals and Administrators oversee school-wide cohort analytics; Subject Teachers and Tutors manage their assigned student groups; while Students have individualized access to review their personal score trajectories and attendance records.',
+      'System access is strictly governed by institutional role: School Principals and Administrators oversee school-wide cohort analytics; Tutors manage their assigned student groups; while Students have individualized access to review their personal score trajectories and attendance records.',
   },
   {
     id: 4,
-    questionNumber: 'Q04',
+    questionNumber: 'Q4',
     topic: 'Attendance Security',
     question: 'How does the dynamic QR attendance verification prevent proxy attendance?',
     answer:
@@ -130,7 +131,7 @@ const FAQ_DATA: FAQItem[] = [
   },
   {
     id: 5,
-    questionNumber: 'Q05',
+    questionNumber: 'Q5',
     topic: 'Grade Adjustments',
     question: 'Can tutors submit score updates or assessment corrections after submission?',
     answer:
@@ -138,13 +139,23 @@ const FAQ_DATA: FAQItem[] = [
   },
   {
     id: 6,
-    questionNumber: 'Q06',
+    questionNumber: 'Q6',
     topic: 'Data Privacy',
     question: 'How does ARALert protect learner data under Philippine privacy laws?',
     answer:
       'All learner records—including Learner Reference Numbers (LRN), academic scores, and attendance logs—are secured under Republic Act No. 10173 (Data Privacy Act of 2012) using encrypted authentication, role-based access control, and comprehensive audit trails.',
   },
 ];
+
+/* Notebook grid constants (must match --notebook-grid in theme.css) */
+const GRID = 40;
+const SECTION_IDS = ['home', 'about', 'features', 'faq'];
+/* Rows reserved at the top of every section: 2 for the fixed navbar + 1 blank row */
+const MIN_TOP_ROWS = 3;
+
+/* Shared section shell: same side padding as the navbar so edges line up */
+const SECTION_CLASS =
+  'landing-section-anchor relative min-h-screen w-full flex flex-col justify-center items-center px-4 sm:px-8 lg:px-12 pt-20 pb-20 box-border';
 
 export const Landing: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
@@ -171,16 +182,16 @@ export const Landing: React.FC = () => {
     }
   }, []);
 
-  // Snap each section's height to at least full viewport, integer multiple of 32px notebook grid
+  // Snap every section's height to a multiple of the 40px ruled grid
   useEffect(() => {
     const snapSections = () => {
-      ['home', 'about', 'features', 'faq'].forEach((id) => {
+      SECTION_IDS.forEach((id) => {
         const el = document.getElementById(id);
         if (el) {
           el.style.minHeight = '';
           const rect = el.getBoundingClientRect();
           const targetHeight = Math.max(rect.height, window.innerHeight);
-          const snapped = Math.ceil(targetHeight / 40) * 40;
+          const snapped = Math.ceil(targetHeight / GRID) * GRID;
           el.style.minHeight = `${snapped}px`;
         }
       });
@@ -188,6 +199,7 @@ export const Landing: React.FC = () => {
 
     snapSections();
     const timer = setTimeout(snapSections, 150);
+    document.fonts?.ready.then(snapSections);
     window.addEventListener('resize', snapSections);
     return () => {
       clearTimeout(timer);
@@ -195,77 +207,79 @@ export const Landing: React.FC = () => {
     };
   }, []);
 
-  // Scroll-triggered entrance animations observer
+  // Scroll-triggered entrance animations observer with eager reveal on load
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add('revealed');
-          } else {
-            entry.target.classList.remove('revealed');
           }
         });
       },
       {
-        root: null,
-        rootMargin: '0px 0px -40px 0px',
-        threshold: 0.1,
+        threshold: 0.05,
       }
     );
 
     const elements = document.querySelectorAll('.scroll-reveal');
-    elements.forEach((el) => observer.observe(el));
+    elements.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      if (rect.top < window.innerHeight && rect.bottom > 0) {
+        el.classList.add('revealed');
+      }
+      observer.observe(el);
+    });
 
     return () => observer.disconnect();
   }, []);
 
   return (
     <div className="relative min-h-screen notebook-paper text-slate-900 dark:text-white transition-colors duration-200">
+      {/* Main Sections */}
+
       {/* ═══════════════════════════════════════════════════════════════
           1. HOME SECTION (Notebook Cover Page with Pen Accents)
           ═══════════════════════════════════════════════════════════════ */}
-      <section
-        id="home"
-        className="landing-section-anchor relative min-h-screen min-h-[100dvh] w-full flex flex-col justify-center items-center px-4 sm:px-8 lg:px-12 pt-20 pb-12 text-slate-900 dark:text-white overflow-hidden box-border"
-      >
-        <div className="max-w-4xl mx-auto w-full my-auto flex flex-col items-center justify-center text-center">
-          <div className="w-full flex flex-col justify-center items-center text-center max-w-3xl mx-auto scroll-reveal">
-            {/* Main Hero Headline */}
-            <h1 className="notebook-snap-h1 font-black tracking-tight flex items-center justify-center gap-2 select-none mx-auto mb-8">
+      <section id="home" className={`${SECTION_CLASS} overflow-hidden text-slate-900 dark:text-white`}>
+        <div className="notebook-page-container notebook-page-container--centered max-w-6xl mx-auto w-full">
+          <div className="max-w-3xl mx-auto text-center scroll-reveal">
+            {/* Main Hero Headline — 2 rows, wordmark baseline resting on the second rule */}
+            <h1 className="notebook-snap-h1 font-black tracking-tight flex items-end justify-center gap-2 select-none mb-10">
               <img
                 src={LogoImg}
                 alt="A"
-                className="h-[52px] sm:h-[58px] w-auto object-contain inline-block drop-shadow-sm transition-transform duration-200 hover:scale-105"
+                className="h-[52px] sm:h-[58px] w-auto object-contain mb-3"
               />
-              <span className="text-[#0052B7] dark:text-blue-400 font-extrabold tracking-tight">
+              <span className="relative top-[calc(28px-0.35em)] text-[#0052B7] dark:text-blue-400 font-extrabold tracking-tight">
                 RALert
               </span>
             </h1>
 
-            {/* Subtitle / Accompanying Description Text with Clean Pen Underlines & Encircled School Accent */}
-            <p className="text-base sm:text-lg lg:text-[1.25rem] leading-[2.25rem] sm:leading-[2.5rem] text-slate-700 dark:text-slate-200 font-medium max-w-3xl mx-auto px-2 mb-8">
+            {/* Subtitle — one ruled row per line */}
+            <p className="notebook-snap-lead text-slate-700 dark:text-slate-200 font-medium mb-10">
               A Web-Based Student Performance Monitoring and{' '}
               <span className="relative inline-block text-slate-900 dark:text-white font-bold">
                 Early Academic Risk Detection
                 <PenRoughUnderline variant="single" className="text-[#1A5DAD]/80 dark:text-blue-400/80" />
               </span>{' '}
               System for the ARAL Program of{' '}
-              <span className="relative inline-block px-3.5 py-0.5 mx-1 font-bold text-[#0052B7] dark:text-blue-400 whitespace-normal sm:whitespace-nowrap break-words">
+              <span className="relative inline-block px-3.5 mx-1 font-bold text-[#0052B7] dark:text-blue-400 whitespace-normal sm:whitespace-nowrap break-words">
                 Palanas National Agriculture High School
                 <PenDoodleOval className="text-[#0052B7] dark:text-blue-400" />
               </span>
               <span className="inline-block pl-0.5">.</span>
             </p>
 
-            {/* Primary Action Group: 2-line buttons (64px, borders flush with rules) */}
-            <div className="flex flex-wrap items-center justify-center gap-4 mt-8 w-full">
+            {/* Primary actions — one blank row, then 2-row buttons whose borders sit on rules */}
+            <div className="mt-10 flex flex-wrap items-start justify-center gap-x-4 gap-y-[38px]">
               <Link
+                id="hero-portal-cta"
                 to={isAuthenticated ? getDashboardLink() : '/login'}
                 onClick={() => {
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="group notebook-btn-2line inline-flex items-center justify-center gap-2.5 px-8 font-bold rounded-xl cursor-pointer select-none text-base border-2 border-[#0052B7] dark:border-blue-400 bg-transparent text-[#0052B7] dark:text-blue-400 hover:!bg-[#0052B7] hover:!text-white hover:!border-[#0052B7] dark:hover:!bg-[#0052B7] dark:hover:!text-white hover:shadow-lg hover:shadow-blue-600/25 transition-all duration-200"
+                className="group notebook-btn-2line inline-flex items-center justify-center gap-2.5 px-8 rounded-xl border-2 border-[#0052B7] dark:border-blue-400 text-[#0052B7] dark:text-blue-400 hover:!bg-[#0052B7] hover:!text-white hover:!border-[#0052B7] dark:hover:!bg-[#0052B7] dark:hover:!text-white font-bold text-base cursor-pointer select-none transition-all duration-200 hover:shadow-lg hover:shadow-blue-600/25"
               >
                 <span className="text-[#0052B7] dark:text-blue-400 group-hover:!text-white transition-colors duration-200">
                   {isAuthenticated ? 'Go to Dashboard' : 'Access System Portal'}
@@ -274,17 +288,17 @@ export const Landing: React.FC = () => {
               </Link>
 
               <a
+                id="hero-faq-cta"
                 href="#faq"
                 onClick={(e) => {
                   e.preventDefault();
-                  const el = document.getElementById('faq');
-                  if (el) {
-                    el.scrollIntoView({ behavior: 'smooth' });
-                  }
+                  document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' });
                 }}
-                className="group notebook-btn-2line inline-flex items-center justify-center gap-1.5 px-8 text-base font-bold rounded-xl border-2 border-slate-300 dark:border-neutral-700 bg-transparent text-slate-700 dark:text-slate-200 hover:!bg-[#0052B7] hover:!text-white hover:!border-[#0052B7] dark:hover:!bg-[#0052B7] dark:hover:!text-white hover:shadow-lg hover:shadow-blue-600/25 transition-all duration-200 cursor-pointer select-none"
+                className="group notebook-btn-2line inline-flex items-center justify-center px-8 rounded-xl border-2 border-slate-300 dark:border-neutral-700 text-slate-700 dark:text-slate-200 hover:!border-[#0052B7] hover:!bg-blue-50/70 hover:!text-[#0052B7] dark:hover:!border-blue-400 dark:hover:!bg-blue-950/40 dark:hover:!text-blue-400 font-bold text-base cursor-pointer select-none transition-all duration-200"
               >
-                <span>FAQ</span>
+                <span className="group-hover:!text-[#0052B7] dark:group-hover:!text-blue-400 transition-colors duration-200">
+                  FAQ
+                </span>
               </a>
             </div>
           </div>
@@ -292,82 +306,70 @@ export const Landing: React.FC = () => {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════
-          2. ABOUT SECTION (Left-to-Right Margin Layout with Red Rule)
+          2. ABOUT SECTION
           ═══════════════════════════════════════════════════════════════ */}
-      <section
-        id="about"
-        className="landing-section-anchor relative min-h-screen min-h-[100dvh] w-full flex flex-col justify-center items-center px-4 sm:px-8 lg:px-12 pt-20 pb-12 box-border"
-      >
-        <div className="notebook-page-container max-w-6xl mx-auto w-full my-auto">
-          {/* Vertical Red Margin Rule Line */}
-          <div className="notebook-red-margin-line" aria-hidden="true" />
-
-          {/* Left Margin Gutter Annotation */}
-          <div className="absolute left-1 sm:left-2 lg:left-3 top-4 sm:top-6 font-mono text-[10px] sm:text-xs text-[#1A5DAD]/80 dark:text-blue-400/70 font-bold select-none tracking-tight">
+      <section id="about" className={SECTION_CLASS}>
+        <div className="notebook-page-container max-w-6xl mx-auto w-full">
+          <span className="notebook-gutter-label hidden sm:block top-0" aria-hidden="true">
             PART I
-          </div>
+          </span>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-start text-left">
-            {/* Left Column (5 cols): Natural Left-to-Right Flow */}
-            <div className="lg:col-span-5 flex flex-col lg:sticky lg:top-28 scroll-reveal text-left">
-              <span className="notebook-snap-xs font-semibold tracking-wider uppercase text-[#0052B7] dark:text-blue-400 block text-left">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-y-10 lg:gap-x-14 items-start text-left">
+            {/* Left Column (5 cols) */}
+            <div className="lg:col-span-5 scroll-reveal">
+              <p className="notebook-snap-xs font-semibold tracking-wider uppercase text-[#0052B7] dark:text-blue-400">
                 About the Initiative
-              </span>
-              <h2 className="notebook-snap-h2 font-bold text-slate-900 dark:text-white tracking-tight mb-8 text-left">
+              </p>
+              <h2 className="notebook-snap-h2 font-bold text-slate-900 dark:text-white tracking-tight">
                 Bridging learning gaps through purposeful academic monitoring.
               </h2>
-              <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal mb-8 text-left">
+              <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
                 Designed for Palanas National Agriculture High School, ARALert provides educators and tutors with clear insight into student performance and attendance.
               </p>
-              <div className="pt-8 border-t border-slate-200/80 dark:border-neutral-800 text-left">
-                <p className="notebook-snap-xs text-slate-400 dark:text-slate-500 text-left">
-                  Aligned with{' '}
-                  <span className="relative inline-block font-semibold text-slate-600 dark:text-slate-300">
-                    Republic Act No. 12028
-                    <PenRoughUnderline variant="single" className="text-amber-500/80 dark:text-amber-400/80" />
-                  </span>{' '}
-                  (Academic Recovery and Accessible Learning Program Act) to support educational recovery and equity.
-                </p>
-              </div>
+              <p className="notebook-snap-xs mt-10 text-slate-500 dark:text-slate-500">
+                Aligned with{' '}
+                <span className="relative inline-block font-semibold text-slate-700 dark:text-slate-300">
+                  Republic Act No. 12028
+                  <PenRoughUnderline variant="single" className="text-amber-500/80 dark:text-amber-400/80" />
+                </span>{' '}
+                (Academic Recovery and Accessible Learning Program Act) to support educational recovery and equity.
+              </p>
             </div>
 
-            {/* Right Column (7 cols): Three Left-Aligned Items with Pen Checkmarks */}
-            <div className="lg:col-span-7 flex flex-col space-y-8 scroll-reveal scroll-delay-100 text-left">
-              {/* Item 1 */}
-              <div className="text-left">
-                <div className="flex items-center gap-2 h-8">
+            {/* Right Column (7 cols): three items, each a heading row + body rows */}
+            <div className="lg:col-span-7 space-y-10 scroll-reveal scroll-delay-100">
+              <div>
+                <div className="flex items-center gap-2 h-10">
                   <TeacherCheckmark />
                   <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
                     Core learning recovery
                   </h3>
                 </div>
-                <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal text-left">
+                <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
                   Focuses on essential competencies in English, Science, and Mathematics through structured, tutor-led sessions tailored to individual student needs.
                 </p>
               </div>
 
-              {/* Item 2 */}
-              <div className="text-left">
-                <div className="flex items-center gap-2 h-8">
+              <div>
+                <div className="flex items-center gap-2 h-10">
                   <TeacherCheckmark />
                   <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
                     Early risk detection
                   </h3>
                 </div>
-                <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal text-left">
+                <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
                   Replaces end-of-term surprises with continuous monitoring. Performance dips and attendance patterns are identified early so teachers can adapt their support.
                 </p>
               </div>
 
-              {/* Item 3 */}
-              <div className="text-left">
-                <div className="flex items-center gap-2 h-8">
+              <div>
+                <div className="flex items-center gap-2 h-10">
                   <TeacherCheckmark />
                   <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
                     Connected school community
                   </h3>
                 </div>
-                <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal text-left">
+                <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
                   Brings school administrators, subject teachers, tutors, and students together onto a unified, transparent record for shared accountability.
                 </p>
               </div>
@@ -377,77 +379,65 @@ export const Landing: React.FC = () => {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════
-          3. FEATURES SECTION (Left-to-Right Margin Layout with Red Rule)
+          3. FEATURES SECTION
           ═══════════════════════════════════════════════════════════════ */}
-      <section
-        id="features"
-        className="landing-section-anchor relative min-h-screen min-h-[100dvh] w-full flex flex-col justify-center items-center px-4 sm:px-8 lg:px-12 pt-20 pb-12 box-border"
-      >
-        <div className="notebook-page-container max-w-6xl mx-auto w-full my-auto">
-          {/* Vertical Red Margin Rule Line */}
-          <div className="notebook-red-margin-line" aria-hidden="true" />
-
-          {/* Left Margin Gutter Annotation */}
-          <div className="absolute left-1 sm:left-2 lg:left-3 top-4 sm:top-6 font-mono text-[10px] sm:text-xs text-[#1A5DAD]/80 dark:text-blue-400/70 font-bold select-none tracking-tight">
+      <section id="features" className={SECTION_CLASS}>
+        <div className="notebook-page-container max-w-6xl mx-auto w-full">
+          <span className="notebook-gutter-label hidden sm:block top-0" aria-hidden="true">
             PART II
-          </div>
+          </span>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-start text-left">
-            {/* Left Column (5 cols): Clean, Left-Aligned Intro */}
-            <div className="lg:col-span-5 flex flex-col lg:sticky lg:top-28 scroll-reveal text-left">
-              <span className="notebook-snap-xs font-semibold tracking-wider uppercase text-[#0052B7] dark:text-blue-400 block text-left">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-y-10 lg:gap-x-14 items-start text-left">
+            {/* Left Column (5 cols) */}
+            <div className="lg:col-span-5 scroll-reveal">
+              <p className="notebook-snap-xs font-semibold tracking-wider uppercase text-[#0052B7] dark:text-blue-400">
                 Platform Capabilities
-              </span>
-              <h2 className="notebook-snap-h2 font-bold text-slate-900 dark:text-white tracking-tight mb-8 text-left">
+              </p>
+              <h2 className="notebook-snap-h2 font-bold text-slate-900 dark:text-white tracking-tight">
                 Practical tools designed for everyday classroom workflow.
               </h2>
-              <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal mb-8 text-left">
+              <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
                 Three essential modules that simplify daily administrative routines and keep instructional time focused on student mentorship.
               </p>
-              <div className="pt-8 border-t border-slate-200/80 dark:border-neutral-800 text-left">
-                <p className="notebook-snap-xs text-slate-400 dark:text-slate-500 text-left">
-                  Synchronized in real time across daily check-ins, assessment scoring, and official DepEd reporting formats.
-                </p>
-              </div>
+              <p className="notebook-snap-xs mt-10 text-slate-500 dark:text-slate-500">
+                Synchronized in real time across daily check-ins, assessment scoring, and official DepEd reporting formats.
+              </p>
             </div>
 
-            {/* Right Column (7 cols): Three Left-Aligned Items with Pen Checkmarks */}
-            <div className="lg:col-span-7 flex flex-col space-y-8 scroll-reveal scroll-delay-100 text-left">
-              {/* Feature 1 */}
-              <div className="text-left">
-                <div className="flex items-center gap-2 h-8">
+            {/* Right Column (7 cols) */}
+            <div className="lg:col-span-7 space-y-10 scroll-reveal scroll-delay-100">
+              <div>
+                <div className="flex items-center gap-2 h-10">
                   <TeacherCheckmark />
                   <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
                     Automated performance tracking
                   </h3>
                 </div>
-                <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal text-left">
+                <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
                   Consolidates formative assessments, weekly quizzes, and tasks into clear summaries with automatic weighted calculations—saving teachers hours of spreadsheet work.
                 </p>
               </div>
 
-              {/* Feature 2 */}
-              <div className="text-left">
-                <div className="flex items-center gap-2 h-8">
+              <div>
+                <div className="flex items-center gap-2 h-10">
                   <TeacherCheckmark />
                   <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
                     Academic risk alerts
                   </h3>
                 </div>
-                <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal text-left">
+                <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
                   Flags learners who fall below target passing thresholds or incur unexcused absences, prompting timely intervention before learning gaps widen.
                 </p>
               </div>
 
-              {/* Feature 3 */}
-              <div className="text-left">
-                <div className="flex items-center gap-2 h-8">
+              <div>
+                <div className="flex items-center gap-2 h-10">
                   <TeacherCheckmark />
                   <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
                     Quick QR attendance
                   </h3>
                 </div>
-                <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal text-left">
+                <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
                   Fast session check-in and check-out via dynamic QR codes, keeping attendance records verified and tamper-proof without paper sign-in sheets.
                 </p>
               </div>
@@ -459,18 +449,11 @@ export const Landing: React.FC = () => {
       {/* ═══════════════════════════════════════════════════════════════
           4. FAQ SECTION (Quiz-Style Assessment Paper with Reveal Interaction)
           ═══════════════════════════════════════════════════════════════ */}
-      <section
-        id="faq"
-        className="landing-section-anchor relative min-h-screen min-h-[100dvh] w-full flex flex-col justify-center items-center px-4 sm:px-8 lg:px-12 pt-20 pb-16 box-border"
-      >
-        <div className="notebook-page-container max-w-6xl mx-auto w-full my-auto">
-          {/* Vertical Red Margin Rule Line */}
-          <div className="notebook-red-margin-line" aria-hidden="true" />
-
-          {/* Left Margin Gutter Annotation */}
-          <div className="absolute left-1 sm:left-2 lg:left-3 top-4 sm:top-6 font-mono text-[10px] sm:text-xs text-[#1A5DAD]/80 dark:text-blue-400/70 font-bold select-none tracking-tight">
+      <section id="faq" className={SECTION_CLASS}>
+        <div className="notebook-page-container max-w-6xl mx-auto w-full">
+          <span className="notebook-gutter-label hidden sm:block top-0" aria-hidden="true">
             PART III
-          </div>
+          </span>
 
           {/* Classroom Exam Paper Header Block */}
           <div className="border-b-2 border-slate-300 dark:border-neutral-700 pb-8 mb-8 text-xs font-mono text-slate-500 dark:text-slate-400 scroll-reveal text-left">
@@ -479,7 +462,7 @@ export const Landing: React.FC = () => {
                 <span className="font-bold text-slate-800 dark:text-slate-200">ASSESSMENT:</span> ARAL Program Knowledge Check
               </div>
               <div>
-                <span className="font-bold text-slate-800 dark:text-slate-200">SUBJECT:</span> Academic Recovery & Oversight
+                <span className="font-bold text-slate-800 dark:text-slate-200">SUBJECT:</span> Academic Recovery &amp; Oversight
               </div>
               <div>
                 <span className="font-bold text-slate-800 dark:text-slate-200">SCORE:</span>{' '}
@@ -498,13 +481,13 @@ export const Landing: React.FC = () => {
 
           {/* Section Titles */}
           <div className="mb-8 scroll-reveal text-left">
-            <span className="notebook-snap-xs font-bold tracking-widest uppercase text-[#0052B7] dark:text-blue-400 block mb-8 text-left">
+            <span className="notebook-snap-xs font-bold tracking-widest uppercase text-[#0052B7] dark:text-blue-400 block mb-2 text-left">
               Frequently Asked Questions
             </span>
-            <h2 className="notebook-snap-h2 font-black text-slate-900 dark:text-white tracking-tight mb-8 text-left">
+            <h2 className="notebook-snap-h2 font-black text-slate-900 dark:text-white tracking-tight mb-4 text-left">
               Comprehensive Platform Knowledge Check
             </h2>
-            <p className="notebook-snap-p text-slate-600 dark:text-slate-400 text-left mb-8">
+            <p className="notebook-snap-p text-slate-600 dark:text-slate-400 text-left">
               Everything educators, tutors, and learners need to know regarding ARALert workflows, early risk detection, and attendance verification.
             </p>
           </div>
@@ -590,7 +573,7 @@ export const Landing: React.FC = () => {
                       <div className="pb-6 pt-2 pl-4 sm:pl-7 pr-2 sm:pr-6 border-l-2 border-[#0052B7] dark:border-blue-400 ml-2 mb-4">
                         <div className="text-xs font-bold font-mono text-[#0052B7] dark:text-blue-400 mb-2 flex items-center gap-1.5 h-6">
                           <TeacherCheckmark />
-                          <span>OFFICIAL ANSWER KEY & RATIONALE:</span>
+                          <span>OFFICIAL ANSWER KEY &amp; RATIONALE:</span>
                         </div>
                         <p className="notebook-snap-p text-slate-700 dark:text-slate-300 font-normal text-left">
                           {faq.answer}

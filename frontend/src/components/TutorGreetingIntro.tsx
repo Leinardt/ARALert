@@ -4,19 +4,17 @@ import aralertLogo from '../assets/ARALert_Logo_LIGHT.png';
 
 interface TutorGreetingIntroProps {
   user: User | null;
-  isTutor: boolean;
+  isTutor?: boolean;
   sidebarLogoId?: string;
   sidebarTextId?: string;
 }
 
 export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
   user,
-  isTutor,
   sidebarLogoId = 'sidebar-brand-logo',
   sidebarTextId = 'sidebar-brand-text',
 }) => {
-  const isStudent = user?.role === 'student';
-  const isAllowed = isTutor || isStudent;
+  const isAllowed = Boolean(user);
   const [phase, setPhase] = useState<'idle' | 'centered' | 'flying' | 'completed'>('idle');
   const [bubbleVisible, setBubbleVisible] = useState(false);
   const [flightCoords, setFlightCoords] = useState<{
@@ -37,8 +35,28 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
   const timeGreeting =
     period === 'morning' ? 'Good morning' : period === 'afternoon' ? 'Good afternoon' : 'Good evening';
 
-  const firstName = user?.first_name || user?.full_name?.trim().split(' ')[0] || (isStudent ? 'Student' : 'Tutor');
-  const greetingRolePrefix = isStudent ? '' : 'tutor ';
+  // Role prefix for greeting: tutor, Principal, Teacher, Admin, or none for students
+  let greetingRolePrefix = '';
+  if (user?.role === 'tutor') {
+    greetingRolePrefix = 'tutor ';
+  } else if (user?.role === 'principal') {
+    greetingRolePrefix = 'Principal ';
+  } else if (user?.role === 'faculty') {
+    greetingRolePrefix = 'Teacher ';
+  } else if (user?.role === 'admin' || user?.is_superuser) {
+    greetingRolePrefix = 'Admin ';
+  }
+
+  const firstName =
+    user?.first_name?.trim() ||
+    user?.full_name?.trim().split(' ')[0] ||
+    (user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User');
+
+  // Check if this account is a newcomer (first-time login)
+  const isNewcomer =
+    sessionStorage.getItem('aralert_is_first_login') === 'true' ||
+    Boolean(user?.is_first_login) ||
+    !user?.privacy_consent_accepted_at;
 
   const triggerDismissalRef = useRef<() => void>(() => {});
 
@@ -164,11 +182,14 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
   useEffect(() => {
     if (!isAllowed || !user) return;
 
-    const isPending = sessionStorage.getItem('aralert_login_greeting_pending') === 'true';
+    const isPending =
+      sessionStorage.getItem('aralert_login_greeting_pending') === 'true' ||
+      !sessionStorage.getItem('aralert_greeting_played_in_session');
     if (!isPending) return;
 
     // Consume the pending flag immediately so it never repeats while using the system
     sessionStorage.removeItem('aralert_login_greeting_pending');
+    sessionStorage.setItem('aralert_greeting_played_in_session', 'true');
 
     // Immediately shift text left and hide sidebar logo so there is never an awkward empty space
     const sidebarLogo = document.getElementById(sidebarLogoId);
@@ -178,7 +199,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
     const sidebarText = document.getElementById(sidebarTextId);
     if (sidebarText) {
       sidebarText.style.transformOrigin = 'left center';
-      sidebarText.style.transform = 'translateX(-44px) scale(1.05)';
+      sidebarText.style.transform = 'translateX(-40px) scale(1.05)';
     }
 
     // Delay slightly for smooth page hydration and layout stabilization
@@ -277,7 +298,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
                 <span className="text-[var(--brand)] dark:text-blue-400 font-extrabold">
                   {firstName}
                 </span>
-                {sessionStorage.getItem('aralert_is_first_login') === 'true' || user?.is_first_login
+                {isNewcomer
                   ? '! Welcome to ARALert!'
                   : '! Welcome back!'}
               </p>
