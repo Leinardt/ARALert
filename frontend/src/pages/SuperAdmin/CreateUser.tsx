@@ -408,7 +408,6 @@ export const CreateUser: React.FC = () => {
                       >
                         <option value="basic">ARAL Basic</option>
                         <option value="plus">ARAL Plus</option>
-                        <option value="summer">ARAL Summer</option>
                       </select>
                     </div>
                     <div className="sm:col-span-2">
@@ -528,7 +527,6 @@ export const CreateUser: React.FC = () => {
                     >
                       <option value="basic">ARAL Basic</option>
                       <option value="plus">ARAL Plus</option>
-                      <option value="summer">ARAL Summer</option>
                     </select>
                   </div>
 

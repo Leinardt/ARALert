@@ -771,7 +771,6 @@ export const Profile: React.FC = () => {
               >
                 <option value="basic">Basic</option>
                 <option value="plus">Plus</option>
-                <option value="summer">Summer</option>
                 <option value="graduated">Graduated</option>
               </select>
             </div>
