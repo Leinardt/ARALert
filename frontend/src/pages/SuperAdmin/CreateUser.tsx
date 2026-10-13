@@ -10,7 +10,7 @@ import { useAuth } from '../../hooks/useAuth';
 
 const NAME_REGEX = /^[a-zA-Z\s.\-ñÑ']+$/;
 const SECTION_REGEX = /^[a-zA-Z0-9\s\-]+$/;
-const PHONE_REGEX = /^[0-9+\-\s()]+$/;
+const PHONE_REGEX = /^\d{11}$/;
 const LRN_REGEX = /^\d{12}$/;
 const DANGEROUS_INJECTION_PATTERN = /(--|;|\/\*|\*\/|@@|char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update|<script|<\/script>)/i;
 
@@ -50,9 +50,9 @@ const createUserSchema = z.object({
     .refine((v) => !v || NAME_REGEX.test(v), 'Parent / Guardian Name can only contain letters, spaces, hyphens, and periods.')
     .refine((v) => !v || !DANGEROUS_INJECTION_PATTERN.test(v), 'Invalid characters detected.'),
   contact_number: z.string()
-    .max(30, 'Contact Number must not exceed 30 characters.')
+    .max(11, 'Contact Number must be exactly 11 digits.')
     .optional()
-    .refine((v) => !v || PHONE_REGEX.test(v), 'Contact Number can only contain digits, spaces, hyphens, and plus sign (+).')
+    .refine((v) => !v || PHONE_REGEX.test(v), 'Contact Number must be exactly 11 digits (e.g. 09123456789).')
     .refine((v) => !v || !DANGEROUS_INJECTION_PATTERN.test(v), 'Invalid characters detected.'),
   has_bosy: z.boolean().optional(),
   has_mosy: z.boolean().optional(),
@@ -609,11 +609,12 @@ export const CreateUser: React.FC = () => {
                     <input
                       id="contact_number"
                       type="text"
-                      inputMode="tel"
+                      inputMode="numeric"
+                      maxLength={11}
                       placeholder="e.g. 09552040068"
                       {...register('contact_number')}
                       onInput={(e) => {
-                        e.currentTarget.value = e.currentTarget.value.replace(/[^0-9+\-\s()]/g, '');
+                        e.currentTarget.value = e.currentTarget.value.replace(/\D/g, '').slice(0, 11);
                       }}
                       className={`w-full rounded-md border px-3 py-2 text-xs font-medium shadow-2xs focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:bg-[#111111] dark:text-slate-100 ${
                         errors.contact_number || serverErrors?.contact_number ? 'border-red-300 dark:border-red-800' : 'border-gray-300 dark:border-[#1A1A1A]'

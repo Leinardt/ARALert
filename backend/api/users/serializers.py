@@ -120,9 +120,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def validate_contact_number(self, value):
         if not value:
             return ''
-        v = sanitize_input_text(value)
-        if v and (not PHONE_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v)):
-            raise serializers.ValidationError('Contact number can only contain digits, spaces, hyphens, and plus sign (+).')
+        v = sanitize_input_text(value).strip()
+        if v:
+            if not v.isdigit() or len(v) != 11:
+                raise serializers.ValidationError('Contact number must be exactly 11 digits (e.g., 09123456789).')
+            if DANGEROUS_INJECTION_PATTERN.search(v):
+                raise serializers.ValidationError('Invalid characters detected.')
         return v
 
     def validate_grade_level(self, value):
@@ -248,9 +251,12 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     def validate_contact_number(self, value):
         if not value:
             return ''
-        v = sanitize_input_text(value)
-        if v and (not PHONE_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v)):
-            raise serializers.ValidationError('Contact number can only contain digits, spaces, hyphens, and plus sign (+).')
+        v = sanitize_input_text(value).strip()
+        if v:
+            if not v.isdigit() or len(v) != 11:
+                raise serializers.ValidationError('Contact number must be exactly 11 digits (e.g., 09123456789).')
+            if DANGEROUS_INJECTION_PATTERN.search(v):
+                raise serializers.ValidationError('Invalid characters detected.')
         return v
 
     def validate_grade_level(self, value):
