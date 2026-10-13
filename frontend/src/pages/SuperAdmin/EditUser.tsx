@@ -60,19 +60,21 @@ const editUserSchema = z.object({
   has_eosy: z.boolean().optional(),
   has_summer: z.boolean().optional(),
 }).superRefine((data, ctx) => {
+  if (data.role === 'student' || data.role === 'tutor') {
+    if (!data.grade_level_section || !data.grade_level_section.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Assigned section is required.',
+        path: ['grade_level_section'],
+      });
+    }
+  }
   if (data.role === 'student') {
     if (!data.lrn || !LRN_REGEX.test(data.lrn)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'LRN must be exactly 12 digits (numbers only).',
         path: ['lrn'],
-      });
-    }
-    if (!data.grade_level_section || !data.grade_level_section.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Section is required.',
-        path: ['grade_level_section'],
       });
     }
     if (!data.parent_guardian_name || !data.parent_guardian_name.trim()) {
@@ -189,7 +191,7 @@ export const EditUser: React.FC = () => {
     try {
       const sectionStr = data.grade_level_section ? data.grade_level_section.toUpperCase().trim() : '';
       const gradeStr = data.grade_level_grade ? data.grade_level_grade.toUpperCase().trim() : 'GRADE 7';
-      const combinedGradeLevel = data.role === 'student'
+      const combinedGradeLevel = (data.role === 'student' || data.role === 'tutor')
         ? (sectionStr ? `${gradeStr} - ${sectionStr}` : gradeStr)
         : '';
 
@@ -403,7 +405,7 @@ export const EditUser: React.FC = () => {
                         <option value="plus">ARAL Plus</option>
                       </select>
                     </div>
-                    <div className="sm:col-span-2">
+                    <div>
                       <label htmlFor="subject" className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
                         Assigned Subject <span className="text-red-500">*</span>
                       </label>
@@ -417,6 +419,43 @@ export const EditUser: React.FC = () => {
                         <option value="Math">Math</option>
                         <option value="English">English</option>
                       </select>
+                    </div>
+                    <div>
+                      <label htmlFor="tutor_grade_level_grade" className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                        Assigned Grade Level <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="tutor_grade_level_grade"
+                        {...register('grade_level_grade')}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] text-xs font-semibold uppercase dark:text-slate-100"
+                      >
+                        <option value="GRADE 7">GRADE 7</option>
+                        <option value="GRADE 8">GRADE 8</option>
+                        <option value="GRADE 9">GRADE 9</option>
+                        <option value="GRADE 10">GRADE 10</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="tutor_grade_level_section" className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                        Assigned Section <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="tutor_grade_level_section"
+                        type="text"
+                        placeholder="e.g. HYACINTH"
+                        {...register('grade_level_section')}
+                        onInput={(e) => {
+                          e.currentTarget.value = e.currentTarget.value.replace(/[^a-zA-Z0-9\s\-]/g, '');
+                        }}
+                        className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] text-xs font-medium uppercase dark:bg-[#111111] dark:text-slate-100 ${
+                          errors.grade_level_section || serverErrors?.grade_level_section ? 'border-red-300 dark:border-red-800' : 'border-gray-300 dark:border-[#1A1A1A]'
+                        }`}
+                      />
+                      {(errors.grade_level_section || serverErrors?.grade_level_section) && (
+                        <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                          {errors.grade_level_section?.message || serverErrors?.grade_level_section?.[0]}
+                        </p>
+                      )}
                     </div>
                   </>
                 )}
