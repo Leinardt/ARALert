@@ -27,7 +27,10 @@ import {
   X,
   Search,
   User as UserIcon,
+  Camera,
+  CameraOff,
 } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
 import type { Attendance, User, AttendanceSession } from '../../types';
 import { ExportAttendanceModal } from '../../components/ExportAttendanceModal';
 import { matchesSearch } from '../../utils/searchHelpers';
@@ -714,6 +717,152 @@ export const TutorQRGenerator: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const tutorScannerRef = useRef<Html5Qrcode | null>(null);
+
+  // Tutor camera scanner state for scanning student permanent QR codes
+  const [isTutorScanning, setIsTutorScanning] = useState<boolean>(false);
+  const [tutorScanMessage, setTutorScanMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [tutorCameraError, setTutorCameraError] = useState<string | null>(null);
+  const [isProcessingStudentScan, setIsProcessingStudentScan] = useState<boolean>(false);
+
+  // Stop tutor camera scanner
+  const stopTutorScanner = async () => {
+    if (tutorScannerRef.current) {
+      try {
+        if (tutorScannerRef.current.isScanning) {
+          await tutorScannerRef.current.stop();
+        }
+        tutorScannerRef.current.clear();
+      } catch (err) {
+        console.warn('Failed to clear tutor scanner:', err);
+      }
+      tutorScannerRef.current = null;
+    }
+  };
+
+  // Handle scanned student QR code
+  const handleStudentScanResult = async (decodedText: string) => {
+    if (isProcessingStudentScan) return;
+    setIsProcessingStudentScan(true);
+    setTutorScanMessage(null);
+    try {
+      const res = await academicService.scanQRCode(decodedText.trim());
+      setTutorScanMessage({
+        type: 'success',
+        message: res.message || 'Student attendance recorded successfully!',
+      });
+      // Refresh attendance logs & session scanned list
+      void fetchAttendanceHistory();
+      if (session?.id) {
+        try {
+          const freshSession = await academicService.getActiveAttendanceSession('student');
+          if (freshSession && (freshSession as any).scanned_students) {
+            setScannedStudents((freshSession as any).scanned_students || []);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    } catch (err: any) {
+      console.error('Scan error:', err);
+      setTutorScanMessage({
+        type: 'error',
+        message: err.response?.data?.error || 'Failed to record student attendance. Verify student QR pass.',
+      });
+    } finally {
+      setTimeout(() => {
+        setIsProcessingStudentScan(false);
+      }, 1500);
+    }
+  };
+
+  // Tutor Camera scanner effect
+  useEffect(() => {
+    if (!isTutorScanning) {
+      void stopTutorScanner();
+      setTutorCameraError(null);
+      return;
+    }
+
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      setTutorCameraError(null);
+      await stopTutorScanner();
+      if (!isMounted) return;
+
+      try {
+        const qrContainer = document.getElementById('tutor-qr-reader');
+        if (!qrContainer) return;
+
+        const html5QrCode = new Html5Qrcode('tutor-qr-reader');
+        tutorScannerRef.current = html5QrCode;
+
+        const config = {
+          fps: 10,
+          qrbox: { width: 220, height: 220 },
+          aspectRatio: 1.0,
+        };
+
+        const cameras = await Html5Qrcode.getCameras().catch(() => []);
+        if (!isMounted) {
+          await stopTutorScanner();
+          return;
+        }
+
+        const preferredCamera =
+          cameras.find((cam) => /back|rear|environment/i.test(cam.label)) ||
+          cameras.find((cam) => /integrated|built-?in|webcam|front|user|face/i.test(cam.label)) ||
+          cameras[0];
+
+        const cameraChoice = preferredCamera?.id ? preferredCamera.id : { facingMode: 'environment' };
+
+        try {
+          await html5QrCode.start(
+            cameraChoice,
+            config,
+            (decodedText) => {
+              void handleStudentScanResult(decodedText);
+            },
+            () => {}
+          );
+        } catch (initialErr) {
+          if (!isMounted) return;
+          await html5QrCode.start(
+            { facingMode: 'user' },
+            config,
+            (decodedText) => {
+              void handleStudentScanResult(decodedText);
+            },
+            () => {}
+          );
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          console.error('Tutor camera init error:', err);
+          if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+            setTutorCameraError('Camera permission was denied. Please allow camera access in browser settings.');
+          } else if (err?.name === 'NotFoundError' || err?.message?.includes('No camera')) {
+            setTutorCameraError('No camera was detected on this device.');
+          } else {
+            setTutorCameraError(err?.message || 'Unable to access camera.');
+          }
+        }
+      }
+    }, 150);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+      void stopTutorScanner();
+    };
+  }, [isTutorScanning]);
+
+  // Clean up scanner on unmount
+  useEffect(() => {
+    return () => {
+      void stopTutorScanner();
+    };
+  }, []);
 
   // ── Data fetching ──────────────────────────────────────────────
   useEffect(() => {
@@ -1221,19 +1370,99 @@ export const TutorQRGenerator: React.FC = () => {
                 </div>
               )}
 
-              {/* QR Display */}
+              {/* Session Display / Camera Scanner Toggle */}
               <div className="order-1 mx-auto w-full max-w-sm">
-                <div className="relative flex min-h-[300px] items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-4 overflow-hidden">
+                {session?.is_active && (
+                  <div className="mb-3 flex items-center justify-between p-1 bg-gray-100 dark:bg-[#1A1A1A] rounded-lg border border-gray-200 dark:border-[#222]">
+                    <button
+                      type="button"
+                      onClick={() => setIsTutorScanning(false)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-md transition cursor-pointer ${
+                        !isTutorScanning
+                          ? 'bg-white dark:bg-[#252525] text-[var(--brand)] shadow-xs'
+                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                      }`}
+                    >
+                      <QrCode className="w-3.5 h-3.5" />
+                      <span>Show Session QR</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsTutorScanning(true)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-md transition cursor-pointer ${
+                        isTutorScanning
+                          ? 'bg-white dark:bg-[#252525] text-[var(--brand)] shadow-xs'
+                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                      }`}
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Scan Student QR</span>
+                    </button>
+                  </div>
+                )}
 
-                  {/* Corner scan-frame decorations */}
-                  {session && session.is_active && (
-                    <>
-                      <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-xs" />
-                      <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-xs" />
-                      <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-xs" />
-                      <span className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[var(--brand)] rounded-br-xs" />
-                    </>
-                  )}
+                {/* Live Tutor Scanner Feedback Banner */}
+                {tutorScanMessage && (
+                  <div
+                    className={`mb-3 flex items-start justify-between gap-2.5 w-full rounded-md p-3 text-xs font-medium animate-fade-in ${
+                      tutorScanMessage.type === 'success'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50'
+                        : 'bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {tutorScanMessage.type === 'success' ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      )}
+                      <span>{tutorScanMessage.message}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTutorScanMessage(null)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Viewport: Either Camera Scanner OR QR Display */}
+                {session?.is_active && isTutorScanning ? (
+                  <div className="relative flex min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-4 overflow-hidden">
+                    <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-xs z-10" />
+                    <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-xs z-10" />
+                    <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-xs z-10" />
+                    <span className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[var(--brand)] rounded-br-xs z-10" />
+
+                    <div className="w-full space-y-3">
+                      {tutorCameraError && (
+                        <div className="flex items-start gap-2.5 rounded-md border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30 p-3 text-xs text-red-700 dark:text-red-300">
+                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                          <span>{tutorCameraError}</span>
+                        </div>
+                      )}
+                      <div
+                        id="tutor-qr-reader"
+                        className="w-full font-mono text-xs text-white overflow-hidden rounded-md"
+                      />
+                      <p className="text-[11px] text-gray-500 dark:text-slate-400 text-center font-medium">
+                        Point camera at student permanent QR badge or phone screen
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative flex min-h-[300px] items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-4 overflow-hidden">
+                    {/* Corner scan-frame decorations */}
+                    {session && session.is_active && (
+                      <>
+                        <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-xs" />
+                        <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-xs" />
+                        <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-xs" />
+                        <span className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[var(--brand)] rounded-br-xs" />
+                      </>
+                    )}
 
                   {session ? (
                     <>
@@ -1277,6 +1506,7 @@ export const TutorQRGenerator: React.FC = () => {
                     </div>
                   )}
                 </div>
+              )}
 
                 {/* Countdown + session info */}
                 {session?.is_active && (

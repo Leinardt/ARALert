@@ -585,14 +585,109 @@ class AttendanceScanView(APIView):
 
     def post(self, request):
         user       = request.user
-        raw_session_id = request.data.get('session_id')
+        raw_input = request.data.get('session_id') or request.data.get('student_id') or request.data.get('qr_code')
 
-        if not raw_session_id:
-            return Response({'error': 'session_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not raw_input:
+            return Response({'error': 'QR code data is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        clean_code = str(raw_session_id).strip()
+        clean_code = str(raw_input).strip()
         norm_code = clean_code.lower().replace('-', '').replace(' ', '')
+        today = timezone.localdate()
+        current_time = timezone.localtime().time()
 
+        # ─── FLOW A: Tutor / Staff Scanning a Student's Permanent QR Code ───
+        if user.role in ('tutor', 'admin', 'principal') or user.is_superuser:
+            # Check if clean_code represents a student (e.g. UUID, LRN, or ARALERT:STUDENT:<uuid>)
+            student_candidate = None
+            extracted_token = clean_code
+            if clean_code.upper().startswith('ARALERT:STUDENT:'):
+                extracted_token = clean_code.split(':', 2)[2].strip()
+
+            try:
+                cand_uuid = uuid.UUID(extracted_token)
+                student_candidate = User.objects.filter(id=cand_uuid, role='student').first()
+            except (ValueError, TypeError):
+                pass
+
+            if not student_candidate:
+                student_candidate = User.objects.filter(lrn=clean_code, role='student').first()
+
+            if student_candidate:
+                # Find an active, unexpired student attendance session created by this tutor/staff for today
+                now = timezone.now()
+                active_session = ApiAttendanceSession.objects.filter(
+                    creator=user,
+                    session_type='student',
+                    is_active=True,
+                    expires_at__gt=now
+                ).order_by('-expires_at').first()
+
+                if not active_session:
+                    # Also check for any active session if superuser/admin
+                    if user.is_superuser or user.role in ('admin', 'principal'):
+                        active_session = ApiAttendanceSession.objects.filter(
+                            session_type='student',
+                            is_active=True,
+                            expires_at__gt=now
+                        ).order_by('-expires_at').first()
+
+                if not active_session:
+                    return Response({
+                        'error': 'No active attendance session found. Please start a session before scanning students.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Check if student is already marked present for today
+                existing_att = ApiAttendance.objects.filter(user=student_candidate, date=today).first()
+                if existing_att:
+                    return Response({
+                        'error': f"{student_candidate.get_full_name()} is already marked {existing_att.status.upper()} for today.",
+                        'student': {
+                            'id': str(student_candidate.id),
+                            'name': student_candidate.get_full_name(),
+                            'lrn': student_candidate.lrn,
+                        },
+                        'attendance': AttendanceSerializer(existing_att).data,
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                attendance = ApiAttendance.objects.create(
+                    user          = student_candidate,
+                    role          = 'student',
+                    date          = today,
+                    time_in       = current_time,
+                    status        = 'present',
+                    tutor         = active_session.creator,
+                    aral_activity = active_session.aral_activity,
+                    session       = active_session,
+                )
+
+                log_audit_event(
+                    'ATTENDANCE_STUDENT_SCANNED_BY_TUTOR',
+                    user=user,
+                    request=request,
+                    details={
+                        'student_id': str(student_candidate.id),
+                        'student_name': student_candidate.get_full_name(),
+                        'lrn': student_candidate.lrn,
+                        'tutor_id': str(user.id),
+                        'tutor_name': user.get_full_name(),
+                        'session_id': str(active_session.id),
+                        'date': str(today),
+                        'time_in': str(attendance.time_in),
+                        'status': 'present',
+                    }
+                )
+
+                return Response({
+                    'message': f"Successfully recorded attendance for {student_candidate.get_full_name()}!",
+                    'student': {
+                        'id': str(student_candidate.id),
+                        'name': student_candidate.get_full_name(),
+                        'lrn': student_candidate.lrn,
+                    },
+                    'attendance': AttendanceSerializer(attendance).data,
+                }, status=status.HTTP_200_OK)
+
+        # ─── FLOW B: Student Scanning Tutor QR or Staff Scanning DTR Session ───
         session = None
         # 1. Try exact UUID lookup first (QR scanner or full UUID entry)
         try:
