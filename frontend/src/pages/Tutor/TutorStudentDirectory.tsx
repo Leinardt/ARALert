@@ -330,7 +330,7 @@ const aralLevelRank: Record<string, number> = {
   const filteredAndSorted = useMemo(() => {
     return studentRows
       .filter((r) => {
-        return matchesSearch(search, r.student.full_name, r.student.first_name, r.student.last_name, r.student.lrn);
+        return matchesSearch(search, r.student.full_name, r.student.first_name, r.student.last_name, r.student.lrn, r.student.parent_guardian_name, r.student.contact_number);
       })
       .sort((a, b) => {
         if (sortField === 'name' || !sortField) {
@@ -342,9 +342,14 @@ const aralLevelRank: Record<string, number> = {
           const valB = b.student.lrn || '';
           return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
         }
-        if (sortField === 'sex') {
-          const valA = a.student.sex || a.student.gender || '';
-          const valB = b.student.sex || b.student.gender || '';
+        if (sortField === 'parent_guardian') {
+          const valA = a.student.parent_guardian_name || '';
+          const valB = b.student.parent_guardian_name || '';
+          return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        if (sortField === 'contact') {
+          const valA = a.student.contact_number || '';
+          const valB = b.student.contact_number || '';
           return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
         }
         if (sortField === 'level') {
@@ -542,7 +547,10 @@ const aralLevelRank: Record<string, number> = {
                         <SortableHeader label="LRN" field="lrn" />
                       </th>
                       <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                        <SortableHeader label="SEX" field="sex" />
+                        <SortableHeader label="PARENT / GUARDIAN" field="parent_guardian" />
+                      </th>
+                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                        <SortableHeader label="CONTACT NO." field="contact" />
                       </th>
                       <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
                         {hasMultipleAralLevels ? (
@@ -573,8 +581,11 @@ const aralLevelRank: Record<string, number> = {
                         <td className="px-4 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs font-normal font-mono">
                           {row.student.lrn || 'N/A'}
                         </td>
-                        <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-normal">
-                          {row.student.sex || row.student.gender || '—'}
+                        <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-normal uppercase">
+                          {row.student.parent_guardian_name || '—'}
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-mono">
+                          {row.student.contact_number || '—'}
                         </td>
                         <td className="px-4 py-2.5 whitespace-nowrap">
                           {getAralBadge(row.student.aral_level)}
