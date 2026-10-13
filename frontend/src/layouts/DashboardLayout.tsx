@@ -1017,7 +1017,7 @@ export const DashboardLayout: React.FC = () => {
               >
                 <div
                   id="sidebar-brand-logo"
-                  className="w-8 h-8 flex items-center justify-center shrink-0 select-none mr-0.5 transition-transform duration-300 ease-out group-hover/brand:scale-105 will-change-transform"
+                  className="w-7 h-7 flex items-center justify-center shrink-0 select-none transition-transform duration-300 ease-out group-hover/brand:scale-105 will-change-transform"
                 >
                   <img
                     src={aralertLogo}
@@ -1031,7 +1031,7 @@ export const DashboardLayout: React.FC = () => {
                   style={{
                     fontFamily: 'var(--font-heading)',
                     fontWeight: 700,
-                    fontSize: '0.925rem',
+                    fontSize: '0.825rem',
                     letterSpacing: '-0.02em',
                     lineHeight: 1.2,
                   }}
@@ -1040,12 +1040,12 @@ export const DashboardLayout: React.FC = () => {
                   ARALert
                 </span>
                 {getRoleLabel() && (
-                  <span className="flex items-center gap-1.5 min-w-0 select-none whitespace-nowrap">
+                  <span className="flex items-center gap-1 min-w-0 select-none whitespace-nowrap">
                     <span
                       style={{
                         fontFamily: 'var(--font-heading)',
                         fontWeight: 700,
-                        fontSize: '0.925rem',
+                        fontSize: '0.825rem',
                         letterSpacing: '-0.02em',
                         lineHeight: 1.2,
                       }}
@@ -1057,11 +1057,11 @@ export const DashboardLayout: React.FC = () => {
                       style={{
                         fontFamily: 'var(--font-heading)',
                         fontWeight: 700,
-                        fontSize: '0.925rem',
+                        fontSize: '0.825rem',
                         letterSpacing: '-0.02em',
                         lineHeight: 1.2,
                       }}
-                      className="text-black dark:text-white whitespace-nowrap truncate"
+                      className="text-black dark:text-white whitespace-nowrap"
                     >
                       {getRoleLabel()}
                     </span>
@@ -1213,7 +1213,7 @@ export const DashboardLayout: React.FC = () => {
             <div className="flex items-center gap-1.5 min-w-0 whitespace-nowrap">
               <span
                 style={{
-                  fontSize: '0.925rem',
+                  fontSize: '0.825rem',
                   fontWeight: 700,
                   letterSpacing: '-0.02em',
                   fontFamily: 'var(--font-heading)',
@@ -1224,10 +1224,10 @@ export const DashboardLayout: React.FC = () => {
                 ARALert
               </span>
               {getRoleLabel() && (
-                <span className="flex items-center gap-1.5 min-w-0 select-none whitespace-nowrap">
+                <span className="flex items-center gap-1 min-w-0 select-none whitespace-nowrap">
                   <span
                     style={{
-                      fontSize: '0.925rem',
+                      fontSize: '0.825rem',
                       fontWeight: 700,
                       letterSpacing: '-0.02em',
                       fontFamily: 'var(--font-heading)',
@@ -1239,13 +1239,13 @@ export const DashboardLayout: React.FC = () => {
                   </span>
                   <span
                     style={{
-                      fontSize: '0.925rem',
+                      fontSize: '0.825rem',
                       fontWeight: 700,
                       letterSpacing: '-0.02em',
                       fontFamily: 'var(--font-heading)',
                       lineHeight: 1.2,
                     }}
-                    className="text-black dark:text-white whitespace-nowrap truncate"
+                    className="text-black dark:text-white whitespace-nowrap"
                   >
                     {getRoleLabel()}
                   </span>
