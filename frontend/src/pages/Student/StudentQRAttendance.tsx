@@ -20,7 +20,7 @@ import {
   Check,
   RefreshCw,
 } from 'lucide-react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useAuth } from '../../hooks/useAuth';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
@@ -267,7 +267,7 @@ export const StudentQRAttendance: React.FC = () => {
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
 
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
   // Live ticking clock
@@ -517,7 +517,10 @@ export const StudentQRAttendance: React.FC = () => {
   const stopScanner = async () => {
     if (scannerRef.current) {
       try {
-        await scannerRef.current.clear();
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
+        scannerRef.current.clear();
       } catch (err) {
         console.warn('Failed to clear scanner:', err);
       }
@@ -568,58 +571,81 @@ export const StudentQRAttendance: React.FC = () => {
     const timer = setTimeout(async () => {
       setCameraError(null);
       await stopScanner();
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach((track) => track.stop());
-      } catch (permErr: any) {
-        if (isMounted) {
-          setCameraError(
-            permErr?.name === 'NotAllowedError'
-              ? 'Camera permission denied. Please allow camera access in browser settings.'
-              : 'Could not access camera device.'
-          );
-        }
-        return;
-      }
-
       if (!isMounted) return;
 
       try {
-        const scanner = new Html5QrcodeScanner(
-          'student-qr-reader',
-          {
-            fps: 10,
-            qrbox: { width: 220, height: 220 },
-            aspectRatio: 1.0,
-            showTorchButtonIfSupported: true,
-          },
-          false
-        );
+        const qrContainer = document.getElementById('student-qr-reader');
+        if (!qrContainer) return;
 
-        scanner.render(
-          async (decodedText) => {
-            await stopScanner();
-            if (isMounted) {
-              setIsCameraActive(false);
-            }
-            handleScanSubmit(decodedText);
-          },
-          () => {}
-        );
+        const html5QrCode = new Html5Qrcode('student-qr-reader');
+        scannerRef.current = html5QrCode;
 
-        scannerRef.current = scanner;
+        const config = {
+          fps: 10,
+          qrbox: { width: 220, height: 220 },
+          aspectRatio: 1.0,
+        };
+
+        const cameras = await Html5Qrcode.getCameras().catch(() => []);
+        if (!isMounted) {
+          await stopScanner();
+          return;
+        }
+
+        const preferredCamera =
+          cameras.find((cam) => /back|rear|environment/i.test(cam.label)) ||
+          cameras.find((cam) => /integrated|built-?in|webcam|front|user|face/i.test(cam.label)) ||
+          cameras[0];
+
+        const cameraChoice = preferredCamera?.id ? preferredCamera.id : { facingMode: 'environment' };
+
+        try {
+          await html5QrCode.start(
+            cameraChoice,
+            config,
+            async (decodedText) => {
+              await stopScanner();
+              if (isMounted) {
+                setIsCameraActive(false);
+              }
+              handleScanSubmit(decodedText);
+            },
+            () => {}
+          );
+        } catch (initialErr) {
+          if (!isMounted) return;
+          // Fallback to front camera or default
+          await html5QrCode.start(
+            { facingMode: 'user' },
+            config,
+            async (decodedText) => {
+              await stopScanner();
+              if (isMounted) {
+                setIsCameraActive(false);
+              }
+              handleScanSubmit(decodedText);
+            },
+            () => {}
+          );
+        }
       } catch (err: any) {
         if (isMounted) {
-          setCameraError('Unable to start camera preview.');
+          console.error('Camera init error:', err);
+          if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+            setCameraError('Camera permission was denied. Please allow camera access in your browser settings and try again.');
+          } else if (err?.name === 'NotFoundError' || err?.message?.includes('No camera')) {
+            setCameraError('No camera was detected on this device.');
+          } else {
+            setCameraError(err?.message || 'Unable to access your camera. Please allow camera permission and try again.');
+          }
         }
       }
-    }, 300);
+    }, 150);
 
     return () => {
       isMounted = false;
       clearTimeout(timer);
-      stopScanner();
+      void stopScanner();
     };
   }, [isCameraActive]);
 

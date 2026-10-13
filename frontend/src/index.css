@@ -52,10 +52,15 @@ html, body, #root {
 
 /* ── Scroll-triggered Entrance Animations (Replay on Revisit) ── */
 .scroll-reveal {
-  opacity: 0;
-  transform: translateY(20px);
+  opacity: 1;
+  transform: translateY(0);
   transition: opacity 0.4s ease-out, transform 0.4s ease-out;
   will-change: opacity, transform;
+}
+
+#home .scroll-reveal {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .scroll-reveal.revealed {
@@ -118,12 +123,12 @@ html, body, #root {
 }
 
 .glass-btn {
-  background-color: transparent;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(203, 213, 225, 0.9);
+  background-color: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
   color: #0052B7;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.08), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -132,7 +137,7 @@ html, body, #root {
   border-color: #0052B7 !important;
   color: #ffffff !important;
   transform: translateY(-1.5px);
-  box-shadow: 0 4px 14px rgba(0, 82, 183, 0.25);
+  box-shadow: 0 6px 20px rgba(0, 82, 183, 0.3);
 }
 
 .glass-btn:hover * {
@@ -154,11 +159,11 @@ html, body, #root {
 
 /* Glass Card Option Buttons */
 .glass-card-btn {
-  background-color: rgba(248, 250, 252, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.06), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
   transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -167,7 +172,7 @@ html, body, #root {
 .glass-card-btn:hover {
   border-color: #0052B7;
   transform: translateY(-1.5px);
-  box-shadow: 0 4px 12px rgba(0, 82, 183, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 82, 183, 0.16), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 .glass-card-btn:hover .card-title {
@@ -188,10 +193,12 @@ html, body, #root {
 /* ── Dark Mode States (Visible High-Contrast Blue Border with Subtle Glow) ── */
 .dark .glass-btn,
 :where(.dark, .dark *) .glass-btn {
-  background-color: transparent;
-  border-color: rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-color: rgba(255, 255, 255, 0.16);
   color: #60a5fa;
-  box-shadow: none;
+  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 .dark .glass-btn:hover,
@@ -222,19 +229,82 @@ html, body, #root {
   box-shadow: 0 0 6px rgba(96, 165, 250, 0.2) !important;
 }
 
-/* ── Landing Page Navbar Text Hover States ── */
+/* ── Landing Page Navbar Links ── */
 .landing-nav-link {
-  transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.landing-nav-link:hover {
-  color: #0052B7 !important;
+/* ── ✒️ Pen-Stroke Underline Hover ─────────────────────────────────────────────
+   Usage: put `.pen-trigger` on the interactive element and `.pen-underline` on
+   the text span inside it. On hover/focus a hand-drawn ink stroke is "drawn"
+   left → right beneath the text, and retracts quickly on leave. */
+.pen-underline {
+  position: relative;
+  display: inline-block;
+  --pen-color: #0052B7;
+  --pen-offset: -6px;
 }
 
-.dark .landing-nav-link:hover,
-:where(.dark, .dark *) .landing-nav-link:hover {
-  color: #60a5fa !important;
+.dark .pen-underline,
+:where(.dark, .dark *) .pen-underline {
+  --pen-color: #60a5fa;
 }
+
+.pen-underline::after {
+  content: '';
+  position: absolute;
+  left: -3px;
+  right: -3px;
+  bottom: var(--pen-offset);
+  height: 7px;
+  background-color: var(--pen-color);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 8' preserveAspectRatio='none'%3E%3Cpath d='M2 5.2C38 3.6 74 3.2 112 4.1S190 5.6 238 3.4' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") no-repeat center / 100% 100%;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 8' preserveAspectRatio='none'%3E%3Cpath d='M2 5.2C38 3.6 74 3.2 112 4.1S190 5.6 238 3.4' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") no-repeat center / 100% 100%;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.22s cubic-bezier(0.4, 0, 1, 1);
+  pointer-events: none;
+}
+
+.pen-trigger:hover .pen-underline::after,
+.pen-trigger:focus-visible .pen-underline::after {
+  clip-path: inset(0 0 0 0);
+  transition: clip-path 0.5s cubic-bezier(0.65, 0.05, 0.36, 1);
+}
+
+.pen-trigger:focus-visible {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pen-underline::after,
+  .pen-trigger:hover .pen-underline::after,
+  .pen-trigger:focus-visible .pen-underline::after {
+    transition: none;
+  }
+}
+
+/* ── 📷 Camera QR Scanner Viewport Styles ── */
+#student-qr-reader,
+#staff-qr-reader {
+  width: 100% !important;
+  border: none !important;
+}
+
+#student-qr-reader video,
+#staff-qr-reader video {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 340px !important;
+  object-fit: cover !important;
+  border-radius: 0.375rem !important;
+  margin: 0 auto !important;
+}
+
+#student-qr-reader img,
+#staff-qr-reader img {
+  display: none !important;
+}
+
 
 .landing-brand-link:hover span {
   color: #0052B7 !important;
@@ -247,9 +317,11 @@ html, body, #root {
 
 .dark .glass-card-btn,
 :where(.dark, .dark *) .glass-card-btn {
-  background-color: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: none;
+  background-color: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .dark .glass-card-btn:hover,
@@ -369,9 +441,9 @@ html, body, #root {
   --sidebar-heading:    #94A3B8;
 
   /* ── Glassmorphism ── */
-  --glass-bg:     rgba(255, 255, 255, 0.95);
-  --glass-border: rgba(226, 232, 240, 0.9);
-  --glass-shadow: 0 20px 50px -10px rgba(15, 23, 42, 0.08);
+  --glass-bg:     rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --glass-shadow: 0 16px 40px -10px rgba(15, 23, 42, 0.12), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
 
   /* ── Elevation / Shadows ── */
   --shadow-xs:  0 1px 2px rgba(15,23,42,0.05);
@@ -464,9 +536,9 @@ html, body, #root {
   --sidebar-active-text: #38BDF8;
   --sidebar-heading:    #71717A;
 
-  --glass-bg:     #000000;
-  --glass-border: #27272a;
-  --glass-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.95);
+  --glass-bg:     rgba(18, 24, 38, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-shadow: 0 20px 48px -10px rgba(0, 0, 0, 0.75), inset 0 1px 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 /* ── OLED / True Black Surfaces System (#000000) ── */
@@ -742,16 +814,16 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
 
 .glass-panel {
   background: var(--glass-bg);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
 }
 
 .glass-card {
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-md);

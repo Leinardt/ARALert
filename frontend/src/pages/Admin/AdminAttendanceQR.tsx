@@ -182,12 +182,13 @@ export const AdminAttendanceQR: React.FC = () => {
   const [attendanceLogs, setAttendanceLogs] = useState<Attendance[]>([]);
   const [tutors, setTutors] = useState<User[]>([]);
   const [faculty, setFaculty] = useState<User[]>([]);
+  const [principals, setPrincipals] = useState<User[]>([]);
   const [logsLoading, setLogsLoading] = useState<boolean>(true);
   const [logsError, setLogsError] = useState<string | null>(null);
   const [showDtrExportModal, setShowDtrExportModal] = useState<boolean>(false);
 
   // Filters & Controls
-  const [roleFilter, setRoleFilter] = useState<'all' | 'tutor' | 'faculty'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'tutor' | 'faculty' | 'principal'>('all');
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState<boolean>(false);
@@ -236,14 +237,16 @@ export const AdminAttendanceQR: React.FC = () => {
     setLogsLoading(true);
     setLogsError(null);
     try {
-      const [attData, tutorData, facultyData] = await Promise.all([
+      const [attData, tutorData, facultyData, principalData] = await Promise.all([
         academicService.getAttendanceHistory(),
         userService.getAllUsers({ role: 'tutor' }).catch(() => [] as User[]),
         userService.getAllUsers({ role: 'faculty' }).catch(() => [] as User[]),
+        userService.getAllUsers({ role: 'principal' }).catch(() => [] as User[]),
       ]);
       setAttendanceLogs(attData);
       setTutors(tutorData);
       setFaculty(facultyData);
+      setPrincipals(principalData);
     } catch (err) {
       console.error('Failed to load DTR logs:', err);
       setLogsError('Failed to load DTR history records.');
@@ -289,13 +292,14 @@ export const AdminAttendanceQR: React.FC = () => {
     }
   };
 
-  // ── Unified Staff Map (Tutors + Faculty) ───────────────────────
+  // ── Unified Staff Map (Tutors + Faculty + Principals) ──────────
   const allStaffUsers = useMemo(() => {
     const map = new Map<string, User>();
     tutors.forEach((t) => map.set(String(t.id), t));
     faculty.forEach((f) => map.set(String(f.id), f));
+    principals.forEach((p) => map.set(String(p.id), p));
     return Array.from(map.values());
-  }, [tutors, faculty]);
+  }, [tutors, faculty, principals]);
 
   const staffMap = useMemo(() => {
     const m = new Map<string, User>();
@@ -305,10 +309,16 @@ export const AdminAttendanceQR: React.FC = () => {
     return m;
   }, [allStaffUsers]);
 
-  // ── Derived DTR rows ────────────────────────────────────────────
+  // ── Derived DTR rows (STRICTLY Tutor, Faculty, and Principal only) ─
   const dtrRows = useMemo(() => {
     const rows = new Map<string, Attendance>();
     attendanceLogs.forEach((log) => {
+      const staff = staffMap.get(String(log.user)) || staffMap.get(String(log.tutor));
+      const role = (staff?.role || log.role || '').toLowerCase();
+      // Ensure DTR is strictly for tutors, faculty, and principal only
+      if (!['tutor', 'faculty', 'principal'].includes(role)) {
+        return;
+      }
       const key = `${log.user}-${log.date}`;
       const existing = rows.get(key);
       if (!existing) {
@@ -320,7 +330,7 @@ export const AdminAttendanceQR: React.FC = () => {
       });
     });
     return Array.from(rows.values());
-  }, [attendanceLogs]);
+  }, [attendanceLogs, staffMap]);
 
   // Unique logged dates for calendar dots
   const loggedDates = useMemo(() => {
@@ -726,9 +736,20 @@ export const AdminAttendanceQR: React.FC = () => {
 
           {/* Controls */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Role Filter toggle (ALL / TUTOR / FACULTY) */}
+            {/* Export DTR Button */}
+            <button
+              type="button"
+              id="admin-export-dtr-btn"
+              onClick={() => setShowDtrExportModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-md bg-[var(--brand)] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[var(--brand-dark)] shrink-0 cursor-pointer shadow-xs"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export DTR
+            </button>
+
+            {/* Role Filter toggle (ALL / TUTOR / FACULTY / PRINCIPAL) */}
             <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5">
-              {(['all', 'tutor', 'faculty'] as const).map((role) => (
+              {(['all', 'tutor', 'faculty', 'principal'] as const).map((role) => (
                 <button
                   key={role}
                   type="button"
@@ -1031,6 +1052,7 @@ export const AdminAttendanceQR: React.FC = () => {
           onClose={() => setShowDtrExportModal(false)}
           currentUser={user}
           attendanceLogs={attendanceLogs}
+          staffUsers={allStaffUsers}
         />
       )}
     </div>
