@@ -117,17 +117,23 @@ class UserListCreateView(generics.ListCreateAPIView):
         return UserListSerializer
 
     def get_queryset(self):
-        queryset = User.objects.filter(is_superuser=False).select_related('assigned_tutor')
         user = getattr(self.request, 'user', None)
         if not user or not user.is_authenticated:
-            return queryset.none()
+            return User.objects.none()
 
-        if not user.is_superuser:
-            # School Admins cannot view or manage Admin accounts; only SuperAdmin can
-            queryset = queryset.exclude(role='admin')
+        role = self.request.query_params.get('role', '').strip()
+
+        # SuperAdmin accounts are only visible to authenticated superusers
+        if user.is_superuser:
+            if role == 'superadmin':
+                queryset = User.objects.filter(is_superuser=True).select_related('assigned_tutor')
+            else:
+                queryset = User.objects.filter(is_superuser=False).select_related('assigned_tutor')
+        else:
+            # School Admins and lower cannot view SuperAdmins or Admins
+            queryset = User.objects.filter(is_superuser=False).exclude(role='admin').select_related('assigned_tutor')
 
         if not user.is_superuser and getattr(user, 'role', None) == 'tutor':
-            role = self.request.query_params.get('role', '').strip()
             if role == 'principal':
                 return queryset.filter(role='principal', is_active=True)
             return queryset.filter(assigned_tutor=user, role='student')
@@ -159,7 +165,7 @@ class UserListCreateView(generics.ListCreateAPIView):
                 | Q(lrn__icontains=search)
             )
 
-        if role:
+        if role and role != 'superadmin':
             if role == 'staff':
                 queryset = queryset.filter(role__in=['admin', 'principal', 'faculty', 'tutor'])
             else:
@@ -208,13 +214,27 @@ class UserListCreateView(generics.ListCreateAPIView):
 
     def create(self, request, *args, **kwargs):
         target_role = request.data.get('role')
-        if not request.user.is_superuser and target_role == 'admin':
+        is_creating_superadmin = (target_role == 'superadmin' or request.data.get('is_superuser') is True)
+
+        if is_creating_superadmin:
+            if not request.user.is_superuser:
+                return Response(
+                    {'detail': 'Only SuperAdmin can register SuperAdmin accounts.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        if target_role == 'admin' and not request.user.is_superuser:
             return Response(
                 {'detail': 'Only SuperAdmin can register School Admin accounts.'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        serializer = UserCreateSerializer(data=request.data)
+        data = request.data.copy()
+        if is_creating_superadmin:
+            data['is_superuser'] = True
+            data['role'] = None
+
+        serializer = UserCreateSerializer(data=data)
         serializer.is_valid(raise_exception=True)
 
         user = serializer.save()
@@ -222,7 +242,12 @@ class UserListCreateView(generics.ListCreateAPIView):
             'USER_CREATED',
             user=request.user,
             request=request,
-            details={'target_user_id': str(user.id), 'target_username': user.username, 'role': user.role, 'email': user.email}
+            details={
+                'target_user_id': str(user.id),
+                'target_username': user.username,
+                'role': 'superadmin' if user.is_superuser else user.role,
+                'email': user.email
+            }
         )
         return Response(
             UserListSerializer(user).data,

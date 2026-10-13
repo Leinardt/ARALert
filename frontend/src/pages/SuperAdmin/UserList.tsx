@@ -37,7 +37,7 @@ const getSubjectBadge = (subject?: string | null) => {
   return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/60">{subject}</span>;
 };
 
-type AccountTab = 'student' | 'tutor' | 'faculty' | 'principal' | 'admin';
+type AccountTab = 'student' | 'tutor' | 'faculty' | 'principal' | 'admin' | 'superadmin';
 
 export const UserList: React.FC = () => {
   const { user: currentUser } = useAuth();
@@ -47,6 +47,7 @@ export const UserList: React.FC = () => {
 
   // Determine active tab from URL pathname
   const initialTab = useMemo<AccountTab>(() => {
+    if (location.pathname.includes('/superadmins') && isSuperUser) return 'superadmin';
     if (location.pathname.includes('/admins') && isSuperUser) return 'admin';
     if (location.pathname.includes('/principals')) return 'principal';
     if (location.pathname.includes('/faculty')) return 'faculty';
@@ -82,7 +83,13 @@ export const UserList: React.FC = () => {
 
   // Sync tab with pathname on URL change
   useEffect(() => {
-    if (location.pathname.includes('/admins')) {
+    if (location.pathname.includes('/superadmins')) {
+      if (isSuperUser && activeTab !== 'superadmin') {
+        setActiveTab('superadmin');
+      } else if (!isSuperUser) {
+        navigate('/admin/students', { replace: true });
+      }
+    } else if (location.pathname.includes('/admins')) {
       if (isSuperUser && activeTab !== 'admin') {
         setActiveTab('admin');
       } else if (!isSuperUser) {
@@ -100,7 +107,7 @@ export const UserList: React.FC = () => {
   }, [location.pathname, isSuperUser, activeTab, navigate]);
 
   const handleTabChange = (newTab: AccountTab) => {
-    if (!isSuperUser && newTab === 'admin') return;
+    if (!isSuperUser && (newTab === 'admin' || newTab === 'superadmin')) return;
     setActiveTab(newTab);
     setPage(1);
     setSearch('');
@@ -122,6 +129,7 @@ export const UserList: React.FC = () => {
         newTab === 'tutor' ? '/superadmin/tutors' :
         newTab === 'principal' ? '/superadmin/principals' :
         newTab === 'admin' ? '/superadmin/admins' :
+        newTab === 'superadmin' ? '/superadmin/superadmins' :
         '/superadmin/faculty';
       navigate(targetPath, { replace: true });
     }
@@ -136,6 +144,7 @@ export const UserList: React.FC = () => {
     ];
     if (isSuperUser) {
       tabs.push(['admin', 'ADMINS']);
+      tabs.push(['superadmin', 'SUPER ADMINS']);
     }
     return tabs;
   }, [isSuperUser]);
@@ -325,6 +334,7 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
     if (activeTab === 'tutor') return 'Add Tutor';
     if (activeTab === 'principal') return 'Add Principal';
     if (activeTab === 'admin') return 'Add Admin';
+    if (activeTab === 'superadmin') return 'Add Super Admin';
     return 'Add Faculty';
   };
 
@@ -333,6 +343,7 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
     if (activeTab === 'tutor') return 'Search Tutor Name, Email...';
     if (activeTab === 'principal') return 'Search Principal Name, Email...';
     if (activeTab === 'admin') return 'Search Admin Name, Email...';
+    if (activeTab === 'superadmin') return 'Search Super Admin Name, Email...';
     return 'Search Faculty Name, Email...';
   };
 
@@ -556,7 +567,8 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                         activeTab === 'student' ? 'STUDENT' :
                         activeTab === 'tutor' ? 'TUTOR' :
                         activeTab === 'principal' ? 'PRINCIPAL' :
-                        activeTab === 'admin' ? 'ADMIN' : 'FACULTY'
+                        activeTab === 'admin' ? 'ADMIN' :
+                        activeTab === 'superadmin' ? 'SUPER ADMIN' : 'FACULTY'
                       }
                       field="last_name"
                     />
@@ -824,8 +836,8 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                           </>
                         )}
 
-                        {/* Faculty, Principal & Admin Columns */}
-                        {(activeTab === 'faculty' || activeTab === 'principal' || activeTab === 'admin') && (
+                        {/* Faculty, Principal, Admin & SuperAdmin Columns */}
+                        {(activeTab === 'faculty' || activeTab === 'principal' || activeTab === 'admin' || activeTab === 'superadmin') && (
                           <>
                             <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
                               {u.email}

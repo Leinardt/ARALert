@@ -31,7 +31,7 @@ const createUserSchema = z.object({
     .refine((v) => NAME_REGEX.test(v), 'Last Name can only contain letters, spaces, hyphens, and periods.')
     .refine((v) => !DANGEROUS_INJECTION_PATTERN.test(v), 'Invalid characters detected.'),
   email: z.string().optional(),
-  role: z.enum(['admin', 'principal', 'faculty', 'tutor', 'student'], {
+  role: z.enum(['superadmin', 'admin', 'principal', 'faculty', 'tutor', 'student'], {
     message: 'Please select a valid role.',
   }),
   lrn: z.string().optional(),
@@ -120,7 +120,7 @@ export const CreateUser: React.FC = () => {
   const searchParams = new URLSearchParams(location.search);
   const requestedRole = searchParams.get('role');
   const allowedRoles = isSuperUser
-    ? ['student', 'tutor', 'faculty', 'principal', 'admin']
+    ? ['student', 'tutor', 'faculty', 'principal', 'admin', 'superadmin']
     : ['student', 'tutor', 'faculty', 'principal'];
   const initialRole = (requestedRole && allowedRoles.includes(requestedRole))
     ? (requestedRole as CreateUserFields['role'])
@@ -157,7 +157,7 @@ export const CreateUser: React.FC = () => {
   const selectedRole = watch('role');
 
   useEffect(() => {
-    if (!isSuperUser && requestedRole === 'admin') {
+    if (!isSuperUser && (requestedRole === 'admin' || requestedRole === 'superadmin')) {
       navigate('/admin/students', { replace: true });
     }
   }, [isSuperUser, requestedRole, navigate]);
@@ -197,6 +197,10 @@ export const CreateUser: React.FC = () => {
         return {
           title: 'Pre-Register School Admin',
         };
+      case 'superadmin':
+        return {
+          title: 'Add Super Admin',
+        };
       default:
         return {
           title: 'Register Account',
@@ -211,6 +215,7 @@ export const CreateUser: React.FC = () => {
       if (selectedRole === 'faculty') return '/superadmin/faculty';
       if (selectedRole === 'principal') return '/superadmin/principals';
       if (selectedRole === 'admin') return '/superadmin/admins';
+      if (selectedRole === 'superadmin') return '/superadmin/superadmins';
       return '/superadmin/users';
     }
     if (selectedRole === 'tutor') return '/admin/tutors';
