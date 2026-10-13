@@ -27,8 +27,18 @@ import {
   ChevronDown,
   ArrowUpDown,
   History,
+  QrCode,
+  Download,
+  FileText,
+  Image,
 } from 'lucide-react';
 import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
+import {
+  exportStudentQrToJpeg,
+  exportStudentQrToPdf,
+  exportStudentQrToDocx,
+  generateStudentQrDataUrl,
+} from '../../utils/studentQrExportService';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 import { getStudentAvatarColor as avatarColor } from '../../utils/studentFormatters';
@@ -251,6 +261,9 @@ export const TutorStudentProfile: React.FC = () => {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showRiskModal, setShowRiskModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrPreviewUrl, setQrPreviewUrl] = useState<string | null>(null);
+  const [isExportingQr, setIsExportingQr] = useState(false);
 
   const [activityForm, setActivityForm] = useState({
     title: '',
@@ -586,6 +599,24 @@ export const TutorStudentProfile: React.FC = () => {
             >
               <Edit3 className="w-3.5 h-3.5" />
               <span>{pendingEditRequest ? 'View Pending Request' : 'Edit Student Details'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                if (profile) {
+                  setShowQrModal(true);
+                  if (!qrPreviewUrl) {
+                    const url = await generateStudentQrDataUrl(profile.student.id, 280);
+                    setQrPreviewUrl(url);
+                  }
+                }
+              }}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold border border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition cursor-pointer"
+              title="View and export permanent attendance QR code for this student"
+            >
+              <QrCode className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span>Export Student QR</span>
             </button>
 
             <button
@@ -1204,6 +1235,132 @@ export const TutorStudentProfile: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowPendingModal(false)}
+                className="bg-gray-100 dark:bg-[#1A1A1A] hover:bg-gray-200 dark:hover:bg-[#222222] text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md text-xs font-bold transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Student Permanent QR Export Modal ─────────────────── */}
+      {showQrModal && profile && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#111111] rounded-xl p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <QrCode className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 dark:text-white text-base">Permanent Attendance QR</h3>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Fixed student pass for offline & printed scanning</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQrModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* QR Preview Card */}
+            <div className="flex flex-col items-center justify-center p-5 bg-gradient-to-b from-slate-50 to-slate-100 dark:from-[#0D0D0D] dark:to-[#161616] rounded-xl border border-gray-200 dark:border-white/5">
+              <div className="p-3 bg-white rounded-lg shadow-sm border border-gray-200">
+                {qrPreviewUrl ? (
+                  <img
+                    src={qrPreviewUrl}
+                    alt={`${profile.student.name}'s QR Code`}
+                    className="w-48 h-48 rounded object-contain"
+                  />
+                ) : (
+                  <div className="w-48 h-48 flex items-center justify-center text-xs text-gray-400">
+                    Generating QR code...
+                  </div>
+                )}
+              </div>
+              <div className="mt-3 text-center">
+                <div className="text-sm font-bold text-gray-900 dark:text-white">{profile.student.name}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-0.5">
+                  LRN: {profile.student.lrn || 'Not Assigned'}
+                </div>
+                <div className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold mt-0.5 uppercase tracking-wider">
+                  Level: {profile.student.aral_level || 'General'}
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed text-center">
+              Tutors can scan this QR code anytime during an active attendance session. Export and print this pass for students with no mobile internet access.
+            </p>
+
+            {/* Export Buttons */}
+            <div className="grid grid-cols-3 gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isExportingQr}
+                onClick={async () => {
+                  try {
+                    setIsExportingQr(true);
+                    await exportStudentQrToPdf(profile.student);
+                  } catch (e) {
+                    console.error('Failed to export PDF', e);
+                  } finally {
+                    setIsExportingQr(false);
+                  }
+                }}
+                className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50/50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/40 text-red-700 dark:text-red-300 font-semibold text-xs transition cursor-pointer disabled:opacity-50"
+              >
+                <Download className="w-4 h-4 text-red-600 dark:text-red-400" />
+                <span>Print PDF</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isExportingQr}
+                onClick={async () => {
+                  try {
+                    setIsExportingQr(true);
+                    await exportStudentQrToDocx(profile.student);
+                  } catch (e) {
+                    console.error('Failed to export DOCX', e);
+                  } finally {
+                    setIsExportingQr(false);
+                  }
+                }}
+                className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold text-xs transition cursor-pointer disabled:opacity-50"
+              >
+                <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span>Word Doc</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isExportingQr}
+                onClick={async () => {
+                  try {
+                    setIsExportingQr(true);
+                    await exportStudentQrToJpeg(profile.student);
+                  } catch (e) {
+                    console.error('Failed to export JPEG', e);
+                  } finally {
+                    setIsExportingQr(false);
+                  }
+                }}
+                className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-semibold text-xs transition cursor-pointer disabled:opacity-50"
+              >
+                <Image className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Save JPEG</span>
+              </button>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
+              <button
+                type="button"
+                onClick={() => setShowQrModal(false)}
                 className="bg-gray-100 dark:bg-[#1A1A1A] hover:bg-gray-200 dark:hover:bg-[#222222] text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md text-xs font-bold transition cursor-pointer"
               >
                 Close

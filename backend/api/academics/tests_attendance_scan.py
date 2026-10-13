@@ -149,3 +149,35 @@ class AttendanceScanTimezoneTests(TestCase):
         attendance = ApiAttendance.objects.get(user=self.student, date=timezone.localdate())
         expected_hour = timezone.localtime().hour
         self.assertEqual(attendance.time_in.hour, expected_hour)
+
+    def test_tutor_scans_student_permanent_qr_code(self):
+        """Tutor scanning student's permanent QR code records student attendance as present."""
+        # 1. Tutor creates active student session
+        session = ApiAttendanceSession.objects.create(
+            id=uuid.uuid4(),
+            creator=self.tutor,
+            session_type='student',
+            is_active=True,
+            expires_at=timezone.now() + timezone.timedelta(minutes=15)
+        )
+
+        # 2. Tutor scans student's permanent QR token
+        student_qr = f"ARALERT:STUDENT:{self.student.id}"
+        req = self.factory.post('/api/academics/attendance/scan/', {'qr_code': student_qr})
+        force_authenticate(req, user=self.tutor)
+        resp = AttendanceScanView.as_view()(req)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('Successfully recorded attendance', resp.data['message'])
+
+        att = ApiAttendance.objects.get(user=self.student, date=timezone.localdate())
+        self.assertEqual(att.status, 'present')
+        self.assertEqual(att.tutor, self.tutor)
+        self.assertEqual(att.time_in.hour, timezone.localtime().hour)
+
+        # 3. Scanning again returns duplicate notice
+        req2 = self.factory.post('/api/academics/attendance/scan/', {'qr_code': student_qr})
+        force_authenticate(req2, user=self.tutor)
+        resp2 = AttendanceScanView.as_view()(req2)
+        self.assertEqual(resp2.status_code, 400)
+        self.assertIn('already marked', resp2.data['error'])

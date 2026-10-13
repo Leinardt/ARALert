@@ -19,9 +19,19 @@ import {
   UserCheck,
   Check,
   RefreshCw,
+  QrCode,
+  Download,
+  FileText,
+  Image,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useAuth } from '../../hooks/useAuth';
+import {
+  exportStudentQrToJpeg,
+  exportStudentQrToPdf,
+  exportStudentQrToDocx,
+  generateStudentQrDataUrl,
+} from '../../utils/studentQrExportService';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 
@@ -269,6 +279,25 @@ export const StudentQRAttendance: React.FC = () => {
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  const [studentQrUrl, setStudentQrUrl] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [activeTabMode, setActiveTabMode] = useState<'my_qr' | 'scan_camera'>('my_qr');
+
+  // Load permanent QR code data url
+  useEffect(() => {
+    let isMounted = true;
+    if (user?.id) {
+      generateStudentQrDataUrl(user.id, 280)
+        .then((url) => {
+          if (isMounted) setStudentQrUrl(url);
+        })
+        .catch((err) => console.error('Failed to generate student QR:', err));
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   // Live ticking clock
   useEffect(() => {
@@ -658,13 +687,40 @@ export const StudentQRAttendance: React.FC = () => {
     >
       {/* ── Main Grid ───────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* ── LEFT: Attendance Scanner Card ── */}
+        {/* ── LEFT: Student Permanent QR Pass Card ── */}
         <div className="lg:col-span-7">
           <div className="h-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden flex flex-col justify-between">
             {/* Card Header */}
             <div className="h-[52px] shrink-0 flex items-center justify-between px-5 border-b border-gray-100 dark:border-[#1A1A1A]">
-              <div>
-                <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">SCAN QR CODE</h2>
+              <div className="flex items-center gap-2">
+                <QrCode className="w-4 h-4 text-[var(--brand)]" />
+                <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">
+                  {activeTabMode === 'my_qr' ? 'MY ATTENDANCE QR PASS' : 'SCAN TUTOR CODE'}
+                </h2>
+              </div>
+              <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#151515] p-0.5 rounded-lg border border-gray-200 dark:border-[#222]">
+                <button
+                  type="button"
+                  onClick={() => setActiveTabMode('my_qr')}
+                  className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${
+                    activeTabMode === 'my_qr'
+                      ? 'bg-white dark:bg-[#252525] text-[var(--brand)] shadow-xs'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                  }`}
+                >
+                  My QR Pass
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTabMode('scan_camera')}
+                  className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${
+                    activeTabMode === 'scan_camera'
+                      ? 'bg-white dark:bg-[#252525] text-[var(--brand)] shadow-xs'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                  }`}
+                >
+                  Scan / Code
+                </button>
               </div>
             </div>
 
@@ -697,85 +753,210 @@ export const StudentQRAttendance: React.FC = () => {
                 </div>
               )}
 
-              {/* Viewport Frame with Corner Scan Brackets */}
-              <div className="w-full">
-                <div className="relative flex min-h-[320px] sm:min-h-[360px] w-full items-center justify-center rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#111111]/60 p-5 overflow-hidden">
-                  {/* Scan frame corners */}
-                  <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-sm z-10" />
-                  <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-sm z-10" />
-                  <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-sm z-10" />
-                  <span className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[var(--brand)] rounded-br-sm z-10" />
+              {activeTabMode === 'my_qr' ? (
+                /* ── Permanent Student QR Badge View ── */
+                <div className="w-full flex flex-col items-center gap-4">
+                  <div className="w-full max-w-sm flex flex-col items-center justify-center p-6 bg-gradient-to-b from-slate-50 to-slate-100/70 dark:from-[#111111] dark:to-[#161616] rounded-xl border border-dashed border-gray-300 dark:border-white/10 relative">
+                    <span className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-sm" />
+                    <span className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-sm" />
+                    <span className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-sm" />
+                    <span className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-[var(--brand)] rounded-br-sm" />
 
-                  <div className="w-full max-w-md mx-auto space-y-3">
-                    {cameraError && (
-                      <div className="flex items-start gap-2.5 rounded-md border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30 p-3 text-xs text-red-700 dark:text-red-300">
-                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                        <span>{cameraError}</span>
-                      </div>
-                    )}
-                    <div
-                      id="student-qr-reader"
-                      className="w-full font-mono text-xs text-white overflow-hidden rounded-md"
-                    />
-                    {!isCameraActive && (
-                      <div className="flex justify-center pt-2">
-                        <button
-                          type="button"
-                          onClick={restartScanner}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[var(--brand)] text-white text-xs font-bold hover:bg-[var(--brand-dark)] transition cursor-pointer"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          <span>Scan Again</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+                    <div className="p-3 bg-white rounded-lg shadow-sm border border-gray-200 dark:border-gray-300">
+                      {studentQrUrl ? (
+                        <img
+                          src={studentQrUrl}
+                          alt={`${user?.full_name || 'Student'}'s QR Pass`}
+                          className="w-48 h-48 sm:w-56 sm:h-56 rounded object-contain"
+                        />
+                      ) : (
+                        <div className="w-48 h-48 flex items-center justify-center text-xs text-gray-400">
+                          Generating permanent QR code...
+                        </div>
+                      )}
+                    </div>
 
-              {/* Manual Input Container */}
-              <div className="w-full">
-                <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] p-3.5 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase">MANUAL ENTRY</h3>
-                      <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
-                        Enter the 6-character code from your tutor's screen
+                    <div className="mt-3.5 text-center">
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                        {user?.full_name || studentFirstName}
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-0.5">
+                        LRN: {user?.lrn || 'Not Assigned'}
                       </p>
+                      <span className="inline-block mt-1 px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50">
+                        Permanent Learner Pass
+                      </span>
                     </div>
                   </div>
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleScanSubmit(manualCode);
-                    }}
-                    className="space-y-2"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Enter 6-char code (e.g. 550E84) or session ID..."
-                      value={manualCode}
-                      onChange={(e) => setManualCode(e.target.value.toUpperCase())}
-                      maxLength={36}
-                      className="w-full px-3 py-2 border border-gray-200 dark:border-[#262626] rounded-md text-xs bg-white dark:bg-[#0A0A0A] font-mono tracking-wider text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition-colors uppercase"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!manualCode.trim() || isSubmitting}
-                      className="w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2 rounded-md text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Verifying...</span>
-                        </>
-                      ) : (
-                        'Submit Session Code'
-                      )}
-                    </button>
-                  </form>
+
+                  <div className="w-full text-center max-w-md">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                      This QR code is permanently assigned to your account. Your tutor will scan this code to log your attendance. You can also print or save it offline.
+                    </p>
+                  </div>
+
+                  {/* Export Options */}
+                  <div className="w-full max-w-md">
+                    <div className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 text-center">
+                      Export &amp; Print Options (Works Offline)
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        disabled={isExporting || !user}
+                        onClick={async () => {
+                          if (!user) return;
+                          try {
+                            setIsExporting(true);
+                            await exportStudentQrToPdf({
+                              id: String(user.id),
+                              name: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Student',
+                              lrn: user.lrn,
+                            });
+                          } catch (err) {
+                            console.error('PDF export error:', err);
+                          } finally {
+                            setIsExporting(false);
+                          }
+                        }}
+                        className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50/50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/40 text-red-700 dark:text-red-300 font-semibold text-xs transition cursor-pointer disabled:opacity-50"
+                      >
+                        <Download className="w-4 h-4 text-red-600 dark:text-red-400" />
+                        <span>Print PDF</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isExporting || !user}
+                        onClick={async () => {
+                          if (!user) return;
+                          try {
+                            setIsExporting(true);
+                            await exportStudentQrToDocx({
+                              id: String(user.id),
+                              name: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Student',
+                              lrn: user.lrn,
+                            });
+                          } catch (err) {
+                            console.error('DOCX export error:', err);
+                          } finally {
+                            setIsExporting(false);
+                          }
+                        }}
+                        className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold text-xs transition cursor-pointer disabled:opacity-50"
+                      >
+                        <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <span>Word Doc</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isExporting || !user}
+                        onClick={async () => {
+                          if (!user) return;
+                          try {
+                            setIsExporting(true);
+                            await exportStudentQrToJpeg({
+                              id: String(user.id),
+                              name: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Student',
+                              lrn: user.lrn,
+                            });
+                          } catch (err) {
+                            console.error('JPEG export error:', err);
+                          } finally {
+                            setIsExporting(false);
+                          }
+                        }}
+                        className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-semibold text-xs transition cursor-pointer disabled:opacity-50"
+                      >
+                        <Image className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <span>Save JPEG</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* ── Camera Scanner & Manual Entry View ── */
+                <>
+                  <div className="w-full">
+                    <div className="relative flex min-h-[300px] w-full items-center justify-center rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#111111]/60 p-5 overflow-hidden">
+                      <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-sm z-10" />
+                      <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-sm z-10" />
+                      <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-sm z-10" />
+                      <span className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[var(--brand)] rounded-br-sm z-10" />
+
+                      <div className="w-full max-w-md mx-auto space-y-3">
+                        {cameraError && (
+                          <div className="flex items-start gap-2.5 rounded-md border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30 p-3 text-xs text-red-700 dark:text-red-300">
+                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                            <span>{cameraError}</span>
+                          </div>
+                        )}
+                        <div
+                          id="student-qr-reader"
+                          className="w-full font-mono text-xs text-white overflow-hidden rounded-md"
+                        />
+                        {!isCameraActive && (
+                          <div className="flex justify-center pt-2">
+                            <button
+                              type="button"
+                              onClick={restartScanner}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[var(--brand)] text-white text-xs font-bold hover:bg-[var(--brand-dark)] transition cursor-pointer"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              <span>Scan Again</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Manual Input Container */}
+                  <div className="w-full">
+                    <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] p-3.5 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase">MANUAL ENTRY</h3>
+                          <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
+                            Enter the 6-character code from your tutor's screen
+                          </p>
+                        </div>
+                      </div>
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleScanSubmit(manualCode);
+                        }}
+                        className="space-y-2"
+                      >
+                        <input
+                          type="text"
+                          placeholder="Enter 6-char code (e.g. 550E84) or session ID..."
+                          value={manualCode}
+                          onChange={(e) => setManualCode(e.target.value.toUpperCase())}
+                          maxLength={36}
+                          className="w-full px-3 py-2 border border-gray-200 dark:border-[#262626] rounded-md text-xs bg-white dark:bg-[#0A0A0A] font-mono tracking-wider text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition-colors uppercase"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!manualCode.trim() || isSubmitting}
+                          className="w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2 rounded-md text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              <span>Verifying...</span>
+                            </>
+                          ) : (
+                            'Submit Session Code'
+                          )}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
