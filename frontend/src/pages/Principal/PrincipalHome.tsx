@@ -9,6 +9,8 @@ import {
   AlertCircle,
   RefreshCw,
   Search,
+  CheckCircle2,
+  Users,
 } from 'lucide-react';
 import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
 import {
@@ -433,6 +435,336 @@ const InteractivePrincipalPerformanceChart: React.FC<{
   );
 };
 
+// ─── Staff DTR Attendance Chart Component ──────────────────────────────────────
+
+interface StaffAttendanceChartPoint {
+  label: string;
+  fullDateLabel?: string;
+  dateRange: string;
+  value: number;
+  presentCount: number;
+  totalCount: number;
+}
+
+const InteractiveStaffAttendanceChart: React.FC<{
+  data: StaffAttendanceChartPoint[];
+  trendFilter: TrendFilter;
+}> = ({ data, trendFilter }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 260 });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setDimensions({
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+        });
+      }
+    };
+
+    updateSize();
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          setDimensions({
+            width: Math.round(width),
+            height: Math.round(height),
+          });
+        }
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const { width, height } = dimensions;
+  const isMobile = width < 520;
+  const isSmallMobile = width < 380;
+  const paddingLeft = isMobile ? 44 : 50;
+  const paddingRight = isMobile ? 20 : 14;
+  const paddingTop = isMobile ? 18 : 20;
+  const paddingBottom = isMobile ? 26 : 24;
+
+  const chartW = Math.max(10, width - paddingLeft - paddingRight);
+  const chartH = Math.max(10, height - paddingTop - paddingBottom);
+
+  const points = data.map((d, idx) => {
+    const x = paddingLeft + (idx * chartW) / (data.length - 1 || 1);
+    const y = paddingTop + chartH - (d.value / 100) * chartH;
+    return { x, y, ...d };
+  });
+
+  let pathD = '';
+  if (points.length > 0) {
+    pathD = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      const p0 = points[i - 1];
+      const p1 = points[i];
+      const cp1x = p0.x + (p1.x - p0.x) / 3;
+      const cp1y = p0.y;
+      const cp2x = p1.x - (p1.x - p0.x) / 3;
+      const cp2y = p1.y;
+      pathD += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p1.x} ${p1.y}`;
+    }
+  }
+
+  const areaD =
+    points.length > 0
+      ? `${pathD} L ${points[points.length - 1].x} ${paddingTop + chartH} L ${points[0].x} ${paddingTop + chartH} Z`
+      : '';
+
+  const visibleIndices = useMemo(() => {
+    const total = data.length;
+    if (total <= 1) return new Set([0]);
+    if (!isMobile) {
+      return new Set(Array.from({ length: total }, (_, i) => i));
+    }
+    if (trendFilter === 'month') {
+      if (width < 380) {
+        return new Set([0, 2, 4, total - 1]);
+      }
+      return new Set(Array.from({ length: total }, (_, i) => i));
+    }
+    if (trendFilter === 'week') {
+      if (width < 430) {
+        return new Set([0, 2, 4, total - 1]);
+      }
+      return new Set(Array.from({ length: total }, (_, i) => i));
+    }
+    const step = isSmallMobile ? 3 : 2;
+    const indices: number[] = [];
+    for (let i = 0; i < total; i += step) {
+      indices.push(i);
+    }
+    const lastIdx = total - 1;
+    const prevIdx = indices[indices.length - 1];
+    if (lastIdx - prevIdx >= 2) {
+      indices.push(lastIdx);
+    } else if (indices.length > 1) {
+      indices[indices.length - 1] = lastIdx;
+    }
+    return new Set(indices);
+  }, [data, isMobile, isSmallMobile, trendFilter, width]);
+
+  const target80Y = paddingTop + chartH - (80 / 100) * chartH;
+
+  return (
+    <div ref={containerRef} className="relative w-full h-full select-none min-w-0 overflow-hidden">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-full block"
+        role="img"
+        aria-label="Staff DTR Attendance Rate Trend Chart"
+      >
+        <defs>
+          <linearGradient id="staffAttendanceChartFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#10B981" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#10B981" stopOpacity="0.01" />
+          </linearGradient>
+          <filter id="staffAttendanceGlow" x="-20%" y="-30%" width="140%" height="160%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* Horizontal grid lines */}
+        {[0, 25, 50, 75, 100].map((val) => {
+          const y = paddingTop + chartH - (val / 100) * chartH;
+          return (
+            <g key={`staff-grid-${val}`}>
+              <line
+                x1={paddingLeft}
+                y1={y}
+                x2={width - paddingRight}
+                y2={y}
+                stroke="currentColor"
+                className="text-gray-200 dark:text-[#1F1F1F]"
+                strokeDasharray={val === 0 ? undefined : '3 3'}
+                strokeWidth={val === 0 ? 1.5 : 1}
+              />
+              <text
+                x={paddingLeft - 8}
+                y={y + 3}
+                textAnchor="end"
+                className="fill-gray-400 dark:fill-slate-500 font-mono text-[9px] sm:text-[10px] select-none"
+              >
+                {val}%
+              </text>
+            </g>
+          );
+        })}
+
+        {/* 80% Benchmark Reference Line */}
+        <line
+          x1={paddingLeft}
+          y1={target80Y}
+          x2={width - paddingRight}
+          y2={target80Y}
+          stroke="#10B981"
+          strokeDasharray="4 4"
+          strokeOpacity="0.4"
+          strokeWidth="1.2"
+        />
+
+        {/* X-axis labels */}
+        {points.map((p, idx) => {
+          if (!visibleIndices.has(idx)) return null;
+          return (
+            <text
+              key={`staff-label-${idx}`}
+              x={p.x}
+              y={height - 4}
+              textAnchor="middle"
+              className="fill-gray-400 dark:fill-slate-500 font-sans text-[9px] sm:text-[10px] select-none"
+            >
+              {p.label}
+            </text>
+          );
+        })}
+
+        {/* Area fill */}
+        {areaD && <path d={areaD} fill="url(#staffAttendanceChartFill)" />}
+
+        {/* Line curve */}
+        {pathD && (
+          <path
+            d={pathD}
+            fill="none"
+            stroke="#10B981"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+
+        {/* Point dots */}
+        {points.map((p, idx) => (
+          <circle
+            key={`staff-dot-${idx}`}
+            cx={p.x}
+            cy={p.y}
+            r="3.5"
+            fill="#10B981"
+            stroke="#A7F3D0"
+            strokeWidth="1.5"
+          />
+        ))}
+
+        {/* Hover vertical line and dots */}
+        {hoveredIdx !== null && points[hoveredIdx] && (
+          <g>
+            <line
+              x1={points[hoveredIdx].x}
+              y1={paddingTop}
+              x2={points[hoveredIdx].x}
+              y2={paddingTop + chartH}
+              stroke="#10B981"
+              strokeWidth="1.5"
+              opacity="0.7"
+            />
+            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill="#10B981" />
+            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="8" fill="#10B981" opacity="0.25" />
+          </g>
+        )}
+
+        {/* Hit test regions */}
+        {points.map((p, idx) => {
+          const barW = chartW / (data.length - 1 || 1);
+          const xStart = idx === 0 ? paddingLeft : p.x - barW / 2;
+          const xEnd = idx === data.length - 1 ? width - paddingRight : p.x + barW / 2;
+          return (
+            <rect
+              key={`staff-hit-${idx}`}
+              x={xStart}
+              y={paddingTop}
+              width={Math.max(12, xEnd - xStart)}
+              height={chartH}
+              fill="transparent"
+              className="cursor-pointer"
+              onMouseEnter={() => setHoveredIdx(idx)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              onTouchStart={() => setHoveredIdx(idx)}
+              onClick={() => setHoveredIdx(hoveredIdx === idx ? null : idx)}
+            />
+          );
+        })}
+      </svg>
+
+      {/* Floating Tooltip */}
+      {hoveredIdx !== null && points[hoveredIdx] && (() => {
+        const p = points[hoveredIdx];
+        const isRightHalf = p.x > width * 0.5;
+        const maxTooltipWidth = Math.min(230, Math.max(160, width - 24));
+
+        let tooltipStyle: React.CSSProperties;
+
+        if (isMobile) {
+          const leftPos = Math.max(10, Math.min(width - maxTooltipWidth - 10, p.x - maxTooltipWidth / 2));
+          tooltipStyle = {
+            left: `${leftPos}px`,
+            top: '8px',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        } else if (isRightHalf) {
+          tooltipStyle = {
+            right: `${Math.max(10, width - p.x + 12)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        } else {
+          tooltipStyle = {
+            left: `${Math.max(10, p.x + 12)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        }
+
+        return (
+          <div
+            className="pointer-events-none absolute z-20 w-max rounded-xl border border-slate-200 dark:border-neutral-800 bg-white/95 dark:bg-[#000000]/95 p-3 text-left text-[11px] font-medium leading-normal text-slate-800 dark:text-white shadow-xl dark:shadow-2xl shadow-slate-900/10 dark:shadow-black/60 backdrop-blur-md transition-all duration-150 overflow-hidden"
+            style={tooltipStyle}
+          >
+            <div className="font-extrabold text-[11px] text-emerald-600 dark:text-emerald-400 break-words">
+              {p.fullDateLabel || p.label}
+            </div>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span
+                className="text-sm font-extrabold"
+                style={{
+                  color: p.value >= 80 ? '#10B981' : p.value >= 70 ? '#F59E0B' : '#EF4444',
+                }}
+              >
+                {p.value}%
+              </span>
+              <span className="text-[9px] text-slate-500 dark:text-zinc-400">Attendance Rate</span>
+            </div>
+            <div className="text-[9px] text-slate-500 dark:text-zinc-400 mt-1 border-t border-slate-100 dark:border-zinc-800 pt-1 space-y-0.5">
+              <div>
+                {p.totalCount > 0
+                  ? `${p.presentCount} of ${p.totalCount} logged present`
+                  : 'No DTR punches recorded'}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+};
+
 // ─── Main PrincipalHome Component ──────────────────────────────────────────────
 
 export const PrincipalHome: React.FC = () => {
@@ -444,18 +776,22 @@ export const PrincipalHome: React.FC = () => {
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [students, setStudents] = useState<User[]>([]);
   const [tutorsList, setTutorsList] = useState<User[]>([]);
+  const [facultyList, setFacultyList] = useState<User[]>([]);
+  const [adminsList, setAdminsList] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [trendFilter, setTrendFilter] = useState<TrendFilter>('week');
   const [selectedTutorId, setSelectedTutorId] = useState<string>('all');
+  const [selectedStaffFilter, setSelectedStaffFilter] = useState<string>('all');
+  const [staffTrendFilter, setStaffTrendFilter] = useState<TrendFilter>('week');
   const [activeSystemSem, setActiveSystemSem] = useState<SemesterType>(() => getActiveSystemSemester());
 
   const loadDashboard = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [principalData, gradesData, attendanceData, studentsData, tutorsData] = await Promise.all([
+      const [principalData, gradesData, attendanceData, studentsData, tutorsData, facultyData, adminsData] = await Promise.all([
         academicService.getPrincipalDashboard({ days: 30 }),
         academicService.getGrades().catch((err) => {
           console.warn('Could not load grades for principal dashboard:', err);
@@ -464,6 +800,8 @@ export const PrincipalHome: React.FC = () => {
         academicService.getAttendanceHistory().catch(() => [] as Attendance[]),
         userService.getAllUsers({ role: 'student' }).catch(() => [] as User[]),
         userService.getTutors().catch(() => [] as User[]),
+        userService.getAllUsers({ role: 'faculty' }).catch(() => [] as User[]),
+        userService.getAllUsers({ role: 'admin' }).catch(() => [] as User[]),
       ]);
 
       setDashboardData(principalData);
@@ -471,6 +809,8 @@ export const PrincipalHome: React.FC = () => {
       setAttendance(Array.isArray(attendanceData) ? attendanceData : []);
       setStudents(Array.isArray(studentsData) ? studentsData : []);
       setTutorsList(Array.isArray(tutorsData) ? tutorsData : []);
+      setFacultyList(Array.isArray(facultyData) ? facultyData : []);
+      setAdminsList(Array.isArray(adminsData) ? adminsData : []);
     } catch (err: any) {
       console.error('PrincipalHome fetch error:', err);
       setError(err?.response?.data?.detail || 'Failed to load school administration dashboard.');
@@ -508,7 +848,7 @@ export const PrincipalHome: React.FC = () => {
     return getActiveSystemMilestone();
   }, [activeSystemSem]);
 
-  // Tutors list from per_tutor_performance and tutorsList
+  // Tutors list from per_tutor_performance, tutorsList, and attendance records
   const tutors = useMemo(() => {
     const map = new Map<string, string>();
     (dashboardData?.per_tutor_performance || []).forEach((t) => {
@@ -518,13 +858,79 @@ export const PrincipalHome: React.FC = () => {
       const name = t.full_name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || t.username;
       if (t.id) map.set(String(t.id), name);
     });
+    attendance.forEach((a) => {
+      if ((a.role || '').toLowerCase() === 'tutor') {
+        const id = String(a.user || a.tutor || '');
+        const name = a.user_name || a.tutor_name || '';
+        if (id && name && !map.has(id)) map.set(id, name);
+      }
+    });
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [dashboardData, tutorsList]);
+  }, [dashboardData, tutorsList, attendance]);
+
+  // Faculty list from facultyList and attendance records
+  const faculty = useMemo(() => {
+    const map = new Map<string, string>();
+    facultyList.forEach((f) => {
+      const name = f.full_name || `${f.first_name || ''} ${f.last_name || ''}`.trim() || f.username;
+      if (f.id) map.set(String(f.id), name);
+    });
+    attendance.forEach((a) => {
+      if ((a.role || '').toLowerCase() === 'faculty') {
+        const id = String(a.user || '');
+        const name = a.user_name || '';
+        if (id && name && !map.has(id)) map.set(id, name);
+      }
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [facultyList, attendance]);
+
+  // Administrators list from adminsList and attendance records
+  const admins = useMemo(() => {
+    const map = new Map<string, string>();
+    adminsList.forEach((ad) => {
+      const name = ad.full_name || `${ad.first_name || ''} ${ad.last_name || ''}`.trim() || ad.username;
+      if (ad.id) map.set(String(ad.id), name);
+    });
+    attendance.forEach((a) => {
+      if ((a.role || '').toLowerCase() === 'admin') {
+        const id = String(a.user || '');
+        const name = a.user_name || '';
+        if (id && name && !map.has(id)) map.set(id, name);
+      }
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [adminsList, attendance]);
 
   const selectedTutorObj = useMemo(() => {
     if (selectedTutorId === 'all') return null;
     return tutors.find((t) => String(t.id) === String(selectedTutorId)) || null;
   }, [tutors, selectedTutorId]);
+
+  const staffChartTitle = useMemo(() => {
+    if (selectedStaffFilter === 'all') {
+      return 'STAFF DTR ATTENDANCE RATE';
+    }
+    if (selectedStaffFilter === 'role:tutor') {
+      return 'TUTORS DTR ATTENDANCE RATE';
+    }
+    if (selectedStaffFilter === 'role:faculty') {
+      return 'FACULTY DTR ATTENDANCE RATE';
+    }
+    if (selectedStaffFilter === 'role:admin') {
+      return 'ADMINISTRATORS DTR ATTENDANCE RATE';
+    }
+    if (selectedStaffFilter.startsWith('user:')) {
+      const uid = selectedStaffFilter.replace('user:', '');
+      const t = tutors.find((x) => String(x.id) === uid);
+      if (t) return `${t.name.toUpperCase()}'S DTR ATTENDANCE RATE`;
+      const f = faculty.find((x) => String(x.id) === uid);
+      if (f) return `${f.name.toUpperCase()}'S DTR ATTENDANCE RATE`;
+      const ad = admins.find((x) => String(x.id) === uid);
+      if (ad) return `${ad.name.toUpperCase()}'S DTR ATTENDANCE RATE`;
+    }
+    return 'STAFF DTR ATTENDANCE RATE';
+  }, [selectedStaffFilter, tutors, faculty, admins]);
 
   // ── Ranked Tutors for TOP PERFORMING CLASSES ──
   const [tutorSearch, setTutorSearch] = useState('');
@@ -850,6 +1256,220 @@ export const PrincipalHome: React.FC = () => {
     return 'neutral';
   }, [chartTrendData]);
 
+  // ── Staff DTR Attendance Trend Data & Metrics ────────────────────────────────
+  const staffAttendanceTrendData = useMemo<StaffAttendanceChartPoint[]>(() => {
+    const isTargetStaffLog = (a: Attendance) => {
+      const r = (a.role || '').toLowerCase();
+      if (r === 'student') return false;
+
+      const userIdStr = String(a.user || (a as any).user_id || a.tutor || '');
+
+      if (selectedStaffFilter === 'all') {
+        return (
+          ['tutor', 'faculty', 'admin', 'principal'].includes(r) ||
+          tutors.some((t) => String(t.id) === userIdStr) ||
+          faculty.some((f) => String(f.id) === userIdStr) ||
+          admins.some((ad) => String(ad.id) === userIdStr)
+        );
+      }
+      if (selectedStaffFilter === 'role:tutor') {
+        return r === 'tutor' || tutors.some((t) => String(t.id) === userIdStr);
+      }
+      if (selectedStaffFilter === 'role:faculty') {
+        return r === 'faculty' || faculty.some((f) => String(f.id) === userIdStr);
+      }
+      if (selectedStaffFilter === 'role:admin') {
+        return r === 'admin' || admins.some((ad) => String(ad.id) === userIdStr);
+      }
+      if (selectedStaffFilter.startsWith('user:')) {
+        const targetId = selectedStaffFilter.replace('user:', '');
+        return userIdStr === targetId;
+      }
+      return true;
+    };
+
+    const isLogPresent = (a: Attendance) => {
+      const st = (a.status || '').toLowerCase();
+      if (st === 'present' || st === 'late') return true;
+      if (a.arrival_am || a.departure_am || a.arrival_pm || a.departure_pm || a.time_in || a.time_out) {
+        return true;
+      }
+      return false;
+    };
+
+    const relevantLogs = attendance.filter(isTargetStaffLog);
+
+    const now = new Date();
+    const oneDay = 24 * 60 * 60 * 1000;
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const formatMonth = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+
+    let periods: {
+      label: string;
+      fullDateLabel: string;
+      dateRange: string;
+      start: Date;
+      end: Date;
+      presentCount: number;
+      totalCount: number;
+    }[];
+
+    if (staffTrendFilter === 'day') {
+      const schoolDays = getRecentSchoolWeekdays(10, now);
+      periods = schoolDays.map((d) => {
+        const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+        const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
+        const weekdayName = start.toLocaleDateString('en-US', { weekday: 'long' });
+        const monthFull = start.toLocaleDateString('en-US', { month: 'long' });
+        const dayNum = start.getDate();
+        const year = start.getFullYear();
+        const label = formatDate(start);
+        const fullDateLabel = `${monthFull} ${dayNum}, ${year} | ${weekdayName}`;
+        return {
+          label,
+          fullDateLabel,
+          dateRange: fullDateLabel,
+          start,
+          end,
+          presentCount: 0,
+          totalCount: 0,
+        };
+      });
+    } else {
+      const periodCount = 6;
+      periods = Array.from({ length: periodCount }).map((_, index) => {
+        let start: Date, end: Date, label: string, fullDateLabel: string;
+        if (staffTrendFilter === 'month') {
+          const offset = periodCount - 1 - index;
+          start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+          end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
+          label = formatMonth(start);
+          const monthFull = start.toLocaleDateString('en-US', { month: 'long' });
+          const year = start.getFullYear();
+          fullDateLabel = `${monthFull} ${year}`;
+        } else {
+          // week (Mon–Fri)
+          const offset = periodCount - 1 - index;
+          const dayOfWeek = now.getDay();
+          const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+          const currentWeekMon = new Date(startOfToday.getTime() + diffToMon * oneDay);
+          start = new Date(currentWeekMon.getTime() - offset * 7 * oneDay);
+          const fri = new Date(start.getTime() + 4 * oneDay);
+          end = new Date(start.getTime() + 5 * oneDay);
+          label = `${formatDate(start)} – ${formatDate(fri)}`;
+          const startMonth = start.toLocaleDateString('en-US', { month: 'long' });
+          const friMonth = fri.toLocaleDateString('en-US', { month: 'long' });
+          const startDay = start.getDate();
+          const friDay = fri.getDate();
+          const friYear = fri.getFullYear();
+          const rangeText =
+            startMonth === friMonth
+              ? `${startMonth} ${startDay}–${friDay}, ${friYear}`
+              : `${startMonth} ${startDay} – ${friMonth} ${friDay}, ${friYear}`;
+          fullDateLabel = `${rangeText} | Monday – Friday`;
+        }
+        return {
+          label,
+          fullDateLabel,
+          dateRange: fullDateLabel,
+          start,
+          end,
+          presentCount: 0,
+          totalCount: 0,
+        };
+      });
+    }
+
+    // Accumulate logs
+    relevantLogs.forEach((log) => {
+      if (!log.date) return;
+      const logDate = new Date(`${log.date}T00:00:00`);
+      if (isNaN(logDate.getTime())) return;
+
+      for (const p of periods) {
+        if (logDate >= p.start && logDate < p.end) {
+          p.totalCount++;
+          if (isLogPresent(log)) {
+            p.presentCount++;
+          }
+        }
+      }
+    });
+
+    const hasAnyLog = periods.some((p) => p.totalCount > 0);
+
+    // Fallback to backend staff_attendance_trend if direct attendance records are empty
+    if (!hasAnyLog && (dashboardData?.staff_attendance_trend || []).length > 0) {
+      const backendTrends = dashboardData?.staff_attendance_trend || [];
+      return periods.map((p) => {
+        const matchingPoints = backendTrends.filter((pt) => {
+          const ptDate = new Date(`${pt.date}T00:00:00`);
+          return !isNaN(ptDate.getTime()) && ptDate >= p.start && ptDate < p.end;
+        });
+
+        let rate = 0;
+        if (matchingPoints.length > 0) {
+          if (selectedStaffFilter === 'role:tutor') {
+            const sum = matchingPoints.reduce((acc, pt) => acc + (pt.tutor_attendance_rate || 0), 0);
+            rate = Math.round((sum / matchingPoints.length) * 10) / 10;
+          } else if (selectedStaffFilter === 'role:faculty') {
+            const sum = matchingPoints.reduce((acc, pt) => acc + (pt.faculty_attendance_rate || 0), 0);
+            rate = Math.round((sum / matchingPoints.length) * 10) / 10;
+          } else {
+            const sum = matchingPoints.reduce(
+              (acc, pt) => acc + ((pt.tutor_attendance_rate || 0) + (pt.faculty_attendance_rate || 0)) / 2,
+              0
+            );
+            rate = Math.round((sum / matchingPoints.length) * 10) / 10;
+          }
+        }
+
+        return {
+          label: p.label,
+          fullDateLabel: p.fullDateLabel,
+          dateRange: p.dateRange,
+          value: rate,
+          presentCount: matchingPoints.length > 0 && rate > 0 ? 1 : 0,
+          totalCount: matchingPoints.length,
+        };
+      });
+    }
+
+    return periods.map((p) => {
+      const rate = p.totalCount > 0 ? Math.round((p.presentCount / p.totalCount) * 1000) / 10 : 0;
+      return {
+        label: p.label,
+        fullDateLabel: p.fullDateLabel,
+        dateRange: p.dateRange,
+        value: rate,
+        presentCount: p.presentCount,
+        totalCount: p.totalCount,
+      };
+    });
+  }, [attendance, selectedStaffFilter, staffTrendFilter, tutors, faculty, admins, dashboardData]);
+
+  const numericStaffAttendance = useMemo(
+    () => staffAttendanceTrendData.map((d) => d.value).filter((v) => v > 0),
+    [staffAttendanceTrendData]
+  );
+  const highestStaffAttendance = numericStaffAttendance.length > 0 ? Math.max(...numericStaffAttendance) : 0;
+  const lowestStaffAttendance = numericStaffAttendance.length > 0 ? Math.min(...numericStaffAttendance) : 0;
+  const avgStaffAttendance = numericStaffAttendance.length > 0
+    ? Math.round((numericStaffAttendance.reduce((a, b) => a + b, 0) / numericStaffAttendance.length) * 10) / 10
+    : 0;
+
+  const staffTrendDir = useMemo(() => {
+    if (staffAttendanceTrendData.length < 2) return 'neutral';
+    const nonZero = staffAttendanceTrendData.filter((d) => d.value > 0);
+    if (nonZero.length < 2) return 'neutral';
+    const first = nonZero[0].value;
+    const last = nonZero[nonZero.length - 1].value;
+    if (last > first + 2) return 'up';
+    if (last < first - 2) return 'down';
+    return 'neutral';
+  }, [staffAttendanceTrendData]);
+
   // ─── Loading Skeleton ────────────────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -888,6 +1508,17 @@ export const PrincipalHome: React.FC = () => {
         {/* Row 2 Skeleton: Main Section */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
           <div className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3">
+            {/* Chart 1 Skeleton: Performance Trend */}
+            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-2xs flex flex-col justify-between">
+              <div className="h-4 w-56 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="my-4 flex-1 bg-gray-50/60 dark:bg-[#111111] rounded-lg min-h-[200px]" />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map((j) => (
+                  <div key={j} className="h-12 rounded bg-gray-50 dark:bg-[#111111]" />
+                ))}
+              </div>
+            </div>
+            {/* Chart 2 Skeleton: Staff DTR Attendance */}
             <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-2xs flex flex-col justify-between">
               <div className="h-4 w-56 rounded bg-gray-200 dark:bg-gray-800" />
               <div className="my-4 flex-1 bg-gray-50/60 dark:bg-[#111111] rounded-lg min-h-[200px]" />
@@ -899,13 +1530,16 @@ export const PrincipalHome: React.FC = () => {
             </div>
           </div>
           <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3">
-            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-2xs">
-              <div className="h-4 w-36 rounded bg-gray-200 dark:bg-gray-800 mb-3" />
-              <div className="space-y-2">
-                {[1, 2, 3, 4, 5].map((k) => (
-                  <div key={k} className="h-12 rounded bg-gray-50 dark:bg-[#111111]" />
-                ))}
+            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[600px] lg:min-h-full h-full shadow-2xs flex flex-col justify-between">
+              <div>
+                <div className="h-4 w-36 rounded bg-gray-200 dark:bg-gray-800 mb-3" />
+                <div className="space-y-2">
+                  {[1, 2, 3, 4, 5, 6, 7].map((k) => (
+                    <div key={k} className="h-12 rounded bg-gray-50 dark:bg-[#111111]" />
+                  ))}
+                </div>
               </div>
+              <div className="pt-3 border-t border-gray-100 dark:border-[#1A1A1A] h-8 rounded bg-gray-50 dark:bg-[#111111]" />
             </div>
           </div>
         </div>
@@ -1194,16 +1828,203 @@ export const PrincipalHome: React.FC = () => {
               </Link>
             </div>
           </div>
+
+          {/* ── Card 2: STAFF DTR ATTENDANCE RATE CHART ── */}
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 w-full min-w-0 max-w-full shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 shrink-0 pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate">
+                  {staffChartTitle}
+                </h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 justify-between sm:justify-end min-w-0 shrink-0">
+                {/* Staff Filter Dropdown (All, Role groups, or Specific Tutor / Faculty / Admin) */}
+                <select
+                  aria-label="Filter Staff DTR Attendance"
+                  value={selectedStaffFilter}
+                  onChange={(e) => setSelectedStaffFilter(e.target.value)}
+                  className="h-7 sm:h-8 px-2 rounded-sm text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[150px] sm:max-w-[210px] whitespace-nowrap truncate shrink-0"
+                >
+                  <optgroup label="General">
+                    <option value="all">ALL STAFF (TUTORS & FACULTY)</option>
+                    <option value="role:tutor">ALL TUTORS</option>
+                    <option value="role:faculty">ALL FACULTY</option>
+                    <option value="role:admin">ALL ADMINISTRATORS</option>
+                  </optgroup>
+                  {tutors.length > 0 && (
+                    <optgroup label="Tutors">
+                      {tutors.map((t) => (
+                        <option key={`staff-tutor-${t.id}`} value={`user:${t.id}`}>
+                          {t.name.toUpperCase()} (TUTOR)
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {faculty.length > 0 && (
+                    <optgroup label="Faculty">
+                      {faculty.map((f) => (
+                        <option key={`staff-faculty-${f.id}`} value={`user:${f.id}`}>
+                          {f.name.toUpperCase()} (FACULTY)
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {admins.length > 0 && (
+                    <optgroup label="Administrators">
+                      {admins.map((ad) => (
+                        <option key={`staff-admin-${ad.id}`} value={`user:${ad.id}`}>
+                          {ad.name.toUpperCase()} (ADMIN)
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+
+                {/* Legend */}
+                <div className="flex items-center gap-2 xs:gap-3 shrink-0 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                    <span className="h-2 w-2 rounded-full bg-[#10B981] inline-block shrink-0" />
+                    <span className="hidden xs:inline whitespace-nowrap">Attendance Rate</span>
+                    <span className="xs:hidden whitespace-nowrap">Rate</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 dark:text-slate-500 whitespace-nowrap">
+                    <span className="h-0.5 w-3 border-b-2 border-dashed border-emerald-500/60 inline-block shrink-0" />
+                    <span className="whitespace-nowrap">80% Target</span>
+                  </div>
+                </div>
+
+                {/* Period Toggles */}
+                <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
+                  {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
+                    <button
+                      key={`staff-period-${filter}`}
+                      type="button"
+                      onClick={() => setStaffTrendFilter(filter)}
+                      className={`rounded-sm px-2.5 sm:px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
+                        staffTrendFilter === filter
+                          ? 'bg-[#10B981] text-white shadow-xs'
+                          : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      {filter}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Chart Canvas */}
+            <div className="relative min-h-[220px] sm:min-h-[260px] flex-1 w-full mt-3 sm:mt-4 bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-4 sm:py-3 overflow-hidden">
+              {staffAttendanceTrendData.length > 0 ? (
+                <InteractiveStaffAttendanceChart data={staffAttendanceTrendData} trendFilter={staffTrendFilter} />
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 select-none">
+                  <BarChart2 className="w-8 h-8 text-gray-200 dark:text-gray-700" />
+                  <p className="text-xs font-semibold text-gray-400 dark:text-slate-500 whitespace-nowrap">
+                    {staffTrendFilter === 'day'
+                      ? 'No staff DTR records today'
+                      : staffTrendFilter === 'week'
+                      ? 'No staff DTR records this week'
+                      : 'No staff DTR records this month'}
+                  </p>
+                  <p className="text-[11px] text-gray-300 dark:text-slate-600 whitespace-nowrap">
+                    Data will appear once tutors and faculty log their attendance
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Metrics Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 mt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
+              {[
+                {
+                  label: 'Highest',
+                  value: staffAttendanceTrendData.length === 0 ? '—' : `${highestStaffAttendance}%`,
+                  color:
+                    staffAttendanceTrendData.length === 0
+                      ? 'text-gray-400 dark:text-slate-500'
+                      : highestStaffAttendance >= 80
+                      ? 'text-risk-low'
+                      : highestStaffAttendance >= 70
+                      ? 'text-risk-medium'
+                      : 'text-risk-high',
+                },
+                {
+                  label: 'Lowest',
+                  value: staffAttendanceTrendData.length === 0 ? '—' : `${lowestStaffAttendance}%`,
+                  color:
+                    staffAttendanceTrendData.length === 0
+                      ? 'text-gray-400 dark:text-slate-500'
+                      : lowestStaffAttendance >= 80
+                      ? 'text-risk-low'
+                      : lowestStaffAttendance >= 70
+                      ? 'text-risk-medium'
+                      : 'text-risk-high',
+                },
+                {
+                  label: 'Average',
+                  value: staffAttendanceTrendData.length === 0 ? '—' : `${avgStaffAttendance}%`,
+                  color:
+                    staffAttendanceTrendData.length === 0
+                      ? 'text-gray-400 dark:text-slate-500'
+                      : avgStaffAttendance >= 80
+                      ? 'text-risk-low'
+                      : avgStaffAttendance >= 70
+                      ? 'text-risk-medium'
+                      : 'text-risk-high',
+                },
+              ].map((stat) => (
+                <div
+                  key={`staff-metric-${stat.label}`}
+                  className="bg-gray-50/80 dark:bg-[#111111] p-2.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center min-w-0"
+                >
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap truncate">
+                    {stat.label}
+                  </p>
+                  <p className={`text-base sm:text-lg font-extrabold mt-0.5 whitespace-nowrap truncate ${stat.color}`}>
+                    {stat.value}
+                  </p>
+                </div>
+              ))}
+              <div className="bg-gray-50/80 dark:bg-[#111111] p-2.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center min-w-0">
+                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide whitespace-nowrap truncate">
+                  Trend
+                </p>
+                <div className="mt-0.5 whitespace-nowrap truncate">
+                  {staffAttendanceTrendData.length === 0 ? (
+                    <span className="text-base sm:text-lg font-extrabold text-gray-400 dark:text-slate-500 whitespace-nowrap">
+                      —
+                    </span>
+                  ) : staffTrendDir === 'up' ? (
+                    <span className="text-base sm:text-lg font-extrabold text-risk-low whitespace-nowrap">
+                      Improving
+                    </span>
+                  ) : staffTrendDir === 'down' ? (
+                    <span className="text-base sm:text-lg font-extrabold text-risk-high whitespace-nowrap">
+                      Declining
+                    </span>
+                  ) : (
+                    <span className="text-base sm:text-lg font-extrabold text-gray-500 dark:text-slate-400 whitespace-nowrap">
+                      Stable
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ── Right Column (3 cols on lg & xl: ~25% width): TOP PERFORMING CLASSES ── */}
         <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3 w-full min-w-0 max-w-full">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 h-full min-h-[420px] shadow-2xs">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 h-full min-h-[600px] lg:min-h-full shadow-2xs">
             {/* Header */}
-            <div className="pb-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
+            <div className="pb-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0 flex items-center justify-between gap-2">
               <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight truncate">
                 TOP PERFORMING CLASSES
               </h3>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 dark:bg-[#1A1A1A] text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-[#262626] shrink-0">
+                {filteredRankedTutors.length} {filteredRankedTutors.length === 1 ? 'Class' : 'Classes'}
+              </span>
             </div>
 
             {/* Quick Search */}
@@ -1219,13 +2040,22 @@ export const PrincipalHome: React.FC = () => {
             </div>
 
             {/* Ranked Tutors List */}
-            <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5">
+            <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5 max-h-[700px] lg:max-h-none">
               {filteredRankedTutors.length === 0 ? (
                 <div className="py-8 text-center text-xs text-gray-400 dark:text-slate-500">
                   {rankedTutorClasses.length === 0 ? 'No tutor classes found' : 'No tutors matching search filter'}
                 </div>
               ) : (
                 filteredRankedTutors.map((item) => {
+                  const rankBadgeClass =
+                    item.rank === 1
+                      ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-300/80 dark:border-amber-700/60'
+                      : item.rank === 2
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+                      : item.rank === 3
+                      ? 'bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400 border-orange-300/80 dark:border-orange-700/60'
+                      : 'bg-gray-100 dark:bg-[#181818] text-gray-500 dark:text-slate-400 border-gray-200 dark:border-[#222222]';
+
                   return (
                     <div
                       key={item.tutorId}
@@ -1234,13 +2064,22 @@ export const PrincipalHome: React.FC = () => {
                       title={`Click to view data analytics for ${item.tutorName}`}
                     >
                       <div className="flex items-center justify-between gap-2.5">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-gray-900 dark:text-slate-100 group-hover:text-[var(--brand)] transition-colors truncate">
-                            {item.tutorName}
-                          </p>
-                          <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5 truncate">
-                            {item.studentCount} student{item.studentCount === 1 ? '' : 's'}
-                          </p>
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span
+                            className={`inline-flex items-center justify-center w-5 h-5 rounded text-[10px] font-extrabold border shrink-0 ${rankBadgeClass}`}
+                          >
+                            #{item.rank}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-gray-900 dark:text-slate-100 group-hover:text-[var(--brand)] transition-colors truncate">
+                              {item.tutorName}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-400 dark:text-slate-500 truncate">
+                              <span>{item.studentCount} stu</span>
+                              <span>•</span>
+                              <span>Att: {item.attendanceRate}%</span>
+                            </div>
+                          </div>
                         </div>
 
                         {/* Composite Score Pill */}
@@ -1267,6 +2106,17 @@ export const PrincipalHome: React.FC = () => {
                   );
                 })
               )}
+            </div>
+
+            {/* Bottom Footer Info */}
+            <div className="pt-3 mt-3 border-t border-gray-100 dark:border-[#1A1A1A] flex items-center justify-between text-[11px] text-gray-400 dark:text-slate-500 shrink-0">
+              <span className="truncate">Ranked by Composite Score</span>
+              <Link
+                to="/principal/analytics"
+                className="font-bold text-[var(--brand)] dark:text-sky-400 hover:underline shrink-0 ml-2"
+              >
+                View Analytics &gt;
+              </Link>
             </div>
           </div>
         </div>
