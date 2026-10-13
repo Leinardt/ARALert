@@ -447,6 +447,8 @@ export const Login: React.FC = () => {
       {/* Privacy Consent Modal Gate for First-Time Logins */}
       <PrivacyConsentModal
         isOpen={showConsentModal}
+        userName={pendingUser?.full_name || [pendingUser?.first_name, pendingUser?.last_name].filter(Boolean).join(' ') || pendingUser?.username || 'User'}
+        userRole={pendingUser?.is_superuser ? 'Super Admin' : (pendingUser?.role || 'Member')}
         onAccept={handleAcceptConsent}
         onDecline={handleDeclineConsent}
         isLoading={consentLoading}
