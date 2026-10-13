@@ -30,6 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     resetActivity();
     sessionStorage.setItem('aralert_login_greeting_pending', 'true');
+    sessionStorage.removeItem('aralert_greeting_played_in_session');
     sessionStorage.setItem('access_token', response.access);
     sessionStorage.setItem('refresh_token', response.refresh);
     sessionStorage.setItem('user', JSON.stringify(response.user));
@@ -68,6 +69,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('Logout request failed', error);
     }
     sessionStorage.removeItem('aralert_login_greeting_pending');
+    sessionStorage.removeItem('aralert_greeting_played_in_session');
+    sessionStorage.removeItem('aralert_is_first_login');
     sessionStorage.removeItem('access_token');
     sessionStorage.removeItem('refresh_token');
     sessionStorage.removeItem('user');

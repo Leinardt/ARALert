@@ -1678,19 +1678,19 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
-        <div>
-          <h3 className="font-bold text-gray-900 dark:text-white text-sm">SCORES HISTORY</h3>
-          <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-gray-400">
+      <div className="flex items-center justify-between gap-2 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+        <div className="min-w-0 flex-1 truncate">
+          <h3 className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm uppercase truncate">SCORES HISTORY</h3>
+          <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-gray-400 truncate">
             {jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length} Record
             {(jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length) !== 1 ? 's' : ''}
           </p>
         </div>
 
         {/* Filter controls */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
           {/* View mode toggle styled like QR Attendance */}
-          <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5">
+          <div className="flex bg-gray-100 dark:bg-[#111111] rounded-lg sm:rounded-xl p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
             {(['day', 'week', 'month'] as const).map((mode) => (
               <button
                 key={mode}
@@ -1700,7 +1700,7 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
                   setViewMode(mode);
                   setJumpDate(null);
                 }}
-                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
+                className={`rounded-md sm:rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${viewMode === mode && !jumpDate
                   ? 'bg-[var(--brand)] text-white shadow-sm'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                   }`}
@@ -1711,19 +1711,19 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
           </div>
 
           {/* Custom Calendar Dropdown Button in Poppins */}
-          <div className="relative inline-flex items-center">
+          <div className="relative inline-flex items-center shrink-0">
             <button
               type="button"
               id="student-score-calendar-btn"
               onClick={() => setShowCalendarPopover((prev) => !prev)}
-              className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${jumpDate
+              className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all flex items-center justify-center cursor-pointer ${jumpDate
                 ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
                 : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
                 }`}
               title="Select a specific date from calendar"
               aria-label="Open Calendar"
             >
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             {showCalendarPopover && (
@@ -2084,19 +2084,19 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
-        <div>
-          <h3 className="font-bold text-gray-900 dark:text-white text-sm">STUDENT ATTENDANCE HISTORY</h3>
-          <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-gray-400">
+      <div className="flex items-center justify-between gap-2 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+        <div className="min-w-0 flex-1 truncate">
+          <h3 className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm uppercase truncate">STUDENT ATTENDANCE HISTORY</h3>
+          <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-gray-400 truncate">
             {jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length} Record
             {(jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length) !== 1 ? 's' : ''}
           </p>
         </div>
 
         {/* Filter controls */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
           {/* View mode toggle styled like QR Attendance */}
-          <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5">
+          <div className="flex bg-gray-100 dark:bg-[#111111] rounded-lg sm:rounded-xl p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
             {(['day', 'week', 'month'] as const).map((mode) => (
               <button
                 key={mode}
@@ -2106,7 +2106,7 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
                   setViewMode(mode);
                   setJumpDate(null);
                 }}
-                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
+                className={`rounded-md sm:rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${viewMode === mode && !jumpDate
                   ? 'bg-[var(--brand)] text-white shadow-sm'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                   }`}
@@ -2117,19 +2117,19 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
           </div>
 
           {/* Custom Calendar Dropdown Button in Poppins */}
-          <div className="relative inline-flex items-center">
+          <div className="relative inline-flex items-center shrink-0">
             <button
               type="button"
               id="student-attendance-calendar-btn"
               onClick={() => setShowCalendarPopover((prev) => !prev)}
-              className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${jumpDate
+              className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all flex items-center justify-center cursor-pointer ${jumpDate
                 ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
                 : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
                 }`}
               title="Select a specific date from calendar"
               aria-label="Open Calendar"
             >
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             {showCalendarPopover && (

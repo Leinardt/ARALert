@@ -667,7 +667,7 @@ const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; o
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((open) => !open)}
-        className="flex h-9 min-w-40 items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 dark:border-[#1A1A1A] dark:bg-[#111111] px-3 text-xs font-semibold tracking-normal text-gray-700 dark:text-slate-200 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer"
+        className="flex h-8 sm:h-9 w-28 xs:w-36 sm:min-w-40 items-center justify-between gap-1.5 sm:gap-3 rounded-xl border border-gray-200 bg-gray-50 dark:border-[#1A1A1A] dark:bg-[#111111] px-2 sm:px-3 text-[11px] sm:text-xs font-semibold tracking-normal text-gray-700 dark:text-slate-200 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shrink-0"
         style={{ fontFamily: 'var(--font-body)' }}
       >
         <span className="truncate">{selectedLabel}</span>
@@ -1064,23 +1064,24 @@ export const PrincipalAnalytics: React.FC = () => {
   return (
     <div className="space-y-4 data-loaded-content w-full min-w-0 max-w-full" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
       {/* ── Tutor Filter Dropdown (Above Main Tab Buttons) ── */}
-      <div className="relative z-40 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 shrink-0 flex items-center gap-1.5">
+      <div className="relative z-40 flex items-center justify-between gap-2 min-w-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1">
+          <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 shrink-0 flex items-center gap-1">
             <Filter className="w-3.5 h-3.5 opacity-70" />
-            FILTER BY TUTOR:
+            <span className="hidden xs:inline">FILTER BY TUTOR:</span>
+            <span className="xs:hidden">TUTOR:</span>
           </span>
-          <div className="relative z-50" ref={tutorDropdownRef}>
+          <div className="relative z-50 shrink-0" ref={tutorDropdownRef}>
             <button
               type="button"
               aria-label="Filter by Tutor"
               aria-haspopup="listbox"
               aria-expanded={isTutorDropdownOpen}
               onClick={() => setIsTutorDropdownOpen((prev) => !prev)}
-              className="flex h-9 min-w-48 items-center justify-between gap-3 rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] px-3 text-xs font-semibold tracking-normal text-gray-900 dark:text-slate-100 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-2xs"
+              className="flex h-8 sm:h-9 min-w-36 xs:min-w-44 sm:min-w-48 items-center justify-between gap-2 sm:gap-3 rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold tracking-normal text-gray-900 dark:text-slate-100 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-2xs"
             >
               <span className="truncate">{selectedTutorLabel}</span>
-              <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${isTutorDropdownOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-gray-400 transition-transform ${isTutorDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
             {isTutorDropdownOpen && (
               <div
@@ -1124,8 +1125,8 @@ export const PrincipalAnalytics: React.FC = () => {
           </div>
         </div>
 
-        <div className="text-[11px] font-medium text-gray-400 dark:text-slate-500">
-          Showing {selectedTutorId === 'all' ? 'All Classes' : `${selectedTutorLabel}'s Class`} ({activeStudents.length} Students)
+        <div className="text-[10px] sm:text-[11px] font-medium text-gray-400 dark:text-slate-500 shrink-0 truncate">
+          <span className="hidden sm:inline">Showing {selectedTutorId === 'all' ? 'All Classes' : `${selectedTutorLabel}'s Class`} </span>({activeStudents.length} Students)
         </div>
       </div>
 
@@ -1204,28 +1205,28 @@ export const PrincipalAnalytics: React.FC = () => {
 
           {/* ── Risk Level Trend Chart ── */}
           <section className="rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]" aria-labelledby="risk-overview-heading">
-            <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
-              <div>
-                <h3 id="risk-overview-heading" className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">RISK LEVEL TREND CHART</h3>
+            <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
+              <div className="min-w-0 flex-1 truncate">
+                <h3 id="risk-overview-heading" className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">RISK LEVEL TREND CHART</h3>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
+                <div className="hidden xs:flex items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#EF4444' }} />High Risk</span>
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#F59E0B' }} />Medium Risk</span>
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#22C55E' }} />Low Risk</span>
                 </div>
-                <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0">
                   <StudentRiskFilter rows={rows} value={riskScope} onChange={setRiskScope} />
                 </label>
-                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Filter risk chart by time period">
+                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0 whitespace-nowrap" role="group" aria-label="Filter risk chart by time period">
                   {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                     <button
                       key={filter}
                       type="button"
                       onClick={() => setRiskTrendFilter(filter)}
-                      className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${
+                      className={`cursor-pointer rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all whitespace-nowrap ${
                         riskTrendFilter === filter
-                          ? 'bg-[var(--brand)] text-white'
+                          ? 'bg-[var(--brand)] text-white shadow-xs'
                           : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                       }`}
                     >
@@ -1297,26 +1298,26 @@ export const PrincipalAnalytics: React.FC = () => {
 
           {/* Attendance Trend Chart */}
           <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-            <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
-              <div>
-                <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS ATTENDANCE RATE TREND CHART</h3>
+            <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
+              <div className="min-w-0 flex-1 truncate">
+                <h3 className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">STUDENTS ATTENDANCE RATE TREND CHART</h3>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
+                <div className="hidden xs:flex items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Attendance Rate</span>
                 </div>
-                <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0">
                   <StudentRiskFilter rows={rows} value={attendanceScope} onChange={setAttendanceScope} />
                 </label>
-                <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Attendance trend period">
+                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0 whitespace-nowrap" aria-label="Attendance trend period">
                   {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                     <button
                       key={filter}
                       type="button"
                       onClick={() => setAttendanceFilter(filter)}
-                      className={`rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                      className={`rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                         attendanceFilter === filter
-                          ? 'bg-[var(--brand)] text-white'
+                          ? 'bg-[var(--brand)] text-white shadow-xs'
                           : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                       }`}
                     >
@@ -1383,26 +1384,26 @@ export const PrincipalAnalytics: React.FC = () => {
 
           {/* Score Trend Chart */}
           <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-            <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
-              <div>
-                <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS AVERAGE SCORE TREND CHART</h3>
+            <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
+              <div className="min-w-0 flex-1 truncate">
+                <h3 className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">STUDENTS AVERAGE SCORE TREND CHART</h3>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
+                <div className="hidden xs:flex items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Average Score</span>
                 </div>
-                <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0">
                   <StudentRiskFilter rows={rows} value={scoreScope} onChange={setScoreScope} />
                 </label>
-                <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Score trend period">
+                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0 whitespace-nowrap" aria-label="Score trend period">
                   {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                     <button
                       key={filter}
                       type="button"
                       onClick={() => setScoreFilter(filter)}
-                      className={`rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                      className={`rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                         scoreFilter === filter
-                          ? 'bg-[var(--brand)] text-white'
+                          ? 'bg-[var(--brand)] text-white shadow-xs'
                           : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                       }`}
                     >

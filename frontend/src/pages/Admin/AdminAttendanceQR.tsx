@@ -724,38 +724,39 @@ export const AdminAttendanceQR: React.FC = () => {
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
       >
         {/* Section Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
-          <div>
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">
+        <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-2.5 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+          <div className="min-w-0 flex-1 truncate">
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase truncate">
               DTR SCAN HISTORY
             </h3>
-            <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">
+            <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">
               {filteredDtrRows.length} Record{filteredDtrRows.length !== 1 ? 's' : ''}
             </p>
           </div>
 
           {/* Controls */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
             {/* Export DTR Button */}
             <button
               type="button"
               id="admin-export-dtr-btn"
               onClick={() => setShowDtrExportModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-md bg-[var(--brand)] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[var(--brand-dark)] shrink-0 cursor-pointer shadow-xs"
+              className="inline-flex items-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-bold text-white transition hover:bg-[var(--brand-dark)] shrink-0 cursor-pointer shadow-xs whitespace-nowrap"
             >
-              <Download className="w-3.5 h-3.5" />
-              Export DTR
+              <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden xs:inline">Export DTR</span>
+              <span className="xs:hidden">Export</span>
             </button>
 
             {/* Role Filter toggle (ALL / TUTOR / FACULTY / PRINCIPAL) */}
-            <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5">
+            <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
               {(['all', 'tutor', 'faculty', 'principal'] as const).map((role) => (
                 <button
                   key={role}
                   type="button"
                   id={`dtr-role-${role}-btn`}
                   onClick={() => setRoleFilter(role)}
-                  className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                  className={`rounded-sm px-2 sm:px-3 py-1 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                     roleFilter === role
                       ? 'bg-[var(--brand)] text-white'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
@@ -767,13 +768,13 @@ export const AdminAttendanceQR: React.FC = () => {
             </div>
 
             {/* View mode toggle */}
-            <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5">
+            <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
               {(['day', 'week', 'month'] as const).map((mode) => (
                 <button
                   key={mode}
                   type="button"
                   onClick={() => { setViewMode(mode); setJumpDate(null); }}
-                  className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                  className={`rounded-sm px-2 sm:px-3 py-1 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                     viewMode === mode && !jumpDate
                       ? 'bg-[var(--brand)] text-white'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
@@ -785,12 +786,12 @@ export const AdminAttendanceQR: React.FC = () => {
             </div>
 
             {/* Jump to Date Calendar Popover (Icon Only) */}
-            <div className="relative inline-flex items-center">
+            <div className="relative inline-flex items-center shrink-0">
               <button
                 type="button"
                 id="dtr-calendar-btn"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`p-2 rounded-md border transition-all flex items-center justify-center cursor-pointer ${
+                className={`p-1.5 sm:p-2 rounded-md border transition-all flex items-center justify-center cursor-pointer ${
                   jumpDate
                     ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
                     : 'border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#222222]'
@@ -798,7 +799,7 @@ export const AdminAttendanceQR: React.FC = () => {
                 title="Select a specific date from calendar"
                 aria-label="Open Calendar"
               >
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
 
               {showCalendarPopover && (
@@ -813,14 +814,14 @@ export const AdminAttendanceQR: React.FC = () => {
             </div>
 
             {/* Search Bar */}
-            <div className="relative w-full sm:w-56">
+            <div className="relative w-28 xs:w-36 sm:w-56 shrink-0">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search staff, subject, grade..."
+                placeholder="Search staff..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-gray-50 dark:bg-[#161616] border border-gray-200 dark:border-[#1A1A1A] rounded-md text-xs text-gray-800 dark:text-slate-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] transition-colors"
+                className="w-full pl-8 pr-2.5 py-1 sm:py-1.5 bg-gray-50 dark:bg-[#161616] border border-gray-200 dark:border-[#1A1A1A] rounded-md text-[11px] sm:text-xs text-gray-800 dark:text-slate-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] transition-colors"
               />
             </div>
           </div>

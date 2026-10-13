@@ -43,6 +43,15 @@ html, body, #root {
   width: 100%;
 }
 
+/* ── Hide scrollbar for clean horizontal scrolls ── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 @media (max-width: 640px) {
   button, a, input, select, textarea {
     touch-action: manipulation;

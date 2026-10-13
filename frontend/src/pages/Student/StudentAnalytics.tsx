@@ -923,18 +923,18 @@ export const StudentAnalytics: React.FC = () => {
         className="rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]"
         aria-labelledby="risk-overview-heading"
       >
-        <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
-          <div>
+        <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
+          <div className="min-w-0 flex-1 truncate">
             <h3
               id="risk-overview-heading"
-              className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100"
+              className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate"
             >
               RISK LEVEL TREND CHART
             </h3>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
+            <div className="hidden xs:flex items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
               <span className="inline-flex items-center gap-1.5">
                 <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#EF4444' }} />
                 High Risk
@@ -949,7 +949,7 @@ export const StudentAnalytics: React.FC = () => {
               </span>
             </div>
             <div
-              className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]"
+              className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0 whitespace-nowrap"
               role="group"
               aria-label="Filter risk chart by time period"
             >
@@ -958,9 +958,9 @@ export const StudentAnalytics: React.FC = () => {
                   key={filter}
                   type="button"
                   onClick={() => setTrendFilter(filter)}
-                  className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${
+                  className={`cursor-pointer rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all whitespace-nowrap ${
                     trendFilter === filter
-                      ? 'bg-[var(--brand)] text-white'
+                      ? 'bg-[var(--brand)] text-white shadow-xs'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                   }`}
                 >

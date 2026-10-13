@@ -331,7 +331,7 @@ export const Login: React.FC = () => {
                 >
                   <div className="min-w-0 pr-3">
                     <div className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 mb-1 transition-colors duration-200">
-                      Student Learner Portal
+                      Student Portal
                     </div>
                     <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed truncate">
                       Sign in using your 12-digit Learner Reference Number.

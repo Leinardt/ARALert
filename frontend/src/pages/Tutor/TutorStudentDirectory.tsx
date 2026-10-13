@@ -478,23 +478,23 @@ const aralLevelRank: Record<string, number> = {
       ) : (
         <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative">
           {/* Section header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
-            <div>
-              <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">ASSIGNED STUDENTS DETAILS</h3>
-              <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">
+          <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-2.5 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+            <div className="min-w-0 flex-1 truncate">
+              <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase truncate">ASSIGNED STUDENTS DETAILS</h3>
+              <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">
                 {filteredAndSorted.length} Student{filteredAndSorted.length !== 1 ? 's' : ''}
               </p>
             </div>
 
             {/* Controls */}
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
               {/* Auto-updating School Year Dropdown */}
-              <div className="relative inline-flex items-center">
+              <div className="relative inline-flex items-center shrink-0">
                 <select
                   value={selectedSchoolYear}
                   onChange={(e) => setSelectedSchoolYear(e.target.value)}
                   aria-label="Filter by School Year"
-                  className="h-8.5 appearance-none rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-3 pr-8 text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer"
+                  className="h-7.5 sm:h-8.5 appearance-none rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-2.5 pr-7 sm:pl-3 sm:pr-8 text-[11px] sm:text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer"
                 >
                   {schoolYearOptions.map((opt) => (
                     <option key={opt.key} value={opt.key} className="bg-white dark:bg-[#111111] text-gray-800 dark:text-slate-200 font-medium">
@@ -502,18 +502,18 @@ const aralLevelRank: Record<string, number> = {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-[var(--brand)] opacity-75" />
+                <ChevronDown className="pointer-events-none absolute right-2 sm:right-2.5 h-3 sm:h-3.5 w-3 sm:w-3.5 text-[var(--brand)] opacity-75" />
               </div>
 
-              <label className="relative flex w-full sm:w-auto sm:min-w-52 items-center">
-                <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-gray-400" />
+              <label className="relative flex w-28 xs:w-36 sm:w-52 items-center shrink-0">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <input
                   type="search"
-                  placeholder="Search Student Name"
+                  placeholder="Search student..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   aria-label="Search assigned students"
-                  className="h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-9 pr-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
+                  className="h-7.5 sm:h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-8 pr-2.5 text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
                 />
               </label>
             </div>

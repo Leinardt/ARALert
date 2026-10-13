@@ -647,6 +647,7 @@ class AttendanceScanView(APIView):
             return Response({'error': 'QR code has expired.'}, status=status.HTTP_400_BAD_REQUEST)
 
         today = timezone.localdate()
+        current_time = timezone.localtime().time()
 
         if session.session_type == 'student':
             if user.role != 'student':
@@ -659,7 +660,7 @@ class AttendanceScanView(APIView):
                 user          = user,
                 role          = 'student',
                 date          = today,
-                time_in       = timezone.now().time(),
+                time_in       = current_time,
                 status        = 'present',
                 tutor         = session.creator,
                 aral_activity = session.aral_activity,
@@ -692,7 +693,15 @@ class AttendanceScanView(APIView):
             if user.role not in ('tutor', 'faculty', 'admin', 'principal') and not user.is_superuser:
                 return Response({'error': 'Only staff can scan this QR code.'}, status=status.HTTP_403_FORBIDDEN)
 
-            action = session.action or 'time_in'
+            action = session.action
+            if not action:
+                existing = ApiAttendance.objects.filter(user=user, date=today).first()
+                if not existing:
+                    action = 'time_in'
+                elif not existing.time_out:
+                    action = 'time_out'
+                else:
+                    return Response({'error': 'Already completed DTR (Clock In and Clock Out) for today.'}, status=status.HTTP_400_BAD_REQUEST)
 
             if action == 'time_in':
                 if ApiAttendance.objects.filter(user=user, date=today).exists():
@@ -701,7 +710,7 @@ class AttendanceScanView(APIView):
                     user    = user,
                     role    = user.role,
                     date    = today,
-                    time_in = timezone.now().time(),
+                    time_in = current_time,
                     status  = 'present',
                     session = session,
                 )
@@ -734,7 +743,7 @@ class AttendanceScanView(APIView):
                 if attendance.time_out:
                     return Response({'error': 'Already clocked out today.'}, status=status.HTTP_400_BAD_REQUEST)
 
-                attendance.time_out = timezone.now().time()
+                attendance.time_out = current_time
                 attendance.save(update_fields=['time_out'])
 
                 log_audit_event(
@@ -809,7 +818,7 @@ class AttendanceManualLogView(APIView):
             date = log_date,
             defaults={
                 'role':          'student',
-                'time_in':       timezone.now().time(),
+                'time_in':       timezone.localtime().time(),
                 'status':        status_val,
                 'tutor':         user,
                 'aral_activity': aral_activity,

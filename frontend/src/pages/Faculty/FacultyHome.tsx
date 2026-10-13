@@ -685,26 +685,26 @@ export const FacultyHome: React.FC = () => {
 
         {/* Row 2: Attendance Rate Trend Chart */}
         <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3.5 sm:px-5 flex flex-col flex-1 min-h-0 w-full min-w-0 max-w-full shadow-2xs">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 shrink-0 pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-            <div className="min-w-0">
+          <div className="flex items-center justify-between gap-2 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+            <div className="min-w-0 flex-1">
               <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight truncate">
                 Faculty Attendance Performance Trend
               </h3>
             </div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-between sm:justify-end min-w-0">
-              <div className="flex items-center gap-2 xs:gap-3 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
+              <div className="hidden xs:flex items-center gap-2 sm:gap-3 shrink-0 whitespace-nowrap">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300">
                   <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
                   <span>Attendance rate</span>
                 </div>
               </div>
-              <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0">
+              <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
                 {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                   <button
                     key={filter}
                     type="button"
                     onClick={() => setTrendFilter(filter)}
-                    className={`rounded-sm px-2.5 sm:px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                    className={`rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                       trendFilter === filter
                         ? 'bg-[var(--brand)] text-white shadow-xs'
                         : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'

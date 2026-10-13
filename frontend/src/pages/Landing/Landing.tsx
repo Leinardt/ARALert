@@ -99,7 +99,7 @@ interface FAQItem {
 const FAQ_DATA: FAQItem[] = [
   {
     id: 1,
-    questionNumber: 'Q01',
+    questionNumber: 'Q1',
     topic: 'Mandate & Coverage',
     question: 'What is the primary mandate and coverage of the ARAL Program?',
     answer:
@@ -107,7 +107,7 @@ const FAQ_DATA: FAQItem[] = [
   },
   {
     id: 2,
-    questionNumber: 'Q02',
+    questionNumber: 'Q2',
     topic: 'Risk Detection',
     question: 'How does ARALert automatically identify learners at academic risk?',
     answer:
@@ -115,15 +115,15 @@ const FAQ_DATA: FAQItem[] = [
   },
   {
     id: 3,
-    questionNumber: 'Q03',
+    questionNumber: 'Q3',
     topic: 'Access & Roles',
     question: 'Who is authorized to access student performance records and evaluations?',
     answer:
-      'System access is strictly governed by institutional role: School Principals and Administrators oversee school-wide cohort analytics; Subject Teachers and Tutors manage their assigned student groups; while Students have individualized access to review their personal score trajectories and attendance records.',
+      'System access is strictly governed by institutional role: School Principals and Administrators oversee school-wide cohort analytics; Tutors manage their assigned student groups; while Students have individualized access to review their personal score trajectories and attendance records.',
   },
   {
     id: 4,
-    questionNumber: 'Q04',
+    questionNumber: 'Q4',
     topic: 'Attendance Security',
     question: 'How does the dynamic QR attendance verification prevent proxy attendance?',
     answer:
@@ -131,7 +131,7 @@ const FAQ_DATA: FAQItem[] = [
   },
   {
     id: 5,
-    questionNumber: 'Q05',
+    questionNumber: 'Q5',
     topic: 'Grade Adjustments',
     question: 'Can tutors submit score updates or assessment corrections after submission?',
     answer:
@@ -139,7 +139,7 @@ const FAQ_DATA: FAQItem[] = [
   },
   {
     id: 6,
-    questionNumber: 'Q06',
+    questionNumber: 'Q6',
     topic: 'Data Privacy',
     question: 'How does ARALert protect learner data under Philippine privacy laws?',
     answer:
@@ -500,11 +500,10 @@ export const Landing: React.FC = () => {
               return (
                 <div
                   key={faq.id}
-                  className={`transition-colors duration-200 relative ${
-                    isOpen
+                  className={`transition-colors duration-200 relative ${isOpen
                       ? 'bg-blue-50/20 dark:bg-neutral-900/40'
                       : 'hover:bg-slate-50/30 dark:hover:bg-neutral-900/10'
-                  }`}
+                    }`}
                 >
                   {/* Left Margin Gutter Question Indicator */}
                   <div
@@ -525,20 +524,18 @@ export const Landing: React.FC = () => {
                     <div className="flex items-center gap-3 sm:gap-4 pr-2 min-w-0 flex-1">
                       {/* Left vertical status indicator */}
                       <span
-                        className={`w-1.5 h-6 rounded-full transition-colors duration-200 shrink-0 ${
-                          isOpen ? 'bg-[#0052B7] dark:bg-blue-400' : 'bg-transparent'
-                        }`}
+                        className={`w-1.5 h-6 rounded-full transition-colors duration-200 shrink-0 ${isOpen ? 'bg-[#0052B7] dark:bg-blue-400' : 'bg-transparent'
+                          }`}
                       />
                       <div className="min-w-0">
                         <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-0.5">
                           {faq.topic}
                         </span>
                         <span
-                          className={`text-sm sm:text-base lg:text-lg tracking-tight transition-colors block ${
-                            isOpen
+                          className={`text-sm sm:text-base lg:text-lg tracking-tight transition-colors block ${isOpen
                               ? 'text-[#0052B7] dark:text-blue-400 font-bold'
                               : 'text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 font-semibold'
-                          }`}
+                            }`}
                         >
                           Question {index + 1}: {faq.question}
                         </span>
@@ -548,20 +545,18 @@ export const Landing: React.FC = () => {
                     {/* Interactive Reveal Tag / Button */}
                     <div className="flex items-center gap-2 shrink-0 pr-2">
                       <span
-                        className={`px-3 py-1 rounded-md text-xs font-mono font-semibold transition-all duration-200 border ${
-                          isOpen
+                        className={`px-3 py-1 rounded-md text-xs font-mono font-semibold transition-all duration-200 border ${isOpen
                             ? 'bg-blue-100/70 dark:bg-blue-950/60 border-blue-300 dark:border-blue-700 text-[#0052B7] dark:text-blue-300'
                             : 'bg-slate-100 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-600 dark:text-slate-400 group-hover:border-[#0052B7] group-hover:text-[#0052B7] dark:group-hover:text-blue-400'
-                        }`}
+                          }`}
                       >
                         {isOpen ? 'Answer Key: Revealed ✓' : 'Reveal Answer Key ▾'}
                       </span>
                       <ChevronDown
-                        className={`w-4 h-4 shrink-0 transition-transform duration-300 ease-out ${
-                          isOpen
+                        className={`w-4 h-4 shrink-0 transition-transform duration-300 ease-out ${isOpen
                             ? 'rotate-180 text-[#0052B7] dark:text-blue-400'
                             : 'text-slate-400 dark:text-slate-500 group-hover:text-[#0052B7] dark:group-hover:text-blue-400'
-                        }`}
+                          }`}
                       />
                     </div>
                   </button>
@@ -571,9 +566,8 @@ export const Landing: React.FC = () => {
                     id={`quiz-answer-${faq.id}`}
                     role="region"
                     aria-labelledby={`quiz-question-${faq.id}`}
-                    className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
-                      isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-                    }`}
+                    className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                      }`}
                   >
                     <div className="overflow-hidden">
                       <div className="pb-6 pt-2 pl-4 sm:pl-7 pr-2 sm:pr-6 border-l-2 border-[#0052B7] dark:border-blue-400 ml-2 mb-4">

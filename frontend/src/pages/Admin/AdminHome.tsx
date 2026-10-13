@@ -1122,7 +1122,7 @@ export const AdminHome: React.FC = () => {
         {/* ── Left Column (9 cols on lg & xl: ~75% width): PNAHS ARAL PERFORMANCE TREND CHART ── */}
         <div className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3 w-full min-w-0 max-w-full">
           <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 w-full min-w-0 max-w-full shadow-2xs">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 shrink-0 pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+            <div className="flex items-center justify-between gap-2 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
               <div className="min-w-0 flex-1">
                 <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate">
                   {selectedTutorObj
@@ -1130,13 +1130,13 @@ export const AdminHome: React.FC = () => {
                     : 'PNAHS ARAL PERFORMANCE TREND CHART'}
                 </h3>
               </div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 justify-between sm:justify-end min-w-0 shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
                 {/* Tutor Filter Dropdown */}
                 <select
                   aria-label="Filter by Tutor Class"
                   value={selectedTutorId}
                   onChange={(e) => setSelectedTutorId(e.target.value)}
-                  className="h-7 sm:h-8 px-2 rounded-sm text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[140px] sm:max-w-[170px] whitespace-nowrap truncate shrink-0"
+                  className="h-7 sm:h-8 px-1.5 sm:px-2 rounded-sm text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[110px] xs:max-w-[140px] sm:max-w-[170px] whitespace-nowrap truncate shrink-0"
                 >
                   <option value="all">ALL TUTORS</option>
                   {tutors.map((tutor) => {
@@ -1150,15 +1150,15 @@ export const AdminHome: React.FC = () => {
                 </select>
 
                 {/* Legend */}
-                <div className="flex items-center gap-2 xs:gap-3 shrink-0 whitespace-nowrap">
+                <div className="hidden xs:flex items-center gap-2 sm:gap-3 shrink-0 whitespace-nowrap">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 whitespace-nowrap">
                     <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
-                    <span className="hidden xs:inline whitespace-nowrap">Composite rating</span>
-                    <span className="xs:hidden whitespace-nowrap">Composite</span>
+                    <span className="hidden sm:inline whitespace-nowrap">Composite rating</span>
+                    <span className="sm:hidden whitespace-nowrap">Composite</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400 whitespace-nowrap">
                     <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block shrink-0" />
-                    <span className="truncate max-w-[120px] xs:max-w-none whitespace-nowrap">{adminMilestone}</span>
+                    <span className="truncate max-w-[100px] sm:max-w-none whitespace-nowrap">{adminMilestone}</span>
                   </div>
                 </div>
 
@@ -1169,7 +1169,7 @@ export const AdminHome: React.FC = () => {
                       key={filter}
                       type="button"
                       onClick={() => setTrendFilter(filter)}
-                      className={`rounded-sm px-2.5 sm:px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
+                      className={`rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                         trendFilter === filter
                           ? 'bg-[var(--brand)] text-white shadow-xs'
                           : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'

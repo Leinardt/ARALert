@@ -943,10 +943,9 @@ export const DashboardLayout: React.FC = () => {
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--surface-bg)', overflow: 'hidden', fontFamily: 'var(--font-body)' }}>
 
-      {/* ── Tutor / Student Greeting Intro (Chat Bubble + Flying Mascot) ───── */}
+      {/* ── System Greeting Intro (Chat Bubble + Flying Mascot) ───── */}
       <TutorGreetingIntro
         user={user}
-        isTutor={user?.role === 'tutor' || user?.role === 'student'}
         sidebarLogoId="sidebar-brand-logo"
         sidebarTextId="sidebar-brand-text"
       />
@@ -1009,13 +1008,24 @@ export const DashboardLayout: React.FC = () => {
               </button>
             </div>
           ) : (
-            /* Expanded State: Show only the word ARALert (no logo); collapse button on the right in its original position, smoothly revealed on hover */
+            /* Expanded State: Show ARALert logo + brand text; collapse button on the right in its original position, smoothly revealed on hover */
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
               <Link
                 to={user?.is_superuser ? '/superadmin' : user?.role ? `/${user.role}` : '/'}
                 className="group/brand flex items-center gap-1.5 no-underline min-w-0"
                 title={`ARALert / ${getRoleLabel()}`}
               >
+                <div
+                  id="sidebar-brand-logo"
+                  className="w-8 h-8 flex items-center justify-center shrink-0 select-none mr-0.5 transition-transform duration-300 ease-out group-hover/brand:scale-105 will-change-transform"
+                >
+                  <img
+                    src={aralertLogo}
+                    alt="ARALert"
+                    className="w-full h-full object-contain block"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                  />
+                </div>
                 <span
                   id="sidebar-brand-text"
                   style={{
