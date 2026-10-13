@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import QRCode from 'qrcode';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
@@ -714,7 +713,6 @@ export const TutorQRGenerator: React.FC = () => {
     onConfirm: () => { },
   });
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const tutorScannerRef = useRef<Html5Qrcode | null>(null);
@@ -724,6 +722,16 @@ export const TutorQRGenerator: React.FC = () => {
   const [tutorScanMessage, setTutorScanMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [tutorCameraError, setTutorCameraError] = useState<string | null>(null);
   const [isProcessingStudentScan, setIsProcessingStudentScan] = useState<boolean>(false);
+  const [manualStudentInput, setManualStudentInput] = useState<string>('');
+
+  // Restart tutor camera scanner
+  const restartTutorScanner = async () => {
+    await stopTutorScanner();
+    setIsTutorScanning(false);
+    setTimeout(() => {
+      setIsTutorScanning(true);
+    }, 100);
+  };
 
   // Stop tutor camera scanner
   const stopTutorScanner = async () => {
@@ -911,27 +919,7 @@ export const TutorQRGenerator: React.FC = () => {
     };
   }, []);
 
-  // ── QR canvas render ───────────────────────────────────────────
-  useEffect(() => {
-    if (session?.id && canvasRef.current) {
-      QRCode.toCanvas(
-        canvasRef.current,
-        session.id,
-        {
-          width: 256,
-          margin: 2,
-          errorCorrectionLevel: 'M',
-          color: {
-            dark: '#000000',
-            light: '#ffffff',
-          },
-        },
-        (err: any) => {
-          if (err) console.error('QR Render Error:', err);
-        }
-      );
-    }
-  }, [session?.id, session?.is_active]);
+
 
   // ── Polling & Timer helpers ────────────────────────────────────
   const calcRemainingSeconds = (targetSession: AttendanceSession, localExpiresAt?: number) => {
@@ -1007,6 +995,7 @@ export const TutorQRGenerator: React.FC = () => {
           if (parsed.session && parsed.session.is_active && remaining > 0) {
             setSession(parsed.session);
             setTimeLeft(remaining);
+            setIsTutorScanning(true);
             if (parsed.durationMinutes) {
               setExpiresIn(parsed.durationMinutes);
             }
@@ -1035,6 +1024,7 @@ export const TutorQRGenerator: React.FC = () => {
             const localExpiresAt = timeService.nowMs() + remaining * 1000;
             setSession(activeSession);
             setTimeLeft(remaining);
+            setIsTutorScanning(true);
 
             const durationMinutes = expiresIn || Math.max(5, Math.ceil(remaining / 60));
             if (storageKey) {
@@ -1088,6 +1078,7 @@ export const TutorQRGenerator: React.FC = () => {
 
       const newSession = await academicService.createAttendanceSession(payload);
       setSession(newSession);
+      setIsTutorScanning(true);
       const remaining = newSession.time_left || expiresIn * 60;
       setTimeLeft(remaining);
       setScannedStudents([]);
@@ -1120,6 +1111,7 @@ export const TutorQRGenerator: React.FC = () => {
   };
 
   const cancelSession = async () => {
+    setIsTutorScanning(false);
     if (timerRef.current) clearInterval(timerRef.current);
     if (pollRef.current) clearInterval(pollRef.current);
 
@@ -1144,9 +1136,9 @@ export const TutorQRGenerator: React.FC = () => {
     if (session && session.is_active) {
       setConfirmAction({
         isOpen: true,
-        title: 'Generate New QR Code',
-        message: 'Generating a new QR code will end the current active session. Are you sure you want to proceed?',
-        confirmText: 'Generate New',
+        title: 'Start New Attendance Session',
+        message: 'Starting a new attendance session will end the current active session. Are you sure you want to proceed?',
+        confirmText: 'Start New',
         confirmStyle: 'brand',
         onConfirm: () => {
           setConfirmAction((prev) => ({ ...prev, isOpen: false }));
@@ -1295,7 +1287,7 @@ export const TutorQRGenerator: React.FC = () => {
             {/* Card Header */}
             <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h2 className="text-base font-bold text-gray-900 dark:text-slate-100">SESSION SETUP</h2>
+                <h2 className="text-base font-bold text-gray-900 dark:text-slate-100 uppercase">ATTENDANCE SCANNER SETUP</h2>
               </div>
               {session && (
                 <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border ${session.is_active
@@ -1346,10 +1338,10 @@ export const TutorQRGenerator: React.FC = () => {
                   {isLoading ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      Creating session...
+                      Starting session...
                     </>
                   ) : (
-                    'Generate QR Code'
+                    'Start Attendance Session'
                   )}
                 </button>
               ) : (
@@ -1359,7 +1351,7 @@ export const TutorQRGenerator: React.FC = () => {
                   className="order-3 w-full flex items-center justify-center gap-2 border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand-light)] py-2.5 rounded-md text-sm font-bold transition-all cursor-pointer disabled:opacity-70"
                 >
                   <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  {isLoading ? 'Creating...' : 'Generate New QR Code'}
+                  {isLoading ? 'Starting...' : 'Start New Session'}
                 </button>
               )}
 
@@ -1370,37 +1362,8 @@ export const TutorQRGenerator: React.FC = () => {
                 </div>
               )}
 
-              {/* Session Display / Camera Scanner Toggle */}
+              {/* Session Display / Camera Scanner */}
               <div className="order-1 mx-auto w-full max-w-sm">
-                {session?.is_active && (
-                  <div className="mb-3 flex items-center justify-between p-1 bg-gray-100 dark:bg-[#1A1A1A] rounded-lg border border-gray-200 dark:border-[#222]">
-                    <button
-                      type="button"
-                      onClick={() => setIsTutorScanning(false)}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-md transition cursor-pointer ${
-                        !isTutorScanning
-                          ? 'bg-white dark:bg-[#252525] text-[var(--brand)] shadow-xs'
-                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-                      }`}
-                    >
-                      <QrCode className="w-3.5 h-3.5" />
-                      <span>Show Session QR</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsTutorScanning(true)}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-md transition cursor-pointer ${
-                        isTutorScanning
-                          ? 'bg-white dark:bg-[#252525] text-[var(--brand)] shadow-xs'
-                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-                      }`}
-                    >
-                      <Camera className="w-3.5 h-3.5" />
-                      <span>Scan Student QR</span>
-                    </button>
-                  </div>
-                )}
-
                 {/* Live Tutor Scanner Feedback Banner */}
                 {tutorScanMessage && (
                   <div
@@ -1428,85 +1391,120 @@ export const TutorQRGenerator: React.FC = () => {
                   </div>
                 )}
 
-                {/* Viewport: Either Camera Scanner OR QR Display */}
-                {session?.is_active && isTutorScanning ? (
-                  <div className="relative flex min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-4 overflow-hidden">
-                    <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-xs z-10" />
-                    <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-xs z-10" />
-                    <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-xs z-10" />
-                    <span className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[var(--brand)] rounded-br-xs z-10" />
+                {/* Viewport: Active Session Scanner OR Expired OR Awaiting Session */}
+                {session?.is_active ? (
+                  <div className="space-y-3">
+                    <div className="relative flex min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-4 overflow-hidden">
+                      <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-xs z-10" />
+                      <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-xs z-10" />
+                      <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-xs z-10" />
+                      <span className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[var(--brand)] rounded-br-xs z-10" />
 
-                    <div className="w-full space-y-3">
-                      {tutorCameraError && (
-                        <div className="flex items-start gap-2.5 rounded-md border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30 p-3 text-xs text-red-700 dark:text-red-300">
-                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                          <span>{tutorCameraError}</span>
-                        </div>
-                      )}
-                      <div
-                        id="tutor-qr-reader"
-                        className="w-full font-mono text-xs text-white overflow-hidden rounded-md"
-                      />
-                      <p className="text-[11px] text-gray-500 dark:text-slate-400 text-center font-medium">
-                        Point camera at student permanent QR badge or phone screen
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="relative flex min-h-[300px] items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-4 overflow-hidden">
-                    {/* Corner scan-frame decorations */}
-                    {session && session.is_active && (
-                      <>
-                        <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-xs" />
-                        <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-xs" />
-                        <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-xs" />
-                        <span className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[var(--brand)] rounded-br-xs" />
-                      </>
-                    )}
-
-                  {session ? (
-                    <>
-                      <div className="flex h-[264px] w-[264px] items-center justify-center rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white p-3">
-                        <canvas ref={canvasRef} className="block h-full w-full rounded-sm" />
-                      </div>
-
-                      {/* Expired overlay */}
-                      {!session.is_active && (
-                        <div className="absolute inset-0 bg-white/95 dark:bg-[#111111]/95 backdrop-blur-sm rounded-md flex flex-col items-center justify-center p-6 gap-3">
-                          <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/50 flex items-center justify-center">
-                            <Clock className="w-6 h-6 text-red-500" />
+                      <div className="w-full space-y-3">
+                        {tutorCameraError && (
+                          <div className="flex items-start gap-2.5 rounded-md border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30 p-3 text-xs text-red-700 dark:text-red-300">
+                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                            <span>{tutorCameraError}</span>
                           </div>
-                          <div className="text-center">
-                            <p className="font-bold text-gray-900 dark:text-slate-100 text-sm">Session Expired</p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Generate a new QR code to continue</p>
-                          </div>
+                        )}
+                        <div
+                          id="tutor-qr-reader"
+                          className="w-full font-mono text-xs text-white overflow-hidden rounded-md"
+                        />
+                        <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-slate-400">
+                          <span>Point camera at student permanent QR code</span>
                           <button
-                            onClick={() => {
-                              const storageKey = getStorageKey(user?.id);
-                              if (storageKey) localStorage.removeItem(storageKey);
-                              setSession(null);
-                              setScannedStudents([]);
-                              void fetchAttendanceHistory();
-                            }}
-                            className="mt-1 px-4 py-1.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-md text-xs font-bold transition-all cursor-pointer"
+                            type="button"
+                            onClick={restartTutorScanner}
+                            className="inline-flex items-center gap-1 font-semibold text-[var(--brand)] hover:underline cursor-pointer"
                           >
-                            Reset
+                            <RefreshCw className="w-3 h-3" />
+                            <span>Reset Camera</span>
                           </button>
                         </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center gap-3 py-8">
-                      <div className="w-14 h-14 rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] flex items-center justify-center">
-                        <QrCode className="w-7 h-7 text-gray-300 dark:text-slate-600" />
                       </div>
-                      <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center max-w-[180px]">
-                        Your QR code appears here
-                      </p>
                     </div>
-                  )}
-                </div>
-              )}
+
+                    {/* Manual Student Entry */}
+                    <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] p-3.5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase">MANUAL STUDENT ENTRY</h3>
+                          <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
+                            Enter student LRN or ID if student cannot scan QR pass
+                          </p>
+                        </div>
+                      </div>
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (manualStudentInput.trim()) {
+                            void handleStudentScanResult(manualStudentInput.trim());
+                            setManualStudentInput('');
+                          }
+                        }}
+                        className="space-y-2"
+                      >
+                        <input
+                          type="text"
+                          placeholder="Enter student LRN (e.g. 109283746501)..."
+                          value={manualStudentInput}
+                          onChange={(e) => setManualStudentInput(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-200 dark:border-[#262626] rounded-md text-xs bg-white dark:bg-[#0A0A0A] font-mono tracking-wider text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition-colors"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!manualStudentInput.trim() || isProcessingStudentScan}
+                          className="w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2 rounded-md text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isProcessingStudentScan ? (
+                            <>
+                              <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              <span>Recording Attendance...</span>
+                            </>
+                          ) : (
+                            'Log Student Attendance'
+                          )}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                ) : session && !session.is_active ? (
+                  <div className="relative flex min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-6 text-center">
+                    <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/50 flex items-center justify-center mb-3">
+                      <Clock className="w-6 h-6 text-red-500" />
+                    </div>
+                    <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm">Attendance Session Expired</h3>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 max-w-xs">
+                      The timer for this attendance session has elapsed. Start a new session to continue scanning.
+                    </p>
+                    <button
+                      onClick={() => {
+                        const storageKey = getStorageKey(user?.id);
+                        if (storageKey) localStorage.removeItem(storageKey);
+                        setSession(null);
+                        setIsTutorScanning(false);
+                        setScannedStudents([]);
+                        void fetchAttendanceHistory();
+                      }}
+                      className="mt-4 px-4 py-1.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-md text-xs font-bold transition-all cursor-pointer"
+                    >
+                      Reset Session
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative flex min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-6 text-center">
+                    <div className="w-14 h-14 rounded-full border border-dashed border-gray-300 dark:border-white/10 bg-white dark:bg-[#111111] flex items-center justify-center mb-3">
+                      <Camera className="w-7 h-7 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
+                    </div>
+                    <h3 className="text-sm font-bold text-gray-800 dark:text-slate-200">
+                      Ready to Scan Student Attendance
+                    </h3>
+                    <p className="text-xs text-gray-400 dark:text-slate-500 max-w-xs mt-1">
+                      Select a session duration and start the session to activate the camera scanner.
+                    </p>
+                  </div>
+                )}
 
                 {/* Countdown + session info */}
                 {session?.is_active && (
@@ -1528,24 +1526,9 @@ export const TutorQRGenerator: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Manual Entry Short Code */}
-                    <div className="flex items-center justify-between p-3 rounded-md border border-[var(--brand)]/30 bg-[var(--brand)]/5 dark:bg-[var(--brand)]/10">
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 block">
-                          Manual Entry Code
-                        </span>
-                        <span className="text-[11px] text-gray-500 dark:text-slate-400">
-                          Students can enter this 6-char code
-                        </span>
-                      </div>
-                      <span className="text-base font-extrabold font-mono tracking-widest text-[var(--brand)] dark:text-blue-400 bg-white dark:bg-[#1A1A1A] px-3 py-1 rounded border border-gray-200 dark:border-[#2A2A2A] shadow-xs select-all">
-                        {String(session.id).slice(0, 6).toUpperCase()}
-                      </span>
-                    </div>
-
                     {/* Session meta */}
                     <div className="flex items-center justify-between text-xs py-0.5 text-gray-500 dark:text-slate-400">
-                      <span className="font-semibold text-[11px]">Full Session ID:</span>
+                      <span className="font-semibold text-[11px]">Session ID:</span>
                       <code className="text-[11px] font-mono font-medium text-gray-700 dark:text-slate-300 select-all truncate max-w-[180px] tracking-wide" title={session.id}>
                         {session.id}
                       </code>
@@ -1588,10 +1571,10 @@ export const TutorQRGenerator: React.FC = () => {
                     <UserCheck className="w-7 h-7 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center whitespace-nowrap">Students that scan the QR code appears here</p>
+                    <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center whitespace-nowrap">Scanned students will appear here in real-time</p>
                   </div>
                   {!session && (
-                    <p className="text-[11px] text-gray-300 dark:text-slate-600 font-medium">Generate a QR session to begin</p>
+                    <p className="text-[11px] text-gray-300 dark:text-slate-600 font-medium">Start an attendance session to begin</p>
                   )}
                 </div>
               ) : (
