@@ -1,4 +1,4 @@
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -14,7 +14,7 @@ import { academicService } from '../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../utils/analyticsHelpers';
 
 import type { AcademicRisk, StudentEditRequest } from '../types';
-import { TutorGreetingIntro } from '../components/TutorGreetingIntro';
+import { TutorGreetingIntro, checkGreetingEligibility } from '../components/TutorGreetingIntro';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { StudentEditRequestsModal } from '../components/StudentEditRequestsModal';
 import dashboardDarkDefault from '../assets/icons/dashboard_dark.png';
@@ -273,6 +273,10 @@ export const DashboardLayout: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const hasGreetingPending = useMemo(() => {
+    return checkGreetingEligibility(user).show;
+  }, [user]);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     try {
@@ -1017,7 +1021,11 @@ export const DashboardLayout: React.FC = () => {
               >
                 <div
                   id="sidebar-brand-logo"
-                  className="w-7 h-7 flex items-center justify-center shrink-0 select-none transition-transform duration-300 ease-out group-hover/brand:scale-105 will-change-transform"
+                  style={{
+                    opacity: hasGreetingPending ? 0 : 1,
+                    transition: 'opacity 0.25s ease-in-out',
+                  }}
+                  className="w-7 h-7 flex items-center justify-center shrink-0 select-none group-hover/brand:scale-105 will-change-transform"
                 >
                   <img
                     src={aralertLogo}
@@ -1026,47 +1034,33 @@ export const DashboardLayout: React.FC = () => {
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                   />
                 </div>
-                <span
+                <div
                   id="sidebar-brand-text"
+                  className="flex items-center gap-1 min-w-0 select-none whitespace-nowrap will-change-transform"
                   style={{
                     fontFamily: 'var(--font-heading)',
                     fontWeight: 700,
                     fontSize: '0.825rem',
                     letterSpacing: '-0.02em',
                     lineHeight: 1.2,
+                    transform: hasGreetingPending ? 'translateX(-34px)' : 'none',
+                    transformOrigin: 'left center',
                   }}
-                  className="text-black dark:text-white select-none whitespace-nowrap shrink-0"
                 >
-                  ARALert
-                </span>
-                {getRoleLabel() && (
-                  <span className="flex items-center gap-1 min-w-0 select-none whitespace-nowrap">
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-heading)',
-                        fontWeight: 700,
-                        fontSize: '0.825rem',
-                        letterSpacing: '-0.02em',
-                        lineHeight: 1.2,
-                      }}
-                      className="text-black dark:text-white opacity-40 shrink-0"
-                    >
-                      /
-                    </span>
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-heading)',
-                        fontWeight: 700,
-                        fontSize: '0.825rem',
-                        letterSpacing: '-0.02em',
-                        lineHeight: 1.2,
-                      }}
-                      className="text-black dark:text-white whitespace-nowrap"
-                    >
-                      {getRoleLabel()}
-                    </span>
+                  <span className="text-black dark:text-white shrink-0">
+                    ARALert
                   </span>
-                )}
+                  {getRoleLabel() && (
+                    <span className="flex items-center gap-1 min-w-0 select-none whitespace-nowrap">
+                      <span className="text-black dark:text-white opacity-40 shrink-0">
+                        /
+                      </span>
+                      <span className="text-black dark:text-white whitespace-nowrap">
+                        {getRoleLabel()}
+                      </span>
+                    </span>
+                  )}
+                </div>
               </Link>
 
               {/* Collapse button in original right-side position; smoothly appears on hover without layout shift */}

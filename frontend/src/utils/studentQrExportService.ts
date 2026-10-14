@@ -112,11 +112,28 @@ const wrapCanvasText = (
   return curY + lineHeight;
 };
 
-const INSTRUCTION_BULLETS = [
-  '• This QR code and manual code is unique to each student.',
-  '• Students can present this QR code on their phone or bring a printed copy to class.',
-  '• The tutor scans this QR code using their ARALert tutor scanner during active session hours.',
-  '• In case of lost paper copy, reach out to your assigned tutor to help you re-print a copy of your QR code. The student can also reprint their own QR code in their personal ARALert account by logging in using their LRN.',
+export interface InstructionGuideItem {
+  en: string;
+  mb: string;
+}
+
+export const INSTRUCTION_GUIDES: InstructionGuideItem[] = [
+  {
+    en: '• This QR code and manual code is unique to each student.',
+    mb: 'Ini po na QR code kag Manual Code kay unique para sa kada estudyante.',
+  },
+  {
+    en: '• Students can present this QR code on their phone or bring a printed copy to class.',
+    mb: 'Pwede ini na QR code ipresent san kada estudyante gamit an inda phone o pwede man magdara san printed na copy.',
+  },
+  {
+    en: '• The tutor scans this QR code using their ARALert tutor scanner during active session hours.',
+    mb: 'An tutor an magascan sani na QR code gamit an ina scanner sa ARALert kada session.',
+  },
+  {
+    en: '• In case of lost paper copy, reach out to your assigned ARAL tutor to help you re-print a copy of your QR code. The student can also reprint their own QR code in their personal ARALert account by logging in using their LRN.',
+    mb: 'Kun mangyari man na mawara an printed copy, magtugon sa iyo ARAL tutor para mabuligan kamo magprint utro san iyo QR code. Pwede man pod an estudyante magprint san inda sadiri na QR code na makikita sa inda ARALert account matapos mag-log in gamit an inda LRN.',
+  },
 ];
 
 /**
@@ -126,9 +143,18 @@ export const exportStudentQrToJpeg = async (student: StudentQrData): Promise<voi
   const studentName = getStudentDisplayName(student);
   const qrDataUrl = await generateStudentQrDataUrl(student.id, 400);
 
+  // Ensure fonts like Poppins are ready before drawing to canvas
+  if (typeof document !== 'undefined' && document.fonts) {
+    try {
+      await document.fonts.ready;
+    } catch (e) {
+      // ignore
+    }
+  }
+
   const canvas = document.createElement('canvas');
   const cardWidth = 800;
-  const cardHeight = 1100;
+  const cardHeight = 1350;
   canvas.width = cardWidth;
   canvas.height = cardHeight;
   const ctx = canvas.getContext('2d');
@@ -140,20 +166,20 @@ export const exportStudentQrToJpeg = async (student: StudentQrData): Promise<voi
 
   // Top Header (no color container)
   ctx.fillStyle = '#000000';
-  ctx.font = 'bold 36px Arial, Helvetica, sans-serif';
+  ctx.font = "bold 34px 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.textAlign = 'center';
-  ctx.fillText('ARALert', cardWidth / 2, 60);
+  ctx.fillText('ARALert', cardWidth / 2, 58);
 
-  ctx.font = 'bold 18px Arial, Helvetica, sans-serif';
+  ctx.font = "600 17px 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.fillStyle = '#111111';
-  ctx.fillText('Palanas National Agricultural High School • ARAL Program', cardWidth / 2, 95);
+  ctx.fillText('Palanas National Agricultural High School • ARAL Program', cardWidth / 2, 92);
 
   // Thin clean divider
   ctx.strokeStyle = '#E2E8F0';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(50, 118);
-  ctx.lineTo(cardWidth - 50, 118);
+  ctx.moveTo(50, 115);
+  ctx.lineTo(cardWidth - 50, 115);
   ctx.stroke();
 
   // QR Code Image
@@ -163,28 +189,28 @@ export const exportStudentQrToJpeg = async (student: StudentQrData): Promise<voi
     qrImage.onload = resolve;
   });
 
-  const qrBoxSize = 380;
+  const qrBoxSize = 360;
   const qrBoxX = (cardWidth - qrBoxSize) / 2;
-  const qrBoxY = 140;
+  const qrBoxY = 135;
 
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 1.5;
   ctx.strokeRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize);
 
-  const qrDrawSize = 350;
+  const qrDrawSize = 330;
   const qrDrawX = (cardWidth - qrDrawSize) / 2;
   const qrDrawY = qrBoxY + (qrBoxSize - qrDrawSize) / 2;
   ctx.drawImage(qrImage, qrDrawX, qrDrawY, qrDrawSize, qrDrawSize);
 
   // LASTNAME, FIRSTNAME M.I.
   ctx.fillStyle = '#000000';
-  ctx.font = 'bold 30px Arial, Helvetica, sans-serif';
+  ctx.font = "bold 28px 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.textAlign = 'center';
-  ctx.fillText(studentName.toUpperCase(), cardWidth / 2, qrBoxY + qrBoxSize + 48);
+  ctx.fillText(studentName.toUpperCase(), cardWidth / 2, qrBoxY + qrBoxSize + 46);
 
   // [small gap] + MANUAL ATTENDANCE CODE:
-  const manualLabelY = qrBoxY + qrBoxSize + 88;
-  ctx.font = 'bold 18px Arial, Helvetica, sans-serif';
+  const manualLabelY = qrBoxY + qrBoxSize + 84;
+  ctx.font = "bold 17px 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.fillStyle = '#000000';
   ctx.fillText('MANUAL ATTENDANCE CODE:', cardWidth / 2, manualLabelY);
 
@@ -193,23 +219,23 @@ export const exportStudentQrToJpeg = async (student: StudentQrData): Promise<voi
   const badgeWidth = 180;
   const badgeHeight = 42;
   const badgeX = (cardWidth - badgeWidth) / 2;
-  const badgeY = manualLabelY + 12;
+  const badgeY = manualLabelY + 10;
 
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 2;
   ctx.strokeRect(badgeX, badgeY, badgeWidth, badgeHeight);
 
-  ctx.font = 'bold 24px "Courier New", Courier, monospace';
+  ctx.font = 'bold 24px "Poppins", "Courier New", monospace';
   ctx.fillStyle = '#000000';
   ctx.fillText(manualCode, cardWidth / 2, badgeY + 29);
 
   // Helper instruction text
-  ctx.font = '14px Arial, Helvetica, sans-serif';
-  ctx.fillStyle = '#333333';
-  ctx.fillText('Use this 6-digit code if there are problems scanning the QR code.', cardWidth / 2, badgeY + badgeHeight + 26);
+  ctx.font = "500 13.5px 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.fillStyle = '#374151';
+  ctx.fillText('Use this 6-digit code if there are problems scanning the QR code.', cardWidth / 2, badgeY + badgeHeight + 25);
 
   // Bottom Section: INSTRUCTIONS & GUIDELINES (no colored container)
-  const bottomY = badgeY + badgeHeight + 52;
+  const bottomY = badgeY + badgeHeight + 48;
   ctx.strokeStyle = '#E2E8F0';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
@@ -218,15 +244,19 @@ export const exportStudentQrToJpeg = async (student: StudentQrData): Promise<voi
   ctx.stroke();
 
   ctx.fillStyle = '#000000';
-  ctx.font = 'bold 18px Arial, Helvetica, sans-serif';
+  ctx.font = "bold 17px 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.textAlign = 'left';
-  ctx.fillText('INSTRUCTIONS & GUIDELINES', 50, bottomY + 32);
+  ctx.fillText('INSTRUCTIONS & GUIDELINES', 50, bottomY + 30);
 
-  ctx.font = '14px Arial, Helvetica, sans-serif';
-  ctx.fillStyle = '#111111';
-  let curY = bottomY + 62;
-  for (const bullet of INSTRUCTION_BULLETS) {
-    curY = wrapCanvasText(ctx, bullet, 50, curY, cardWidth - 100, 22) + 6;
+  let curY = bottomY + 60;
+  for (const guide of INSTRUCTION_GUIDES) {
+    ctx.font = "600 13.5px 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillStyle = '#000000';
+    curY = wrapCanvasText(ctx, guide.en, 50, curY, cardWidth - 100, 21) + 2;
+
+    ctx.font = "italic 13px 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillStyle = '#374151';
+    curY = wrapCanvasText(ctx, guide.mb, 66, curY, cardWidth - 116, 20) + 10;
   }
 
   // Trigger download as JPEG
@@ -310,32 +340,33 @@ export const exportStudentQrToPdf = async (student: StudentQrData): Promise<void
   pdf.text('Use this 6-digit code if there are problems scanning the QR code.', pageWidth / 2, badgeY + badgeH + 6, { align: 'center' });
 
   // Bottom Section: INSTRUCTIONS & GUIDELINES (no colored container)
-  const bottomY = badgeY + badgeH + 13;
+  const bottomY = badgeY + badgeH + 11.5;
   pdf.setDrawColor(226, 232, 240);
   pdf.setLineWidth(0.3);
   pdf.line(20, bottomY, pageWidth - 20, bottomY);
 
   pdf.setTextColor(0, 0, 0);
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(10.5);
-  pdf.text('INSTRUCTIONS & GUIDELINES', 20, bottomY + 8);
-
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(17, 17, 17);
+  pdf.setFontSize(10);
+  pdf.text('INSTRUCTIONS & GUIDELINES', 20, bottomY + 7);
 
   const maxWidth = pageWidth - 40;
-  let bY = bottomY + 15;
-  for (const bullet of INSTRUCTION_BULLETS) {
-    const lines = pdf.splitTextToSize(bullet, maxWidth);
-    pdf.text(lines, 20, bY);
-    bY += lines.length * 5 + 2.5;
-  }
+  let bY = bottomY + 13.5;
+  for (const guide of INSTRUCTION_GUIDES) {
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(8);
+    pdf.setTextColor(0, 0, 0);
+    const enLines = pdf.splitTextToSize(guide.en, maxWidth);
+    pdf.text(enLines, 20, bY);
+    bY += enLines.length * 4.0 + 1.2;
 
-  // Footer metadata
-  pdf.setTextColor(140, 140, 140);
-  pdf.setFontSize(8);
-  pdf.text(`ARALert Automated System • Student ID: ${student.id}`, pageWidth / 2, 280, { align: 'center' });
+    pdf.setFont('helvetica', 'italic');
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(55, 65, 81);
+    const mbLines = pdf.splitTextToSize(guide.mb, maxWidth - 4);
+    pdf.text(mbLines, 24, bY);
+    bY += mbLines.length * 3.8 + 2.8;
+  }
 
   const safeFilename = `Student_QR_Code_${studentName.replace(/[^a-zA-Z0-9]+/g, '_')}.pdf`;
   pdf.save(safeFilename);
@@ -378,23 +409,23 @@ export const exportStudentQrToDocx = async (student: StudentQrData): Promise<voi
               new TextRun({
                 text: 'ARALert',
                 bold: true,
-                size: 36,
+                size: 34,
                 color: '000000',
-                font: 'Arial',
+                font: 'Poppins',
               }),
             ],
           }),
 
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { after: 160 },
+            spacing: { after: 140 },
             children: [
               new TextRun({
                 text: 'Palanas National Agricultural High School • ARAL Program',
                 bold: true,
-                size: 22,
+                size: 20,
                 color: '111111',
-                font: 'Arial',
+                font: 'Poppins',
               }),
             ],
           }),
@@ -402,13 +433,13 @@ export const exportStudentQrToDocx = async (student: StudentQrData): Promise<voi
           // QR Code Image
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { before: 80, after: 140 },
+            spacing: { before: 80, after: 120 },
             children: [
               new ImageRun({
                 data: bytes,
                 transformation: {
-                  width: 230,
-                  height: 230,
+                  width: 220,
+                  height: 220,
                 },
                 type: 'png',
               }),
@@ -418,14 +449,14 @@ export const exportStudentQrToDocx = async (student: StudentQrData): Promise<voi
           // LASTNAME, FIRSTNAME M.I.
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { after: 120 },
+            spacing: { after: 100 },
             children: [
               new TextRun({
                 text: studentName.toUpperCase(),
                 bold: true,
-                size: 28,
+                size: 26,
                 color: '000000',
-                font: 'Arial',
+                font: 'Poppins',
               }),
             ],
           }),
@@ -433,14 +464,14 @@ export const exportStudentQrToDocx = async (student: StudentQrData): Promise<voi
           // [small gap] + MANUAL ATTENDANCE CODE:
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { before: 80, after: 50 },
+            spacing: { before: 60, after: 40 },
             children: [
               new TextRun({
                 text: 'MANUAL ATTENDANCE CODE:',
                 bold: true,
-                size: 20,
+                size: 19,
                 color: '000000',
-                font: 'Arial',
+                font: 'Poppins',
               }),
             ],
           }),
@@ -448,14 +479,14 @@ export const exportStudentQrToDocx = async (student: StudentQrData): Promise<voi
           // [MANUAL ATTENDANCE CODE]
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { after: 60 },
+            spacing: { after: 50 },
             children: [
               new TextRun({
                 text: getStudentManualCode(student.id),
                 bold: true,
                 size: 26,
                 color: '000000',
-                font: 'Courier New',
+                font: 'Poppins',
               }),
             ],
           }),
@@ -463,13 +494,13 @@ export const exportStudentQrToDocx = async (student: StudentQrData): Promise<voi
           // Use this 6-digit code if there are problems scanning the QR code.
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { after: 240 },
+            spacing: { after: 180 },
             children: [
               new TextRun({
                 text: 'Use this 6-digit code if there are problems scanning the QR code.',
-                size: 18,
+                size: 17,
                 color: '444444',
-                font: 'Arial',
+                font: 'Poppins',
               }),
             ],
           }),
@@ -477,78 +508,45 @@ export const exportStudentQrToDocx = async (student: StudentQrData): Promise<voi
           // Bottom Section: INSTRUCTIONS & GUIDELINES (no colored container)
           new Paragraph({
             alignment: AlignmentType.LEFT,
-            spacing: { before: 140, after: 80 },
+            spacing: { before: 120, after: 60 },
             children: [
               new TextRun({
                 text: 'INSTRUCTIONS & GUIDELINES',
                 bold: true,
-                size: 22,
+                size: 20,
                 color: '000000',
-                font: 'Arial',
+                font: 'Poppins',
               }),
             ],
           }),
 
-          new Paragraph({
-            spacing: { before: 30, after: 50 },
-            children: [
-              new TextRun({
-                text: '• This QR code and manual code is unique to each student.',
-                size: 18,
-                color: '111111',
-                font: 'Arial',
-              }),
-            ],
-          }),
-
-          new Paragraph({
-            spacing: { before: 30, after: 50 },
-            children: [
-              new TextRun({
-                text: '• Students can present this QR code on their phone or bring a printed copy to class.',
-                size: 18,
-                color: '111111',
-                font: 'Arial',
-              }),
-            ],
-          }),
-
-          new Paragraph({
-            spacing: { before: 30, after: 50 },
-            children: [
-              new TextRun({
-                text: '• The tutor scans this QR code using their ARALert tutor scanner during active session hours.',
-                size: 18,
-                color: '111111',
-                font: 'Arial',
-              }),
-            ],
-          }),
-
-          new Paragraph({
-            spacing: { before: 30, after: 80 },
-            children: [
-              new TextRun({
-                text: '• In case of lost paper copy, reach out to your assigned tutor to help you re-print a copy of your QR code. The student can also reprint their own QR code in their personal ARALert account by logging in using their LRN.',
-                size: 18,
-                color: '111111',
-                font: 'Arial',
-              }),
-            ],
-          }),
-
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 200 },
-            children: [
-              new TextRun({
-                text: `ARALert Automated System • Student ID: ${student.id}`,
-                size: 14,
-                color: '94A3B8',
-                font: 'Arial',
-              }),
-            ],
-          }),
+          ...INSTRUCTION_GUIDES.flatMap((guide) => [
+            new Paragraph({
+              spacing: { before: 35, after: 8 },
+              children: [
+                new TextRun({
+                  text: guide.en,
+                  bold: true,
+                  size: 17,
+                  color: '000000',
+                  font: 'Poppins',
+                }),
+              ],
+            }),
+            new Paragraph({
+              spacing: { before: 0, after: 50 },
+              indent: { left: 240 },
+              children: [
+                new TextRun({
+                  text: guide.mb,
+                  italics: true,
+                  size: 16,
+                  color: '374151',
+                  font: 'Poppins',
+                }),
+              ],
+            }),
+          ]),
         ],
       },
     ],

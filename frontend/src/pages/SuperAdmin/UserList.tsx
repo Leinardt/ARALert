@@ -6,7 +6,7 @@ import {
   Search, Plus, Edit, ShieldAlert, ShieldCheck,
   ChevronLeft, ChevronRight, ArrowUpDown, UserCheck, Users,
   CheckSquare, Square, RefreshCw, History, LogIn, LogOut, Clock, X, Monitor,
-  ChevronUp, ChevronDown, User as UserIcon
+  ChevronUp, ChevronDown, User as UserIcon, CheckCircle2, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { TablePagination } from '../../components/TablePagination';
@@ -80,6 +80,27 @@ export const UserList: React.FC = () => {
   const [activityModalUser, setActivityModalUser] = useState<User | null>(null);
   const [userActivities, setUserActivities] = useState<UserActivityItem[]>([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState(false);
+
+  // Floating Toast Notification
+  const [toastNotification, setToastNotification] = useState<{
+    show: boolean;
+    type: 'success' | 'error';
+    title: string;
+    message: string;
+  }>({
+    show: false,
+    type: 'success',
+    title: '',
+    message: '',
+  });
+
+  useEffect(() => {
+    if (!toastNotification.show) return;
+    const timer = setTimeout(() => {
+      setToastNotification((prev) => ({ ...prev, show: false }));
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [toastNotification.show]);
 
   // Sync tab with pathname on URL change
   useEffect(() => {
@@ -201,7 +222,12 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
   const toggleUserStatus = async (id: string, currentlyActive: boolean) => {
     const targetUser = users.find((u) => u.id === id);
     if (targetUser?.email?.trim().toLowerCase() === ROOT_SUPERADMIN_EMAIL.toLowerCase()) {
-      alert(`The Primary Root SuperAdmin account (${ROOT_SUPERADMIN_EMAIL}) is protected and cannot be deactivated.`);
+      setToastNotification({
+        show: true,
+        type: 'error',
+        title: 'Action Protected',
+        message: `The Primary Root SuperAdmin account (${ROOT_SUPERADMIN_EMAIL}) is protected and cannot be deactivated.`,
+      });
       return;
     }
     try {
@@ -211,10 +237,21 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
         await userService.activateUser(id);
       }
       fetchUsers();
+      setToastNotification({
+        show: true,
+        type: 'success',
+        title: 'Status Updated',
+        message: `User account successfully ${currentlyActive ? 'deactivated' : 'activated'}.`,
+      });
     } catch (err: any) {
       console.error(err);
       const detailMsg = err?.response?.data?.detail || 'Failed to update user account status.';
-      alert(detailMsg);
+      setToastNotification({
+        show: true,
+        type: 'error',
+        title: 'Update Failed',
+        message: detailMsg,
+      });
     }
   };
 
@@ -251,13 +288,24 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
     try {
       const tutorIdToPass = selectedTargetTutorId === 'tba' ? null : (selectedTargetTutorId || null);
       const res = await userService.bulkAssignTutor(selectedIds, tutorIdToPass);
-      alert(res.detail);
       setIsBulkModalOpen(false);
       setSelectedIds([]);
       fetchUsers();
+      setToastNotification({
+        show: true,
+        type: 'success',
+        title: 'Tutor Assigned Successfully',
+        message: res.detail || `Successfully assigned ${selectedIds.length} student(s).`,
+      });
     } catch (err: any) {
       console.error(err);
-      alert('Failed to perform bulk tutor assignment.');
+      const detailMsg = err?.response?.data?.detail || err?.response?.data?.error || 'Failed to perform bulk tutor assignment.';
+      setToastNotification({
+        show: true,
+        type: 'error',
+        title: 'Assignment Failed',
+        message: detailMsg,
+      });
     } finally {
       setIsSubmittingBulk(false);
     }
@@ -1052,6 +1100,54 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Floating Notification Toast ─────────────────────── */}
+      {toastNotification.show && (
+        <aside
+          aria-live="polite"
+          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+        >
+          <div
+            className={`flex items-start gap-3 rounded-lg border p-3.5 shadow-xl bg-white dark:bg-[#111111] ${
+              toastNotification.type === 'error'
+                ? 'border-rose-200 dark:border-rose-800/60'
+                : 'border-emerald-200 dark:border-emerald-800/60'
+            }`}
+          >
+            <div
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${
+                toastNotification.type === 'error'
+                  ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800/60'
+                  : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60'
+              }`}
+            >
+              {toastNotification.type === 'error' ? (
+                <AlertCircle className="h-4 w-4" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                  {toastNotification.title}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setToastNotification((prev) => ({ ...prev, show: false }))}
+                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-white/10 transition cursor-pointer"
+                  aria-label="Close notification"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                {toastNotification.message}
+              </p>
+            </div>
+          </div>
+        </aside>
       )}
 
     </div>

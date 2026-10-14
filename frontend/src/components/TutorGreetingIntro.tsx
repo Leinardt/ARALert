@@ -1,6 +1,59 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { User } from '../types';
 import aralertLogo from '../assets/ARALert_Logo_LIGHT.png';
+import { extractLastNameAndFirstName } from '../utils/studentFormatters';
+
+export const getGreetingPeriod = (): 'morning' | 'afternoon' | 'evening' => {
+  const hour = new Date().getHours();
+  return hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+};
+
+/**
+ * Checks whether a greeting should be shown:
+ * 1. New account welcome greeting: shown strictly ONCE ever per account.
+ * 2. Returning greeting: shown strictly ONCE per time period (morning, afternoon, evening) per day.
+ */
+export const checkGreetingEligibility = (
+  user: User | null
+): { show: boolean; isNewcomer: boolean; period: 'morning' | 'afternoon' | 'evening' } => {
+  const period = getGreetingPeriod();
+  if (!user || !user.id) return { show: false, isNewcomer: false, period };
+
+  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+  const periodKey = `aralert_greeting_${user.id}_${today}_${period}`;
+  const welcomeKey = `aralert_welcome_${user.id}`;
+
+  const welcomeAlreadySeen = localStorage.getItem(welcomeKey) === 'true';
+  const isNewcomer =
+    !welcomeAlreadySeen &&
+    (sessionStorage.getItem('aralert_is_first_login') === 'true' ||
+      Boolean(user.is_first_login) ||
+      !user.privacy_consent_accepted_at);
+
+  if (isNewcomer) {
+    return { show: true, isNewcomer: true, period };
+  }
+
+  const periodAlreadySeen = localStorage.getItem(periodKey) === 'true';
+  if (periodAlreadySeen) {
+    return { show: false, isNewcomer: false, period };
+  }
+
+  return { show: true, isNewcomer: false, period };
+};
+
+export const markGreetingAsSeen = (user: User | null, isNewcomer: boolean) => {
+  if (!user || !user.id) return;
+  const period = getGreetingPeriod();
+  const today = new Date().toLocaleDateString('en-CA');
+  const periodKey = `aralert_greeting_${user.id}_${today}_${period}`;
+  const welcomeKey = `aralert_welcome_${user.id}`;
+
+  if (isNewcomer) {
+    localStorage.setItem(welcomeKey, 'true');
+  }
+  localStorage.setItem(periodKey, 'true');
+};
 
 interface TutorGreetingIntroProps {
   user: User | null;
@@ -17,6 +70,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
   const isAllowed = Boolean(user);
   const [phase, setPhase] = useState<'idle' | 'centered' | 'flying' | 'completed'>('idle');
   const [bubbleVisible, setBubbleVisible] = useState(false);
+  const [isNewcomerGreeting, setIsNewcomerGreeting] = useState(false);
   const [flightCoords, setFlightCoords] = useState<{
     left: number;
     top: number;
@@ -29,9 +83,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
   const isDismissingRef = useRef(false);
 
   // Time slot calculation
-  const hour = new Date().getHours();
-  const period: 'morning' | 'afternoon' | 'evening' =
-    hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+  const period = getGreetingPeriod();
   const timeGreeting =
     period === 'morning' ? 'Good morning' : period === 'afternoon' ? 'Good afternoon' : 'Good evening';
 
@@ -47,20 +99,19 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
     greetingRolePrefix = 'Admin ';
   }
 
-  const firstName =
-    user?.first_name?.trim() ||
-    user?.full_name?.trim().split(' ')[0] ||
-    (user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User');
-
-  // Check if this account is a newcomer (first-time login)
-  const isNewcomer =
-    sessionStorage.getItem('aralert_is_first_login') === 'true' ||
-    Boolean(user?.is_first_login) ||
-    !user?.privacy_consent_accepted_at;
+  const firstName = (() => {
+    if (user?.first_name?.trim()) return user.first_name.trim();
+    const candidate = user?.full_name || (user as any)?.name;
+    if (candidate) {
+      const { firstName: fn } = extractLastNameAndFirstName(candidate);
+      if (fn?.trim()) return fn.trim();
+    }
+    return user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User';
+  })();
 
   const triggerDismissalRef = useRef<() => void>(() => {});
 
-  // Dismiss and fly back to sidebar header
+  // Dismiss and fly back into sidebar header
   const triggerDismissal = useCallback(() => {
     if (isDismissingRef.current) return;
     isDismissingRef.current = true;
@@ -107,7 +158,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
     setPhase('flying');
 
     // In the next frame, interpolate to target sidebar coordinates
-    // and simultaneously slide the brand text smoothly to the right!
+    // and simultaneously slide the WHOLE ARALert / [role] title smoothly into position!
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setFlightCoords({
@@ -119,7 +170,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
 
         if (sidebarTextEl) {
           sidebarTextEl.style.transition = 'transform 0.85s cubic-bezier(0.22, 1, 0.36, 1)';
-          sidebarTextEl.style.transform = 'translateX(0px) scale(1)';
+          sidebarTextEl.style.transform = 'translateX(0px)';
         }
       });
     });
@@ -128,13 +179,13 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
     setTimeout(() => {
       if (sidebarEl) {
         sidebarEl.style.opacity = '1';
-        sidebarEl.style.transition = 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease-in-out';
-        sidebarEl.style.transform = 'scale(1.15)';
+        sidebarEl.style.transition =
+          'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease-in-out';
+        sidebarEl.style.transform = 'scale(1.12)';
         setTimeout(() => {
-          // Clean up inline styles completely so hover animation classes work cleanly
           sidebarEl.style.transform = '';
           sidebarEl.style.transition = '';
-        }, 350);
+        }, 300);
       }
 
       if (sidebarTextEl) {
@@ -150,48 +201,53 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
   triggerDismissalRef.current = triggerDismissal;
 
   // Start the greeting intro
-  const startIntro = useCallback(() => {
-    isDismissingRef.current = false;
-    setBubbleVisible(true);
-    setFlightCoords(null);
-    setPhase('centered');
+  const startIntro = useCallback(
+    (isNewcomerAccount: boolean) => {
+      isDismissingRef.current = false;
+      setBubbleVisible(true);
+      setFlightCoords(null);
+      setPhase('centered');
 
-    // Hide the sidebar logo immediately while intro is playing
-    const sidebarLogo = document.getElementById(sidebarLogoId);
-    if (sidebarLogo) {
-      sidebarLogo.style.opacity = '0';
-      sidebarLogo.style.transition = 'opacity 0.2s ease-in-out';
-    }
+      // Mark greeting as seen in persistent storage
+      markGreetingAsSeen(user, isNewcomerAccount);
+      sessionStorage.removeItem('aralert_login_greeting_pending');
+      sessionStorage.removeItem('aralert_is_first_login');
 
-    // Shift the ARALert text to occupy the left of the header
-    const sidebarText = document.getElementById(sidebarTextId);
-    if (sidebarText) {
-      sidebarText.style.transition = 'transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)';
-      sidebarText.style.transformOrigin = 'left center';
-      sidebarText.style.transform = 'translateX(-44px) scale(1.05)';
-    }
+      // Ensure the sidebar logo is hidden while intro is playing
+      const sidebarLogo = document.getElementById(sidebarLogoId);
+      if (sidebarLogo) {
+        sidebarLogo.style.opacity = '0';
+      }
 
-    // Auto dismiss after 5 seconds
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(() => {
-      triggerDismissalRef.current();
-    }, 5000);
-  }, [sidebarLogoId, sidebarTextId]);
+      // Ensure the whole ARALert / [role] text container is left-aligned
+      const sidebarText = document.getElementById(sidebarTextId);
+      if (sidebarText) {
+        sidebarText.style.transformOrigin = 'left center';
+        sidebarText.style.transform = 'translateX(-34px)';
+      }
 
-  // Auto-open only on fresh login / re-login (never re-triggers while already logged in)
+      // Auto dismiss after 5 seconds
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = window.setTimeout(() => {
+        triggerDismissalRef.current();
+      }, 5000);
+    },
+    [user, sidebarLogoId, sidebarTextId]
+  );
+
+  // Auto-open only if eligible for morning/afternoon/evening or new account welcome
   useEffect(() => {
     if (!isAllowed || !user) return;
 
-    const isPending =
-      sessionStorage.getItem('aralert_login_greeting_pending') === 'true' ||
-      !sessionStorage.getItem('aralert_greeting_played_in_session');
-    if (!isPending) return;
+    const { show, isNewcomer } = checkGreetingEligibility(user);
+    if (!show) {
+      setPhase('idle');
+      return;
+    }
 
-    // Consume the pending flag immediately so it never repeats while using the system
-    sessionStorage.removeItem('aralert_login_greeting_pending');
-    sessionStorage.setItem('aralert_greeting_played_in_session', 'true');
+    setIsNewcomerGreeting(isNewcomer);
 
-    // Immediately shift text left and hide sidebar logo so there is never an awkward empty space
+    // If there IS a greeting, immediately ensure sidebar logo is hidden and text is left-aligned
     const sidebarLogo = document.getElementById(sidebarLogoId);
     if (sidebarLogo) {
       sidebarLogo.style.opacity = '0';
@@ -199,13 +255,12 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
     const sidebarText = document.getElementById(sidebarTextId);
     if (sidebarText) {
       sidebarText.style.transformOrigin = 'left center';
-      sidebarText.style.transform = 'translateX(-40px) scale(1.05)';
+      sidebarText.style.transform = 'translateX(-34px)';
     }
 
-    // Delay slightly for smooth page hydration and layout stabilization
     const mountTimer = setTimeout(() => {
-      startIntro();
-    }, 450);
+      startIntro(isNewcomer);
+    }, 300);
 
     return () => {
       clearTimeout(mountTimer);
@@ -277,7 +332,9 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
                   : 'opacity-0 scale-85 -translate-y-3 pointer-events-none'
               }`}
               style={{
-                animation: bubbleVisible ? 'bounce-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : 'none',
+                animation: bubbleVisible
+                  ? 'bounce-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
+                  : 'none',
               }}
             >
               {/* Desktop Left-pointing Chat Beak/Tail */}
@@ -298,9 +355,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
                 <span className="text-[var(--brand)] dark:text-blue-400 font-extrabold">
                   {firstName}
                 </span>
-                {isNewcomer
-                  ? '! Welcome to ARALert!'
-                  : '! Welcome back!'}
+                {isNewcomerGreeting ? '! Welcome to ARALert!' : '! Welcome back!'}
               </p>
 
               {/* 5-second animated progress indicator bar (Gray) */}

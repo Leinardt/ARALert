@@ -27,7 +27,7 @@ import {
   generateStudentQrDataUrl,
   getStudentManualCode,
 } from '../../utils/studentQrExportService';
-import { formatStudentName } from '../../utils/studentFormatters';
+import { formatStudentName, extractLastNameAndFirstName } from '../../utils/studentFormatters';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 
@@ -532,7 +532,15 @@ export const StudentQRAttendance: React.FC = () => {
 
 
 
-  const studentFirstName = user?.first_name || user?.full_name?.trim().split(' ')[0] || 'Student';
+  const studentFirstName = (() => {
+    if (user?.first_name?.trim()) return user.first_name.trim();
+    const candidate = user?.full_name || (user as any)?.name;
+    if (candidate) {
+      const { firstName } = extractLastNameAndFirstName(candidate);
+      if (firstName?.trim()) return firstName.trim();
+    }
+    return 'STUDENT';
+  })();
   const studentFormattedName = formatStudentName(user) || (user?.full_name ? user.full_name.toUpperCase() : studentFirstName.toUpperCase());
 
   return (

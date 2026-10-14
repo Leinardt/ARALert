@@ -600,20 +600,65 @@ export const TutorStudentProfile: React.FC = () => {
 
             <button
               type="button"
+              disabled={isExportingQr || !profile}
               onClick={async () => {
-                if (profile) {
-                  setShowQrModal(true);
-                  if (!qrPreviewUrl) {
-                    const url = await generateStudentQrDataUrl(profile.student.id, 280);
-                    setQrPreviewUrl(url);
-                  }
+                if (!profile) return;
+                try {
+                  setIsExportingQr(true);
+                  await exportStudentQrToDocx(profile.student);
+                } catch (e) {
+                  console.error('Failed to export DOCX', e);
+                } finally {
+                  setIsExportingQr(false);
                 }
               }}
-              className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap"
-              title="View and export permanent attendance QR code for this student"
+              className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap shadow-xs disabled:opacity-60"
+              title="Download Student QR Code as Word Document (.docx)"
             >
               <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
-              <span>Export Student QR Code</span>
+              <span>Download Document (.docx)</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={isExportingQr || !profile}
+              onClick={async () => {
+                if (!profile) return;
+                try {
+                  setIsExportingQr(true);
+                  await exportStudentQrToPdf(profile.student);
+                } catch (e) {
+                  console.error('Failed to export PDF', e);
+                } finally {
+                  setIsExportingQr(false);
+                }
+              }}
+              className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap shadow-xs disabled:opacity-60"
+              title="Download Student QR Code as PDF (.pdf)"
+            >
+              <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
+              <span>Download PDF (.pdf)</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={isExportingQr || !profile}
+              onClick={async () => {
+                if (!profile) return;
+                try {
+                  setIsExportingQr(true);
+                  await exportStudentQrToJpeg(profile.student);
+                } catch (e) {
+                  console.error('Failed to export JPEG', e);
+                } finally {
+                  setIsExportingQr(false);
+                }
+              }}
+              className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap shadow-xs disabled:opacity-60"
+              title="Download Student QR Code as JPEG Image (.jpeg)"
+            >
+              <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
+              <span>Download JPEG (.jpeg)</span>
             </button>
           </div>
         </div>
