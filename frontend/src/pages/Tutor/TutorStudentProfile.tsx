@@ -26,13 +26,11 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
-  History,
   QrCode,
   Download,
   FileText,
   Image,
 } from 'lucide-react';
-import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
 import {
   exportStudentQrToJpeg,
   exportStudentQrToPdf,
@@ -111,7 +109,6 @@ export const TutorStudentProfile: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overall' | 'attendance' | 'score'>('overall');
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const { attendanceRate, scoreAvg, compositeScore, riskTier } = useMemo(() => {
     if (!profile) return { attendanceRate: 100, scoreAvg: 100, compositeScore: 100, riskTier: 'Low' };
@@ -612,20 +609,11 @@ export const TutorStudentProfile: React.FC = () => {
                   }
                 }
               }}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold border border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition cursor-pointer"
+              className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap"
               title="View and export permanent attendance QR code for this student"
             >
-              <QrCode className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-              <span>Export Student QR</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowHistoryModal(true)}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold border border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:bg-[var(--brand-light)] dark:hover:bg-[#161616] text-gray-700 dark:text-slate-300 hover:text-[var(--brand-dark)] transition cursor-pointer"
-            >
-              <History className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Academic History</span>
+              <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
+              <span>Export Student QR Code</span>
             </button>
           </div>
         </div>
@@ -1368,14 +1356,6 @@ export const TutorStudentProfile: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* ── Complete Academic History Modal ─────────────────── */}
-      <StudentProfileHistoryModal
-        isOpen={showHistoryModal}
-        onClose={() => setShowHistoryModal(false)}
-        studentId={id || null}
-        studentName={profile?.student?.name}
-      />
     </div>
   );
 };

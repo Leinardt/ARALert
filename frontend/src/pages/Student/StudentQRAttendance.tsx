@@ -549,7 +549,7 @@ export const StudentQRAttendance: React.FC = () => {
             <div className="h-[52px] shrink-0 flex items-center justify-between px-5 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
                 <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">
-                  MY ATTENDANCE QR CODE
+                  {studentFirstName.toUpperCase()}'S ATTENDANCE QR CODE
                 </h2>
               </div>
             </div>
