@@ -748,13 +748,25 @@ export const TutorQRGenerator: React.FC = () => {
     }
   };
 
-  // Handle scanned student QR code
+  // Handle scanned student QR code or manual 6-digit code / LRN
   const handleStudentScanResult = async (decodedText: string) => {
     if (isProcessingStudentScan) return;
     setIsProcessingStudentScan(true);
     setTutorScanMessage(null);
     try {
-      const res = await academicService.scanQRCode(decodedText.trim());
+      let payload = decodedText.trim();
+      if (payload.length === 6 && students.length > 0) {
+        const norm = payload.toLowerCase();
+        const match = students.find(
+          (s) =>
+            String(s.id).replace(/-/g, '').toLowerCase().startsWith(norm) ||
+            (s.lrn && s.lrn.endsWith(norm))
+        );
+        if (match) {
+          payload = `ARALERT:STUDENT:${match.id}`;
+        }
+      }
+      const res = await academicService.scanQRCode(payload);
       setTutorScanMessage({
         type: 'success',
         message: res.message || 'Student attendance recorded successfully!',
@@ -1431,7 +1443,7 @@ export const TutorQRGenerator: React.FC = () => {
                         <div>
                           <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase">MANUAL STUDENT ENTRY</h3>
                           <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
-                            Enter student LRN or ID if student cannot scan QR pass
+                            Enter student 6-digit code or LRN if camera cannot scan QR pass
                           </p>
                         </div>
                       </div>
@@ -1447,7 +1459,7 @@ export const TutorQRGenerator: React.FC = () => {
                       >
                         <input
                           type="text"
-                          placeholder="Enter student LRN (e.g. 109283746501)..."
+                          placeholder="Enter 6-digit manual code or LRN (e.g. A3F82C or 109283746501)..."
                           value={manualStudentInput}
                           onChange={(e) => setManualStudentInput(e.target.value)}
                           className="w-full px-3 py-2 border border-gray-200 dark:border-[#262626] rounded-md text-xs bg-white dark:bg-[#0A0A0A] font-mono tracking-wider text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition-colors"

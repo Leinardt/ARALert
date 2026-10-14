@@ -39,6 +39,13 @@ export const getStudentDisplayName = (student: StudentQrData): string => {
 };
 
 /**
+ * Returns a clean 6-character alphanumeric manual code derived from the student's ID.
+ */
+export const getStudentManualCode = (studentId: string): string => {
+  return studentId.replace(/-/g, '').slice(0, 6).toUpperCase();
+};
+
+/**
  * Returns the permanent QR code payload for a student.
  * Format: ARALERT:STUDENT:<UUID>
  */
@@ -131,8 +138,15 @@ export const exportStudentQrToJpeg = async (student: StudentQrData): Promise<voi
   const qrDrawY = qrBoxY + (qrBoxSize - qrDrawSize) / 2;
   ctx.drawImage(qrImage, qrDrawX, qrDrawY, qrDrawSize, qrDrawSize);
 
+  // Manual 6-Digit Code Badge Underneath QR
+  const manualCode = getStudentManualCode(student.id);
+  ctx.fillStyle = '#1E40AF';
+  ctx.font = 'bold 24px Arial, Helvetica, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`MANUAL ATTENDANCE CODE: ${manualCode}`, cardWidth / 2, qrBoxY + qrBoxSize + 36);
+
   // Student Info Box
-  const infoBoxY = 670;
+  const infoBoxY = 695;
   ctx.fillStyle = '#0F172A';
   ctx.font = 'bold 34px Arial, Helvetica, sans-serif';
   ctx.textAlign = 'center';
@@ -229,7 +243,15 @@ export const exportStudentQrToPdf = async (student: StudentQrData): Promise<void
 
   // Student Identity Details
   const studentName = getStudentDisplayName(student);
-  let currentY = qrY + qrSizeMm + 16;
+  const manualCode = getStudentManualCode(student.id);
+
+  // Manual 6-Digit Code Underneath QR
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(12);
+  pdf.setTextColor(30, 64, 175);
+  pdf.text(`MANUAL CODE: ${manualCode}`, pageWidth / 2, qrY + qrSizeMm + 10, { align: 'center' });
+
+  let currentY = qrY + qrSizeMm + 20;
   pdf.setTextColor(15, 23, 42);
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(18);
@@ -392,6 +414,20 @@ export const exportStudentQrToDocx = async (student: StudentQrData): Promise<voi
                   height: 250,
                 },
                 type: 'png',
+              }),
+            ],
+          }),
+
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 100, after: 120 },
+            children: [
+              new TextRun({
+                text: `MANUAL CODE: ${getStudentManualCode(student.id)}`,
+                bold: true,
+                size: 24,
+                color: '1E40AF',
+                font: 'Arial',
               }),
             ],
           }),

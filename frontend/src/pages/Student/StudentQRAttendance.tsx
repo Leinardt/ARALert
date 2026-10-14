@@ -25,6 +25,7 @@ import {
   exportStudentQrToPdf,
   exportStudentQrToDocx,
   generateStudentQrDataUrl,
+  getStudentManualCode,
 } from '../../utils/studentQrExportService';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
@@ -544,8 +545,7 @@ export const StudentQRAttendance: React.FC = () => {
           <div className="h-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden flex flex-col justify-between">
             {/* Card Header */}
             <div className="h-[52px] shrink-0 flex items-center justify-between px-5 border-b border-gray-100 dark:border-[#1A1A1A]">
-              <div className="flex items-center gap-2">
-                <QrCode className="w-4 h-4 text-[var(--brand)]" />
+              <div>
                 <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">
                   MY ATTENDANCE QR PASS
                 </h2>
@@ -576,7 +576,20 @@ export const StudentQRAttendance: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="mt-3.5 text-center">
+                  {/* 6-Digit Manual Attendance Code */}
+                  <div className="mt-3 flex flex-col items-center">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                      Manual Attendance Code
+                    </span>
+                    <span className="mt-1 text-base sm:text-lg font-extrabold font-mono tracking-widest text-[var(--brand)] dark:text-blue-400 bg-white dark:bg-[#1A1A1A] px-3.5 py-1 rounded-md border border-gray-200 dark:border-[#2A2A2A] shadow-xs select-all">
+                      {user?.id ? getStudentManualCode(String(user.id)) : '------'}
+                    </span>
+                    <p className="text-[10px] text-gray-400 dark:text-slate-500 text-center mt-1 max-w-[280px] leading-tight">
+                      Use this 6-digit code if the tutor's camera cannot scan your QR code.
+                    </p>
+                  </div>
+
+                  <div className="mt-3 text-center">
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white">
                       {user?.full_name || studentFirstName}
                     </h3>
@@ -586,8 +599,8 @@ export const StudentQRAttendance: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Export Options */}
-                <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-2.5 w-full max-w-lg">
+                {/* Export Options (Single Line) */}
+                <div className="flex flex-row items-center justify-center gap-2 w-full max-w-full flex-nowrap overflow-x-auto py-1">
                   <button
                     type="button"
                     disabled={isExporting || !user}
@@ -606,7 +619,7 @@ export const StudentQRAttendance: React.FC = () => {
                         setIsExporting(false);
                       }
                     }}
-                    className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
+                    className="whitespace-nowrap shrink-0 rounded-xl bg-[var(--brand)] px-3.5 sm:px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center"
                   >
                     Download Document (.docx)
                   </button>
@@ -629,7 +642,7 @@ export const StudentQRAttendance: React.FC = () => {
                         setIsExporting(false);
                       }
                     }}
-                    className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
+                    className="whitespace-nowrap shrink-0 rounded-xl bg-[var(--brand)] px-3.5 sm:px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center"
                   >
                     Download PDF (.pdf)
                   </button>
@@ -652,7 +665,7 @@ export const StudentQRAttendance: React.FC = () => {
                         setIsExporting(false);
                       }
                     }}
-                    className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
+                    className="whitespace-nowrap shrink-0 rounded-xl bg-[var(--brand)] px-3.5 sm:px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center"
                   >
                     Download JPEG (.jpeg)
                   </button>

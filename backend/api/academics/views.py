@@ -612,6 +612,30 @@ class AttendanceScanView(APIView):
             if not student_candidate:
                 student_candidate = User.objects.filter(lrn=clean_code, role='student').first()
 
+            if not student_candidate and len(norm_code) >= 6:
+                student_qs = User.objects.filter(role='student')
+                matching_students = [
+                    s for s in student_qs
+                    if str(s.id).lower().replace('-', '').startswith(norm_code)
+                    or (s.lrn and s.lrn.endswith(norm_code))
+                ]
+                if user.role == 'tutor':
+                    assigned_matches = [s for s in matching_students if s.assigned_tutor_id == user.id]
+                    if len(assigned_matches) == 1:
+                        student_candidate = assigned_matches[0]
+                    elif len(assigned_matches) > 1:
+                        return Response({
+                            'error': 'Multiple assigned students match this 6-digit code. Please enter the full LRN.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
+                if not student_candidate:
+                    if len(matching_students) == 1:
+                        student_candidate = matching_students[0]
+                    elif len(matching_students) > 1:
+                        return Response({
+                            'error': 'Multiple students match this 6-digit code. Please enter the full LRN.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
             if student_candidate:
                 # Find an active, unexpired student attendance session created by this tutor/staff for today
                 now = timezone.now()
