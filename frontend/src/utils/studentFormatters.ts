@@ -20,6 +20,10 @@ export const formatStudentName = (
     if (trimmed.includes(',')) {
       return trimmed.toUpperCase();
     }
+    const { lastName, firstName } = extractLastNameAndFirstName(trimmed);
+    if (lastName && firstName) {
+      return `${lastName.toUpperCase()}, ${firstName.toUpperCase()}`;
+    }
     return trimmed.toUpperCase();
   }
 
@@ -38,6 +42,13 @@ export const formatStudentName = (
   }
   if (fn) {
     return `${fn}${mi ? ' ' + mi : ''}`;
+  }
+
+  if (student.full_name) {
+    const { lastName, firstName } = extractLastNameAndFirstName(student.full_name);
+    if (lastName && firstName) {
+      return `${lastName.toUpperCase()}, ${firstName.toUpperCase()}`;
+    }
   }
 
   return (student.full_name || '').toUpperCase().trim();
@@ -268,7 +279,7 @@ export const getRecentSchoolWeekdays = (count: number, refDate: Date = new Date(
  * Splits a full name or single string into { lastName, firstName }.
  * Supports "LAST, FIRST", "FIRST LAST", and multi-part Filipino surnames (e.g., "DELA CRUZ", "DE GUZMAN", "SAN JUAN").
  */
-export const extractLastNameAndFirstName = (fullName: string): { lastName: string; firstName: string } => {
+export function extractLastNameAndFirstName(fullName: string): { lastName: string; firstName: string } {
   if (!fullName) return { lastName: '', firstName: '' };
   const trimmed = fullName.trim();
   if (trimmed.includes(',')) {

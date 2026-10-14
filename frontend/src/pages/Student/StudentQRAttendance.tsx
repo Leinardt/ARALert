@@ -27,6 +27,7 @@ import {
   generateStudentQrDataUrl,
   getStudentManualCode,
 } from '../../utils/studentQrExportService';
+import { formatStudentName } from '../../utils/studentFormatters';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 
@@ -532,6 +533,7 @@ export const StudentQRAttendance: React.FC = () => {
 
 
   const studentFirstName = user?.first_name || user?.full_name?.trim().split(' ')[0] || 'Student';
+  const studentFormattedName = formatStudentName(user) || (user?.full_name ? user.full_name.toUpperCase() : studentFirstName.toUpperCase());
 
   return (
     <div
@@ -540,14 +542,14 @@ export const StudentQRAttendance: React.FC = () => {
     >
       {/* ── Main Grid ───────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* ── LEFT: Student Permanent QR Pass Card ── */}
+        {/* ── LEFT: Student Permanent QR Code Card ── */}
         <div className="lg:col-span-7">
           <div className="h-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden flex flex-col justify-between">
             {/* Card Header */}
             <div className="h-[52px] shrink-0 flex items-center justify-between px-5 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
                 <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">
-                  MY ATTENDANCE QR PASS
+                  MY ATTENDANCE QR CODE
                 </h2>
               </div>
             </div>
@@ -562,11 +564,12 @@ export const StudentQRAttendance: React.FC = () => {
                   <span className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-sm" />
                   <span className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-[var(--brand)] rounded-br-sm" />
 
+                  {/* 1. QR CODE */}
                   <div className="p-3 bg-white rounded-lg shadow-sm border border-gray-200 dark:border-gray-300">
                     {studentQrUrl ? (
                       <img
                         src={studentQrUrl}
-                        alt={`${user?.full_name || 'Student'}'s QR Pass`}
+                        alt={`${studentFormattedName}'s QR Code`}
                         className="w-48 h-48 sm:w-56 sm:h-56 rounded object-contain"
                       />
                     ) : (
@@ -576,25 +579,24 @@ export const StudentQRAttendance: React.FC = () => {
                     )}
                   </div>
 
-                  {/* 6-Digit Manual Attendance Code */}
-                  <div className="mt-3 flex flex-col items-center">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                      Manual Attendance Code
+                  {/* 2. LASTNAME, FIRSTNAME M.I. */}
+                  <div className="mt-3 text-center">
+                    <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white uppercase tracking-wide">
+                      {studentFormattedName}
+                    </h3>
+                  </div>
+
+                  {/* [small gap] */}
+                  {/* 3. MANUAL ATTENDANCE CODE: + [MANUAL ATTENDANCE CODE] + Use this 6-digit code if there are problems scanning the QR code. */}
+                  <div className="mt-2.5 flex flex-col items-center">
+                    <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
+                      MANUAL ATTENDANCE CODE:
                     </span>
                     <span className="mt-1 text-base sm:text-lg font-extrabold font-mono tracking-widest text-[var(--brand)] dark:text-blue-400 bg-white dark:bg-[#1A1A1A] px-3.5 py-1 rounded-md border border-gray-200 dark:border-[#2A2A2A] shadow-xs select-all">
                       {user?.id ? getStudentManualCode(String(user.id)) : '------'}
                     </span>
-                    <p className="text-[10px] text-gray-400 dark:text-slate-500 text-center mt-1 max-w-[280px] leading-tight">
-                      Use this 6-digit code if the tutor's camera cannot scan your QR code.
-                    </p>
-                  </div>
-
-                  <div className="mt-3 text-center">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-                      {user?.full_name || studentFirstName}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-0.5">
-                      LRN: {user?.lrn || 'Not Assigned'}
+                    <p className="text-[10px] text-gray-400 dark:text-slate-500 text-center mt-1.5 max-w-[280px] leading-tight">
+                      Use this 6-digit code if there are problems scanning the QR code.
                     </p>
                   </div>
                 </div>
@@ -610,7 +612,10 @@ export const StudentQRAttendance: React.FC = () => {
                         setIsExporting(true);
                         await exportStudentQrToDocx({
                           id: String(user.id),
-                          name: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Student',
+                          name: studentFormattedName,
+                          first_name: user.first_name,
+                          last_name: user.last_name,
+                          middle_name: user.middle_name,
                           lrn: user.lrn,
                         });
                       } catch (err) {
@@ -633,7 +638,10 @@ export const StudentQRAttendance: React.FC = () => {
                         setIsExporting(true);
                         await exportStudentQrToPdf({
                           id: String(user.id),
-                          name: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Student',
+                          name: studentFormattedName,
+                          first_name: user.first_name,
+                          last_name: user.last_name,
+                          middle_name: user.middle_name,
                           lrn: user.lrn,
                         });
                       } catch (err) {
@@ -656,7 +664,10 @@ export const StudentQRAttendance: React.FC = () => {
                         setIsExporting(true);
                         await exportStudentQrToJpeg({
                           id: String(user.id),
-                          name: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Student',
+                          name: studentFormattedName,
+                          first_name: user.first_name,
+                          last_name: user.last_name,
+                          middle_name: user.middle_name,
                           lrn: user.lrn,
                         });
                       } catch (err) {

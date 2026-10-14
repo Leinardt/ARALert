@@ -19,6 +19,7 @@ export interface StudentQrData {
   name?: string | null;
   full_name?: string | null;
   first_name?: string | null;
+  middle_name?: string | null;
   last_name?: string | null;
   lrn?: string | null;
   gradeLevel?: string | null;
@@ -30,6 +31,13 @@ export interface StudentQrData {
  * Safely resolves the display name for a student record.
  */
 export const getStudentDisplayName = (student: StudentQrData): string => {
+  if (student.name && student.name.includes(',')) {
+    return student.name;
+  }
+  if (student.last_name && student.first_name) {
+    const mi = student.middle_name?.trim() ? ` ${student.middle_name.trim()[0].toUpperCase()}.` : '';
+    return `${student.last_name.toUpperCase()}, ${student.first_name.toUpperCase()}${mi}`;
+  }
   return (
     student.name ||
     student.full_name ||
@@ -249,7 +257,7 @@ export const exportStudentQrToPdf = async (student: StudentQrData): Promise<void
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(12);
   pdf.setTextColor(30, 64, 175);
-  pdf.text(`MANUAL CODE: ${manualCode}`, pageWidth / 2, qrY + qrSizeMm + 10, { align: 'center' });
+  pdf.text(`MANUAL ATTENDANCE CODE: ${manualCode}`, pageWidth / 2, qrY + qrSizeMm + 10, { align: 'center' });
 
   let currentY = qrY + qrSizeMm + 20;
   pdf.setTextColor(15, 23, 42);
@@ -423,7 +431,7 @@ export const exportStudentQrToDocx = async (student: StudentQrData): Promise<voi
             spacing: { before: 100, after: 120 },
             children: [
               new TextRun({
-                text: `MANUAL CODE: ${getStudentManualCode(student.id)}`,
+                text: `MANUAL ATTENDANCE CODE: ${getStudentManualCode(student.id)}`,
                 bold: true,
                 size: 24,
                 color: '1E40AF',
