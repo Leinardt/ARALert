@@ -5,14 +5,10 @@ import {
   Packer,
   Paragraph,
   TextRun,
-  Table,
-  TableRow,
-  TableCell,
-  WidthType,
   AlignmentType,
-  BorderStyle,
   ImageRun,
 } from 'docx';
+import { extractLastNameAndFirstName } from './studentFormatters';
 
 export interface StudentQrData {
   id: string;
@@ -28,7 +24,7 @@ export interface StudentQrData {
 }
 
 /**
- * Safely resolves the display name for a student record.
+ * Safely resolves the display name for a student record in LASTNAME, FIRSTNAME M.I. format.
  */
 export const getStudentDisplayName = (student: StudentQrData): string => {
   if (student.name && student.name.includes(',')) {
@@ -37,6 +33,13 @@ export const getStudentDisplayName = (student: StudentQrData): string => {
   if (student.last_name && student.first_name) {
     const mi = student.middle_name?.trim() ? ` ${student.middle_name.trim()[0].toUpperCase()}.` : '';
     return `${student.last_name.toUpperCase()}, ${student.first_name.toUpperCase()}${mi}`;
+  }
+  const candidate = student.name || student.full_name;
+  if (candidate) {
+    const { lastName, firstName } = extractLastNameAndFirstName(candidate);
+    if (lastName && firstName) {
+      return `${lastName.toUpperCase()}, ${firstName.toUpperCase()}`;
+    }
   }
   return (
     student.name ||
@@ -81,13 +84,48 @@ export const generateStudentQrDataUrl = async (
 };
 
 /**
- * Exports a branded, high-resolution JPEG ID Badge card for the student.
+ * Helper to wrap text cleanly onto an HTML5 canvas.
+ */
+const wrapCanvasText = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number
+): number => {
+  const words = text.split(' ');
+  let line = '';
+  let curY = y;
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + words[n] + ' ';
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && n > 0) {
+      ctx.fillText(line.trim(), x, curY);
+      line = words[n] + ' ';
+      curY += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line.trim(), x, curY);
+  return curY + lineHeight;
+};
+
+const INSTRUCTION_BULLETS = [
+  '• This QR code and manual code is unique to each student.',
+  '• Students can present this QR code on their phone or bring a printed copy to class.',
+  '• The tutor scans this QR code using their ARALert tutor scanner during active session hours.',
+  '• In case of lost paper copy, reach out to your assigned tutor to help you re-print a copy of your QR code. The student can also reprint their own QR code in their personal ARALert account by logging in using their LRN.',
+];
+
+/**
+ * Exports a high-resolution, ink-saving black & white JPEG Attendance Pass for the student.
  */
 export const exportStudentQrToJpeg = async (student: StudentQrData): Promise<void> => {
   const studentName = getStudentDisplayName(student);
   const qrDataUrl = await generateStudentQrDataUrl(student.id, 400);
 
-  // Create an offscreen canvas for rendering a beautiful ID badge card
   const canvas = document.createElement('canvas');
   const cardWidth = 800;
   const cardHeight = 1100;
@@ -96,29 +134,27 @@ export const exportStudentQrToJpeg = async (student: StudentQrData): Promise<voi
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  // Background gradient / clean card
+  // Pure white card background (ink-saving)
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, cardWidth, cardHeight);
 
-  // Top header banner
-  const headerGrad = ctx.createLinearGradient(0, 0, cardWidth, 0);
-  headerGrad.addColorStop(0, '#1E40AF'); // Deep Brand Blue
-  headerGrad.addColorStop(1, '#2563EB');
-  ctx.fillStyle = headerGrad;
-  ctx.fillRect(0, 0, cardWidth, 140);
-
-  // Header Title
-  ctx.fillStyle = '#FFFFFF';
+  // Top Header (no color container)
+  ctx.fillStyle = '#000000';
   ctx.font = 'bold 36px Arial, Helvetica, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('ARALert ATTENDANCE PASS', cardWidth / 2, 60);
+  ctx.fillText('ARALert', cardWidth / 2, 60);
 
-  ctx.font = 'bold 20px Arial, Helvetica, sans-serif';
-  ctx.fillStyle = '#E0E7FF';
-  ctx.fillText('Palanas National Agricultural High School', cardWidth / 2, 95);
+  ctx.font = 'bold 18px Arial, Helvetica, sans-serif';
+  ctx.fillStyle = '#111111';
+  ctx.fillText('Palanas National Agricultural High School • ARAL Program', cardWidth / 2, 95);
 
-  ctx.font = '16px Arial, Helvetica, sans-serif';
-  ctx.fillText('Department of Education • ARAL Program', cardWidth / 2, 122);
+  // Thin clean divider
+  ctx.strokeStyle = '#E2E8F0';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(50, 118);
+  ctx.lineTo(cardWidth - 50, 118);
+  ctx.stroke();
 
   // QR Code Image
   const qrImage = new Image();
@@ -127,82 +163,74 @@ export const exportStudentQrToJpeg = async (student: StudentQrData): Promise<voi
     qrImage.onload = resolve;
   });
 
-  // White rounded container with border for QR code
-  const qrBoxSize = 460;
+  const qrBoxSize = 380;
   const qrBoxX = (cardWidth - qrBoxSize) / 2;
-  const qrBoxY = 175;
+  const qrBoxY = 140;
 
-  ctx.fillStyle = '#F8FAFC';
-  ctx.strokeStyle = '#E2E8F0';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.roundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 16);
-  ctx.fill();
-  ctx.stroke();
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize);
 
-  // Draw QR in center of box
-  const qrDrawSize = 420;
+  const qrDrawSize = 350;
   const qrDrawX = (cardWidth - qrDrawSize) / 2;
   const qrDrawY = qrBoxY + (qrBoxSize - qrDrawSize) / 2;
   ctx.drawImage(qrImage, qrDrawX, qrDrawY, qrDrawSize, qrDrawSize);
 
-  // Manual 6-Digit Code Badge Underneath QR
-  const manualCode = getStudentManualCode(student.id);
-  ctx.fillStyle = '#1E40AF';
-  ctx.font = 'bold 24px Arial, Helvetica, sans-serif';
+  // LASTNAME, FIRSTNAME M.I.
+  ctx.fillStyle = '#000000';
+  ctx.font = 'bold 30px Arial, Helvetica, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(`MANUAL ATTENDANCE CODE: ${manualCode}`, cardWidth / 2, qrBoxY + qrBoxSize + 36);
+  ctx.fillText(studentName.toUpperCase(), cardWidth / 2, qrBoxY + qrBoxSize + 48);
 
-  // Student Info Box
-  const infoBoxY = 695;
-  ctx.fillStyle = '#0F172A';
-  ctx.font = 'bold 34px Arial, Helvetica, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(studentName.toUpperCase(), cardWidth / 2, infoBoxY);
-
-  ctx.fillStyle = '#475569';
-  ctx.font = 'bold 22px Arial, Helvetica, sans-serif';
-  ctx.fillText(`LRN: ${student.lrn || 'N/A'}`, cardWidth / 2, infoBoxY + 40);
-
-  if (student.gradeLevel || student.section) {
-    const classText = `${student.gradeLevel || ''}${student.gradeLevel && student.section ? ' - ' : ''}${student.section || ''}`;
-    ctx.font = '20px Arial, Helvetica, sans-serif';
-    ctx.fillStyle = '#64748B';
-    ctx.fillText(classText, cardWidth / 2, infoBoxY + 75);
-  }
-
-  if (student.assignedTutorName) {
-    ctx.font = 'italic 18px Arial, Helvetica, sans-serif';
-    ctx.fillStyle = '#2563EB';
-    ctx.fillText(`Assigned Tutor: ${student.assignedTutorName}`, cardWidth / 2, infoBoxY + 110);
-  }
-
-  // Footer instructions box
-  const footerY = 840;
-  ctx.fillStyle = '#F1F5F9';
-  ctx.beginPath();
-  ctx.roundRect(50, footerY, cardWidth - 100, 190, 12);
-  ctx.fill();
-
-  ctx.fillStyle = '#334155';
+  // [small gap] + MANUAL ATTENDANCE CODE:
+  const manualLabelY = qrBoxY + qrBoxSize + 88;
   ctx.font = 'bold 18px Arial, Helvetica, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('INSTRUCTIONS FOR STUDENT & TUTOR', cardWidth / 2, footerY + 35);
+  ctx.fillStyle = '#000000';
+  ctx.fillText('MANUAL ATTENDANCE CODE:', cardWidth / 2, manualLabelY);
 
-  ctx.font = '15px Arial, Helvetica, sans-serif';
-  ctx.fillStyle = '#475569';
-  ctx.fillText('• Present this permanent QR code during ARAL learning sessions.', cardWidth / 2, footerY + 70);
-  ctx.fillText('• Your tutor will scan this code to record your official attendance.', cardWidth / 2, footerY + 100);
-  ctx.fillText('• You can show this pass on a screen or print it for offline attendance.', cardWidth / 2, footerY + 130);
-  ctx.fillText('• Keep this pass safe and avoid crumpling or staining the QR code.', cardWidth / 2, footerY + 160);
+  // [MANUAL ATTENDANCE CODE]
+  const manualCode = getStudentManualCode(student.id);
+  const badgeWidth = 180;
+  const badgeHeight = 42;
+  const badgeX = (cardWidth - badgeWidth) / 2;
+  const badgeY = manualLabelY + 12;
 
-  // Bottom Security / Timestamp
-  ctx.font = '12px Arial, Helvetica, sans-serif';
-  ctx.fillStyle = '#94A3B8';
-  ctx.fillText(`Generated by ARALert • System Token: ${student.id}`, cardWidth / 2, cardHeight - 25);
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(badgeX, badgeY, badgeWidth, badgeHeight);
+
+  ctx.font = 'bold 24px "Courier New", Courier, monospace';
+  ctx.fillStyle = '#000000';
+  ctx.fillText(manualCode, cardWidth / 2, badgeY + 29);
+
+  // Helper instruction text
+  ctx.font = '14px Arial, Helvetica, sans-serif';
+  ctx.fillStyle = '#333333';
+  ctx.fillText('Use this 6-digit code if there are problems scanning the QR code.', cardWidth / 2, badgeY + badgeHeight + 26);
+
+  // Bottom Section: INSTRUCTIONS & GUIDELINES (no colored container)
+  const bottomY = badgeY + badgeHeight + 52;
+  ctx.strokeStyle = '#E2E8F0';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(50, bottomY);
+  ctx.lineTo(cardWidth - 50, bottomY);
+  ctx.stroke();
+
+  ctx.fillStyle = '#000000';
+  ctx.font = 'bold 18px Arial, Helvetica, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('INSTRUCTIONS & GUIDELINES', 50, bottomY + 32);
+
+  ctx.font = '14px Arial, Helvetica, sans-serif';
+  ctx.fillStyle = '#111111';
+  let curY = bottomY + 62;
+  for (const bullet of INSTRUCTION_BULLETS) {
+    curY = wrapCanvasText(ctx, bullet, 50, curY, cardWidth - 100, 22) + 6;
+  }
 
   // Trigger download as JPEG
-  const safeFilename = `Student_QR_Pass_${studentName.replace(/\s+/g, '_')}.jpeg`;
+  const safeFilename = `Student_QR_Code_${studentName.replace(/[^a-zA-Z0-9]+/g, '_')}.jpeg`;
   const link = document.createElement('a');
   link.download = safeFilename;
   link.href = canvas.toDataURL('image/jpeg', 0.95);
@@ -210,12 +238,13 @@ export const exportStudentQrToJpeg = async (student: StudentQrData): Promise<voi
 };
 
 /**
- * Exports an official printable PDF Student Attendance QR Pass.
+ * Exports an official printable PDF Student Attendance QR Code in black & white.
  */
 export const exportStudentQrToPdf = async (student: StudentQrData): Promise<void> => {
+  const studentName = getStudentDisplayName(student);
+  const manualCode = getStudentManualCode(student.id);
   const qrDataUrl = await generateStudentQrDataUrl(student.id, 500);
 
-  // Portrait Letter or A4 document
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -224,107 +253,96 @@ export const exportStudentQrToPdf = async (student: StudentQrData): Promise<void
 
   const pageWidth = pdf.internal.pageSize.getWidth();
 
-  // Top Header Banner
-  pdf.setFillColor(30, 64, 175);
-  pdf.rect(0, 0, pageWidth, 35, 'F');
-
-  pdf.setTextColor(255, 255, 255);
+  // Top Header (no colored container)
+  pdf.setTextColor(0, 0, 0);
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(18);
-  pdf.text('ARALert ATTENDANCE PASS', pageWidth / 2, 14, { align: 'center' });
+  pdf.setFontSize(20);
+  pdf.text('ARALert', pageWidth / 2, 20, { align: 'center' });
 
-  pdf.setFontSize(11);
-  pdf.setFont('helvetica', 'normal');
-  pdf.text('Palanas National Agricultural High School • Department of Education', pageWidth / 2, 22, { align: 'center' });
-  pdf.text('Official ARAL Program Permanent Student QR Code', pageWidth / 2, 29, { align: 'center' });
-
-  // Center QR Box
-  const qrSizeMm = 80;
-  const qrX = (pageWidth - qrSizeMm) / 2;
-  const qrY = 48;
+  pdf.setFontSize(10.5);
+  pdf.text('Palanas National Agricultural High School • ARAL Program', pageWidth / 2, 27, { align: 'center' });
 
   pdf.setDrawColor(226, 232, 240);
-  pdf.setFillColor(248, 250, 252);
-  pdf.roundedRect(qrX - 5, qrY - 5, qrSizeMm + 10, qrSizeMm + 10, 3, 3, 'FD');
+  pdf.setLineWidth(0.3);
+  pdf.line(20, 32, pageWidth - 20, 32);
+
+  // Center QR Box
+  const qrSizeMm = 75;
+  const qrX = (pageWidth - qrSizeMm) / 2;
+  const qrY = 40;
+
+  pdf.setDrawColor(0, 0, 0);
+  pdf.setLineWidth(0.4);
+  pdf.rect(qrX - 2, qrY - 2, qrSizeMm + 4, qrSizeMm + 4, 'S');
 
   pdf.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSizeMm, qrSizeMm);
 
-  // Student Identity Details
-  const studentName = getStudentDisplayName(student);
-  const manualCode = getStudentManualCode(student.id);
-
-  // Manual 6-Digit Code Underneath QR
+  // LASTNAME, FIRSTNAME M.I.
+  pdf.setTextColor(0, 0, 0);
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(12);
-  pdf.setTextColor(30, 64, 175);
-  pdf.text(`MANUAL ATTENDANCE CODE: ${manualCode}`, pageWidth / 2, qrY + qrSizeMm + 10, { align: 'center' });
+  pdf.setFontSize(16);
+  pdf.text(studentName.toUpperCase(), pageWidth / 2, qrY + qrSizeMm + 14, { align: 'center' });
 
-  let currentY = qrY + qrSizeMm + 20;
-  pdf.setTextColor(15, 23, 42);
+  // [small gap] + MANUAL ATTENDANCE CODE:
+  const manualLabelY = qrY + qrSizeMm + 24;
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(18);
-  pdf.text(studentName.toUpperCase(), pageWidth / 2, currentY, { align: 'center' });
+  pdf.setFontSize(10.5);
+  pdf.text('MANUAL ATTENDANCE CODE:', pageWidth / 2, manualLabelY, { align: 'center' });
 
-  currentY += 8;
-  pdf.setTextColor(71, 85, 105);
+  // [MANUAL ATTENDANCE CODE] box
+  const badgeW = 44;
+  const badgeH = 9;
+  const badgeX = (pageWidth - badgeW) / 2;
+  const badgeY = manualLabelY + 3;
+
+  pdf.setDrawColor(0, 0, 0);
+  pdf.setLineWidth(0.5);
+  pdf.rect(badgeX, badgeY, badgeW, badgeH, 'S');
+
+  pdf.setFont('courier', 'bold');
   pdf.setFontSize(13);
-  pdf.text(`LRN: ${student.lrn || 'N/A'}`, pageWidth / 2, currentY, { align: 'center' });
+  pdf.text(manualCode, pageWidth / 2, badgeY + 6.5, { align: 'center' });
 
-  if (student.gradeLevel || student.section) {
-    currentY += 7;
-    const classText = `${student.gradeLevel || ''}${student.gradeLevel && student.section ? ' - ' : ''}${student.section || ''}`;
-    pdf.setFontSize(11);
-    pdf.text(`Grade Level & Section: ${classText}`, pageWidth / 2, currentY, { align: 'center' });
-  }
+  // Helper text
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8.5);
+  pdf.setTextColor(60, 60, 60);
+  pdf.text('Use this 6-digit code if there are problems scanning the QR code.', pageWidth / 2, badgeY + badgeH + 6, { align: 'center' });
 
-  if (student.assignedTutorName) {
-    currentY += 7;
-    pdf.setTextColor(37, 99, 235);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(11);
-    pdf.text(`Assigned Tutor: ${student.assignedTutorName}`, pageWidth / 2, currentY, { align: 'center' });
-  }
+  // Bottom Section: INSTRUCTIONS & GUIDELINES (no colored container)
+  const bottomY = badgeY + badgeH + 13;
+  pdf.setDrawColor(226, 232, 240);
+  pdf.setLineWidth(0.3);
+  pdf.line(20, bottomY, pageWidth - 20, bottomY);
 
-  // Guidelines Card
-  currentY += 14;
-  const guideWidth = pageWidth - 40;
-  pdf.setFillColor(241, 245, 249);
-  pdf.setDrawColor(203, 213, 225);
-  pdf.roundedRect(20, currentY, guideWidth, 54, 3, 3, 'FD');
-
-  pdf.setTextColor(30, 41, 59);
+  pdf.setTextColor(0, 0, 0);
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(11);
-  pdf.text('ATTENDANCE INSTRUCTIONS & GUIDELINES', pageWidth / 2, currentY + 8, { align: 'center' });
+  pdf.setFontSize(10.5);
+  pdf.text('INSTRUCTIONS & GUIDELINES', 20, bottomY + 8);
 
   pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9.5);
-  pdf.setTextColor(51, 65, 85);
-  const instructions = [
-    '1. This QR code is permanently assigned to the student account and will not change.',
-    '2. Students can present this pass on their mobile screen or bring a printed copy to class.',
-    '3. The teacher / tutor scans this code using the ARALert Tutor Scanner during active session hours.',
-    '4. Internet connection is NOT required for the student — only the scanning tutor requires connection.',
-    '5. In case of lost paper copy, teachers can re-print this pass anytime from the student directory.',
-  ];
+  pdf.setFontSize(9);
+  pdf.setTextColor(17, 17, 17);
 
-  let lineY = currentY + 16;
-  instructions.forEach((line) => {
-    pdf.text(line, 26, lineY);
-    lineY += 7;
-  });
+  const maxWidth = pageWidth - 40;
+  let bY = bottomY + 15;
+  for (const bullet of INSTRUCTION_BULLETS) {
+    const lines = pdf.splitTextToSize(bullet, maxWidth);
+    pdf.text(lines, 20, bY);
+    bY += lines.length * 5 + 2.5;
+  }
 
   // Footer metadata
-  pdf.setTextColor(148, 163, 184);
+  pdf.setTextColor(140, 140, 140);
   pdf.setFontSize(8);
   pdf.text(`ARALert Automated System • Student ID: ${student.id}`, pageWidth / 2, 280, { align: 'center' });
 
-  const safeFilename = `Student_QR_Pass_${studentName.replace(/\s+/g, '_')}.pdf`;
+  const safeFilename = `Student_QR_Code_${studentName.replace(/[^a-zA-Z0-9]+/g, '_')}.pdf`;
   pdf.save(safeFilename);
 };
 
 /**
- * Exports a printable Microsoft Word DOCX Student Attendance QR Pass.
+ * Exports a printable Microsoft Word DOCX Student Attendance QR Code in black & white.
  */
 export const exportStudentQrToDocx = async (student: StudentQrData): Promise<void> => {
   const studentName = getStudentDisplayName(student);
@@ -352,244 +370,179 @@ export const exportStudentQrToDocx = async (student: StudentQrData): Promise<voi
           },
         },
         children: [
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
+          // Top Header (no colored container table)
+          new Paragraph({
             alignment: AlignmentType.CENTER,
-            rows: [
-              new TableRow({
-                children: [
-                  new TableCell({
-                    shading: { fill: '1E40AF' },
-                    borders: {
-                      top: { style: BorderStyle.NONE },
-                      bottom: { style: BorderStyle.NONE },
-                      left: { style: BorderStyle.NONE },
-                      right: { style: BorderStyle.NONE },
-                    },
-                    children: [
-                      new Paragraph({
-                        alignment: AlignmentType.CENTER,
-                        spacing: { before: 180, after: 60 },
-                        children: [
-                          new TextRun({
-                            text: 'ARALert ATTENDANCE PASS',
-                            bold: true,
-                            size: 32,
-                            color: 'FFFFFF',
-                            font: 'Arial',
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        alignment: AlignmentType.CENTER,
-                        spacing: { after: 60 },
-                        children: [
-                          new TextRun({
-                            text: 'Palanas National Agricultural High School • Department of Education',
-                            size: 20,
-                            color: 'E0E7FF',
-                            font: 'Arial',
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        alignment: AlignmentType.CENTER,
-                        spacing: { after: 180 },
-                        children: [
-                          new TextRun({
-                            text: 'Official ARAL Program Permanent Student QR Code',
-                            size: 18,
-                            color: 'C7D2FE',
-                            font: 'Arial',
-                          }),
-                        ],
-                      }),
-                    ],
-                  }),
-                ],
+            spacing: { before: 80, after: 40 },
+            children: [
+              new TextRun({
+                text: 'ARALert',
+                bold: true,
+                size: 36,
+                color: '000000',
+                font: 'Arial',
               }),
             ],
           }),
 
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { before: 300, after: 200 },
+            spacing: { after: 160 },
+            children: [
+              new TextRun({
+                text: 'Palanas National Agricultural High School • ARAL Program',
+                bold: true,
+                size: 22,
+                color: '111111',
+                font: 'Arial',
+              }),
+            ],
+          }),
+
+          // QR Code Image
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 80, after: 140 },
             children: [
               new ImageRun({
                 data: bytes,
                 transformation: {
-                  width: 250,
-                  height: 250,
+                  width: 230,
+                  height: 230,
                 },
                 type: 'png',
               }),
             ],
           }),
 
+          // LASTNAME, FIRSTNAME M.I.
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { before: 100, after: 120 },
-            children: [
-              new TextRun({
-                text: `MANUAL ATTENDANCE CODE: ${getStudentManualCode(student.id)}`,
-                bold: true,
-                size: 24,
-                color: '1E40AF',
-                font: 'Arial',
-              }),
-            ],
-          }),
-
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 80 },
+            spacing: { after: 120 },
             children: [
               new TextRun({
                 text: studentName.toUpperCase(),
                 bold: true,
-                size: 32,
-                color: '0F172A',
+                size: 28,
+                color: '000000',
                 font: 'Arial',
               }),
             ],
           }),
 
+          // [small gap] + MANUAL ATTENDANCE CODE:
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 80, after: 50 },
+            children: [
+              new TextRun({
+                text: 'MANUAL ATTENDANCE CODE:',
+                bold: true,
+                size: 20,
+                color: '000000',
+                font: 'Arial',
+              }),
+            ],
+          }),
+
+          // [MANUAL ATTENDANCE CODE]
           new Paragraph({
             alignment: AlignmentType.CENTER,
             spacing: { after: 60 },
             children: [
               new TextRun({
-                text: `LRN: ${student.lrn || 'N/A'}`,
+                text: getStudentManualCode(student.id),
                 bold: true,
-                size: 22,
-                color: '475569',
+                size: 26,
+                color: '000000',
+                font: 'Courier New',
+              }),
+            ],
+          }),
+
+          // Use this 6-digit code if there are problems scanning the QR code.
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 240 },
+            children: [
+              new TextRun({
+                text: 'Use this 6-digit code if there are problems scanning the QR code.',
+                size: 18,
+                color: '444444',
                 font: 'Arial',
               }),
             ],
           }),
 
-          ...(student.gradeLevel || student.section
-            ? [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  spacing: { after: 60 },
-                  children: [
-                    new TextRun({
-                      text: `Grade & Section: ${student.gradeLevel || ''}${
-                        student.gradeLevel && student.section ? ' - ' : ''
-                      }${student.section || ''}`,
-                      size: 20,
-                      color: '64748B',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ]
-            : []),
+          // Bottom Section: INSTRUCTIONS & GUIDELINES (no colored container)
+          new Paragraph({
+            alignment: AlignmentType.LEFT,
+            spacing: { before: 140, after: 80 },
+            children: [
+              new TextRun({
+                text: 'INSTRUCTIONS & GUIDELINES',
+                bold: true,
+                size: 22,
+                color: '000000',
+                font: 'Arial',
+              }),
+            ],
+          }),
 
-          ...(student.assignedTutorName
-            ? [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  spacing: { after: 200 },
-                  children: [
-                    new TextRun({
-                      text: `Assigned Tutor: ${student.assignedTutorName}`,
-                      bold: true,
-                      size: 20,
-                      color: '2563EB',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ]
-            : []),
+          new Paragraph({
+            spacing: { before: 30, after: 50 },
+            children: [
+              new TextRun({
+                text: '• This QR code and manual code is unique to each student.',
+                size: 18,
+                color: '111111',
+                font: 'Arial',
+              }),
+            ],
+          }),
 
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            alignment: AlignmentType.CENTER,
-            rows: [
-              new TableRow({
-                children: [
-                  new TableCell({
-                    shading: { fill: 'F1F5F9' },
-                    borders: {
-                      top: { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' },
-                      bottom: { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' },
-                      left: { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' },
-                      right: { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' },
-                    },
-                    children: [
-                      new Paragraph({
-                        alignment: AlignmentType.CENTER,
-                        spacing: { before: 120, after: 100 },
-                        children: [
-                          new TextRun({
-                            text: 'ATTENDANCE INSTRUCTIONS & USAGE GUIDELINES',
-                            bold: true,
-                            size: 18,
-                            color: '1E293B',
-                            font: 'Arial',
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        spacing: { before: 40, after: 40 },
-                        children: [
-                          new TextRun({
-                            text: '1. This permanent QR code belongs exclusively to this student and does not change between sessions.',
-                            size: 16,
-                            color: '334155',
-                            font: 'Arial',
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        spacing: { before: 40, after: 40 },
-                        children: [
-                          new TextRun({
-                            text: '2. Students can present this pass on their phone screen or bring a printed copy to class.',
-                            size: 16,
-                            color: '334155',
-                            font: 'Arial',
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        spacing: { before: 40, after: 40 },
-                        children: [
-                          new TextRun({
-                            text: '3. The tutor uses the ARALert Camera Scanner on their device to log the student present.',
-                            size: 16,
-                            color: '334155',
-                            font: 'Arial',
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        spacing: { before: 40, after: 120 },
-                        children: [
-                          new TextRun({
-                            text: '4. Students do not require active internet connection; only the teacher scanner needs connectivity.',
-                            size: 16,
-                            color: '334155',
-                            font: 'Arial',
-                          }),
-                        ],
-                      }),
-                    ],
-                  }),
-                ],
+          new Paragraph({
+            spacing: { before: 30, after: 50 },
+            children: [
+              new TextRun({
+                text: '• Students can present this QR code on their phone or bring a printed copy to class.',
+                size: 18,
+                color: '111111',
+                font: 'Arial',
+              }),
+            ],
+          }),
+
+          new Paragraph({
+            spacing: { before: 30, after: 50 },
+            children: [
+              new TextRun({
+                text: '• The tutor scans this QR code using their ARALert tutor scanner during active session hours.',
+                size: 18,
+                color: '111111',
+                font: 'Arial',
+              }),
+            ],
+          }),
+
+          new Paragraph({
+            spacing: { before: 30, after: 80 },
+            children: [
+              new TextRun({
+                text: '• In case of lost paper copy, reach out to your assigned tutor to help you re-print a copy of your QR code. The student can also reprint their own QR code in their personal ARALert account by logging in using their LRN.',
+                size: 18,
+                color: '111111',
+                font: 'Arial',
               }),
             ],
           }),
 
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { before: 300 },
+            spacing: { before: 200 },
             children: [
               new TextRun({
-                text: `ARALert System Pass • Token: ${student.id}`,
+                text: `ARALert Automated System • Student ID: ${student.id}`,
                 size: 14,
                 color: '94A3B8',
                 font: 'Arial',
@@ -602,7 +555,7 @@ export const exportStudentQrToDocx = async (student: StudentQrData): Promise<voi
   });
 
   const blob = await Packer.toBlob(doc);
-  const safeFilename = `Student_QR_Pass_${studentName.replace(/\s+/g, '_')}.docx`;
+  const safeFilename = `Student_QR_Code_${studentName.replace(/[^a-zA-Z0-9]+/g, '_')}.docx`;
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
