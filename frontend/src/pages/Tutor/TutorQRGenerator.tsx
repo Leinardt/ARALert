@@ -1691,8 +1691,7 @@ export const TutorQRGenerator: React.FC = () => {
               className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap"
             >
               <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
-              <span className="hidden xs:inline">Export Sheet</span>
-              <span className="xs:hidden">Export</span>
+              <span>Export Attendance Sheet</span>
             </button>
           </div>
         </div>
