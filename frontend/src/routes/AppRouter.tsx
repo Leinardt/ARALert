@@ -53,39 +53,29 @@ const Forbidden403 = React.lazy(() => import('../pages/errors/Forbidden403').the
 const NotFound404 = React.lazy(() => import('../pages/errors/NotFound404').then(m => ({ default: m.NotFound404 })));
 const ServerError500 = React.lazy(() => import('../pages/errors/ServerError500').then(m => ({ default: m.ServerError500 })));
 
-const PageFallback: React.FC = () => (
-  <div className="flex-1 min-h-[50vh] flex items-center justify-center p-8 bg-transparent">
-    <div className="flex flex-col items-center gap-3">
-      <div className="w-8 h-8 rounded-full border-2 border-[#0052B7] dark:border-blue-400 border-t-transparent animate-spin" />
-      <span className="text-xs font-medium text-slate-400 dark:text-neutral-500 tracking-wide">
-        Loading...
-      </span>
-    </div>
-  </div>
-);
+import { PageFallback } from '../components/PageFallback';
 
 export const AppRouter: React.FC = () => {
   return (
     <BrowserRouter>
-      <Suspense fallback={<PageFallback />}>
-        <Routes>
-          {/* ── Public routes (Landing, Login, Legal) ── */}
-          <Route element={<PublicLayout />}>
-            <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/terms" element={<TermsOfService />} />
-            <Route path="/terms-of-service" element={<TermsOfService />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          </Route>
+      <Routes>
+        {/* ── Public routes (Landing, Login, Legal) ── */}
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        </Route>
 
-          {/* ── Auth routes ───────────────────────────── */}
-          <Route path="/activate" element={<ActivateAccount />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/mfa" element={<MFA />} />
-          <Route path="/invalid-link" element={<InvalidLink />} />
-          <Route path="/success" element={<SuccessPage />} />
+        {/* ── Auth routes (without skeleton loading) ── */}
+        <Route path="/activate" element={<Suspense fallback={<PageFallback />}><ActivateAccount /></Suspense>} />
+        <Route path="/forgot-password" element={<Suspense fallback={<PageFallback />}><ForgotPassword /></Suspense>} />
+        <Route path="/reset-password" element={<Suspense fallback={<PageFallback />}><ResetPassword /></Suspense>} />
+        <Route path="/mfa" element={<Suspense fallback={<PageFallback />}><MFA /></Suspense>} />
+        <Route path="/invalid-link" element={<Suspense fallback={<PageFallback />}><InvalidLink /></Suspense>} />
+        <Route path="/success" element={<Suspense fallback={<PageFallback />}><SuccessPage /></Suspense>} />
 
         {/* ── SuperAdmin routes ─────────────────────── */}
         <Route
@@ -233,16 +223,15 @@ export const AppRouter: React.FC = () => {
           <Route path="/student/analytics" element={<StudentAnalytics />} />
         </Route>
 
-        {/* ── Error routes ──────────────────────────── */}
-        <Route path="/403" element={<Forbidden403 />} />
-        <Route path="/404" element={<NotFound404 />} />
-        <Route path="/500" element={<ServerError500 />} />
+        {/* ── Error routes (without skeleton loading) ── */}
+        <Route path="/403" element={<Suspense fallback={<PageFallback />}><Forbidden403 /></Suspense>} />
+        <Route path="/404" element={<Suspense fallback={<PageFallback />}><NotFound404 /></Suspense>} />
+        <Route path="/500" element={<Suspense fallback={<PageFallback />}><ServerError500 /></Suspense>} />
 
         {/* ── Catch-all ─────────────────────────────── */}
-        <Route path="*" element={<NotFound404 />} />
+        <Route path="*" element={<Suspense fallback={<PageFallback />}><NotFound404 /></Suspense>} />
       </Routes>
-    </Suspense>
-  </BrowserRouter>
+    </BrowserRouter>
 );
 };
 

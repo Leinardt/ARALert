@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ArrowRight, Menu, X, School, Mail } from 'lucide-react';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { PageFallback } from '../components/PageFallback';
 
 import aralertLogo from '../assets/ARALert_Logo_LIGHT.png';
 
@@ -180,7 +181,9 @@ export const PublicLayout: React.FC = () => {
 
       {/* ── Main Content Area ── */}
       <main className="flex-1 flex flex-col w-full">
-        <Outlet />
+        <Suspense fallback={<PageFallback />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       {/* ── Compact Restored Sticky Footer ── */}

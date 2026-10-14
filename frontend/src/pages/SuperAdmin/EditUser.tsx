@@ -242,8 +242,30 @@ export const EditUser: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="w-8 h-8 border-4 border-[var(--brand)] border-t-transparent rounded-full animate-spin"></div>
+      <div className="space-y-6 max-w-4xl mx-auto skeleton-container animate-pulse" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+        <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
+        <div className="bg-white dark:bg-[#0A0A0A] p-8 sm:p-10 rounded-2xl border border-slate-200 dark:border-[#1A1A1A] shadow-md space-y-6">
+          <div className="h-6 w-52 rounded bg-gray-200 dark:bg-gray-800" />
+          <div className="space-y-3 pt-2">
+            <div className="h-3 w-36 rounded bg-gray-200 dark:bg-gray-800" />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="h-10 rounded-md bg-gray-100 dark:bg-gray-900" />
+              <div className="h-10 rounded-md bg-gray-100 dark:bg-gray-900" />
+              <div className="h-10 rounded-md bg-gray-100 dark:bg-gray-900" />
+            </div>
+          </div>
+          <div className="space-y-3 pt-2">
+            <div className="h-3 w-32 rounded bg-gray-200 dark:bg-gray-800" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="h-10 rounded-md bg-gray-100 dark:bg-gray-900" />
+              <div className="h-10 rounded-md bg-gray-100 dark:bg-gray-900" />
+            </div>
+          </div>
+          <div className="pt-4 flex gap-3">
+            <div className="h-10 w-32 rounded-md bg-gray-200 dark:bg-gray-800" />
+            <div className="h-10 w-24 rounded-md bg-gray-100 dark:bg-gray-900" />
+          </div>
+        </div>
       </div>
     );
   }
