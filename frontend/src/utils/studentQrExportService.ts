@@ -131,7 +131,7 @@ export const INSTRUCTION_GUIDES: InstructionGuideItem[] = [
     mb: 'An tutor an magascan sani na QR code gamit an ina scanner sa ARALert kada session.',
   },
   {
-    en: '• In case of lost paper copy, reach out to your assigned ARAL tutor to help you re-print a copy of your QR code. The student can also reprint their own QR code in their personal ARALert account by logging in using their LRN.',
+    en: '• In case of lost paper copy, reach out to your assigned ARAL tutor to help you reprint a copy of your QR code. The student can also reprint their own QR code in their personal ARALert account by logging in using their LRN.',
     mb: 'Kun mangyari man na mawara an printed copy, magtugon sa iyo ARAL tutor para mabuligan kamo magprint utro san iyo QR code. Pwede man pod an estudyante magprint san inda sadiri na QR code na makikita sa inda ARALert account matapos mag-log in gamit an inda LRN.',
   },
 ];
@@ -139,7 +139,10 @@ export const INSTRUCTION_GUIDES: InstructionGuideItem[] = [
 /**
  * Exports a high-resolution, ink-saving black & white JPEG Attendance Pass for the student.
  */
-export const exportStudentQrToJpeg = async (student: StudentQrData): Promise<void> => {
+export const exportStudentQrToJpeg = async (
+  student: StudentQrData,
+  paperSize: 'letter' | 'a4' | 'folio' = 'a4'
+): Promise<void> => {
   const studentName = getStudentDisplayName(student);
   const qrDataUrl = await generateStudentQrDataUrl(student.id, 400);
 
@@ -152,9 +155,15 @@ export const exportStudentQrToJpeg = async (student: StudentQrData): Promise<voi
     }
   }
 
+  const dimensions = {
+    letter: { width: 850, height: 1100 },
+    a4: { width: 800, height: 1130 },
+    folio: { width: 850, height: 1300 },
+  }[paperSize];
+
   const canvas = document.createElement('canvas');
-  const cardWidth = 800;
-  const cardHeight = 1350;
+  const cardWidth = dimensions.width;
+  const cardHeight = dimensions.height;
   canvas.width = cardWidth;
   canvas.height = cardHeight;
   const ctx = canvas.getContext('2d');
@@ -270,15 +279,24 @@ export const exportStudentQrToJpeg = async (student: StudentQrData): Promise<voi
 /**
  * Exports an official printable PDF Student Attendance QR Code in black & white.
  */
-export const exportStudentQrToPdf = async (student: StudentQrData): Promise<void> => {
+export const exportStudentQrToPdf = async (
+  student: StudentQrData,
+  paperSize: 'letter' | 'a4' | 'folio' = 'a4'
+): Promise<void> => {
   const studentName = getStudentDisplayName(student);
   const manualCode = getStudentManualCode(student.id);
   const qrDataUrl = await generateStudentQrDataUrl(student.id, 500);
 
+  const formatConfig = {
+    letter: [215.9, 279.4],
+    a4: 'a4',
+    folio: [215.9, 330.2],
+  }[paperSize];
+
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: 'a4',
+    format: formatConfig as any,
   });
 
   const pageWidth = pdf.internal.pageSize.getWidth();
@@ -375,7 +393,10 @@ export const exportStudentQrToPdf = async (student: StudentQrData): Promise<void
 /**
  * Exports a printable Microsoft Word DOCX Student Attendance QR Code in black & white.
  */
-export const exportStudentQrToDocx = async (student: StudentQrData): Promise<void> => {
+export const exportStudentQrToDocx = async (
+  student: StudentQrData,
+  paperSize: 'letter' | 'a4' | 'folio' = 'a4'
+): Promise<void> => {
   const studentName = getStudentDisplayName(student);
   const qrDataUrl = await generateStudentQrDataUrl(student.id, 500);
 
@@ -387,11 +408,18 @@ export const exportStudentQrToDocx = async (student: StudentQrData): Promise<voi
     bytes[i] = binaryString.charCodeAt(i);
   }
 
+  const pageDimensions = {
+    letter: { width: 12240, height: 15840 },
+    a4: { width: 11906, height: 16838 },
+    folio: { width: 12240, height: 18720 },
+  }[paperSize];
+
   const doc = new Document({
     sections: [
       {
         properties: {
           page: {
+            size: pageDimensions,
             margin: {
               top: 720,
               bottom: 720,

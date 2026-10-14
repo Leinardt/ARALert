@@ -18,8 +18,10 @@ import {
   UserCheck,
   Check,
   QrCode,
+  Download,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { ExportStudentQrModal } from '../../components/ExportStudentQrModal';
 import {
   exportStudentQrToJpeg,
   exportStudentQrToPdf,
@@ -270,7 +272,7 @@ export const StudentQRAttendance: React.FC = () => {
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
   const [studentQrUrl, setStudentQrUrl] = useState<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Load permanent QR code data url
   useEffect(() => {
@@ -609,84 +611,17 @@ export const StudentQRAttendance: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Export Options (Single Line) */}
+                {/* Export QR Code Action Button */}
                 <div className="flex flex-row items-center justify-center gap-2 w-full max-w-full flex-nowrap overflow-x-auto py-1">
                   <button
                     type="button"
-                    disabled={isExporting || !user}
-                    onClick={async () => {
-                      if (!user) return;
-                      try {
-                        setIsExporting(true);
-                        await exportStudentQrToDocx({
-                          id: String(user.id),
-                          name: studentFormattedName,
-                          first_name: user.first_name,
-                          last_name: user.last_name,
-                          middle_name: user.middle_name,
-                          lrn: user.lrn,
-                        });
-                      } catch (err) {
-                        console.error('DOCX export error:', err);
-                      } finally {
-                        setIsExporting(false);
-                      }
-                    }}
-                    className="whitespace-nowrap shrink-0 rounded-xl bg-[var(--brand)] px-3.5 sm:px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center"
+                    disabled={!user}
+                    onClick={() => setShowExportModal(true)}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-3.5 sm:px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer whitespace-nowrap"
+                    title="Export Student Attendance QR Code"
                   >
-                    Download Document (.docx)
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={isExporting || !user}
-                    onClick={async () => {
-                      if (!user) return;
-                      try {
-                        setIsExporting(true);
-                        await exportStudentQrToPdf({
-                          id: String(user.id),
-                          name: studentFormattedName,
-                          first_name: user.first_name,
-                          last_name: user.last_name,
-                          middle_name: user.middle_name,
-                          lrn: user.lrn,
-                        });
-                      } catch (err) {
-                        console.error('PDF export error:', err);
-                      } finally {
-                        setIsExporting(false);
-                      }
-                    }}
-                    className="whitespace-nowrap shrink-0 rounded-xl bg-[var(--brand)] px-3.5 sm:px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center"
-                  >
-                    Download PDF (.pdf)
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={isExporting || !user}
-                    onClick={async () => {
-                      if (!user) return;
-                      try {
-                        setIsExporting(true);
-                        await exportStudentQrToJpeg({
-                          id: String(user.id),
-                          name: studentFormattedName,
-                          first_name: user.first_name,
-                          last_name: user.last_name,
-                          middle_name: user.middle_name,
-                          lrn: user.lrn,
-                        });
-                      } catch (err) {
-                        console.error('JPEG export error:', err);
-                      } finally {
-                        setIsExporting(false);
-                      }
-                    }}
-                    className="whitespace-nowrap shrink-0 rounded-xl bg-[var(--brand)] px-3.5 sm:px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center"
-                  >
-                    Download JPEG (.jpeg)
+                    <Download className="w-3.5 h-3.5 text-white" />
+                    <span>Export QR Code</span>
                   </button>
                 </div>
               </div>
@@ -1009,6 +944,24 @@ export const StudentQRAttendance: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Export Student QR Code Modal */}
+      <ExportStudentQrModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        student={
+          user
+            ? {
+                id: String(user.id),
+                name: studentFormattedName,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                middle_name: user.middle_name,
+                lrn: user.lrn,
+              }
+            : null
+        }
+      />
     </div>
   );
 };
