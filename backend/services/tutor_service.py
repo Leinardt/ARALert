@@ -202,8 +202,13 @@ def assign_students_to_tutor_bulk(
     assigned = []
     skipped = []
 
+    students_map = {
+        str(s.id): s
+        for s in User.objects.filter(id__in=student_ids, role='student', is_active=True)
+    }
+
     for sid in student_ids:
-        student = User.objects.filter(id=sid, role='student', is_active=True).first()
+        student = students_map.get(str(sid))
         if not student:
             skipped.append({'student_id': sid, 'reason': 'Not found or inactive.'})
             continue
@@ -289,12 +294,20 @@ def get_tutor_cohort_history(tutor_id, school_year_str=None):
 
     # Historical assignments
     past_records = []
+    student_ids = [h.student_id for h in histories_qs]
+    latest_grades = {}
+    if student_ids:
+        all_grades = ApiGrade.objects.filter(
+            student_id__in=student_ids,
+            tutor=tutor,
+        ).order_by('student_id', '-date_logged')
+        for g in all_grades:
+            if g.student_id not in latest_grades:
+                latest_grades[g.student_id] = g
+
     for h in histories_qs:
         st = h.student
-        grade_obj = ApiGrade.objects.filter(
-            student=st,
-            tutor=tutor,
-        ).order_by('-date_logged').first()
+        grade_obj = latest_grades.get(st.id)
 
         score_display = None
         if grade_obj and grade_obj.total_score:

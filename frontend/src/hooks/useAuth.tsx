@@ -63,11 +63,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     const refreshToken = sessionStorage.getItem('refresh_token') || localStorage.getItem('refresh_token');
-    try {
-      await authService.logout(refreshToken);
-    } catch (error) {
-      console.warn('Logout request failed', error);
-    }
+
+    // Immediately clear all session & local storage to eliminate UI lag
     sessionStorage.removeItem('aralert_login_greeting_pending');
     sessionStorage.removeItem('aralert_greeting_played_in_session');
     sessionStorage.removeItem('aralert_is_first_login');
@@ -78,6 +75,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
     setUser(null);
+
+    try {
+      await authService.logout(refreshToken);
+    } catch (error) {
+      console.warn('Logout request failed', error);
+    }
   };
 
   useEffect(() => {

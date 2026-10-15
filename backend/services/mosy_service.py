@@ -15,17 +15,7 @@ from apps.academics.models import (
 )
 
 
-def get_student_mosy_status(student: User, school_year: SchoolYear | None = None) -> tuple[str, str, float | None]:
-    """
-    Check MOSY evaluation status and grade for a student.
-    Returns (status: 'completed' | 'pending', result: 'passed' | 'failed' | 'pending', score_pct).
-    Passing score: >= 28/40 (70%).
-    """
-    grade = ApiGrade.objects.filter(
-        student=student,
-        subject__icontains='MOSY',
-    ).order_by('-date_logged').first()
-
+def parse_mosy_grade_status(grade: ApiGrade | None) -> tuple[str, str, float | None]:
     if not grade:
         return 'pending', 'pending', None
 
@@ -37,6 +27,23 @@ def get_student_mosy_status(student: User, school_year: SchoolYear | None = None
     return 'completed', result, pct
 
 
+def get_student_mosy_status(student: User, school_year: SchoolYear | None = None, grade_obj: ApiGrade | None = None) -> tuple[str, str, float | None]:
+    """
+    Check MOSY evaluation status and grade for a student.
+    Returns (status: 'completed' | 'pending', result: 'passed' | 'failed' | 'pending', score_pct).
+    Passing score: >= 28/40 (70%).
+    """
+    if grade_obj is not None:
+        return parse_mosy_grade_status(grade_obj)
+
+    grade = ApiGrade.objects.filter(
+        student=student,
+        subject__icontains='MOSY',
+    ).order_by('-date_logged').first()
+
+    return parse_mosy_grade_status(grade)
+
+
 def get_mosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
     """
     Calculate tutor MOSY progress and institutional MOSY evaluation metrics.
@@ -45,7 +52,14 @@ def get_mosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
     if not school_year:
         school_year = SchoolYear.objects.filter(is_active=True).first()
 
-    tutors = User.objects.filter(role='tutor', is_active=True, is_superuser=False)
+    tutors = User.objects.filter(role='tutor', is_active=True, is_superuser=False).prefetch_related('assigned_students')
+
+    # Bulk preload latest MOSY grade for all students in 1 query
+    mosy_grades = ApiGrade.objects.filter(subject__icontains='MOSY').order_by('student_id', '-date_logged')
+    mosy_grade_by_student = {}
+    for g in mosy_grades:
+        if g.student_id not in mosy_grade_by_student:
+            mosy_grade_by_student[g.student_id] = g
 
     completed_tutors_count = 0
     in_progress_tutors_count = 0
@@ -59,8 +73,8 @@ def get_mosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
     incomplete_tutors_list = []
 
     for tutor in tutors:
-        assigned_students = tutor.assigned_students.filter(is_active=True)
-        assigned_count = assigned_students.count()
+        assigned_students = [s for s in tutor.assigned_students.all() if s.is_active]
+        assigned_count = len(assigned_students)
 
         if assigned_count == 0:
             tutors_progress_list.append({
@@ -83,7 +97,8 @@ def get_mosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
         incomplete_students = []
 
         for student in assigned_students:
-            status, result, pct = get_student_mosy_status(student, school_year)
+            grade = mosy_grade_by_student.get(student.id)
+            status, result, pct = get_student_mosy_status(student, school_year, grade_obj=grade)
             if status == 'completed':
                 evaluated_in_tutor += 1
                 total_students_evaluated += 1
@@ -249,21 +264,48 @@ def get_mosy_assignment_dashboard_data(school_year: SchoolYear | None = None) ->
 
     active_sy_str = school_year.school_year if school_year else '2026-2027'
 
-    # 1. Unassigned Plus Students (leveled up from Basic or already Plus)
-    unassigned_plus = []
-    plus_students = User.objects.filter(
+    # 1. Unassigned Plus & Basic Students (bulk loaded)
+    plus_students = list(User.objects.filter(
         role='student',
         aral_level='plus',
         assigned_tutor__isnull=True,
         is_active=True,
-    )
-    for s in plus_students:
-        last_assignment = TutorAssignmentHistory.objects.filter(
-            student=s
-        ).order_by('-start_date', '-created_at').first()
-        prev_tutor_name = last_assignment.tutor.get_full_name() if last_assignment else 'None'
+    ))
+    basic_students = list(User.objects.filter(
+        role='student',
+        aral_level='basic',
+        assigned_tutor__isnull=True,
+        is_active=True,
+    ))
 
-        status, result, pct = get_student_mosy_status(s, school_year)
+    all_unassigned_ids = [s.id for s in plus_students + basic_students]
+    last_assignment_map = {}
+    mosy_grade_map = {}
+
+    if all_unassigned_ids:
+        all_assignments = (
+            TutorAssignmentHistory.objects.filter(student_id__in=all_unassigned_ids)
+            .select_related('tutor')
+            .order_by('student_id', '-start_date', '-created_at')
+        )
+        for a in all_assignments:
+            if a.student_id not in last_assignment_map:
+                last_assignment_map[a.student_id] = a
+
+        unassigned_grades = (
+            ApiGrade.objects.filter(student_id__in=all_unassigned_ids, subject__icontains='MOSY')
+            .order_by('student_id', '-date_logged')
+        )
+        for g in unassigned_grades:
+            if g.student_id not in mosy_grade_map:
+                mosy_grade_map[g.student_id] = g
+
+    unassigned_plus = []
+    for s in plus_students:
+        last_assignment = last_assignment_map.get(s.id)
+        prev_tutor_name = last_assignment.tutor.get_full_name() if (last_assignment and last_assignment.tutor) else 'None'
+        grade = mosy_grade_map.get(s.id)
+        status, result, pct = get_student_mosy_status(s, school_year, grade_obj=grade)
 
         # Determine retake status badge
         prev_program = last_assignment.program if last_assignment else 'basic'
@@ -289,20 +331,12 @@ def get_mosy_assignment_dashboard_data(school_year: SchoolYear | None = None) ->
             'status_color': status_color,
         })
 
-    # 2. Unassigned Basic Students (failed MOSY — retake needed)
     unassigned_basic = []
-    basic_students = User.objects.filter(
-        role='student',
-        aral_level='basic',
-        assigned_tutor__isnull=True,
-        is_active=True,
-    )
     for s in basic_students:
-        status, result, pct = get_student_mosy_status(s, school_year)
-        last_assignment = TutorAssignmentHistory.objects.filter(
-            student=s
-        ).order_by('-start_date', '-created_at').first()
-        prev_tutor_name = last_assignment.tutor.get_full_name() if last_assignment else 'None'
+        grade = mosy_grade_map.get(s.id)
+        status, result, pct = get_student_mosy_status(s, school_year, grade_obj=grade)
+        last_assignment = last_assignment_map.get(s.id)
+        prev_tutor_name = last_assignment.tutor.get_full_name() if (last_assignment and last_assignment.tutor) else 'None'
 
         if result == 'failed':
             status_badge = 'Needs Basic Retake (Q3/Q4 or Summer)'
@@ -398,32 +432,58 @@ def get_unified_assignment_queue(school_year=None):
     basic_queue = []
 
     # --- All unassigned non-graduated active students ---
-    unassigned_students = User.objects.filter(
+    unassigned_students = list(User.objects.filter(
         role='student',
         is_active=True,
         assigned_tutor__isnull=True,
-    ).exclude(aral_level='graduated')
+    ).exclude(aral_level='graduated'))
+
+    student_ids = [s.id for s in unassigned_students]
+    last_assignment_map = {}
+    enrollment_map = {}
+    summer_map = {}
+
+    if student_ids:
+        assignments = (
+            TutorAssignmentHistory.objects.filter(student_id__in=student_ids)
+            .select_related('tutor')
+            .order_by('student_id', '-start_date', '-created_at')
+        )
+        for a in assignments:
+            if a.student_id not in last_assignment_map:
+                last_assignment_map[a.student_id] = a
+
+        enrollments = (
+            StudentEnrollment.objects.filter(student_id__in=student_ids, school_year=school_year)
+            .order_by('student_id', '-created_at')
+        )
+        for e in enrollments:
+            if e.student_id not in enrollment_map:
+                enrollment_map[e.student_id] = e
+
+        summer_records = (
+            SummerRecord.objects.filter(student_id__in=student_ids)
+            .order_by('student_id', '-created_at')
+        )
+        for sr in summer_records:
+            if sr.student_id not in summer_map:
+                summer_map[sr.student_id] = sr
 
     for s in unassigned_students:
         level = (s.aral_level or 'basic').lower()
 
-        last_assignment = TutorAssignmentHistory.objects.filter(
-            student=s
-        ).order_by('-start_date', '-created_at').first()
+        last_assignment = last_assignment_map.get(s.id)
         prev_tutor = last_assignment.tutor.get_full_name() if last_assignment and last_assignment.tutor else 'None'
         prev_program = (last_assignment.program or 'basic').lower() if last_assignment else 'basic'
 
         # Enrollment data for result context
-        enrollment = StudentEnrollment.objects.filter(
-            student=s,
-            school_year=school_year,
-        ).order_by('-created_at').first()
+        enrollment = enrollment_map.get(s.id)
 
         mosy_result = (enrollment.mosy_result or 'pending').lower() if enrollment else 'pending'
         eosy_result = (enrollment.eosy_result or 'pending').lower() if enrollment else 'pending'
 
         # Summer context
-        summer_rec = SummerRecord.objects.filter(student=s).order_by('-created_at').first()
+        summer_rec = summer_map.get(s.id)
         summer_status = summer_rec.summer_status if summer_rec else None
 
         # Determine status reason and badge

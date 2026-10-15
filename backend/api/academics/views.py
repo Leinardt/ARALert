@@ -1146,33 +1146,40 @@ class StudentAcademicProfileView(APIView):
         w_tasks   = tutor.weekly_tasks_weight if tutor else 30
         w_attend  = tutor.attendance_weight   if tutor else 20
 
-        # Grades
-        grades   = ApiGrade.objects.filter(student=student)
-        subjects = grades.values_list('subject', flat=True).distinct()
+        # Grades (optimized from 64 queries to 1 query)
+        grades = ApiGrade.objects.filter(student=student)
+        grade_stats = (
+            grades.values('subject', 'quarter')
+            .annotate(
+                avg_assess=Avg('score', filter=Q(component_type='assessment')),
+                avg_task=Avg('score', filter=Q(component_type='weekly_task')),
+                avg_attend=Avg('score', filter=Q(component_type='attendance')),
+            )
+            .order_by('subject', 'quarter')
+        )
         grade_summary  = []
         overall_scores = []
 
-        for subject in subjects:
-            for quarter in [1, 2, 3, 4]:
-                sq = grades.filter(subject=subject, quarter=quarter)
-                if sq.exists():
-                    avg_assess = sq.filter(component_type='assessment').aggregate(Avg('score'))['score__avg'] or 0
-                    avg_task   = sq.filter(component_type='weekly_task').aggregate(Avg('score'))['score__avg'] or 0
-                    avg_attend = sq.filter(component_type='attendance').aggregate(Avg('score'))['score__avg'] or 0
-                    final = (
-                        float(avg_assess) * w_assess / 100
-                        + float(avg_task)  * w_tasks  / 100
-                        + float(avg_attend) * w_attend / 100
-                    )
-                    grade_summary.append({
-                        'subject':         subject,
-                        'quarter':         quarter,
-                        'assessment_avg':  round(float(avg_assess), 2),
-                        'weekly_task_avg': round(float(avg_task), 2),
-                        'attendance_avg':  round(float(avg_attend), 2),
-                        'final_grade':     round(final, 2),
-                    })
-                    overall_scores.append(final)
+        for row in grade_stats:
+            subject    = row['subject']
+            quarter    = row['quarter']
+            avg_assess = row['avg_assess'] or 0
+            avg_task   = row['avg_task'] or 0
+            avg_attend = row['avg_attend'] or 0
+            final = (
+                float(avg_assess) * w_assess / 100
+                + float(avg_task)  * w_tasks  / 100
+                + float(avg_attend) * w_attend / 100
+            )
+            grade_summary.append({
+                'subject':         subject,
+                'quarter':         quarter,
+                'assessment_avg':  round(float(avg_assess), 2),
+                'weekly_task_avg': round(float(avg_task), 2),
+                'attendance_avg':  round(float(avg_attend), 2),
+                'final_grade':     round(final, 2),
+            })
+            overall_scores.append(final)
 
         gpa = round(sum(overall_scores) / len(overall_scores), 2) if overall_scores else None
 
@@ -1250,26 +1257,44 @@ class PrincipalDashboardView(APIView):
         faculty  = User.objects.filter(role='faculty', is_active=True)
         students = User.objects.filter(role='student', is_active=True)
 
-        # Risk summary
-        risks = ApiAcademicRisk.objects.filter(resolved=False)
+        # Risk summary (1 query)
+        risk_counts = ApiAcademicRisk.objects.filter(resolved=False).values('risk_level').annotate(count=Count('id'))
+        risk_map = {row['risk_level']: row['count'] for row in risk_counts}
         risk_summary = {
-            'low':    risks.filter(risk_level='low').count(),
-            'medium': risks.filter(risk_level='medium').count(),
-            'high':   risks.filter(risk_level='high').count(),
+            'low':    risk_map.get('low', 0),
+            'medium': risk_map.get('medium', 0),
+            'high':   risk_map.get('high', 0),
         }
 
         # Class performance trend (daily avg score + attendance rate over last N days)
+        # Optimized into 2 queries instead of 3 * N queries
         from datetime import date, timedelta as td
         today = date.today()
+        trend_start = today - td(days=days - 1)
+
+        class_grades_qs = (
+            ApiGrade.objects.filter(date_logged__gte=trend_start, date_logged__lte=today)
+            .values('date_logged')
+            .annotate(avg_score=Avg('score'))
+        )
+        class_grade_map = {row['date_logged']: row['avg_score'] for row in class_grades_qs}
+
+        class_att_qs = (
+            ApiAttendance.objects.filter(date__gte=trend_start, date__lte=today, role='student')
+            .values('date')
+            .annotate(
+                total=Count('id'),
+                present=Count('id', filter=Q(status='present'))
+            )
+        )
+        class_att_map = {row['date']: (row['total'], row['present']) for row in class_att_qs}
+
         trend = []
         for i in range(days - 1, -1, -1):
             day = today - td(days=i)
-            day_grades = ApiGrade.objects.filter(date_logged=day)
-            avg_score  = day_grades.aggregate(Avg('score'))['score__avg'] or 0
-            day_att    = ApiAttendance.objects.filter(date=day, role='student')
-            total      = day_att.count()
-            present    = day_att.filter(status='present').count()
-            att_rate   = round(present / total * 100, 2) if total else 0
+            avg_score = class_grade_map.get(day, 0) or 0
+            total, present = class_att_map.get(day, (0, 0))
+            att_rate = round(present / total * 100, 2) if total else 0
             if avg_score or att_rate:
                 trend.append({
                     'date':            str(day),
@@ -1278,18 +1303,37 @@ class PrincipalDashboardView(APIView):
                 })
 
         # Per-tutor performance
+        # Optimized into 2 bulk queries instead of 3 * 10 * 7 queries
+        top_tutors = list(tutors[:10])
+        top_tutor_ids = [t.id for t in top_tutors]
+        tutor_days = min(days, 7)
+        tutor_start = today - td(days=tutor_days - 1)
+
+        tg_qs = (
+            ApiGrade.objects.filter(tutor_id__in=top_tutor_ids, date_logged__gte=tutor_start, date_logged__lte=today)
+            .values('tutor_id', 'date_logged')
+            .annotate(avg_score=Avg('score'))
+        )
+        tutor_grade_map = {(row['tutor_id'], row['date_logged']): row['avg_score'] for row in tg_qs}
+
+        ta_qs = (
+            ApiAttendance.objects.filter(tutor_id__in=top_tutor_ids, date__gte=tutor_start, date__lte=today)
+            .values('tutor_id', 'date')
+            .annotate(
+                total=Count('id'),
+                present=Count('id', filter=Q(status='present'))
+            )
+        )
+        tutor_att_map = {(row['tutor_id'], row['date']): (row['total'], row['present']) for row in ta_qs}
+
         per_tutor = []
-        for tutor in tutors[:10]:  # cap at 10 for performance
-            tutor_students = tutor.assigned_students.all()
-            tutor_trend    = []
-            for i in range(min(days, 7) - 1, -1, -1):
+        for tutor in top_tutors:
+            tutor_trend = []
+            for i in range(tutor_days - 1, -1, -1):
                 day = today - td(days=i)
-                tg  = ApiGrade.objects.filter(tutor=tutor, date_logged=day)
-                avg = tg.aggregate(Avg('score'))['score__avg'] or 0
-                ta  = ApiAttendance.objects.filter(tutor=tutor, date=day)
-                tot = ta.count()
-                pre = ta.filter(status='present').count()
-                ar  = round(pre / tot * 100, 2) if tot else 0
+                avg = tutor_grade_map.get((tutor.id, day), 0) or 0
+                tot, pre = tutor_att_map.get((tutor.id, day), (0, 0))
+                ar = round(pre / tot * 100, 2) if tot else 0
                 tutor_trend.append({
                     'date':            str(day),
                     'attendance_rate': ar,
@@ -1302,26 +1346,47 @@ class PrincipalDashboardView(APIView):
             })
 
         # Staff attendance trend
+        # Optimized into 1 bulk query instead of 4 * 14 queries
+        staff_days = min(days, 14)
+        staff_start = today - td(days=staff_days - 1)
+        staff_qs = (
+            ApiAttendance.objects.filter(
+                date__gte=staff_start,
+                date__lte=today,
+                role__in=('tutor', 'faculty')
+            )
+            .values('date', 'role')
+            .annotate(
+                total=Count('id'),
+                present=Count('id', filter=Q(status='present'))
+            )
+        )
+        staff_att_map = {(row['date'], row['role']): (row['total'], row['present']) for row in staff_qs}
+
         staff_trend = []
-        for i in range(min(days, 14) - 1, -1, -1):
-            day       = today - td(days=i)
-            t_att     = ApiAttendance.objects.filter(date=day, role='tutor')
-            t_tot     = t_att.count()
-            t_pre     = t_att.filter(status='present').count()
-            f_att     = ApiAttendance.objects.filter(date=day, role='faculty')
-            f_tot     = f_att.count()
-            f_pre     = f_att.filter(status='present').count()
+        for i in range(staff_days - 1, -1, -1):
+            day = today - td(days=i)
+            t_tot, t_pre = staff_att_map.get((day, 'tutor'), (0, 0))
+            f_tot, f_pre = staff_att_map.get((day, 'faculty'), (0, 0))
             staff_trend.append({
                 'date':                    str(day),
                 'tutor_attendance_rate':   round(t_pre / t_tot * 100, 2) if t_tot else 0,
                 'faculty_attendance_rate': round(f_pre / f_tot * 100, 2) if f_tot else 0,
             })
 
+        # Program summary (1 query)
+        user_counts = (
+            User.objects.filter(role__in=('tutor', 'faculty', 'student'), is_active=True)
+            .values('role')
+            .annotate(count=Count('id'))
+        )
+        user_count_map = {row['role']: row['count'] for row in user_counts}
+
         return Response({
             'program_summary': {
-                'total_tutors':   tutors.count(),
-                'total_faculty':  faculty.count(),
-                'total_students': students.count(),
+                'total_tutors':   user_count_map.get('tutor', 0),
+                'total_faculty':  user_count_map.get('faculty', 0),
+                'total_students': user_count_map.get('student', 0),
             },
             'risk_summary':            risk_summary,
             'class_performance_trend': trend,

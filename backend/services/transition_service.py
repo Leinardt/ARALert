@@ -418,13 +418,12 @@ def execute_school_year_transition(admin_user: User | None = None) -> dict:
             notes='Concluded at EOSY — all pairings reset for new school year cohort reassignment.'
         )
 
-        # Unassign ALL non-graduated active students (reset for Admin to reassign)
-        for student in User.objects.filter(role='student', is_active=True).exclude(aral_level='graduated'):
-            if student.assigned_tutor:
-                student.assigned_tutor = None
-                student.save(update_fields=['assigned_tutor'])
-                summary_stats['unassigned_students'] += 1
-                summary_stats['tutor_changes'] += 1
+        # Unassign ALL non-graduated active students (reset for Admin to reassign in 1 atomic query)
+        unassign_qs = User.objects.filter(role='student', is_active=True, assigned_tutor__isnull=False).exclude(aral_level='graduated')
+        unassigned_count = unassign_qs.count()
+        unassign_qs.update(assigned_tutor=None)
+        summary_stats['unassigned_students'] += unassigned_count
+        summary_stats['tutor_changes'] += unassigned_count
 
         # STEP 8: Identify Available Tutors (handled dynamically via get_available_tutors_data)
         # STEP 9: Identify Unassigned Students (handled dynamically)
