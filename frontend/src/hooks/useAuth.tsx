@@ -18,8 +18,17 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     // Session-based authentication: closing the browser or tab terminates the session.
-    const storedUser = sessionStorage.getItem('user');
-    return storedUser ? JSON.parse(storedUser) : null;
+    try {
+      const storedUser = sessionStorage.getItem('user');
+      if (!storedUser || storedUser === 'undefined' || storedUser === 'null') {
+        return null;
+      }
+      return JSON.parse(storedUser);
+    } catch (err) {
+      console.warn('Failed to parse stored user from sessionStorage:', err);
+      sessionStorage.removeItem('user');
+      return null;
+    }
   });
 
   const isAuthenticated = Boolean(user);

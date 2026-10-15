@@ -8,50 +8,52 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 // Route guard
 import { ProtectedRoute } from './ProtectedRoute';
 
+import { lazyWithRetry } from '../utils/lazyWithRetry';
+
 // Dynamic / Lazy-loaded Public pages
-const Landing = React.lazy(() => import('../pages/Landing/Landing').then(m => ({ default: m.Landing })));
-const Login = React.lazy(() => import('../pages/Login/Login').then(m => ({ default: m.Login })));
-const TermsOfService = React.lazy(() => import('../pages/Legal/TermsOfService').then(m => ({ default: m.TermsOfService })));
-const PrivacyPolicy = React.lazy(() => import('../pages/Legal/PrivacyPolicy').then(m => ({ default: m.PrivacyPolicy })));
-const ActivateAccount = React.lazy(() => import('../pages/Auth/ActivateAccount').then(m => ({ default: m.ActivateAccount })));
-const ForgotPassword = React.lazy(() => import('../pages/Auth/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
-const ResetPassword = React.lazy(() => import('../pages/Auth/ResetPassword').then(m => ({ default: m.ResetPassword })));
-const InvalidLink = React.lazy(() => import('../pages/Auth/InvalidLink').then(m => ({ default: m.InvalidLink })));
-const SuccessPage = React.lazy(() => import('../pages/Auth/SuccessPage').then(m => ({ default: m.SuccessPage })));
-const MFA = React.lazy(() => import('../pages/Auth/MFA').then(m => ({ default: m.MFA })));
+const Landing = lazyWithRetry(() => import('../pages/Landing/Landing').then(m => ({ default: m.Landing })));
+const Login = lazyWithRetry(() => import('../pages/Login/Login').then(m => ({ default: m.Login })));
+const TermsOfService = lazyWithRetry(() => import('../pages/Legal/TermsOfService').then(m => ({ default: m.TermsOfService })));
+const PrivacyPolicy = lazyWithRetry(() => import('../pages/Legal/PrivacyPolicy').then(m => ({ default: m.PrivacyPolicy })));
+const ActivateAccount = lazyWithRetry(() => import('../pages/Auth/ActivateAccount').then(m => ({ default: m.ActivateAccount })));
+const ForgotPassword = lazyWithRetry(() => import('../pages/Auth/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
+const ResetPassword = lazyWithRetry(() => import('../pages/Auth/ResetPassword').then(m => ({ default: m.ResetPassword })));
+const InvalidLink = lazyWithRetry(() => import('../pages/Auth/InvalidLink').then(m => ({ default: m.InvalidLink })));
+const SuccessPage = lazyWithRetry(() => import('../pages/Auth/SuccessPage').then(m => ({ default: m.SuccessPage })));
+const MFA = lazyWithRetry(() => import('../pages/Auth/MFA').then(m => ({ default: m.MFA })));
 
 // SuperAdmin / Admin pages
-const UserList = React.lazy(() => import('../pages/SuperAdmin/UserList').then(m => ({ default: m.UserList })));
-const CreateUser = React.lazy(() => import('../pages/SuperAdmin/CreateUser').then(m => ({ default: m.CreateUser })));
-const EditUser = React.lazy(() => import('../pages/SuperAdmin/EditUser').then(m => ({ default: m.EditUser })));
-const Profile = React.lazy(() => import('../pages/SuperAdmin/Profile').then(m => ({ default: m.Profile })));
-const Settings = React.lazy(() => import('../pages/SuperAdmin/Settings').then(m => ({ default: m.Settings })));
-const AuditLog = React.lazy(() => import('../pages/SuperAdmin/AuditLog').then(m => ({ default: m.AuditLog })));
+const UserList = lazyWithRetry(() => import('../pages/SuperAdmin/UserList').then(m => ({ default: m.UserList })));
+const CreateUser = lazyWithRetry(() => import('../pages/SuperAdmin/CreateUser').then(m => ({ default: m.CreateUser })));
+const EditUser = lazyWithRetry(() => import('../pages/SuperAdmin/EditUser').then(m => ({ default: m.EditUser })));
+const Profile = lazyWithRetry(() => import('../pages/SuperAdmin/Profile').then(m => ({ default: m.Profile })));
+const Settings = lazyWithRetry(() => import('../pages/SuperAdmin/Settings').then(m => ({ default: m.Settings })));
+const AuditLog = lazyWithRetry(() => import('../pages/SuperAdmin/AuditLog').then(m => ({ default: m.AuditLog })));
 
 // Role pages
-const AdminHome = React.lazy(() => import('../pages/Admin/AdminHome').then(m => ({ default: m.AdminHome })));
-const AdminAttendanceQR = React.lazy(() => import('../pages/Admin/AdminAttendanceQR').then(m => ({ default: m.AdminAttendanceQR })));
-const AdminEvaluationHub = React.lazy(() => import('../pages/Admin/AdminEvaluationHub').then(m => ({ default: m.AdminEvaluationHub })));
-const AssessmentsArchive = React.lazy(() => import('../pages/Admin/AssessmentsArchive').then(m => ({ default: m.AssessmentsArchive })));
-const PrincipalHome = React.lazy(() => import('../pages/Principal/PrincipalHome').then(m => ({ default: m.PrincipalHome })));
-const PrincipalAnalytics = React.lazy(() => import('../pages/Principal/PrincipalAnalytics').then(m => ({ default: m.PrincipalAnalytics })));
-const FacultyHome = React.lazy(() => import('../pages/Faculty/FacultyHome').then(m => ({ default: m.FacultyHome })));
-const TutorHome = React.lazy(() => import('../pages/Tutor/TutorHome').then(m => ({ default: m.TutorHome })));
-const TutorQRGenerator = React.lazy(() => import('../pages/Tutor/TutorQRGenerator').then(m => ({ default: m.TutorQRGenerator })));
-const TutorStudentDirectory = React.lazy(() => import('../pages/Tutor/TutorStudentDirectory').then(m => ({ default: m.TutorStudentDirectory })));
-const TutorStudentProfile = React.lazy(() => import('../pages/Tutor/TutorStudentProfile').then(m => ({ default: m.TutorStudentProfile })));
-const TutorAnalytics = React.lazy(() => import('../pages/Tutor/TutorAnalytics').then(m => ({ default: m.TutorAnalytics })));
-const StaffAttendanceScanner = React.lazy(() => import('../pages/Tutor/StaffAttendanceScanner').then(m => ({ default: m.StaffAttendanceScanner })));
-const TutorScores = React.lazy(() => import('../pages/Tutor/TutorScores'));
-const StudentHome = React.lazy(() => import('../pages/Student/StudentHome').then(m => ({ default: m.StudentHome })));
-const StudentQRAttendance = React.lazy(() => import('../pages/Student/StudentQRAttendance').then(m => ({ default: m.StudentQRAttendance })));
-const StudentScores = React.lazy(() => import('../pages/Student/StudentScores').then(m => ({ default: m.StudentScores })));
-const StudentAnalytics = React.lazy(() => import('../pages/Student/StudentAnalytics').then(m => ({ default: m.StudentAnalytics })));
+const AdminHome = lazyWithRetry(() => import('../pages/Admin/AdminHome').then(m => ({ default: m.AdminHome })));
+const AdminAttendanceQR = lazyWithRetry(() => import('../pages/Admin/AdminAttendanceQR').then(m => ({ default: m.AdminAttendanceQR })));
+const AdminEvaluationHub = lazyWithRetry(() => import('../pages/Admin/AdminEvaluationHub').then(m => ({ default: m.AdminEvaluationHub })));
+const AssessmentsArchive = lazyWithRetry(() => import('../pages/Admin/AssessmentsArchive').then(m => ({ default: m.AssessmentsArchive })));
+const PrincipalHome = lazyWithRetry(() => import('../pages/Principal/PrincipalHome').then(m => ({ default: m.PrincipalHome })));
+const PrincipalAnalytics = lazyWithRetry(() => import('../pages/Principal/PrincipalAnalytics').then(m => ({ default: m.PrincipalAnalytics })));
+const FacultyHome = lazyWithRetry(() => import('../pages/Faculty/FacultyHome').then(m => ({ default: m.FacultyHome })));
+const TutorHome = lazyWithRetry(() => import('../pages/Tutor/TutorHome').then(m => ({ default: m.TutorHome })));
+const TutorQRGenerator = lazyWithRetry(() => import('../pages/Tutor/TutorQRGenerator').then(m => ({ default: m.TutorQRGenerator })));
+const TutorStudentDirectory = lazyWithRetry(() => import('../pages/Tutor/TutorStudentDirectory').then(m => ({ default: m.TutorStudentDirectory })));
+const TutorStudentProfile = lazyWithRetry(() => import('../pages/Tutor/TutorStudentProfile').then(m => ({ default: m.TutorStudentProfile })));
+const TutorAnalytics = lazyWithRetry(() => import('../pages/Tutor/TutorAnalytics').then(m => ({ default: m.TutorAnalytics })));
+const StaffAttendanceScanner = lazyWithRetry(() => import('../pages/Tutor/StaffAttendanceScanner').then(m => ({ default: m.StaffAttendanceScanner })));
+const TutorScores = lazyWithRetry(() => import('../pages/Tutor/TutorScores'));
+const StudentHome = lazyWithRetry(() => import('../pages/Student/StudentHome').then(m => ({ default: m.StudentHome })));
+const StudentQRAttendance = lazyWithRetry(() => import('../pages/Student/StudentQRAttendance').then(m => ({ default: m.StudentQRAttendance })));
+const StudentScores = lazyWithRetry(() => import('../pages/Student/StudentScores').then(m => ({ default: m.StudentScores })));
+const StudentAnalytics = lazyWithRetry(() => import('../pages/Student/StudentAnalytics').then(m => ({ default: m.StudentAnalytics })));
 
 // Error pages
-const Forbidden403 = React.lazy(() => import('../pages/errors/Forbidden403').then(m => ({ default: m.Forbidden403 })));
-const NotFound404 = React.lazy(() => import('../pages/errors/NotFound404').then(m => ({ default: m.NotFound404 })));
-const ServerError500 = React.lazy(() => import('../pages/errors/ServerError500').then(m => ({ default: m.ServerError500 })));
+const Forbidden403 = lazyWithRetry(() => import('../pages/errors/Forbidden403').then(m => ({ default: m.Forbidden403 })));
+const NotFound404 = lazyWithRetry(() => import('../pages/errors/NotFound404').then(m => ({ default: m.NotFound404 })));
+const ServerError500 = lazyWithRetry(() => import('../pages/errors/ServerError500').then(m => ({ default: m.ServerError500 })));
 
 import { PageFallback } from '../components/PageFallback';
 

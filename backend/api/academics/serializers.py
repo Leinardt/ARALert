@@ -25,6 +25,7 @@ class GradeSerializer(serializers.ModelSerializer):
     tutor_name   = serializers.SerializerMethodField()
     component_type_display = serializers.SerializerMethodField()
     date_logged  = serializers.DateField(required=False, default=timezone.localdate)
+    created_at   = serializers.DateTimeField(required=False)
 
     class Meta:
         model  = ApiGrade
@@ -34,7 +35,7 @@ class GradeSerializer(serializers.ModelSerializer):
             'component_type', 'component_type_display',
             'remarks', 'date_logged', 'batch_id', 'created_at',
         ]
-        read_only_fields = ['id', 'student_name', 'tutor_name', 'component_type_display', 'created_at']
+        read_only_fields = ['id', 'student_name', 'tutor_name', 'component_type_display']
 
     def get_student_name(self, obj):
         try:
@@ -147,9 +148,25 @@ class AttendanceSerializer(serializers.ModelSerializer):
             'session',
         ]
         read_only_fields = [
-            'id', 'user_name', 'user_lrn', 'tutor_name',
+            'id', 'user', 'role', 'tutor', 'session', 'aral_activity',
+            'user_name', 'user_lrn', 'tutor_name',
             'aral_activity_title', 'status_display',
         ]
+
+    def validate(self, attrs):
+        new_date = attrs.get('date')
+        instance = getattr(self, 'instance', None)
+        if new_date and instance:
+            if instance.date != new_date:
+                conflict = ApiAttendance.objects.filter(
+                    user_id=instance.user_id,
+                    date=new_date
+                ).exclude(pk=instance.pk).exists()
+                if conflict:
+                    raise serializers.ValidationError({
+                        'date': f"An attendance record already exists for this student on {new_date}."
+                    })
+        return attrs
 
     def get_user_name(self, obj):
         return obj.user.get_full_name() if obj.user_id else ''

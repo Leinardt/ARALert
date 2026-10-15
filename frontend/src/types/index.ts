@@ -29,8 +29,8 @@ export interface User {
   assessment_weight: number;
   weekly_tasks_weight: number;
   attendance_weight: number;
-  aral_level?: 'basic' | 'plus' | 'summer' | 'graduated' | null;
-  tutor_type?: 'basic' | 'plus' | 'summer' | null;
+  aral_level?: 'basic' | 'plus' | 'summer' | 'graduated' | string | null;
+  tutor_type?: 'basic' | 'plus' | 'summer' | 'basic_plus' | string | null;
   is_available_for_students?: boolean;
   subject?: 'Reading' | 'Science' | 'Math' | 'English' | string | null;
   faculty_type?: string | null;

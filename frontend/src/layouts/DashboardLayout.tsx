@@ -17,6 +17,8 @@ import type { AcademicRisk, StudentEditRequest } from '../types';
 import { TutorGreetingIntro, checkGreetingEligibility } from '../components/TutorGreetingIntro';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { StudentEditRequestsModal } from '../components/StudentEditRequestsModal';
+import { PageFallback } from '../components/PageFallback';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import dashboardDarkDefault from '../assets/icons/dashboard_dark.png';
 import dashboardDarkActive from '../assets/icons/dashboard_dark_active.png';
 import dashboardLightDefault from '../assets/icons/dashboard_light.png';
@@ -2503,9 +2505,14 @@ export const DashboardLayout: React.FC = () => {
 
         {/* ── Content body ── */}
         <main className="flex-1 w-full min-w-0 max-w-full overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 md:p-6 lg:p-8">
-          <Suspense fallback={null}>
-            <Outlet />
-          </Suspense>
+          <ErrorBoundary
+            fallbackTitle="Dashboard View Error"
+            fallbackMessage="An issue occurred while rendering this dashboard view. You can reload or navigate to another page using the sidebar."
+          >
+            <Suspense fallback={<PageFallback />}>
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
 

@@ -1080,7 +1080,7 @@ class AttendanceHistoryView(generics.ListAPIView):
             return qs.filter(user=user)
         if user.role == 'tutor':
             assigned_ids = user.assigned_students.values_list('id', flat=True)
-            return qs.filter(Q(user=user) | Q(tutor=user) | Q(session__creator=user) | Q(user_id__in=assigned_ids))
+            return qs.filter(Q(role='student') | Q(user=user) | Q(tutor=user) | Q(session__creator=user) | Q(user_id__in=assigned_ids))
         if user.role == 'faculty':
             return qs.filter(user=user)
         return qs.none()
@@ -1103,10 +1103,29 @@ class AttendanceDetailView(generics.RetrieveUpdateDestroyAPIView):
             return qs
         if user.role == 'tutor':
             assigned_ids = user.assigned_students.values_list('id', flat=True)
-            return qs.filter(Q(tutor=user) | Q(session__creator=user) | Q(user_id__in=assigned_ids))
+            return qs.filter(Q(role='student') | Q(tutor=user) | Q(session__creator=user) | Q(user_id__in=assigned_ids))
         if user.role == 'faculty':
             return qs.filter(user=user)
         return qs.none()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        old_status = instance.status
+        old_date = instance.date
+        attendance = serializer.save()
+        log_audit_event(
+            'ATTENDANCE_RECORD_UPDATED',
+            user=self.request.user,
+            request=self.request,
+            details={
+                'attendance_id': attendance.id,
+                'student_id': str(attendance.user_id) if attendance.user_id else '',
+                'student_name': attendance.user.get_full_name() if attendance.user else '',
+                'date': str(attendance.date),
+                'status': attendance.status,
+                'previous_status': old_status,
+            }
+        )
 
 
 # ---------------------------------------------------------------------------

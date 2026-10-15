@@ -13,28 +13,62 @@ import { TablePagination } from '../../components/TablePagination';
 
 /* ─── ARAL Badge Helper ────────────────────────────────────────────── */
 const getAralBadge = (level?: string | null) => {
-  const formatted = level ? level.charAt(0).toUpperCase() + level.slice(1).toLowerCase() : 'Basic';
+  if (!level) {
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 dark:bg-[#1A1A1A] dark:text-slate-300 dark:border-[#262626]">
+        Basic
+      </span>
+    );
+  }
+  const parts = level.split(',').map((p) => p.trim().toLowerCase()).filter(Boolean);
   return (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 dark:bg-[#1A1A1A] dark:text-slate-300 dark:border-[#262626]">
-      {formatted}
-    </span>
+    <div className="flex flex-wrap gap-1">
+      {parts.map((p) => {
+        const isPlus = p === 'plus';
+        const isGrad = p === 'graduated';
+        return (
+          <span
+            key={p}
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+              isPlus
+                ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/60'
+                : isGrad
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
+                : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-[#1A1A1A] dark:text-slate-300 dark:border-[#262626]'
+            }`}
+          >
+            {p.charAt(0).toUpperCase() + p.slice(1)}
+          </span>
+        );
+      })}
+    </div>
   );
 };
 
 /* ─── Subject Badge Helper ─────────────────────────────────────────── */
 const getSubjectBadge = (subject?: string | null) => {
   if (!subject) return <span className="text-gray-400 dark:text-slate-500">—</span>;
-  const s = subject.trim().toLowerCase();
-  if (s.includes('reading')) {
-    return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60">Reading</span>;
-  }
-  if (s.includes('science')) {
-    return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60">Science</span>;
-  }
-  if (s.includes('math')) {
-    return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-50 text-cyan-700 border border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800/60">Math</span>;
-  }
-  return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/60">{subject}</span>;
+  const parts = subject.split(',').map((s) => s.trim()).filter(Boolean);
+  return (
+    <div className="flex flex-wrap gap-1">
+      {parts.map((item) => {
+        const s = item.toLowerCase();
+        let badgeColor = 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/60';
+        if (s.includes('reading') || s.includes('filipino') || s.includes('english')) {
+          badgeColor = 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60';
+        } else if (s.includes('science')) {
+          badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60';
+        } else if (s.includes('math')) {
+          badgeColor = 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800/60';
+        }
+        return (
+          <span key={item} className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${badgeColor}`}>
+            {item}
+          </span>
+        );
+      })}
+    </div>
+  );
 };
 
 type AccountTab = 'student' | 'tutor' | 'faculty' | 'principal' | 'admin' | 'superadmin';
@@ -416,6 +450,14 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
       grade: gradeLevel.replace(/grade\s*/i, '').trim() || '8',
       section: fallbackSection || 'Mango',
     };
+  };
+
+  const getTutorDisplayCohorts = (gradeLevel?: string | null, section?: string | null) => {
+    if (!gradeLevel) return { grade: 'Grade 7', section: section || '—' };
+    const gradeMatches = Array.from(new Set(Array.from(gradeLevel.matchAll(/GRADE\s*(\d+)/gi)).map((m) => `Grade ${m[1]}`)));
+    const grade = gradeMatches.length > 0 ? gradeMatches.join(', ') : gradeLevel;
+    const sec = section || '—';
+    return { grade, section: sec };
   };
 
   return (
@@ -892,10 +934,10 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                               {getAralBadge(u.aral_level)}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-700 dark:text-slate-300 font-medium">
-                              {getGradeAndSection(u.grade_level).grade}
+                              {getTutorDisplayCohorts(u.grade_level, u.section).grade}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-700 dark:text-slate-300 font-medium uppercase">
-                              {getGradeAndSection(u.grade_level, u.section).section}
+                              {getTutorDisplayCohorts(u.grade_level, u.section).section}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${u.is_active

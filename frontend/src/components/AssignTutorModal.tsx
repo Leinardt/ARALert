@@ -165,7 +165,7 @@ export const AssignTutorModal: React.FC<AssignTutorModalProps> = ({
           <div className="space-y-0.5">
             <span className="font-bold">PNAHS ARAL Program &amp; Cohort Structure:</span>
             <p className="text-[11px] opacity-90">
-              Tutors are not restricted to a single grade level or section — they can teach mixed Grade 7–10 students across sections. Matching is based solely on program level ({student.program === 'plus' ? 'Plus certified' : 'Basic certified'}). Standard cohort size is <strong>15–25 students</strong> (up to 30 max).
+              Tutors are not restricted to a single grade level or section — they can teach mixed Grade 7–12 students across sections. Matching is based solely on program level ({student.program === 'plus' ? 'Plus certified' : 'Basic certified'}). Standard cohort size is <strong>15–25 students</strong> (up to 30 max).
             </p>
           </div>
         </div>

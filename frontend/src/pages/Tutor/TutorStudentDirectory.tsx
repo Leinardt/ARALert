@@ -12,8 +12,15 @@ import type { TutorCohortHistoryData, TutorHistoricalCohortRecord } from '../../
 /* ─── Badge helpers ────────────────────────────────────────────── */
 const getAralBadge = (level?: string | null) => {
   const formatted = level ? level.charAt(0).toUpperCase() + level.slice(1).toLowerCase() : 'Basic';
+  const isPlus = (level || '').toLowerCase().includes('plus');
   return (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 dark:bg-[#1A1A1A] dark:text-slate-300 dark:border-[#262626]">
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+        isPlus
+          ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/60'
+          : 'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-[#1A1A1A] dark:text-slate-300 dark:border-[#262626]'
+      }`}
+    >
       {formatted}
     </span>
   );
@@ -265,10 +272,13 @@ export const TutorStudentDirectory: React.FC = () => {
     return subjects.length ? subjects : ['Reading'];
   }, [students, grades]);
   const tutorAralLevel = useMemo(() => {
-    if (!user?.aral_level) return 'Basic';
-    const lvl = user.aral_level.toLowerCase();
-    return lvl.charAt(0).toUpperCase() + lvl.slice(1);
-  }, [user?.aral_level]);
+    if (!user) return 'Basic';
+    const raw = (user.aral_level || '').toLowerCase();
+    const isBoth = (raw.includes('basic') && raw.includes('plus')) || user.tutor_type === 'basic_plus';
+    if (isBoth) return 'Basic & Plus';
+    if (raw.includes('plus') || user.tutor_type === 'plus') return 'Plus';
+    return 'Basic';
+  }, [user?.aral_level, user?.tutor_type]);
 
   const avatarColor = useMemo(
     () => buildAvatarColorMap(students.length > 0 ? students : studentRows.map((r) => r.student)),

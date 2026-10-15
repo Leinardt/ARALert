@@ -206,12 +206,8 @@ export const PublicLayout: React.FC = () => {
                 <span className="font-extrabold text-sm tracking-tight">ARALert</span>
               </Link>
               <p className="leading-relaxed text-slate-500 dark:text-slate-400">
-                Student Performance Monitoring & Early Academic Risk Detection platform for the Academic Recovery and Accessible Learning (ARAL) initiative.
+                Student Performance Monitoring & Early Academic Risk Detection platform for the Academic Recovery and Accessible Learning (ARAL) program of Palanas National Agriculture High School.
               </p>
-              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-medium pt-0.5">
-                <School className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
-                <span>Palanas National Agriculture High School</span>
-              </div>
             </div>
 
             {/* Col 2: Quick Navigation */}

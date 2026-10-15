@@ -233,6 +233,10 @@ export const academicService = {
     return response.data;
   },
 
+  deleteAttendance: async (id: number): Promise<void> => {
+    await api.delete(`/academics/attendance/${id}/`);
+  },
+
   getPrincipalDashboard: async (params: GetPrincipalDashboardParams = {}): Promise<PrincipalDashboardResponse> => {
     const response = await api.get<PrincipalDashboardResponse>('/academics/principal-dashboard/', { params });
     return response.data;

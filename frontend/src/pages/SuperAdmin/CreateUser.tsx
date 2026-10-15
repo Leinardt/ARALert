@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { userService } from '../../services/userService';
 import type { User } from '../../types';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Briefcase, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { isTutorEligibleForStudent } from '../../utils/tutorCohortHelpers';
 
 const NAME_REGEX = /^[a-zA-Z\s.\-ñÑ']+$/;
 const SECTION_REGEX = /^[a-zA-Z0-9\s\-]+$/;
@@ -59,7 +60,7 @@ const createUserSchema = z.object({
   has_eosy: z.boolean().optional(),
   has_summer: z.boolean().optional(),
 }).superRefine((data, ctx) => {
-  if (data.role === 'student' || data.role === 'tutor') {
+  if (data.role === 'student') {
     if (!data.grade_level_section || !data.grade_level_section.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -150,6 +151,77 @@ export const CreateUser: React.FC = () => {
   });
 
   const selectedRole = watch('role');
+  const watchedStudentGrade = watch('grade_level_grade');
+  const watchedStudentSection = watch('grade_level_section');
+  const watchedStudentAralLevel = watch('aral_level');
+
+  // Filter tutors matching student's grade, section, and ARAL level
+  const matchingTutors = useMemo(() => {
+    if (selectedRole !== 'student') return tutors;
+    return tutors.filter((tutor) =>
+      isTutorEligibleForStudent(tutor, {
+        grade: watchedStudentGrade,
+        section: watchedStudentSection,
+        aral_level: watchedStudentAralLevel,
+      })
+    );
+  }, [tutors, selectedRole, watchedStudentGrade, watchedStudentSection, watchedStudentAralLevel]);
+
+  // Tutor multi-level and multi-section state
+  const [tutorAralLevels, setTutorAralLevels] = useState<('basic' | 'plus')[]>(['basic']);
+  const [tutorSubjects, setTutorSubjects] = useState<string[]>(['Filipino']);
+  const [tutorGradeLevels, setTutorGradeLevels] = useState<string[]>(['GRADE 7']);
+  const [tutorSections, setTutorSections] = useState<string[]>(['']);
+  const [tutorRoleErrors, setTutorRoleErrors] = useState<{
+    aralLevel?: string;
+    subject?: string;
+    gradeLevel?: string;
+    sections?: string;
+  }>({});
+
+  const toggleAralLevel = (level: 'basic' | 'plus') => {
+    setTutorAralLevels((prev) => {
+      const next = prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level];
+      setTutorSubjects((prevSubj) => {
+        let updated = [...prevSubj];
+        if (!next.includes('basic')) updated = updated.filter((s) => s !== 'Filipino');
+        if (!next.includes('plus')) updated = updated.filter((s) => s !== 'English');
+        if (next.includes('basic') && !prev.includes('basic') && !updated.includes('Filipino')) updated.push('Filipino');
+        if (next.includes('plus') && !prev.includes('plus') && !updated.includes('English')) updated.push('English');
+        return updated;
+      });
+      return next;
+    });
+  };
+
+  const toggleSubject = (subj: string) => {
+    setTutorSubjects((prev) =>
+      prev.includes(subj) ? prev.filter((s) => s !== subj) : [...prev, subj]
+    );
+  };
+
+  const toggleGradeLevel = (grade: string) => {
+    setTutorGradeLevels((prev) =>
+      prev.includes(grade) ? prev.filter((g) => g !== grade) : [...prev, grade]
+    );
+  };
+
+  const addSection = () => {
+    setTutorSections((prev) => [...prev, '']);
+  };
+
+  const removeSection = (index: number) => {
+    setTutorSections((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+  };
+
+  const updateSection = (index: number, val: string) => {
+    const sanitized = val.toUpperCase().replace(/[^a-zA-Z0-9\s\-]/g, '');
+    setTutorSections((prev) => {
+      const next = [...prev];
+      next[index] = sanitized;
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!isSuperUser && (requestedRole === 'admin' || requestedRole === 'superadmin')) {
@@ -223,11 +295,61 @@ export const CreateUser: React.FC = () => {
     setIsSubmitting(true);
     setServerErrors(null);
     try {
-      const sectionStr = data.grade_level_section ? data.grade_level_section.toUpperCase().trim() : '';
-      const gradeStr = data.grade_level_grade ? data.grade_level_grade.toUpperCase().trim() : 'GRADE 7';
-      const combinedGradeLevel = (selectedRole === 'student' || selectedRole === 'tutor')
-        ? (sectionStr ? `${gradeStr} - ${sectionStr}` : gradeStr)
-        : '';
+      if (selectedRole === 'tutor') {
+        const rErrors: typeof tutorRoleErrors = {};
+        if (tutorAralLevels.length === 0) {
+          rErrors.aralLevel = 'At least one ARAL Level (BASIC or PLUS) must be selected.';
+        }
+        if (tutorSubjects.length === 0) {
+          rErrors.subject = 'At least one Assigned Subject must be selected.';
+        }
+        if (tutorGradeLevels.length === 0) {
+          rErrors.gradeLevel = 'At least one Assigned Grade Level must be selected.';
+        }
+        const validSections = tutorSections.map((s) => s.trim().toUpperCase()).filter(Boolean);
+        if (validSections.length === 0) {
+          rErrors.sections = 'At least one Assigned Section is required.';
+        }
+        if (Object.keys(rErrors).length > 0) {
+          setTutorRoleErrors(rErrors);
+          setIsSubmitting(false);
+          return;
+        }
+        setTutorRoleErrors({});
+      }
+
+      let combinedGradeLevel = '';
+      if (selectedRole === 'tutor') {
+        const validSections = tutorSections.map((s) => s.trim().toUpperCase()).filter(Boolean);
+        if (validSections.length === 1) {
+          combinedGradeLevel = tutorGradeLevels.map((g) => `${g} - ${validSections[0]}`).join(', ');
+        } else if (validSections.length === tutorGradeLevels.length) {
+          combinedGradeLevel = tutorGradeLevels.map((g, i) => `${g} - ${validSections[i]}`).join(', ');
+        } else {
+          combinedGradeLevel = tutorGradeLevels
+            .map((g) => validSections.map((s) => `${g} - ${s}`).join(', '))
+            .join(', ');
+        }
+        if (combinedGradeLevel.length > 98) {
+          combinedGradeLevel = combinedGradeLevel.slice(0, 98);
+        }
+      } else if (selectedRole === 'student') {
+        const sectionStr = data.grade_level_section ? data.grade_level_section.toUpperCase().trim() : '';
+        const gradeStr = data.grade_level_grade ? data.grade_level_grade.toUpperCase().trim() : 'GRADE 7';
+        combinedGradeLevel = sectionStr ? `${gradeStr} - ${sectionStr}` : gradeStr;
+      }
+
+      const tutorAralLevel = selectedRole === 'tutor'
+        ? (tutorAralLevels.length > 1 ? 'basic,plus' : (tutorAralLevels[0] || 'basic'))
+        : (data.aral_level || 'basic');
+
+      const tutorTutorType = selectedRole === 'tutor'
+        ? (tutorAralLevels.length > 1 ? 'basic_plus' : (tutorAralLevels[0] || 'basic'))
+        : (data.aral_level || 'basic');
+
+      const tutorSubject = selectedRole === 'tutor'
+        ? (tutorSubjects.includes('Filipino') ? 'Reading' : tutorSubjects[0] || 'Reading')
+        : (data.subject || 'Reading');
 
       const payload: any = {
         ...data,
@@ -243,7 +365,9 @@ export const CreateUser: React.FC = () => {
         has_eosy: !!data.has_eosy,
         has_summer: !!data.has_summer,
         assigned_tutor: selectedRole === 'student' && data.assigned_tutor ? data.assigned_tutor : null,
-        subject: selectedRole === 'student' || selectedRole === 'tutor' ? data.subject || 'Reading' : null,
+        subject: tutorSubject,
+        aral_level: tutorAralLevel,
+        tutor_type: tutorTutorType,
       };
 
       await userService.createUser(payload);
@@ -294,11 +418,11 @@ export const CreateUser: React.FC = () => {
           <input type="hidden" {...register('role')} value={selectedRole} />
 
           {/* ── Section 1: Personal Information ─────────────────────────── */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
               Personal Information
             </h4>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className={`grid grid-cols-1 gap-4 ${selectedRole === 'tutor' ? 'sm:grid-cols-2 md:grid-cols-4' : 'sm:grid-cols-3'}`}>
               <div>
                 <label htmlFor="first_name" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
                   First Name <span className="text-red-500">*</span>
@@ -360,11 +484,244 @@ export const CreateUser: React.FC = () => {
                   </p>
                 )}
               </div>
+
+              {/* For Tutor: Google Email Address is part of Personal Information */}
+              {selectedRole === 'tutor' && (
+                <div>
+                  <label htmlFor="email" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                    Google Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    placeholder="e.g. tutor@bicol-u.edu.ph"
+                    {...register('email')}
+                    className={`w-full rounded-md border px-3 py-2 text-xs shadow-2xs focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:bg-[#111111] dark:text-slate-100 ${
+                      errors.email || serverErrors?.email ? 'border-red-300 dark:border-red-800' : 'border-gray-300 dark:border-[#1A1A1A]'
+                    }`}
+                  />
+                  {(errors.email || serverErrors?.email) && (
+                    <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
+                      {errors.email?.message || serverErrors?.email?.[0]}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* ── Section 2: Staff Email (for non-students) ───────────────── */}
-          {selectedRole !== 'student' && (
+          {/* ── Section 2: Role Details (for Tutors) ───────────────────── */}
+          {selectedRole === 'tutor' && (
+            <div className="space-y-4 rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#0D0D0D] p-5 shadow-2xs">
+              <div className="border-b border-gray-200 dark:border-[#1A1A1A] pb-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-slate-200 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-[var(--brand)]" />
+                  Role Details
+                </h4>
+                <p className="mt-0.5 text-[11px] text-gray-500 dark:text-slate-400">
+                  Configure the ARAL program levels, subjects, grade levels, and sections handled by this tutor.
+                </p>
+              </div>
+
+              {/* 1. ARAL Level (checkboxes: BASIC / PLUS) */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                  ARAL Level <span className="text-red-500">*</span>
+                  <span className="ml-1.5 text-[10px] font-normal text-gray-400 dark:text-slate-500">
+                    (Select BASIC, PLUS, or both)
+                  </span>
+                </label>
+                <div className="flex flex-wrap items-center gap-4 pt-1">
+                  <label className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
+                    tutorAralLevels.includes('basic')
+                      ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 shadow-2xs'
+                      : 'border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#1E1E1E]'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={tutorAralLevels.includes('basic')}
+                      onChange={() => toggleAralLevel('basic')}
+                      className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
+                    />
+                    <span>BASIC</span>
+                  </label>
+                  <label className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
+                    tutorAralLevels.includes('plus')
+                      ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 shadow-2xs'
+                      : 'border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#1E1E1E]'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={tutorAralLevels.includes('plus')}
+                      onChange={() => toggleAralLevel('plus')}
+                      className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
+                    />
+                    <span>PLUS</span>
+                  </label>
+                </div>
+                {tutorRoleErrors.aralLevel && (
+                  <p className="text-[11px] text-red-600 dark:text-red-400">{tutorRoleErrors.aralLevel}</p>
+                )}
+              </div>
+
+              {/* 2. Assigned Subject (checkboxes: FILIPINO / ENGLISH / SCIENCE / MATH) */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                  Assigned Subject <span className="text-red-500">*</span>
+                  <span className="ml-1.5 text-[10px] font-normal text-gray-400 dark:text-slate-500">
+                    (FILIPINO for Basic, ENGLISH for Plus, Science &amp; Math)
+                  </span>
+                </label>
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  {tutorAralLevels.includes('basic') && (
+                    <label className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
+                      tutorSubjects.includes('Filipino')
+                        ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 shadow-2xs'
+                        : 'border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#1E1E1E]'
+                    }`}>
+                      <input
+                        type="checkbox"
+                        checked={tutorSubjects.includes('Filipino')}
+                        onChange={() => toggleSubject('Filipino')}
+                        className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
+                      />
+                      <span>FILIPINO (Basic)</span>
+                    </label>
+                  )}
+                  {tutorAralLevels.includes('plus') && (
+                    <label className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
+                      tutorSubjects.includes('English')
+                        ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 shadow-2xs'
+                        : 'border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#1E1E1E]'
+                    }`}>
+                      <input
+                        type="checkbox"
+                        checked={tutorSubjects.includes('English')}
+                        onChange={() => toggleSubject('English')}
+                        className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
+                      />
+                      <span>ENGLISH (Plus)</span>
+                    </label>
+                  )}
+                  <label className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
+                    tutorSubjects.includes('Science')
+                      ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 shadow-2xs'
+                      : 'border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#1E1E1E]'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={tutorSubjects.includes('Science')}
+                      onChange={() => toggleSubject('Science')}
+                      className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
+                    />
+                    <span>SCIENCE</span>
+                  </label>
+                  <label className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
+                    tutorSubjects.includes('Math')
+                      ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 shadow-2xs'
+                      : 'border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#1E1E1E]'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={tutorSubjects.includes('Math')}
+                      onChange={() => toggleSubject('Math')}
+                      className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
+                    />
+                    <span>MATH</span>
+                  </label>
+                </div>
+                {tutorAralLevels.length === 0 && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                    Select an ARAL Level above to view available language subjects.
+                  </p>
+                )}
+                {tutorRoleErrors.subject && (
+                  <p className="text-[11px] text-red-600 dark:text-red-400">{tutorRoleErrors.subject}</p>
+                )}
+              </div>
+
+              {/* 3. ASSIGNED GRADE LEVEL (GRADE 7 to GRADE 12) */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                  ASSIGNED GRADE LEVEL <span className="text-red-500">*</span>
+                  <span className="ml-1.5 text-[10px] font-normal text-gray-400 dark:text-slate-500">
+                    (Grade 7 through Grade 12 / Senior High School)
+                  </span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 pt-1">
+                  {['GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10', 'GRADE 11', 'GRADE 12'].map((grade) => {
+                    const isChecked = tutorGradeLevels.includes(grade);
+                    return (
+                      <label
+                        key={grade}
+                        className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
+                          isChecked
+                            ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 shadow-2xs'
+                            : 'border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#1E1E1E]'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleGradeLevel(grade)}
+                          className="h-3.5 w-3.5 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
+                        />
+                        <span>{grade}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {tutorRoleErrors.gradeLevel && (
+                  <p className="text-[11px] text-red-600 dark:text-red-400">{tutorRoleErrors.gradeLevel}</p>
+                )}
+              </div>
+
+              {/* 4. ASSIGNED SECTIONS (Dynamic Section Inputs) */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                  ASSIGNED SECTIONS <span className="text-red-500">*</span>
+                </label>
+                <div className="space-y-2 max-w-lg">
+                  {tutorSections.map((sec, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={sec}
+                        onChange={(e) => updateSection(idx, e.target.value)}
+                        placeholder={idx === 0 ? 'e.g. MANGO' : `Section ${idx + 1}`}
+                        className="w-full rounded-md border border-gray-300 dark:border-[#222222] bg-white dark:bg-[#161616] px-3 py-2 text-xs font-semibold uppercase shadow-2xs focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100"
+                      />
+                      {tutorSections.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeSection(idx)}
+                          className="p-1.5 text-gray-400 hover:text-rose-600 transition cursor-pointer"
+                          title="Remove section"
+                          aria-label="Remove section"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={addSection}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--brand)] hover:underline cursor-pointer pt-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  + Add Another Assigned Section
+                </button>
+                {tutorRoleErrors.sections && (
+                  <p className="text-[11px] text-red-600 dark:text-red-400">{tutorRoleErrors.sections}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Section 2: Non-Tutor Staff Authentication (admin, principal, faculty) ─ */}
+          {selectedRole !== 'student' && selectedRole !== 'tutor' && (
             <div className="space-y-2 border-t border-gray-100 dark:border-[#1A1A1A] pt-4">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
                 Authentication &amp; Role Details
@@ -389,76 +746,6 @@ export const CreateUser: React.FC = () => {
                     </p>
                   )}
                 </div>
-
-                {selectedRole === 'tutor' && (
-                  <>
-                    <div>
-                      <label htmlFor="aral_level" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                        ARAL Level <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        id="aral_level"
-                        {...register('aral_level')}
-                        className="w-full rounded-md border border-gray-300 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-3 py-2 text-xs font-medium shadow-2xs focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100"
-                      >
-                        <option value="basic">ARAL Basic</option>
-                        <option value="plus">ARAL Plus</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="subject" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                        Assigned Subject <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        id="subject"
-                        {...register('subject')}
-                        className="w-full rounded-md border border-gray-300 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-3 py-2 text-xs font-medium shadow-2xs focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100"
-                      >
-                        <option value="Reading">Reading</option>
-                        <option value="Science">Science</option>
-                        <option value="Math">Math</option>
-                        <option value="English">English</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="tutor_grade_level_grade" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                        Assigned Grade Level <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        id="tutor_grade_level_grade"
-                        {...register('grade_level_grade')}
-                        className="w-full rounded-md border border-gray-300 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-3 py-2 text-xs font-semibold uppercase shadow-2xs focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100"
-                      >
-                        <option value="GRADE 7">GRADE 7</option>
-                        <option value="GRADE 8">GRADE 8</option>
-                        <option value="GRADE 9">GRADE 9</option>
-                        <option value="GRADE 10">GRADE 10</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="tutor_grade_level_section" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                        Assigned Section <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        id="tutor_grade_level_section"
-                        type="text"
-                        placeholder="e.g. HYACINTH"
-                        {...register('grade_level_section')}
-                        onInput={(e) => {
-                          e.currentTarget.value = e.currentTarget.value.replace(/[^a-zA-Z0-9\s\-]/g, '');
-                        }}
-                        className={`w-full rounded-md border px-3 py-2 text-xs font-medium uppercase shadow-2xs focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:bg-[#111111] dark:text-slate-100 ${
-                          errors.grade_level_section || serverErrors?.grade_level_section ? 'border-red-300 dark:border-red-800' : 'border-gray-300 dark:border-[#1A1A1A]'
-                        }`}
-                      />
-                      {(errors.grade_level_section || serverErrors?.grade_level_section) && (
-                        <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
-                          {errors.grade_level_section?.message || serverErrors?.grade_level_section?.[0]}
-                        </p>
-                      )}
-                    </div>
-                  </>
-                )}
               </div>
             </div>
           )}
@@ -520,6 +807,8 @@ export const CreateUser: React.FC = () => {
                       <option value="GRADE 8">GRADE 8</option>
                       <option value="GRADE 9">GRADE 9</option>
                       <option value="GRADE 10">GRADE 10</option>
+                      <option value="GRADE 11">GRADE 11</option>
+                      <option value="GRADE 12">GRADE 12</option>
                     </select>
                   </div>
 
@@ -590,15 +879,20 @@ export const CreateUser: React.FC = () => {
                       }`}
                     >
                       <option value="">To Be Assigned (TBA)</option>
-                      {tutors.map((tutor) => (
+                      {matchingTutors.map((tutor) => (
                         <option key={tutor.id} value={tutor.id}>
-                          {tutor.full_name || `${tutor.first_name} ${tutor.last_name}`} ({tutor.email})
+                          {tutor.full_name || `${tutor.first_name} ${tutor.last_name}`} ({tutor.email}) — [Handled: {tutor.grade_level || 'General'}]
                         </option>
                       ))}
                     </select>
                     {(errors.assigned_tutor || serverErrors?.assigned_tutor) && (
                       <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
                         {errors.assigned_tutor?.message || serverErrors?.assigned_tutor?.[0]}
+                      </p>
+                    )}
+                    {matchingTutors.length === 0 && (
+                      <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+                        No tutors currently handle {watchedStudentGrade || 'this grade'}{watchedStudentSection ? `, Section ${watchedStudentSection.toUpperCase()}` : ''}, and ARAL {(watchedStudentAralLevel || 'basic').toUpperCase()}.
                       </p>
                     )}
                   </div>

@@ -5,6 +5,13 @@ import { userService } from '../../services/userService';
 import { academicService } from '../../services/academicService';
 import type { Grade, User } from '../../types';
 import { ExportScoreModal } from '../../components/ExportScoreModal';
+import { TutorCohortFilter } from '../../components/TutorCohortFilter';
+import {
+  parseTutorHandledAralLevels,
+  parseTutorHandledSubjects,
+  parseTutorHandledCohorts,
+  isStudentInCohort,
+} from '../../utils/tutorCohortHelpers';
 import {
   getScoreDescription,
   getCurrentSemesterMilestone,
@@ -39,7 +46,11 @@ import {
   Check,
   Layers,
   User as UserIcon,
+  Trash2,
+  RotateCcw,
+  Pencil,
 } from 'lucide-react';
+import { trashbinService } from '../../utils/trashbinService';
 
 /* ─── Constants & Helpers ──────────────────────────────────────── */
 type ScoreEntryKind = 'daily' | 'mosy' | 'eosy' | 'endline';
@@ -185,6 +196,58 @@ const formatTimeStr = (dateStr: string | null | undefined) => {
 const formatDateKey = (year: number, month: number, day: number) =>
   `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
+const extractTimeFromDateStr = (dateStr: string | null | undefined): string => {
+  if (!dateStr) {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  }
+  const normalized = dateStr.includes(' ') && !dateStr.includes('T') ? dateStr.replace(' ', 'T') : dateStr;
+  const d = new Date(normalized);
+  if (isNaN(d.getTime())) {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  }
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+const formatEditTime = (value: string) => {
+  if (!value) return 'Set time';
+  const [hours, minutes] = value.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  return `${hours % 12 || 12}:${String(minutes).padStart(2, '0')} ${period}`;
+};
+
+const updateEditTimePart = (currentTime: string, part: 'hour' | 'minute' | 'period', partValue: string) => {
+  const [rawHours, rawMinutes] = currentTime ? currentTime.split(':').map(Number) : [0, 0];
+  const currentPeriod = rawHours >= 12 ? 'PM' : 'AM';
+  const currentHour = rawHours % 12 || 12;
+  const hour = part === 'hour' ? Number(partValue) : currentHour;
+  const minute = part === 'minute' ? Number(partValue) : rawMinutes;
+  const period = part === 'period' ? partValue : currentPeriod;
+  let hours24 = hour % 12;
+  if (period === 'PM') hours24 += 12;
+  return `${String(hours24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+};
+
+const calculatePickerPosition = (picker: 'date' | 'time', anchor: HTMLElement) => {
+  const bounds = anchor.getBoundingClientRect();
+  const width = picker === 'date' ? 288 : 256;
+  const height = picker === 'date' ? 340 : 150;
+
+  const spaceBelow = window.innerHeight - bounds.bottom;
+  const spaceAbove = bounds.top;
+
+  let top: number;
+  if (spaceBelow >= height + 12 || spaceBelow >= spaceAbove) {
+    top = Math.min(window.innerHeight - height - 12, bounds.bottom + 8);
+  } else {
+    top = Math.max(12, bounds.top - height - 8);
+  }
+
+  const left = Math.max(12, Math.min(window.innerWidth - width - 12, bounds.left));
+  return { top, left };
+};
+
 const ScoreCalendarDropdown: React.FC<{
   selectedDate: string | null;
   onSelectDate: (date: string) => void;
@@ -214,9 +277,12 @@ const ScoreCalendarDropdown: React.FC<{
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
+  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const today = new Date().toLocaleDateString('en-CA');
+  const monthName = viewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const today = new Date().toISOString().slice(0, 10);
   const cells = Array.from({ length: firstDay + daysInMonth }, (_, index) =>
     index < firstDay ? null : index - firstDay + 1
   );
@@ -232,63 +298,108 @@ const ScoreCalendarDropdown: React.FC<{
   return (
     <div
       ref={dropdownRef}
-      className={`absolute top-full mt-2 z-[60] w-72 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3.5 shadow-2xl select-none text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150 ${alignmentClass} ${className || ''}`}
-      style={style}
+      className={`${className || 'absolute right-0 top-full mt-2'} z-[70] w-72 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans select-none text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150 ${alignmentClass}`}
+      style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif", ...style }}
     >
-      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+      {/* Top Header Label */}
+      <div className="flex items-center justify-between pb-2 mb-1.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Select Date</p>
         <button
           type="button"
-          onClick={() => setViewDate(new Date(year, month - 1, 1))}
-          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 cursor-pointer"
-          aria-label="Previous month"
+          onClick={onClose}
+          className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+          aria-label="Close calendar"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Month & Navigation in Poppins */}
+      <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <button
+          type="button"
+          onClick={prevMonth}
+          className="rounded-md p-1.5 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] text-slate-700 dark:text-slate-300 transition cursor-pointer"
+          aria-label="Previous Month"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="text-xs font-bold tracking-wide text-slate-900 dark:text-slate-100">
-          {viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-        </span>
+        <span className="font-bold text-xs text-slate-900 dark:text-slate-100 tracking-wide">{monthName}</span>
         <button
           type="button"
-          onClick={() => setViewDate(new Date(year, month + 1, 1))}
-          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 cursor-pointer"
-          aria-label="Next month"
+          onClick={nextMonth}
+          className="rounded-md p-1.5 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] text-slate-700 dark:text-slate-300 transition cursor-pointer"
+          aria-label="Next Month"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
-      <div className="grid grid-cols-7 gap-1 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => <span key={day}>{day}</span>)}
+
+      {/* Weekdays in Poppins */}
+      <div className="grid grid-cols-7 gap-1 text-center font-bold text-slate-400 dark:text-slate-500 py-2 text-[10px] uppercase tracking-wider">
+        <span>Su</span>
+        <span>Mo</span>
+        <span>Tu</span>
+        <span>We</span>
+        <span>Th</span>
+        <span>Fr</span>
+        <span>Sa</span>
       </div>
+
+      {/* Day Numbers in Poppins */}
       <div className="grid grid-cols-7 gap-1">
         {cells.map((day, index) => {
           if (day === null) return <div key={`empty-${index}`} className="h-7 w-7" />;
           const dateKey = formatDateKey(year, month, day);
           const isSelected = selectedDate === dateKey;
+          const isToday = today === dateKey;
           const hasRecords = loggedDates.has(dateKey);
           return (
             <button
               key={dateKey}
               type="button"
-              onClick={() => { onSelectDate(dateKey); onClose(); }}
-              className={`relative mx-auto flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold cursor-pointer transition ${
+              onClick={() => {
+                onSelectDate(dateKey);
+                onClose();
+              }}
+              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 isSelected
-                  ? 'bg-[var(--brand)] text-white shadow-sm'
-                  : dateKey === today
-                  ? 'border border-[var(--brand)] text-[var(--brand)]'
+                  ? 'bg-[var(--brand)] text-white font-bold shadow-xs'
+                  : isToday
+                  ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
                   : hasRecords
-                  ? 'bg-slate-100 text-slate-800 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+                  ? 'bg-blue-50 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                  : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#1A1A1A]'
               }`}
             >
-              {day}
-              {hasRecords && !isSelected && <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-[var(--brand)]" />}
+              <span>{day}</span>
+              {hasRecords && !isSelected && (
+                <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-[var(--brand)]" />
+              )}
             </button>
           );
         })}
       </div>
-      <div className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-2 text-[11px] font-semibold">
-        <button type="button" onClick={() => { onSelectDate(today); onClose(); }} className="text-[var(--brand)] hover:underline cursor-pointer">Today</button>
-        {selectedDate && <button type="button" onClick={() => { onClear(); onClose(); }} className="text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 cursor-pointer">Clear</button>}
+
+      {/* Footer shortcut buttons */}
+      <div className="mt-3 flex items-center justify-between pt-2.5 border-t border-gray-100 dark:border-[#1A1A1A] text-[11px] font-semibold">
+        <button
+          type="button"
+          onClick={() => {
+            onSelectDate(today);
+            onClose();
+          }}
+          className="text-[var(--brand)] hover:underline cursor-pointer font-bold"
+        >
+          Today
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-[var(--brand)] hover:underline cursor-pointer font-bold"
+        >
+          Done
+        </button>
       </div>
     </div>
   );
@@ -304,16 +415,19 @@ interface ScoreEntryTableProps {
   editScore: number | '';
   editStatus: 'Taken' | 'Not';
   editDate: string;
-  editCalendarGradeId: number | null;
-  editCalendarPosition: { top: number; left: number };
+  editTime: string;
+  openEditPicker: 'date' | 'time' | null;
+  editPickerPosition: { top: number; left: number };
+  editTimePickerRef: React.RefObject<HTMLDivElement | null>;
   grades: Grade[];
   blockSymbolKeys: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   sanitizeScoreInput: (value: string, maxScore: number) => number | '';
   setEditScore: (score: number | '') => void;
   setEditStatus: (status: 'Taken' | 'Not') => void;
   setEditDate: (date: string) => void;
-  setEditCalendarGradeId: (id: number | null) => void;
-  toggleEditCalendar: (event: React.MouseEvent<HTMLButtonElement>, id: number) => void;
+  setEditTime: (time: string) => void;
+  toggleEditPicker: (picker: 'date' | 'time', event: React.MouseEvent<HTMLButtonElement>) => void;
+  setOpenEditPicker: (picker: 'date' | 'time' | null) => void;
   startEditingGrade: (grade: Grade) => void;
   cancelEditingGrade: () => void;
   saveEditingGrade: () => void;
@@ -331,16 +445,19 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
   editScore,
   editStatus,
   editDate,
-  editCalendarGradeId,
-  editCalendarPosition,
+  editTime,
+  openEditPicker,
+  editPickerPosition,
+  editTimePickerRef,
   grades,
   blockSymbolKeys,
   sanitizeScoreInput,
   setEditScore,
   setEditStatus,
   setEditDate,
-  setEditCalendarGradeId,
-  toggleEditCalendar,
+  setEditTime,
+  toggleEditPicker,
+  setOpenEditPicker,
   startEditingGrade,
   cancelEditingGrade,
   saveEditingGrade,
@@ -466,9 +583,10 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                         type="text"
                         inputMode="numeric"
                         value={editScore}
+                        disabled={editStatus === 'Not'}
                         onKeyDown={blockSymbolKeys}
                         onChange={(event) => setEditScore(sanitizeScoreInput(event.target.value, Number(grade.total_score)))}
-                        className="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-semibold outline-none focus:border-[var(--brand)]"
+                        className={`w-20 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-semibold outline-none focus:border-[var(--brand)] ${editStatus === 'Not' ? 'bg-gray-100 dark:bg-slate-800/60 cursor-not-allowed opacity-60' : ''}`}
                       />
                     ) : `${grade.score} / ${grade.total_score}`}
                   </td>
@@ -479,7 +597,17 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                   </td>
                   <td className="px-4 py-3 text-left whitespace-nowrap">
                     {isEditing ? (
-                      <select value={editStatus} onChange={(event) => setEditStatus(event.target.value as 'Taken' | 'Not')} className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none focus:border-[var(--brand)]">
+                      <select
+                        value={editStatus}
+                        onChange={(event) => {
+                          const val = event.target.value as 'Taken' | 'Not';
+                          setEditStatus(val);
+                          if (val === 'Not') {
+                            setEditScore(0);
+                          }
+                        }}
+                        className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-gray-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+                      >
                         <option value="Taken">Taken</option>
                         <option value="Not">Not Taken</option>
                       </select>
@@ -494,28 +622,98 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                       <div className="relative inline-block">
                         <button
                           type="button"
-                          onClick={(event) => toggleEditCalendar(event, grade.id)}
-                          className="h-9 rounded-xl border border-gray-200 bg-gray-50 px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700"
+                          onClick={(event) => toggleEditPicker('date', event)}
+                          className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700"
                           style={{ color: editDate ? '#1f2937' : '#9ca3af' }}
                         >
                           {editDate || 'Select date'}
                         </button>
-                        {editCalendarGradeId === grade.id && createPortal(
+                        {openEditPicker === 'date' && createPortal(
                           <ScoreCalendarDropdown
                             selectedDate={editDate}
                             onSelectDate={setEditDate}
                             onClear={() => setEditDate('')}
-                            onClose={() => setEditCalendarGradeId(null)}
+                            onClose={() => setOpenEditPicker(null)}
                             loggedDates={new Set(grades.map((entry) => entry.date_logged))}
                             className="fixed"
-                            style={{ position: 'fixed', top: editCalendarPosition.top, left: editCalendarPosition.left, marginTop: 0, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+                            style={{ position: 'fixed', top: editPickerPosition.top, left: editPickerPosition.left, marginTop: 0 }}
                           />,
                           document.body
                         )}
                       </div>
                     ) : formatDateStr(grade.date_logged)}
                   </td>
-                  <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">{formatTimeStr(grade.created_at)}</td>
+                  <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
+                    {isEditing ? (
+                      <div className="relative inline-block">
+                        <button
+                          type="button"
+                          onClick={(event) => toggleEditPicker('time', event)}
+                          className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700"
+                          style={{ color: editTime ? '#1f2937' : '#9ca3af' }}
+                        >
+                          {formatEditTime(editTime)}
+                        </button>
+                        {openEditPicker === 'time' && createPortal(
+                          <div
+                            ref={editTimePickerRef}
+                            className="fixed z-[70] w-64 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150"
+                            style={{ top: editPickerPosition.top, left: editPickerPosition.left, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+                          >
+                            <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Set time</p>
+                              <button
+                                type="button"
+                                onClick={() => setOpenEditPicker(null)}
+                                className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                                aria-label="Close time picker"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <select
+                                value={String(Number(editTime ? editTime.split(':')[0] : 0) % 12 || 12)}
+                                onChange={(event) => setEditTime(updateEditTimePart(editTime, 'hour', event.target.value))}
+                                className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+                              >
+                                {Array.from({ length: 12 }, (_, index) => (
+                                  <option key={index + 1} value={index + 1}>{index + 1}</option>
+                                ))}
+                              </select>
+                              <select
+                                value={String(Number(editTime ? editTime.split(':')[1] : 0)).padStart(2, '0')}
+                                onChange={(event) => setEditTime(updateEditTimePart(editTime, 'minute', event.target.value))}
+                                className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+                              >
+                                {Array.from({ length: 60 }, (_, index) => (
+                                  <option key={index} value={String(index).padStart(2, '0')}>{String(index).padStart(2, '0')}</option>
+                                ))}
+                              </select>
+                              <select
+                                value={editTime && Number(editTime.split(':')[0]) >= 12 ? 'PM' : 'AM'}
+                                onChange={(event) => setEditTime(updateEditTimePart(editTime, 'period', event.target.value))}
+                                className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+                              >
+                                <option value="AM">AM</option>
+                                <option value="PM">PM</option>
+                              </select>
+                            </div>
+                            <div className="mt-3 flex items-center justify-end border-t border-gray-100 dark:border-[#1A1A1A] pt-2 text-[11px] font-semibold">
+                              <button
+                                type="button"
+                                onClick={() => setOpenEditPicker(null)}
+                                className="text-[var(--brand)] transition hover:underline cursor-pointer font-bold"
+                              >
+                                Done
+                              </button>
+                            </div>
+                          </div>,
+                          document.body
+                        )}
+                      </div>
+                    ) : formatTimeStr(grade.created_at)}
+                  </td>
                   <td className="px-4 py-3 text-center whitespace-nowrap">
                     {isEditing ? (
                       <div className="inline-flex items-center gap-1.5">
@@ -631,9 +829,10 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                         type="text"
                         inputMode="numeric"
                         value={editScore}
+                        disabled={editStatus === 'Not'}
                         onKeyDown={blockSymbolKeys}
                         onChange={(event) => setEditScore(sanitizeScoreInput(event.target.value, Number(grade.total_score)))}
-                        className="w-full h-9 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-sm font-bold text-gray-900 outline-none focus:border-[var(--brand)]"
+                        className={`w-full h-9 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-sm font-bold text-gray-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] ${editStatus === 'Not' ? 'bg-gray-100 dark:bg-slate-800/60 cursor-not-allowed opacity-60' : ''}`}
                         placeholder={`0–${grade.total_score}`}
                       />
                     </div>
@@ -641,8 +840,14 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                       <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Status</label>
                       <select
                         value={editStatus}
-                        onChange={(event) => setEditStatus(event.target.value as 'Taken' | 'Not')}
-                        className="w-full h-9 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-700 outline-none focus:border-[var(--brand)]"
+                        onChange={(event) => {
+                          const val = event.target.value as 'Taken' | 'Not';
+                          setEditStatus(val);
+                          if (val === 'Not') {
+                            setEditScore(0);
+                          }
+                        }}
+                        className="w-full h-9 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs text-gray-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
                       >
                         <option value="Taken">Taken</option>
                         <option value="Not">Not Taken</option>
@@ -650,29 +855,100 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Date</label>
-                    <button
-                      type="button"
-                      onClick={(event) => toggleEditCalendar(event, grade.id)}
-                      className="w-full h-9 rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 text-left flex items-center justify-between"
-                      style={{ color: editDate ? '#1f2937' : '#9ca3af' }}
-                    >
-                      <span>{editDate || 'Select date'}</span>
-                      <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                    </button>
-                    {editCalendarGradeId === grade.id && createPortal(
-                      <ScoreCalendarDropdown
-                        selectedDate={editDate}
-                        onSelectDate={setEditDate}
-                        onClear={() => setEditDate('')}
-                        onClose={() => setEditCalendarGradeId(null)}
-                        loggedDates={new Set(grades.map((entry) => entry.date_logged))}
-                        className="fixed"
-                        style={{ position: 'fixed', top: editCalendarPosition.top, left: Math.min(editCalendarPosition.left, window.innerWidth - 300), marginTop: 0, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
-                      />,
-                      document.body
-                    )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Date</label>
+                      <button
+                        type="button"
+                        onClick={(event) => toggleEditPicker('date', event)}
+                        className="w-full h-9 rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 text-left flex items-center justify-between"
+                        style={{ color: editDate ? '#1f2937' : '#9ca3af' }}
+                      >
+                        <span className="truncate">{editDate || 'Select date'}</span>
+                        <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-1" />
+                      </button>
+                      {openEditPicker === 'date' && createPortal(
+                        <ScoreCalendarDropdown
+                          selectedDate={editDate}
+                          onSelectDate={setEditDate}
+                          onClear={() => setEditDate('')}
+                          onClose={() => setOpenEditPicker(null)}
+                          loggedDates={new Set(grades.map((entry) => entry.date_logged))}
+                          className="fixed"
+                          style={{ position: 'fixed', top: editPickerPosition.top, left: editPickerPosition.left, marginTop: 0 }}
+                        />,
+                        document.body
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Time</label>
+                      <button
+                        type="button"
+                        onClick={(event) => toggleEditPicker('time', event)}
+                        className="w-full h-9 rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 text-left flex items-center justify-between"
+                        style={{ color: editTime ? '#1f2937' : '#9ca3af' }}
+                      >
+                        <span className="truncate">{formatEditTime(editTime)}</span>
+                      </button>
+                      {openEditPicker === 'time' && createPortal(
+                        <div
+                          ref={editTimePickerRef}
+                          className="fixed z-[70] w-64 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150"
+                          style={{ top: editPickerPosition.top, left: editPickerPosition.left, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+                        >
+                          <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Set time</p>
+                            <button
+                              type="button"
+                              onClick={() => setOpenEditPicker(null)}
+                              className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                              aria-label="Close time picker"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <select
+                              value={String(Number(editTime ? editTime.split(':')[0] : 0) % 12 || 12)}
+                              onChange={(event) => setEditTime(updateEditTimePart(editTime, 'hour', event.target.value))}
+                              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+                            >
+                              {Array.from({ length: 12 }, (_, index) => (
+                                <option key={index + 1} value={index + 1}>{index + 1}</option>
+                              ))}
+                            </select>
+                            <select
+                              value={String(Number(editTime ? editTime.split(':')[1] : 0)).padStart(2, '0')}
+                              onChange={(event) => setEditTime(updateEditTimePart(editTime, 'minute', event.target.value))}
+                              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+                            >
+                              {Array.from({ length: 60 }, (_, index) => (
+                                <option key={index} value={String(index).padStart(2, '0')}>{String(index).padStart(2, '0')}</option>
+                              ))}
+                            </select>
+                            <select
+                              value={editTime && Number(editTime.split(':')[0]) >= 12 ? 'PM' : 'AM'}
+                              onChange={(event) => setEditTime(updateEditTimePart(editTime, 'period', event.target.value))}
+                              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+                            >
+                              <option value="AM">AM</option>
+                              <option value="PM">PM</option>
+                            </select>
+                          </div>
+                          <div className="mt-3 flex items-center justify-end border-t border-gray-100 dark:border-[#1A1A1A] pt-2 text-[11px] font-semibold">
+                            <button
+                              type="button"
+                              onClick={() => setOpenEditPicker(null)}
+                              className="text-[var(--brand)] transition hover:underline cursor-pointer font-bold"
+                            >
+                              Done
+                            </button>
+                          </div>
+                        </div>,
+                        document.body
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-2">
@@ -680,7 +956,7 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                       type="button"
                       onClick={cancelEditingGrade}
                       disabled={isEditingGrade}
-                      className="h-9 px-3 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-50 cursor-pointer"
+                      className="h-9 px-3 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-semibold text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -780,12 +1056,24 @@ type ScoreHistoryGroupSectionProps = Omit<ScoreEntryTableProps, 'rows'> & {
   tableGroup: ScoreTableGroup;
   selectedDate: string | null;
   onSelectDate: (dateStr: string) => void;
+  editDayModeDate: string | null;
+  onToggleEditDay: (dateStr: string) => void;
+  onRequestTrash: (dateStr: string, recordIds: number[]) => void;
+  onRequestRestore: (dateStr: string) => void;
+  userId?: number | string;
+  trashVersion: number;
 };
 
 const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
   tableGroup,
   selectedDate,
   onSelectDate,
+  editDayModeDate,
+  onToggleEditDay,
+  onRequestTrash,
+  onRequestRestore,
+  userId,
+  trashVersion,
   ...tableProps
 }) => {
   const datesWithRecords = useMemo(() => {
@@ -821,6 +1109,18 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
     return Array.from(types);
   }, [displayRows]);
 
+  const isCurrentDateTrashed = useMemo(() => {
+    if (!selectedDate) return false;
+    return trashbinService.isDateTrashed('score', selectedDate, userId);
+  }, [selectedDate, userId, trashVersion]);
+
+  const currentTrashedEntry = useMemo(() => {
+    if (!selectedDate) return null;
+    return trashbinService.getTrashedEntry('score', selectedDate, userId);
+  }, [selectedDate, userId, trashVersion]);
+
+  const daysRemaining = currentTrashedEntry ? trashbinService.getDaysRemaining(currentTrashedEntry) : 30;
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -834,38 +1134,91 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
             {groupDates.map((dateStr) => {
               const hasRecord = datesWithRecords.has(dateStr);
               const isSelected = selectedDate === dateStr;
+              const isTrashed = trashbinService.isDateTrashed('score', dateStr, userId);
               const label = formatDateButtonLabel(dateStr);
               const dateGrades = tableGroup.rows.filter((r) => r.date_logged.slice(0, 10) === dateStr);
               const hasMilestone = dateGrades.some((g) => getScoreDescription(g) !== 'Intervention Activity');
+              const isDayEditMode = editDayModeDate === dateStr;
               return (
-                <button
-                  key={dateStr}
-                  type="button"
-                  disabled={!hasRecord}
-                  onClick={() => onSelectDate(dateStr)}
-                  className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all inline-flex items-center gap-1.5 ${
-                    hasRecord
-                      ? isSelected
-                        ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
-                        : hasMilestone
-                        ? 'bg-orange-50 text-orange-700 border border-orange-300 hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800/60 cursor-pointer font-semibold'
-                        : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
-                      : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
-                  }`}
-                  title={hasRecord ? (isSelected ? `Active: ${label}` : `View ${label}${hasMilestone ? ' (Milestone Assessment)' : ''}`) : `No records on ${label}`}
-                  aria-label={label}
-                >
-                  {hasMilestone && (
-                    <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-orange-300' : 'bg-orange-500'}`} />
+                <div key={dateStr} className="inline-flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={!hasRecord}
+                    onClick={() => onSelectDate(dateStr)}
+                    className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all inline-flex items-center gap-1.5 ${
+                      hasRecord
+                        ? isTrashed
+                          ? isSelected
+                            ? 'bg-gray-500 text-white shadow-xs font-bold border border-gray-500 cursor-pointer'
+                            : 'bg-gray-100 text-gray-500 border border-dashed border-gray-300 dark:bg-[#1A1A1A] dark:text-gray-400 dark:border-gray-700 cursor-pointer font-semibold'
+                          : isSelected
+                          ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
+                          : hasMilestone
+                          ? 'bg-orange-50 text-orange-700 border border-orange-300 hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800/60 cursor-pointer font-semibold'
+                          : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
+                        : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
+                    }`}
+                    title={
+                      hasRecord
+                        ? isTrashed
+                          ? `${label} (In Trashbin - 30 days retention)`
+                          : isSelected
+                          ? `Active: ${label}`
+                          : `View ${label}${hasMilestone ? ' (Milestone Assessment)' : ''}`
+                        : `No records on ${label}`
+                    }
+                    aria-label={label}
+                  >
+                    {hasMilestone && !isTrashed && (
+                      <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-orange-300' : 'bg-orange-500'}`} />
+                    )}
+                    {isTrashed && (
+                      <Trash2 className="w-3 h-3 text-gray-400" />
+                    )}
+                    {label}
+                  </button>
+
+                  {/* Subtler blue edit icon on the right side of the active day */}
+                  {isSelected && hasRecord && !isTrashed && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleEditDay(dateStr)}
+                      className={`h-7.5 w-7.5 rounded-md border flex items-center justify-center transition-all cursor-pointer ${
+                        isDayEditMode
+                          ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-xs'
+                          : 'bg-blue-50/70 border-blue-200/90 text-[var(--brand)] hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:border-blue-800/60 dark:text-blue-300'
+                      }`}
+                      title={isDayEditMode ? 'Exit edit mode for this day' : 'Edit entry for this day'}
+                      aria-label="Edit entry for this day"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
                   )}
-                  {label}
-                </button>
+                </div>
               );
             })}
           </div>
         </div>
         {isOpen && (
           <div className="flex items-center gap-2">
+            {/* Red trashbin icon on the top right of each table entry for that day */}
+            {editDayModeDate === selectedDate && !isCurrentDateTrashed && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedDate) {
+                    const recordIds = displayRows.map((r) => r.id);
+                    onRequestTrash(selectedDate, recordIds);
+                  }
+                }}
+                className="h-7.5 px-2.5 rounded-md border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 hover:border-rose-300 dark:hover:bg-rose-900/50 text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+                title="Delete this record entry"
+                aria-label="Delete this record entry"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                <span className="hidden xs:inline">Delete Entry</span>
+              </button>
+            )}
             <span className="text-[11px] font-semibold text-gray-400">
               {displayRows.length} Record{displayRows.length !== 1 ? 's' : ''}
             </span>
@@ -874,6 +1227,32 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
       </div>
       {isOpen && (
         <div className="space-y-2.5">
+          {/* While in trashbin: show counter banner on the top part */}
+          {isCurrentDateTrashed && (
+            <div className="flex items-center justify-between px-3.5 py-2.5 rounded-md border border-gray-200 dark:border-[#222222] bg-gray-50/90 dark:bg-[#161616] text-xs text-gray-600 dark:text-slate-400 animate-fade-in">
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
+                <span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedDate) {
+                        onRequestRestore(selectedDate);
+                      }
+                    }}
+                    className="text-[var(--brand)] underline font-bold hover:opacity-85 cursor-pointer"
+                  >
+                    Restore
+                  </button>
+                  {' • '}
+                  <span className="font-medium text-gray-600 dark:text-slate-300">
+                    {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} left before permanently deleted
+                  </span>
+                </span>
+              </div>
+            </div>
+          )}
+
           {milestoneTypes.map((milestone) => (
             <div
               key={milestone}
@@ -892,10 +1271,14 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
               </div>
             </div>
           ))}
-          <ScoreEntryTable
-            rows={displayRows}
-            {...tableProps}
-          />
+
+          {/* The table entry: deactivated gray color if in trashbin */}
+          <div className={isCurrentDateTrashed ? 'grayscale opacity-60 pointer-events-none select-none transition-all duration-200' : ''}>
+            <ScoreEntryTable
+              rows={displayRows}
+              {...tableProps}
+            />
+          </div>
         </div>
       )}
     </div>
@@ -905,13 +1288,85 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
 /* ─── Component ────────────────────────────────────────────────── */
 export const TutorScores: React.FC = () => {
   const { user } = useAuth();
+
+  // Cohort top filter state (ARAL Level, Subject, Grade - Section)
+  const [selectedAralLevel, setSelectedAralLevel] = useState<'basic' | 'plus'>(
+    () => parseTutorHandledAralLevels(user)[0] || 'basic'
+  );
+  const [selectedSubject, setSelectedSubject] = useState<string>(
+    () => parseTutorHandledSubjects(user, 'basic')[0]?.id || 'Filipino'
+  );
+  const [selectedCohort, setSelectedCohort] = useState<string>(
+    () => parseTutorHandledCohorts(user)[0] || 'GRADE 7'
+  );
+
   const [students, setStudents] = useState<User[]>(() => getCachedStudents(user?.id));
+
+  // Filter students matching the currently selected cohort
+  const cohortStudents = useMemo(() => {
+    return students.filter((s) =>
+      isStudentInCohort(s, {
+        aral_level: selectedAralLevel,
+        subject: selectedSubject,
+        cohort: selectedCohort,
+      })
+    );
+  }, [students, selectedAralLevel, selectedSubject, selectedCohort]);
+
+  const cohortStudentIds = useMemo(
+    () => new Set(cohortStudents.map((s) => String(s.id))),
+    [cohortStudents]
+  );
+
   const [grades, setGrades] = useState<Grade[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(() => getCachedStudents(user?.id).length === 0);
   const [gradesLoading, setGradesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const avatarColor = useMemo(() => buildAvatarColorMap(students), [students]);
+  const avatarColor = useMemo(() => buildAvatarColorMap(cohortStudents), [cohortStudents]);
+
+  const [editDayModeDate, setEditDayModeDate] = useState<string | null>(null);
+  const [trashVersion, setTrashVersion] = useState(0);
+  const [confirmTrashModal, setConfirmTrashModal] = useState<{ date: string; recordIds: number[] } | null>(null);
+  const [confirmRestoreModal, setConfirmRestoreModal] = useState<{ date: string } | null>(null);
+  const [trashToast, setTrashToast] = useState<{ title: string; message: string } | null>(null);
+
+  useEffect(() => {
+    if (!trashToast) return;
+    const t = setTimeout(() => setTrashToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [trashToast]);
+
+  useEffect(() => {
+    if (user?.id) {
+      trashbinService.checkAndPurgeExpired('score', user.id, async (recordId) => {
+        await academicService.deleteGrade(recordId);
+      }).catch((err) => console.error('Failed to purge expired score records:', err));
+    }
+  }, [user?.id]);
+
+  const handleConfirmTrash = () => {
+    if (!confirmTrashModal) return;
+    trashbinService.trashDate('score', confirmTrashModal.date, confirmTrashModal.recordIds, user?.id);
+    setTrashVersion((v) => v + 1);
+    setEditDayModeDate(null);
+    setConfirmTrashModal(null);
+    setTrashToast({
+      title: 'Record Entry Moved to Trash',
+      message: 'This record entry will stay in the records for 30 days until it is gone forever.',
+    });
+  };
+
+  const handleConfirmRestore = () => {
+    if (!confirmRestoreModal) return;
+    trashbinService.restoreDate('score', confirmRestoreModal.date, user?.id);
+    setTrashVersion((v) => v + 1);
+    setConfirmRestoreModal(null);
+    setTrashToast({
+      title: 'Record Entry Restored',
+      message: 'The record entry has been successfully restored and is active again.',
+    });
+  };
 
   // Form State - initialized synchronously from draft/cache so the container never flashes/reloads
   const [draftsByKind, setDraftsByKind] = useState<Partial<Record<ScoreEntryKind, SingleDraftState>>>(() => {
@@ -953,6 +1408,7 @@ export const TutorScores: React.FC = () => {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [successModalTitle, setSuccessModalTitle] = useState('Scores Saved Successfully');
   const [showMilestoneConfirmation, setShowMilestoneConfirmation] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -980,9 +1436,11 @@ export const TutorScores: React.FC = () => {
   const [editScore, setEditScore] = useState<number | ''>('');
   const [editStatus, setEditStatus] = useState<'Taken' | 'Not'>('Taken');
   const [editDate, setEditDate] = useState('');
-  const [editCalendarGradeId, setEditCalendarGradeId] = useState<number | null>(null);
-  const [editCalendarPosition, setEditCalendarPosition] = useState({ top: 0, left: 0 });
-  const editCalendarAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const [editTime, setEditTime] = useState('');
+  const [openEditPicker, setOpenEditPicker] = useState<'date' | 'time' | null>(null);
+  const [editPickerPosition, setEditPickerPosition] = useState({ top: 0, left: 0 });
+  const editPickerAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const editTimePickerRef = useRef<HTMLDivElement | null>(null);
   const [isEditingGrade, setIsEditingGrade] = useState(false);
 
   const fetchGrades = async () => {
@@ -1192,6 +1650,7 @@ export const TutorScores: React.FC = () => {
       // ── Attendance-pattern: store batch ID → highlights the DTR row ──
       setLastSavedBatchId(batchId);
       const titleName = entryKind === 'daily' ? 'Intervention Activity' : (Object.values(semesterScoreEntry).find((e) => e.kind === entryKind)?.title || assignedPeriod);
+      setSuccessModalTitle('Scores Saved Successfully');
       setSaveSuccessMsg(`${titleName} scores saved and highlighted below.`);
       setShowSuccessModal(true);
       setTimeout(() => {
@@ -1213,12 +1672,18 @@ export const TutorScores: React.FC = () => {
 
   const startEditingGrade = (grade: Grade) => {
     setEditingGradeId(grade.id);
-    setEditScore(grade.score);
-    setEditStatus(grade.remarks === 'Not Taken' ? 'Not' : 'Taken');
+    const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
+    setEditScore(isNotTaken ? 0 : grade.score);
+    setEditStatus(isNotTaken ? 'Not' : 'Taken');
     setEditDate(grade.date_logged || '');
+    setEditTime(extractTimeFromDateStr(grade.created_at));
+    setOpenEditPicker(null);
   };
 
-  const cancelEditingGrade = () => setEditingGradeId(null);
+  const cancelEditingGrade = () => {
+    setEditingGradeId(null);
+    setOpenEditPicker(null);
+  };
 
   const handleDismissSuccessModal = () => {
     setShowSuccessModal(false);
@@ -1232,50 +1697,74 @@ export const TutorScores: React.FC = () => {
     return () => clearTimeout(timer);
   }, [showSuccessModal]);
 
-  const toggleEditCalendar = (event: React.MouseEvent<HTMLButtonElement>, gradeId: number) => {
-    if (editCalendarGradeId === gradeId) {
-      setEditCalendarGradeId(null);
+  const toggleEditPicker = (picker: 'date' | 'time', event: React.MouseEvent<HTMLButtonElement>) => {
+    if (openEditPicker === picker) {
+      setOpenEditPicker(null);
       return;
     }
-    editCalendarAnchorRef.current = event.currentTarget;
-    const bounds = event.currentTarget.getBoundingClientRect();
-    setEditCalendarPosition({
-      top: bounds.bottom + 8,
-      left: Math.max(8, bounds.right - 288),
-    });
-    setEditCalendarGradeId(gradeId);
+    editPickerAnchorRef.current = event.currentTarget;
+    setEditPickerPosition(calculatePickerPosition(picker, event.currentTarget));
+    setOpenEditPicker(picker);
   };
 
   useEffect(() => {
-    if (editCalendarGradeId === null) return;
-    const updateEditCalendarPosition = () => {
-      const anchor = editCalendarAnchorRef.current;
+    if (!openEditPicker) return;
+    const updatePosition = () => {
+      const anchor = editPickerAnchorRef.current;
       if (!anchor) return;
-      const bounds = anchor.getBoundingClientRect();
-      setEditCalendarPosition({ top: bounds.bottom + 8, left: Math.max(8, bounds.right - 288) });
+      setEditPickerPosition(calculatePickerPosition(openEditPicker, anchor));
     };
-    window.addEventListener('scroll', updateEditCalendarPosition, true);
-    window.addEventListener('resize', updateEditCalendarPosition);
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
     return () => {
-      window.removeEventListener('scroll', updateEditCalendarPosition, true);
-      window.removeEventListener('resize', updateEditCalendarPosition);
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
     };
-  }, [editCalendarGradeId]);
+  }, [openEditPicker]);
+
+  useEffect(() => {
+    if (openEditPicker !== 'time') return;
+    const handlePointerDown = (e: MouseEvent) => {
+      if (
+        editTimePickerRef.current &&
+        !editTimePickerRef.current.contains(e.target as Node) &&
+        editPickerAnchorRef.current &&
+        !editPickerAnchorRef.current.contains(e.target as Node)
+      ) {
+        setOpenEditPicker(null);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [openEditPicker]);
 
   const saveEditingGrade = async () => {
-    if (editingGradeId === null || editScore === '' || !editDate) return;
+    if (editingGradeId === null || (editScore === '' && editStatus !== 'Not') || !editDate) return;
     setIsEditingGrade(true);
     try {
-      await academicService.updateGrade(editingGradeId, {
-        score: editStatus === 'Not' ? 0 : Number(editScore),
-        remarks: editStatus === 'Not' ? 'Not Taken' : Number(editScore) / (Number(grades.find((grade) => grade.id === editingGradeId)?.total_score) || 100) >= 0.7 ? 'Passed' : 'Failed',
+      const finalScore = editStatus === 'Not' ? 0 : Number(editScore);
+      const gradeObj = grades.find((grade) => grade.id === editingGradeId);
+      const totalScoreVal = Number(gradeObj?.total_score) || 100;
+      const finalRemarks = editStatus === 'Not' ? 'Not Taken' : (finalScore / totalScoreVal >= 0.7 ? 'Passed' : 'Failed');
+
+      const payload: Partial<Grade> = {
+        score: finalScore,
+        remarks: finalRemarks,
         date_logged: editDate,
-      });
+      };
+      if (editTime) {
+        payload.created_at = `${editDate}T${editTime}:00`;
+      }
+      await academicService.updateGrade(editingGradeId, payload);
       await fetchGrades();
       setEditingGradeId(null);
-    } catch (err) {
+      setOpenEditPicker(null);
+      setSuccessModalTitle('Score Record Updated');
+      setSaveSuccessMsg('Score record updated successfully.');
+      setShowSuccessModal(true);
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to update score record.');
+      alert(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to update score record.');
     } finally {
       setIsEditingGrade(false);
     }
@@ -1401,7 +1890,15 @@ export const TutorScores: React.FC = () => {
   useEffect(() => { fetchStudents(); }, [user]);
   useEffect(() => { fetchGrades(); }, [user]);
 
-  const safeGrades = useMemo(() => (Array.isArray(grades) ? grades : []), [grades]);
+  const safeGrades = useMemo(() => {
+    const arr = Array.isArray(grades) ? grades : [];
+    return arr.filter((grade) => {
+      const sid = typeof grade.student === 'object' && grade.student !== null
+        ? String((grade.student as any).id ?? (grade.student as any).pk ?? '')
+        : String(grade.student ?? (grade as any).student_id ?? '');
+      return cohortStudentIds.has(sid);
+    });
+  }, [grades, cohortStudentIds]);
   const assignedPeriod = useMemo<ScorePeriod>(() => {
     return getActiveSystemMilestone();
   }, [activeSystemSem]);
@@ -1448,15 +1945,15 @@ export const TutorScores: React.FC = () => {
 
   const evaluatedStudentIds = useMemo(() => new Set(periodGrades.map((g) => String(g.student))), [periodGrades]);
   const evaluatedStudentsCount = useMemo(() => {
-    return students.filter((s) => evaluatedStudentIds.has(String(s.id))).length;
-  }, [students, evaluatedStudentIds]);
+    return cohortStudents.filter((s) => evaluatedStudentIds.has(String(s.id))).length;
+  }, [cohortStudents, evaluatedStudentIds]);
 
   const evaluationStatus = useMemo(() => {
-    if (students.length === 0) return 'No Students';
-    if (evaluatedStudentsCount >= students.length) return 'Completed';
+    if (cohortStudents.length === 0) return 'No Students';
+    if (evaluatedStudentsCount >= cohortStudents.length) return 'Completed';
     if (evaluatedStudentsCount > 0) return 'In Progress';
     return 'Pending';
-  }, [students.length, evaluatedStudentsCount]);
+  }, [cohortStudents.length, evaluatedStudentsCount]);
 
   const isPending = evaluationStatus === 'Pending' || evaluationStatus === 'In Progress';
 
@@ -1588,23 +2085,23 @@ export const TutorScores: React.FC = () => {
   }, [jumpDate, viewMode, visibleScoreRows]);
   const loggedScoreDates = useMemo(() => new Set(batchRows.map((batch) => batch.dateStr)), [batchRows]);
   const sortedStudents = useMemo(
-    () => [...students]
+    () => [...cohortStudents]
       .filter((student) => matchesSearch(studentSearch, student.full_name, student.first_name, student.last_name, student.lrn))
       .sort((firstStudent, secondStudent) => {
         const comparison = compareNamesByLastName(firstStudent, secondStudent);
         return studentSortDirection === 'asc' ? comparison : -comparison;
       }),
-    [students, studentSearch, studentSortDirection]
+    [cohortStudents, studentSearch, studentSortDirection]
   );
 
   // Mobile score entry must ALWAYS be in alphabetical order (A to Z by last name)
   const mobileAlphabeticalStudents = useMemo(
-    () => [...students]
+    () => [...cohortStudents]
       .filter((student) => matchesSearch(studentSearch, student.full_name, student.first_name, student.last_name, student.lrn))
       .sort((firstStudent, secondStudent) => {
         return compareNamesByLastName(firstStudent, secondStudent);
       }),
-    [students, studentSearch]
+    [cohortStudents, studentSearch]
   );
 
 
@@ -1628,6 +2125,16 @@ export const TutorScores: React.FC = () => {
 
   return (
     <div className="flex flex-col space-y-4 max-w-6xl mx-auto data-loaded-content">
+      {/* ── Tutor Multi-Cohort Filter (ARAL Level, Subject, Grade - Section) ── */}
+      <TutorCohortFilter
+        user={user}
+        selectedAralLevel={selectedAralLevel}
+        onSelectAralLevel={setSelectedAralLevel}
+        selectedSubject={selectedSubject}
+        onSelectSubject={setSelectedSubject}
+        selectedCohort={selectedCohort}
+        onSelectCohort={setSelectedCohort}
+      />
 
       {/* ── Score Entry Form ───────────────────────────────────────── */}
       {showAddEntry && (
@@ -2083,23 +2590,35 @@ export const TutorScores: React.FC = () => {
                   key={tableGroup.key}
                   tableGroup={tableGroup}
                   selectedDate={selectedDate}
-                  onSelectDate={setSelectedDate}
+                  onSelectDate={(d) => {
+                    setSelectedDate(d);
+                    setEditDayModeDate(null);
+                  }}
+                  editDayModeDate={editDayModeDate}
+                  onToggleEditDay={(d) => setEditDayModeDate((prev) => (prev === d ? null : d))}
+                  onRequestTrash={(d, recordIds) => setConfirmTrashModal({ date: d, recordIds })}
+                  onRequestRestore={(d) => setConfirmRestoreModal({ date: d })}
+                  userId={user?.id}
+                  trashVersion={trashVersion}
                   lastSavedBatchId={lastSavedBatchId}
                   lastRowRef={lastRowRef}
                   editingGradeId={editingGradeId}
                   editScore={editScore}
                   editStatus={editStatus}
                   editDate={editDate}
-                  editCalendarGradeId={editCalendarGradeId}
-                  editCalendarPosition={editCalendarPosition}
+                  editTime={editTime}
+                  openEditPicker={openEditPicker}
+                  editPickerPosition={editPickerPosition}
+                  editTimePickerRef={editTimePickerRef}
                   grades={grades}
                   blockSymbolKeys={blockSymbolKeys}
                   sanitizeScoreInput={sanitizeScoreInput}
                   setEditScore={setEditScore}
                   setEditStatus={setEditStatus}
                   setEditDate={setEditDate}
-                  setEditCalendarGradeId={setEditCalendarGradeId}
-                  toggleEditCalendar={toggleEditCalendar}
+                  setEditTime={setEditTime}
+                  toggleEditPicker={toggleEditPicker}
+                  setOpenEditPicker={setOpenEditPicker}
                   startEditingGrade={startEditingGrade}
                   cancelEditingGrade={cancelEditingGrade}
                   saveEditingGrade={saveEditingGrade}
@@ -2118,10 +2637,14 @@ export const TutorScores: React.FC = () => {
         isOpen={exportModalConfig.isOpen}
         onClose={() => setExportModalConfig((prev) => ({ ...prev, isOpen: false }))}
         currentUser={user}
-        students={students}
-        grades={grades}
+        students={cohortStudents}
+        grades={safeGrades}
         initialMode={exportModalConfig.mode}
         initialTargetKey={exportModalConfig.targetKey}
+        assessmentType={levelEntry.title}
+        selectedCohort={selectedCohort}
+        selectedAralLevel={selectedAralLevel}
+        selectedSubject={selectedSubject}
       />
 
       {showMilestoneConfirmation && createPortal(
@@ -2215,7 +2738,7 @@ export const TutorScores: React.FC = () => {
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-xs font-bold text-gray-900">
-                  Scores Saved Successfully
+                  {successModalTitle || 'Scores Saved Successfully'}
                 </h3>
                 <button
                   type="button"
@@ -2232,6 +2755,126 @@ export const TutorScores: React.FC = () => {
             </div>
           </div>
         </aside>
+      )}
+
+      {/* ── Trashbin Actions Floating Notification Toast ─────────────────── */}
+      {trashToast && (
+        <aside
+          aria-live="polite"
+          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+        >
+          <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-white dark:bg-[#111111] dark:border-blue-800 p-3.5 shadow-xl">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-50 text-[var(--brand)] border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                  {trashToast.title}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setTrashToast(null)}
+                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  aria-label="Close notification"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                {trashToast.message}
+              </p>
+            </div>
+          </div>
+        </aside>
+      )}
+
+      {/* ── Delete Record Entry Confirmation Modal ───────────────────────── */}
+      {confirmTrashModal && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+          style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setConfirmTrashModal(null); }}
+        >
+          <div className="relative w-full max-w-sm rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl space-y-3 animate-fade-in-scale">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900">
+                <Trash2 className="h-4.5 w-4.5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">
+                  Delete Record Entry
+                </h3>
+                <p className="mt-1.5 text-xs font-normal text-gray-500 dark:text-slate-400 leading-relaxed">
+                  Are you sure you want to delete this record entry? It will stay in the records for 30 days until it is gone forever.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setConfirmTrashModal(null)}
+                className="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmTrash}
+                className="rounded-md bg-rose-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700 cursor-pointer"
+              >
+                Delete Record Entry
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Restore Record Entry Confirmation Modal ──────────────────────── */}
+      {confirmRestoreModal && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+          style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setConfirmRestoreModal(null); }}
+        >
+          <div className="relative w-full max-w-sm rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl space-y-3 animate-fade-in-scale">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[var(--brand)] border border-blue-200 dark:bg-blue-950/40 dark:border-blue-900">
+                <RotateCcw className="h-4.5 w-4.5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">
+                  Restore Record Entry
+                </h3>
+                <p className="mt-1.5 text-xs font-normal text-gray-500 dark:text-slate-400 leading-relaxed">
+                  Are you sure you want to restore this record entry? This will end the 30-day countdown and reactivate the records.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setConfirmRestoreModal(null)}
+                className="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRestore}
+                className="rounded-md bg-[var(--brand)] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer"
+              >
+                Restore Record Entry
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

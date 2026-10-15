@@ -28,10 +28,21 @@ import {
   User as UserIcon,
   Camera,
   CameraOff,
+  Trash2,
+  RotateCcw,
+  Pencil,
 } from 'lucide-react';
+import { trashbinService } from '../../utils/trashbinService';
 import { Html5Qrcode } from 'html5-qrcode';
 import type { Attendance, User, AttendanceSession } from '../../types';
 import { ExportAttendanceModal } from '../../components/ExportAttendanceModal';
+import { TutorCohortFilter } from '../../components/TutorCohortFilter';
+import {
+  parseTutorHandledAralLevels,
+  parseTutorHandledSubjects,
+  parseTutorHandledCohorts,
+  isStudentInCohort,
+} from '../../utils/tutorCohortHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
 
@@ -166,15 +177,28 @@ const CustomCalendarDropdown: React.FC<{
   return (
     <div
       ref={dropdownRef}
-      className={`${className || 'absolute right-0 top-full mt-2'} z-[60] w-72 rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-xl font-sans select-none text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150`}
+      className={`${className || 'absolute right-0 top-full mt-2'} z-[70] w-72 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans select-none text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150`}
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif", ...style }}
     >
+      {/* Top Header Label */}
+      <div className="flex items-center justify-between pb-2 mb-1.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Select Date</p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+          aria-label="Close calendar"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
       {/* Month & Navigation in Poppins */}
-      <div className="flex items-center justify-between pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+      <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
         <button
           type="button"
           onClick={prevMonth}
-          className="rounded-md p-1.5 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] text-slate-600 dark:text-slate-400 transition cursor-pointer"
+          className="rounded-md p-1.5 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] text-slate-700 dark:text-slate-300 transition cursor-pointer"
           aria-label="Previous Month"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -183,7 +207,7 @@ const CustomCalendarDropdown: React.FC<{
         <button
           type="button"
           onClick={nextMonth}
-          className="rounded-md p-1.5 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] text-slate-600 dark:text-slate-400 transition cursor-pointer"
+          className="rounded-md p-1.5 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] text-slate-700 dark:text-slate-300 transition cursor-pointer"
           aria-label="Next Month"
         >
           <ChevronRight className="w-4 h-4" />
@@ -191,7 +215,7 @@ const CustomCalendarDropdown: React.FC<{
       </div>
 
       {/* Weekdays in Poppins */}
-      <div className="grid grid-cols-7 gap-1 text-center font-bold text-slate-400 py-2 text-[10px] uppercase tracking-wider">
+      <div className="grid grid-cols-7 gap-1 text-center font-bold text-slate-400 dark:text-slate-500 py-2 text-[10px] uppercase tracking-wider">
         <span>Su</span>
         <span>Mo</span>
         <span>Tu</span>
@@ -222,12 +246,12 @@ const CustomCalendarDropdown: React.FC<{
                 onClose();
               }}
               className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${isSelected
-                ? 'bg-[var(--brand)] text-white font-bold'
+                ? 'bg-[var(--brand)] text-white font-bold shadow-xs'
                 : isToday
                   ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
                   : hasLogs
-                    ? 'bg-slate-100 dark:bg-[#1A1A1A] text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-200 dark:hover:bg-[#222222]'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1A1A1A]'
+                    ? 'bg-blue-50 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                    : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#1A1A1A]'
                 }`}
             >
               <span>{dayNum}</span>
@@ -240,29 +264,24 @@ const CustomCalendarDropdown: React.FC<{
       </div>
 
       {/* Footer shortcut buttons */}
-      <div className="mt-3 flex items-center justify-between pt-2 border-t border-gray-100 dark:border-[#1A1A1A] text-[11px] font-semibold">
+      <div className="mt-3 flex items-center justify-between pt-2.5 border-t border-gray-100 dark:border-[#1A1A1A] text-[11px] font-semibold">
         <button
           type="button"
           onClick={() => {
             onSelectDate(todayStr);
             onClose();
           }}
-          className="text-[var(--brand)] hover:underline cursor-pointer"
+          className="text-[var(--brand)] hover:underline cursor-pointer font-bold"
         >
           Today
         </button>
-        {selectedDate && (
-          <button
-            type="button"
-            onClick={() => {
-              onClear();
-              onClose();
-            }}
-            className="text-slate-400 hover:text-red-500 transition cursor-pointer"
-          >
-            Clear
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-[var(--brand)] hover:underline cursor-pointer font-bold"
+        >
+          Done
+        </button>
       </div>
     </div>
   );
@@ -287,6 +306,22 @@ const updateEditTimePart = (currentTime: string, part: 'hour' | 'minute' | 'peri
   return `${String(hours24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 };
 
+const extractAttendanceErrorMessage = (error: any): string => {
+  const data = error?.response?.data;
+  if (!data) return error?.message || 'Failed to update attendance.';
+  if (typeof data === 'string') return data;
+  if (data.detail) return data.detail;
+  if (data.error) return data.error;
+  if (data.non_field_errors) {
+    return Array.isArray(data.non_field_errors) ? data.non_field_errors.join(' ') : String(data.non_field_errors);
+  }
+  const firstKey = Object.keys(data)[0];
+  if (firstKey && Array.isArray(data[firstKey])) {
+    return `${firstKey}: ${data[firstKey].join(' ')}`;
+  }
+  return 'Failed to update attendance.';
+};
+
 const AttendanceTable: React.FC<{
   logs: Attendance[];
   statusBadge: (status: string, display: string) => React.ReactNode;
@@ -294,7 +329,8 @@ const AttendanceTable: React.FC<{
   formatDateString: (value: string | null) => string;
   formatTimeString: (value: string | null) => string;
   onUpdate: (id: number, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>) => Promise<Attendance>;
-}> = ({ logs, statusBadge, avatarColor, formatDateString, formatTimeString, onUpdate }) => {
+  onSuccess?: (message: string) => void;
+}> = ({ logs, statusBadge, avatarColor, formatDateString, formatTimeString, onUpdate, onSuccess }) => {
   type SortKey = 'student' | 'date' | 'time' | 'status';
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editDate, setEditDate] = useState('');
@@ -304,6 +340,7 @@ const AttendanceTable: React.FC<{
   const [openPicker, setOpenPicker] = useState<'date' | 'time' | null>(null);
   const [pickerPosition, setPickerPosition] = useState({ top: 0, left: 0 });
   const pickerAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const timePickerRef = useRef<HTMLDivElement | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey | null; direction: 'asc' | 'desc' }>({
     key: null,
@@ -343,6 +380,25 @@ const AttendanceTable: React.FC<{
     }));
   };
 
+  const calculatePickerPosition = (picker: 'date' | 'time', anchor: HTMLElement) => {
+    const bounds = anchor.getBoundingClientRect();
+    const width = picker === 'date' ? 288 : 256;
+    const height = picker === 'date' ? 340 : 150;
+
+    const spaceBelow = window.innerHeight - bounds.bottom;
+    const spaceAbove = bounds.top;
+
+    let top: number;
+    if (spaceBelow >= height + 12 || spaceBelow >= spaceAbove) {
+      top = Math.min(window.innerHeight - height - 12, bounds.bottom + 8);
+    } else {
+      top = Math.max(12, bounds.top - height - 8);
+    }
+
+    const left = Math.max(12, Math.min(window.innerWidth - width - 12, bounds.left));
+    return { top, left };
+  };
+
   const startEditing = (log: Attendance) => {
     setEditingId(log.id);
     setEditDate(log.date);
@@ -360,45 +416,59 @@ const AttendanceTable: React.FC<{
       return;
     }
     pickerAnchorRef.current = event.currentTarget;
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const width = picker === 'date' ? 288 : 160;
-    setPickerPosition({
-      top: bounds.bottom + 8,
-      left: Math.max(8, bounds.right - width),
-    });
+    setPickerPosition(calculatePickerPosition(picker, event.currentTarget));
     setOpenPicker(picker);
   };
 
   useEffect(() => {
     if (!openPicker) return;
-    const updatePickerPosition = () => {
+    const updatePosition = () => {
       const anchor = pickerAnchorRef.current;
       if (!anchor) return;
-      const bounds = anchor.getBoundingClientRect();
-      const width = openPicker === 'date' ? 288 : 160;
-      setPickerPosition({ top: bounds.bottom + 8, left: Math.max(8, bounds.right - width) });
+      setPickerPosition(calculatePickerPosition(openPicker, anchor));
     };
-    window.addEventListener('scroll', updatePickerPosition, true);
-    window.addEventListener('resize', updatePickerPosition);
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
     return () => {
-      window.removeEventListener('scroll', updatePickerPosition, true);
-      window.removeEventListener('resize', updatePickerPosition);
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
     };
+  }, [openPicker]);
+
+  useEffect(() => {
+    if (openPicker !== 'time') return;
+    const handlePointerDown = (e: MouseEvent) => {
+      if (
+        timePickerRef.current &&
+        !timePickerRef.current.contains(e.target as Node) &&
+        pickerAnchorRef.current &&
+        !pickerAnchorRef.current.contains(e.target as Node)
+      ) {
+        setOpenPicker(null);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [openPicker]);
 
   const saveEditing = async () => {
     if (editingId === null || !editDate) return;
     setIsSaving(true);
     try {
+      const formattedTimeIn = editTimeIn ? (editTimeIn.length === 5 ? `${editTimeIn}:00` : editTimeIn) : null;
+      const formattedTimeOut = editTimeOut ? (editTimeOut.length === 5 ? `${editTimeOut}:00` : editTimeOut) : null;
       await onUpdate(editingId, {
         date: editDate,
         status: editStatus,
-        time_in: editTimeIn ? `${editTimeIn}:00` : null,
-        time_out: editTimeOut ? `${editTimeOut}:00` : null,
+        time_in: formattedTimeIn,
+        time_out: formattedTimeOut,
       });
       setEditingId(null);
+      if (onSuccess) {
+        onSuccess('Attendance record updated successfully.');
+      }
     } catch (error: any) {
-      alert(error?.response?.data?.detail || error?.response?.data?.error || 'Failed to update attendance.');
+      alert(extractAttendanceErrorMessage(error));
     } finally {
       setIsSaving(false);
     }
@@ -469,22 +539,36 @@ const AttendanceTable: React.FC<{
                       {formatEditTime(editTimeIn)}
                     </button>
                     {openPicker === 'time' && createPortal(
-                      <div className="absolute z-[60] w-64 rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-xl font-sans text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150" style={{ top: pickerPosition.top, left: pickerPosition.left, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                        <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Set time</p>
+                      <div
+                        ref={timePickerRef}
+                        className="fixed z-[70] w-64 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150"
+                        style={{ top: pickerPosition.top, left: pickerPosition.left, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+                      >
+                        <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Set time</p>
+                          <button
+                            type="button"
+                            onClick={() => setOpenPicker(null)}
+                            className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                            aria-label="Close time picker"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                         <div className="grid grid-cols-3 gap-2">
-                          <select value={String(Number(editTimeIn ? editTimeIn.split(':')[0] : 0) % 12 || 12)} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'hour', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)]">
+                          <select value={String(Number(editTimeIn ? editTimeIn.split(':')[0] : 0) % 12 || 12)} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'hour', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer">
                             {Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}
                           </select>
-                          <select value={String(Number(editTimeIn ? editTimeIn.split(':')[1] : 0)).padStart(2, '0')} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'minute', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)]">
+                          <select value={String(Number(editTimeIn ? editTimeIn.split(':')[1] : 0)).padStart(2, '0')} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'minute', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer">
                             {Array.from({ length: 60 }, (_, index) => <option key={index} value={String(index).padStart(2, '0')}>{String(index).padStart(2, '0')}</option>)}
                           </select>
-                          <select value={editTimeIn && Number(editTimeIn.split(':')[0]) >= 12 ? 'PM' : 'AM'} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'period', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)]">
+                          <select value={editTimeIn && Number(editTimeIn.split(':')[0]) >= 12 ? 'PM' : 'AM'} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'period', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer">
                             <option value="AM">AM</option>
                             <option value="PM">PM</option>
                           </select>
                         </div>
                         <div className="mt-3 flex items-center justify-end border-t border-gray-100 dark:border-[#1A1A1A] pt-2 text-[11px] font-semibold">
-                          <button type="button" onClick={() => setOpenPicker(null)} className="text-[var(--brand)] transition hover:underline">Done</button>
+                          <button type="button" onClick={() => setOpenPicker(null)} className="text-[var(--brand)] transition hover:underline cursor-pointer font-bold">Done</button>
                         </div>
                       </div>,
                       document.body
@@ -579,6 +663,13 @@ interface AttendanceHistoryGroupSectionProps {
   formatDateString: (value: string | null) => string;
   formatTimeString: (t?: string | null) => string;
   onUpdate: (id: number, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>) => Promise<Attendance>;
+  onSuccess?: (message: string) => void;
+  editDayModeDate: string | null;
+  onToggleEditDay: (dateStr: string) => void;
+  onRequestTrash: (dateStr: string, recordIds: number[]) => void;
+  onRequestRestore: (dateStr: string) => void;
+  userId?: number | string;
+  trashVersion: number;
 }
 
 const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps> = ({
@@ -590,6 +681,13 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
   formatDateString,
   formatTimeString,
   onUpdate,
+  onSuccess,
+  editDayModeDate,
+  onToggleEditDay,
+  onRequestTrash,
+  onRequestRestore,
+  userId,
+  trashVersion,
 }) => {
   const datesWithRecords = useMemo(() => {
     return new Set(group.records.map((r) => r.date?.slice(0, 10)));
@@ -613,6 +711,18 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
     return group.records.filter((r) => r.date?.slice(0, 10) === selectedDate);
   }, [group.records, selectedDate, isOpen]);
 
+  const isCurrentDateTrashed = useMemo(() => {
+    if (!selectedDate) return false;
+    return trashbinService.isDateTrashed('attendance', selectedDate, userId);
+  }, [selectedDate, userId, trashVersion]);
+
+  const currentTrashedEntry = useMemo(() => {
+    if (!selectedDate) return null;
+    return trashbinService.getTrashedEntry('attendance', selectedDate, userId);
+  }, [selectedDate, userId, trashVersion]);
+
+  const daysRemaining = currentTrashedEntry ? trashbinService.getDaysRemaining(currentTrashedEntry) : 30;
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -626,31 +736,85 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
             {groupDates.map((dateStr) => {
               const hasRecord = datesWithRecords.has(dateStr);
               const isSelected = selectedDate === dateStr;
+              const isTrashed = trashbinService.isDateTrashed('attendance', dateStr, userId);
               const label = formatDateButtonLabel(dateStr);
+              const isDayEditMode = editDayModeDate === dateStr;
               return (
-                <button
-                  key={dateStr}
-                  type="button"
-                  disabled={!hasRecord}
-                  onClick={() => onSelectDate(dateStr)}
-                  className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all ${
-                    hasRecord
-                      ? isSelected
-                        ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
-                        : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
-                      : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
-                  }`}
-                  title={hasRecord ? (isSelected ? `Active: ${label}` : `View ${label}`) : `No records on ${label}`}
-                  aria-label={label}
-                >
-                  {label}
-                </button>
+                <div key={dateStr} className="inline-flex items-center gap-1">
+                  <button
+                    key={dateStr}
+                    type="button"
+                    disabled={!hasRecord}
+                    onClick={() => onSelectDate(dateStr)}
+                    className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all inline-flex items-center gap-1.5 ${
+                      hasRecord
+                        ? isTrashed
+                          ? isSelected
+                            ? 'bg-gray-500 text-white shadow-xs font-bold border border-gray-500 cursor-pointer'
+                            : 'bg-gray-100 text-gray-500 border border-dashed border-gray-300 dark:bg-[#1A1A1A] dark:text-gray-400 dark:border-gray-700 cursor-pointer font-semibold'
+                          : isSelected
+                          ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
+                          : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
+                        : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
+                    }`}
+                    title={
+                      hasRecord
+                        ? isTrashed
+                          ? `${label} (In Trashbin - 30 days retention)`
+                          : isSelected
+                          ? `Active: ${label}`
+                          : `View ${label}`
+                        : `No records on ${label}`
+                    }
+                    aria-label={label}
+                  >
+                    {isTrashed && (
+                      <Trash2 className="w-3 h-3 text-gray-400" />
+                    )}
+                    {label}
+                  </button>
+
+                  {/* Subtler blue edit icon on the right side of the active day */}
+                  {isSelected && hasRecord && !isTrashed && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleEditDay(dateStr)}
+                      className={`h-7.5 w-7.5 rounded-md border flex items-center justify-center transition-all cursor-pointer ${
+                        isDayEditMode
+                          ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-xs'
+                          : 'bg-blue-50/70 border-blue-200/90 text-[var(--brand)] hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:border-blue-800/60 dark:text-blue-300'
+                      }`}
+                      title={isDayEditMode ? 'Exit edit mode for this day' : 'Edit entry for this day'}
+                      aria-label="Edit entry for this day"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
         </div>
         {isOpen && (
           <div className="flex items-center gap-2">
+            {/* Red trashbin icon on the top right of each table entry for that day */}
+            {editDayModeDate === selectedDate && !isCurrentDateTrashed && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedDate) {
+                    const recordIds = displayRecords.map((r) => r.id);
+                    onRequestTrash(selectedDate, recordIds);
+                  }
+                }}
+                className="h-7.5 px-2.5 rounded-md border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 hover:border-rose-300 dark:hover:bg-rose-900/50 text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+                title="Delete this record entry"
+                aria-label="Delete this record entry"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                <span className="hidden xs:inline">Delete Entry</span>
+              </button>
+            )}
             <span className="text-[11px] font-semibold text-gray-400">
               {displayRecords.length} Record{displayRecords.length !== 1 ? 's' : ''}
             </span>
@@ -658,14 +822,46 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
         )}
       </div>
       {isOpen && (
-        <AttendanceTable
-          logs={displayRecords}
-          statusBadge={statusBadge}
-          avatarColor={avatarColor}
-          formatDateString={formatDateString}
-          formatTimeString={formatTimeString}
-          onUpdate={onUpdate}
-        />
+        <div className="space-y-2.5">
+          {/* While in trashbin: show counter banner on the top part */}
+          {isCurrentDateTrashed && (
+            <div className="flex items-center justify-between px-3.5 py-2.5 rounded-md border border-gray-200 dark:border-[#222222] bg-gray-50/90 dark:bg-[#161616] text-xs text-gray-600 dark:text-slate-400 animate-fade-in">
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
+                <span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedDate) {
+                        onRequestRestore(selectedDate);
+                      }
+                    }}
+                    className="text-[var(--brand)] underline font-bold hover:opacity-85 cursor-pointer"
+                  >
+                    Restore
+                  </button>
+                  {' • '}
+                  <span className="font-medium text-gray-600 dark:text-slate-300">
+                    {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} left before permanently deleted
+                  </span>
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* The table entry: deactivated gray color if in trashbin */}
+          <div className={isCurrentDateTrashed ? 'grayscale opacity-60 pointer-events-none select-none transition-all duration-200' : ''}>
+            <AttendanceTable
+              logs={displayRecords}
+              statusBadge={statusBadge}
+              avatarColor={avatarColor}
+              formatDateString={formatDateString}
+              formatTimeString={formatTimeString}
+              onUpdate={onUpdate}
+              onSuccess={onSuccess}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
@@ -674,7 +870,35 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
 /* ─────────────────────────── component ─────────────────────────── */
 export const TutorQRGenerator: React.FC = () => {
   const { user } = useAuth();
+
+  // Cohort top filter state (ARAL Level, Subject, Grade - Section)
+  const [selectedAralLevel, setSelectedAralLevel] = useState<'basic' | 'plus'>(
+    () => parseTutorHandledAralLevels(user)[0] || 'basic'
+  );
+  const [selectedSubject, setSelectedSubject] = useState<string>(
+    () => parseTutorHandledSubjects(user, 'basic')[0]?.id || 'Filipino'
+  );
+  const [selectedCohort, setSelectedCohort] = useState<string>(
+    () => parseTutorHandledCohorts(user)[0] || 'GRADE 7'
+  );
+
   const [students, setStudents] = useState<User[]>([]);
+
+  // Filter students matching the currently selected cohort
+  const filteredStudents = useMemo(() => {
+    return students.filter((student) =>
+      isStudentInCohort(student, {
+        aral_level: selectedAralLevel,
+        subject: selectedSubject,
+        cohort: selectedCohort,
+      })
+    );
+  }, [students, selectedAralLevel, selectedSubject, selectedCohort]);
+
+  const filteredStudentIds = useMemo(
+    () => new Set(filteredStudents.map((s) => String(s.id))),
+    [filteredStudents]
+  );
   const [expiresIn, setExpiresIn] = useState<number>(5);
   const [session, setSession] = useState<AttendanceSession | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -695,6 +919,15 @@ export const TutorQRGenerator: React.FC = () => {
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
   const [sessionLaunchTimes, setSessionLaunchTimes] = useState<Record<string, string>>(() => getStoredSessionTimes());
+  const [successToast, setSuccessToast] = useState<{ title: string; message: string } | null>(null);
+
+  useEffect(() => {
+    if (!successToast) return;
+    const timer = setTimeout(() => {
+      setSuccessToast(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [successToast]);
 
   // Confirmation alert modal state
   const [confirmAction, setConfirmAction] = useState<{
@@ -712,6 +945,57 @@ export const TutorQRGenerator: React.FC = () => {
     confirmStyle: 'brand',
     onConfirm: () => { },
   });
+
+  const [editDayModeDate, setEditDayModeDate] = useState<string | null>(null);
+  const [trashVersion, setTrashVersion] = useState(0);
+
+  // On mount: permanently delete any records that have exceeded 30 days retention
+  useEffect(() => {
+    if (user?.id) {
+      trashbinService.checkAndPurgeExpired('attendance', user.id, async (recordId) => {
+        await academicService.deleteAttendance(recordId);
+      }).catch((err) => console.error('Failed to purge expired attendance records:', err));
+    }
+  }, [user?.id]);
+
+  const handleRequestTrash = (dateStr: string, recordIds: number[]) => {
+    setConfirmAction({
+      isOpen: true,
+      title: 'Delete Record Entry',
+      message: 'Are you sure you want to delete this record entry? It will stay in the records for 30 days until it is gone forever.',
+      confirmText: 'Delete Record Entry',
+      confirmStyle: 'danger',
+      onConfirm: () => {
+        trashbinService.trashDate('attendance', dateStr, recordIds, user?.id);
+        setTrashVersion((v) => v + 1);
+        setEditDayModeDate(null);
+        setConfirmAction((prev) => ({ ...prev, isOpen: false }));
+        setSuccessToast({
+          title: 'Record Entry Moved to Trash',
+          message: 'This record entry will stay in the records for 30 days until it is gone forever.',
+        });
+      },
+    });
+  };
+
+  const handleRequestRestore = (dateStr: string) => {
+    setConfirmAction({
+      isOpen: true,
+      title: 'Restore Record Entry',
+      message: 'Are you sure you want to restore this record entry? This will end the 30-day countdown and reactivate the records.',
+      confirmText: 'Restore Record Entry',
+      confirmStyle: 'brand',
+      onConfirm: () => {
+        trashbinService.restoreDate('attendance', dateStr, user?.id);
+        setTrashVersion((v) => v + 1);
+        setConfirmAction((prev) => ({ ...prev, isOpen: false }));
+        setSuccessToast({
+          title: 'Record Entry Restored',
+          message: 'The record entry has been successfully restored and is active again.',
+        });
+      },
+    });
+  };
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
@@ -888,8 +1172,13 @@ export const TutorQRGenerator: React.FC = () => {
     const fetchStudents = async () => {
       try {
         if (!user) return;
-        const res = await userService.getUsers({ role: 'student' });
-        setStudents(Array.isArray(res.results) ? res.results : Array.isArray(res as any) ? (res as any) : []);
+        let res: any;
+        try {
+          res = await userService.getAllUsers({ role: 'student', assigned_tutor: user.id });
+        } catch {
+          res = await userService.getUsers({ role: 'student' });
+        }
+        setStudents(Array.isArray(res) ? res : Array.isArray(res?.results) ? res.results : []);
       } catch (err) {
         console.error('Failed to load students for export', err);
       }
@@ -1182,10 +1471,16 @@ export const TutorQRGenerator: React.FC = () => {
 
   // ── Attendance history helpers ───────────────────────────────────
 
-  // Sort all records newest-first
+  // Sort all records newest-first for the active cohort
   const sortedHistory = useMemo(
-    () => [...attendanceHistory].sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0)),
-    [attendanceHistory]
+    () =>
+      [...attendanceHistory]
+        .filter((log) => {
+          const uid = String(log.user ?? (log as any).student ?? (log as any).user_id ?? '');
+          return filteredStudentIds.has(uid);
+        })
+        .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0)),
+    [attendanceHistory, filteredStudentIds]
   );
 
   const filteredHistory = useMemo(() => {
@@ -1281,6 +1576,16 @@ export const TutorQRGenerator: React.FC = () => {
   /* ─────────────────────────── render ─────────────────────────── */
   return (
     <div className="space-y-6 max-w-6xl mx-auto data-loaded-content">
+      {/* ── Tutor Multi-Cohort Filter (ARAL Level, Subject, Grade - Section) ── */}
+      <TutorCohortFilter
+        user={user}
+        selectedAralLevel={selectedAralLevel}
+        onSelectAralLevel={setSelectedAralLevel}
+        selectedSubject={selectedSubject}
+        onSelectSubject={setSelectedSubject}
+        selectedCohort={selectedCohort}
+        onSelectCohort={setSelectedCohort}
+      />
 
       {/* ── Main Grid ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1731,12 +2036,22 @@ export const TutorQRGenerator: React.FC = () => {
                   key={group.key}
                   group={group}
                   selectedDate={selectedDate}
-                  onSelectDate={setSelectedDate}
+                  onSelectDate={(d) => {
+                    setSelectedDate(d);
+                    setEditDayModeDate(null);
+                  }}
+                  editDayModeDate={editDayModeDate}
+                  onToggleEditDay={(d) => setEditDayModeDate((prev) => (prev === d ? null : d))}
+                  onRequestTrash={handleRequestTrash}
+                  onRequestRestore={handleRequestRestore}
+                  userId={user?.id}
+                  trashVersion={trashVersion}
                   statusBadge={statusBadge}
                   avatarColor={avatarColor}
                   formatDateString={formatDateString}
                   formatTimeString={formatTimeString}
                   onUpdate={handleUpdateAttendance}
+                  onSuccess={(message) => setSuccessToast({ title: 'Attendance Updated Successfully', message })}
                 />
               ))}
             </div>
@@ -1748,8 +2063,11 @@ export const TutorQRGenerator: React.FC = () => {
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
         currentUser={user}
-        students={students}
-        attendanceLogs={attendanceHistory}
+        students={filteredStudents}
+        attendanceLogs={sortedHistory}
+        selectedCohort={selectedCohort}
+        selectedAralLevel={selectedAralLevel}
+        selectedSubject={selectedSubject}
       />
 
       {/* ── Confirmation Alert Modal ── */}
@@ -1792,6 +2110,37 @@ export const TutorQRGenerator: React.FC = () => {
           </div>
         </div>,
         document.body
+      )}
+      {/* ── Attendance Record Floating Notification Toast ── */}
+      {successToast && (
+        <aside
+          aria-live="polite"
+          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+        >
+          <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-white dark:bg-[#111111] dark:border-emerald-800 p-3.5 shadow-xl">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                  {successToast.title}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setSuccessToast(null)}
+                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  aria-label="Close notification"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                {successToast.message}
+              </p>
+            </div>
+          </div>
+        </aside>
       )}
     </div>
   );

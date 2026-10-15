@@ -20,7 +20,9 @@ export const syncFaviconWithTheme = (): void => {
     );
     iconLinks.forEach((link) => {
       const sizes = link.getAttribute('sizes');
-      if (sizes === '180x180' && !link.href.endsWith('/favicon-180.png')) {
+      if (sizes === '512x512' && !link.href.endsWith('/favicon.png')) {
+        link.href = '/favicon.png';
+      } else if (sizes === '180x180' && !link.href.endsWith('/favicon-180.png')) {
         link.href = '/favicon-180.png';
       } else if (sizes === '32x32' && !link.href.endsWith('/favicon-32.png')) {
         link.href = '/favicon-32.png';

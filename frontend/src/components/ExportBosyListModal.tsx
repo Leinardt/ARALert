@@ -136,7 +136,7 @@ export const ExportBosyListModal: React.FC<ExportBosyListModalProps> = ({
       const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
       return numA - numB || a.localeCompare(b);
     });
-    return list.length > 0 ? list : ['GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10'];
+    return list.length > 0 ? list : ['GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10', 'GRADE 11', 'GRADE 12'];
   }, [students]);
 
   // 2. Available Sections (cascading from selectedGrade)

@@ -25,6 +25,9 @@ export interface ExportScoreModalProps {
   initialTargetKey?: string;
   /** Optional: 'MOSY' | 'EOSY' | 'ARAL Summer Assessment' — used as the filename prefix */
   assessmentType?: string;
+  selectedCohort?: string;
+  selectedAralLevel?: string;
+  selectedSubject?: string;
 }
 
 const formatStudentNameDepEd = formatStudentName;
@@ -350,16 +353,35 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
   initialMode = 'weekly',
   initialTargetKey = '',
   assessmentType,
+  selectedCohort = '',
+  selectedAralLevel = '',
+  selectedSubject = '',
 }) => {
   const [division, setDivision] = useState('DIVISION OF MASBATE');
   const [district, setDistrict] = useState('PALANAS NORTH DISTRICT');
   const [schoolName, setSchoolName] = useState('PALANAS NATIONAL AGRICULTURE HIGH SCHOOL');
   const [schoolAddress, setSchoolAddress] = useState('Sta. Cruz, Palanas, Masbate');
 
-  const [subjectTitle, setSubjectTitle] = useState('ARAL PROGRAM WEEKLY TASK SCORE SHEET');
-  const [gradeSection, setGradeSection] = useState('MIXED (GRADES 7-10)');
+  const [subjectTitle, setSubjectTitle] = useState(() => {
+    if (selectedSubject) {
+      const levelStr = selectedAralLevel ? ` (${selectedAralLevel.toUpperCase()})` : '';
+      return `ARAL PROGRAM WEEKLY TASK SCORE SHEET - ${selectedSubject.toUpperCase()}${levelStr}`;
+    }
+    return 'ARAL PROGRAM WEEKLY TASK SCORE SHEET';
+  });
+  const [gradeSection, setGradeSection] = useState(() => selectedCohort || 'MIXED (GRADES 7-12)');
   const [taskTitle, setTaskTitle] = useState('WEEKLY TASK');
   const [dateStr, setDateStr] = useState(() => formatNumericDate(new Date()));
+
+  useEffect(() => {
+    if (selectedCohort) {
+      setGradeSection(selectedCohort);
+    }
+    if (selectedSubject) {
+      const levelStr = selectedAralLevel ? ` (${selectedAralLevel.toUpperCase()})` : '';
+      setSubjectTitle(`ARAL PROGRAM WEEKLY TASK SCORE SHEET - ${selectedSubject.toUpperCase()}${levelStr}`);
+    }
+  }, [selectedCohort, selectedSubject, selectedAralLevel]);
 
   const [tutorName, setTutorName] = useState('');
   const [tutorTitle, setTutorTitle] = useState('ARAL Tutor');

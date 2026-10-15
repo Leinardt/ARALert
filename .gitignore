@@ -4,6 +4,8 @@ __pycache__/
 *.class
 *.sqlite3.bak
 *.sqlite3.checkpoint*
+desktop.ini
+Thumbs.db
 
 # Node / Frontend
 node_modules/

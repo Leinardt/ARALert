@@ -258,7 +258,7 @@ export const Landing: React.FC = () => {
 
             {/* Subtitle — one ruled row per line */}
             <p className="notebook-snap-lead text-slate-700 dark:text-slate-200 font-medium mb-10">
-              A Web-Based Student Performance Monitoring and{' '}
+              A Student Performance Monitoring and{' '}
               <span className="relative inline-block text-slate-900 dark:text-white font-bold">
                 Early Academic Risk Detection
                 <PenRoughUnderline variant="single" className="text-[#1A5DAD]/80 dark:text-blue-400/80" />
@@ -397,10 +397,10 @@ export const Landing: React.FC = () => {
                 Practical tools designed for everyday classroom workflow.
               </h2>
               <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
-                Three essential modules that simplify daily administrative routines and keep instructional time focused on student mentorship.
+                Modules that simplify daily routines and help keep time focused on student monitoring.
               </p>
               <p className="notebook-snap-xs mt-10 text-slate-500 dark:text-slate-500">
-                Synchronized in real time across daily check-ins, assessment scoring, and official DepEd reporting formats.
+                Synchronized in real time across daily check-ins, assessment scoring, and official document formats.
               </p>
             </div>
 
@@ -414,7 +414,7 @@ export const Landing: React.FC = () => {
                   </h3>
                 </div>
                 <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
-                  Consolidates formative assessments, weekly quizzes, and tasks into clear summaries with automatic weighted calculations—saving teachers hours of spreadsheet work.
+                  Consolidates formative assessments, weekly quizzes, and tasks into clear summaries with automatic weighted calculations, saving time for tutors.
                 </p>
               </div>
 
@@ -438,7 +438,7 @@ export const Landing: React.FC = () => {
                   </h3>
                 </div>
                 <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
-                  Fast session check-in and check-out via dynamic QR codes, keeping attendance records verified and tamper-proof without paper sign-in sheets.
+                  Fast session check-in via QR codes or manual codes, keeping attendance records efficient and accurate.
                 </p>
               </div>
             </div>
@@ -488,7 +488,7 @@ export const Landing: React.FC = () => {
               Comprehensive Platform Knowledge Check
             </h2>
             <p className="notebook-snap-p text-slate-600 dark:text-slate-400 text-left">
-              Everything educators, tutors, and learners need to know regarding ARALert workflows, early risk detection, and attendance verification.
+              Everything personnel and students need to know regarding ARALert workflows, early risk detection, and attendance verification.
             </p>
           </div>
 
@@ -501,8 +501,8 @@ export const Landing: React.FC = () => {
                 <div
                   key={faq.id}
                   className={`transition-colors duration-200 relative ${isOpen
-                      ? 'bg-blue-50/20 dark:bg-neutral-900/40'
-                      : 'hover:bg-slate-50/30 dark:hover:bg-neutral-900/10'
+                    ? 'bg-blue-50/20 dark:bg-neutral-900/40'
+                    : 'hover:bg-slate-50/30 dark:hover:bg-neutral-900/10'
                     }`}
                 >
                   {/* Left Margin Gutter Question Indicator */}
@@ -533,8 +533,8 @@ export const Landing: React.FC = () => {
                         </span>
                         <span
                           className={`text-sm sm:text-base lg:text-lg tracking-tight transition-colors block ${isOpen
-                              ? 'text-[#0052B7] dark:text-blue-400 font-bold'
-                              : 'text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 font-semibold'
+                            ? 'text-[#0052B7] dark:text-blue-400 font-bold'
+                            : 'text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 font-semibold'
                             }`}
                         >
                           Question {index + 1}: {faq.question}
@@ -546,16 +546,16 @@ export const Landing: React.FC = () => {
                     <div className="flex items-center gap-2 shrink-0 pr-2">
                       <span
                         className={`px-3 py-1 rounded-md text-xs font-mono font-semibold transition-all duration-200 border ${isOpen
-                            ? 'bg-blue-100/70 dark:bg-blue-950/60 border-blue-300 dark:border-blue-700 text-[#0052B7] dark:text-blue-300'
-                            : 'bg-slate-100 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-600 dark:text-slate-400 group-hover:border-[#0052B7] group-hover:text-[#0052B7] dark:group-hover:text-blue-400'
+                          ? 'bg-blue-100/70 dark:bg-blue-950/60 border-blue-300 dark:border-blue-700 text-[#0052B7] dark:text-blue-300'
+                          : 'bg-slate-100 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-600 dark:text-slate-400 group-hover:border-[#0052B7] group-hover:text-[#0052B7] dark:group-hover:text-blue-400'
                           }`}
                       >
                         {isOpen ? 'Answer Key: Revealed ✓' : 'Reveal Answer Key ▾'}
                       </span>
                       <ChevronDown
                         className={`w-4 h-4 shrink-0 transition-transform duration-300 ease-out ${isOpen
-                            ? 'rotate-180 text-[#0052B7] dark:text-blue-400'
-                            : 'text-slate-400 dark:text-slate-500 group-hover:text-[#0052B7] dark:group-hover:text-blue-400'
+                          ? 'rotate-180 text-[#0052B7] dark:text-blue-400'
+                          : 'text-slate-400 dark:text-slate-500 group-hover:text-[#0052B7] dark:group-hover:text-blue-400'
                           }`}
                       />
                     </div>
