@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { userService, UserActivityItem } from '../../services/userService';
 import type { User } from '../../types';
@@ -170,7 +170,10 @@ export const UserList: React.FC = () => {
     return tabs;
   }, [isSuperUser]);
 
+  const fetchRequestId = useRef(0);
+
   const fetchUsers = async () => {
+    const currentRequestId = ++fetchRequestId.current;
     setIsLoading(true);
     setError(null);
     try {
@@ -183,14 +186,20 @@ export const UserList: React.FC = () => {
         ordering,
         page,
       });
-      setUsers(data.results);
-      setTotalCount(data.count);
-      setSelectedIds([]);
+      if (currentRequestId === fetchRequestId.current) {
+        setUsers(data.results);
+        setTotalCount(data.count);
+        setSelectedIds([]);
+      }
     } catch (err) {
-      console.error(err);
-      setError('Failed to fetch user directory.');
+      if (currentRequestId === fetchRequestId.current) {
+        console.error(err);
+        setError('Failed to fetch user directory.');
+      }
     } finally {
-      setIsLoading(false);
+      if (currentRequestId === fetchRequestId.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -446,9 +455,15 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                 ? 'STUDENTS DIRECTORY'
                 : activeTab === 'tutor'
                   ? 'TUTORS DIRECTORY'
-                  : activeTab === 'principal'
-                    ? 'PRINCIPALS DIRECTORY'
-                    : 'FACULTY DIRECTORY'}
+                  : activeTab === 'faculty'
+                    ? 'FACULTY DIRECTORY'
+                    : activeTab === 'principal'
+                      ? 'PRINCIPALS DIRECTORY'
+                      : activeTab === 'admin'
+                        ? 'ADMINS DIRECTORY'
+                        : activeTab === 'superadmin'
+                          ? 'SUPER ADMINS DIRECTORY'
+                          : 'USER DIRECTORY'}
             </h3>
             <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
               {totalCount} Registered Account{totalCount !== 1 ? 's' : ''}
@@ -555,36 +570,10 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
           </div>
         </div>
 
-        {/* ── Table Content / Skeletons ───────────────────────────────── */}
-        {isLoading ? (
-          <div className="p-6 space-y-3">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="flex items-center gap-4 py-3 border-b border-gray-50 dark:border-gray-900/50 animate-pulse">
-                <div className="space-y-1.5 flex-1">
-                  <div className="h-3.5 w-44 rounded bg-gray-200 dark:bg-gray-800" />
-                  <div className="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800" />
-                </div>
-                <div className="h-5 w-20 rounded-full bg-gray-100 dark:bg-gray-800 hidden sm:block" />
-                <div className="h-5 w-16 rounded-full bg-gray-100 dark:bg-gray-800 hidden md:block" />
-                <div className="h-5 w-24 rounded-md bg-gray-100 dark:bg-gray-800" />
-              </div>
-            ))}
-          </div>
-        ) : error ? (
-          <div className="p-10 text-center text-red-600 dark:text-red-400 bg-red-50/50 dark:bg-red-950/20">
-            <p className="text-sm font-semibold">{error}</p>
-            <button
-              type="button"
-              onClick={fetchUsers}
-              className="mt-3 px-4 py-1.5 bg-[var(--brand)] text-white rounded-md text-xs font-bold cursor-pointer hover:bg-[var(--brand-dark)] transition"
-            >
-              Retry
-            </button>
-          </div>
-        ) : (
-          <div className="overflow-x-auto mobile-scroll-table w-full">
-            <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
-              <thead>
+        {/* ── Table Content ────────────────────────────────────────── */}
+        <div className="overflow-x-auto mobile-scroll-table w-full">
+          <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
+            <thead>
                 <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
                   {/* Select All Checkbox (Students) */}
                   {activeTab === 'student' && (
@@ -695,10 +684,72 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
               </thead>
 
               <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
-                {users.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={activeTab === 'student' ? 13 : activeTab === 'tutor' ? 9 : 5}
+                {isLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse divide-x divide-gray-100 dark:divide-[#1A1A1A]">
+                    {activeTab === 'student' && (
+                      <td className="w-10 px-3 py-3 text-center">
+                        <div className="w-4 h-4 mx-auto rounded bg-gray-200 dark:bg-gray-800" />
+                      </td>
+                    )}
+                    <td className="w-12 px-3 py-3 text-center">
+                      <div className="w-4 h-3 mx-auto rounded bg-gray-200 dark:bg-gray-800" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-3.5 w-36 rounded bg-gray-200 dark:bg-gray-800" />
+                    </td>
+                    {activeTab === 'student' ? (
+                      <>
+                        <td className="px-4 py-3"><div className="h-3.5 w-24 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-4 py-3"><div className="h-3.5 w-16 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-4 py-3"><div className="h-3.5 w-24 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-4 py-3"><div className="h-3.5 w-16 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-4 py-3"><div className="h-3.5 w-14 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-4 py-3"><div className="h-3.5 w-14 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-4 py-3"><div className="h-3.5 w-24 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-4 py-3"><div className="h-3.5 w-20 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-4 py-3"><div className="h-5 w-14 rounded-full bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="w-20 px-4 py-3 text-center"><div className="h-4 w-12 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                      </>
+                    ) : activeTab === 'tutor' ? (
+                      <>
+                        <td className="px-4 py-3"><div className="h-3.5 w-36 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-4 py-3"><div className="h-3.5 w-16 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-4 py-3"><div className="h-3.5 w-16 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-4 py-3"><div className="h-3.5 w-14 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-4 py-3"><div className="h-3.5 w-14 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-4 py-3"><div className="h-5 w-14 rounded-full bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="w-20 px-4 py-3 text-center"><div className="h-4 w-12 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3"><div className="h-3.5 w-44 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-4 py-3"><div className="h-5 w-14 rounded-full bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="w-20 px-4 py-3 text-center"><div className="h-4 w-12 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                      </>
+                    )}
+                  </tr>
+                ))
+              ) : error ? (
+                <tr>
+                  <td
+                    colSpan={activeTab === 'student' ? 13 : activeTab === 'tutor' ? 9 : 5}
+                    className="p-10 text-center text-red-600 dark:text-red-400 bg-red-50/50 dark:bg-red-950/20"
+                  >
+                    <p className="text-sm font-semibold">{error}</p>
+                    <button
+                      type="button"
+                      onClick={fetchUsers}
+                      className="mt-3 px-4 py-1.5 bg-[var(--brand)] text-white rounded-md text-xs font-bold cursor-pointer hover:bg-[var(--brand-dark)] transition"
+                    >
+                      Retry
+                    </button>
+                  </td>
+                </tr>
+              ) : users.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={activeTab === 'student' ? 13 : activeTab === 'tutor' ? 9 : 5}
                       className="py-16 text-center text-gray-400 dark:text-slate-500"
                     >
                       <div className="flex flex-col items-center justify-center gap-2">
@@ -945,7 +996,6 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
               </tbody>
             </table>
           </div>
-        )}
 
         {/* ── Pagination Footer ───────────────────────────────────────── */}
         <TablePagination

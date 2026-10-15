@@ -87,14 +87,14 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
   const timeGreeting =
     period === 'morning' ? 'Good morning' : period === 'afternoon' ? 'Good afternoon' : 'Good evening';
 
-  // Role prefix for greeting: tutor, Principal, Teacher, Admin, or none for students
+  // Role prefix for greeting: tutor, Principal, Faculty, Admin, or none for students
   let greetingRolePrefix = '';
   if (user?.role === 'tutor') {
     greetingRolePrefix = 'tutor ';
   } else if (user?.role === 'principal') {
     greetingRolePrefix = 'Principal ';
   } else if (user?.role === 'faculty') {
-    greetingRolePrefix = 'Teacher ';
+    greetingRolePrefix = 'Faculty ';
   } else if (user?.role === 'admin' || user?.is_superuser) {
     greetingRolePrefix = 'Admin ';
   }

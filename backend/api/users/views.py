@@ -11,7 +11,6 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.academics.models import AssessmentScore, Prediction, StudentAttendance
 from apps.accounts.models import AuditLog, User, StudentEditRequest
 from permissions.role_permissions import IsAdmin, IsTutor, role_required
 from utilities.audit import log_audit_event
