@@ -10,6 +10,7 @@ from .views import (
     AralActivityDetailView,
     AralActivityListCreateView,
     AralLevelProgressionView,
+    AttendanceDetailView,
     AttendanceHistoryView,
     AttendanceManualLogView,
     AttendanceScanView,
@@ -62,6 +63,7 @@ urlpatterns = [
     path('attendance/scan/', AttendanceScanView.as_view(), name='attendance-scan'),
     path('attendance/manual/', AttendanceManualLogView.as_view(), name='attendance-manual'),
     path('attendance/history/', AttendanceHistoryView.as_view(), name='attendance-history'),
+    path('attendance/<int:id>/', AttendanceDetailView.as_view(), name='attendance-detail'),
 
     # ARAL Level Progression
     path('level-up/evaluate/', AralLevelProgressionView.as_view(), name='aral-level-up-evaluate'),

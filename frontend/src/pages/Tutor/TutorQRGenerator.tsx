@@ -1164,8 +1164,8 @@ export const TutorQRGenerator: React.FC = () => {
   const handleCancelSessionClick = () => {
     setConfirmAction({
       isOpen: true,
-      title: 'Cancel Attendance Session',
-      message: 'Are you sure you want to close this attendance session? Students will no longer be able to scan this QR code.',
+      title: 'Close Attendance Session',
+      message: 'Are you sure you want to close this attendance session? Students will no longer be able to scan for this session.',
       confirmText: 'Yes, Close Session',
       confirmStyle: 'danger',
       onConfirm: () => {
@@ -1302,7 +1302,7 @@ export const TutorQRGenerator: React.FC = () => {
               </div>
               {session && (
                 <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border ${session.is_active
-                  ? 'bg-[var(--brand-light)] text-[var(--brand)] border-[var(--brand-border)]'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                   : 'bg-red-50 text-red-600 border-red-200'
                   }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${session.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-red-400'}`} />
@@ -1331,7 +1331,7 @@ export const TutorQRGenerator: React.FC = () => {
                             : 'bg-white dark:bg-[#111111] text-gray-600 dark:text-slate-300 border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:text-[var(--brand)]'
                             }`}
                         >
-                          {mins}m
+                          {mins} mins
                         </button>
                       ))}
                     </div>
@@ -1543,7 +1543,7 @@ export const TutorQRGenerator: React.FC = () => {
                       onClick={handleCancelSessionClick}
                       className="w-full text-center text-xs text-gray-400 hover:text-red-500 font-semibold transition-colors py-1 cursor-pointer"
                     >
-                      Cancel &amp; Close Session
+                      Close Session
                     </button>
                   </div>
                 )}

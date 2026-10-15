@@ -467,6 +467,17 @@ class AttendanceSessionCreateView(APIView):
         ).order_by('-expires_at').first()
 
         if not session:
+            # Check if active sessions have expired; if so, close them and finalize attendance
+            expired_sessions = ApiAttendanceSession.objects.filter(
+                creator=user,
+                session_type=session_type,
+                is_active=True,
+                expires_at__lte=timezone.now(),
+            )
+            for exp in expired_sessions:
+                exp.is_active = False
+                exp.save(update_fields=['is_active'])
+                finalize_session_attendance(exp)
             return Response({'session': None}, status=status.HTTP_200_OK)
 
         return Response({
@@ -500,12 +511,16 @@ class AttendanceSessionCreateView(APIView):
         else:
             return Response({'error': 'Invalid session_type.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Deactivate any previous active sessions for this user and session_type
-        ApiAttendanceSession.objects.filter(
+        # Deactivate any previous active sessions for this user and session_type and finalize attendance
+        prev_sessions = ApiAttendanceSession.objects.filter(
             creator=user,
             session_type=session_type,
             is_active=True
-        ).update(is_active=False)
+        )
+        for prev in prev_sessions:
+            prev.is_active = False
+            prev.save(update_fields=['is_active'])
+            finalize_session_attendance(prev)
 
         aral_activity = None
         if aral_activity_id:
@@ -537,6 +552,67 @@ class AttendanceSessionCreateView(APIView):
         return Response(AttendanceSessionSerializer(session).data, status=status.HTTP_201_CREATED)
 
 
+def finalize_session_attendance(session):
+    """
+    Finalizes attendance for a student session:
+    - If at least 1 student has recorded attendance (present) in this session / for this tutor today:
+      Mark all remaining assigned students of this tutor who have NOT recorded attendance today as 'absent'.
+    - If NO students recorded attendance (count == 0):
+      Do NOT label any students as absent (session was a test or abandoned).
+    """
+    if not session or session.session_type != 'student':
+        return
+
+    today = timezone.localdate()
+    tutor = session.creator
+
+    # Check if at least 1 student recorded attendance in this session (or for this tutor today)
+    scanned_count = ApiAttendance.objects.filter(
+        session=session,
+        role='student',
+        status='present'
+    ).count()
+
+    if scanned_count == 0:
+        scanned_count = ApiAttendance.objects.filter(
+            tutor=tutor,
+            date=today,
+            role='student',
+            status='present'
+        ).count()
+
+    if scanned_count == 0:
+        return
+
+    # At least 1 student attended: find all assigned students for this tutor
+    assigned_students = User.objects.filter(role='student', assigned_tutor=tutor, is_active=True)
+
+    # Find which students already have an attendance record for today (present or absent)
+    existing_student_ids = set(
+        ApiAttendance.objects.filter(date=today, role='student')
+        .values_list('user_id', flat=True)
+    )
+
+    absent_records = []
+    for student in assigned_students:
+        if student.id not in existing_student_ids:
+            absent_records.append(
+                ApiAttendance(
+                    user=student,
+                    tutor=tutor,
+                    session=session,
+                    role='student',
+                    date=today,
+                    status='absent',
+                    time_in=None,
+                    time_out=None,
+                )
+            )
+
+    if absent_records:
+        ApiAttendance.objects.bulk_create(absent_records, ignore_conflicts=True)
+
+
 class AttendanceSessionCloseView(APIView):
     """
     POST /api/academics/attendance/session/<uuid:session_id>/close/
@@ -555,6 +631,7 @@ class AttendanceSessionCloseView(APIView):
 
         session.is_active = False
         session.save(update_fields=['is_active'])
+        finalize_session_attendance(session)
 
         log_audit_event(
             'ATTENDANCE_SESSION_CLOSED',
@@ -1004,6 +1081,29 @@ class AttendanceHistoryView(generics.ListAPIView):
         if user.role == 'tutor':
             assigned_ids = user.assigned_students.values_list('id', flat=True)
             return qs.filter(Q(user=user) | Q(tutor=user) | Q(session__creator=user) | Q(user_id__in=assigned_ids))
+        if user.role == 'faculty':
+            return qs.filter(user=user)
+        return qs.none()
+
+
+class AttendanceDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET, PATCH, PUT, DELETE /api/academics/attendance/<int:id>/
+    Allows tutors, admins, and principals to view and update student attendance records anytime
+    without requiring any approval.
+    """
+    serializer_class   = AttendanceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field       = 'id'
+
+    def get_queryset(self):
+        user = self.request.user
+        qs   = ApiAttendance.objects.select_related('user', 'tutor', 'aral_activity', 'session').all()
+        if user.is_superuser or user.role in ('principal', 'admin'):
+            return qs
+        if user.role == 'tutor':
+            assigned_ids = user.assigned_students.values_list('id', flat=True)
+            return qs.filter(Q(tutor=user) | Q(session__creator=user) | Q(user_id__in=assigned_ids))
         if user.role == 'faculty':
             return qs.filter(user=user)
         return qs.none()
