@@ -1144,29 +1144,23 @@ export const TutorQRGenerator: React.FC = () => {
     void fetchAttendanceHistory();
   };
 
-  const handleGenerateNewClick = () => {
-    if (session && session.is_active) {
-      setConfirmAction({
-        isOpen: true,
-        title: 'Start New Attendance Session',
-        message: 'Starting a new attendance session will end the current active session. Are you sure you want to proceed?',
-        confirmText: 'Start New',
-        confirmStyle: 'brand',
-        onConfirm: () => {
-          setConfirmAction((prev) => ({ ...prev, isOpen: false }));
-          generateStudentQR();
-        },
-      });
-    } else {
-      generateStudentQR();
-    }
-  };
+
 
   const handleCancelSessionClick = () => {
+    const hasScannedStudents =
+      scannedStudents.length > 0 ||
+      (session?.id
+        ? attendanceHistory.some((log) => log.session === session.id && log.status === 'present')
+        : false);
+
+    const message = hasScannedStudents
+      ? 'Are you sure you want to close this attendance session? At least 1 student has already recorded attendance, so students who did not scan or input their code will be marked absent. Students will no longer be able to scan for this session.'
+      : 'Are you sure you want to close this attendance session? No students have recorded attendance yet, so no students will be marked absent if you want to start a fresh session. Students will no longer be able to scan for this session.';
+
     setConfirmAction({
       isOpen: true,
       title: 'Close Attendance Session',
-      message: 'Are you sure you want to close this attendance session? Students who did not scan or input their code will be marked absent, and students will no longer be able to scan for this session.',
+      message,
       confirmText: 'Yes, Close Session',
       confirmStyle: 'danger',
       onConfirm: () => {
@@ -1358,12 +1352,12 @@ export const TutorQRGenerator: React.FC = () => {
                 </button>
               ) : (
                 <button
-                  onClick={handleGenerateNewClick}
-                  disabled={isLoading}
-                  className="order-3 w-full flex items-center justify-center gap-2 border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand-light)] py-2.5 rounded-md text-sm font-bold transition-all cursor-pointer disabled:opacity-70"
+                  type="button"
+                  onClick={handleCancelSessionClick}
+                  className="order-3 w-full flex items-center justify-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 dark:bg-rose-950/30 dark:hover:bg-rose-950/50 dark:text-rose-300 dark:border-rose-900/60 py-2.5 rounded-md text-sm font-bold transition-all cursor-pointer shadow-xs active:scale-[0.99]"
                 >
-                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  {isLoading ? 'Starting...' : 'Start New Session'}
+                  <XCircle className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+                  Close Session
                 </button>
               )}
 
@@ -1522,32 +1516,21 @@ export const TutorQRGenerator: React.FC = () => {
 
                 {/* Countdown + session info */}
                 {session?.is_active && (
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-4 space-y-1.5">
                     {/* Progress bar */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900 dark:text-slate-100">
-                          <Clock className="w-3.5 h-3.5 text-gray-900 dark:text-slate-100" />
-                          Time Remaining
-                        </div>
-                        <span className="text-sm font-bold font-mono text-gray-900 dark:text-slate-100">{formatTime(timeLeft)}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900 dark:text-slate-100">
+                        <Clock className="w-3.5 h-3.5 text-gray-900 dark:text-slate-100" />
+                        Time Remaining
                       </div>
-                      <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-[#222222] overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-[var(--brand)] transition-all duration-1000"
-                          style={{ width: `${100 - progressPct}%` }}
-                        />
-                      </div>
+                      <span className="text-sm font-bold font-mono text-gray-900 dark:text-slate-100">{formatTime(timeLeft)}</span>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={handleCancelSessionClick}
-                      className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-md text-xs font-bold transition-all cursor-pointer bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 dark:bg-rose-950/30 dark:hover:bg-rose-950/50 dark:text-rose-300 dark:border-rose-900/60 shadow-xs active:scale-[0.99]"
-                    >
-                      <XCircle className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" />
-                      Close Session
-                    </button>
+                    <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-[#222222] overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-[var(--brand)] transition-all duration-1000"
+                        style={{ width: `${100 - progressPct}%` }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
