@@ -64,6 +64,7 @@ urlpatterns = [
     path('attendance/manual/', AttendanceManualLogView.as_view(), name='attendance-manual'),
     path('attendance/history/', AttendanceHistoryView.as_view(), name='attendance-history'),
     path('attendance/<int:id>/', AttendanceDetailView.as_view(), name='attendance-detail'),
+    path('attendance/<str:id>/', AttendanceDetailView.as_view(), name='attendance-detail-str'),
 
     # ARAL Level Progression
     path('level-up/evaluate/', AralLevelProgressionView.as_view(), name='aral-level-up-evaluate'),

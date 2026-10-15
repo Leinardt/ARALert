@@ -228,12 +228,12 @@ export const academicService = {
     return records;
   },
 
-  updateAttendance: async (id: number, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>): Promise<Attendance> => {
+  updateAttendance: async (id: number | string, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>): Promise<Attendance> => {
     const response = await api.patch<Attendance>(`/academics/attendance/${id}/`, data);
     return response.data;
   },
 
-  deleteAttendance: async (id: number): Promise<void> => {
+  deleteAttendance: async (id: number | string): Promise<void> => {
     await api.delete(`/academics/attendance/${id}/`);
   },
 

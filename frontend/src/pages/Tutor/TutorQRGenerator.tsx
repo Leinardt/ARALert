@@ -309,7 +309,12 @@ const updateEditTimePart = (currentTime: string, part: 'hour' | 'minute' | 'peri
 const extractAttendanceErrorMessage = (error: any): string => {
   const data = error?.response?.data;
   if (!data) return error?.message || 'Failed to update attendance.';
-  if (typeof data === 'string') return data;
+  if (typeof data === 'string') {
+    if (data.includes('<html') || data.includes('<!doctype') || data.includes('<body') || error?.response?.status === 404) {
+      return 'Unable to update attendance record. The record was not found or could not be reached.';
+    }
+    return data;
+  }
   if (data.detail) return data.detail;
   if (data.error) return data.error;
   if (data.non_field_errors) {
@@ -330,7 +335,8 @@ const AttendanceTable: React.FC<{
   formatTimeString: (value: string | null) => string;
   onUpdate: (id: number, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>) => Promise<Attendance>;
   onSuccess?: (message: string) => void;
-}> = ({ logs, statusBadge, avatarColor, formatDateString, formatTimeString, onUpdate, onSuccess }) => {
+  onError?: (message: string) => void;
+}> = ({ logs, statusBadge, avatarColor, formatDateString, formatTimeString, onUpdate, onSuccess, onError }) => {
   type SortKey = 'student' | 'date' | 'time' | 'status';
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editDate, setEditDate] = useState('');
@@ -468,7 +474,12 @@ const AttendanceTable: React.FC<{
         onSuccess('Attendance record updated successfully.');
       }
     } catch (error: any) {
-      alert(extractAttendanceErrorMessage(error));
+      const errorMsg = extractAttendanceErrorMessage(error);
+      if (onError) {
+        onError(errorMsg);
+      } else {
+        alert(errorMsg);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -664,6 +675,7 @@ interface AttendanceHistoryGroupSectionProps {
   formatTimeString: (t?: string | null) => string;
   onUpdate: (id: number, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>) => Promise<Attendance>;
   onSuccess?: (message: string) => void;
+  onError?: (message: string) => void;
   editDayModeDate: string | null;
   onToggleEditDay: (dateStr: string) => void;
   onRequestTrash: (dateStr: string, recordIds: number[]) => void;
@@ -682,6 +694,7 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
   formatTimeString,
   onUpdate,
   onSuccess,
+  onError,
   editDayModeDate,
   onToggleEditDay,
   onRequestTrash,
@@ -859,6 +872,7 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
               formatTimeString={formatTimeString}
               onUpdate={onUpdate}
               onSuccess={onSuccess}
+              onError={onError}
             />
           </div>
         </div>
@@ -919,7 +933,7 @@ export const TutorQRGenerator: React.FC = () => {
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
   const [sessionLaunchTimes, setSessionLaunchTimes] = useState<Record<string, string>>(() => getStoredSessionTimes());
-  const [successToast, setSuccessToast] = useState<{ title: string; message: string } | null>(null);
+  const [successToast, setSuccessToast] = useState<{ title: string; message: string; type?: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     if (!successToast) return;
@@ -2051,7 +2065,8 @@ export const TutorQRGenerator: React.FC = () => {
                   formatDateString={formatDateString}
                   formatTimeString={formatTimeString}
                   onUpdate={handleUpdateAttendance}
-                  onSuccess={(message) => setSuccessToast({ title: 'Attendance Updated Successfully', message })}
+                  onSuccess={(message) => setSuccessToast({ title: 'Attendance Record Updated', message, type: 'success' })}
+                  onError={(message) => setSuccessToast({ title: 'Failed to Update Record', message, type: 'error' })}
                 />
               ))}
             </div>
@@ -2117,9 +2132,21 @@ export const TutorQRGenerator: React.FC = () => {
           aria-live="polite"
           className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
         >
-          <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-white dark:bg-[#111111] dark:border-emerald-800 p-3.5 shadow-xl">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400">
-              <CheckCircle2 className="h-4 w-4" />
+          <div className={`flex items-start gap-3 rounded-lg border bg-white dark:bg-[#111111] p-3.5 shadow-xl ${
+            successToast.type === 'error'
+              ? 'border-rose-200 dark:border-rose-900/60'
+              : 'border-emerald-200 dark:border-emerald-800'
+          }`}>
+            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${
+              successToast.type === 'error'
+                ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-400'
+                : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400'
+            }`}>
+              {successToast.type === 'error' ? (
+                <AlertCircle className="h-4 w-4" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">

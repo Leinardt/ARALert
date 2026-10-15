@@ -1103,7 +1103,13 @@ class AttendanceDetailView(generics.RetrieveUpdateDestroyAPIView):
             return qs
         if user.role == 'tutor':
             assigned_ids = user.assigned_students.values_list('id', flat=True)
-            return qs.filter(Q(role='student') | Q(tutor=user) | Q(session__creator=user) | Q(user_id__in=assigned_ids))
+            return qs.filter(
+                Q(role__iexact='student') |
+                Q(user__role='student') |
+                Q(tutor=user) |
+                Q(session__creator=user) |
+                Q(user_id__in=assigned_ids)
+            )
         if user.role == 'faculty':
             return qs.filter(user=user)
         return qs.none()
