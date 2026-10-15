@@ -28,7 +28,6 @@ import {
   User as UserIcon,
   Camera,
   CameraOff,
-  XCircle,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import type { Attendance, User, AttendanceSession } from '../../types';
@@ -1354,9 +1353,8 @@ export const TutorQRGenerator: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleCancelSessionClick}
-                  className="order-3 w-full flex items-center justify-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 dark:bg-rose-950/30 dark:hover:bg-rose-950/50 dark:text-rose-300 dark:border-rose-900/60 py-2.5 rounded-md text-sm font-bold transition-all cursor-pointer shadow-xs active:scale-[0.99]"
+                  className="order-3 w-full flex items-center justify-center border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand-light)] py-2.5 rounded-md text-sm font-bold transition-all cursor-pointer"
                 >
-                  <XCircle className="w-4 h-4 text-rose-500 dark:text-rose-400" />
                   Close Session
                 </button>
               )}
