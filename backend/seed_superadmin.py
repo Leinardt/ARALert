@@ -80,5 +80,26 @@ for admin in superadmin_accounts:
         defaults={"note": f"SuperAdmin Account - {fn} {ln}"}
     )
 
+from django.db import connection
+
+# Ensure unmanaged api_* tables exist in PostgreSQL (e.g. fresh Supabase instance)
+if connection.vendor == 'postgresql':
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT to_regclass('public.api_attendance')")
+            res = cursor.fetchone()
+            if not res or not res[0]:
+                sql_path = os.path.join(os.path.dirname(__file__), 'sql', 'supabase_api_tables.sql')
+                if os.path.exists(sql_path):
+                    with open(sql_path, 'r', encoding='utf-8') as f:
+                        sql_content = f.read()
+                    ddl_block = sql_content.split('COMMIT;')[0] + 'COMMIT;'
+                    cursor.execute(ddl_block)
+                    print("Unmanaged api_* tables created successfully in PostgreSQL.")
+            else:
+                print("Unmanaged api_* tables already exist in PostgreSQL.")
+    except Exception as e:
+        print(f"Notice on unmanaged api_* tables: {e}")
+
 print("SuperAdmin seeding completed successfully without modifying other accounts.")
 
