@@ -744,3 +744,40 @@ export function isStudentMatchingChartFilters(
   return true;
 }
 
+/**
+ * Formats tutor assignment option label compactly:
+ * e.g., "JOHN D. DOE [BASIC | 7 - HYACINTH]" or "JOHN D. DOE [BASIC & PLUS | 7 - HYACINTH, 8 - MANGO]"
+ */
+export function formatTutorAssignmentOption(tutor: Partial<User>): string {
+  const fullName = (tutor.full_name || `${tutor.first_name || ''} ${tutor.last_name || ''}`).trim();
+
+  // 1. ARAL level
+  const levels = parseTutorHandledAralLevels(tutor);
+  let levelText = 'BASIC';
+  if (levels.includes('basic') && levels.includes('plus')) {
+    levelText = 'BASIC & PLUS';
+  } else if (levels.includes('plus')) {
+    levelText = 'PLUS';
+  }
+
+  // 2. Handled cohorts (strip "GRADE " so "GRADE 7 - HYACINTH" -> "7 - HYACINTH")
+  let cohortText = '';
+  if (tutor.grade_level && tutor.grade_level.trim()) {
+    cohortText = tutor.grade_level
+      .split(',')
+      .map((p) => p.trim().replace(/^GRADE\s+/i, ''))
+      .filter(Boolean)
+      .join(', ');
+  } else {
+    const parsed = parseTutorHandledCohorts(tutor);
+    cohortText = parsed
+      .map((p) => p.trim().replace(/^GRADE\s+/i, ''))
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  if (!cohortText) cohortText = 'General';
+
+  return `${fullName} [${levelText} | ${cohortText}]`;
+}
+

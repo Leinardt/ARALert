@@ -7,7 +7,7 @@ import { userService } from '../../services/userService';
 import type { User } from '../../types';
 import { ArrowLeft, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { isTutorEligibleForStudent } from '../../utils/tutorCohortHelpers';
+import { isTutorEligibleForStudent, formatTutorAssignmentOption } from '../../utils/tutorCohortHelpers';
 
 const NAME_REGEX = /^[a-zA-Z\s.\-ñÑ']+$/;
 const SECTION_REGEX = /^[a-zA-Z0-9\s\-]+$/;
@@ -951,7 +951,7 @@ export const CreateUser: React.FC = () => {
                       <option value="">To Be Assigned (TBA)</option>
                       {matchingTutors.map((tutor) => (
                         <option key={tutor.id} value={tutor.id}>
-                          {tutor.full_name || `${tutor.first_name} ${tutor.last_name}`} — [{tutor.grade_level || 'General'}]
+                          {formatTutorAssignmentOption(tutor)}
                         </option>
                       ))}
                     </select>
