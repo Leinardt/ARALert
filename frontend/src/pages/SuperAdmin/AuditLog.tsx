@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Search, AlertTriangle, Download, Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import api from '../../api/axios';
 import { TablePagination } from '../../components/TablePagination';
+import { useAuth } from '../../hooks/useAuth';
+import { ExportAuditLogModal } from '../../components/ExportAuditLogModal';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface AuditEntry {
@@ -159,6 +161,7 @@ const CustomCalendarDropdown: React.FC<{
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export const AuditLog: React.FC = () => {
+  const { user } = useAuth();
   const [data, setData] = useState<AuditResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -168,6 +171,7 @@ export const AuditLog: React.FC = () => {
   const [showCalendarPopover, setShowCalendarPopover] = useState<boolean>(false);
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [searchInput, setSearchInput] = useState<string>('');
+  const [showExportModal, setShowExportModal] = useState<boolean>(false);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -202,28 +206,6 @@ export const AuditLog: React.FC = () => {
     setSearchInput('');
     setSearchFilter('');
     setPage(1);
-  };
-
-  const handleExportCsv = () => {
-    if (!data || !data.results || data.results.length === 0) return;
-    const headers = ['Timestamp (PHT)', 'Action', 'Actor Name', 'Role', 'Email', 'LRN'];
-    const rows = data.results.map((r) => [
-      `"${r.timestamp}"`,
-      `"${r.action}"`,
-      `"${(r.name || 'System').replace(/"/g, '""')}"`,
-      `"${r.role || '—'}"`,
-      `"${r.email || '—'}"`,
-      `"${r.lrn || '—'}"`,
-    ]);
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    const dateSuffix = dateFilter ? `_${dateFilter}` : `_${new Date().toISOString().slice(0, 10)}`;
-    link.setAttribute('download', `ARALert_Audit_Log_Page_${page}${dateSuffix}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   return (
@@ -388,12 +370,6 @@ export const AuditLog: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          <button
-            type="submit"
-            className="h-9 px-4 rounded-md text-xs font-bold text-white bg-[#0052B7] hover:bg-[#004194] border border-[#0052B7] transition shadow-none cursor-pointer flex items-center gap-1.5"
-          >
-            <Search className="w-3.5 h-3.5" /> Search
-          </button>
           {(eventFilter || dateFilter || searchFilter || searchInput) && (
             <button
               type="button"
@@ -403,16 +379,15 @@ export const AuditLog: React.FC = () => {
               Clear
             </button>
           )}
-          {data && data.results && data.results.length > 0 && (
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              title="Export Current Page to CSV"
-              className="h-9 px-3.5 rounded-md text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 border border-emerald-300 dark:border-emerald-800 transition cursor-pointer flex items-center gap-1.5"
-            >
-              <Download className="w-3.5 h-3.5" /> CSV Export
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowExportModal(true)}
+            title="Export Audit Logs"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-3 sm:px-3.5 py-2 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap shadow-xs"
+          >
+            <Download className="w-3.5 h-3.5 text-white" />
+            <span>Export CSV</span>
+          </button>
         </div>
       </form>
 
@@ -580,6 +555,18 @@ export const AuditLog: React.FC = () => {
           />
         )}
       </div>
+
+      {showExportModal && (
+        <ExportAuditLogModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          currentUser={user}
+          initialDateFrom={dateFilter}
+          initialDateTo={dateFilter}
+          initialAction={eventFilter}
+          initialSearch={searchFilter || searchInput}
+        />
+      )}
     </div>
   );
 };

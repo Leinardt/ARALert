@@ -610,10 +610,10 @@ export const DashboardLayout: React.FC = () => {
             <Link
               to="/superadmin/evaluations"
               onClick={onItemClick}
-              className={navLinkClass(isActivePrefix('/superadmin/evaluations'), collapsed)}
+              className={navLinkClass(isActivePrefix('/superadmin/evaluations') || isActivePrefix('/admin/evaluations'), collapsed)}
               title="Assessment"
             >
-              <AssessmentNavIcon active={isActivePrefix('/superadmin/evaluations')} theme={theme} />
+              <AssessmentNavIcon active={isActivePrefix('/superadmin/evaluations') || isActivePrefix('/admin/evaluations')} theme={theme} />
               {!collapsed && <span className="truncate">Assessment</span>}
             </Link>
             <Link
@@ -674,10 +674,10 @@ export const DashboardLayout: React.FC = () => {
             <Link
               to="/admin/evaluations"
               onClick={onItemClick}
-              className={navLinkClass(isActivePrefix('/admin/evaluations'), collapsed)}
+              className={navLinkClass(isActivePrefix('/admin/evaluations') || isActivePrefix('/superadmin/evaluations'), collapsed)}
               title="Assessment"
             >
-              <AssessmentNavIcon active={isActivePrefix('/admin/evaluations')} theme={theme} />
+              <AssessmentNavIcon active={isActivePrefix('/admin/evaluations') || isActivePrefix('/superadmin/evaluations')} theme={theme} />
               {!collapsed && <span className="truncate">Assessment</span>}
             </Link>
             <Link

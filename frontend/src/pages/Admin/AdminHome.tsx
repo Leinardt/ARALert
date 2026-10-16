@@ -794,6 +794,10 @@ const InteractiveStaffAttendanceChart: React.FC<{
 
 export const AdminHome: React.FC = () => {
   const { user } = useAuth();
+  const isSuperUser = Boolean(user?.is_superuser);
+  const evaluationPath = isSuperUser ? '/superadmin/evaluations' : '/admin/evaluations';
+  const studentPath = isSuperUser ? '/superadmin/students' : '/admin/students';
+  const attendancePath = isSuperUser ? '/superadmin/attendance' : '/admin/attendance';
 
   const [stats, setStats] = useState<UserStats | null>(null);
   const [tutors, setTutors] = useState<User[]>([]);
@@ -1596,7 +1600,7 @@ export const AdminHome: React.FC = () => {
         {/* Container 1: TOTAL STUDENTS & OVERALL HIGH RISK STUDENTS (2 Layers) */}
         <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
           <Link
-            to="/admin/students"
+            to={studentPath}
             className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
           >
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
@@ -1607,7 +1611,7 @@ export const AdminHome: React.FC = () => {
             </p>
           </Link>
           <Link
-            to="/admin/students"
+            to={studentPath}
             className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
           >
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
@@ -1670,7 +1674,7 @@ export const AdminHome: React.FC = () => {
         {/* Container 3: OVERALL AVERAGE ATTENDANCE, OVERALL AVERAGE SCORE, OVERALL COMPOSITE SCORE (3 Layers) */}
         <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
           <Link
-            to="/admin/attendance"
+            to={attendancePath}
             className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
           >
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
@@ -1691,7 +1695,7 @@ export const AdminHome: React.FC = () => {
             </p>
           </Link>
           <Link
-            to="/admin/evaluations"
+            to={evaluationPath}
             className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
           >
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
@@ -1712,7 +1716,7 @@ export const AdminHome: React.FC = () => {
             </p>
           </Link>
           <Link
-            to="/admin/evaluations"
+            to={evaluationPath}
             className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
           >
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
@@ -1851,7 +1855,7 @@ export const AdminHome: React.FC = () => {
                 </div>
               </div>
               <Link
-                to="/admin/evaluations"
+                to={evaluationPath}
                 className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-4 py-2.5 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300 whitespace-nowrap"
               >
                 <span className="whitespace-nowrap">See More</span>
@@ -2084,7 +2088,7 @@ export const AdminHome: React.FC = () => {
                   return (
                     <Link
                       key={item.tutor.id}
-                      to="/admin/evaluations"
+                      to={evaluationPath}
                       className="block p-2.5 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111]/70 hover:bg-gray-100/60 dark:hover:bg-white/[0.03] hover:border-gray-300 dark:hover:border-zinc-700 transition-colors group cursor-pointer shadow-2xs"
                       title={`View evaluation management for ${tutorName}`}
                     >

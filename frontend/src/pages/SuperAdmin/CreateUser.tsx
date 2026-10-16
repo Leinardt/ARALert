@@ -192,18 +192,29 @@ export const CreateUser: React.FC = () => {
       });
       return next;
     });
+    if (tutorRoleErrors.aralLevel) {
+      setTutorRoleErrors((prev) => ({ ...prev, aralLevel: undefined }));
+    }
   };
 
   const toggleSubject = (subj: string) => {
+    if (subj === 'Filipino' && !tutorAralLevels.includes('basic')) return;
+    if (subj === 'English' && !tutorAralLevels.includes('plus')) return;
     setTutorSubjects((prev) =>
       prev.includes(subj) ? prev.filter((s) => s !== subj) : [...prev, subj]
     );
+    if (tutorRoleErrors.subject) {
+      setTutorRoleErrors((prev) => ({ ...prev, subject: undefined }));
+    }
   };
 
   const toggleGradeLevel = (grade: string) => {
     setTutorGradeLevels((prev) =>
       prev.includes(grade) ? prev.filter((g) => g !== grade) : [...prev, grade]
     );
+    if (tutorRoleErrors.gradeLevel) {
+      setTutorRoleErrors((prev) => ({ ...prev, gradeLevel: undefined }));
+    }
   };
 
   const addSection = () => {
@@ -522,25 +533,33 @@ export const CreateUser: React.FC = () => {
                 <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
                   ARAL Level <span className="text-red-500">*</span>
                 </label>
-                <div className="flex flex-wrap items-center gap-4 pt-1">
-                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={tutorAralLevels.includes('basic')}
-                      onChange={() => toggleAralLevel('basic')}
-                      className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
-                    />
-                    <span>BASIC</span>
-                  </label>
-                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={tutorAralLevels.includes('plus')}
-                      onChange={() => toggleAralLevel('plus')}
-                      className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
-                    />
-                    <span>PLUS</span>
-                  </label>
+                <div className="p-3 bg-gray-50/70 dark:bg-[#141414] border border-gray-200 dark:border-[#222222] rounded-lg">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {[
+                      { key: 'basic' as const, label: 'BASIC' },
+                      { key: 'plus' as const, label: 'PLUS' },
+                    ].map((lvl) => {
+                      const isChecked = tutorAralLevels.includes(lvl.key);
+                      return (
+                        <label
+                          key={lvl.key}
+                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all select-none cursor-pointer ${
+                            isChecked
+                              ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] shadow-2xs'
+                              : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838] hover:bg-gray-50/70 dark:hover:bg-[#1e1e1e]'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleAralLevel(lvl.key)}
+                            className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
+                          />
+                          <span className="font-semibold">{lvl.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
                 {tutorRoleErrors.aralLevel && (
                   <p className="text-[11px] text-red-600 dark:text-red-400">{tutorRoleErrors.aralLevel}</p>
@@ -552,51 +571,120 @@ export const CreateUser: React.FC = () => {
                 <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
                   Assigned Subject <span className="text-red-500">*</span>
                 </label>
-                <div className="flex flex-wrap items-center gap-4 pt-1">
-                  {tutorAralLevels.includes('basic') && (
-                    <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={tutorSubjects.includes('Filipino')}
-                        onChange={() => toggleSubject('Filipino')}
-                        className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
-                      />
-                      <span>FILIPINO</span>
-                    </label>
-                  )}
-                  {tutorAralLevels.includes('plus') && (
-                    <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={tutorSubjects.includes('English')}
-                        onChange={() => toggleSubject('English')}
-                        className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
-                      />
-                      <span>ENGLISH</span>
-                    </label>
-                  )}
-                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={tutorSubjects.includes('Science')}
-                      onChange={() => toggleSubject('Science')}
-                      className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
-                    />
-                    <span>SCIENCE</span>
-                  </label>
-                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={tutorSubjects.includes('Math')}
-                      onChange={() => toggleSubject('Math')}
-                      className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
-                    />
-                    <span>MATH</span>
-                  </label>
+                <div className="p-3 bg-gray-50/70 dark:bg-[#141414] border border-gray-200 dark:border-[#222222] rounded-lg">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {/* FILIPINO: Requires BASIC */}
+                    {(() => {
+                      const isFilipinoDisabled = !tutorAralLevels.includes('basic');
+                      const isFilipinoChecked = !isFilipinoDisabled && tutorSubjects.includes('Filipino');
+                      return (
+                        <label
+                          title={isFilipinoDisabled ? 'Select BASIC ARAL Level above to enable Filipino' : undefined}
+                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all select-none ${
+                            isFilipinoDisabled
+                              ? 'cursor-not-allowed bg-gray-100/70 dark:bg-[#191919] border-gray-200 dark:border-[#282828] text-gray-400 dark:text-neutral-500 opacity-60'
+                              : isFilipinoChecked
+                              ? 'cursor-pointer border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] shadow-2xs'
+                              : 'cursor-pointer border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838] hover:bg-gray-50/70 dark:hover:bg-[#1e1e1e]'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            disabled={isFilipinoDisabled}
+                            checked={isFilipinoChecked}
+                            onChange={() => toggleSubject('Filipino')}
+                            className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer disabled:cursor-not-allowed"
+                          />
+                          <span className="font-semibold">FILIPINO</span>
+                          {isFilipinoDisabled && (
+                            <span className="text-[10px] font-normal text-gray-400 dark:text-neutral-500">
+                              (Requires Basic)
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })()}
+
+                    {/* ENGLISH: Requires PLUS */}
+                    {(() => {
+                      const isEnglishDisabled = !tutorAralLevels.includes('plus');
+                      const isEnglishChecked = !isEnglishDisabled && tutorSubjects.includes('English');
+                      return (
+                        <label
+                          title={isEnglishDisabled ? 'Select PLUS ARAL Level above to enable English' : undefined}
+                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all select-none ${
+                            isEnglishDisabled
+                              ? 'cursor-not-allowed bg-gray-100/70 dark:bg-[#191919] border-gray-200 dark:border-[#282828] text-gray-400 dark:text-neutral-500 opacity-60'
+                              : isEnglishChecked
+                              ? 'cursor-pointer border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] shadow-2xs'
+                              : 'cursor-pointer border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838] hover:bg-gray-50/70 dark:hover:bg-[#1e1e1e]'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            disabled={isEnglishDisabled}
+                            checked={isEnglishChecked}
+                            onChange={() => toggleSubject('English')}
+                            className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer disabled:cursor-not-allowed"
+                          />
+                          <span className="font-semibold">ENGLISH</span>
+                          {isEnglishDisabled && (
+                            <span className="text-[10px] font-normal text-gray-400 dark:text-neutral-500">
+                              (Requires Plus)
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })()}
+
+                    {/* SCIENCE */}
+                    {(() => {
+                      const isChecked = tutorSubjects.includes('Science');
+                      return (
+                        <label
+                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all select-none cursor-pointer ${
+                            isChecked
+                              ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] shadow-2xs'
+                              : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838] hover:bg-gray-50/70 dark:hover:bg-[#1e1e1e]'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleSubject('Science')}
+                            className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
+                          />
+                          <span className="font-semibold">SCIENCE</span>
+                        </label>
+                      );
+                    })()}
+
+                    {/* MATH */}
+                    {(() => {
+                      const isChecked = tutorSubjects.includes('Math');
+                      return (
+                        <label
+                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all select-none cursor-pointer ${
+                            isChecked
+                              ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] shadow-2xs'
+                              : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838] hover:bg-gray-50/70 dark:hover:bg-[#1e1e1e]'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleSubject('Math')}
+                            className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
+                          />
+                          <span className="font-semibold">MATH</span>
+                        </label>
+                      );
+                    })()}
+                  </div>
                 </div>
                 {tutorAralLevels.length === 0 && (
                   <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                    Select an ARAL Level above to view available language subjects.
+                    Select an ARAL Level above to enable Filipino (Basic) or English (Plus).
                   </p>
                 )}
                 {tutorRoleErrors.subject && (
@@ -609,24 +697,30 @@ export const CreateUser: React.FC = () => {
                 <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
                   ASSIGNED GRADE LEVEL <span className="text-red-500">*</span>
                 </label>
-                <div className="flex flex-wrap items-center gap-4 pt-1">
-                  {['GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10', 'GRADE 11', 'GRADE 12'].map((grade) => {
-                    const isChecked = tutorGradeLevels.includes(grade);
-                    return (
-                      <label
-                        key={grade}
-                        className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-slate-300"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleGradeLevel(grade)}
-                          className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
-                        />
-                        <span>{grade}</span>
-                      </label>
-                    );
-                  })}
+                <div className="p-3 bg-gray-50/70 dark:bg-[#141414] border border-gray-200 dark:border-[#222222] rounded-lg">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {['GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10', 'GRADE 11', 'GRADE 12'].map((grade) => {
+                      const isChecked = tutorGradeLevels.includes(grade);
+                      return (
+                        <label
+                          key={grade}
+                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all select-none cursor-pointer ${
+                            isChecked
+                              ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] shadow-2xs'
+                              : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838] hover:bg-gray-50/70 dark:hover:bg-[#1e1e1e]'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleGradeLevel(grade)}
+                            className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
+                          />
+                          <span className="font-semibold">{grade}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
                 {tutorRoleErrors.gradeLevel && (
                   <p className="text-[11px] text-red-600 dark:text-red-400">{tutorRoleErrors.gradeLevel}</p>
