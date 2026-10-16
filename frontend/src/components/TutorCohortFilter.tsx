@@ -230,7 +230,7 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
                   value={level}
                   className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
                 >
-                  {level === 'basic' ? 'ARAL BASIC' : 'ARAL PLUS'}
+                  {level === 'basic' ? 'BASIC' : 'PLUS'}
                 </option>
               ))}
             </select>
