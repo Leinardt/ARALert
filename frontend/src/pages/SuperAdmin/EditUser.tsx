@@ -1038,7 +1038,7 @@ export const EditUser: React.FC = () => {
                     <option value="">To Be Assigned (TBA)</option>
                     {matchingTutors.map((tutor) => (
                       <option key={tutor.id} value={tutor.id}>
-                        {tutor.full_name || `${tutor.first_name} ${tutor.last_name}`} — [Handled: {tutor.grade_level || 'General'}]
+                        {tutor.full_name || `${tutor.first_name} ${tutor.last_name}`} — [{tutor.grade_level || 'General'}]
                       </option>
                     ))}
                   </select>
