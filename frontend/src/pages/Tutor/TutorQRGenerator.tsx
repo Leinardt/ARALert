@@ -892,7 +892,7 @@ export const TutorQRGenerator: React.FC = () => {
     () => parseTutorHandledSubjects(user, 'basic')[0]?.id || 'Filipino'
   );
   const [selectedCohort, setSelectedCohort] = useState<string>(
-    () => parseTutorHandledCohorts(user)[0] || 'GRADE 7'
+    () => parseTutorHandledCohorts(user)[0] || 'GRADE 7 - HYACINTH'
   );
 
   const [students, setStudents] = useState<User[]>([]);
@@ -1592,6 +1592,7 @@ export const TutorQRGenerator: React.FC = () => {
       {/* ── Tutor Multi-Cohort Filter (ARAL Level, Subject, Grade - Section) ── */}
       <TutorCohortFilter
         user={user}
+        students={students}
         selectedAralLevel={selectedAralLevel}
         onSelectAralLevel={setSelectedAralLevel}
         selectedSubject={selectedSubject}

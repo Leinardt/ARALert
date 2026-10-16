@@ -96,16 +96,28 @@ export function parseTutorHandledSubjects(
  */
 export function parseTutorHandledCohorts(tutor: Partial<User> | null | undefined): string[] {
   if (!tutor || !tutor.grade_level) {
-    return ['GRADE 7'];
+    return ['GRADE 7 - HYACINTH'];
   }
 
   const raw = tutor.grade_level.trim();
-  if (!raw) return ['GRADE 7'];
+  if (!raw) return ['GRADE 7 - HYACINTH'];
 
   const parts = raw
     .split(',')
-    .map((p) => p.trim().toUpperCase())
+    .map((p) => {
+      const trimmed = p.trim().toUpperCase();
+      if (trimmed === 'GRADE 7' || trimmed === '7') {
+        return 'GRADE 7 - HYACINTH';
+      }
+      if (trimmed === 'GRADE 8' || trimmed === '8') {
+        return 'GRADE 8 - MANGO';
+      }
+      return trimmed;
+    })
     .filter(Boolean);
+
+  // Sort alphabetically so default is alphabetical
+  parts.sort((a, b) => a.localeCompare(b));
 
   return parts.length > 0 ? parts : [raw.toUpperCase()];
 }
@@ -219,7 +231,7 @@ export function isStudentInCohort(
       }
 
       // Check section match
-      if (targetSection && !sGrade.includes(targetSection)) {
+      if (targetSection && targetSection !== 'ALL' && !sGrade.includes(targetSection)) {
         return false;
       }
     } else {

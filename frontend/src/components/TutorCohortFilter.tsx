@@ -9,6 +9,7 @@ import {
 
 export interface TutorCohortFilterProps {
   user: User | null;
+  students?: User[];
   selectedAralLevel: 'basic' | 'plus';
   onSelectAralLevel: (level: 'basic' | 'plus') => void;
   selectedSubject: string;
@@ -25,6 +26,7 @@ interface ParsedCohort {
 
 export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
   user,
+  students,
   selectedAralLevel,
   onSelectAralLevel,
   selectedSubject,
@@ -93,55 +95,104 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
     return availableGrades[0] || 'GRADE 7';
   }, [selectedCohort, availableGrades]);
 
-  // Sections available for the currently active grade
+  // Sections available for the currently active grade (sorted alphabetically)
   const availableSections = useMemo<string[]>(() => {
-    const matching = parsedCohorts.filter((p) => p.grade === currentGrade);
-    const set = new Set<string>();
-    matching.forEach((m) => {
-      if (m.section) set.add(m.section);
-    });
-    const arr = Array.from(set);
-    return arr.length > 0 ? arr : ['ALL'];
-  }, [parsedCohorts, currentGrade]);
+    const sectionSet = new Set<string>();
 
-  // Determine current active section
+    // 1. From tutor's assigned cohorts
+    parsedCohorts
+      .filter((p) => p.grade === currentGrade && p.section && p.section !== 'ALL')
+      .forEach((p) => sectionSet.add(p.section));
+
+    // 2. From students assigned or loaded
+    if (students && Array.isArray(students)) {
+      students.forEach((stu) => {
+        const anyStu = stu as any;
+        const stuGradeStr = (stu.grade_level || anyStu.grade || '').toUpperCase().trim();
+        const gradeNum = currentGrade.replace(/[^0-9]/g, '');
+        const stuGradeNum = stuGradeStr.replace(/[^0-9]/g, '');
+        const isGradeMatch =
+          (gradeNum && stuGradeNum && gradeNum === stuGradeNum) ||
+          stuGradeStr.includes(currentGrade);
+
+        if (isGradeMatch) {
+          if (stuGradeStr.includes(' - ')) {
+            const sec = stuGradeStr.split(' - ')[1].trim().toUpperCase();
+            if (sec) sectionSet.add(sec);
+          } else if (anyStu.section) {
+            const sec = String(anyStu.section).trim().toUpperCase();
+            if (sec) sectionSet.add(sec);
+          }
+        }
+      });
+    }
+
+    // 3. Fallback standard section if none found
+    if (sectionSet.size === 0) {
+      if (currentGrade === 'GRADE 7') sectionSet.add('HYACINTH');
+      else if (currentGrade === 'GRADE 8') sectionSet.add('MANGO');
+    }
+
+    // Sort sections strictly alphabetically!
+    return Array.from(sectionSet).sort((a, b) => a.localeCompare(b));
+  }, [parsedCohorts, students, currentGrade]);
+
+  // Determine current active section (default is ALWAYS the first section alphabetically)
   const currentSection = useMemo<string>(() => {
-    if (selectedCohort && selectedCohort.includes(' - ')) {
-      const s = selectedCohort.split(' - ')[1].trim().toUpperCase();
-      if (availableSections.includes(s)) return s;
+    if (selectedCohort) {
+      if (selectedCohort.includes(' - ')) {
+        const s = selectedCohort.split(' - ')[1].trim().toUpperCase();
+        if (availableSections.includes(s)) return s;
+        if (s === 'ALL') return 'ALL';
+      } else if (selectedCohort.toUpperCase().trim() === currentGrade) {
+        return 'ALL';
+      }
     }
-    return availableSections[0] || 'ALL';
-  }, [selectedCohort, availableSections]);
+    // Default is ALWAYS the first section alphabetically!
+    return availableSections[0] || 'HYACINTH';
+  }, [selectedCohort, currentGrade, availableSections]);
 
-  // Synchronize active cohort if currently selected cohort is not in available cohorts
+  // Synchronize active cohort: ensure default is NEVER 'ALL' and always alphabetical
   useEffect(() => {
-    if (availableCohorts.length > 0 && !availableCohorts.includes(selectedCohort)) {
-      onSelectCohort(availableCohorts[0]);
+    if (availableSections.length > 0) {
+      const isCurrentValid =
+        selectedCohort &&
+        selectedCohort.includes(' - ') &&
+        (availableSections.includes(selectedCohort.split(' - ')[1].trim().toUpperCase()) ||
+          selectedCohort.split(' - ')[1].trim().toUpperCase() === 'ALL');
+
+      // If selectedCohort was plain "GRADE 7" without a section, or an invalid section:
+      if (!isCurrentValid && selectedCohort !== `${currentGrade} - ALL` && selectedCohort !== currentGrade) {
+        const defaultSec = availableSections[0];
+        onSelectCohort(`${currentGrade} - ${defaultSec}`);
+      }
     }
-  }, [availableCohorts, selectedCohort, onSelectCohort]);
+  }, [availableSections, currentGrade, selectedCohort, onSelectCohort]);
 
   // Handle Grade Level selection change
   const handleGradeChange = (newGrade: string) => {
-    const sectionsForNewGrade = parsedCohorts
-      .filter((p) => p.grade === newGrade)
-      .map((p) => p.section);
+    const sectionsForNewGrade = Array.from(
+      new Set(
+        parsedCohorts
+          .filter((p) => p.grade === newGrade && p.section !== 'ALL')
+          .map((p) => p.section)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+
+    const fallbackDefault =
+      sectionsForNewGrade[0] || (newGrade === 'GRADE 8' ? 'MANGO' : 'HYACINTH');
 
     if (currentSection !== 'ALL' && sectionsForNewGrade.includes(currentSection)) {
       onSelectCohort(`${newGrade} - ${currentSection}`);
     } else {
-      const nextSec = sectionsForNewGrade[0] || 'ALL';
-      if (nextSec === 'ALL') {
-        onSelectCohort(newGrade);
-      } else {
-        onSelectCohort(`${newGrade} - ${nextSec}`);
-      }
+      onSelectCohort(`${newGrade} - ${fallbackDefault}`);
     }
   };
 
   // Handle Section selection change
   const handleSectionChange = (newSec: string) => {
     if (newSec === 'ALL') {
-      onSelectCohort(currentGrade);
+      onSelectCohort(`${currentGrade} - ALL`);
     } else {
       onSelectCohort(`${currentGrade} - ${newSec}`);
     }
@@ -171,19 +222,19 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
               id="filter-aral-level"
               value={selectedAralLevel}
               onChange={(e) => onSelectAralLevel(e.target.value as 'basic' | 'plus')}
-              className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-gray-900 dark:text-slate-100 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
+              className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-[var(--brand)] dark:text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
             >
               {availableAralLevels.map((level) => (
                 <option
                   key={level}
                   value={level}
-                  className="bg-white dark:bg-[#161616] text-gray-900 dark:text-slate-100"
+                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
                 >
                   {level === 'basic' ? 'ARAL BASIC' : 'ARAL PLUS'}
                 </option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--brand)] dark:text-blue-400" />
           </div>
         </div>
 
@@ -200,19 +251,19 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
               id="filter-subject"
               value={selectedSubject}
               onChange={(e) => onSelectSubject(e.target.value)}
-              className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-gray-900 dark:text-slate-100 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
+              className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-[var(--brand)] dark:text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
             >
               {availableSubjects.map((sub) => (
                 <option
                   key={sub.id}
                   value={sub.id}
-                  className="bg-white dark:bg-[#161616] text-gray-900 dark:text-slate-100"
+                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
                 >
                   {sub.label}
                 </option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--brand)] dark:text-blue-400" />
           </div>
         </div>
 
@@ -229,19 +280,19 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
               id="filter-grade-level"
               value={currentGrade}
               onChange={(e) => handleGradeChange(e.target.value)}
-              className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-gray-900 dark:text-slate-100 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
+              className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-[var(--brand)] dark:text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
             >
               {availableGrades.map((grade) => (
                 <option
                   key={grade}
                   value={grade}
-                  className="bg-white dark:bg-[#161616] text-gray-900 dark:text-slate-100"
+                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
                 >
                   {grade}
                 </option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--brand)] dark:text-blue-400" />
           </div>
         </div>
 
@@ -258,19 +309,25 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
               id="filter-section"
               value={currentSection}
               onChange={(e) => handleSectionChange(e.target.value)}
-              className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-gray-900 dark:text-slate-100 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
+              className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-[var(--brand)] dark:text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
             >
               {availableSections.map((sec) => (
                 <option
                   key={sec}
                   value={sec}
-                  className="bg-white dark:bg-[#161616] text-gray-900 dark:text-slate-100"
+                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
                 >
-                  {sec === 'ALL' ? 'ALL SECTIONS' : sec}
+                  {sec}
                 </option>
               ))}
+              <option
+                value="ALL"
+                className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
+              >
+                ALL SECTIONS
+              </option>
             </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--brand)] dark:text-blue-400" />
           </div>
         </div>
       </div>
