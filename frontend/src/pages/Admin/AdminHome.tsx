@@ -205,7 +205,6 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
 
         {[0, 25, 50, 75, 100].map((val) => {
           const y = paddingTop + chartH - (val / 100) * chartH;
-          const isBenchmark = val === 75;
           return (
             <g key={val}>
               <line
@@ -213,31 +212,14 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
                 y1={y}
                 x2={width - paddingRight}
                 y2={y}
-                stroke={isBenchmark ? '#10B981' : 'var(--slate-200)'}
-                strokeWidth={isBenchmark ? '1' : '0.6'}
-                strokeDasharray={isBenchmark ? '4 3' : '3 3'}
-                opacity={isBenchmark ? '0.75' : '0.6'}
+                stroke="var(--slate-200)"
+                strokeWidth="0.5"
+                strokeDasharray="3 3"
+                opacity="0.6"
               />
-              <text
-                x={paddingLeft - 8}
-                y={y + 3.5}
-                className={`font-bold text-[10px] xs:text-[11px] ${
-                  isBenchmark ? 'fill-emerald-600 dark:fill-emerald-400 font-extrabold' : 'fill-slate-600 dark:fill-slate-300'
-                }`}
-                textAnchor="end"
-              >
+              <text x={paddingLeft - 8} y={y + 3} className="fill-slate-400 font-semibold text-[9px] xs:text-[10px]" textAnchor="end">
                 {val}%
               </text>
-              {isBenchmark && (
-                <text
-                  x={width - paddingRight}
-                  y={y - 4}
-                  className="fill-emerald-600 dark:fill-emerald-400 font-extrabold text-[9px] tracking-wider uppercase select-none"
-                  textAnchor="end"
-                >
-                  75% PASSING BENCHMARK
-                </text>
-              )}
             </g>
           );
         })}
@@ -281,7 +263,7 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
               key={`label-${idx}`}
               x={labelX}
               y={height - (isMobile ? 6 : 5)}
-              className="fill-slate-600 dark:fill-slate-300 font-bold text-[10px] xs:text-[11px]"
+              className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px] xs:text-[10px]"
               textAnchor={textAnchor}
               style={{ whiteSpace: 'nowrap' }}
             >
@@ -315,27 +297,17 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
           </>
         )}
 
-        {/* Data point markers with direct readable values */}
+        {/* Data point markers */}
         {points.map((p, idx) => (
-          <g key={`data-dot-${idx}`}>
-            <circle
-              cx={p.x}
-              cy={p.y}
-              r="4"
-              fill="var(--brand)"
-              stroke="#B6D4F8"
-              strokeWidth="1.75"
-            />
-            {/* Show value label on points */}
-            <text
-              x={p.x}
-              y={Math.max(paddingTop + 10, p.y - 8)}
-              textAnchor="middle"
-              className="fill-slate-700 dark:fill-slate-200 text-[10px] font-extrabold select-none pointer-events-none"
-            >
-              {p.value}%
-            </text>
-          </g>
+          <circle
+            key={`data-dot-${idx}`}
+            cx={p.x}
+            cy={p.y}
+            r="3.5"
+            fill="var(--brand)"
+            stroke="#B6D4F8"
+            strokeWidth="1.5"
+          />
         ))}
 
         {/* Milestone assessment dots */}
