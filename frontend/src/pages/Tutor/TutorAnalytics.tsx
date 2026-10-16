@@ -28,6 +28,8 @@ import {
   setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
+import { TutorCohortFilter } from '../../components/TutorCohortFilter';
+import { useTutorCohortFilter, isStudentInCohort } from '../../utils/tutorCohortHelpers';
 
 interface ExtendedRiskRow extends StudentRiskRow {
   absentCount: number;
@@ -1200,39 +1202,46 @@ export const TutorAnalytics: React.FC = () => {
 
 
 
+  const [allStudents, setAllStudents] = useState<User[]>([]);
+  const [rawGrades, setRawGrades] = useState<Grade[]>([]);
+  const [rawAttendanceLogs, setRawAttendanceLogs] = useState<Attendance[]>([]);
+
+  const {
+    selectedAralLevel,
+    setSelectedAralLevel,
+    selectedSubject,
+    setSelectedSubject,
+    selectedCohort,
+    setSelectedCohort,
+  } = useTutorCohortFilter(user, { allowAll: true, defaultToAll: true });
+
+  const filteredStudents = useMemo(() => {
+    return allStudents.filter((s) =>
+      isStudentInCohort(s, {
+        aral_level: selectedAralLevel,
+        subject: selectedSubject,
+        cohort: selectedCohort,
+      })
+    );
+  }, [allStudents, selectedAralLevel, selectedSubject, selectedCohort]);
+
   const fetchAnalytics = async () => {
     if (!user) return;
     setIsLoading(true);
     setError(null);
     try {
-      const [studentsResponse, grades, attendanceLogs] = await Promise.all([
+      const [studentsResponse, gradesData, attendanceLogsData] = await Promise.all([
         userService.getAllUsers({ role: 'student', assigned_tutor: user.id }),
         academicService.getGrades(),
         academicService.getAttendanceHistory(),
       ]);
       const students = Array.isArray(studentsResponse) ? studentsResponse : [];
-      const safeAttendance = Array.isArray(attendanceLogs) ? attendanceLogs : [];
-      const baseRows = computeStudentRiskRows(students, grades, safeAttendance);
+      const safeAttendance = Array.isArray(attendanceLogsData) ? attendanceLogsData : [];
+      const safeGrades = Array.isArray(gradesData) ? gradesData : [];
 
-      setGrades(Array.isArray(grades) ? grades : []);
-      setAttendanceLogs(safeAttendance);
-      const extendedRows: ExtendedRiskRow[] = baseRows.map((row) => {
-        const studentAtt = safeAttendance.filter((a: Attendance) => getLogUserId(a) === String(row.student.id));
-        return { ...row, absentCount: studentAtt.filter((a: Attendance) => isAbsentStatus(a.status)).length };
-      });
-
-      const counts = extendedRows.reduce(
-        (acc, row) => {
-          if (row.riskTier === 'High') acc.high += 1;
-          else if (row.riskTier === 'Medium') acc.moderate += 1;
-          else acc.low += 1;
-          return acc;
-        },
-        { high: 0, moderate: 0, low: 0 }
-      );
-
-      setRiskCounts(counts);
-      setRows(extendedRows);
+      setAllStudents(students);
+      setRawGrades(safeGrades);
+      setRawAttendanceLogs(safeAttendance);
     } catch (err: any) {
       console.error(err);
       setError(err?.response?.data?.detail || 'Failed to load analytics data.');
@@ -1240,6 +1249,42 @@ export const TutorAnalytics: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const baseRows = computeStudentRiskRows(filteredStudents, rawGrades, rawAttendanceLogs);
+    setGrades(rawGrades);
+    setAttendanceLogs(rawAttendanceLogs);
+
+    const extendedRows: ExtendedRiskRow[] = baseRows.map((row) => {
+      const studentAtt = rawAttendanceLogs.filter((a: Attendance) => getLogUserId(a) === String(row.student.id));
+      return { ...row, absentCount: studentAtt.filter((a: Attendance) => isAbsentStatus(a.status)).length };
+    });
+
+    const counts = extendedRows.reduce(
+      (acc, row) => {
+        if (row.riskTier === 'High') acc.high += 1;
+        else if (row.riskTier === 'Medium') acc.moderate += 1;
+        else acc.low += 1;
+        return acc;
+      },
+      { high: 0, moderate: 0, low: 0 }
+    );
+
+    setRiskCounts(counts);
+    setRows(extendedRows);
+  }, [filteredStudents, rawGrades, rawAttendanceLogs]);
+
+  useEffect(() => {
+    if (riskScope !== 'all' && !filteredStudents.some((s) => String(s.id) === riskScope)) {
+      setRiskScope('all');
+    }
+    if (attendanceScope !== 'all' && !filteredStudents.some((s) => String(s.id) === attendanceScope)) {
+      setAttendanceScope('all');
+    }
+    if (scoreScope !== 'all' && !filteredStudents.some((s) => String(s.id) === scoreScope)) {
+      setScoreScope('all');
+    }
+  }, [filteredStudents, riskScope, attendanceScope, scoreScope]);
 
   useEffect(() => { fetchAnalytics(); }, [user]);
 
@@ -1632,6 +1677,20 @@ export const TutorAnalytics: React.FC = () => {
 
   return (
     <div className="space-y-4 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      {/* ── Tutor Multi-Cohort Filter (ARAL Level, Subject, Grade - Section) ── */}
+      <TutorCohortFilter
+        user={user}
+        students={allStudents}
+        selectedAralLevel={selectedAralLevel}
+        onSelectAralLevel={setSelectedAralLevel}
+        selectedSubject={selectedSubject}
+        onSelectSubject={setSelectedSubject}
+        selectedCohort={selectedCohort}
+        onSelectCohort={setSelectedCohort}
+        allowAll={true}
+        title="ANALYTICS CLASS & COHORT FILTER"
+      />
+
       {/* ── View Tab Switcher ── */}
       <div
         className="flex w-full rounded-md bg-gray-100 p-0.5 gap-0.5 dark:bg-[#111111]"

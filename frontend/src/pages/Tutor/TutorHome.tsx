@@ -20,6 +20,8 @@ import {
   getActiveSystemSemester,
   setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
+import { TutorCohortFilter } from '../../components/TutorCohortFilter';
+import { useTutorCohortFilter, isStudentInCohort } from '../../utils/tutorCohortHelpers';
 
 interface TutorChartPoint {
   label: string;
@@ -424,8 +426,30 @@ export const TutorHome: React.FC = () => {
     load();
   }, [user]);
 
-  const studentStats = useMemo(() => computeStudentStats(students, grades, attendance), [students, grades, attendance]);
-  const totalStudents = students.length;
+  const {
+    selectedAralLevel,
+    setSelectedAralLevel,
+    selectedSubject,
+    setSelectedSubject,
+    selectedCohort,
+    setSelectedCohort,
+  } = useTutorCohortFilter(user, { allowAll: true, defaultToAll: true });
+
+  const filteredStudents = useMemo(() => {
+    return students.filter((s) =>
+      isStudentInCohort(s, {
+        aral_level: selectedAralLevel,
+        subject: selectedSubject,
+        cohort: selectedCohort,
+      })
+    );
+  }, [students, selectedAralLevel, selectedSubject, selectedCohort]);
+
+  const studentStats = useMemo(
+    () => computeStudentStats(filteredStudents, grades, attendance),
+    [filteredStudents, grades, attendance]
+  );
+  const totalStudents = filteredStudents.length;
 
   const avgAttendance = useMemo(() => {
     if (studentStats.length === 0) return 0;
@@ -438,7 +462,22 @@ export const TutorHome: React.FC = () => {
     return Math.round((withScores.reduce((acc, s) => acc + s.scoreAvg, 0) / withScores.length) * 10) / 10;
   }, [studentStats]);
 
-  const hasScoreData = grades.some((grade) => grade.remarks?.trim().toLowerCase() !== 'not taken');
+  const filteredStudentIds = useMemo(() => new Set(filteredStudents.map((s) => String(s.id))), [filteredStudents]);
+
+  const hasScoreData = useMemo(() => {
+    return grades.some(
+      (grade) =>
+        filteredStudentIds.has(String(grade.student)) &&
+        grade.remarks?.trim().toLowerCase() !== 'not taken'
+    );
+  }, [grades, filteredStudentIds]);
+
+  const hasAttendanceData = useMemo(() => {
+    return attendance.some((att) => {
+      const uid = String((att as any).user?.id || (att as any).user || (att as any).student?.id || (att as any).student || '');
+      return filteredStudentIds.has(uid);
+    });
+  }, [attendance, filteredStudentIds]);
 
   const atRiskStudents = useMemo(
     () => studentStats
@@ -487,8 +526,8 @@ export const TutorHome: React.FC = () => {
   }, [activeSystemSem]);
 
   const last4WeeksData = useMemo(() => {
-    if (students.length === 0 || grades.length === 0) return [];
-    const studentIds = new Set(students.map((s) => String(s.id)));
+    if (filteredStudents.length === 0 || grades.length === 0) return [];
+    const studentIds = new Set(filteredStudents.map((s) => String(s.id)));
     const assessmentGrades = grades.filter((g) => studentIds.has(String(g.student)) && g.component_type === 'assessment');
     if (assessmentGrades.length === 0) return [];
 
@@ -759,7 +798,22 @@ export const TutorHome: React.FC = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:h-[calc(100vh-8.5rem)] lg:min-h-[32rem] data-loaded-content w-full min-w-0 max-w-full">
+    <div className="space-y-3 w-full min-w-0 max-w-full data-loaded-content">
+      {/* ── Tutor Multi-Cohort Filter (ARAL Level, Subject, Grade - Section) ── */}
+      <TutorCohortFilter
+        user={user}
+        students={students}
+        selectedAralLevel={selectedAralLevel}
+        onSelectAralLevel={setSelectedAralLevel}
+        selectedSubject={selectedSubject}
+        onSelectSubject={setSelectedSubject}
+        selectedCohort={selectedCohort}
+        onSelectCohort={setSelectedCohort}
+        allowAll={true}
+        title="DASHBOARD CLASS & COHORT FILTER"
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:min-h-[30rem] w-full min-w-0 max-w-full">
       {/* ── Left 3-Column Section: 3 Top Summary Cards + Chart Below ──── */}
       <div className="lg:col-span-3 flex flex-col gap-3 h-full min-h-0 w-full min-w-0 max-w-full">
         {/* Row 1: My Students | Avg Attendance & Scores | High/Medium/Low Risk */}
@@ -783,8 +837,8 @@ export const TutorHome: React.FC = () => {
               className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
             >
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">AVERAGE ATTENDANCE</p>
-              <p className={`text-base sm:text-lg font-extrabold shrink-0 ${attendance.length === 0 ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
-                {attendance.length === 0 ? '—' : `${avgAttendance}%`}
+              <p className={`text-base sm:text-lg font-extrabold shrink-0 ${!hasAttendanceData ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                {!hasAttendanceData ? '—' : `${avgAttendance}%`}
               </p>
             </Link>
             <Link
@@ -974,6 +1028,7 @@ export const TutorHome: React.FC = () => {
         </div>
       </div>
     </div>
+  </div>
   );
 };
 

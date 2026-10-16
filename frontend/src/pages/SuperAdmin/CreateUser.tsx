@@ -430,7 +430,7 @@ export const CreateUser: React.FC = () => {
 
           {/* ── Section 1: Personal Information ─────────────────────────── */}
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
               Personal Information
             </h4>
             <div className={`grid grid-cols-1 gap-4 ${selectedRole === 'tutor' ? 'sm:grid-cols-2 md:grid-cols-4' : 'sm:grid-cols-3'}`}>
@@ -524,7 +524,7 @@ export const CreateUser: React.FC = () => {
           {/* ── Section 2: Role Details (for Tutors) ───────────────────── */}
           {selectedRole === 'tutor' && (
             <div className="space-y-4 border-t border-gray-100 dark:border-[#1A1A1A] pt-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
+              <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
                 Role Details
               </h4>
 
@@ -774,7 +774,7 @@ export const CreateUser: React.FC = () => {
           {/* ── Section 2: Non-Tutor Staff Authentication (admin, principal, faculty) ─ */}
           {selectedRole !== 'student' && selectedRole !== 'tutor' && (
             <div className="space-y-2 border-t border-gray-100 dark:border-[#1A1A1A] pt-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
+              <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
                 Authentication &amp; Role Details
               </h4>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -805,7 +805,7 @@ export const CreateUser: React.FC = () => {
           {selectedRole === 'student' && (
             <>
               <div className="space-y-3 border-t border-gray-100 dark:border-[#1A1A1A] pt-4">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
                   ARAL Academic &amp; Tutor Assignment
                 </h4>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -952,7 +952,7 @@ export const CreateUser: React.FC = () => {
 
               {/* ── Section 4: Parent/Guardian & Contact Information ───────── */}
               <div className="space-y-3 border-t border-gray-100 dark:border-[#1A1A1A] pt-4">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
                   Additional Information &amp; Contact
                 </h4>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

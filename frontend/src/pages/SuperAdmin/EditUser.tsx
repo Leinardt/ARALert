@@ -524,7 +524,7 @@ export const EditUser: React.FC = () => {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* ── Section 1: Personal Information ─────────────────────────── */}
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
               Personal Information
             </h4>
             <div className={`grid grid-cols-1 gap-4 ${selectedRole === 'tutor' ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}>
@@ -612,7 +612,7 @@ export const EditUser: React.FC = () => {
           {/* ── Section 2: Tutor Role Details Container ──────────────────── */}
           {selectedRole === 'tutor' && (
             <div className="space-y-4 border-t border-gray-100 dark:border-[#1A1A1A] pt-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
+              <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
                 Role Details
               </h4>
 
@@ -862,7 +862,7 @@ export const EditUser: React.FC = () => {
           {/* ── Section 2: Non-Tutor Staff Authentication (admin, principal, faculty) ─ */}
           {selectedRole !== 'student' && selectedRole !== 'tutor' && (
             <div className="space-y-3 border-t border-gray-100 dark:border-[#1A1A1A] pt-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
+              <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
                 Authentication &amp; Role Details
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -890,7 +890,7 @@ export const EditUser: React.FC = () => {
           {/* ── Section 3: Student Academic & ARAL Enrollment Details ───── */}
           {selectedRole === 'student' && (
             <div className="space-y-4 border-t border-gray-100 dark:border-[#1A1A1A] pt-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
+              <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
                 ARAL Academic &amp; Tutor Assignment
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1034,7 +1034,7 @@ export const EditUser: React.FC = () => {
 
               {/* ── Section 4: Parent / Guardian & Contact ──────────────────── */}
               <div className="space-y-3 border-t border-gray-100 dark:border-[#1A1A1A] pt-4">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
                   Additional Information &amp; Contact
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

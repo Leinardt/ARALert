@@ -5,17 +5,20 @@ import {
   parseTutorHandledAralLevels,
   parseTutorHandledSubjects,
   parseTutorHandledCohorts,
+  type TutorSubjectOption,
 } from '../utils/tutorCohortHelpers';
 
 export interface TutorCohortFilterProps {
   user: User | null;
   students?: User[];
-  selectedAralLevel: 'basic' | 'plus';
-  onSelectAralLevel: (level: 'basic' | 'plus') => void;
+  selectedAralLevel: 'all' | 'basic' | 'plus';
+  onSelectAralLevel: (level: 'all' | 'basic' | 'plus') => void;
   selectedSubject: string;
   onSelectSubject: (subject: string) => void;
   selectedCohort: string;
   onSelectCohort: (cohort: string) => void;
+  allowAll?: boolean;
+  title?: string;
 }
 
 interface ParsedCohort {
@@ -33,32 +36,44 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
   onSelectSubject,
   selectedCohort,
   onSelectCohort,
+  allowAll = false,
+  title,
 }) => {
   // 1. Available ARAL Levels (Basic, Plus, or both)
   const availableAralLevels = useMemo(() => parseTutorHandledAralLevels(user), [user]);
 
   // Synchronize active ARAL level if currently selected level is not in available levels
   useEffect(() => {
-    if (availableAralLevels.length > 0 && !availableAralLevels.includes(selectedAralLevel)) {
+    if (!allowAll && availableAralLevels.length > 0 && (selectedAralLevel === 'all' || !availableAralLevels.includes(selectedAralLevel as any))) {
       onSelectAralLevel(availableAralLevels[0]);
     }
-  }, [availableAralLevels, selectedAralLevel, onSelectAralLevel]);
+  }, [availableAralLevels, selectedAralLevel, onSelectAralLevel, allowAll]);
 
   // 2. Available Subjects for the currently selected ARAL Level
-  const availableSubjects = useMemo(
-    () => parseTutorHandledSubjects(user, selectedAralLevel),
-    [user, selectedAralLevel]
-  );
+  const availableSubjects = useMemo(() => {
+    if (allowAll && selectedAralLevel === 'all') {
+      const basicSubs = parseTutorHandledSubjects(user, 'basic');
+      const plusSubs = parseTutorHandledSubjects(user, 'plus');
+      const map = new Map<string, TutorSubjectOption>();
+      [...basicSubs, ...plusSubs].forEach((s) => map.set(s.id, s));
+      return Array.from(map.values());
+    }
+    return parseTutorHandledSubjects(user, selectedAralLevel === 'plus' ? 'plus' : 'basic');
+  }, [user, selectedAralLevel, allowAll]);
 
   // Synchronize active subject when switching ARAL level or when subject becomes unavailable
   useEffect(() => {
-    if (availableSubjects.length > 0) {
-      const match = availableSubjects.find((s) => s.id === selectedSubject);
-      if (!match) {
+    if (!allowAll && selectedSubject === 'all') {
+      if (availableSubjects.length > 0) {
         onSelectSubject(availableSubjects[0].id);
       }
+    } else if (availableSubjects.length > 0 && selectedSubject !== 'all') {
+      const match = availableSubjects.find((s) => s.id === selectedSubject);
+      if (!match) {
+        onSelectSubject(allowAll ? 'all' : availableSubjects[0].id);
+      }
     }
-  }, [availableSubjects, selectedSubject, onSelectSubject]);
+  }, [availableSubjects, selectedSubject, onSelectSubject, allowAll]);
 
   // 3. Available Cohorts (Grade Level - Section combinations)
   const availableCohorts = useMemo(() => parseTutorHandledCohorts(user), [user]);
@@ -88,34 +103,32 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
   const currentGrade = useMemo<string>(() => {
     if (selectedCohort && selectedCohort.includes(' - ')) {
       const g = selectedCohort.split(' - ')[0].trim().toUpperCase();
+      if (allowAll && g === 'ALL') return 'ALL';
       if (availableGrades.includes(g)) return g;
+    }
+    if (allowAll && (selectedCohort === 'ALL' || selectedCohort.toUpperCase() === 'ALL - ALL')) {
+      return 'ALL';
     }
     const directMatch = availableGrades.find((g) => g === selectedCohort.toUpperCase().trim());
     if (directMatch) return directMatch;
-    return availableGrades[0] || 'GRADE 7';
-  }, [selectedCohort, availableGrades]);
+    return allowAll ? 'ALL' : (availableGrades[0] || 'GRADE 7');
+  }, [selectedCohort, availableGrades, allowAll]);
 
   // Sections available for the currently active grade (sorted alphabetically)
   const availableSections = useMemo<string[]>(() => {
     const sectionSet = new Set<string>();
 
-    // 1. From tutor's assigned cohorts
-    parsedCohorts
-      .filter((p) => p.grade === currentGrade && p.section && p.section !== 'ALL')
-      .forEach((p) => sectionSet.add(p.section));
+    if (currentGrade === 'ALL') {
+      // Collect sections from all assigned cohorts
+      parsedCohorts
+        .filter((p) => p.section && p.section !== 'ALL')
+        .forEach((p) => sectionSet.add(p.section));
 
-    // 2. From students assigned or loaded
-    if (students && Array.isArray(students)) {
-      students.forEach((stu) => {
-        const anyStu = stu as any;
-        const stuGradeStr = (stu.grade_level || anyStu.grade || '').toUpperCase().trim();
-        const gradeNum = currentGrade.replace(/[^0-9]/g, '');
-        const stuGradeNum = stuGradeStr.replace(/[^0-9]/g, '');
-        const isGradeMatch =
-          (gradeNum && stuGradeNum && gradeNum === stuGradeNum) ||
-          stuGradeStr.includes(currentGrade);
-
-        if (isGradeMatch) {
+      // Collect sections from students loaded
+      if (students && Array.isArray(students)) {
+        students.forEach((stu) => {
+          const anyStu = stu as any;
+          const stuGradeStr = (stu.grade_level || anyStu.grade || '').toUpperCase().trim();
           if (stuGradeStr.includes(' - ')) {
             const sec = stuGradeStr.split(' - ')[1].trim().toUpperCase();
             if (sec) sectionSet.add(sec);
@@ -123,49 +136,89 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
             const sec = String(anyStu.section).trim().toUpperCase();
             if (sec) sectionSet.add(sec);
           }
-        }
-      });
+        });
+      }
+    } else {
+      // 1. From tutor's assigned cohorts
+      parsedCohorts
+        .filter((p) => p.grade === currentGrade && p.section && p.section !== 'ALL')
+        .forEach((p) => sectionSet.add(p.section));
+
+      // 2. From students assigned or loaded
+      if (students && Array.isArray(students)) {
+        students.forEach((stu) => {
+          const anyStu = stu as any;
+          const stuGradeStr = (stu.grade_level || anyStu.grade || '').toUpperCase().trim();
+          const gradeNum = currentGrade.replace(/[^0-9]/g, '');
+          const stuGradeNum = stuGradeStr.replace(/[^0-9]/g, '');
+          const isGradeMatch =
+            (gradeNum && stuGradeNum && gradeNum === stuGradeNum) ||
+            stuGradeStr.includes(currentGrade);
+
+          if (isGradeMatch) {
+            if (stuGradeStr.includes(' - ')) {
+              const sec = stuGradeStr.split(' - ')[1].trim().toUpperCase();
+              if (sec) sectionSet.add(sec);
+            } else if (anyStu.section) {
+              const sec = String(anyStu.section).trim().toUpperCase();
+              if (sec) sectionSet.add(sec);
+            }
+          }
+        });
+      }
     }
 
     // 3. Fallback standard section if none found
     if (sectionSet.size === 0) {
       if (currentGrade === 'GRADE 7') sectionSet.add('HYACINTH');
       else if (currentGrade === 'GRADE 8') sectionSet.add('MANGO');
+      else sectionSet.add('HYACINTH');
     }
 
     // Sort sections strictly alphabetically!
     return Array.from(sectionSet).sort((a, b) => a.localeCompare(b));
   }, [parsedCohorts, students, currentGrade]);
 
-  // Determine current active section (default is ALWAYS the first section alphabetically)
+  // Determine current active section
   const currentSection = useMemo<string>(() => {
     if (selectedCohort && selectedCohort.includes(' - ')) {
       const s = selectedCohort.split(' - ')[1].trim().toUpperCase();
+      if (allowAll && s === 'ALL') return 'ALL';
       if (availableSections.includes(s)) return s;
     }
+    if (allowAll && (selectedCohort === 'ALL' || selectedCohort.toUpperCase() === 'ALL - ALL')) {
+      return 'ALL';
+    }
 
-    // Default is ALWAYS the first section alphabetically!
-    return availableSections[0] || 'HYACINTH';
-  }, [selectedCohort, availableSections]);
+    // Default is ALWAYS the first section alphabetically, or 'ALL' if allowAll
+    return allowAll ? 'ALL' : (availableSections[0] || 'HYACINTH');
+  }, [selectedCohort, availableSections, allowAll]);
 
-  // Synchronize active cohort: ensure default is NEVER 'ALL' and always a valid alphabetical section
+  // Synchronize active cohort: ensure default is NEVER 'ALL' when allowAll is false
   useEffect(() => {
-    if (availableSections.length > 0) {
+    if (!allowAll && availableSections.length > 0) {
       const isCurrentValid =
         selectedCohort &&
         selectedCohort.includes(' - ') &&
+        !selectedCohort.toUpperCase().includes('ALL') &&
         availableSections.includes(selectedCohort.split(' - ')[1].trim().toUpperCase());
 
       // If selectedCohort was plain "GRADE 7" without a section, had "ALL", or an invalid section:
       if (!isCurrentValid) {
         const defaultSec = availableSections[0];
-        onSelectCohort(`${currentGrade} - ${defaultSec}`);
+        const validGrade = currentGrade === 'ALL' ? (availableGrades[0] || 'GRADE 7') : currentGrade;
+        onSelectCohort(`${validGrade} - ${defaultSec}`);
       }
     }
-  }, [availableSections, currentGrade, selectedCohort, onSelectCohort]);
+  }, [availableSections, currentGrade, selectedCohort, onSelectCohort, allowAll, availableGrades]);
 
   // Handle Grade Level selection change
   const handleGradeChange = (newGrade: string) => {
+    if (newGrade === 'ALL') {
+      onSelectCohort(`ALL - ${allowAll ? currentSection : (availableSections[0] || 'HYACINTH')}`);
+      return;
+    }
+
     const sectionsForNewGrade = Array.from(
       new Set(
         parsedCohorts
@@ -175,9 +228,11 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
     ).sort((a, b) => a.localeCompare(b));
 
     const fallbackDefault =
-      sectionsForNewGrade[0] || (newGrade === 'GRADE 8' ? 'MANGO' : 'HYACINTH');
+      allowAll && currentSection === 'ALL'
+        ? 'ALL'
+        : (sectionsForNewGrade[0] || (newGrade === 'GRADE 8' ? 'MANGO' : 'HYACINTH'));
 
-    if (currentSection && sectionsForNewGrade.includes(currentSection)) {
+    if (currentSection && (currentSection === 'ALL' || sectionsForNewGrade.includes(currentSection))) {
       onSelectCohort(`${newGrade} - ${currentSection}`);
     } else {
       onSelectCohort(`${newGrade} - ${fallbackDefault}`);
@@ -194,7 +249,7 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
       {/* ── Label on top ── */}
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
-          CURRENT CLASS FOR RECORD OR VIEW
+          {title || 'CURRENT CLASS FOR RECORD OR VIEW'}
         </h4>
       </div>
 
@@ -212,9 +267,17 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
             <select
               id="filter-aral-level"
               value={selectedAralLevel}
-              onChange={(e) => onSelectAralLevel(e.target.value as 'basic' | 'plus')}
+              onChange={(e) => onSelectAralLevel(e.target.value as any)}
               className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-[var(--brand)] dark:text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
             >
+              {allowAll && (
+                <option
+                  value="all"
+                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
+                >
+                  ALL ARAL LEVELS
+                </option>
+              )}
               {availableAralLevels.map((level) => (
                 <option
                   key={level}
@@ -244,6 +307,14 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
               onChange={(e) => onSelectSubject(e.target.value)}
               className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-[var(--brand)] dark:text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
             >
+              {allowAll && (
+                <option
+                  value="all"
+                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
+                >
+                  ALL SUBJECTS
+                </option>
+              )}
               {availableSubjects.map((sub) => (
                 <option
                   key={sub.id}
@@ -273,6 +344,14 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
               onChange={(e) => handleGradeChange(e.target.value)}
               className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-[var(--brand)] dark:text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
             >
+              {allowAll && (
+                <option
+                  value="ALL"
+                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
+                >
+                  ALL GRADES
+                </option>
+              )}
               {availableGrades.map((grade) => (
                 <option
                   key={grade}
@@ -302,6 +381,14 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
               onChange={(e) => handleSectionChange(e.target.value)}
               className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-[var(--brand)] dark:text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
             >
+              {allowAll && (
+                <option
+                  value="ALL"
+                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
+                >
+                  ALL SECTIONS
+                </option>
+              )}
               {availableSections.map((sec) => (
                 <option
                   key={sec}

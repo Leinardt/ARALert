@@ -201,15 +201,15 @@ export function isTutorEligibleForStudent(
 export function isStudentInCohort(
   student: Partial<User> | null | undefined,
   filter: {
-    aral_level?: 'basic' | 'plus';
-    subject?: string; // 'Filipino' | 'English' | 'Science' | 'Math'
-    cohort?: string; // e.g. 'GRADE 8 - MANGO'
+    aral_level?: 'all' | 'basic' | 'plus';
+    subject?: string; // 'all' | 'Filipino' | 'English' | 'Science' | 'Math'
+    cohort?: string; // e.g. 'all' | 'ALL - ALL' | 'GRADE 8 - MANGO'
   }
 ): boolean {
   if (!student) return false;
 
   // 1. ARAL Level filter
-  if (filter.aral_level) {
+  if (filter.aral_level && filter.aral_level.toLowerCase() !== 'all') {
     const sLevel = (student.aral_level || 'basic').toLowerCase().trim();
     if (sLevel !== filter.aral_level.toLowerCase()) {
       return false;
@@ -221,17 +221,19 @@ export function isStudentInCohort(
     const sGrade = (student.grade_level || '').toUpperCase().trim();
     const targetCohort = filter.cohort.toUpperCase().trim();
 
-    if (targetCohort.includes(' - ')) {
+    if (targetCohort === 'ALL' || targetCohort === 'ALL - ALL') {
+      // Matches all grades and sections
+    } else if (targetCohort.includes(' - ')) {
       const [targetGrade, targetSection] = targetCohort.split(' - ').map((s) => s.trim());
       const sGradeNum = sGrade.replace(/[^0-9]/g, '');
       const targetGradeNum = targetGrade.replace(/[^0-9]/g, '');
 
-      // Check grade match
-      if (sGradeNum && targetGradeNum && sGradeNum !== targetGradeNum) {
+      // Check grade match if targetGrade is not 'ALL'
+      if (targetGrade !== 'ALL' && sGradeNum && targetGradeNum && sGradeNum !== targetGradeNum) {
         return false;
       }
 
-      // Check section match
+      // Check section match if targetSection is not 'ALL'
       const sSec = ((student as any).section || '').toUpperCase().trim();
       if (
         targetSection &&
@@ -242,17 +244,19 @@ export function isStudentInCohort(
         return false;
       }
     } else {
-      // Single grade filter
-      const targetGradeNum = targetCohort.replace(/[^0-9]/g, '');
-      const sGradeNum = sGrade.replace(/[^0-9]/g, '');
-      if (sGradeNum && targetGradeNum && sGradeNum !== targetGradeNum) {
-        return false;
+      // Single grade filter without section
+      if (targetCohort !== 'ALL') {
+        const targetGradeNum = targetCohort.replace(/[^0-9]/g, '');
+        const sGradeNum = sGrade.replace(/[^0-9]/g, '');
+        if (sGradeNum && targetGradeNum && sGradeNum !== targetGradeNum) {
+          return false;
+        }
       }
     }
   }
 
   // 3. Subject filter
-  if (filter.subject && student.subject) {
+  if (filter.subject && filter.subject.toLowerCase() !== 'all' && student.subject) {
     const sSub = student.subject.toLowerCase().trim();
     const targetSub = filter.subject.toLowerCase().trim();
 
@@ -272,48 +276,78 @@ export function isStudentInCohort(
   return true;
 }
 
+export interface UseTutorCohortFilterOptions {
+  allowAll?: boolean;
+  defaultToAll?: boolean;
+}
+
 /**
  * Shared hook that keeps the active tutor cohort filter state (ARAL level, subject, cohort)
- * synchronized across all tutor views (QR attendance, score entry, assigned students).
+ * synchronized across tutor views.
  * 
  * - Persists active selection to localStorage keyed by user.id
  * - Synchronizes in real-time across mounted components and browser tabs
  * - Validates cached selection against the tutor's currently assigned cohorts/subjects
+ * - Supports separate overview storage key when allowAll is enabled for Dashboard and Analytics
  */
-export function useTutorCohortFilter(user: Partial<User> | null | undefined) {
+export function useTutorCohortFilter(
+  user: Partial<User> | null | undefined,
+  options?: UseTutorCohortFilterOptions
+) {
+  const allowAll = !!options?.allowAll;
+  const defaultToAll = !!options?.defaultToAll;
   const userId = user?.id ? String(user.id) : 'default';
-  const storageKey = `aralert_active_tutor_cohort_${userId}`;
+  const storageKey = allowAll
+    ? `aralert_active_tutor_overview_cohort_${userId}`
+    : `aralert_active_tutor_cohort_${userId}`;
 
   // Helper to compute a validated initial state
-  const getInitialState = useCallback(() => {
+  const getInitialState = useCallback((): {
+    level: 'all' | 'basic' | 'plus';
+    subject: string;
+    cohort: string;
+  } => {
     const availableLevels = parseTutorHandledAralLevels(user);
-    const defaultLevel = availableLevels[0] || 'basic';
-    const availableSubjects = parseTutorHandledSubjects(user, defaultLevel);
-    const defaultSubject = availableSubjects[0]?.id || 'Filipino';
+    const defaultLevel: 'all' | 'basic' | 'plus' = defaultToAll ? 'all' : (availableLevels[0] || 'basic');
+    const availableSubjects = parseTutorHandledSubjects(user, defaultLevel === 'plus' ? 'plus' : 'basic');
+    const defaultSubject = defaultToAll ? 'all' : (availableSubjects[0]?.id || 'Filipino');
     const availableCohorts = parseTutorHandledCohorts(user);
-    const defaultCohort = availableCohorts[0] || 'GRADE 7 - HYACINTH';
+    const defaultCohort = defaultToAll ? 'ALL - ALL' : (availableCohorts[0] || 'GRADE 7 - HYACINTH');
 
     try {
       const raw = localStorage.getItem(storageKey);
       if (raw) {
         const parsed = JSON.parse(raw);
-        const level: 'basic' | 'plus' =
-          parsed.aral_level && availableLevels.includes(parsed.aral_level)
-            ? parsed.aral_level
-            : defaultLevel;
+        let level: 'all' | 'basic' | 'plus' = defaultLevel;
+        if (allowAll && parsed.aral_level === 'all') {
+          level = 'all';
+        } else if (parsed.aral_level && availableLevels.includes(parsed.aral_level)) {
+          level = parsed.aral_level;
+        }
 
-        const subjectsForLevel = parseTutorHandledSubjects(user, level);
-        const subject =
-          parsed.subject && subjectsForLevel.some((s) => s.id.toLowerCase() === parsed.subject.toLowerCase())
-            ? (subjectsForLevel.find((s) => s.id.toLowerCase() === parsed.subject.toLowerCase())?.id || parsed.subject)
-            : subjectsForLevel[0]?.id || defaultSubject;
+        const subjectsForLevel = parseTutorHandledSubjects(user, level === 'plus' ? 'plus' : 'basic');
+        let subject = defaultSubject;
+        if (allowAll && parsed.subject === 'all') {
+          subject = 'all';
+        } else if (
+          parsed.subject &&
+          subjectsForLevel.some((s) => s.id.toLowerCase() === parsed.subject.toLowerCase())
+        ) {
+          subject =
+            subjectsForLevel.find((s) => s.id.toLowerCase() === parsed.subject.toLowerCase())?.id ||
+            parsed.subject;
+        }
 
-        const cohort =
+        let cohort = defaultCohort;
+        if (allowAll && (parsed.cohort === 'ALL' || parsed.cohort === 'ALL - ALL' || parsed.cohort?.includes('ALL'))) {
+          cohort = parsed.cohort;
+        } else if (
           parsed.cohort &&
           !parsed.cohort.toUpperCase().includes('ALL') &&
           availableCohorts.some((c) => c.toUpperCase().trim() === parsed.cohort.toUpperCase().trim())
-            ? parsed.cohort
-            : defaultCohort;
+        ) {
+          cohort = parsed.cohort;
+        }
 
         return { level, subject, cohort };
       }
@@ -322,11 +356,11 @@ export function useTutorCohortFilter(user: Partial<User> | null | undefined) {
     }
 
     return { level: defaultLevel, subject: defaultSubject, cohort: defaultCohort };
-  }, [user, storageKey]);
+  }, [user, storageKey, allowAll, defaultToAll]);
 
   const initial = useMemo(getInitialState, [getInitialState]);
 
-  const [selectedAralLevel, setSelectedAralLevelState] = useState<'basic' | 'plus'>(initial.level);
+  const [selectedAralLevel, setSelectedAralLevelState] = useState<'all' | 'basic' | 'plus'>(initial.level);
   const [selectedSubject, setSelectedSubjectState] = useState<string>(initial.subject);
   const [selectedCohort, setSelectedCohortState] = useState<string>(initial.cohort);
 
@@ -355,24 +389,28 @@ export function useTutorCohortFilter(user: Partial<User> | null | undefined) {
   }, [user?.id, getInitialState]);
 
   // Persist state to storage and notify all listeners
+  const eventName = allowAll
+    ? 'tutor-cohort-overview-filter-change'
+    : 'tutor-cohort-filter-change';
+
   const persistAndBroadcast = useCallback(
-    (newState: { aral_level: 'basic' | 'plus'; subject: string; cohort: string }) => {
+    (newState: { aral_level: 'all' | 'basic' | 'plus'; subject: string; cohort: string }) => {
       try {
         localStorage.setItem(storageKey, JSON.stringify(newState));
       } catch {
         // Ignore quota errors
       }
       window.dispatchEvent(
-        new CustomEvent('tutor-cohort-filter-change', {
+        new CustomEvent(eventName, {
           detail: { ...newState, userId },
         })
       );
     },
-    [storageKey, userId]
+    [storageKey, userId, eventName]
   );
 
   const setSelectedAralLevel = useCallback(
-    (level: 'basic' | 'plus') => {
+    (level: 'all' | 'basic' | 'plus') => {
       setSelectedAralLevelState(level);
       const next = { ...stateRef.current, aral_level: level };
       persistAndBroadcast(next);
@@ -402,7 +440,7 @@ export function useTutorCohortFilter(user: Partial<User> | null | undefined) {
   useEffect(() => {
     const handleFilterChange = (e: Event) => {
       const customEvent = e as CustomEvent<{
-        aral_level?: 'basic' | 'plus';
+        aral_level?: 'all' | 'basic' | 'plus';
         subject?: string;
         cohort?: string;
         userId?: string;
@@ -441,14 +479,14 @@ export function useTutorCohortFilter(user: Partial<User> | null | undefined) {
       }
     };
 
-    window.addEventListener('tutor-cohort-filter-change', handleFilterChange);
+    window.addEventListener(eventName, handleFilterChange);
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
-      window.removeEventListener('tutor-cohort-filter-change', handleFilterChange);
+      window.removeEventListener(eventName, handleFilterChange);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [storageKey, userId]);
+  }, [storageKey, userId, eventName]);
 
   return {
     selectedAralLevel,
