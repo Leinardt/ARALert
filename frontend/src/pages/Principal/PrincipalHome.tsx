@@ -207,6 +207,7 @@ const InteractivePrincipalPerformanceChart: React.FC<{
 
         {[0, 25, 50, 75, 100].map((val) => {
           const y = paddingTop + chartH - (val / 100) * chartH;
+          const isBenchmark = val === 75;
           return (
             <g key={val}>
               <line
@@ -214,19 +215,31 @@ const InteractivePrincipalPerformanceChart: React.FC<{
                 y1={y}
                 x2={width - paddingRight}
                 y2={y}
-                stroke="var(--slate-200)"
-                strokeWidth="0.5"
-                strokeDasharray="3 3"
-                opacity="0.6"
+                stroke={isBenchmark ? '#10B981' : 'var(--slate-200)'}
+                strokeWidth={isBenchmark ? '1' : '0.6'}
+                strokeDasharray={isBenchmark ? '4 3' : '3 3'}
+                opacity={isBenchmark ? '0.75' : '0.6'}
               />
               <text
                 x={paddingLeft - 8}
-                y={y + 3}
-                className="fill-slate-400 font-semibold text-[9px] xs:text-[10px]"
+                y={y + 3.5}
+                className={`font-bold text-[10px] xs:text-[11px] ${
+                  isBenchmark ? 'fill-emerald-600 dark:fill-emerald-400 font-extrabold' : 'fill-slate-600 dark:fill-slate-300'
+                }`}
                 textAnchor="end"
               >
                 {val}%
               </text>
+              {isBenchmark && (
+                <text
+                  x={width - paddingRight}
+                  y={y - 4}
+                  className="fill-emerald-600 dark:fill-emerald-400 font-extrabold text-[9px] tracking-wider uppercase select-none"
+                  textAnchor="end"
+                >
+                  75% PASSING BENCHMARK
+                </text>
+              )}
             </g>
           );
         })}
@@ -270,7 +283,7 @@ const InteractivePrincipalPerformanceChart: React.FC<{
               key={`label-${idx}`}
               x={labelX}
               y={height - (isMobile ? 6 : 5)}
-              className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px] xs:text-[10px]"
+              className="fill-slate-600 dark:fill-slate-300 font-bold text-[10px] xs:text-[11px]"
               textAnchor={textAnchor}
               style={{ whiteSpace: 'nowrap' }}
             >
@@ -304,17 +317,27 @@ const InteractivePrincipalPerformanceChart: React.FC<{
           </>
         )}
 
-        {/* Data point markers */}
+        {/* Data point markers with direct readable values */}
         {points.map((p, idx) => (
-          <circle
-            key={`data-dot-${idx}`}
-            cx={p.x}
-            cy={p.y}
-            r="3.5"
-            fill="var(--brand)"
-            stroke="#B6D4F8"
-            strokeWidth="1.5"
-          />
+          <g key={`data-dot-${idx}`}>
+            <circle
+              cx={p.x}
+              cy={p.y}
+              r="4"
+              fill="var(--brand)"
+              stroke="#B6D4F8"
+              strokeWidth="1.75"
+            />
+            {/* Show value label on points */}
+            <text
+              x={p.x}
+              y={Math.max(paddingTop + 10, p.y - 8)}
+              textAnchor="middle"
+              className="fill-slate-700 dark:fill-slate-200 text-[10px] font-extrabold select-none pointer-events-none"
+            >
+              {p.value}%
+            </text>
+          </g>
         ))}
 
         {/* Milestone assessment dots */}
@@ -1799,108 +1822,112 @@ export const PrincipalHome: React.FC = () => {
         {/* ── Left Column (9 cols on lg & xl: ~75% width): Performance Trend Chart ── */}
         <div className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3 w-full min-w-0 max-w-full">
           <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 w-full min-w-0 max-w-full shadow-2xs">
-            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-              <div className="min-w-0">
-                <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate">
+            {/* ── Row 1: Card Title & Period Toggles (Full width, never truncates title) ── */}
+            <div className="flex items-center justify-between gap-3 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+              <div className="min-w-0 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
+                <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">
                   {selectedTutorObj
                     ? `${selectedTutorObj.name.toUpperCase()}'S STUDENTS PERFORMANCE TREND`
-                    : 'PNAHS ARAL PERFORMANCE TREND CHART'}
+                    : 'PNAHS ARAL PERFORMANCE TREND'}
                 </h3>
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap">
-                {/* Tutor Filter Dropdown */}
-                <select
-                  aria-label="Filter by Tutor Class"
-                  value={selectedTutorId}
-                  onChange={(e) => setSelectedTutorId(e.target.value)}
-                  className="h-7 sm:h-8 px-1.5 sm:px-2 rounded-sm text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[130px] sm:max-w-[160px] whitespace-nowrap truncate shrink-0"
-                >
-                  <option value="all">ALL TUTORS</option>
-                  {tutors.map((tutor) => (
-                    <option key={tutor.id} value={tutor.id}>
-                      {tutor.name.toUpperCase()}
-                    </option>
-                  ))}
-                </select>
 
-                {/* ARAL Level Filter Dropdown */}
-                <select
-                  aria-label="Filter by ARAL Level"
-                  value={selectedAralLevel}
-                  onChange={(e) => setSelectedAralLevel(e.target.value)}
-                  className="h-7 sm:h-8 px-1.5 sm:px-2 rounded-sm text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[130px] whitespace-nowrap truncate shrink-0"
-                >
-                  <option value="all">ALL ARAL LEVELS</option>
-                  {chartAralLevels.map((lvl) => (
-                    <option key={lvl.id} value={lvl.id}>
-                      {lvl.label}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Subject Filter Dropdown */}
-                <select
-                  aria-label="Filter by Subject"
-                  value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
-                  className="h-7 sm:h-8 px-1.5 sm:px-2 rounded-sm text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[125px] whitespace-nowrap truncate shrink-0"
-                >
-                  <option value="all">ALL SUBJECT</option>
-                  {chartSubjects.map((sub) => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.label}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Grade Level Filter Dropdown */}
-                <select
-                  aria-label="Filter by Grade Level"
-                  value={selectedGrade}
-                  onChange={(e) => setSelectedGrade(e.target.value)}
-                  className="h-7 sm:h-8 px-1.5 sm:px-2 rounded-sm text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[135px] whitespace-nowrap truncate shrink-0"
-                >
-                  <option value="all">ALL GRADE LEVELS</option>
-                  {chartGrades.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Section Filter Dropdown */}
-                <select
-                  aria-label="Filter by Section"
-                  value={selectedSection}
-                  onChange={(e) => setSelectedSection(e.target.value)}
-                  className="h-7 sm:h-8 px-1.5 sm:px-2 rounded-sm text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[125px] whitespace-nowrap truncate shrink-0"
-                >
-                  <option value="all">ALL SECTIONS</option>
-                  {chartSections.map((sec) => (
-                    <option key={sec} value={sec}>
-                      {sec}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Period Toggles */}
-                <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
-                  {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => setTrendFilter(filter)}
-                      className={`rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
-                        trendFilter === filter
-                          ? 'bg-[var(--brand)] text-white shadow-xs'
-                          : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      {filter}
-                    </button>
-                  ))}
-                </div>
+              {/* Period Toggles (DAY / WEEK / MONTH) */}
+              <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
+                {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => setTrendFilter(filter)}
+                    className={`rounded-sm px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
+                      trendFilter === filter
+                        ? 'bg-[var(--brand)] text-white shadow-xs'
+                        : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    {filter}
+                  </button>
+                ))}
               </div>
+            </div>
+
+            {/* ── Row 2: Filter Controls Bar (No 'Filters:' label, generous width to avoid truncation) ── */}
+            <div className="flex items-center gap-2 pt-2.5 pb-1 flex-wrap w-full">
+              {/* Tutor Filter Dropdown */}
+              <select
+                aria-label="Filter by Tutor Class"
+                value={selectedTutorId}
+                onChange={(e) => setSelectedTutorId(e.target.value)}
+                className="h-8 px-2 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[130px] flex-1 max-w-[200px]"
+              >
+                <option value="all">ALL TUTORS</option>
+                {tutors.map((tutor) => (
+                  <option key={tutor.id} value={tutor.id}>
+                    {tutor.name.toUpperCase()}
+                  </option>
+                ))}
+              </select>
+
+              {/* ARAL Level Filter Dropdown */}
+              <select
+                aria-label="Filter by ARAL Level"
+                value={selectedAralLevel}
+                onChange={(e) => setSelectedAralLevel(e.target.value)}
+                className="h-8 px-2 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[130px] flex-1 max-w-[170px]"
+              >
+                <option value="all">ALL ARAL LEVELS</option>
+                {chartAralLevels.map((lvl) => (
+                  <option key={lvl.id} value={lvl.id}>
+                    {lvl.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* Subject Filter Dropdown */}
+              <select
+                aria-label="Filter by Subject"
+                value={selectedSubject}
+                onChange={(e) => setSelectedSubject(e.target.value)}
+                className="h-8 px-2 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[125px] flex-1 max-w-[160px]"
+              >
+                <option value="all">ALL SUBJECTS</option>
+                {chartSubjects.map((sub) => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* Grade Level Filter Dropdown */}
+              <select
+                aria-label="Filter by Grade Level"
+                value={selectedGrade}
+                onChange={(e) => setSelectedGrade(e.target.value)}
+                className="h-8 px-2 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[150px] flex-1 max-w-[180px]"
+              >
+                <option value="all">ALL GRADE LEVELS</option>
+                {chartGrades.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+
+              {/* Section Filter Dropdown */}
+              <select
+                aria-label="Filter by Section"
+                value={selectedSection}
+                onChange={(e) => setSelectedSection(e.target.value)}
+                className="h-8 px-2 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[125px] flex-1 max-w-[160px]"
+              >
+                <option value="all">ALL SECTIONS</option>
+                {chartSections.map((sec) => (
+                  <option key={sec} value={sec}>
+                    {sec}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Chart Canvas */}
