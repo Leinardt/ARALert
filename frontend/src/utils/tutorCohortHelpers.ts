@@ -498,3 +498,226 @@ export function useTutorCohortFilter(
   };
 }
 
+/**
+ * Normalizes and extracts student's grade level and section.
+ */
+export function parseStudentGradeAndSection(
+  student: Partial<User> | null | undefined
+): { grade: string; section: string } {
+  if (!student) return { grade: '', section: '' };
+  let grade = '';
+  let section = (student.section || '').trim().toUpperCase();
+  const rawGrade = (student.grade_level || '').trim().toUpperCase();
+
+  if (rawGrade.includes(' - ')) {
+    const parts = rawGrade.split(' - ');
+    grade = parts[0]?.trim() || '';
+    if (!section && parts[1]) {
+      section = parts[1].trim();
+    }
+  } else if (rawGrade.startsWith('GRADE')) {
+    grade = rawGrade;
+  } else if (/^\d+$/.test(rawGrade)) {
+    grade = `GRADE ${rawGrade}`;
+  }
+
+  if (grade && !grade.startsWith('GRADE')) {
+    const num = grade.replace(/[^0-9]/g, '');
+    if (num) grade = `GRADE ${num}`;
+  }
+
+  return { grade, section };
+}
+
+/**
+ * Returns available ARAL levels for chart filtering.
+ */
+export function getChartAvailableAralLevels(
+  tutor: Partial<User> | null | undefined
+): { id: string; label: string }[] {
+  const allLevels = [
+    { id: 'basic', label: 'BASIC' },
+    { id: 'plus', label: 'PLUS' },
+  ];
+
+  if (!tutor) return allLevels;
+
+  const handled = parseTutorHandledAralLevels(tutor);
+  return allLevels.filter((lvl) => handled.includes(lvl.id as 'basic' | 'plus'));
+}
+
+/**
+ * Returns available subjects for chart filtering, adjusted for tutor and ARAL level.
+ */
+export function getChartAvailableSubjects(
+  tutor: Partial<User> | null | undefined,
+  activeAralLevel: string
+): { id: string; label: string }[] {
+  const allChoices = [
+    { id: 'English', label: 'ENGLISH' },
+    { id: 'Reading', label: 'FILIPINO' },
+    { id: 'Science', label: 'SCIENCE' },
+    { id: 'Math', label: 'MATH' },
+  ];
+
+  const normLevel = activeAralLevel.toLowerCase().trim();
+
+  if (!tutor) {
+    return allChoices.filter((c) => {
+      if (normLevel === 'basic' && c.id === 'English') return false;
+      if (normLevel === 'plus' && c.id === 'Reading') return false;
+      return true;
+    });
+  }
+
+  const raw = (tutor.subject || '').toLowerCase();
+  const isGeneral = !raw || raw === 'general' || raw.includes('all');
+
+  const handlesFilipino = isGeneral || raw.includes('reading') || raw.includes('filipino');
+  const handlesEnglish = isGeneral || raw.includes('english');
+  const handlesScience = isGeneral || raw.includes('science');
+  const handlesMath = isGeneral || raw.includes('math');
+
+  return allChoices.filter((c) => {
+    if (c.id === 'English') {
+      return handlesEnglish && normLevel !== 'basic';
+    }
+    if (c.id === 'Reading') {
+      return handlesFilipino && normLevel !== 'plus';
+    }
+    if (c.id === 'Science') return handlesScience;
+    if (c.id === 'Math') return handlesMath;
+    return false;
+  });
+}
+
+/**
+ * Returns available grade levels for chart filtering, adjusted for tutor.
+ */
+export function getChartAvailableGrades(
+  tutor: Partial<User> | null | undefined,
+  allStudents: User[]
+): string[] {
+  const ALL_GRADES = ['GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10', 'GRADE 11', 'GRADE 12'];
+
+  if (!tutor) {
+    const present = new Set<string>();
+    allStudents.forEach((s) => {
+      const { grade } = parseStudentGradeAndSection(s);
+      if (grade) present.add(grade);
+    });
+    const found = ALL_GRADES.filter((g) => present.has(g));
+    return found.length > 0 ? found : ALL_GRADES;
+  }
+
+  const cohorts = parseTutorHandledCohorts(tutor);
+  const tutorGrades = new Set<string>();
+
+  cohorts.forEach((c) => {
+    if (c.includes(' - ')) {
+      const g = c.split(' - ')[0].trim().toUpperCase();
+      if (g) tutorGrades.add(g.startsWith('GRADE') ? g : `GRADE ${g}`);
+    } else if (c.toUpperCase().startsWith('GRADE')) {
+      tutorGrades.add(c.trim().toUpperCase());
+    } else if (/^\d+$/.test(c.trim())) {
+      tutorGrades.add(`GRADE ${c.trim()}`);
+    }
+  });
+
+  allStudents.forEach((s) => {
+    if (String(s.assigned_tutor) === String(tutor.id)) {
+      const { grade } = parseStudentGradeAndSection(s);
+      if (grade) tutorGrades.add(grade);
+    }
+  });
+
+  const matched = ALL_GRADES.filter((g) => tutorGrades.has(g));
+  return matched.length > 0 ? matched : (tutorGrades.size > 0 ? Array.from(tutorGrades) : ['GRADE 7']);
+}
+
+/**
+ * Returns available sections for chart filtering, adjusted for tutor and active grade.
+ */
+export function getChartAvailableSections(
+  tutor: Partial<User> | null | undefined,
+  activeGrade: string,
+  allStudents: User[]
+): string[] {
+  const sectionsSet = new Set<string>();
+
+  if (!tutor) {
+    allStudents.forEach((s) => {
+      const { grade, section } = parseStudentGradeAndSection(s);
+      if (section && (activeGrade === 'all' || grade === activeGrade)) {
+        sectionsSet.add(section);
+      }
+    });
+  } else {
+    const cohorts = parseTutorHandledCohorts(tutor);
+    cohorts.forEach((c) => {
+      if (c.includes(' - ')) {
+        const [g, sec] = c.split(' - ').map((p) => p.trim().toUpperCase());
+        const normG = g.startsWith('GRADE') ? g : `GRADE ${g}`;
+        if (sec && (activeGrade === 'all' || normG === activeGrade)) {
+          sectionsSet.add(sec);
+        }
+      }
+    });
+
+    allStudents.forEach((s) => {
+      if (String(s.assigned_tutor) === String(tutor.id)) {
+        const { grade, section } = parseStudentGradeAndSection(s);
+        if (section && (activeGrade === 'all' || grade === activeGrade)) {
+          sectionsSet.add(section);
+        }
+      }
+    });
+  }
+
+  return Array.from(sectionsSet).sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * Checks whether a student matches the selected chart filters.
+ */
+export function isStudentMatchingChartFilters(
+  student: User,
+  filters: {
+    tutorId: string;
+    aralLevel: string;
+    subject: string;
+    grade: string;
+    section: string;
+  }
+): boolean {
+  if (filters.tutorId !== 'all') {
+    const assigned = String(student.assigned_tutor ?? '');
+    if (assigned !== String(filters.tutorId)) return false;
+  }
+
+  if (filters.aralLevel !== 'all') {
+    const sLevel = (student.aral_level || '').toLowerCase().trim();
+    if (sLevel !== filters.aralLevel.toLowerCase().trim()) return false;
+  }
+
+  if (filters.subject !== 'all') {
+    const sSub = (student.subject || '').toLowerCase().trim();
+    const targetSub = filters.subject.toLowerCase().trim();
+    const isLanguageMatch =
+      (targetSub === 'reading' && (sSub === 'reading' || sSub === 'filipino')) ||
+      (targetSub === 'filipino' && (sSub === 'reading' || sSub === 'filipino'));
+    if (!isLanguageMatch && sSub !== targetSub) return false;
+  }
+
+  const { grade, section } = parseStudentGradeAndSection(student);
+  if (filters.grade !== 'all') {
+    if (grade !== filters.grade) return false;
+  }
+
+  if (filters.section !== 'all') {
+    if (section !== filters.section) return false;
+  }
+
+  return true;
+}
+

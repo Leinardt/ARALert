@@ -26,6 +26,13 @@ import {
   setAssessmentWindowOpen,
   SemesterType,
 } from '../../utils/sessionDescriptionHelpers';
+import {
+  getChartAvailableAralLevels,
+  getChartAvailableSubjects,
+  getChartAvailableGrades,
+  getChartAvailableSections,
+  isStudentMatchingChartFilters,
+} from '../../utils/tutorCohortHelpers';
 
 // ─── Chart Types & Interactive Chart Component ─────────────────────────────────
 
@@ -811,6 +818,10 @@ export const AdminHome: React.FC = () => {
 
   const [trendFilter, setTrendFilter] = useState<TrendFilter>('week');
   const [selectedTutorId, setSelectedTutorId] = useState<string>('all');
+  const [selectedAralLevel, setSelectedAralLevel] = useState<string>('all');
+  const [selectedSubject, setSelectedSubject] = useState<string>('all');
+  const [selectedGrade, setSelectedGrade] = useState<string>('all');
+  const [selectedSection, setSelectedSection] = useState<string>('all');
   const [selectedStaffFilter, setSelectedStaffFilter] = useState<string>('all');
   const [staffTrendFilter, setStaffTrendFilter] = useState<TrendFilter>('week');
   const [activeSystemSem, setActiveSystemSem] = useState<SemesterType>(() => getActiveSystemSemester());
@@ -897,16 +908,65 @@ export const AdminHome: React.FC = () => {
     setAssessmentWindowOpen(nextState, activeSystemSem);
   };
 
-  // Filter students based on selected tutor
-  const filteredStudents = useMemo(() => {
-    if (selectedTutorId === 'all') return students;
-    return students.filter((s) => String(s.assigned_tutor) === String(selectedTutorId));
-  }, [students, selectedTutorId]);
-
   const selectedTutorObj = useMemo(() => {
     if (selectedTutorId === 'all') return null;
     return tutors.find((t) => String(t.id) === String(selectedTutorId)) || null;
   }, [tutors, selectedTutorId]);
+
+  // Dynamic filter choices adjusting to the selected tutor and parent filters
+  const chartAralLevels = useMemo(() => {
+    return getChartAvailableAralLevels(selectedTutorObj);
+  }, [selectedTutorObj]);
+
+  const chartSubjects = useMemo(() => {
+    return getChartAvailableSubjects(selectedTutorObj, selectedAralLevel);
+  }, [selectedTutorObj, selectedAralLevel]);
+
+  const chartGrades = useMemo(() => {
+    return getChartAvailableGrades(selectedTutorObj, students);
+  }, [selectedTutorObj, students]);
+
+  const chartSections = useMemo(() => {
+    return getChartAvailableSections(selectedTutorObj, selectedGrade, students);
+  }, [selectedTutorObj, selectedGrade, students]);
+
+  // Auto-reset filters if their selection is no longer valid for the active tutor or parent filters
+  useEffect(() => {
+    if (selectedAralLevel !== 'all' && !chartAralLevels.some((l) => l.id === selectedAralLevel)) {
+      setSelectedAralLevel('all');
+    }
+  }, [selectedAralLevel, chartAralLevels]);
+
+  useEffect(() => {
+    if (selectedSubject !== 'all' && !chartSubjects.some((s) => s.id === selectedSubject)) {
+      setSelectedSubject('all');
+    }
+  }, [selectedSubject, chartSubjects]);
+
+  useEffect(() => {
+    if (selectedGrade !== 'all' && !chartGrades.includes(selectedGrade)) {
+      setSelectedGrade('all');
+    }
+  }, [selectedGrade, chartGrades]);
+
+  useEffect(() => {
+    if (selectedSection !== 'all' && !chartSections.includes(selectedSection)) {
+      setSelectedSection('all');
+    }
+  }, [selectedSection, chartSections]);
+
+  // Filter students based on selected tutor and additional chart filters
+  const filteredStudents = useMemo(() => {
+    return students.filter((s) =>
+      isStudentMatchingChartFilters(s, {
+        tutorId: selectedTutorId,
+        aralLevel: selectedAralLevel,
+        subject: selectedSubject,
+        grade: selectedGrade,
+        section: selectedSection,
+      })
+    );
+  }, [students, selectedTutorId, selectedAralLevel, selectedSubject, selectedGrade, selectedSection]);
 
   // ── Stakeholder-Validated Overall Metrics Calculations (Always for ALL students) ──
   const studentRiskRows = useMemo(() => {
@@ -994,7 +1054,22 @@ export const AdminHome: React.FC = () => {
   const chartTrendData = useMemo(() => {
     if (filteredStudents.length === 0 || grades.length === 0) return [];
     const studentIds = new Set(filteredStudents.map((s) => String(s.id)));
-    const assessmentGrades = grades.filter((g) => studentIds.has(String(g.student)) && g.component_type === 'assessment');
+    const assessmentGrades = grades.filter((g) => {
+      const gStudent = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
+      const gStudentId = (g as any).student_id;
+      const matchesStudent = studentIds.has(String(gStudent)) || studentIds.has(String(gStudentId));
+      if (!matchesStudent) return false;
+
+      if (selectedSubject !== 'all') {
+        const gSub = (g.subject || '').toLowerCase().trim();
+        const targetSub = selectedSubject.toLowerCase().trim();
+        const matchesLanguage =
+          (targetSub === 'reading' && (gSub === 'reading' || gSub === 'filipino')) ||
+          (targetSub === 'filipino' && (gSub === 'reading' || gSub === 'filipino'));
+        if (!matchesLanguage && gSub !== targetSub) return false;
+      }
+      return g.component_type === 'assessment';
+    });
     if (assessmentGrades.length === 0) return [];
 
     const now = new Date();
@@ -1144,7 +1219,7 @@ export const AdminHome: React.FC = () => {
         assessmentLabels: p.assessmentLabels,
       };
     });
-  }, [filteredStudents, grades, attendance, trendFilter, adminMilestone]);
+  }, [filteredStudents, grades, attendance, trendFilter, adminMilestone, selectedSubject]);
 
   const highestScore = useMemo(() => (chartTrendData.length === 0 ? 0 : Math.max(...chartTrendData.map((d) => d.value))), [chartTrendData]);
   const lowestScore = useMemo(() => (chartTrendData.length === 0 ? 0 : Math.min(...chartTrendData.map((d) => d.value))), [chartTrendData]);
@@ -1744,21 +1819,21 @@ export const AdminHome: React.FC = () => {
         {/* ── Left Column (9 cols on lg & xl: ~75% width): PNAHS ARAL PERFORMANCE TREND CHART ── */}
         <div className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3 w-full min-w-0 max-w-full">
           <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 w-full min-w-0 max-w-full shadow-2xs">
-            <div className="flex items-center justify-between gap-2 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-              <div className="min-w-0 flex-1">
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+              <div className="min-w-0">
                 <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate">
                   {selectedTutorObj
                     ? `${(selectedTutorObj.first_name || selectedTutorObj.full_name?.split(' ')[0] || '').trim().toUpperCase()}'S STUDENTS PERFORMANCE TREND`
                     : 'PNAHS ARAL PERFORMANCE TREND CHART'}
                 </h3>
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap">
                 {/* Tutor Filter Dropdown */}
                 <select
                   aria-label="Filter by Tutor Class"
                   value={selectedTutorId}
                   onChange={(e) => setSelectedTutorId(e.target.value)}
-                  className="h-7 sm:h-8 px-1.5 sm:px-2 rounded-sm text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[110px] xs:max-w-[140px] sm:max-w-[170px] whitespace-nowrap truncate shrink-0"
+                  className="h-7 sm:h-8 px-1.5 sm:px-2 rounded-sm text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[130px] sm:max-w-[160px] whitespace-nowrap truncate shrink-0"
                 >
                   <option value="all">ALL TUTORS</option>
                   {tutors.map((tutor) => {
@@ -1771,18 +1846,65 @@ export const AdminHome: React.FC = () => {
                   })}
                 </select>
 
-                {/* Legend */}
-                <div className="hidden xs:flex items-center gap-2 sm:gap-3 shrink-0 whitespace-nowrap">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 whitespace-nowrap">
-                    <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
-                    <span className="hidden sm:inline whitespace-nowrap">Composite rating</span>
-                    <span className="sm:hidden whitespace-nowrap">Composite</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400 whitespace-nowrap">
-                    <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block shrink-0" />
-                    <span className="truncate max-w-[100px] sm:max-w-none whitespace-nowrap">{adminMilestone}</span>
-                  </div>
-                </div>
+                {/* ARAL Level Filter Dropdown */}
+                <select
+                  aria-label="Filter by ARAL Level"
+                  value={selectedAralLevel}
+                  onChange={(e) => setSelectedAralLevel(e.target.value)}
+                  className="h-7 sm:h-8 px-1.5 sm:px-2 rounded-sm text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[130px] whitespace-nowrap truncate shrink-0"
+                >
+                  <option value="all">ALL ARAL LEVELS</option>
+                  {chartAralLevels.map((lvl) => (
+                    <option key={lvl.id} value={lvl.id}>
+                      {lvl.label}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Subject Filter Dropdown */}
+                <select
+                  aria-label="Filter by Subject"
+                  value={selectedSubject}
+                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  className="h-7 sm:h-8 px-1.5 sm:px-2 rounded-sm text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[125px] whitespace-nowrap truncate shrink-0"
+                >
+                  <option value="all">ALL SUBJECT</option>
+                  {chartSubjects.map((sub) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.label}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Grade Level Filter Dropdown */}
+                <select
+                  aria-label="Filter by Grade Level"
+                  value={selectedGrade}
+                  onChange={(e) => setSelectedGrade(e.target.value)}
+                  className="h-7 sm:h-8 px-1.5 sm:px-2 rounded-sm text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[135px] whitespace-nowrap truncate shrink-0"
+                >
+                  <option value="all">ALL GRADE LEVELS</option>
+                  {chartGrades.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Section Filter Dropdown */}
+                <select
+                  aria-label="Filter by Section"
+                  value={selectedSection}
+                  onChange={(e) => setSelectedSection(e.target.value)}
+                  className="h-7 sm:h-8 px-1.5 sm:px-2 rounded-sm text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] max-w-[125px] whitespace-nowrap truncate shrink-0"
+                >
+                  <option value="all">ALL SECTIONS</option>
+                  {chartSections.map((sec) => (
+                    <option key={sec} value={sec}>
+                      {sec}
+                    </option>
+                  ))}
+                </select>
 
                 {/* Period Toggles */}
                 <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">

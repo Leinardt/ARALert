@@ -112,6 +112,7 @@ export const EditUser: React.FC = () => {
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<EditUserFields>({
     resolver: zodResolver(editUserSchema),
@@ -122,6 +123,21 @@ export const EditUser: React.FC = () => {
   const watchedStudentGrade = watch('grade_level_grade');
   const watchedStudentSection = watch('grade_level_section');
   const watchedStudentAralLevel = watch('aral_level');
+  const watchedStudentSubject = watch('subject');
+
+  // Synchronize student subject with selected ARAL level:
+  // - Basic: English is unavailable, replaced by Filipino (value="Reading")
+  // - Plus: Filipino is unavailable, replaced by English (value="English")
+  // - Math and Science remain untouched
+  useEffect(() => {
+    if (!isLoading && selectedRole === 'student') {
+      if (watchedStudentAralLevel === 'plus' && watchedStudentSubject === 'Reading') {
+        setValue('subject', 'English');
+      } else if (watchedStudentAralLevel !== 'plus' && watchedStudentSubject === 'English') {
+        setValue('subject', 'Reading');
+      }
+    }
+  }, [isLoading, selectedRole, watchedStudentAralLevel, watchedStudentSubject, setValue]);
 
   // Tutor multi-level and multi-section state
   const [tutorAralLevels, setTutorAralLevels] = useState<('basic' | 'plus')[]>(['basic']);
@@ -314,7 +330,11 @@ export const EditUser: React.FC = () => {
           is_active: userData.is_active,
           assigned_tutor: userData.assigned_tutor || '',
           aral_level: userData.aral_level || 'basic',
-          subject: userData.subject || 'Reading',
+          subject: (userData.aral_level === 'plus' && (!userData.subject || userData.subject === 'Reading'))
+            ? 'English'
+            : (userData.aral_level !== 'plus' && userData.subject === 'English')
+            ? 'Reading'
+            : (userData.subject || 'Reading'),
           parent_guardian_name: userData.parent_guardian_name || '',
           contact_number: userData.contact_number || '',
           has_bosy: userData.has_bosy ?? true,
@@ -980,24 +1000,27 @@ export const EditUser: React.FC = () => {
                     {...register('aral_level')}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-[#1A1A1A] rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] text-xs bg-white dark:bg-[#111111] dark:text-slate-100 font-medium cursor-pointer"
                   >
-                    <option value="basic">ARAL Basic</option>
-                    <option value="plus">ARAL Plus</option>
+                    <option value="basic">BASIC</option>
+                    <option value="plus">PLUS</option>
                   </select>
                 </div>
 
                 <div>
                   <label htmlFor="student_subject_edit" className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                    Subject Focus <span className="text-red-500">*</span>
+                    Subject <span className="text-red-500">*</span>
                   </label>
                   <select
                     id="student_subject_edit"
                     {...register('subject')}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-[#1A1A1A] rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] text-xs bg-white dark:bg-[#111111] dark:text-slate-100 font-medium cursor-pointer"
                   >
-                    <option value="Reading">READING</option>
+                    {watchedStudentAralLevel === 'plus' ? (
+                      <option value="English">ENGLISH (for Plus)</option>
+                    ) : (
+                      <option value="Reading">FILIPINO (for Basic)</option>
+                    )}
                     <option value="Math">MATH</option>
                     <option value="Science">SCIENCE</option>
-                    <option value="English">ENGLISH</option>
                   </select>
                 </div>
 
@@ -1015,7 +1038,7 @@ export const EditUser: React.FC = () => {
                     <option value="">To Be Assigned (TBA)</option>
                     {matchingTutors.map((tutor) => (
                       <option key={tutor.id} value={tutor.id}>
-                        {tutor.full_name || `${tutor.first_name} ${tutor.last_name}`} ({tutor.email}) — [Handled: {tutor.grade_level || 'General'}]
+                        {tutor.full_name || `${tutor.first_name} ${tutor.last_name}`} — [Handled: {tutor.grade_level || 'General'}]
                       </option>
                     ))}
                   </select>

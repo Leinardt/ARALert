@@ -126,6 +126,7 @@ export const CreateUser: React.FC = () => {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<CreateUserFields>({
     resolver: zodResolver(createUserSchema),
@@ -154,6 +155,21 @@ export const CreateUser: React.FC = () => {
   const watchedStudentGrade = watch('grade_level_grade');
   const watchedStudentSection = watch('grade_level_section');
   const watchedStudentAralLevel = watch('aral_level');
+  const watchedStudentSubject = watch('subject');
+
+  // Synchronize student subject with selected ARAL level:
+  // - Basic: English is unavailable, replaced by Filipino (value="Reading")
+  // - Plus: Filipino is unavailable, replaced by English (value="English")
+  // - Math and Science remain untouched
+  useEffect(() => {
+    if (selectedRole === 'student') {
+      if (watchedStudentAralLevel === 'plus' && watchedStudentSubject === 'Reading') {
+        setValue('subject', 'English');
+      } else if (watchedStudentAralLevel !== 'plus' && watchedStudentSubject === 'English') {
+        setValue('subject', 'Reading');
+      }
+    }
+  }, [selectedRole, watchedStudentAralLevel, watchedStudentSubject, setValue]);
 
   // Filter tutors matching student's grade, section, and ARAL level
   const matchingTutors = useMemo(() => {
@@ -897,24 +913,27 @@ export const CreateUser: React.FC = () => {
                       {...register('aral_level')}
                       className="w-full rounded-md border border-gray-300 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-3 py-2 text-xs font-medium shadow-2xs focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100 cursor-pointer"
                     >
-                      <option value="basic">ARAL Basic</option>
-                      <option value="plus">ARAL Plus</option>
+                      <option value="basic">BASIC</option>
+                      <option value="plus">PLUS</option>
                     </select>
                   </div>
 
                   <div>
                     <label htmlFor="student_subject" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                      Subject Focus <span className="text-red-500">*</span>
+                      Subject <span className="text-red-500">*</span>
                     </label>
                     <select
                       id="student_subject"
                       {...register('subject')}
                       className="w-full rounded-md border border-gray-300 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-3 py-2 text-xs font-medium shadow-2xs focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100 cursor-pointer"
                     >
-                      <option value="Reading">READING</option>
+                      {watchedStudentAralLevel === 'plus' ? (
+                        <option value="English">ENGLISH (for Plus)</option>
+                      ) : (
+                        <option value="Reading">FILIPINO (for Basic)</option>
+                      )}
                       <option value="Math">MATH</option>
                       <option value="Science">SCIENCE</option>
-                      <option value="English">ENGLISH</option>
                     </select>
                   </div>
 
@@ -932,7 +951,7 @@ export const CreateUser: React.FC = () => {
                       <option value="">To Be Assigned (TBA)</option>
                       {matchingTutors.map((tutor) => (
                         <option key={tutor.id} value={tutor.id}>
-                          {tutor.full_name || `${tutor.first_name} ${tutor.last_name}`} ({tutor.email}) — [Handled: {tutor.grade_level || 'General'}]
+                          {tutor.full_name || `${tutor.first_name} ${tutor.last_name}`} — [Handled: {tutor.grade_level || 'General'}]
                         </option>
                       ))}
                     </select>
