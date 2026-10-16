@@ -1871,8 +1871,7 @@ export const PrincipalHome: React.FC = () => {
           <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 w-full min-w-0 max-w-full shadow-2xs">
             {/* ── Row 1: Card Title & Period Toggles (Full width, never truncates title) ── */}
             <div className="flex items-center justify-between gap-3 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-              <div className="min-w-0 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
+              <div className="min-w-0">
                 <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">
                   {selectedTutorObj
                     ? `${selectedTutorObj.name.toUpperCase()}'S STUDENTS PERFORMANCE TREND`
