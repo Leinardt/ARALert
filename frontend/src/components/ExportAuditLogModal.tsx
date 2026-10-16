@@ -235,6 +235,24 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
     return 'ALL RECORDED DATES';
   }, [datePreset, dateFrom, dateTo]);
 
+  // Multi-page pagination for realistic paper sheets:
+  // Page 1 accommodates the letterhead and title banner (~18 rows).
+  // Subsequent pages do not repeat the header and display ~26 rows.
+  const ROWS_PER_FIRST_PAGE = 18;
+  const ROWS_PER_SUBSEQUENT_PAGE = 26;
+
+  const paginatedLogs = useMemo(() => {
+    if (logs.length === 0) return [[] as AuditLogExportItem[]];
+    const chunks: AuditLogExportItem[][] = [];
+    chunks.push(logs.slice(0, ROWS_PER_FIRST_PAGE));
+    let start = ROWS_PER_FIRST_PAGE;
+    while (start < logs.length) {
+      chunks.push(logs.slice(start, start + ROWS_PER_SUBSEQUENT_PAGE));
+      start += ROWS_PER_SUBSEQUENT_PAGE;
+    }
+    return chunks;
+  }, [logs]);
+
   // Handle Preset changes
   const applyPreset = (preset: DatePreset) => {
     setDatePreset(preset);
@@ -746,112 +764,209 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
 
             </div>
 
-            {/* Right Column: Physical Paper Sheet Preview */}
+            {/* Right Column: Physical Paper Sheets Preview (Scrollable across multiple pages) */}
             <div className="lg:col-span-8 xl:col-span-9 flex flex-col items-center min-w-0">
-              <div className="w-full rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-slate-100/90 dark:bg-[#111111] p-3 sm:p-6 overflow-x-auto flex flex-col items-center shadow-inner">
-                {/* Physical Paper Sheet Canvas */}
-                <div
-                  ref={printRef}
-                  data-print-container="true"
-                  style={{
-                    width: PAPER_CONFIG[paperSize].width,
-                    minHeight: PAPER_CONFIG[paperSize].minHeight,
-                    fontFamily: "'Times New Roman', Times, Georgia, serif",
-                    backgroundColor: '#ffffff',
-                    color: '#0f172a',
-                  }}
-                  className="export-paper-sheet bg-white shadow-xl border border-slate-300 pt-16 pb-16 px-10 sm:px-12 text-slate-900 font-serif transition-all duration-150 flex-shrink-0"
-                >
-                  {/* DepEd and School Letterhead Header */}
-                  <div className="flex flex-nowrap items-center justify-center gap-6 pb-2 mx-auto w-full max-w-3xl">
-                    <div className="flex-shrink-0 w-16 h-16 flex items-center justify-center">
-                      <img src={DEPED_LOGO_SRC} alt="DepEd Logo" className="w-16 h-16 object-contain select-none" />
+              <div className="w-full rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-slate-100/90 dark:bg-[#111111] p-3 sm:p-6 overflow-x-auto flex flex-col items-center shadow-inner gap-6">
+                {/* Page count & record indicator pill */}
+                <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 px-3.5 py-1 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 shadow-xs">
+                  <span>Document Preview: {paginatedLogs.length} {paginatedLogs.length === 1 ? 'Page' : 'Pages'}</span>
+                  <span className="text-slate-300 dark:text-zinc-700">•</span>
+                  <span>{logs.length} Total Events Logged</span>
+                </div>
+
+                {/* Printable container rendering multiple stacked paper sheets */}
+                <div ref={printRef} data-print-container="true" className="flex flex-col items-center gap-8 w-full">
+                  {isLoadingLogs ? (
+                    <div
+                      style={{
+                        width: PAPER_CONFIG[paperSize].width,
+                        minHeight: PAPER_CONFIG[paperSize].minHeight,
+                        height: PAPER_CONFIG[paperSize].minHeight,
+                        fontFamily: "'Times New Roman', Times, Georgia, serif",
+                        backgroundColor: '#ffffff',
+                        color: '#0f172a',
+                      }}
+                      className="export-paper-sheet bg-white shadow-xl border border-slate-300 p-12 text-slate-900 font-serif flex flex-col items-center justify-center flex-shrink-0"
+                    >
+                      <p className="text-slate-500 italic text-sm">Loading audit logs for preview…</p>
                     </div>
-                    <div className="text-center px-2 space-y-0.5 min-w-0 flex-shrink-0">
-                      <p className="text-xs uppercase tracking-wider text-slate-600">{division}</p>
-                      <p className="text-xs uppercase tracking-wider text-slate-600">{district}</p>
-                      <h4 className="text-sm font-bold uppercase tracking-wide text-slate-900 leading-tight">
-                        {schoolName}
-                      </h4>
-                      <p className="text-xs text-slate-500 italic">{schoolAddress}</p>
+                  ) : paginatedLogs.length === 0 || logs.length === 0 ? (
+                    <div
+                      style={{
+                        width: PAPER_CONFIG[paperSize].width,
+                        minHeight: PAPER_CONFIG[paperSize].minHeight,
+                        height: PAPER_CONFIG[paperSize].minHeight,
+                        fontFamily: "'Times New Roman', Times, Georgia, serif",
+                        backgroundColor: '#ffffff',
+                        color: '#0f172a',
+                      }}
+                      className="export-paper-sheet bg-white shadow-xl border border-slate-300 pt-10 pb-8 px-8 sm:px-10 text-slate-900 font-serif flex flex-col justify-between flex-shrink-0"
+                    >
+                      <div>
+                        {/* DepEd and School Letterhead Header */}
+                        <div className="flex flex-nowrap items-center justify-center gap-6 pb-2 mx-auto w-full max-w-3xl">
+                          <div className="flex-shrink-0 w-16 h-16 flex items-center justify-center">
+                            <img src={DEPED_LOGO_SRC} alt="DepEd Logo" className="w-16 h-16 object-contain select-none" />
+                          </div>
+                          <div className="text-center px-2 space-y-0.5 min-w-0 flex-shrink-0">
+                            <p className="text-xs uppercase tracking-wider text-slate-600">{division}</p>
+                            <p className="text-xs uppercase tracking-wider text-slate-600">{district}</p>
+                            <h4 className="text-sm font-bold uppercase tracking-wide text-slate-900 leading-tight">
+                              {schoolName}
+                            </h4>
+                            <p className="text-xs text-slate-500 italic">{schoolAddress}</p>
+                          </div>
+                          <div className="flex-shrink-0 w-16 h-16 flex items-center justify-center">
+                            <img src={PNAHS_LOGO_SRC} alt="PNAHS Logo" className="w-16 h-16 object-contain select-none" />
+                          </div>
+                        </div>
+
+                        {/* Document Title Banner */}
+                        <div className="text-center mt-3 pb-3 border-b border-slate-900/30">
+                          <h3 className="text-base font-bold text-slate-900 tracking-wide uppercase">{documentTitle}</h3>
+                          <p className="text-xs font-bold text-slate-700 mt-1 uppercase">Date Range: {dateRangeStr}</p>
+                          <p className="text-[10px] text-slate-500 italic mt-0.5">
+                            Total Records: 0 events logged in system
+                          </p>
+                        </div>
+
+                        <div className="mt-8 text-center text-slate-500 italic text-sm">
+                          No audit events found matching the selected range.
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-200 flex items-center justify-between text-[9px] text-slate-500 font-sans uppercase">
+                        <span>ARAL Program System Audit Log</span>
+                        <span>Page 1 of 1</span>
+                      </div>
                     </div>
-                    <div className="flex-shrink-0 w-16 h-16 flex items-center justify-center">
-                      <img src={PNAHS_LOGO_SRC} alt="PNAHS Logo" className="w-16 h-16 object-contain select-none" />
-                    </div>
-                  </div>
+                  ) : (
+                    paginatedLogs.map((pageItems, pageIdx) => {
+                      const pageNumber = pageIdx + 1;
+                      const totalPages = paginatedLogs.length;
+                      const startRowIdx = pageIdx === 0 ? 0 : ROWS_PER_FIRST_PAGE + (pageIdx - 1) * ROWS_PER_SUBSEQUENT_PAGE;
 
-                  {/* Document Title Banner */}
-                  <div className="text-center mt-3 pb-3 border-b border-slate-900/30">
-                    <h3 className="text-base font-bold text-slate-900 tracking-wide uppercase">{documentTitle}</h3>
-                    <p className="text-xs font-bold text-slate-700 mt-1 uppercase">Date Range: {dateRangeStr}</p>
-                    <p className="text-[10px] text-slate-500 italic mt-0.5">
-                      Total Records: {logs.length} events logged in system
-                    </p>
-                  </div>
+                      return (
+                        <div
+                          key={`audit-page-${pageNumber}`}
+                          style={{
+                            width: PAPER_CONFIG[paperSize].width,
+                            minHeight: PAPER_CONFIG[paperSize].minHeight,
+                            height: PAPER_CONFIG[paperSize].minHeight,
+                            fontFamily: "'Times New Roman', Times, Georgia, serif",
+                            backgroundColor: '#ffffff',
+                            color: '#0f172a',
+                          }}
+                          className="export-paper-sheet bg-white shadow-xl border border-slate-300 pt-8 pb-6 px-7 sm:px-9 text-slate-900 font-serif flex flex-col justify-between flex-shrink-0 relative"
+                        >
+                          <div>
+                            {/* Page 1: Official Header & Document Title (ONLY on Page 1) */}
+                            {pageIdx === 0 && (
+                              <div className="mb-4">
+                                <div className="flex flex-nowrap items-center justify-center gap-6 pb-2 mx-auto w-full max-w-3xl">
+                                  <div className="flex-shrink-0 w-16 h-16 flex items-center justify-center">
+                                    <img src={DEPED_LOGO_SRC} alt="DepEd Logo" className="w-16 h-16 object-contain select-none" />
+                                  </div>
+                                  <div className="text-center px-2 space-y-0.5 min-w-0 flex-shrink-0">
+                                    <p className="text-xs uppercase tracking-wider text-slate-600">{division}</p>
+                                    <p className="text-xs uppercase tracking-wider text-slate-600">{district}</p>
+                                    <h4 className="text-sm font-bold uppercase tracking-wide text-slate-900 leading-tight">
+                                      {schoolName}
+                                    </h4>
+                                    <p className="text-xs text-slate-500 italic">{schoolAddress}</p>
+                                  </div>
+                                  <div className="flex-shrink-0 w-16 h-16 flex items-center justify-center">
+                                    <img src={PNAHS_LOGO_SRC} alt="PNAHS Logo" className="w-16 h-16 object-contain select-none" />
+                                  </div>
+                                </div>
 
-                  {/* Audit Logs Table */}
-                  <div className="mt-4">
-                    <table className="w-full border-collapse border border-slate-900 text-xs">
-                      <thead>
-                        <tr className="bg-slate-100 text-slate-900 font-bold border-b border-slate-900">
-                          <th className="border border-slate-900 px-1.5 py-1 text-center w-8">#</th>
-                          <th className="border border-slate-900 px-2 py-1 text-center w-36">TIMESTAMP (PHT)</th>
-                          <th className="border border-slate-900 px-2 py-1 text-left w-44">EVENT / ACTION</th>
-                          <th className="border border-slate-900 px-2 py-1 text-left w-28">TARGET</th>
-                          <th className="border border-slate-900 px-2 py-1 text-left w-36">ACTOR NAME</th>
-                          <th className="border border-slate-900 px-2 py-1 text-center w-24">ROLE</th>
-                          <th className="border border-slate-900 px-2 py-1 text-left">EMAIL</th>
-                          <th className="border border-slate-900 px-2 py-1 text-center w-28">LRN</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {isLoadingLogs ? (
-                          <tr>
-                            <td colSpan={8} className="border border-slate-900 py-8 text-center text-slate-500 italic">
-                              Loading audit logs for preview…
-                            </td>
-                          </tr>
-                        ) : logs.length === 0 ? (
-                          <tr>
-                            <td colSpan={8} className="border border-slate-900 py-8 text-center text-slate-500 italic">
-                              No audit events found matching the selected range.
-                            </td>
-                          </tr>
-                        ) : (
-                          logs.map((log, idx) => (
-                            <tr key={log.id || idx} className={idx % 2 === 1 ? 'bg-slate-50/70' : 'bg-white'}>
-                              <td className="border border-slate-900 px-1.5 py-1 text-center font-mono text-[11px]">
-                                {idx + 1}
-                              </td>
-                              <td className="border border-slate-900 px-2 py-1 text-center text-[10.5px] font-mono">
-                                {log.timestamp}
-                              </td>
-                              <td className="border border-slate-900 px-2 py-1 text-left text-[11px] font-semibold">
-                                {log.action.replace(/_/g, ' ')}
-                              </td>
-                              <td className="border border-slate-900 px-2 py-1 text-left text-[11px] font-semibold text-slate-900 whitespace-nowrap">
-                                {formatAuditTarget(log.target)}
-                              </td>
-                              <td className="border border-slate-900 px-2 py-1 text-left text-[11px]">
-                                {log.name || 'System'}
-                              </td>
-                              <td className="border border-slate-900 px-2 py-1 text-center text-[10.5px]">
-                                {log.role || '—'}
-                              </td>
-                              <td className="border border-slate-900 px-2 py-1 text-left text-[10.5px] font-mono">
-                                {log.role?.toLowerCase() === 'student' || log.email?.includes('@aralert.local') || log.email?.startsWith('student-') ? '—' : (log.email || '—')}
-                              </td>
-                              <td className="border border-slate-900 px-2 py-1 text-center text-[10.5px] font-mono">
-                                {log.lrn || '—'}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                                <div className="text-center mt-2.5 pb-2.5 border-b border-slate-900/30">
+                                  <h3 className="text-base font-bold text-slate-900 tracking-wide uppercase">{documentTitle}</h3>
+                                  <p className="text-xs font-bold text-slate-700 mt-0.5 uppercase">Date Range: {dateRangeStr}</p>
+                                  <p className="text-[10px] text-slate-500 italic mt-0.5">
+                                    Total Records: {logs.length} events logged in system
+                                  </p>
+                                </div>
+                              </div>
+                            )}
 
+                            {/* Page 2+: Compact document title continuation banner */}
+                            {pageIdx > 0 && (
+                              <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-300 text-[10px] font-sans text-slate-600 uppercase tracking-wide">
+                                <span className="font-bold text-slate-800">{documentTitle} (Continued)</span>
+                                <span>{dateRangeStr}</span>
+                              </div>
+                            )}
 
+                            {/* Audit Logs Table strictly bounded by paper margins */}
+                            <table className="w-full border-collapse border border-slate-900 text-[10px] table-fixed">
+                              <colgroup>
+                                <col style={{ width: '4%' }} />   {/* # */}
+                                <col style={{ width: '18%' }} />  {/* TIMESTAMP */}
+                                <col style={{ width: '20%' }} />  {/* EVENT */}
+                                <col style={{ width: '13%' }} />  {/* TARGET */}
+                                <col style={{ width: '16%' }} />  {/* ACTOR NAME */}
+                                <col style={{ width: '9%' }} />   {/* ROLE */}
+                                <col style={{ width: '12%' }} />  {/* EMAIL */}
+                                <col style={{ width: '8%' }} />   {/* LRN */}
+                              </colgroup>
+                              <thead>
+                                <tr className="bg-slate-100 text-slate-900 font-bold border-b border-slate-900 text-center">
+                                  <th className="border border-slate-900 px-1 py-1 text-center font-bold">#</th>
+                                  <th className="border border-slate-900 px-1 py-1 text-center font-bold">TIMESTAMP (PHT)</th>
+                                  <th className="border border-slate-900 px-1.5 py-1 text-left font-bold">EVENT / ACTION</th>
+                                  <th className="border border-slate-900 px-1.5 py-1 text-left font-bold">TARGET</th>
+                                  <th className="border border-slate-900 px-1.5 py-1 text-left font-bold">ACTOR NAME</th>
+                                  <th className="border border-slate-900 px-1 py-1 text-center font-bold">ROLE</th>
+                                  <th className="border border-slate-900 px-1.5 py-1 text-left font-bold">EMAIL</th>
+                                  <th className="border border-slate-900 px-1 py-1 text-center font-bold">LRN</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {pageItems.map((log, rowIdx) => {
+                                  const globalIdx = startRowIdx + rowIdx + 1;
+                                  return (
+                                    <tr key={log.id || rowIdx} className={rowIdx % 2 === 1 ? 'bg-slate-50/70' : 'bg-white'}>
+                                      <td className="border border-slate-900 px-1 py-1 text-center font-mono text-[9.5px]">
+                                        {globalIdx}
+                                      </td>
+                                      <td className="border border-slate-900 px-1 py-1 text-center text-[9.5px] font-mono whitespace-nowrap">
+                                        {log.timestamp}
+                                      </td>
+                                      <td className="border border-slate-900 px-1.5 py-1 text-left font-semibold truncate" title={log.action.replace(/_/g, ' ')}>
+                                        {log.action.replace(/_/g, ' ')}
+                                      </td>
+                                      <td className="border border-slate-900 px-1.5 py-1 text-left font-semibold text-slate-900 truncate" title={formatAuditTarget(log.target)}>
+                                        {formatAuditTarget(log.target)}
+                                      </td>
+                                      <td className="border border-slate-900 px-1.5 py-1 text-left truncate" title={log.name || 'System'}>
+                                        {log.name || 'System'}
+                                      </td>
+                                      <td className="border border-slate-900 px-1 py-1 text-center text-[9.5px] truncate" title={log.role || '—'}>
+                                        {log.role || '—'}
+                                      </td>
+                                      <td className="border border-slate-900 px-1.5 py-1 text-left text-[9.5px] font-mono truncate" title={log.email || '—'}>
+                                        {log.role?.toLowerCase() === 'student' || log.email?.includes('@aralert.local') || log.email?.startsWith('student-') ? '—' : (log.email || '—')}
+                                      </td>
+                                      <td className="border border-slate-900 px-1 py-1 text-center text-[9.5px] font-mono whitespace-nowrap">
+                                        {log.lrn || '—'}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Professional Page Footer */}
+                          <div className="pt-2.5 mt-3 border-t border-slate-300 flex items-center justify-between text-[9px] text-slate-500 font-sans uppercase">
+                            <span>ARAL Program System Audit Log</span>
+                            <span>Page {pageNumber} of {totalPages}</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
