@@ -144,6 +144,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
           id: String(r.id),
           timestamp: r.timestamp,
           action: r.action,
+          target: r.target || (r.details?.target_name || r.details?.student_name || r.details?.target_username || '—'),
           name: r.name || 'System',
           role: r.role || '—',
           email: r.email || '—',
@@ -167,6 +168,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                 id: String(r.id),
                 timestamp: r.timestamp,
                 action: r.action,
+                target: r.target || (r.details?.target_name || r.details?.student_name || r.details?.target_username || '—'),
                 name: r.name || 'System',
                 role: r.role || '—',
                 email: r.email || '—',
@@ -558,6 +560,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                           <th className="border border-slate-900 px-1.5 py-1 text-center w-8">#</th>
                           <th className="border border-slate-900 px-2 py-1 text-center w-36">TIMESTAMP (PHT)</th>
                           <th className="border border-slate-900 px-2 py-1 text-left w-44">EVENT / ACTION</th>
+                          <th className="border border-slate-900 px-2 py-1 text-left w-40">TARGET</th>
                           <th className="border border-slate-900 px-2 py-1 text-left w-36">ACTOR NAME</th>
                           <th className="border border-slate-900 px-2 py-1 text-center w-24">ROLE</th>
                           <th className="border border-slate-900 px-2 py-1 text-left">EMAIL</th>
@@ -567,13 +570,13 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                       <tbody>
                         {isLoadingLogs ? (
                           <tr>
-                            <td colSpan={7} className="border border-slate-900 py-8 text-center text-slate-500 italic">
+                            <td colSpan={8} className="border border-slate-900 py-8 text-center text-slate-500 italic">
                               Loading audit logs for preview…
                             </td>
                           </tr>
                         ) : logs.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="border border-slate-900 py-8 text-center text-slate-500 italic">
+                            <td colSpan={8} className="border border-slate-900 py-8 text-center text-slate-500 italic">
                               No audit events found matching the selected range.
                             </td>
                           </tr>
@@ -588,6 +591,9 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                               </td>
                               <td className="border border-slate-900 px-2 py-1 text-left text-[11px] font-semibold">
                                 {log.action.replace(/_/g, ' ')}
+                              </td>
+                              <td className="border border-slate-900 px-2 py-1 text-left text-[11px] font-semibold text-slate-900 truncate max-w-[140px]">
+                                {log.target || '—'}
                               </td>
                               <td className="border border-slate-900 px-2 py-1 text-left text-[11px]">
                                 {log.name || 'System'}
@@ -606,7 +612,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                         )}
                         {logs.length > 50 && (
                           <tr className="bg-slate-100/60 font-italic text-slate-600">
-                            <td colSpan={7} className="border border-slate-900 py-1.5 px-3 text-center text-[11px]">
+                            <td colSpan={8} className="border border-slate-900 py-1.5 px-3 text-center text-[11px]">
                               Showing first 50 of {logs.length} events in on-screen preview. Complete set ({logs.length} records) will be included in exported file.
                             </td>
                           </tr>

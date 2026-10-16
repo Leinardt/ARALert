@@ -4,6 +4,7 @@ SuperAdmin and Admin endpoints for user management with audit logging, bulk tuto
 and user login/logout activity history.
 """
 
+import uuid
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import Lower
 from django.shortcuts import get_object_or_404
@@ -247,6 +248,8 @@ class UserListCreateView(generics.ListCreateAPIView):
             details={
                 'target_user_id': str(user.id),
                 'target_username': user.username,
+                'target_name': user.get_full_name() or user.username,
+                'target_role': 'superadmin' if user.is_superuser else user.role,
                 'role': 'superadmin' if user.is_superuser else user.role,
                 'email': user.email
             }
@@ -336,7 +339,13 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
             'USER_UPDATED',
             user=self.request.user,
             request=self.request,
-            details={'target_user_id': str(updated_user.id), 'target_username': updated_user.username, 'updated_fields': list(serializer.validated_data.keys())}
+            details={
+                'target_user_id': str(updated_user.id),
+                'target_username': updated_user.username,
+                'target_name': updated_user.get_full_name() or updated_user.username,
+                'target_role': 'superadmin' if updated_user.is_superuser else updated_user.role,
+                'updated_fields': list(serializer.validated_data.keys())
+            }
         )
 
 
@@ -361,7 +370,7 @@ class UserActivateView(APIView):
             action,
             user=request.user,
             request=request,
-            details={'target_user_id': str(user.id), 'target_username': user.username, 'target_role': user.role}
+            details={'target_user_id': str(user.id), 'target_username': user.username, 'target_name': user.get_full_name() or user.username, 'target_role': user.role}
         )
         return Response({'detail': 'User activated successfully.'})
 
@@ -391,7 +400,7 @@ class UserDeactivateView(APIView):
             action,
             user=request.user,
             request=request,
-            details={'target_user_id': str(user.id), 'target_username': user.username, 'target_role': user.role}
+            details={'target_user_id': str(user.id), 'target_username': user.username, 'target_name': user.get_full_name() or user.username, 'target_role': user.role}
         )
         return Response({'detail': 'User deactivated successfully.'})
 
@@ -575,6 +584,23 @@ class AuditLogListView(APIView):
         offset = (page - 1) * page_size
         logs = qs[offset: offset + page_size]
 
+        # Batch resolve target users for older or target_user_id-only logs
+        target_user_ids = set()
+        for log in logs:
+            if isinstance(log.details, dict) and log.details.get('target_user_id') and not log.details.get('target_name'):
+                try:
+                    target_user_ids.add(uuid.UUID(str(log.details['target_user_id'])))
+                except (ValueError, TypeError):
+                    pass
+
+        target_users_map = {}
+        if target_user_ids:
+            for u in User.objects.filter(id__in=target_user_ids):
+                target_users_map[str(u.id)] = {
+                    'name': u.get_full_name() or u.username,
+                    'role': 'superadmin' if u.is_superuser else (u.role or '')
+                }
+
         results = []
         for log in logs:
             # 1. Name
@@ -618,10 +644,38 @@ class AuditLogListView(APIView):
             else:
                 lrn = '—'
 
+            # 5. Target (The user or entity created, updated, or affected by this event)
+            target = '—'
+            if isinstance(log.details, dict):
+                target_id = str(log.details.get('target_user_id') or '')
+                cached_target = target_users_map.get(target_id)
+
+                target_name = (
+                    log.details.get('target_name') or
+                    (cached_target['name'] if cached_target else None) or
+                    log.details.get('student_name') or
+                    log.details.get('user_name') or
+                    log.details.get('target_username')
+                )
+
+                if target_name:
+                    target_role = (
+                        log.details.get('target_role') or
+                        (cached_target['role'] if cached_target else None) or
+                        log.details.get('role')
+                    )
+                    if target_role and not str(target_name).endswith(f"[{str(target_role).upper()}]"):
+                        target = f"{target_name} [{str(target_role).upper()}]"
+                    else:
+                        target = str(target_name)
+                elif log.action in ('ALLOWED_EMAIL_ADDED', 'ALLOWED_EMAIL_REMOVED') and log.details.get('email'):
+                    target = str(log.details.get('email'))
+
             results.append({
                 'id': str(log.id),
                 'timestamp': localtime(log.timestamp).strftime('%Y-%m-%d %I:%M:%S %p PHT'),
                 'action': log.action,
+                'target': target,
                 'name': name,
                 'role': role,
                 'email': email,

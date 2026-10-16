@@ -10,6 +10,7 @@ interface AuditEntry {
   id: string;
   timestamp: string;
   action: string;
+  target?: string;
   name: string;
   role: string;
   email: string;
@@ -19,6 +20,21 @@ interface AuditEntry {
   user_agent?: string;
   details?: Record<string, any>;
 }
+
+const getTargetDisplay = (log: AuditEntry): string => {
+  if (log.target && log.target !== '—') return log.target;
+  const d = log.details;
+  if (!d) return '—';
+  const targetName = d.target_name || d.student_name || d.user_name || d.target_username;
+  if (targetName) {
+    const role = d.target_role || d.role;
+    return role ? `${targetName} [${String(role).toUpperCase()}]` : String(targetName);
+  }
+  if (d.email && (log.action.includes('EMAIL') || log.action.includes('INVITE'))) {
+    return String(d.email);
+  }
+  return '—';
+};
 
 interface AuditResponse {
   count: number;
@@ -481,6 +497,9 @@ export const AuditLog: React.FC = () => {
                     EVENT
                   </th>
                   <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                    TARGET
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                     NAME
                   </th>
                   <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
@@ -509,6 +528,19 @@ export const AuditLog: React.FC = () => {
                       {/* EVENT */}
                       <td className="px-4 py-3 whitespace-nowrap text-xs font-semibold text-gray-900 dark:text-slate-100">
                         {log.action.replace(/_/g, ' ')}
+                      </td>
+
+                      {/* TARGET */}
+                      <td className="px-4 py-3 whitespace-nowrap text-xs">
+                        {(() => {
+                          const target = getTargetDisplay(log);
+                          if (target === '—') return <span className="text-gray-400 dark:text-slate-500">—</span>;
+                          return (
+                            <span className="font-semibold text-gray-900 dark:text-slate-100">
+                              {target}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* NAME */}

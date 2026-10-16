@@ -20,6 +20,7 @@ export interface AuditLogExportItem {
   id: string;
   timestamp: string;
   action: string;
+  target?: string;
   name: string;
   role: string;
   email: string;
@@ -84,7 +85,8 @@ export const exportAuditLogsToExcel = async (data: AuditLogExportData): Promise<
   worksheet.columns = [
     { key: 'index', width: 6 },
     { key: 'timestamp', width: 25 },
-    { key: 'action', width: 32 },
+    { key: 'action', width: 30 },
+    { key: 'target', width: 26 },
     { key: 'name', width: 26 },
     { key: 'role', width: 16 },
     { key: 'email', width: 30 },
@@ -111,7 +113,7 @@ export const exportAuditLogsToExcel = async (data: AuditLogExportData): Promise<
       extension: 'png',
     });
     worksheet.addImage(pnahsImageId, {
-      tl: { col: 5.8, row: 0.3 },
+      tl: { col: 6.8, row: 0.3 },
       ext: { width: 55, height: 55 },
     });
   } catch (e) {
@@ -164,6 +166,7 @@ export const exportAuditLogsToExcel = async (data: AuditLogExportData): Promise<
     '#',
     'TIMESTAMP (PHT)',
     'ACTION / EVENT',
+    'TARGET',
     'ACTOR NAME',
     'ROLE',
     'EMAIL',
@@ -191,7 +194,7 @@ export const exportAuditLogsToExcel = async (data: AuditLogExportData): Promise<
     right: { style: 'thin', color: { argb: 'FFCBD5E1' } },
   };
 
-  for (let c = 1; c <= 7; c++) {
+  for (let c = 1; c <= 8; c++) {
     const cell = headerRow.getCell(c);
     cell.fill = headerFill;
     cell.font = headerFont;
@@ -211,6 +214,7 @@ export const exportAuditLogsToExcel = async (data: AuditLogExportData): Promise<
       idx + 1,
       log.timestamp,
       log.action.replace(/_/g, ' '),
+      log.target || '—',
       log.name || 'System',
       log.role || '—',
       log.email || '—',
@@ -225,11 +229,12 @@ export const exportAuditLogsToExcel = async (data: AuditLogExportData): Promise<
     row.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
     row.getCell(3).alignment = { horizontal: 'left', vertical: 'middle' };
     row.getCell(4).alignment = { horizontal: 'left', vertical: 'middle' };
-    row.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
-    row.getCell(6).alignment = { horizontal: 'left', vertical: 'middle' };
-    row.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
+    row.getCell(5).alignment = { horizontal: 'left', vertical: 'middle' };
+    row.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
+    row.getCell(7).alignment = { horizontal: 'left', vertical: 'middle' };
+    row.getCell(8).alignment = { horizontal: 'center', vertical: 'middle' };
 
-    for (let c = 1; c <= 7; c++) {
+    for (let c = 1; c <= 8; c++) {
       const cell = row.getCell(c);
       cell.font = dataFont;
       cell.border = thinBorder;
@@ -356,7 +361,7 @@ export const exportAuditLogsToDocx = async (data: AuditLogExportData): Promise<v
   });
 
   // Table column widths (total = 10,000 dxa)
-  const colWidths = [500, 2000, 2200, 1900, 1000, 1400, 1000];
+  const colWidths = [450, 1850, 1800, 1600, 1500, 900, 1100, 800];
 
   const headerRow = new TableRow({
     tableHeader: true,
@@ -364,10 +369,11 @@ export const exportAuditLogsToDocx = async (data: AuditLogExportData): Promise<v
       { text: '#', width: colWidths[0], align: AlignmentType.CENTER },
       { text: 'TIMESTAMP (PHT)', width: colWidths[1], align: AlignmentType.CENTER },
       { text: 'ACTION / EVENT', width: colWidths[2], align: AlignmentType.LEFT },
-      { text: 'ACTOR NAME', width: colWidths[3], align: AlignmentType.LEFT },
-      { text: 'ROLE', width: colWidths[4], align: AlignmentType.CENTER },
-      { text: 'EMAIL', width: colWidths[5], align: AlignmentType.LEFT },
-      { text: 'LRN', width: colWidths[6], align: AlignmentType.CENTER },
+      { text: 'TARGET', width: colWidths[3], align: AlignmentType.LEFT },
+      { text: 'ACTOR NAME', width: colWidths[4], align: AlignmentType.LEFT },
+      { text: 'ROLE', width: colWidths[5], align: AlignmentType.CENTER },
+      { text: 'EMAIL', width: colWidths[6], align: AlignmentType.LEFT },
+      { text: 'LRN', width: colWidths[7], align: AlignmentType.CENTER },
     ].map(
       (col) =>
         new TableCell({
@@ -393,10 +399,11 @@ export const exportAuditLogsToDocx = async (data: AuditLogExportData): Promise<v
         { text: String(idx + 1), width: colWidths[0], align: AlignmentType.CENTER },
         { text: log.timestamp, width: colWidths[1], align: AlignmentType.CENTER },
         { text: log.action.replace(/_/g, ' '), width: colWidths[2], align: AlignmentType.LEFT },
-        { text: log.name || 'System', width: colWidths[3], align: AlignmentType.LEFT },
-        { text: log.role || '—', width: colWidths[4], align: AlignmentType.CENTER },
-        { text: log.email || '—', width: colWidths[5], align: AlignmentType.LEFT },
-        { text: log.lrn || '—', width: colWidths[6], align: AlignmentType.CENTER },
+        { text: log.target || '—', width: colWidths[3], align: AlignmentType.LEFT },
+        { text: log.name || 'System', width: colWidths[4], align: AlignmentType.LEFT },
+        { text: log.role || '—', width: colWidths[5], align: AlignmentType.CENTER },
+        { text: log.email || '—', width: colWidths[6], align: AlignmentType.LEFT },
+        { text: log.lrn || '—', width: colWidths[7], align: AlignmentType.CENTER },
       ].map(
         (col) =>
           new TableCell({
@@ -554,16 +561,17 @@ export const exportAuditLogsToPdf = async (data: AuditLogExportData): Promise<vo
 
   // Table Columns Widths (sum = availWidth)
   const colWidths = [
-    24,  // #
-    100, // Timestamp
-    115, // Event
-    105, // Actor Name
-    55,  // Role
-    85,  // Email
-    availWidth - (24 + 100 + 115 + 105 + 55 + 85), // LRN (~56)
+    22,  // #
+    86,  // Timestamp
+    90,  // Event
+    85,  // Target
+    85,  // Actor Name
+    48,  // Role
+    65,  // Email
+    availWidth - (22 + 86 + 90 + 85 + 85 + 48 + 65), // LRN
   ];
 
-  const headerLabels = ['#', 'TIMESTAMP (PHT)', 'ACTION / EVENT', 'ACTOR NAME', 'ROLE', 'EMAIL', 'LRN'];
+  const headerLabels = ['#', 'TIMESTAMP (PHT)', 'ACTION / EVENT', 'TARGET', 'ACTOR NAME', 'ROLE', 'EMAIL', 'LRN'];
   const headerHeight = 18;
   const rowHeight = 16;
 
@@ -618,6 +626,7 @@ export const exportAuditLogsToPdf = async (data: AuditLogExportData): Promise<vo
       String(idx + 1),
       log.timestamp,
       log.action.replace(/_/g, ' '),
+      log.target || '—',
       log.name || 'System',
       log.role || '—',
       log.email || '—',
@@ -628,10 +637,10 @@ export const exportAuditLogsToPdf = async (data: AuditLogExportData): Promise<vo
       const w = colWidths[i];
       let txt = String(val);
       // Truncate if too long for column
-      const maxChar = i === 1 ? 26 : i === 2 ? 26 : i === 3 ? 24 : i === 5 ? 20 : 16;
+      const maxChar = i === 1 ? 26 : i === 2 ? 22 : i === 3 ? 20 : i === 4 ? 20 : i === 6 ? 18 : 14;
       if (txt.length > maxChar) txt = txt.slice(0, maxChar - 1) + '…';
 
-      if (i === 0 || i === 1 || i === 4 || i === 6) {
+      if (i === 0 || i === 1 || i === 5 || i === 7) {
         pdf.text(txt, x + w / 2, curY + 11, { align: 'center' });
       } else {
         pdf.text(txt, x + 4, curY + 11, { align: 'left' });
@@ -650,11 +659,12 @@ export const exportAuditLogsToPdf = async (data: AuditLogExportData): Promise<vo
 
 // ── 4. Export to CSV (.csv) ────────────────────────────────────────────────────
 export const exportAuditLogsToCsv = (data: AuditLogExportData): void => {
-  const headers = ['#', 'Timestamp (PHT)', 'Action / Event', 'Actor Name', 'Role', 'Email', 'LRN'];
+  const headers = ['#', 'Timestamp (PHT)', 'Action / Event', 'Target', 'Actor Name', 'Role', 'Email', 'LRN'];
   const rows = data.logs.map((log, idx) => [
     `"${idx + 1}"`,
     `"${log.timestamp.replace(/"/g, '""')}"`,
     `"${log.action.replace(/_/g, ' ').replace(/"/g, '""')}"`,
+    `"${(log.target || '—').replace(/"/g, '""')}"`,
     `"${(log.name || 'System').replace(/"/g, '""')}"`,
     `"${(log.role || '—').replace(/"/g, '""')}"`,
     `"${(log.email || '—').replace(/"/g, '""')}"`,
