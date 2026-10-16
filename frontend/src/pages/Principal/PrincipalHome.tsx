@@ -972,30 +972,100 @@ export const PrincipalHome: React.FC = () => {
     return getChartAvailableSections(selectedTutorUser, selectedGrade, students);
   }, [selectedTutorUser, selectedGrade, students]);
 
-  // Auto-reset filters if their selection is no longer valid for the active tutor or parent filters
+  // When selected tutor changes, auto-adjust other dropdowns to the tutor's handled class
+  const prevTutorIdRef = useRef(selectedTutorId);
   useEffect(() => {
-    if (selectedAralLevel !== 'all' && !chartAralLevels.some((l) => l.id === selectedAralLevel)) {
+    if (prevTutorIdRef.current !== selectedTutorId) {
+      prevTutorIdRef.current = selectedTutorId;
+      if (selectedTutorId === 'all') {
+        setSelectedAralLevel('all');
+        setSelectedSubject('all');
+        setSelectedGrade('all');
+        setSelectedSection('all');
+      } else if (selectedTutorUser) {
+        // 1. ARAL level
+        const avLevels = getChartAvailableAralLevels(selectedTutorUser);
+        const nextLevel =
+          avLevels.length === 1
+            ? avLevels[0].id
+            : avLevels.some((l) => l.id === selectedAralLevel)
+            ? selectedAralLevel
+            : 'all';
+        setSelectedAralLevel(nextLevel);
+
+        // 2. Subject
+        const avSubjects = getChartAvailableSubjects(selectedTutorUser, nextLevel);
+        const nextSub =
+          avSubjects.length === 1
+            ? avSubjects[0].id
+            : avSubjects.some((s) => s.id === selectedSubject)
+            ? selectedSubject
+            : 'all';
+        setSelectedSubject(nextSub);
+
+        // 3. Grade
+        const avGrades = getChartAvailableGrades(selectedTutorUser, students);
+        const nextGrade =
+          avGrades.length === 1
+            ? avGrades[0]
+            : avGrades.includes(selectedGrade)
+            ? selectedGrade
+            : 'all';
+        setSelectedGrade(nextGrade);
+
+        // 4. Section
+        const avSections = getChartAvailableSections(selectedTutorUser, nextGrade, students);
+        const nextSec =
+          avSections.length === 1
+            ? avSections[0]
+            : avSections.includes(selectedSection)
+            ? selectedSection
+            : 'all';
+        setSelectedSection(nextSec);
+      }
+    }
+  }, [selectedTutorId, selectedTutorUser, students, selectedAralLevel, selectedSubject, selectedGrade, selectedSection]);
+
+  // Reactive auto-adjustment when parent filters (ARAL level / Grade) change
+  useEffect(() => {
+    if (selectedTutorId !== 'all' && chartAralLevels.length === 1) {
+      if (selectedAralLevel !== chartAralLevels[0].id) {
+        setSelectedAralLevel(chartAralLevels[0].id);
+      }
+    } else if (selectedAralLevel !== 'all' && !chartAralLevels.some((l) => l.id === selectedAralLevel)) {
       setSelectedAralLevel('all');
     }
-  }, [selectedAralLevel, chartAralLevels]);
+  }, [selectedAralLevel, chartAralLevels, selectedTutorId]);
 
   useEffect(() => {
-    if (selectedSubject !== 'all' && !chartSubjects.some((s) => s.id === selectedSubject)) {
+    if (selectedTutorId !== 'all' && chartSubjects.length === 1) {
+      if (selectedSubject !== chartSubjects[0].id) {
+        setSelectedSubject(chartSubjects[0].id);
+      }
+    } else if (selectedSubject !== 'all' && !chartSubjects.some((s) => s.id === selectedSubject)) {
       setSelectedSubject('all');
     }
-  }, [selectedSubject, chartSubjects]);
+  }, [selectedSubject, chartSubjects, selectedTutorId]);
 
   useEffect(() => {
-    if (selectedGrade !== 'all' && !chartGrades.includes(selectedGrade)) {
+    if (selectedTutorId !== 'all' && chartGrades.length === 1) {
+      if (selectedGrade !== chartGrades[0]) {
+        setSelectedGrade(chartGrades[0]);
+      }
+    } else if (selectedGrade !== 'all' && !chartGrades.includes(selectedGrade)) {
       setSelectedGrade('all');
     }
-  }, [selectedGrade, chartGrades]);
+  }, [selectedGrade, chartGrades, selectedTutorId]);
 
   useEffect(() => {
-    if (selectedSection !== 'all' && !chartSections.includes(selectedSection)) {
+    if (selectedTutorId !== 'all' && chartSections.length === 1) {
+      if (selectedSection !== chartSections[0]) {
+        setSelectedSection(chartSections[0]);
+      }
+    } else if (selectedSection !== 'all' && !chartSections.includes(selectedSection)) {
       setSelectedSection('all');
     }
-  }, [selectedSection, chartSections]);
+  }, [selectedSection, chartSections, selectedTutorId]);
 
   // Filter students based on selected tutor and additional chart filters
   const filteredStudents = useMemo(() => {
@@ -1839,11 +1909,13 @@ export const PrincipalHome: React.FC = () => {
                 className="h-8 px-2 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[130px] flex-1 max-w-[200px]"
               >
                 <option value="all">ALL TUTORS</option>
-                {tutors.map((tutor) => (
-                  <option key={tutor.id} value={tutor.id}>
-                    {tutor.name.toUpperCase()}
-                  </option>
-                ))}
+                {[...tutors]
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((tutor) => (
+                    <option key={tutor.id} value={tutor.id}>
+                      {tutor.name.toUpperCase()}
+                    </option>
+                  ))}
               </select>
 
               {/* ARAL Level Filter Dropdown */}

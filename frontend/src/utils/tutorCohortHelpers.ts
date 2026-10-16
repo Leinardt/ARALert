@@ -532,6 +532,21 @@ export function parseStudentGradeAndSection(
 /**
  * Returns available ARAL levels for chart filtering.
  */
+/**
+ * Sorts grade level strings in descending order (e.g. GRADE 12, GRADE 11, ... GRADE 7).
+ */
+export function sortGradeLevelsDescending(grades: string[]): string[] {
+  return [...grades].sort((a, b) => {
+    const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0;
+    const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0;
+    if (numB !== numA) return numB - numA;
+    return b.localeCompare(a);
+  });
+}
+
+/**
+ * Returns available ARAL levels for chart filtering, sorted alphabetically.
+ */
 export function getChartAvailableAralLevels(
   tutor: Partial<User> | null | undefined
 ): { id: string; label: string }[] {
@@ -540,59 +555,65 @@ export function getChartAvailableAralLevels(
     { id: 'plus', label: 'PLUS' },
   ];
 
-  if (!tutor) return allLevels;
+  if (!tutor) return allLevels.sort((a, b) => a.label.localeCompare(b.label));
 
   const handled = parseTutorHandledAralLevels(tutor);
-  return allLevels.filter((lvl) => handled.includes(lvl.id as 'basic' | 'plus'));
+  return allLevels
+    .filter((lvl) => handled.includes(lvl.id as 'basic' | 'plus'))
+    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 /**
- * Returns available subjects for chart filtering, adjusted for tutor and ARAL level.
+ * Returns available subjects for chart filtering, adjusted for tutor and ARAL level, sorted alphabetically.
  */
 export function getChartAvailableSubjects(
   tutor: Partial<User> | null | undefined,
   activeAralLevel: string
 ): { id: string; label: string }[] {
   const allChoices = [
-    { id: 'Filipino', label: 'FILIPINO' },
     { id: 'English', label: 'ENGLISH' },
-    { id: 'Science', label: 'SCIENCE' },
+    { id: 'Filipino', label: 'FILIPINO' },
     { id: 'Math', label: 'MATH' },
+    { id: 'Science', label: 'SCIENCE' },
   ];
 
   const normLevel = activeAralLevel.toLowerCase().trim();
 
+  let filtered: { id: string; label: string }[] = [];
+
   if (!tutor) {
-    return allChoices.filter((c) => {
+    filtered = allChoices.filter((c) => {
       if (normLevel === 'basic' && c.id === 'English') return false;
       if (normLevel === 'plus' && c.id === 'Filipino') return false;
       return true;
     });
+  } else {
+    const raw = (tutor.subject || '').toLowerCase();
+    const isGeneral = !raw || raw === 'general' || raw.includes('all');
+
+    const handlesFilipino = isGeneral || raw.includes('reading') || raw.includes('filipino');
+    const handlesEnglish = isGeneral || raw.includes('english');
+    const handlesScience = isGeneral || raw.includes('science');
+    const handlesMath = isGeneral || raw.includes('math');
+
+    filtered = allChoices.filter((c) => {
+      if (c.id === 'English') {
+        return handlesEnglish && normLevel !== 'basic';
+      }
+      if (c.id === 'Filipino') {
+        return handlesFilipino && normLevel !== 'plus';
+      }
+      if (c.id === 'Science') return handlesScience;
+      if (c.id === 'Math') return handlesMath;
+      return false;
+    });
   }
 
-  const raw = (tutor.subject || '').toLowerCase();
-  const isGeneral = !raw || raw === 'general' || raw.includes('all');
-
-  const handlesFilipino = isGeneral || raw.includes('reading') || raw.includes('filipino');
-  const handlesEnglish = isGeneral || raw.includes('english');
-  const handlesScience = isGeneral || raw.includes('science');
-  const handlesMath = isGeneral || raw.includes('math');
-
-  return allChoices.filter((c) => {
-    if (c.id === 'English') {
-      return handlesEnglish && normLevel !== 'basic';
-    }
-    if (c.id === 'Filipino') {
-      return handlesFilipino && normLevel !== 'plus';
-    }
-    if (c.id === 'Science') return handlesScience;
-    if (c.id === 'Math') return handlesMath;
-    return false;
-  });
+  return filtered.sort((a, b) => a.label.localeCompare(b.label));
 }
 
 /**
- * Returns available grade levels for chart filtering, adjusted for tutor.
+ * Returns available grade levels for chart filtering, adjusted for tutor, sorted in descending order.
  */
 export function getChartAvailableGrades(
   tutor: Partial<User> | null | undefined,
@@ -607,7 +628,8 @@ export function getChartAvailableGrades(
       if (grade) present.add(grade);
     });
     const found = ALL_GRADES.filter((g) => present.has(g));
-    return found.length > 0 ? found : ALL_GRADES;
+    const list = found.length > 0 ? found : ALL_GRADES;
+    return sortGradeLevelsDescending(list);
   }
 
   const cohorts = parseTutorHandledCohorts(tutor);
@@ -632,11 +654,12 @@ export function getChartAvailableGrades(
   });
 
   const matched = ALL_GRADES.filter((g) => tutorGrades.has(g));
-  return matched.length > 0 ? matched : (tutorGrades.size > 0 ? Array.from(tutorGrades) : ['GRADE 7']);
+  const list = matched.length > 0 ? matched : (tutorGrades.size > 0 ? Array.from(tutorGrades) : ['GRADE 7']);
+  return sortGradeLevelsDescending(list);
 }
 
 /**
- * Returns available sections for chart filtering, adjusted for tutor and active grade.
+ * Returns available sections for chart filtering, adjusted for tutor and active grade, sorted alphabetically.
  */
 export function getChartAvailableSections(
   tutor: Partial<User> | null | undefined,
