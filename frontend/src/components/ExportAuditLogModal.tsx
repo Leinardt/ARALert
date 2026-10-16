@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Download, Calendar, Filter, Check, Search } from 'lucide-react';
+import { X, Download, Calendar, Filter, Search } from 'lucide-react';
 import type { User } from '../types';
 import api from '../api/axios';
 import { userService } from '../services/userService';
@@ -41,7 +41,7 @@ export const PAPER_CONFIG = {
   },
 };
 
-type DatePreset = 'all' | 'today' | 'week' | 'month' | 'custom';
+type DatePreset = 'all' | 'today' | 'custom';
 
 export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
   isOpen,
@@ -129,16 +129,6 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
       const today = new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
       return `TODAY (${today.toUpperCase()})`;
     }
-    if (datePreset === 'week') {
-      const now = new Date();
-      const past = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      return `${past.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} – ${now.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`.toUpperCase();
-    }
-    if (datePreset === 'month') {
-      const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      return `${start.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })} – ${now.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`.toUpperCase();
-    }
     if (datePreset === 'custom') {
       if (dateFrom && dateTo) {
         return `${dateFrom} TO ${dateTo}`;
@@ -158,14 +148,6 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
 
     if (preset === 'today') {
       setDateFrom(todayStr);
-      setDateTo(todayStr);
-    } else if (preset === 'week') {
-      const past = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      setDateFrom(past.toISOString().slice(0, 10));
-      setDateTo(todayStr);
-    } else if (preset === 'month') {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      setDateFrom(start.toISOString().slice(0, 10));
       setDateTo(todayStr);
     } else if (preset === 'all') {
       setDateFrom('');
@@ -345,9 +327,6 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
             <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight">
               Export System Audit Logs
             </h3>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Configure template details, paper size, and date range for official print-ready export
-            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -507,26 +486,22 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
 
                 {/* Preset Chips */}
                 <div className="grid grid-cols-3 gap-1 bg-slate-100/70 dark:bg-[#141414] p-1 rounded-xl border border-slate-200 dark:border-slate-800">
-                  {(['all', 'today', 'week', 'month', 'custom'] as DatePreset[]).map((p) => (
+                  {(['all', 'today', 'custom'] as DatePreset[]).map((p) => (
                     <button
                       key={p}
                       type="button"
                       onClick={() => applyPreset(p)}
-                      className={`rounded-lg py-1 px-1 text-[10.5px] font-bold capitalize transition-all cursor-pointer text-center ${
+                      className={`rounded-lg py-1 px-1 text-[10.5px] font-bold uppercase transition-all cursor-pointer text-center ${
                         datePreset === p
                           ? 'bg-[var(--brand)] text-white shadow-xs'
                           : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       {p === 'all'
-                        ? 'All'
+                        ? 'ALL'
                         : p === 'today'
-                        ? 'Today'
-                        : p === 'week'
-                        ? 'Past 7D'
-                        : p === 'month'
-                        ? 'This Mo.'
-                        : 'Custom'}
+                        ? 'TODAY'
+                        : 'CUSTOM'}
                     </button>
                   ))}
                 </div>
@@ -621,16 +596,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                 </div>
               </div>
 
-              {/* Record Summary Chip */}
-              <div className="rounded-2xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/70 dark:bg-emerald-950/20 p-3 flex items-center gap-2.5 text-xs text-emerald-800 dark:text-emerald-300 shadow-2xs">
-                <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <div>
-                  <p className="font-bold">
-                    {isLoadingLogs ? 'Loading records…' : `${logs.length} Log${logs.length === 1 ? '' : 's'} Ready`}
-                  </p>
-                  <p className="text-[10.5px] text-emerald-600 dark:text-emerald-400 mt-0.5">{dateRangeStr}</p>
-                </div>
-              </div>
+
             </div>
 
             {/* Right Column: Physical Paper Sheet Preview */}
@@ -773,58 +739,51 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
           </div>
         </div>
 
-        {/* Fixed Bottom Footer (Format selector on bottom left, Cancel on right) */}
-        <div className="flex-shrink-0 bg-white dark:bg-[#0A0A0A] border-t border-slate-200 dark:border-[#1A1A1A] px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
-          {/* Bottom Left: Document, PDF, Excel, and CSV format download buttons */}
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={handleDownloadDocx}
-              disabled={isExportingDocx || isLoadingLogs || logs.length === 0}
-              className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-50 cursor-pointer inline-flex items-center justify-center gap-1.5"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>{isExportingDocx ? 'Generating Word…' : 'Download Document (.docx)'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadPdf}
-              disabled={isExportingPdf || isLoadingLogs || logs.length === 0}
-              className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-50 cursor-pointer inline-flex items-center justify-center gap-1.5"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>{isExportingPdf ? 'Generating PDF…' : 'Download PDF (.pdf)'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadExcel}
-              disabled={isExportingExcel || isLoadingLogs || logs.length === 0}
-              className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-50 cursor-pointer inline-flex items-center justify-center gap-1.5"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>{isExportingExcel ? 'Generating Excel…' : 'Download Excel (.xlsx)'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadCsv}
-              disabled={isExportingCsv || isLoadingLogs || logs.length === 0}
-              className="w-full sm:w-auto rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#141414] px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-2xs disabled:opacity-50 cursor-pointer inline-flex items-center justify-center gap-1.5"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>{isExportingCsv ? 'Exporting CSV…' : 'Download CSV (.csv)'}</span>
-            </button>
-          </div>
-
-          {/* Bottom Right: Cancel */}
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full sm:w-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
+        {/* Fixed Bottom Footer (Cancel and download buttons aligned to bottom right) */}
+        <div className="flex-shrink-0 bg-white dark:bg-[#0A0A0A] border-t border-slate-200 dark:border-[#1A1A1A] px-5 py-3 flex flex-wrap items-center justify-end gap-2 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full sm:w-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleDownloadDocx}
+            disabled={isExportingDocx || isLoadingLogs || logs.length === 0}
+            className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-50 cursor-pointer inline-flex items-center justify-center gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>{isExportingDocx ? 'Generating Word…' : 'Download Document (.docx)'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={isExportingPdf || isLoadingLogs || logs.length === 0}
+            className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-50 cursor-pointer inline-flex items-center justify-center gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>{isExportingPdf ? 'Generating PDF…' : 'Download PDF (.pdf)'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleDownloadExcel}
+            disabled={isExportingExcel || isLoadingLogs || logs.length === 0}
+            className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-50 cursor-pointer inline-flex items-center justify-center gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>{isExportingExcel ? 'Generating Excel…' : 'Download Excel (.xlsx)'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleDownloadCsv}
+            disabled={isExportingCsv || isLoadingLogs || logs.length === 0}
+            className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-50 cursor-pointer inline-flex items-center justify-center gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>{isExportingCsv ? 'Exporting CSV…' : 'Download CSV (.csv)'}</span>
+          </button>
         </div>
       </div>
     </div>
