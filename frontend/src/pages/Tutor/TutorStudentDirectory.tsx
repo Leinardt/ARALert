@@ -13,6 +13,7 @@ import {
   isStudentInCohort,
 } from '../../utils/tutorCohortHelpers';
 import type { TutorCohortHistoryData, TutorHistoricalCohortRecord } from '../../types';
+import { getActiveSystemSemester } from '../../utils/sessionDescriptionHelpers';
 
 /* ─── Badge helpers ────────────────────────────────────────────── */
 const getAralBadge = (level?: string | null) => {
@@ -121,19 +122,21 @@ export const TutorStudentDirectory: React.FC = () => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
 
   const currentSchoolYear = useMemo(() => getDepEdSchoolYear(), []);
+  const [activeSystemSy, setActiveSystemSy] = useState<string>(
+    () => `${currentSchoolYear.syStart}-${currentSchoolYear.syEnd}`
+  );
+  const [activeSystemSem, setActiveSystemSem] = useState<'1st' | '2nd' | 'summer'>(
+    () => (getActiveSystemSemester() || currentSchoolYear.currentPeriod) as '1st' | '2nd' | 'summer'
+  );
+  const activePeriodKey = useMemo(() => `${activeSystemSy}|${activeSystemSem}`, [activeSystemSy, activeSystemSem]);
+
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>(
     () => `${currentSchoolYear.syStart}-${currentSchoolYear.syEnd}|${currentSchoolYear.currentPeriod}`
   );
 
   const schoolYearOptions = useMemo(() => {
-    const { syStart, syEnd, currentPeriod } = currentSchoolYear;
-    const activeSy = `${syStart}-${syEnd}`;
-    const activePeriodKey = `${activeSy}|${currentPeriod || '1st'}`;
-
+    const activeKey = `${activeSystemSy}|${activeSystemSem}`;
     const recordedPeriods = new Set<string>();
-
-    // Always include current active period
-    recordedPeriods.add(activePeriodKey);
 
     // 1. From grades
     for (const g of grades) {
@@ -155,6 +158,9 @@ export const TutorStudentDirectory: React.FC = () => {
       }
     }
 
+    // Always include current active period
+    recordedPeriods.add(activeKey);
+
     // Convert to list of { sy, sem }
     const periodsList = Array.from(recordedPeriods).map((key) => {
       const [sy, sem] = key.split('|');
@@ -163,6 +169,9 @@ export const TutorStudentDirectory: React.FC = () => {
 
     const semRank: Record<string, number> = { '1st': 1, '2nd': 2, 'summer': 3 };
     periodsList.sort((a, b) => {
+      // Put active period first so it is default in both display and DOM order
+      if (a.key === activeKey) return -1;
+      if (b.key === activeKey) return 1;
       const yearA = parseInt(a.sy.split('-')[0], 10) || 0;
       const yearB = parseInt(b.sy.split('-')[0], 10) || 0;
       if (yearA !== yearB) {
@@ -171,14 +180,11 @@ export const TutorStudentDirectory: React.FC = () => {
       return (semRank[a.sem] || 0) - (semRank[b.sem] || 0);
     });
 
-    const options: { key: string; label: string }[] = [
-      { key: 'all|all', label: 'All School Years & Semesters' },
-    ];
+    const options: { key: string; label: string }[] = [];
 
     periodsList.forEach(({ key, sy, sem }) => {
-      const isCurrentSy = sy === activeSy;
-      const isCurrentSem = isCurrentSy && sem === (currentPeriod || '1st');
-      const tag = isCurrentSem ? ' (Active)' : '';
+      const isCurrent = key === activeKey;
+      const tag = isCurrent ? ' (Active)' : '';
       const syDisplay = `SY ${sy.replace('-', '–')}`;
       const semDisplay = sem === '1st' ? '1st Semester' : sem === '2nd' ? '2nd Semester' : 'Summer';
 
@@ -188,8 +194,14 @@ export const TutorStudentDirectory: React.FC = () => {
       });
     });
 
+    // Add 'All School Years & Semesters' at the end of the list as an explicit option
+    options.push({
+      key: 'all|all',
+      label: 'All School Years & Semesters',
+    });
+
     return options;
-  }, [currentSchoolYear, grades, attendance]);
+  }, [activeSystemSy, activeSystemSem, grades, attendance]);
 
   const fetchData = async () => {
     if (!user) return;
@@ -217,10 +229,16 @@ export const TutorStudentDirectory: React.FC = () => {
       }
       if (currentSyData.status === 'fulfilled' && currentSyData.value?.school_year) {
         const activeSy = currentSyData.value.school_year;
+        const activeSem = (currentSyData.value.current_semester || currentSyData.value.current_period || getActiveSystemSemester() || '1st') as '1st' | '2nd' | 'summer';
+        setActiveSystemSy(activeSy);
+        setActiveSystemSem(activeSem);
+        const resolvedActiveKey = `${activeSy}|${activeSem}`;
         setSelectedSchoolYear((prev) => {
-          if (prev === 'all|all') return prev;
-          const sem = prev.split('|')[1] || currentSchoolYear.currentPeriod;
-          return `${activeSy}|${sem}`;
+          // If the user hasn't explicitly chosen 'all|all' or a different historical period, keep active selected
+          if (!prev || prev === `${currentSchoolYear.syStart}-${currentSchoolYear.syEnd}|${currentSchoolYear.currentPeriod}` || prev === activePeriodKey) {
+            return resolvedActiveKey;
+          }
+          return prev;
         });
       }
     } catch (err) {
@@ -233,12 +251,20 @@ export const TutorStudentDirectory: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [user]);
 
+  const effectiveSelectedSchoolYear = useMemo(() => {
+    if (selectedSchoolYear === 'all|all') return 'all|all';
+    if (schoolYearOptions.some((opt) => opt.key === selectedSchoolYear)) {
+      return selectedSchoolYear;
+    }
+    return activePeriodKey;
+  }, [selectedSchoolYear, schoolYearOptions, activePeriodKey]);
+
   const [filterSy, filterSem] = useMemo(() => {
-    if (selectedSchoolYear === 'all|all' || !selectedSchoolYear.includes('|')) {
+    if (effectiveSelectedSchoolYear === 'all|all' || !effectiveSelectedSchoolYear.includes('|')) {
       return ['all', 'all'];
     }
-    return selectedSchoolYear.split('|');
-  }, [selectedSchoolYear]);
+    return effectiveSelectedSchoolYear.split('|');
+  }, [effectiveSelectedSchoolYear]);
 
   const filteredGrades = useMemo(() => {
     return grades.filter((g) => {
@@ -501,7 +527,7 @@ const aralLevelRank: Record<string, number> = {
               {/* Auto-updating School Year Dropdown */}
               <div className="relative inline-flex items-center shrink-0">
                 <select
-                  value={selectedSchoolYear}
+                  value={effectiveSelectedSchoolYear}
                   onChange={(e) => setSelectedSchoolYear(e.target.value)}
                   aria-label="Filter by School Year"
                   className="h-7.5 sm:h-8.5 appearance-none rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-2.5 pr-7 sm:pl-3 sm:pr-8 text-[11px] sm:text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer"

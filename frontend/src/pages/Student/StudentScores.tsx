@@ -15,7 +15,7 @@ import {
   AlertCircle,
   BookOpen,
 } from 'lucide-react';
-import { getScoreDescription } from '../../utils/sessionDescriptionHelpers';
+import { getScoreDescription, getActiveSystemSemester } from '../../utils/sessionDescriptionHelpers';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
@@ -727,6 +727,14 @@ export const StudentScores: React.FC = () => {
 
   // ── Unified School Year - Semester/Summer Filter State ──
   const currentSchoolYear = useMemo(() => getDepEdSchoolYear(), []);
+  const [activeSystemSy, setActiveSystemSy] = useState<string>(
+    () => `${currentSchoolYear.syStart}-${currentSchoolYear.syEnd}`
+  );
+  const [activeSystemSem, setActiveSystemSem] = useState<'1st' | '2nd' | 'summer'>(
+    () => (getActiveSystemSemester() || currentSchoolYear.currentPeriod) as '1st' | '2nd' | 'summer'
+  );
+  const activePeriodKey = useMemo(() => `${activeSystemSy}|${activeSystemSem}`, [activeSystemSy, activeSystemSem]);
+
   const [selectedPeriod, setSelectedPeriod] = useState<string>(
     () => `${currentSchoolYear.syStart}-${currentSchoolYear.syEnd}|${currentSchoolYear.currentPeriod}`
   );
@@ -755,10 +763,15 @@ export const StudentScores: React.FC = () => {
           }
           if (currentSyData.status === 'fulfilled' && currentSyData.value?.school_year) {
             const activeSy = currentSyData.value.school_year;
+            const activeSem = (currentSyData.value.current_semester || currentSyData.value.current_period || getActiveSystemSemester() || '1st') as '1st' | '2nd' | 'summer';
+            setActiveSystemSy(activeSy);
+            setActiveSystemSem(activeSem);
+            const resolvedActiveKey = `${activeSy}|${activeSem}`;
             setSelectedPeriod((prev) => {
-              if (prev === 'all|all') return prev;
-              const sem = prev.split('|')[1] || currentSchoolYear.currentPeriod;
-              return `${activeSy}|${sem}`;
+              if (!prev || prev === `${currentSchoolYear.syStart}-${currentSchoolYear.syEnd}|${currentSchoolYear.currentPeriod}` || prev === activePeriodKey) {
+                return resolvedActiveKey;
+              }
+              return prev;
             });
           }
         }
@@ -775,7 +788,7 @@ export const StudentScores: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [user, currentSchoolYear.currentPeriod]);
+  }, [user, currentSchoolYear.currentPeriod, activePeriodKey]);
 
   // Distinct dates with grades (for calendar)
   const loggedDates = useMemo(() => {
@@ -791,14 +804,12 @@ export const StudentScores: React.FC = () => {
 
   // Dropdown options in SCHOOLYEAR - SEMESTER/SUMMER format (only existing records + active period)
   const schoolYearOptions = useMemo(() => {
-    const { syStart, syEnd, currentPeriod } = currentSchoolYear;
-    const activeSy = `${syStart}-${syEnd}`;
-    const activePeriodKey = `${activeSy}|${currentPeriod || '1st'}`;
+    const activeKey = `${activeSystemSy}|${activeSystemSem}`;
 
     const recordedPeriods = new Set<string>();
 
     // Always include current active period
-    recordedPeriods.add(activePeriodKey);
+    recordedPeriods.add(activeKey);
 
     // 1. From student's actual grades
     for (const g of grades) {
@@ -864,9 +875,11 @@ export const StudentScores: React.FC = () => {
       return { key, sy, sem: sem as '1st' | '2nd' | 'summer' };
     });
 
-    // Sort descending by starting year, then semester order (1st, 2nd, summer)
+    // Sort descending by starting year, then semester order, placing active period first
     const semRank: Record<string, number> = { '1st': 1, '2nd': 2, 'summer': 3 };
     periodsList.sort((a, b) => {
+      if (a.key === activeKey) return -1;
+      if (b.key === activeKey) return 1;
       const yearA = parseInt(a.sy.split('-')[0], 10) || 0;
       const yearB = parseInt(b.sy.split('-')[0], 10) || 0;
       if (yearA !== yearB) {
@@ -875,18 +888,15 @@ export const StudentScores: React.FC = () => {
       return (semRank[a.sem] || 0) - (semRank[b.sem] || 0);
     });
 
-    const opts: { key: string; label: string }[] = [
-      { key: 'all|all', label: 'All School Years & Semesters' },
-    ];
+    const opts: { key: string; label: string }[] = [];
 
     periodsList.forEach(({ key, sy, sem }) => {
-      const isCurrentSy = sy === activeSy;
-      const isCurrentSem = isCurrentSy && sem === (currentPeriod || '1st');
-      const tag = isCurrentSem ? ' (Active)' : '';
+      const isCurrent = key === activeKey;
+      const tag = isCurrent ? ' (Active)' : '';
       const syDisplay = `SY ${sy.replace('-', '–')}`;
       const semDisplay = sem === '1st' ? '1st Semester' : sem === '2nd' ? '2nd Semester' : 'Summer';
 
-      const tutor = resolveTutorForPeriod(sy, sem, studentHistory) || (isCurrentSy ? studentHistory?.current_tutor : null);
+      const tutor = resolveTutorForPeriod(sy, sem, studentHistory) || (isCurrent ? studentHistory?.current_tutor : null);
       const tutorSuffix = tutor ? ` — ${tutor}` : '';
 
       opts.push({
@@ -895,14 +905,24 @@ export const StudentScores: React.FC = () => {
       });
     });
 
+    opts.push({ key: 'all|all', label: 'All School Years & Semesters' });
+
     return opts;
-  }, [currentSchoolYear, studentHistory, grades]);
+  }, [activeSystemSy, activeSystemSem, studentHistory, grades]);
+
+  const effectiveSelectedPeriod = useMemo(() => {
+    if (selectedPeriod === 'all|all') return 'all|all';
+    if (schoolYearOptions.some((opt) => opt.key === selectedPeriod)) {
+      return selectedPeriod;
+    }
+    return activePeriodKey;
+  }, [selectedPeriod, schoolYearOptions, activePeriodKey]);
 
   // ── Filter by Unified School Year - Semester & jumpDate ──
   const filteredGrades = useMemo(() => {
     let result = [...grades];
-    if (selectedPeriod !== 'all|all') {
-      const [filterSy, filterSem] = selectedPeriod.split('|');
+    if (effectiveSelectedPeriod !== 'all|all') {
+      const [filterSy, filterSem] = effectiveSelectedPeriod.split('|');
       if (filterSy && filterSy !== 'all') {
         result = result.filter((g) => {
           const sy = getSchoolYearFromDate(g.date_logged || g.created_at);
@@ -920,7 +940,7 @@ export const StudentScores: React.FC = () => {
       result = result.filter((g) => g.date_logged === jumpDate);
     }
     return result;
-  }, [grades, selectedPeriod, jumpDate]);
+  }, [grades, effectiveSelectedPeriod, jumpDate]);
 
   // ── Top KPI Stat Calculations (scoped to current filtered view) ──
   const { passedCount, failedCount, calculatedAvgScore } = useMemo(() => {
@@ -1110,7 +1130,7 @@ export const StudentScores: React.FC = () => {
             {/* Unified School Year - Semester/Summer Dropdown (matches Tutor Assigned Students dropdown) */}
             <div className="relative inline-flex items-center shrink-0">
               <select
-                value={selectedPeriod}
+                value={effectiveSelectedPeriod}
                 onChange={(e) => {
                   setSelectedPeriod(e.target.value);
                   setJumpDate(null);
