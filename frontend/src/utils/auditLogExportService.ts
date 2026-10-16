@@ -241,35 +241,6 @@ export const exportAuditLogsToExcel = async (data: AuditLogExportData): Promise<
     }
   });
 
-  // Footer Spacing & Signatures
-  worksheet.addRow([]);
-  worksheet.addRow([]);
-
-  const sigLabelRow = worksheet.addRow(['', 'Prepared by:', '', '', 'Noted by:', '', '']);
-  sigLabelRow.getCell(2).font = { name: 'Times New Roman', size: 10, italic: true };
-  sigLabelRow.getCell(5).font = { name: 'Times New Roman', size: 10, italic: true };
-
-  worksheet.addRow([]);
-  worksheet.addRow([]);
-
-  const prepName = data.preparedByName || 'SYSTEM ADMINISTRATOR';
-  const notName = data.notedByName || 'FIRSTNAME M.I. LASTNAME';
-
-  const sigNameRow = worksheet.addRow(['', prepName, '', '', notName, '', '']);
-  sigNameRow.getCell(2).font = { name: 'Times New Roman', size: 11, bold: true, underline: true };
-  sigNameRow.getCell(2).alignment = { horizontal: 'center' };
-  sigNameRow.getCell(5).font = { name: 'Times New Roman', size: 11, bold: true, underline: true };
-  sigNameRow.getCell(5).alignment = { horizontal: 'center' };
-
-  const prepTitle = data.preparedByTitle || 'System Administrator';
-  const notTitle = data.notedByTitle || 'Principal I';
-
-  const sigTitleRow = worksheet.addRow(['', prepTitle, '', '', notTitle, '', '']);
-  sigTitleRow.getCell(2).font = { name: 'Times New Roman', size: 9, color: { argb: 'FF475569' } };
-  sigTitleRow.getCell(2).alignment = { horizontal: 'center' };
-  sigTitleRow.getCell(5).font = { name: 'Times New Roman', size: 9, color: { argb: 'FF475569' } };
-  sigTitleRow.getCell(5).alignment = { horizontal: 'center' };
-
   // Write and download buffer
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -450,44 +421,7 @@ export const exportAuditLogsToDocx = async (data: AuditLogExportData): Promise<v
     rows: [headerRow, ...dataRows],
   });
 
-  // Signatures table
-  const prepName = data.preparedByName || 'SYSTEM ADMINISTRATOR';
-  const prepTitle = data.preparedByTitle || 'System Administrator';
-  const notName = data.notedByName || 'FIRSTNAME M.I. LASTNAME';
-  const notTitle = data.notedByTitle || 'Principal I';
 
-  const sigTable = new Table({
-    width: { size: 10000, type: WidthType.DXA },
-    borders: cellBordersNone,
-    rows: [
-      new TableRow({
-        children: [
-          new TableCell({
-            width: { size: 5000, type: WidthType.DXA },
-            borders: cellBordersNone,
-            children: [
-              new Paragraph({ children: [new TextRun({ text: 'Prepared by:', font: 'Times New Roman', size: 18, italics: true })] }),
-              new Paragraph({ children: [new TextRun({ text: '' })] }),
-              new Paragraph({ children: [new TextRun({ text: '' })] }),
-              new Paragraph({ children: [new TextRun({ text: prepName, font: 'Times New Roman', size: 20, bold: true, underline: {} })] }),
-              new Paragraph({ children: [new TextRun({ text: prepTitle, font: 'Times New Roman', size: 17, color: '475569' })] }),
-            ],
-          }),
-          new TableCell({
-            width: { size: 5000, type: WidthType.DXA },
-            borders: cellBordersNone,
-            children: [
-              new Paragraph({ children: [new TextRun({ text: 'Noted by:', font: 'Times New Roman', size: 18, italics: true })] }),
-              new Paragraph({ children: [new TextRun({ text: '' })] }),
-              new Paragraph({ children: [new TextRun({ text: '' })] }),
-              new Paragraph({ children: [new TextRun({ text: notName, font: 'Times New Roman', size: 20, bold: true, underline: {} })] }),
-              new Paragraph({ children: [new TextRun({ text: notTitle, font: 'Times New Roman', size: 17, color: '475569' })] }),
-            ],
-          }),
-        ],
-      }),
-    ],
-  });
 
   const doc = new Document({
     sections: [
@@ -515,9 +449,6 @@ export const exportAuditLogsToDocx = async (data: AuditLogExportData): Promise<v
           }),
           new Paragraph({ text: '' }),
           auditTable,
-          new Paragraph({ text: '' }),
-          new Paragraph({ text: '' }),
-          sigTable,
         ],
       },
     ],
@@ -711,39 +642,7 @@ export const exportAuditLogsToPdf = async (data: AuditLogExportData): Promise<vo
     curY += rowHeight;
   });
 
-  // Check if signatures fit on current page
-  if (curY + 70 > pageHeight - 30) {
-    pdf.addPage(pageFormat, 'portrait');
-    curY = marginTop + 20;
-  } else {
-    curY += 24;
-  }
 
-  // Signatures
-  const prepName = data.preparedByName || 'SYSTEM ADMINISTRATOR';
-  const prepTitle = data.preparedByTitle || 'System Administrator';
-  const notName = data.notedByName || 'FIRSTNAME M.I. LASTNAME';
-  const notTitle = data.notedByTitle || 'Principal I';
-
-  pdf.setFont('times', 'italic');
-  pdf.setFontSize(8.5);
-  pdf.setTextColor(71, 85, 105);
-  pdf.text('Prepared by:', marginX + 30, curY);
-  pdf.text('Noted by:', pageWidth - marginX - 160, curY);
-
-  curY += 28;
-  pdf.setFont('times', 'bold');
-  pdf.setFontSize(9.5);
-  pdf.setTextColor(15, 23, 42);
-  pdf.text(prepName, marginX + 30, curY);
-  pdf.text(notName, pageWidth - marginX - 160, curY);
-
-  curY += 10;
-  pdf.setFont('times', 'normal');
-  pdf.setFontSize(8);
-  pdf.setTextColor(71, 85, 105);
-  pdf.text(prepTitle, marginX + 30, curY);
-  pdf.text(notTitle, pageWidth - marginX - 160, curY);
 
   const filename = buildAuditLogFilename(data.dateRangeStr, data.paperSize, 'pdf');
   pdf.save(filename);

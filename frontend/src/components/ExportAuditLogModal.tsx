@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { X, Download, Calendar, Filter, Search } from 'lucide-react';
 import type { User } from '../types';
 import api from '../api/axios';
-import { userService } from '../services/userService';
 import {
   exportAuditLogsToExcel,
   exportAuditLogsToDocx,
@@ -59,16 +58,6 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
   const [schoolAddress, setSchoolAddress] = useState('Sta. Cruz, Palanas, Masbate');
   const [documentTitle, setDocumentTitle] = useState('ARAL PROGRAM SYSTEM AUDIT LOG RECORD');
 
-  // Signatures
-  const [preparedByName, setPreparedByName] = useState(() => {
-    return (currentUser?.full_name || `${currentUser?.first_name || ''} ${currentUser?.last_name || ''}`).trim().toUpperCase() || 'ADMINISTRATOR';
-  });
-  const [preparedByTitle, setPreparedByTitle] = useState(() => {
-    return currentUser?.is_superuser ? 'Super Administrator' : 'System Administrator';
-  });
-  const [notedByName, setNotedByName] = useState('FIRSTNAME M.I. LASTNAME');
-  const [notedByTitle, setNotedByTitle] = useState('Principal I');
-
   // Paper & Filters
   const [paperSize, setPaperSize] = useState<'letter' | 'a4' | 'folio'>('letter');
   const [datePreset, setDatePreset] = useState<DatePreset>(() => {
@@ -93,35 +82,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
   const settingsRef = useRef<HTMLDivElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
-  // Auto-fetch active principal
-  useEffect(() => {
-    if (!isOpen) return;
-    let isMounted = true;
-    userService
-      .getUsers({ role: 'principal', status: 'active' })
-      .then((res) => {
-        if (isMounted && res.results && res.results.length > 0) {
-          const principal = res.results[0];
-          const name = principal.full_name || `${principal.first_name} ${principal.last_name}`;
-          if (name && name.trim()) {
-            setNotedByName(name.toUpperCase().trim());
-          }
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load active principal for audit log export:', err);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen]);
 
-  // Keep prepared by synced with current user
-  useEffect(() => {
-    if (currentUser?.full_name) {
-      setPreparedByName(currentUser.full_name.toUpperCase());
-    }
-  }, [currentUser]);
 
   // Date Range string computation
   const dateRangeStr = useMemo(() => {
@@ -260,10 +221,6 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
     title: documentTitle,
     dateRangeStr,
     paperSize,
-    preparedByName,
-    preparedByTitle,
-    notedByName,
-    notedByTitle,
     logs,
   });
 
@@ -406,11 +363,6 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                       className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
                     />
                   </div>
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-slate-200 dark:border-[#1A1A1A]">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                   <div>
                     <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1 text-[10.5px]">
                       Document Title
@@ -419,50 +371,6 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                       type="text"
                       value={documentTitle}
                       onChange={(e) => setDocumentTitle(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1 text-[10.5px]">
-                      Prepared by Name
-                    </label>
-                    <input
-                      type="text"
-                      value={preparedByName}
-                      onChange={(e) => setPreparedByName(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1 text-[10.5px]">
-                      Prepared by Title
-                    </label>
-                    <input
-                      type="text"
-                      value={preparedByTitle}
-                      onChange={(e) => setPreparedByTitle(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1 text-[10.5px]">
-                      Noted by Name
-                    </label>
-                    <input
-                      type="text"
-                      value={notedByName}
-                      onChange={(e) => setNotedByName(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider mb-1 text-[10.5px]">
-                      Noted by Title
-                    </label>
-                    <input
-                      type="text"
-                      value={notedByTitle}
-                      onChange={(e) => setNotedByTitle(e.target.value)}
                       className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#161616] px-3 py-1.5 font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-xs"
                     />
                   </div>
@@ -707,32 +615,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                     </table>
                   </div>
 
-                  {/* Signatures Section */}
-                  <div className="mt-12 text-xs text-slate-900">
-                    <div className="flex justify-between items-start pt-6">
-                      <div className="text-center w-64">
-                        <p className="italic text-left mb-8">Prepared by:</p>
-                        <div className="inline-flex flex-col items-center min-w-[200px]">
-                          <span className="font-bold uppercase tracking-wide text-slate-900 pb-0.5 text-center">
-                            {preparedByName}
-                          </span>
-                          <div className="w-full h-[1.5px] bg-slate-900" />
-                        </div>
-                        <p className="text-[11px] text-slate-600 mt-1">{preparedByTitle}</p>
-                      </div>
 
-                      <div className="text-center w-64">
-                        <p className="italic text-left mb-8">Noted by:</p>
-                        <div className="inline-flex flex-col items-center min-w-[200px]">
-                          <span className="font-bold uppercase tracking-wide text-slate-900 pb-0.5 text-center">
-                            {notedByName}
-                          </span>
-                          <div className="w-full h-[1.5px] bg-slate-900" />
-                        </div>
-                        <p className="text-[11px] text-slate-600 mt-1">{notedByTitle}</p>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
