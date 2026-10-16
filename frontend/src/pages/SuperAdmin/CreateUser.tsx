@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { userService } from '../../services/userService';
 import type { User } from '../../types';
-import { ArrowLeft, AlertCircle, Briefcase, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { isTutorEligibleForStudent } from '../../utils/tutorCohortHelpers';
 
@@ -512,31 +512,18 @@ export const CreateUser: React.FC = () => {
 
           {/* ── Section 2: Role Details (for Tutors) ───────────────────── */}
           {selectedRole === 'tutor' && (
-            <div className="space-y-4 rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#0D0D0D] p-5 shadow-2xs">
-              <div className="border-b border-gray-200 dark:border-[#1A1A1A] pb-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-slate-200 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-[var(--brand)]" />
-                  Role Details
-                </h4>
-                <p className="mt-0.5 text-[11px] text-gray-500 dark:text-slate-400">
-                  Configure the ARAL program levels, subjects, grade levels, and sections handled by this tutor.
-                </p>
-              </div>
+            <div className="space-y-4 border-t border-gray-100 dark:border-[#1A1A1A] pt-4">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300">
+                Role Details
+              </h4>
 
               {/* 1. ARAL Level (checkboxes: BASIC / PLUS) */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
                   ARAL Level <span className="text-red-500">*</span>
-                  <span className="ml-1.5 text-[10px] font-normal text-gray-400 dark:text-slate-500">
-                    (Select BASIC, PLUS, or both)
-                  </span>
                 </label>
                 <div className="flex flex-wrap items-center gap-4 pt-1">
-                  <label className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
-                    tutorAralLevels.includes('basic')
-                      ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 shadow-2xs'
-                      : 'border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#1E1E1E]'
-                  }`}>
+                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-slate-300">
                     <input
                       type="checkbox"
                       checked={tutorAralLevels.includes('basic')}
@@ -545,11 +532,7 @@ export const CreateUser: React.FC = () => {
                     />
                     <span>BASIC</span>
                   </label>
-                  <label className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
-                    tutorAralLevels.includes('plus')
-                      ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 shadow-2xs'
-                      : 'border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#1E1E1E]'
-                  }`}>
+                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-slate-300">
                     <input
                       type="checkbox"
                       checked={tutorAralLevels.includes('plus')}
@@ -568,46 +551,31 @@ export const CreateUser: React.FC = () => {
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
                   Assigned Subject <span className="text-red-500">*</span>
-                  <span className="ml-1.5 text-[10px] font-normal text-gray-400 dark:text-slate-500">
-                    (FILIPINO for Basic, ENGLISH for Plus, Science &amp; Math)
-                  </span>
                 </label>
-                <div className="flex flex-wrap items-center gap-3 pt-1">
+                <div className="flex flex-wrap items-center gap-4 pt-1">
                   {tutorAralLevels.includes('basic') && (
-                    <label className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
-                      tutorSubjects.includes('Filipino')
-                        ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 shadow-2xs'
-                        : 'border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#1E1E1E]'
-                    }`}>
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-slate-300">
                       <input
                         type="checkbox"
                         checked={tutorSubjects.includes('Filipino')}
                         onChange={() => toggleSubject('Filipino')}
                         className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
                       />
-                      <span>FILIPINO (Basic)</span>
+                      <span>FILIPINO</span>
                     </label>
                   )}
                   {tutorAralLevels.includes('plus') && (
-                    <label className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
-                      tutorSubjects.includes('English')
-                        ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 shadow-2xs'
-                        : 'border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#1E1E1E]'
-                    }`}>
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-slate-300">
                       <input
                         type="checkbox"
                         checked={tutorSubjects.includes('English')}
                         onChange={() => toggleSubject('English')}
                         className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
                       />
-                      <span>ENGLISH (Plus)</span>
+                      <span>ENGLISH</span>
                     </label>
                   )}
-                  <label className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
-                    tutorSubjects.includes('Science')
-                      ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 shadow-2xs'
-                      : 'border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#1E1E1E]'
-                  }`}>
+                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-slate-300">
                     <input
                       type="checkbox"
                       checked={tutorSubjects.includes('Science')}
@@ -616,11 +584,7 @@ export const CreateUser: React.FC = () => {
                     />
                     <span>SCIENCE</span>
                   </label>
-                  <label className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
-                    tutorSubjects.includes('Math')
-                      ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 shadow-2xs'
-                      : 'border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#1E1E1E]'
-                  }`}>
+                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-slate-300">
                     <input
                       type="checkbox"
                       checked={tutorSubjects.includes('Math')}
@@ -644,27 +608,20 @@ export const CreateUser: React.FC = () => {
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
                   ASSIGNED GRADE LEVEL <span className="text-red-500">*</span>
-                  <span className="ml-1.5 text-[10px] font-normal text-gray-400 dark:text-slate-500">
-                    (Grade 7 through Grade 12 / Senior High School)
-                  </span>
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 pt-1">
+                <div className="flex flex-wrap items-center gap-4 pt-1">
                   {['GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10', 'GRADE 11', 'GRADE 12'].map((grade) => {
                     const isChecked = tutorGradeLevels.includes(grade);
                     return (
                       <label
                         key={grade}
-                        className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
-                          isChecked
-                            ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 shadow-2xs'
-                            : 'border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#1E1E1E]'
-                        }`}
+                        className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700 dark:text-slate-300"
                       >
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => toggleGradeLevel(grade)}
-                          className="h-3.5 w-3.5 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
+                          className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
                         />
                         <span>{grade}</span>
                       </label>
@@ -711,7 +668,7 @@ export const CreateUser: React.FC = () => {
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--brand)] hover:underline cursor-pointer pt-1"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  + Add Another Assigned Section
+                  Add Another Assigned Section
                 </button>
                 {tutorRoleErrors.sections && (
                   <p className="text-[11px] text-red-600 dark:text-red-400">{tutorRoleErrors.sections}</p>

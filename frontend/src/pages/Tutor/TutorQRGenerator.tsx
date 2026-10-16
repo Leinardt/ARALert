@@ -30,7 +30,6 @@ import {
   CameraOff,
   Trash2,
   RotateCcw,
-  Pencil,
 } from 'lucide-react';
 import { trashbinService } from '../../utils/trashbinService';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -787,20 +786,20 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
                     {label}
                   </button>
 
-                  {/* Subtler blue edit icon on the right side of the active day */}
+                  {/* Edit icon on the right side of the active day matching action edit icon style */}
                   {isSelected && hasRecord && !isTrashed && (
                     <button
                       type="button"
                       onClick={() => onToggleEditDay(dateStr)}
-                      className={`h-7.5 w-7.5 rounded-md border flex items-center justify-center transition-all cursor-pointer ${
+                      className={`h-7.5 w-7.5 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
                         isDayEditMode
-                          ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-xs'
-                          : 'bg-blue-50/70 border-blue-200/90 text-[var(--brand)] hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:border-blue-800/60 dark:text-blue-300'
+                          ? 'bg-gray-200 text-gray-700 dark:bg-[#222222] dark:text-slate-200'
+                          : 'text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-[#222222] dark:hover:text-slate-200'
                       }`}
                       title={isDayEditMode ? 'Exit edit mode for this day' : 'Edit entry for this day'}
                       aria-label="Edit entry for this day"
                     >
-                      <Pencil className="w-3.5 h-3.5" />
+                      <Edit3 className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
