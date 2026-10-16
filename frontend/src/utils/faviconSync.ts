@@ -20,14 +20,14 @@ export const syncFaviconWithTheme = (): void => {
     );
     iconLinks.forEach((link) => {
       const sizes = link.getAttribute('sizes');
-      if (sizes === '512x512' && !link.href.endsWith('/favicon.png')) {
-        link.href = '/favicon.png';
-      } else if (sizes === '180x180' && !link.href.endsWith('/favicon-180.png')) {
-        link.href = '/favicon-180.png';
-      } else if (sizes === '32x32' && !link.href.endsWith('/favicon-32.png')) {
-        link.href = '/favicon-32.png';
-      } else if (sizes === '16x16' && !link.href.endsWith('/favicon-16.png')) {
-        link.href = '/favicon-16.png';
+      if (sizes === '512x512' && !link.href.includes('/favicon.png')) {
+        link.href = '/favicon.png?v=2';
+      } else if (sizes === '180x180' && !link.href.includes('/favicon-180.png')) {
+        link.href = '/favicon-180.png?v=2';
+      } else if (sizes === '32x32' && !link.href.includes('/favicon-32.png')) {
+        link.href = '/favicon-32.png?v=2';
+      } else if (sizes === '16x16' && !link.href.includes('/favicon-16.png')) {
+        link.href = '/favicon-16.png?v=2';
       }
     });
     return;
