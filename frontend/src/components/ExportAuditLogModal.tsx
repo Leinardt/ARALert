@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Download, Calendar, Filter, Search } from 'lucide-react';
+import { X, Download, Calendar, Filter, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { User } from '../types';
 import api from '../api/axios';
 import {
@@ -42,6 +42,137 @@ export const PAPER_CONFIG = {
 
 type DatePreset = 'all' | 'today' | 'custom';
 
+// ── Date Helpers ───────────────────────────────────────────────────────────────
+const formatDateKey = (year: number, month: number, day: number) =>
+  `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+// ── Custom Calendar Dropdown (Consistent with System UI) ──────────────────────
+const CustomCalendarDropdown: React.FC<{
+  selectedDate: string | null;
+  onSelectDate: (dateStr: string) => void;
+  onClear: () => void;
+  onClose: () => void;
+  className?: string;
+}> = ({ selectedDate, onSelectDate, onClear, onClose, className }) => {
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [viewDate, setViewDate] = useState(() => {
+    if (selectedDate) {
+      const d = new Date(selectedDate + 'T00:00:00');
+      if (!isNaN(d.getTime())) return d;
+    }
+    return new Date();
+  });
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
+
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthName = viewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+  const calendarCells: (number | null)[] = [];
+  for (let i = 0; i < firstDayOfWeek; i++) calendarCells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) calendarCells.push(d);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  return (
+    <div
+      ref={dropdownRef}
+      className={`${className || 'absolute left-0 top-full mt-2'} z-[80] w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 shadow-2xl select-none text-slate-800 dark:text-slate-100`}
+      style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+    >
+      <div className="flex items-center justify-between pb-2.5 border-b border-gray-100 dark:border-zinc-800">
+        <button
+          type="button"
+          onClick={prevMonth}
+          className="rounded-md p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-slate-400 transition cursor-pointer"
+          aria-label="Previous Month"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <span className="font-bold text-xs text-slate-900 dark:text-slate-100 tracking-wide">{monthName}</span>
+        <button
+          type="button"
+          onClick={nextMonth}
+          className="rounded-md p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-slate-400 transition cursor-pointer"
+          aria-label="Next Month"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center font-bold text-slate-400 py-2 text-[10px] uppercase tracking-wider">
+        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
+          <span key={d}>{d}</span>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {calendarCells.map((dayNum, idx) => {
+          if (dayNum === null) return <div key={`empty-${idx}`} className="h-7 w-7" />;
+          const cellDateKey = formatDateKey(year, month, dayNum);
+          const isSelected = selectedDate === cellDateKey;
+          const isToday = todayStr === cellDateKey;
+          return (
+            <button
+              key={cellDateKey}
+              type="button"
+              onClick={() => {
+                onSelectDate(cellDateKey);
+                onClose();
+              }}
+              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                isSelected
+                  ? 'bg-[var(--brand)] text-white font-bold shadow-xs'
+                  : isToday
+                  ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800'
+              }`}
+            >
+              <span>{dayNum}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex items-center justify-between pt-2 border-t border-gray-100 dark:border-zinc-800 text-[11px] font-semibold">
+        <button
+          type="button"
+          onClick={() => {
+            onSelectDate(todayStr);
+            onClose();
+          }}
+          className="text-[var(--brand)] hover:underline cursor-pointer"
+        >
+          Today
+        </button>
+        {selectedDate && (
+          <button
+            type="button"
+            onClick={() => {
+              onClear();
+              onClose();
+            }}
+            className="text-slate-400 hover:text-rose-500 transition cursor-pointer"
+          >
+            Clear Date
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
   isOpen,
   onClose,
@@ -66,6 +197,8 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
   });
   const [dateFrom, setDateFrom] = useState<string>(() => initialDateFrom || '');
   const [dateTo, setDateTo] = useState<string>(() => initialDateTo || '');
+  const [showFromCalendar, setShowFromCalendar] = useState<boolean>(false);
+  const [showToCalendar, setShowToCalendar] = useState<boolean>(false);
   const [actionFilter, setActionFilter] = useState<string>(() => initialAction || '');
   const [searchFilter, setSearchFilter] = useState<string>(() => initialSearch || '');
 
@@ -104,6 +237,8 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
   // Handle Preset changes
   const applyPreset = (preset: DatePreset) => {
     setDatePreset(preset);
+    setShowFromCalendar(false);
+    setShowToCalendar(false);
     const now = new Date();
     const todayStr = now.toISOString().slice(0, 10);
 
@@ -151,7 +286,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
           lrn: r.lrn || '—',
         }));
 
-        const totalPages = Math.min(firstRes.data.total_pages || 1, 20); // up to 600 records
+        const totalPages = Math.min(firstRes.data.total_pages || 1, 100);
 
         if (totalPages > 1) {
           const promises = [];
@@ -418,24 +553,125 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
 
                 {/* Custom Date Pickers */}
                 {datePreset === 'custom' && (
-                  <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-[#1A1A1A]">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">From Date</label>
-                      <input
-                        type="date"
-                        value={dateFrom}
-                        onChange={(e) => setDateFrom(e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 px-2 py-1 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-[var(--brand)]"
-                      />
+                  <div className="space-y-2.5 pt-2 border-t border-slate-100 dark:border-[#1A1A1A]">
+                    {/* From Date */}
+                    <div className="relative">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">From Date</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowFromCalendar(!showFromCalendar);
+                          setShowToCalendar(false);
+                        }}
+                        className={`w-full h-8 px-2.5 rounded-lg border flex items-center justify-between text-xs font-semibold transition cursor-pointer ${
+                          dateFrom
+                            ? 'border-[var(--brand)] bg-[var(--brand)]/5 text-[var(--brand)] dark:bg-[var(--brand)]/10'
+                            : 'border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-700 dark:text-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 truncate">
+                          <Calendar className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">
+                            {dateFrom
+                              ? new Date(dateFrom + 'T00:00:00').toLocaleDateString(undefined, {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })
+                              : 'Select Start Date'}
+                          </span>
+                        </div>
+                        {dateFrom && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDateFrom('');
+                            }}
+                            className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-zinc-700 transition cursor-pointer shrink-0"
+                            title="Clear from date"
+                          >
+                            <X className="w-3 h-3 text-slate-400" />
+                          </span>
+                        )}
+                      </button>
+
+                      {showFromCalendar && (
+                        <CustomCalendarDropdown
+                          selectedDate={dateFrom || null}
+                          onSelectDate={(d) => {
+                            setDateFrom(d);
+                            setShowFromCalendar(false);
+                          }}
+                          onClear={() => {
+                            setDateFrom('');
+                            setShowFromCalendar(false);
+                          }}
+                          onClose={() => setShowFromCalendar(false)}
+                          className="absolute left-0 top-full mt-1.5"
+                        />
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">To Date</label>
-                      <input
-                        type="date"
-                        value={dateTo}
-                        onChange={(e) => setDateTo(e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 px-2 py-1 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-[var(--brand)]"
-                      />
+
+                    {/* To Date */}
+                    <div className="relative">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">To Date</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowToCalendar(!showToCalendar);
+                          setShowFromCalendar(false);
+                        }}
+                        className={`w-full h-8 px-2.5 rounded-lg border flex items-center justify-between text-xs font-semibold transition cursor-pointer ${
+                          dateTo
+                            ? 'border-[var(--brand)] bg-[var(--brand)]/5 text-[var(--brand)] dark:bg-[var(--brand)]/10'
+                            : 'border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-700 dark:text-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 truncate">
+                          <Calendar className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">
+                            {dateTo
+                              ? new Date(dateTo + 'T00:00:00').toLocaleDateString(undefined, {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })
+                              : 'Select End Date'}
+                          </span>
+                        </div>
+                        {dateTo && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDateTo('');
+                            }}
+                            className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-zinc-700 transition cursor-pointer shrink-0"
+                            title="Clear to date"
+                          >
+                            <X className="w-3 h-3 text-slate-400" />
+                          </span>
+                        )}
+                      </button>
+
+                      {showToCalendar && (
+                        <CustomCalendarDropdown
+                          selectedDate={dateTo || null}
+                          onSelectDate={(d) => {
+                            setDateTo(d);
+                            setShowToCalendar(false);
+                          }}
+                          onClear={() => {
+                            setDateTo('');
+                            setShowToCalendar(false);
+                          }}
+                          onClose={() => setShowToCalendar(false)}
+                          className="absolute left-0 top-full mt-1.5"
+                        />
+                      )}
                     </div>
                   </div>
                 )}
@@ -581,7 +817,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                             </td>
                           </tr>
                         ) : (
-                          logs.slice(0, 50).map((log, idx) => (
+                          logs.map((log, idx) => (
                             <tr key={log.id || idx} className={idx % 2 === 1 ? 'bg-slate-50/70' : 'bg-white'}>
                               <td className="border border-slate-900 px-1.5 py-1 text-center font-mono text-[11px]">
                                 {idx + 1}
@@ -592,7 +828,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                               <td className="border border-slate-900 px-2 py-1 text-left text-[11px] font-semibold">
                                 {log.action.replace(/_/g, ' ')}
                               </td>
-                              <td className="border border-slate-900 px-2 py-1 text-left text-[11px] font-semibold text-slate-900 truncate max-w-[140px]">
+                              <td className="border border-slate-900 px-2 py-1 text-left text-[11px] font-semibold text-slate-900">
                                 {log.target || '—'}
                               </td>
                               <td className="border border-slate-900 px-2 py-1 text-left text-[11px]">
@@ -601,7 +837,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                               <td className="border border-slate-900 px-2 py-1 text-center text-[10.5px]">
                                 {log.role || '—'}
                               </td>
-                              <td className="border border-slate-900 px-2 py-1 text-left text-[10.5px] font-mono truncate max-w-[150px]">
+                              <td className="border border-slate-900 px-2 py-1 text-left text-[10.5px] font-mono">
                                 {log.role?.toLowerCase() === 'student' || log.email?.includes('@aralert.local') || log.email?.startsWith('student-') ? '—' : (log.email || '—')}
                               </td>
                               <td className="border border-slate-900 px-2 py-1 text-center text-[10.5px] font-mono">
@@ -609,13 +845,6 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                               </td>
                             </tr>
                           ))
-                        )}
-                        {logs.length > 50 && (
-                          <tr className="bg-slate-100/60 font-italic text-slate-600">
-                            <td colSpan={8} className="border border-slate-900 py-1.5 px-3 text-center text-[11px]">
-                              Showing first 50 of {logs.length} events in on-screen preview. Complete set ({logs.length} records) will be included in exported file.
-                            </td>
-                          </tr>
                         )}
                       </tbody>
                     </table>

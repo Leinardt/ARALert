@@ -402,7 +402,7 @@ export const AuditLog: React.FC = () => {
             className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-3 sm:px-3.5 py-2 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap shadow-xs"
           >
             <Download className="w-3.5 h-3.5 text-white" />
-            <span>Export CSV</span>
+            <span>Export Audit Log</span>
           </button>
         </div>
       </form>
