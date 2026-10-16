@@ -555,7 +555,9 @@ export const AuditLog: React.FC = () => {
 
                       {/* EMAIL */}
                       <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-300 whitespace-nowrap">
-                        {log.email || '—'}
+                        {log.role?.toLowerCase() === 'student' || log.email?.includes('@aralert.local') || log.email?.startsWith('student-')
+                          ? '—'
+                          : (log.email || '—')}
                       </td>
 
                       {/* LRN */}

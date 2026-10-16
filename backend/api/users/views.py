@@ -247,11 +247,12 @@ class UserListCreateView(generics.ListCreateAPIView):
             request=request,
             details={
                 'target_user_id': str(user.id),
-                'target_username': user.username,
+                'target_username': user.username if (user.role != 'student' and not user.username.endswith('@aralert.local')) else (user.lrn or user.username),
                 'target_name': user.get_full_name() or user.username,
                 'target_role': 'superadmin' if user.is_superuser else user.role,
                 'role': 'superadmin' if user.is_superuser else user.role,
-                'email': user.email
+                'email': user.email if (user.role != 'student' and not user.email.endswith('@aralert.local') and not user.email.startswith('student-')) else None,
+                'lrn': user.lrn if user.role == 'student' else None,
             }
         )
         return Response(
@@ -603,17 +604,7 @@ class AuditLogListView(APIView):
 
         results = []
         for log in logs:
-            # 1. Name
-            if log.user and (log.user.first_name or log.user.last_name):
-                name = log.user.get_full_name()
-            elif isinstance(log.details, dict) and (log.details.get('student_name') or log.details.get('user_name') or log.details.get('name')):
-                name = log.details.get('student_name') or log.details.get('user_name') or log.details.get('name')
-            elif log.username:
-                name = log.username
-            else:
-                name = 'System'
-
-            # 2. Role
+            # 1. Role
             if log.user:
                 if log.user.is_superuser:
                     role = 'SuperAdmin'
@@ -623,26 +614,53 @@ class AuditLogListView(APIView):
                     role = 'SuperAdmin'
             elif isinstance(log.details, dict) and log.details.get('role'):
                 role = str(log.details.get('role')).capitalize()
+            elif isinstance(log.details, dict) and log.details.get('target_role') and not log.user:
+                role = str(log.details.get('target_role')).capitalize()
             else:
                 role = 'System'
 
-            # 3. Email
-            if log.user and log.user.email and not log.user.email.endswith('@aralert.local'):
-                email = log.user.email
-            elif isinstance(log.details, dict) and log.details.get('email'):
-                email = log.details.get('email')
-            elif log.user and log.user.email:
-                email = log.user.email
+            # 2. Name
+            if log.user and (log.user.first_name or log.user.last_name):
+                name = log.user.get_full_name()
+            elif isinstance(log.details, dict) and (log.details.get('student_name') or log.details.get('user_name') or log.details.get('name')):
+                name = log.details.get('student_name') or log.details.get('user_name') or log.details.get('name')
+            elif log.username and not log.username.endswith('@aralert.local') and not log.username.startswith('student-'):
+                name = log.username
+            elif log.user and log.user.lrn:
+                name = log.user.lrn
             else:
-                email = '—'
+                name = 'System'
 
-            # 4. LRN
+            # 3. LRN
             if log.user and log.user.lrn:
                 lrn = log.user.lrn
             elif isinstance(log.details, dict) and (log.details.get('lrn') or log.details.get('student_lrn') or log.details.get('proposed_lrn')):
                 lrn = log.details.get('lrn') or log.details.get('student_lrn') or log.details.get('proposed_lrn')
             else:
                 lrn = '—'
+
+            # 4. Email:
+            # Students only have an LRN and MUST NOT have any email in the audit log.
+            # Also never display dummy/placeholder @aralert.local / student-* emails.
+            is_student = (
+                role.lower() == 'student' or
+                (log.user and (log.user.role == 'student' or bool(log.user.lrn))) or
+                (isinstance(log.details, dict) and str(log.details.get('role', '')).lower() == 'student')
+            )
+
+            if is_student:
+                email = '—'
+            else:
+                raw_email = ''
+                if log.user and log.user.email:
+                    raw_email = log.user.email
+                elif isinstance(log.details, dict) and log.details.get('email'):
+                    raw_email = str(log.details.get('email'))
+
+                if raw_email and not raw_email.endswith('@aralert.local') and not raw_email.startswith('student-'):
+                    email = raw_email
+                else:
+                    email = '—'
 
             # 5. Target (The user or entity created, updated, or affected by this event)
             target = '—'
@@ -671,6 +689,11 @@ class AuditLogListView(APIView):
                 elif log.action in ('ALLOWED_EMAIL_ADDED', 'ALLOWED_EMAIL_REMOVED') and log.details.get('email'):
                     target = str(log.details.get('email'))
 
+            # Sanitize username so placeholder student emails are not exposed
+            clean_username = log.username or (str(log.user) if log.user else 'Anonymous')
+            if clean_username.endswith('@aralert.local') or clean_username.startswith('student-'):
+                clean_username = lrn if lrn != '—' else (log.user.lrn if (log.user and log.user.lrn) else 'Student')
+
             results.append({
                 'id': str(log.id),
                 'timestamp': localtime(log.timestamp).strftime('%Y-%m-%d %I:%M:%S %p PHT'),
@@ -680,7 +703,7 @@ class AuditLogListView(APIView):
                 'role': role,
                 'email': email,
                 'lrn': lrn,
-                'username': log.username or (str(log.user) if log.user else 'Anonymous'),
+                'username': clean_username,
                 'ip_address': log.ip_address or '—',
                 'user_agent': log.user_agent or '—',
                 'details': log.details or {},

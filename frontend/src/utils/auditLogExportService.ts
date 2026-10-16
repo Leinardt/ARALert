@@ -42,6 +42,14 @@ export interface AuditLogExportData {
   logs: AuditLogExportItem[];
 }
 
+export const formatAuditEmail = (log: AuditLogExportItem): string => {
+  if (log.role?.toLowerCase() === 'student') return '—';
+  if (!log.email || log.email === '—' || log.email.endsWith('@aralert.local') || log.email.startsWith('student-')) {
+    return '—';
+  }
+  return log.email;
+};
+
 function base64ToUint8Array(base64Str: string): Uint8Array {
   const clean = base64Str.replace(/^data:image\/\w+;base64,/, '');
   const binaryString = atob(clean);
@@ -217,7 +225,7 @@ export const exportAuditLogsToExcel = async (data: AuditLogExportData): Promise<
       log.target || '—',
       log.name || 'System',
       log.role || '—',
-      log.email || '—',
+      formatAuditEmail(log),
       log.lrn || '—',
     ]);
     row.height = 20;
@@ -402,7 +410,7 @@ export const exportAuditLogsToDocx = async (data: AuditLogExportData): Promise<v
         { text: log.target || '—', width: colWidths[3], align: AlignmentType.LEFT },
         { text: log.name || 'System', width: colWidths[4], align: AlignmentType.LEFT },
         { text: log.role || '—', width: colWidths[5], align: AlignmentType.CENTER },
-        { text: log.email || '—', width: colWidths[6], align: AlignmentType.LEFT },
+        { text: formatAuditEmail(log), width: colWidths[6], align: AlignmentType.LEFT },
         { text: log.lrn || '—', width: colWidths[7], align: AlignmentType.CENTER },
       ].map(
         (col) =>
@@ -629,7 +637,7 @@ export const exportAuditLogsToPdf = async (data: AuditLogExportData): Promise<vo
       log.target || '—',
       log.name || 'System',
       log.role || '—',
-      log.email || '—',
+      formatAuditEmail(log),
       log.lrn || '—',
     ];
 
@@ -667,7 +675,7 @@ export const exportAuditLogsToCsv = (data: AuditLogExportData): void => {
     `"${(log.target || '—').replace(/"/g, '""')}"`,
     `"${(log.name || 'System').replace(/"/g, '""')}"`,
     `"${(log.role || '—').replace(/"/g, '""')}"`,
-    `"${(log.email || '—').replace(/"/g, '""')}"`,
+    `"${formatAuditEmail(log).replace(/"/g, '""')}"`,
     `"${(log.lrn || '—').replace(/"/g, '""')}"`,
   ]);
 

@@ -147,7 +147,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
           target: r.target || (r.details?.target_name || r.details?.student_name || r.details?.target_username || '—'),
           name: r.name || 'System',
           role: r.role || '—',
-          email: r.email || '—',
+          email: (r.role?.toLowerCase() === 'student' || r.email?.includes('@aralert.local') || r.email?.startsWith('student-')) ? '—' : (r.email || '—'),
           lrn: r.lrn || '—',
         }));
 
@@ -171,7 +171,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                 target: r.target || (r.details?.target_name || r.details?.student_name || r.details?.target_username || '—'),
                 name: r.name || 'System',
                 role: r.role || '—',
-                email: r.email || '—',
+                email: (r.role?.toLowerCase() === 'student' || r.email?.includes('@aralert.local') || r.email?.startsWith('student-')) ? '—' : (r.email || '—'),
                 lrn: r.lrn || '—',
               }));
               allLogs = allLogs.concat(mapped);
@@ -602,7 +602,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                                 {log.role || '—'}
                               </td>
                               <td className="border border-slate-900 px-2 py-1 text-left text-[10.5px] font-mono truncate max-w-[150px]">
-                                {log.email || '—'}
+                                {log.role?.toLowerCase() === 'student' || log.email?.includes('@aralert.local') || log.email?.startsWith('student-') ? '—' : (log.email || '—')}
                               </td>
                               <td className="border border-slate-900 px-2 py-1 text-center text-[10.5px] font-mono">
                                 {log.lrn || '—'}
