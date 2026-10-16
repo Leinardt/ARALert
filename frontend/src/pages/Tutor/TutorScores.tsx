@@ -566,11 +566,7 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                     {grade.student_name || 'Unknown student'}
                   </td>
                   <td className="px-4 py-3 text-left whitespace-nowrap">
-                    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap ${
-                      descriptionVal !== 'Intervention Activity'
-                        ? 'border-orange-300 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950/50 dark:text-orange-300 font-bold'
-                        : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                    }`}>
+                    <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">
                       {descriptionVal}
                     </span>
                   </td>
@@ -783,13 +779,7 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
 
               {/* Badges: Description & Status */}
               <div className="flex flex-wrap items-center gap-1.5">
-                <span
-                  className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
-                    descriptionVal !== 'Intervention Activity'
-                      ? 'border-orange-300 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950/50 dark:text-orange-300 font-bold'
-                      : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                  }`}
-                >
+                <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">
                   {descriptionVal}
                 </span>
 

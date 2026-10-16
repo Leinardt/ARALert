@@ -11,64 +11,34 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { TablePagination } from '../../components/TablePagination';
 
-/* ─── ARAL Badge Helper ────────────────────────────────────────────── */
+/* ─── ARAL Badge Helper (Clean typography without pill container) ─── */
 const getAralBadge = (level?: string | null) => {
   if (!level) {
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 dark:bg-[#1A1A1A] dark:text-slate-300 dark:border-[#262626]">
+      <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase">
         Basic
       </span>
     );
   }
   const parts = level.split(',').map((p) => p.trim().toLowerCase()).filter(Boolean);
   return (
-    <div className="flex flex-wrap gap-1">
-      {parts.map((p) => {
-        const isPlus = p === 'plus';
-        const isGrad = p === 'graduated';
-        return (
-          <span
-            key={p}
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-              isPlus
-                ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/60'
-                : isGrad
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
-                : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-[#1A1A1A] dark:text-slate-300 dark:border-[#262626]'
-            }`}
-          >
-            {p.charAt(0).toUpperCase() + p.slice(1)}
-          </span>
-        );
-      })}
-    </div>
+    <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase">
+      {parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(', ')}
+    </span>
   );
 };
 
-/* ─── Subject Badge Helper ─────────────────────────────────────────── */
+/* ─── Subject Badge Helper (Clean typography without pill container) ── */
 const getSubjectBadge = (subject?: string | null) => {
   if (!subject) return <span className="text-gray-400 dark:text-slate-500">—</span>;
-  const parts = subject.split(',').map((s) => s.trim()).filter(Boolean);
+  const parts = subject.split(',').map((s) => {
+    const trimmed = s.trim();
+    return trimmed.toLowerCase() === 'reading' ? 'Filipino' : trimmed;
+  }).filter(Boolean);
   return (
-    <div className="flex flex-wrap gap-1">
-      {parts.map((item) => {
-        const s = item.toLowerCase();
-        const displayLabel = s === 'reading' ? 'Filipino' : item;
-        let badgeColor = 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/60';
-        if (s.includes('reading') || s.includes('filipino') || s.includes('english')) {
-          badgeColor = 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60';
-        } else if (s.includes('science')) {
-          badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60';
-        } else if (s.includes('math')) {
-          badgeColor = 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800/60';
-        }
-        return (
-          <span key={item} className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${badgeColor}`}>
-            {displayLabel}
-          </span>
-        );
-      })}
-    </div>
+    <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase">
+      {parts.join(', ')}
+    </span>
   );
 };
 
@@ -985,9 +955,9 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                               {u.email}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${u.is_active
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                                : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${u.is_active
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
+                                : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/60'
                                 }`}>
                                 {u.is_active ? 'Active' : 'Inactive'}
                               </span>

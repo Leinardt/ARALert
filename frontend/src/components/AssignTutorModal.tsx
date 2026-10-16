@@ -143,16 +143,11 @@ export const AssignTutorModal: React.FC<AssignTutorModalProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-semibold text-slate-500">Program:</span>
-              <span
-                className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                  student.program === 'plus'
-                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
-                    : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                }`}
-              >
+              <span className="text-xs font-bold uppercase text-slate-700 dark:text-zinc-300">
                 {student.program}
               </span>
-              <span className="text-xs px-2.5 py-1 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-semibold">
+              <span className="text-xs text-slate-400">•</span>
+              <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300 uppercase">
                 {period}
               </span>
             </div>
@@ -254,8 +249,8 @@ export const AssignTutorModal: React.FC<AssignTutorModalProps> = ({
                         )}
                       </div>
 
-                      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/40">
+                      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase">
                           {tutor.tutor_type_display}
                         </span>
 
