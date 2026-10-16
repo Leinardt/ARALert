@@ -139,30 +139,25 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
 
   // Determine current active section (default is ALWAYS the first section alphabetically)
   const currentSection = useMemo<string>(() => {
-    if (selectedCohort) {
-      if (selectedCohort.includes(' - ')) {
-        const s = selectedCohort.split(' - ')[1].trim().toUpperCase();
-        if (availableSections.includes(s)) return s;
-        if (s === 'ALL') return 'ALL';
-      } else if (selectedCohort.toUpperCase().trim() === currentGrade) {
-        return 'ALL';
-      }
+    if (selectedCohort && selectedCohort.includes(' - ')) {
+      const s = selectedCohort.split(' - ')[1].trim().toUpperCase();
+      if (availableSections.includes(s)) return s;
     }
+
     // Default is ALWAYS the first section alphabetically!
     return availableSections[0] || 'HYACINTH';
-  }, [selectedCohort, currentGrade, availableSections]);
+  }, [selectedCohort, availableSections]);
 
-  // Synchronize active cohort: ensure default is NEVER 'ALL' and always alphabetical
+  // Synchronize active cohort: ensure default is NEVER 'ALL' and always a valid alphabetical section
   useEffect(() => {
     if (availableSections.length > 0) {
       const isCurrentValid =
         selectedCohort &&
         selectedCohort.includes(' - ') &&
-        (availableSections.includes(selectedCohort.split(' - ')[1].trim().toUpperCase()) ||
-          selectedCohort.split(' - ')[1].trim().toUpperCase() === 'ALL');
+        availableSections.includes(selectedCohort.split(' - ')[1].trim().toUpperCase());
 
-      // If selectedCohort was plain "GRADE 7" without a section, or an invalid section:
-      if (!isCurrentValid && selectedCohort !== `${currentGrade} - ALL` && selectedCohort !== currentGrade) {
+      // If selectedCohort was plain "GRADE 7" without a section, had "ALL", or an invalid section:
+      if (!isCurrentValid) {
         const defaultSec = availableSections[0];
         onSelectCohort(`${currentGrade} - ${defaultSec}`);
       }
@@ -182,7 +177,7 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
     const fallbackDefault =
       sectionsForNewGrade[0] || (newGrade === 'GRADE 8' ? 'MANGO' : 'HYACINTH');
 
-    if (currentSection !== 'ALL' && sectionsForNewGrade.includes(currentSection)) {
+    if (currentSection && sectionsForNewGrade.includes(currentSection)) {
       onSelectCohort(`${newGrade} - ${currentSection}`);
     } else {
       onSelectCohort(`${newGrade} - ${fallbackDefault}`);
@@ -191,11 +186,7 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
 
   // Handle Section selection change
   const handleSectionChange = (newSec: string) => {
-    if (newSec === 'ALL') {
-      onSelectCohort(`${currentGrade} - ALL`);
-    } else {
-      onSelectCohort(`${currentGrade} - ${newSec}`);
-    }
+    onSelectCohort(`${currentGrade} - ${newSec}`);
   };
 
   return (
@@ -320,12 +311,6 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
                   {sec}
                 </option>
               ))}
-              <option
-                value="ALL"
-                className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
-              >
-                ALL SECTIONS
-              </option>
             </select>
             <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--brand)] dark:text-blue-400" />
           </div>

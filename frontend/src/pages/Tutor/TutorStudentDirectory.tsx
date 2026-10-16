@@ -194,12 +194,6 @@ export const TutorStudentDirectory: React.FC = () => {
       });
     });
 
-    // Add 'All School Years & Semesters' at the end of the list as an explicit option
-    options.push({
-      key: 'all|all',
-      label: 'All School Years & Semesters',
-    });
-
     return options;
   }, [activeSystemSy, activeSystemSem, grades, attendance]);
 
@@ -234,7 +228,6 @@ export const TutorStudentDirectory: React.FC = () => {
         setActiveSystemSem(activeSem);
         const resolvedActiveKey = `${activeSy}|${activeSem}`;
         setSelectedSchoolYear((prev) => {
-          // If the user hasn't explicitly chosen 'all|all' or a different historical period, keep active selected
           if (!prev || prev === `${currentSchoolYear.syStart}-${currentSchoolYear.syEnd}|${currentSchoolYear.currentPeriod}` || prev === activePeriodKey) {
             return resolvedActiveKey;
           }
@@ -252,7 +245,6 @@ export const TutorStudentDirectory: React.FC = () => {
   useEffect(() => { fetchData(); }, [user]);
 
   const effectiveSelectedSchoolYear = useMemo(() => {
-    if (selectedSchoolYear === 'all|all') return 'all|all';
     if (schoolYearOptions.some((opt) => opt.key === selectedSchoolYear)) {
       return selectedSchoolYear;
     }
@@ -260,8 +252,8 @@ export const TutorStudentDirectory: React.FC = () => {
   }, [selectedSchoolYear, schoolYearOptions, activePeriodKey]);
 
   const [filterSy, filterSem] = useMemo(() => {
-    if (effectiveSelectedSchoolYear === 'all|all' || !effectiveSelectedSchoolYear.includes('|')) {
-      return ['all', 'all'];
+    if (!effectiveSelectedSchoolYear.includes('|')) {
+      return ['', ''];
     }
     return effectiveSelectedSchoolYear.split('|');
   }, [effectiveSelectedSchoolYear]);
@@ -270,8 +262,8 @@ export const TutorStudentDirectory: React.FC = () => {
     return grades.filter((g) => {
       const gDate = g.date_logged || g.created_at;
       const gSy = getSchoolYearFromDate(gDate);
-      if (filterSy && filterSy !== 'all' && gSy !== filterSy) return false;
-      if (filterSem && filterSem !== 'all') {
+      if (filterSy && gSy !== filterSy) return false;
+      if (filterSem) {
         const gSem = getSemesterFromGrade(g);
         if (gSem !== filterSem) return false;
       }
@@ -283,8 +275,8 @@ export const TutorStudentDirectory: React.FC = () => {
     return attendance.filter((a) => {
       const aDate = a.date;
       const aSy = getSchoolYearFromDate(aDate);
-      if (filterSy && filterSy !== 'all' && aSy !== filterSy) return false;
-      if (filterSem && filterSem !== 'all') {
+      if (filterSy && aSy !== filterSy) return false;
+      if (filterSem) {
         const aSem = getSemesterFromDate(aDate);
         if (aSem !== filterSem) return false;
       }

@@ -309,7 +309,9 @@ export function useTutorCohortFilter(user: Partial<User> | null | undefined) {
             : subjectsForLevel[0]?.id || defaultSubject;
 
         const cohort =
-          parsed.cohort && availableCohorts.some((c) => c.toUpperCase().trim() === parsed.cohort.toUpperCase().trim())
+          parsed.cohort &&
+          !parsed.cohort.toUpperCase().includes('ALL') &&
+          availableCohorts.some((c) => c.toUpperCase().trim() === parsed.cohort.toUpperCase().trim())
             ? parsed.cohort
             : defaultCohort;
 

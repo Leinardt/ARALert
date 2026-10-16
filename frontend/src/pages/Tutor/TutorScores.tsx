@@ -2120,7 +2120,7 @@ export const TutorScores: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col space-y-4 max-w-6xl mx-auto data-loaded-content">
+    <div className="space-y-6 max-w-6xl mx-auto data-loaded-content">
       {/* ── Tutor Multi-Cohort Filter (ARAL Level, Subject, Grade - Section) ── */}
       <TutorCohortFilter
         user={user}

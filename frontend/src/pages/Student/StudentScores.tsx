@@ -905,13 +905,10 @@ export const StudentScores: React.FC = () => {
       });
     });
 
-    opts.push({ key: 'all|all', label: 'All School Years & Semesters' });
-
     return opts;
   }, [activeSystemSy, activeSystemSem, studentHistory, grades]);
 
   const effectiveSelectedPeriod = useMemo(() => {
-    if (selectedPeriod === 'all|all') return 'all|all';
     if (schoolYearOptions.some((opt) => opt.key === selectedPeriod)) {
       return selectedPeriod;
     }
@@ -921,15 +918,15 @@ export const StudentScores: React.FC = () => {
   // ── Filter by Unified School Year - Semester & jumpDate ──
   const filteredGrades = useMemo(() => {
     let result = [...grades];
-    if (effectiveSelectedPeriod !== 'all|all') {
+    if (effectiveSelectedPeriod && effectiveSelectedPeriod.includes('|')) {
       const [filterSy, filterSem] = effectiveSelectedPeriod.split('|');
-      if (filterSy && filterSy !== 'all') {
+      if (filterSy) {
         result = result.filter((g) => {
           const sy = getSchoolYearFromDate(g.date_logged || g.created_at);
           return sy === filterSy;
         });
       }
-      if (filterSem && filterSem !== 'all') {
+      if (filterSem) {
         result = result.filter((g) => {
           const sem = getSemesterFromGrade(g);
           return sem === filterSem;
