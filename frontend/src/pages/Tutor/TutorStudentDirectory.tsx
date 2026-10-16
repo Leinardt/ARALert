@@ -7,6 +7,11 @@ import type { User, Grade, Attendance } from '../../types';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
 import { User as UserIcon, Search, ArrowUpDown, Users, ChevronUp, ChevronDown, AlertCircle, History, Calendar, CheckCircle2, Award, Clock } from 'lucide-react';
 import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
+import { TutorCohortFilter } from '../../components/TutorCohortFilter';
+import {
+  useTutorCohortFilter,
+  isStudentInCohort,
+} from '../../utils/tutorCohortHelpers';
 import type { TutorCohortHistoryData, TutorHistoricalCohortRecord } from '../../types';
 
 /* ─── Badge helpers ────────────────────────────────────────────── */
@@ -97,6 +102,16 @@ export const TutorStudentDirectory: React.FC = () => {
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<string>('name');
   const [sortAsc, setSortAsc] = useState(true);
+
+  // Cohort top filter state (ARAL Level, Subject, Grade - Section) synced across tutor dashboard
+  const {
+    selectedAralLevel,
+    setSelectedAralLevel,
+    selectedSubject,
+    setSelectedSubject,
+    selectedCohort,
+    setSelectedCohort,
+  } = useTutorCohortFilter(user);
 
   // Cohort View Mode: 'active' | 'past'
   const [cohortViewMode, setCohortViewMode] = useState<'active' | 'past'>('active');
@@ -251,38 +266,24 @@ export const TutorStudentDirectory: React.FC = () => {
     });
   }, [attendance, filterSy, filterSem]);
 
-  const studentRows = useMemo(() => {
-    return computeStudentRiskRows(students, filteredGrades, filteredAttendance).map((r) => ({ ...r, email: r.student.email }));
-  }, [students, filteredGrades, filteredAttendance]);
+  // Filter students matching the currently selected cohort
+  const cohortStudents = useMemo(() => {
+    return students.filter((s) =>
+      isStudentInCohort(s, {
+        aral_level: selectedAralLevel,
+        subject: selectedSubject,
+        cohort: selectedCohort,
+      })
+    );
+  }, [students, selectedAralLevel, selectedSubject, selectedCohort]);
 
-  const directorySubjects = useMemo(() => {
-    const studentIds = new Set(students.map((student) => String(student.id)));
-    const subjects = [...new Set(grades
-      .filter((grade) => studentIds.has(String(grade.student)))
-      .map((grade) => grade.subject?.trim())
-      .filter(Boolean)
-      .filter((subject) => !['intervention activity', 'attendance'].includes(subject!.toLowerCase()))
-      .map((subject) => {
-        const normalizedSubject = subject!.toLowerCase();
-        if (normalizedSubject.includes('reading')) return 'Reading';
-        if (normalizedSubject.includes('math')) return 'Math';
-        if (normalizedSubject.includes('science')) return 'Science';
-        return subject!.replace(/\b\w/g, (letter) => letter.toUpperCase());
-      }))];
-    return subjects.length ? subjects : ['Reading'];
-  }, [students, grades]);
-  const tutorAralLevel = useMemo(() => {
-    if (!user) return 'Basic';
-    const raw = (user.aral_level || '').toLowerCase();
-    const isBoth = (raw.includes('basic') && raw.includes('plus')) || user.tutor_type === 'basic_plus';
-    if (isBoth) return 'Basic & Plus';
-    if (raw.includes('plus') || user.tutor_type === 'plus') return 'Plus';
-    return 'Basic';
-  }, [user?.aral_level, user?.tutor_type]);
+  const studentRows = useMemo(() => {
+    return computeStudentRiskRows(cohortStudents, filteredGrades, filteredAttendance).map((r) => ({ ...r, email: r.student.email }));
+  }, [cohortStudents, filteredGrades, filteredAttendance]);
 
   const avatarColor = useMemo(
-    () => buildAvatarColorMap(students.length > 0 ? students : studentRows.map((r) => r.student)),
-    [students, studentRows]
+    () => buildAvatarColorMap(cohortStudents.length > 0 ? cohortStudents : studentRows.map((r) => r.student)),
+    [cohortStudents, studentRows]
   );
 
   const handleSort = (field: string) => {
@@ -383,14 +384,14 @@ const aralLevelRank: Record<string, number> = {
       <button
         type="button"
         onClick={() => handleSort(field)}
-        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-700 select-none"
+        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none cursor-pointer"
         aria-label={`Sort by ${label}`}
       >
-        {label}
+        <span>{label}</span>
         {isActive ? (
-          sortAsc ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />
+          sortAsc ? <ChevronUp className="w-3.5 h-3.5 text-[var(--brand)]" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--brand)]" />
         ) : (
-          <ArrowUpDown className="w-3.5 h-3.5 opacity-50" />
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-40 hover:opacity-75" />
         )}
       </button>
     );
@@ -399,17 +400,14 @@ const aralLevelRank: Record<string, number> = {
   if (isLoading) {
     return (
       <div className="space-y-6 skeleton-container" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-        {/* Top KPI cards skeleton */}
-        <div className="grid gap-4 sm:grid-cols-3 skeleton-row-1">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 animate-pulse flex flex-col justify-center space-y-2"
-            >
-              <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800" />
-              <div className="h-6 w-16 rounded bg-gray-200 dark:bg-gray-800" />
-            </div>
-          ))}
+        {/* Cohort Filter Skeleton */}
+        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3 animate-pulse">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            <div className="h-9 w-full rounded bg-gray-100 dark:bg-gray-800" />
+            <div className="h-9 w-full rounded bg-gray-100 dark:bg-gray-800" />
+            <div className="h-9 w-full rounded bg-gray-100 dark:bg-gray-800" />
+            <div className="h-9 w-full rounded bg-gray-100 dark:bg-gray-800" />
+          </div>
         </div>
 
         {/* Directory Table Card skeleton */}
@@ -466,20 +464,17 @@ const aralLevelRank: Record<string, number> = {
   return (
     <div className="space-y-6 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">TOTAL STUDENTS</p>
-          <p className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">{students.length}</p>
-        </div>
-        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">SUBJECT</p>
-          <p className="mt-0.5 truncate text-xl font-extrabold text-gray-900 dark:text-slate-100" title={directorySubjects.join(', ')}>{directorySubjects.join(', ')}</p>
-        </div>
-        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">ARAL LEVEL</p>
-          <p className="mt-0.5 truncate text-xl font-extrabold text-gray-900 dark:text-slate-100" title={tutorAralLevel}>{tutorAralLevel}</p>
-        </div>
-      </div>
+      {/* ── Tutor Multi-Cohort Filter (ARAL Level, Subject, Grade - Section) ── */}
+      <TutorCohortFilter
+        user={user}
+        students={students}
+        selectedAralLevel={selectedAralLevel}
+        onSelectAralLevel={setSelectedAralLevel}
+        selectedSubject={selectedSubject}
+        onSelectSubject={setSelectedSubject}
+        selectedCohort={selectedCohort}
+        onSelectCohort={setSelectedCohort}
+      />
 
       {/* ── States ────────────────────────────────────────────────── */}
       {students.length === 0 ? (
@@ -540,7 +535,9 @@ const aralLevelRank: Record<string, number> = {
               <div className="flex flex-col items-center gap-2 py-12 text-center">
                 <Users className="w-10 h-10 text-gray-200 dark:text-gray-700" />
                 <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No matching students found</p>
-                <p className="text-xs text-gray-400 dark:text-slate-500">Try a different student name or LRN</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">
+                  {search.trim() ? 'Try a different student name or LRN' : 'No students found in this cohort'}
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2">
@@ -563,11 +560,7 @@ const aralLevelRank: Record<string, number> = {
                         <SortableHeader label="CONTACT NO." field="contact" />
                       </th>
                       <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                        {hasMultipleAralLevels ? (
-                          <SortableHeader label="ARAL LEVEL" field="level" />
-                        ) : (
-                          <span className="select-none">ARAL LEVEL</span>
-                        )}
+                        <SortableHeader label="ARAL LEVEL" field="level" />
                       </th>
                       <th className="w-16 px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
                         ACTION

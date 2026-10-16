@@ -7,9 +7,7 @@ import type { Grade, User } from '../../types';
 import { ExportScoreModal } from '../../components/ExportScoreModal';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
 import {
-  parseTutorHandledAralLevels,
-  parseTutorHandledSubjects,
-  parseTutorHandledCohorts,
+  useTutorCohortFilter,
   isStudentInCohort,
 } from '../../utils/tutorCohortHelpers';
 import {
@@ -1288,16 +1286,15 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
 export const TutorScores: React.FC = () => {
   const { user } = useAuth();
 
-  // Cohort top filter state (ARAL Level, Subject, Grade - Section)
-  const [selectedAralLevel, setSelectedAralLevel] = useState<'basic' | 'plus'>(
-    () => parseTutorHandledAralLevels(user)[0] || 'basic'
-  );
-  const [selectedSubject, setSelectedSubject] = useState<string>(
-    () => parseTutorHandledSubjects(user, 'basic')[0]?.id || 'Filipino'
-  );
-  const [selectedCohort, setSelectedCohort] = useState<string>(
-    () => parseTutorHandledCohorts(user)[0] || 'GRADE 7 - HYACINTH'
-  );
+  // Cohort top filter state (ARAL Level, Subject, Grade - Section) synced across tutor dashboard
+  const {
+    selectedAralLevel,
+    setSelectedAralLevel,
+    selectedSubject,
+    setSelectedSubject,
+    selectedCohort,
+    setSelectedCohort,
+  } = useTutorCohortFilter(user);
 
   const [students, setStudents] = useState<User[]>(() => getCachedStudents(user?.id));
 
