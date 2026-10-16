@@ -289,7 +289,7 @@ export const CreateUser: React.FC = () => {
         };
       case 'admin':
         return {
-          title: 'Pre-Register School Admin',
+          title: 'Add Admin',
         };
       case 'superadmin':
         return {
