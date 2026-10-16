@@ -106,17 +106,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
 
     class Subject(models.TextChoices):
-        READING = 'Reading', 'Reading'
-        SCIENCE = 'Science', 'Science'
-        MATH    = 'Math',    'Math'
-        ENGLISH = 'English', 'English'
+        FILIPINO = 'Filipino', 'Filipino'
+        SCIENCE  = 'Science',  'Science'
+        MATH     = 'Math',     'Math'
+        ENGLISH  = 'English',  'English'
 
     class TutorType(models.TextChoices):
         BASIC  = 'basic',  'Basic Tutor'
         PLUS   = 'plus',   'Plus Tutor'
         SUMMER = 'summer', 'Summer Tutor'
 
-    # Subject handled by the tutor or student subject focus (Reading, Science, Math, English)
+    # Subject handled by the tutor or student subject focus (Filipino, Science, Math, English)
     subject = models.CharField(
         max_length=20,
         choices=Subject.choices,
@@ -256,6 +256,8 @@ class User(AbstractBaseUser, PermissionsMixin):
             if level in ('basic', 'plus', 'summer'):
                 self.aral_level = level
                 self.tutor_type = level
+        if self.subject and self.subject.strip().lower() == 'reading':
+            self.subject = 'Filipino'
         # Auto-generate username from email for Django internal compatibility
         if not self.username:
             self.username = self.email

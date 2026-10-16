@@ -89,7 +89,7 @@ def seed_fresh_data():
             "email": "tyszlicup@gmail.com",
             "first_name": "JORGE",
             "last_name": "LICUP",
-            "subject": "Reading",
+            "subject": "Filipino",
             "grade_level": "Grade 7 - HYACINTH",
             "tutor_type": "basic",
         },
@@ -98,7 +98,7 @@ def seed_fresh_data():
             "first_name": "NYAN JEAN",
             "middle_name": "Q.",
             "last_name": "ALCOVINDAS",
-            "subject": "Reading",
+            "subject": "English",
             "grade_level": "Grade 7 - HYACINTH",
             "tutor_type": "plus",
         },
@@ -107,9 +107,9 @@ def seed_fresh_data():
             "first_name": "MARIA CLARA",
             "middle_name": "M.",
             "last_name": "DE LOS SANTOS",
-            "subject": "Reading",
+            "subject": "Filipino",
             "grade_level": "Grade 7 - DAHLIA",
-            "tutor_type": "summer",
+            "tutor_type": "basic",
         },
     ]
 
@@ -268,7 +268,7 @@ def seed_fresh_data():
             ApiGrade.objects.create(
                 student=st,
                 tutor=tutor,
-                subject='Reading',
+                subject=tutor.subject or 'Filipino',
                 quarter=1,
                 score=random.randint(16, 20),
                 total_score=20,

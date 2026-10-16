@@ -106,7 +106,7 @@ export const PrivacyPolicy: React.FC = () => {
             </p>
             <div className="pl-4 border-l-2 border-slate-300 dark:border-neutral-700 space-y-2.5">
               <p>
-                <strong>2.1 Student Learner Records:</strong> Official 12-digit Learner Reference Number (LRN), full legal name, grade level, section, assigned ARAL subject (Reading, Mathematics, or Science), assigned program cohort (Basic, Plus, Summer, or Graduated), formative and periodic marks (BOSY, MOSY, EOSY, and performance tasks), calculated risk level classifications, and daily QR session attendance timestamps.
+                <strong>2.1 Student Learner Records:</strong> Official 12-digit Learner Reference Number (LRN), full legal name, grade level, section, assigned ARAL subject (Filipino, English, Mathematics, or Science), assigned program cohort (Basic, Plus, Summer, or Graduated), formative and periodic marks (BOSY, MOSY, EOSY, and performance tasks), calculated risk level classifications, and daily QR session attendance timestamps.
               </p>
               <p>
                 <strong>2.2 Educator and Personnel Information:</strong> Full legal name, institutional DepEd Google account email (@deped.gov.ph or authorized domain), administrative designation (Principal, Administrator, Faculty, or Tutor), assigned student cohorts, and Daily Time Record (DTR) QR check-in and check-out logs.

@@ -141,7 +141,7 @@ export const CreateUser: React.FC = () => {
       grade_level_section: 'HYACINTH',
       assigned_tutor: '',
       aral_level: 'basic',
-      subject: 'Reading',
+      subject: 'Filipino',
       parent_guardian_name: '',
       contact_number: '',
       has_bosy: true,
@@ -158,15 +158,15 @@ export const CreateUser: React.FC = () => {
   const watchedStudentSubject = watch('subject');
 
   // Synchronize student subject with selected ARAL level:
-  // - Basic: English is unavailable, replaced by Filipino (value="Reading")
+  // - Basic: English is unavailable, replaced by Filipino (value="Filipino")
   // - Plus: Filipino is unavailable, replaced by English (value="English")
   // - Math and Science remain untouched
   useEffect(() => {
     if (selectedRole === 'student') {
-      if (watchedStudentAralLevel === 'plus' && watchedStudentSubject === 'Reading') {
+      if (watchedStudentAralLevel === 'plus' && (watchedStudentSubject === 'Filipino' || watchedStudentSubject === 'Reading')) {
         setValue('subject', 'English');
       } else if (watchedStudentAralLevel !== 'plus' && watchedStudentSubject === 'English') {
-        setValue('subject', 'Reading');
+        setValue('subject', 'Filipino');
       }
     }
   }, [selectedRole, watchedStudentAralLevel, watchedStudentSubject, setValue]);
@@ -375,8 +375,8 @@ export const CreateUser: React.FC = () => {
         : (data.aral_level || 'basic');
 
       const tutorSubject = selectedRole === 'tutor'
-        ? (tutorSubjects.includes('Filipino') ? 'Reading' : tutorSubjects[0] || 'Reading')
-        : (data.subject || 'Reading');
+        ? (tutorSubjects.includes('Filipino') ? 'Filipino' : tutorSubjects[0] || 'Filipino')
+        : (data.subject || 'Filipino');
 
       const payload: any = {
         ...data,
@@ -930,7 +930,7 @@ export const CreateUser: React.FC = () => {
                       {watchedStudentAralLevel === 'plus' ? (
                         <option value="English">ENGLISH (for Plus)</option>
                       ) : (
-                        <option value="Reading">FILIPINO (for Basic)</option>
+                        <option value="Filipino">FILIPINO (for Basic)</option>
                       )}
                       <option value="Math">MATH</option>
                       <option value="Science">SCIENCE</option>

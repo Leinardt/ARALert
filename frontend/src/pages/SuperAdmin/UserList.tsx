@@ -53,6 +53,7 @@ const getSubjectBadge = (subject?: string | null) => {
     <div className="flex flex-wrap gap-1">
       {parts.map((item) => {
         const s = item.toLowerCase();
+        const displayLabel = s === 'reading' ? 'Filipino' : item;
         let badgeColor = 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/60';
         if (s.includes('reading') || s.includes('filipino') || s.includes('english')) {
           badgeColor = 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60';
@@ -63,7 +64,7 @@ const getSubjectBadge = (subject?: string | null) => {
         }
         return (
           <span key={item} className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${badgeColor}`}>
-            {item}
+            {displayLabel}
           </span>
         );
       })}
@@ -570,7 +571,8 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                   className="h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
                 >
                   <option value="">All Subjects</option>
-                  <option value="Reading">Reading</option>
+                  <option value="Filipino">Filipino</option>
+                  <option value="English">English</option>
                   <option value="Science">Science</option>
                   <option value="Math">Math</option>
                 </select>

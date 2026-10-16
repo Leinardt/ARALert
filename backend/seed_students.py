@@ -47,8 +47,8 @@ def seed_students():
         sys.exit(1)
 
     print(f"Target Tutor found: {tutor.get_full_name()} ({tutor.email}, ID: {tutor.id})")
-    if tutor.subject != 'Reading':
-        tutor.subject = 'Reading'
+    if tutor.subject != 'Filipino':
+        tutor.subject = 'Filipino'
         tutor.save(update_fields=['subject'])
 
     # 2. Delete all existing student accounts and dependent records
@@ -164,7 +164,7 @@ def seed_students():
         ApiGrade.objects.create(
             student=student,
             tutor=tutor,
-            subject='Reading',
+            subject='Filipino',
             quarter=1,
             score=day1_scores[idx],
             total_score=20,

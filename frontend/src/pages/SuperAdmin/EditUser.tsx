@@ -126,15 +126,15 @@ export const EditUser: React.FC = () => {
   const watchedStudentSubject = watch('subject');
 
   // Synchronize student subject with selected ARAL level:
-  // - Basic: English is unavailable, replaced by Filipino (value="Reading")
+  // - Basic: English is unavailable, replaced by Filipino (value="Filipino")
   // - Plus: Filipino is unavailable, replaced by English (value="English")
   // - Math and Science remain untouched
   useEffect(() => {
     if (!isLoading && selectedRole === 'student') {
-      if (watchedStudentAralLevel === 'plus' && watchedStudentSubject === 'Reading') {
+      if (watchedStudentAralLevel === 'plus' && (watchedStudentSubject === 'Filipino' || watchedStudentSubject === 'Reading')) {
         setValue('subject', 'English');
       } else if (watchedStudentAralLevel !== 'plus' && watchedStudentSubject === 'English') {
-        setValue('subject', 'Reading');
+        setValue('subject', 'Filipino');
       }
     }
   }, [isLoading, selectedRole, watchedStudentAralLevel, watchedStudentSubject, setValue]);
@@ -330,11 +330,11 @@ export const EditUser: React.FC = () => {
           is_active: userData.is_active,
           assigned_tutor: userData.assigned_tutor || '',
           aral_level: userData.aral_level || 'basic',
-          subject: (userData.aral_level === 'plus' && (!userData.subject || userData.subject === 'Reading'))
+          subject: (userData.aral_level === 'plus' && (!userData.subject || userData.subject === 'Reading' || userData.subject === 'Filipino'))
             ? 'English'
             : (userData.aral_level !== 'plus' && userData.subject === 'English')
-            ? 'Reading'
-            : (userData.subject || 'Reading'),
+            ? 'Filipino'
+            : (userData.subject === 'Reading' ? 'Filipino' : (userData.subject || 'Filipino')),
           parent_guardian_name: userData.parent_guardian_name || '',
           contact_number: userData.contact_number || '',
           has_bosy: userData.has_bosy ?? true,
@@ -411,8 +411,8 @@ export const EditUser: React.FC = () => {
         : (data.aral_level || 'basic');
 
       const tutorSubject = data.role === 'tutor'
-        ? (tutorSubjects.includes('Filipino') ? 'Reading' : tutorSubjects[0] || 'Reading')
-        : (data.subject || 'Reading');
+        ? (tutorSubjects.includes('Filipino') ? 'Filipino' : tutorSubjects[0] || 'Filipino')
+        : (data.subject || 'Filipino');
 
       const payload: any = {
         ...data,
@@ -1017,7 +1017,7 @@ export const EditUser: React.FC = () => {
                     {watchedStudentAralLevel === 'plus' ? (
                       <option value="English">ENGLISH (for Plus)</option>
                     ) : (
-                      <option value="Reading">FILIPINO (for Basic)</option>
+                      <option value="Filipino">FILIPINO (for Basic)</option>
                     )}
                     <option value="Math">MATH</option>
                     <option value="Science">SCIENCE</option>

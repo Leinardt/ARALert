@@ -32,7 +32,7 @@ export function parseTutorHandledAralLevels(tutor: Partial<User> | null | undefi
 export interface TutorSubjectOption {
   id: string; // 'Filipino' | 'English' | 'Science' | 'Math'
   label: string; // 'FILIPINO' | 'ENGLISH' | 'SCIENCE' | 'MATH'
-  dbSubject: string; // 'Reading' | 'English' | 'Science' | 'Math'
+  dbSubject: string; // 'Filipino' | 'English' | 'Science' | 'Math'
 }
 
 /**
@@ -46,7 +46,7 @@ export function parseTutorHandledSubjects(
   if (!tutor) {
     return [
       activeAralLevel === 'basic'
-        ? { id: 'Filipino', label: 'FILIPINO', dbSubject: 'Reading' }
+        ? { id: 'Filipino', label: 'FILIPINO', dbSubject: 'Filipino' }
         : { id: 'English', label: 'ENGLISH', dbSubject: 'English' },
     ];
   }
@@ -67,7 +67,7 @@ export function parseTutorHandledSubjects(
 
   if (handlesLanguage) {
     if (activeAralLevel === 'basic') {
-      options.push({ id: 'Filipino', label: 'FILIPINO', dbSubject: 'Reading' });
+      options.push({ id: 'Filipino', label: 'FILIPINO', dbSubject: 'Filipino' });
     } else {
       options.push({ id: 'English', label: 'ENGLISH', dbSubject: 'English' });
     }
@@ -84,7 +84,7 @@ export function parseTutorHandledSubjects(
   if (options.length === 0) {
     options.push(
       activeAralLevel === 'basic'
-        ? { id: 'Filipino', label: 'FILIPINO', dbSubject: 'Reading' }
+        ? { id: 'Filipino', label: 'FILIPINO', dbSubject: 'Filipino' }
         : { id: 'English', label: 'ENGLISH', dbSubject: 'English' }
     );
   }
@@ -554,8 +554,8 @@ export function getChartAvailableSubjects(
   activeAralLevel: string
 ): { id: string; label: string }[] {
   const allChoices = [
+    { id: 'Filipino', label: 'FILIPINO' },
     { id: 'English', label: 'ENGLISH' },
-    { id: 'Reading', label: 'FILIPINO' },
     { id: 'Science', label: 'SCIENCE' },
     { id: 'Math', label: 'MATH' },
   ];
@@ -565,7 +565,7 @@ export function getChartAvailableSubjects(
   if (!tutor) {
     return allChoices.filter((c) => {
       if (normLevel === 'basic' && c.id === 'English') return false;
-      if (normLevel === 'plus' && c.id === 'Reading') return false;
+      if (normLevel === 'plus' && c.id === 'Filipino') return false;
       return true;
     });
   }
@@ -582,7 +582,7 @@ export function getChartAvailableSubjects(
     if (c.id === 'English') {
       return handlesEnglish && normLevel !== 'basic';
     }
-    if (c.id === 'Reading') {
+    if (c.id === 'Filipino') {
       return handlesFilipino && normLevel !== 'plus';
     }
     if (c.id === 'Science') return handlesScience;

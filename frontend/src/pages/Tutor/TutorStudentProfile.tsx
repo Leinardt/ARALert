@@ -849,7 +849,7 @@ export const TutorStudentProfile: React.FC = () => {
               <input
                 type="text"
                 required
-                placeholder="e.g. Remedial Reading Practice"
+                placeholder="e.g. Remedial Learning Practice"
                 value={activityForm.title}
                 onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)]"

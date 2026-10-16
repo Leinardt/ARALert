@@ -54,8 +54,8 @@ type ScoreEntryKind = 'daily' | 'mosy' | 'eosy' | 'endline';
 type ScorePeriod = 'ARAL Summer Assessment' | 'MOSY' | 'EOSY';
 
 const semesterScoreEntry: Record<ScorePeriod, { kind: ScoreEntryKind; buttonLabel: string; title: string; subject: string }> = {
-  MOSY: { kind: 'mosy', buttonLabel: 'Add MOSY Score', title: 'MOSY Reading Score (Q1/Q2)', subject: 'MOSY Reading' },
-  EOSY: { kind: 'eosy', buttonLabel: 'Add EOSY Score', title: 'EOSY Reading Score (Q3/Q4)', subject: 'EOSY Reading' },
+  MOSY: { kind: 'mosy', buttonLabel: 'Add MOSY Score', title: 'MOSY Assessment Score (Q1/Q2)', subject: 'MOSY Assessment' },
+  EOSY: { kind: 'eosy', buttonLabel: 'Add EOSY Score', title: 'EOSY Assessment Score (Q3/Q4)', subject: 'EOSY Assessment' },
   'ARAL Summer Assessment': { kind: 'endline', buttonLabel: 'Add ARAL Summer Assessment', title: 'ARAL Summer Assessment', subject: 'ARAL Summer Assessment' },
 };
 
@@ -1567,7 +1567,8 @@ export const TutorScores: React.FC = () => {
         const isNotTaken = entryStatus[student.id] === 'Not';
         const numScore = isNotTaken ? 0 : Number(entryScores[student.id] || 0);
         const remarks = isNotTaken ? 'Not Taken' : (numScore / activeTotal >= 0.7 ? 'Passed' : 'Failed');
-        const subject = entryKind === 'daily' ? `${user?.subject || 'Reading'} Intervention Activity` : levelEntry.subject;
+        const currentSubject = user?.subject === 'Reading' ? 'Filipino' : (user?.subject || 'Filipino');
+        const subject = entryKind === 'daily' ? `${currentSubject} Intervention Activity` : levelEntry.subject;
 
         if (entryKind !== 'daily') {
           const existingGrade = periodGrades.find((g) => String(g.student) === String(student.id));
@@ -1898,7 +1899,7 @@ export const TutorScores: React.FC = () => {
   const assignedPeriod = useMemo<ScorePeriod>(() => {
     return getActiveSystemMilestone();
   }, [activeSystemSem]);
-  const tutorSubject = user?.subject || 'Reading';
+  const tutorSubject = user?.subject === 'Reading' ? 'Filipino' : (user?.subject || 'Filipino');
   const levelEntry = useMemo(() => {
     const base = semesterScoreEntry[assignedPeriod] || semesterScoreEntry.MOSY;
     if (assignedPeriod === 'ARAL Summer Assessment') {
@@ -1976,7 +1977,7 @@ export const TutorScores: React.FC = () => {
           batchId: key,
           dateStr: grade.date_logged || '',
           timeStr: grade.created_at || null,
-          subject: grade.subject || 'Reading',
+          subject: grade.subject === 'Reading' ? 'Filipino' : (grade.subject || 'Filipino'),
           totalItems: Number(grade.total_score) || 0,
           takenCount: grade.remarks !== 'Not Taken' ? 1 : 0,
           notTakenCount: grade.remarks === 'Not Taken' ? 1 : 0,

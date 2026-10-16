@@ -477,7 +477,7 @@ export const AdminEvaluationHub: React.FC = () => {
         tutorName: tutor.full_name || `${tutor.first_name} ${tutor.last_name}`,
         gradeLevel: grade,
         section: section,
-        subject: tutor.subject || 'Reading',
+        subject: tutor.subject === 'Reading' ? 'Filipino' : (tutor.subject || 'Filipino'),
         aralLevel: normalizeAralLevel(tutor.tutor_type || tutor.aral_level),
         assignedCount,
         evaluatedCount,

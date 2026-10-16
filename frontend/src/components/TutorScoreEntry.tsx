@@ -19,17 +19,19 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
     if (!student) return alert('Select a student first.');
     if (score === '' || Number.isNaN(score)) return alert('Enter a valid score.');
 
+    const studentSubject = student.subject === 'Reading' ? 'Filipino' : (student.subject || 'Filipino');
+
     setLoading(true);
     try {
       await academicService.createGrade({
         student: student.id,
         component_type: 'assessment',
-        subject: 'Reading',
+        subject: studentSubject,
         quarter: currentQuarter,
         score: Number(score),
         total_score: 20
       });
-      alert('Daily Reading score logged successfully.');
+      alert(`Daily ${studentSubject} score logged successfully.`);
       setScore('');
       onCreated && onCreated();
     } catch (err: any) {
@@ -47,12 +49,13 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
           <UserIcon className="w-6 h-6" />
         </div>
         <p className="mt-4 text-base font-bold text-gray-800">Select a Learner</p>
-        <p className="mt-1 text-xs text-gray-400 max-w-sm mx-auto">Choose a student from the directory to quickly log today's daily Reading score.</p>
+        <p className="mt-1 text-xs text-gray-400 max-w-sm mx-auto">Choose a student from the directory to quickly log today's daily score.</p>
       </div>
     );
   }
 
   const isReady = score !== '' && Number(score) >= 0;
+  const studentSubject = student.subject === 'Reading' ? 'Filipino' : (student.subject || 'Filipino');
 
   return (
     <div className="rounded-md border border-gray-200 bg-white p-6 space-y-6">
@@ -60,7 +63,7 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Daily Assessment Entry</p>
           <h3 className="mt-0.5 text-xl font-bold text-gray-900">{student.full_name}</h3>
-          <p className="text-xs text-gray-500">LRN: {student.lrn || 'N/A'} &bull; Q{currentQuarter} Daily Reading</p>
+          <p className="text-xs text-gray-500">LRN: {student.lrn || 'N/A'} &bull; Q{currentQuarter} Daily {studentSubject}</p>
         </div>
         <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${
           isReady
@@ -120,7 +123,7 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pt-2">
         <div className="flex items-center gap-2.5 rounded-md border border-[var(--brand-border)] bg-[var(--brand-light)] p-3 text-xs text-[var(--brand-text)]">
           <BookOpen className="w-4 h-4 shrink-0 text-[var(--brand)]" />
-          <p>Scores are stored under Reading subject and feed into quarterly GPA automatically.</p>
+          <p>Scores are stored under {studentSubject} subject and feed into quarterly GPA automatically.</p>
         </div>
 
         <button

@@ -270,7 +270,7 @@ export const AssessmentsArchive: React.FC = () => {
         tutorName: tutor.full_name || `${tutor.first_name} ${tutor.last_name}`,
         gradeLevel: grade,
         section,
-        subject: tutor.subject || 'Reading',
+        subject: tutor.subject === 'Reading' ? 'Filipino' : (tutor.subject || 'Filipino'),
         aralLevel: normalizeAralLevel(tutor.tutor_type || tutor.aral_level),
         totalStudents: tutorStudents.length,
         passedCount,

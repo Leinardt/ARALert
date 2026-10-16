@@ -327,16 +327,16 @@ export const Profile: React.FC = () => {
                 {(localUser.role === 'student' || localUser.role === 'tutor') && (
                   <>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/80">
-                      ARAL {formatAralLevel(localUser.aral_level).toUpperCase()}
+                      {formatAralLevel(localUser.aral_level).toUpperCase()}
                     </span>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider border ${
-                      (localUser.subject || 'Reading') === 'Reading'
+                      (localUser.subject || 'Filipino') === 'Reading' || (localUser.subject || 'Filipino') === 'Filipino' || (localUser.subject || 'Filipino') === 'English'
                         ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/80'
-                        : (localUser.subject || 'Reading') === 'Science'
+                        : (localUser.subject || 'Filipino') === 'Science'
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/80'
                         : 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800/80'
                     }`}>
-                      {localUser.subject || 'Reading'}
+                      {localUser.subject === 'Reading' ? 'Filipino' : (localUser.subject || 'Filipino')}
                     </span>
                   </>
                 )}
@@ -614,7 +614,7 @@ export const Profile: React.FC = () => {
                   ARAL Subject Assigned
                 </label>
                 <input
-                  value={localUser.subject || 'Reading'}
+                  value={localUser.subject === 'Reading' ? 'Filipino' : (localUser.subject || 'Filipino')}
                   readOnly
                   disabled
                   style={readonlyStyle}
@@ -643,7 +643,7 @@ export const Profile: React.FC = () => {
                   Subject
                 </label>
                 <input
-                  value={localUser.subject || 'Reading'}
+                  value={localUser.subject === 'Reading' ? 'Filipino' : (localUser.subject || 'Filipino')}
                   readOnly
                   disabled
                   style={readonlyStyle}

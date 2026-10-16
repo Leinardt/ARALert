@@ -32,7 +32,7 @@ export interface User {
   aral_level?: 'basic' | 'plus' | 'summer' | 'graduated' | string | null;
   tutor_type?: 'basic' | 'plus' | 'summer' | 'basic_plus' | string | null;
   is_available_for_students?: boolean;
-  subject?: 'Reading' | 'Science' | 'Math' | 'English' | string | null;
+  subject?: 'Filipino' | 'Reading' | 'Science' | 'Math' | 'English' | string | null;
   faculty_type?: string | null;
   grade_level?: string | null;
   section?: string | null;
