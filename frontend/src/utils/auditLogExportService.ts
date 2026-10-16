@@ -50,6 +50,13 @@ export const formatAuditEmail = (log: AuditLogExportItem): string => {
   return log.email;
 };
 
+export const formatAuditTarget = (target?: string): string => {
+  if (!target || target === '—') return '—';
+  const clean = target.replace(/\s*\[.*?\]$/, '').trim();
+  if (clean.includes('@') || clean.startsWith('student-')) return '—';
+  return clean || '—';
+};
+
 function base64ToUint8Array(base64Str: string): Uint8Array {
   const clean = base64Str.replace(/^data:image\/\w+;base64,/, '');
   const binaryString = atob(clean);
@@ -94,7 +101,7 @@ export const exportAuditLogsToExcel = async (data: AuditLogExportData): Promise<
     { key: 'index', width: 6 },
     { key: 'timestamp', width: 25 },
     { key: 'action', width: 30 },
-    { key: 'target', width: 26 },
+    { key: 'target', width: 18 },
     { key: 'name', width: 26 },
     { key: 'role', width: 16 },
     { key: 'email', width: 30 },
@@ -222,7 +229,7 @@ export const exportAuditLogsToExcel = async (data: AuditLogExportData): Promise<
       idx + 1,
       log.timestamp,
       log.action.replace(/_/g, ' '),
-      log.target || '—',
+      formatAuditTarget(log.target),
       log.name || 'System',
       log.role || '—',
       formatAuditEmail(log),
@@ -369,7 +376,7 @@ export const exportAuditLogsToDocx = async (data: AuditLogExportData): Promise<v
   });
 
   // Table column widths (total = 10,000 dxa)
-  const colWidths = [450, 1850, 1800, 1600, 1500, 900, 1100, 800];
+  const colWidths = [450, 1900, 1900, 1250, 1600, 900, 1200, 800];
 
   const headerRow = new TableRow({
     tableHeader: true,
@@ -407,7 +414,7 @@ export const exportAuditLogsToDocx = async (data: AuditLogExportData): Promise<v
         { text: String(idx + 1), width: colWidths[0], align: AlignmentType.CENTER },
         { text: log.timestamp, width: colWidths[1], align: AlignmentType.CENTER },
         { text: log.action.replace(/_/g, ' '), width: colWidths[2], align: AlignmentType.LEFT },
-        { text: log.target || '—', width: colWidths[3], align: AlignmentType.LEFT },
+        { text: formatAuditTarget(log.target), width: colWidths[3], align: AlignmentType.LEFT },
         { text: log.name || 'System', width: colWidths[4], align: AlignmentType.LEFT },
         { text: log.role || '—', width: colWidths[5], align: AlignmentType.CENTER },
         { text: formatAuditEmail(log), width: colWidths[6], align: AlignmentType.LEFT },
@@ -570,13 +577,13 @@ export const exportAuditLogsToPdf = async (data: AuditLogExportData): Promise<vo
   // Table Columns Widths (sum = availWidth)
   const colWidths = [
     22,  // #
-    86,  // Timestamp
-    90,  // Event
-    85,  // Target
-    85,  // Actor Name
+    88,  // Timestamp
+    92,  // Event
+    65,  // Target (compact name only)
+    88,  // Actor Name
     48,  // Role
-    65,  // Email
-    availWidth - (22 + 86 + 90 + 85 + 85 + 48 + 65), // LRN
+    72,  // Email
+    availWidth - (22 + 88 + 92 + 65 + 88 + 48 + 72), // LRN
   ];
 
   const headerLabels = ['#', 'TIMESTAMP (PHT)', 'ACTION / EVENT', 'TARGET', 'ACTOR NAME', 'ROLE', 'EMAIL', 'LRN'];
@@ -634,7 +641,7 @@ export const exportAuditLogsToPdf = async (data: AuditLogExportData): Promise<vo
       String(idx + 1),
       log.timestamp,
       log.action.replace(/_/g, ' '),
-      log.target || '—',
+      formatAuditTarget(log.target),
       log.name || 'System',
       log.role || '—',
       formatAuditEmail(log),
@@ -672,7 +679,7 @@ export const exportAuditLogsToCsv = (data: AuditLogExportData): void => {
     `"${idx + 1}"`,
     `"${log.timestamp.replace(/"/g, '""')}"`,
     `"${log.action.replace(/_/g, ' ').replace(/"/g, '""')}"`,
-    `"${(log.target || '—').replace(/"/g, '""')}"`,
+    `"${formatAuditTarget(log.target).replace(/"/g, '""')}"`,
     `"${(log.name || 'System').replace(/"/g, '""')}"`,
     `"${(log.role || '—').replace(/"/g, '""')}"`,
     `"${formatAuditEmail(log).replace(/"/g, '""')}"`,

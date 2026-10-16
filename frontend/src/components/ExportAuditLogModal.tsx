@@ -9,6 +9,7 @@ import {
   exportAuditLogsToCsv,
   AuditLogExportItem,
   AuditLogExportData,
+  formatAuditTarget,
 } from '../utils/auditLogExportService';
 import { DEPED_LOGO_SRC, PNAHS_LOGO_SRC } from '../assets/template_logos/logosBase64';
 
@@ -279,7 +280,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
           id: String(r.id),
           timestamp: r.timestamp,
           action: r.action,
-          target: r.target || (r.details?.target_name || r.details?.student_name || r.details?.target_username || '—'),
+          target: formatAuditTarget(r.target || r.details?.target_name || r.details?.student_name || r.details?.user_name),
           name: r.name || 'System',
           role: r.role || '—',
           email: (r.role?.toLowerCase() === 'student' || r.email?.includes('@aralert.local') || r.email?.startsWith('student-')) ? '—' : (r.email || '—'),
@@ -303,7 +304,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                 id: String(r.id),
                 timestamp: r.timestamp,
                 action: r.action,
-                target: r.target || (r.details?.target_name || r.details?.student_name || r.details?.target_username || '—'),
+                target: formatAuditTarget(r.target || r.details?.target_name || r.details?.student_name || r.details?.user_name),
                 name: r.name || 'System',
                 role: r.role || '—',
                 email: (r.role?.toLowerCase() === 'student' || r.email?.includes('@aralert.local') || r.email?.startsWith('student-')) ? '—' : (r.email || '—'),
@@ -796,7 +797,7 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                           <th className="border border-slate-900 px-1.5 py-1 text-center w-8">#</th>
                           <th className="border border-slate-900 px-2 py-1 text-center w-36">TIMESTAMP (PHT)</th>
                           <th className="border border-slate-900 px-2 py-1 text-left w-44">EVENT / ACTION</th>
-                          <th className="border border-slate-900 px-2 py-1 text-left w-40">TARGET</th>
+                          <th className="border border-slate-900 px-2 py-1 text-left w-28">TARGET</th>
                           <th className="border border-slate-900 px-2 py-1 text-left w-36">ACTOR NAME</th>
                           <th className="border border-slate-900 px-2 py-1 text-center w-24">ROLE</th>
                           <th className="border border-slate-900 px-2 py-1 text-left">EMAIL</th>
@@ -828,8 +829,8 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                               <td className="border border-slate-900 px-2 py-1 text-left text-[11px] font-semibold">
                                 {log.action.replace(/_/g, ' ')}
                               </td>
-                              <td className="border border-slate-900 px-2 py-1 text-left text-[11px] font-semibold text-slate-900">
-                                {log.target || '—'}
+                              <td className="border border-slate-900 px-2 py-1 text-left text-[11px] font-semibold text-slate-900 whitespace-nowrap">
+                                {formatAuditTarget(log.target)}
                               </td>
                               <td className="border border-slate-900 px-2 py-1 text-left text-[11px]">
                                 {log.name || 'System'}

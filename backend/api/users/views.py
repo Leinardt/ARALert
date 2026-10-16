@@ -4,6 +4,7 @@ SuperAdmin and Admin endpoints for user management with audit logging, bulk tuto
 and user login/logout activity history.
 """
 
+import re
 import uuid
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import Lower
@@ -663,31 +664,30 @@ class AuditLogListView(APIView):
                     email = '—'
 
             # 5. Target (The user or entity created, updated, or affected by this event)
+            # Only put the target name (not email) and omit the [role] tag to save space.
             target = '—'
             if isinstance(log.details, dict):
                 target_id = str(log.details.get('target_user_id') or '')
                 cached_target = target_users_map.get(target_id)
 
-                target_name = (
+                raw_target_name = (
                     log.details.get('target_name') or
                     (cached_target['name'] if cached_target else None) or
                     log.details.get('student_name') or
-                    log.details.get('user_name') or
-                    log.details.get('target_username')
+                    log.details.get('user_name')
                 )
 
-                if target_name:
-                    target_role = (
-                        log.details.get('target_role') or
-                        (cached_target['role'] if cached_target else None) or
-                        log.details.get('role')
-                    )
-                    if target_role and not str(target_name).endswith(f"[{str(target_role).upper()}]"):
-                        target = f"{target_name} [{str(target_role).upper()}]"
+                if not raw_target_name:
+                    cand = str(log.details.get('target_username') or '')
+                    if cand and '@' not in cand and not cand.startswith('student-'):
+                        raw_target_name = cand
+
+                if raw_target_name:
+                    clean_name = re.sub(r'\s*\[.*?\]$', '', str(raw_target_name)).strip()
+                    if '@' in clean_name or clean_name.startswith('student-'):
+                        target = '—'
                     else:
-                        target = str(target_name)
-                elif log.action in ('ALLOWED_EMAIL_ADDED', 'ALLOWED_EMAIL_REMOVED') and log.details.get('email'):
-                    target = str(log.details.get('email'))
+                        target = clean_name or '—'
 
             # Sanitize username so placeholder student emails are not exposed
             clean_username = log.username or (str(log.user) if log.user else 'Anonymous')

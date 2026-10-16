@@ -22,18 +22,27 @@ interface AuditEntry {
 }
 
 const getTargetDisplay = (log: AuditEntry): string => {
-  if (log.target && log.target !== '—') return log.target;
-  const d = log.details;
-  if (!d) return '—';
-  const targetName = d.target_name || d.student_name || d.user_name || d.target_username;
-  if (targetName) {
-    const role = d.target_role || d.role;
-    return role ? `${targetName} [${String(role).toUpperCase()}]` : String(targetName);
+  let target = log.target || '';
+  if (!target || target === '—') {
+    const d = log.details;
+    if (d) {
+      const targetName = d.target_name || d.student_name || d.user_name;
+      if (targetName) {
+        target = String(targetName);
+      } else if (d.target_username && !String(d.target_username).includes('@')) {
+        target = String(d.target_username);
+      }
+    }
   }
-  if (d.email && (log.action.includes('EMAIL') || log.action.includes('INVITE'))) {
-    return String(d.email);
-  }
-  return '—';
+  if (!target || target === '—') return '—';
+
+  // Remove [role] if present to save space (e.g. "JUAN DELA CRUZ [STUDENT]" -> "JUAN DELA CRUZ")
+  target = target.replace(/\s*\[.*?\]$/, '').trim();
+
+  // If target is an email address, do not put email in target column
+  if (target.includes('@') || target.startsWith('student-')) return '—';
+
+  return target || '—';
 };
 
 interface AuditResponse {
@@ -496,7 +505,7 @@ export const AuditLog: React.FC = () => {
                   <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                     EVENT
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                  <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap max-w-[150px]">
                     TARGET
                   </th>
                   <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
@@ -531,7 +540,7 @@ export const AuditLog: React.FC = () => {
                       </td>
 
                       {/* TARGET */}
-                      <td className="px-4 py-3 whitespace-nowrap text-xs">
+                      <td className="px-3 py-3 whitespace-nowrap text-xs max-w-[150px] truncate" title={getTargetDisplay(log) !== '—' ? getTargetDisplay(log) : undefined}>
                         {(() => {
                           const target = getTargetDisplay(log);
                           if (target === '—') return <span className="text-gray-400 dark:text-slate-500">—</span>;
