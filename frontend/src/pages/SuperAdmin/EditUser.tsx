@@ -7,7 +7,15 @@ import { userService } from '../../services/userService';
 import type { User } from '../../types';
 import { ArrowLeft, AlertCircle, ShieldCheck, Plus, Trash2, CheckCircle2, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { isTutorEligibleForStudent, formatTutorAssignmentOption } from '../../utils/tutorCohortHelpers';
+import {
+  isTutorEligibleForStudent,
+  formatTutorAssignmentOption,
+  TutorRoleDetailGroup,
+  createDefaultRoleDetail,
+  buildTutorPayloadFromRoleDetails,
+  parseTutorRoleDetailsFromUser,
+} from '../../utils/tutorCohortHelpers';
+import { TutorRoleDetailsSection } from '../../components/TutorRoleDetailsSection';
 
 const NAME_REGEX = /^[a-zA-Z\s.\-ñÑ']+$/;
 const SECTION_REGEX = /^[a-zA-Z0-9\s\-]+$/;
@@ -190,83 +198,9 @@ export const EditUser: React.FC = () => {
     }
   }, [isLoading, selectedRole, watchedStudentAralLevel, watchedStudentSubject, setValue]);
 
-  // Tutor multi-level and multi-section state
-  const [tutorAralLevels, setTutorAralLevels] = useState<('basic' | 'plus')[]>(['basic']);
-  const [tutorSubjects, setTutorSubjects] = useState<string[]>(['Filipino']);
-  const [tutorGradeLevels, setTutorGradeLevels] = useState<string[]>(['GRADE 7']);
-  const [tutorSections, setTutorSections] = useState<string[]>(['']);
-  const [tutorRoleErrors, setTutorRoleErrors] = useState<{
-    aralLevel?: string;
-    subject?: string;
-    gradeLevel?: string;
-    sections?: string;
-  }>({});
-
-  const toggleAralLevel = (level: 'basic' | 'plus') => {
-    setTutorAralLevels((prev) => {
-      const next = prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level];
-      setTutorSubjects((prevSubj) => {
-        let updated = [...prevSubj];
-        if (!next.includes('basic')) updated = updated.filter((s) => s !== 'Filipino');
-        if (!next.includes('plus')) updated = updated.filter((s) => s !== 'English');
-        if (next.includes('basic') && !prev.includes('basic') && !updated.includes('Filipino')) updated.push('Filipino');
-        if (next.includes('plus') && !prev.includes('plus') && !updated.includes('English')) updated.push('English');
-        return updated.length > 0 ? updated : (next.includes('basic') ? ['Filipino'] : ['English']);
-      });
-      return next;
-    });
-    if (tutorRoleErrors.aralLevel) {
-      setTutorRoleErrors((prev) => ({ ...prev, aralLevel: undefined }));
-    }
-  };
-
-  const toggleSubject = (subjectName: string) => {
-    if (subjectName === 'Filipino' && !tutorAralLevels.includes('basic')) return;
-    if (subjectName === 'English' && !tutorAralLevels.includes('plus')) return;
-    setTutorSubjects((prev) => {
-      if (prev.includes(subjectName)) {
-        return prev.filter((s) => s !== subjectName);
-      } else {
-        return [...prev, subjectName];
-      }
-    });
-    if (tutorRoleErrors.subject) {
-      setTutorRoleErrors((prev) => ({ ...prev, subject: undefined }));
-    }
-  };
-
-  const toggleGradeLevel = (grade: string) => {
-    setTutorGradeLevels((prev) => {
-      if (prev.includes(grade)) {
-        return prev.filter((g) => g !== grade);
-      } else {
-        return [...prev, grade];
-      }
-    });
-    if (tutorRoleErrors.gradeLevel) {
-      setTutorRoleErrors((prev) => ({ ...prev, gradeLevel: undefined }));
-    }
-  };
-
-  const addSection = () => {
-    setTutorSections((prev) => [...prev, '']);
-  };
-
-  const removeSection = (index: number) => {
-    setTutorSections((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : ['']));
-  };
-
-  const updateSection = (index: number, value: string) => {
-    const sanitized = value.replace(/[^a-zA-Z0-9\s\-]/g, '').toUpperCase();
-    setTutorSections((prev) => {
-      const next = [...prev];
-      next[index] = sanitized;
-      return next;
-    });
-    if (tutorRoleErrors.sections) {
-      setTutorRoleErrors((prev) => ({ ...prev, sections: undefined }));
-    }
-  };
+  // Tutor modular role details state (connecting ARAL Level, Grade Level, Subject, and Sections)
+  const [tutorRoleDetails, setTutorRoleDetails] = useState<TutorRoleDetailGroup[]>([createDefaultRoleDetail()]);
+  const [tutorGroupErrors, setTutorGroupErrors] = useState<Record<string, string>>({});
 
   // Filter tutors matching student's grade, section, and ARAL level (always preserving current assignment)
   const matchingTutors = useMemo(() => {
@@ -300,66 +234,8 @@ export const EditUser: React.FC = () => {
         setUserInitialData(userData);
 
         if (userData.role === 'tutor') {
-          const rawAral = (userData.aral_level || '').toLowerCase();
-          const rawType = (userData.tutor_type || '').toLowerCase();
-          const levels: ('basic' | 'plus')[] = [];
-          if (rawAral.includes('basic') || rawType.includes('basic') || (!rawAral && !rawType)) levels.push('basic');
-          if (rawAral.includes('plus') || rawType.includes('plus')) levels.push('plus');
-          setTutorAralLevels(levels.length > 0 ? levels : ['basic']);
-
-          const rawSub = (userData.subject || '').toLowerCase();
-          const subs: string[] = [];
-          if (rawSub.includes('reading') || rawSub.includes('filipino')) subs.push('Filipino');
-          if (rawSub.includes('english')) subs.push('English');
-          if (rawSub.includes('science')) subs.push('Science');
-          if (rawSub.includes('math')) subs.push('Math');
-          if (levels.includes('basic') && levels.includes('plus')) {
-            if (!subs.includes('Filipino')) subs.push('Filipino');
-            if (!subs.includes('English')) subs.push('English');
-          } else if (subs.length === 0) {
-            if (levels.includes('basic')) subs.push('Filipino');
-            else subs.push('English');
-          }
-          setTutorSubjects(subs);
-
-          if (userData.grade_level) {
-            const parsedGrades: string[] = [];
-            const parsedSections: string[] = [];
-            const commaChunks = userData.grade_level.split(',').map((c: string) => c.trim()).filter(Boolean);
-
-            commaChunks.forEach((chunk: string) => {
-              if (chunk.includes(' - ')) {
-                const parts = chunk.split(' - ').map((p: string) => p.trim());
-                for (let i = 0; i < parts.length; i++) {
-                  const part = parts[i].toUpperCase();
-                  const gradeMatch = part.match(/GRADE\s*(\d+)/i);
-                  if (gradeMatch) {
-                    const gLabel = `GRADE ${gradeMatch[1]}`;
-                    if (!parsedGrades.includes(gLabel)) parsedGrades.push(gLabel);
-                    if (i + 1 < parts.length && !parts[i + 1].toUpperCase().match(/GRADE\s*(\d+)/i)) {
-                      const sLabel = parts[i + 1].trim().toUpperCase();
-                      if (sLabel && !parsedSections.includes(sLabel)) parsedSections.push(sLabel);
-                      i++;
-                    }
-                  } else if (part && !parsedSections.includes(part)) {
-                    parsedSections.push(part);
-                  }
-                }
-              } else {
-                const part = chunk.toUpperCase();
-                const gradeMatch = part.match(/GRADE\s*(\d+)/i);
-                if (gradeMatch) {
-                  const gLabel = `GRADE ${gradeMatch[1]}`;
-                  if (!parsedGrades.includes(gLabel)) parsedGrades.push(gLabel);
-                } else if (part && !parsedSections.includes(part)) {
-                  parsedSections.push(part);
-                }
-              }
-            });
-
-            if (parsedGrades.length > 0) setTutorGradeLevels(parsedGrades);
-            if (parsedSections.length > 0) setTutorSections(parsedSections);
-          }
+          const loadedGroups = parseTutorRoleDetailsFromUser(userData);
+          setTutorRoleDetails(loadedGroups);
         }
 
         let initialGrade = 'GRADE 7';
@@ -424,66 +300,51 @@ export const EditUser: React.FC = () => {
     setErrorToast(null);
     try {
       if (data.role === 'tutor') {
-        const errors: typeof tutorRoleErrors = {};
-        if (tutorAralLevels.length === 0) {
-          errors.aralLevel = 'Please select at least one ARAL Level (BASIC and/or PLUS).';
-        }
-        if (tutorSubjects.length === 0) {
-          errors.subject = 'Please select at least one Assigned Subject.';
-        }
-        if (tutorGradeLevels.length === 0) {
-          errors.gradeLevel = 'Please select at least one Assigned Grade Level.';
-        }
-        const validSections = tutorSections.map((s) => s.trim().toUpperCase()).filter(Boolean);
-        if (validSections.length === 0) {
-          errors.sections = 'At least one valid assigned section name is required.';
-        }
+        const groupErrors: Record<string, string> = {};
+        tutorRoleDetails.forEach((group, idx) => {
+          if (!group.aralLevel) {
+            groupErrors[`group_${idx}`] = 'Please select an ARAL Level (BASIC or PLUS).';
+          } else if (group.subjects.length === 0) {
+            groupErrors[`group_${idx}`] = 'Please select at least one assigned subject.';
+          } else if (!group.gradeLevel) {
+            groupErrors[`group_${idx}`] = 'Please select an assigned grade level.';
+          } else {
+            const validSecs = group.sections.map((s) => s.trim()).filter(Boolean);
+            if (validSecs.length === 0) {
+              groupErrors[`group_${idx}`] = `Please enter at least one assigned section for ${group.gradeLevel}.`;
+            }
+          }
+        });
 
-        if (Object.keys(errors).length > 0) {
-          setTutorRoleErrors(errors);
-          const firstRoleErr = Object.values(errors)[0];
+        if (Object.keys(groupErrors).length > 0) {
+          setTutorGroupErrors(groupErrors);
+          const firstErr = Object.values(groupErrors)[0];
           setErrorToast({
             title: 'Role Details Incomplete',
-            message: firstRoleErr || 'Please check the assigned ARAL level, subject, grade, or sections.',
+            message: firstErr || 'Please check the assigned ARAL level, subject, grade, or sections in each role detail group.',
           });
           setIsSubmitting(false);
           return;
         }
-        setTutorRoleErrors({});
+        setTutorGroupErrors({});
       }
 
       let combinedGradeLevel = '';
+      let tutorAralLevel = data.aral_level || 'basic';
+      let tutorTutorType = data.aral_level || 'basic';
+      let tutorSubject = data.subject || 'Filipino';
+
       if (data.role === 'tutor') {
-        const validSections = tutorSections.map((s) => s.trim().toUpperCase()).filter(Boolean);
-        if (validSections.length === 1) {
-          combinedGradeLevel = tutorGradeLevels.map((g) => `${g} - ${validSections[0]}`).join(', ');
-        } else if (validSections.length === tutorGradeLevels.length) {
-          combinedGradeLevel = tutorGradeLevels.map((g, i) => `${g} - ${validSections[i]}`).join(', ');
-        } else {
-          combinedGradeLevel = tutorGradeLevels
-            .map((g) => validSections.map((s) => `${g} - ${s}`).join(', '))
-            .join(', ');
-        }
-        if (combinedGradeLevel.length > 98) {
-          combinedGradeLevel = combinedGradeLevel.slice(0, 98);
-        }
+        const computed = buildTutorPayloadFromRoleDetails(tutorRoleDetails);
+        combinedGradeLevel = computed.grade_level;
+        tutorAralLevel = computed.aral_level;
+        tutorTutorType = computed.tutor_type;
+        tutorSubject = computed.subject;
       } else if (data.role === 'student') {
         const sectionStr = data.grade_level_section ? data.grade_level_section.toUpperCase().trim() : '';
         const gradeStr = data.grade_level_grade ? data.grade_level_grade.toUpperCase().trim() : 'GRADE 7';
         combinedGradeLevel = sectionStr ? `${gradeStr} - ${sectionStr}` : gradeStr;
       }
-
-      const tutorAralLevel = data.role === 'tutor'
-        ? (tutorAralLevels.length > 1 ? 'basic,plus' : (tutorAralLevels[0] || 'basic'))
-        : (data.aral_level || 'basic');
-
-      const tutorTutorType = data.role === 'tutor'
-        ? (tutorAralLevels.length > 1 ? 'basic_plus' : (tutorAralLevels[0] || 'basic'))
-        : (data.aral_level || 'basic');
-
-      const tutorSubject = data.role === 'tutor'
-        ? (tutorSubjects.length > 0 ? tutorSubjects.join(', ') : 'Filipino')
-        : (data.subject || 'Filipino');
 
       const payload: any = {
         ...data,
@@ -517,19 +378,18 @@ export const EditUser: React.FC = () => {
         await userService.updateUser(id, payload);
       } catch (primaryErr: any) {
         const errData = primaryErr.response?.data;
-        // If the deployed backend is on the legacy schema that rejects multi-values ('basic,plus', 'basic_plus'), 'Filipino', or commas in grade_level:
         if (
           errData &&
           (errData.aral_level || errData.tutor_type || errData.subject || errData.grade_level)
         ) {
           const fallbackPayload = { ...payload };
           if (errData.aral_level || errData.tutor_type) {
-            const fallbackLevel = tutorAralLevels.includes('basic') ? 'basic' : (tutorAralLevels[0] || 'basic');
-            fallbackPayload.aral_level = fallbackLevel;
-            fallbackPayload.tutor_type = fallbackLevel;
+            const hasBasic = tutorRoleDetails.some((g) => g.aralLevel === 'basic');
+            fallbackPayload.aral_level = hasBasic ? 'basic' : 'plus';
+            fallbackPayload.tutor_type = hasBasic ? 'basic' : 'plus';
           }
           if (errData.subject && fallbackPayload.subject?.includes(',')) {
-            fallbackPayload.subject = tutorSubjects.includes('Filipino') ? 'Filipino' : (tutorSubjects[0] || 'Filipino');
+            fallbackPayload.subject = fallbackPayload.subject.includes('Filipino') ? 'Filipino' : 'English';
           } else if (errData.subject && fallbackPayload.subject === 'Filipino') {
             fallbackPayload.subject = 'Reading';
           }
@@ -539,7 +399,6 @@ export const EditUser: React.FC = () => {
               fallbackPayload.grade_level = fallbackPayload.grade_level.slice(0, 98);
             }
           }
-          // Retry with legacy-compatible payload
           await userService.updateUser(id, fallbackPayload);
         } else {
           throw primaryErr;
@@ -810,253 +669,14 @@ export const EditUser: React.FC = () => {
             </div>
           </div>
 
-          {/* ── Section 2: Tutor Role Details Container ──────────────────── */}
+          {/* ── Section 2: Tutor Role Details & Assignment Groups ──────── */}
           {selectedRole === 'tutor' && (
-            <div className="space-y-4 border-t border-gray-100 dark:border-[#1A1A1A] pt-4">
-              <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
-                Role Details
-              </h4>
-
-              {/* 1. ARAL Level (Checkbox: BASIC and/or PLUS) */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                  ARAL Level <span className="text-red-500">*</span>
-                </label>
-                <div className="p-3 bg-gray-50/70 dark:bg-[#141414] border border-gray-200 dark:border-[#222222] rounded-lg">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    {[
-                      { key: 'basic', label: 'BASIC' },
-                      { key: 'plus', label: 'PLUS' },
-                    ].map((lvl) => {
-                      const isChecked = tutorAralLevels.includes(lvl.key as any);
-                      return (
-                        <label
-                          key={lvl.key}
-                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all select-none cursor-pointer ${
-                            isChecked
-                              ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] shadow-2xs'
-                              : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838] hover:bg-gray-50/70 dark:hover:bg-[#1e1e1e]'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleAralLevel(lvl.key as any)}
-                            className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
-                          />
-                          <span className="font-semibold">{lvl.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-                {tutorRoleErrors.aralLevel && (
-                  <p className="text-[11px] text-red-600 dark:text-red-400">{tutorRoleErrors.aralLevel}</p>
-                )}
-              </div>
-
-              {/* 2. Assigned Subject (FILIPINO if Basic, ENGLISH if Plus, SCIENCE, MATH) */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                  Assigned Subject <span className="text-red-500">*</span>
-                </label>
-                <div className="p-3 bg-gray-50/70 dark:bg-[#141414] border border-gray-200 dark:border-[#222222] rounded-lg">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    {/* FILIPINO: Requires BASIC */}
-                    {(() => {
-                      const isFilipinoDisabled = !tutorAralLevels.includes('basic');
-                      const isFilipinoChecked = !isFilipinoDisabled && tutorSubjects.includes('Filipino');
-                      return (
-                        <label
-                          title={isFilipinoDisabled ? 'Select BASIC ARAL Level above to enable Filipino' : undefined}
-                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all select-none ${
-                            isFilipinoDisabled
-                              ? 'cursor-not-allowed bg-gray-100/70 dark:bg-[#191919] border-gray-200 dark:border-[#282828] text-gray-400 dark:text-neutral-500 opacity-60'
-                              : isFilipinoChecked
-                              ? 'cursor-pointer border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] shadow-2xs'
-                              : 'cursor-pointer border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838] hover:bg-gray-50/70 dark:hover:bg-[#1e1e1e]'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            disabled={isFilipinoDisabled}
-                            checked={isFilipinoChecked}
-                            onChange={() => toggleSubject('Filipino')}
-                            className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer disabled:cursor-not-allowed"
-                          />
-                          <span className="font-semibold">FILIPINO</span>
-                          {isFilipinoDisabled && (
-                            <span className="text-[10px] font-normal text-gray-400 dark:text-neutral-500">
-                              (Requires Basic)
-                            </span>
-                          )}
-                        </label>
-                      );
-                    })()}
-
-                    {/* ENGLISH: Requires PLUS */}
-                    {(() => {
-                      const isEnglishDisabled = !tutorAralLevels.includes('plus');
-                      const isEnglishChecked = !isEnglishDisabled && tutorSubjects.includes('English');
-                      return (
-                        <label
-                          title={isEnglishDisabled ? 'Select PLUS ARAL Level above to enable English' : undefined}
-                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all select-none ${
-                            isEnglishDisabled
-                              ? 'cursor-not-allowed bg-gray-100/70 dark:bg-[#191919] border-gray-200 dark:border-[#282828] text-gray-400 dark:text-neutral-500 opacity-60'
-                              : isEnglishChecked
-                              ? 'cursor-pointer border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] shadow-2xs'
-                              : 'cursor-pointer border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838] hover:bg-gray-50/70 dark:hover:bg-[#1e1e1e]'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            disabled={isEnglishDisabled}
-                            checked={isEnglishChecked}
-                            onChange={() => toggleSubject('English')}
-                            className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer disabled:cursor-not-allowed"
-                          />
-                          <span className="font-semibold">ENGLISH</span>
-                          {isEnglishDisabled && (
-                            <span className="text-[10px] font-normal text-gray-400 dark:text-neutral-500">
-                              (Requires Plus)
-                            </span>
-                          )}
-                        </label>
-                      );
-                    })()}
-
-                    {/* SCIENCE */}
-                    {(() => {
-                      const isChecked = tutorSubjects.includes('Science');
-                      return (
-                        <label
-                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all select-none cursor-pointer ${
-                            isChecked
-                              ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] shadow-2xs'
-                              : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838] hover:bg-gray-50/70 dark:hover:bg-[#1e1e1e]'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleSubject('Science')}
-                            className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
-                          />
-                          <span className="font-semibold">SCIENCE</span>
-                        </label>
-                      );
-                    })()}
-
-                    {/* MATH */}
-                    {(() => {
-                      const isChecked = tutorSubjects.includes('Math');
-                      return (
-                        <label
-                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all select-none cursor-pointer ${
-                            isChecked
-                              ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] shadow-2xs'
-                              : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838] hover:bg-gray-50/70 dark:hover:bg-[#1e1e1e]'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleSubject('Math')}
-                            className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
-                          />
-                          <span className="font-semibold">MATH</span>
-                        </label>
-                      );
-                    })()}
-                  </div>
-                </div>
-                {tutorAralLevels.length === 0 && (
-                  <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                    Select an ARAL Level above to enable Filipino (Basic) or English (Plus).
-                  </p>
-                )}
-                {tutorRoleErrors.subject && (
-                  <p className="text-[11px] text-red-600 dark:text-red-400">{tutorRoleErrors.subject}</p>
-                )}
-              </div>
-
-              {/* 3. ASSIGNED GRADE LEVEL (GRADE 7 to GRADE 12) */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                  ASSIGNED GRADE LEVEL <span className="text-red-500">*</span>
-                </label>
-                <div className="p-3 bg-gray-50/70 dark:bg-[#141414] border border-gray-200 dark:border-[#222222] rounded-lg">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    {['GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10', 'GRADE 11', 'GRADE 12'].map((grade) => {
-                      const isChecked = tutorGradeLevels.includes(grade);
-                      return (
-                        <label
-                          key={grade}
-                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium transition-all select-none cursor-pointer ${
-                            isChecked
-                              ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] shadow-2xs'
-                              : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838] hover:bg-gray-50/70 dark:hover:bg-[#1e1e1e]'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleGradeLevel(grade)}
-                            className="h-4 w-4 rounded border-gray-300 text-[var(--brand)] focus:ring-[var(--brand)] cursor-pointer"
-                          />
-                          <span className="font-semibold">{grade}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-                {tutorRoleErrors.gradeLevel && (
-                  <p className="text-[11px] text-red-600 dark:text-red-400">{tutorRoleErrors.gradeLevel}</p>
-                )}
-              </div>
-
-              {/* 4. ASSIGNED SECTIONS (Dynamic Section Inputs) */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                  ASSIGNED SECTIONS <span className="text-red-500">*</span>
-                </label>
-                <div className="space-y-2 max-w-lg">
-                  {tutorSections.map((sec, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={sec}
-                        onChange={(e) => updateSection(idx, e.target.value)}
-                        placeholder={idx === 0 ? 'e.g. MANGO' : `Section ${idx + 1}`}
-                        className="w-full rounded-md border border-gray-300 dark:border-[#222222] bg-white dark:bg-[#161616] px-3 py-2 text-xs font-semibold uppercase shadow-2xs focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100"
-                      />
-                      {tutorSections.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeSection(idx)}
-                          className="p-1.5 text-gray-400 hover:text-rose-600 transition cursor-pointer"
-                          title="Remove section"
-                          aria-label="Remove section"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={addSection}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--brand)] hover:underline cursor-pointer pt-1"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add Another Assigned Section
-                </button>
-                {tutorRoleErrors.sections && (
-                  <p className="text-[11px] text-red-600 dark:text-red-400">{tutorRoleErrors.sections}</p>
-                )}
-              </div>
+            <div className="border-t border-gray-100 dark:border-[#1A1A1A] pt-4">
+              <TutorRoleDetailsSection
+                groups={tutorRoleDetails}
+                onChange={setTutorRoleDetails}
+                errors={tutorGroupErrors}
+              />
             </div>
           )}
 

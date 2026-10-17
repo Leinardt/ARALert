@@ -780,3 +780,163 @@ export function formatTutorAssignmentOption(tutor: Partial<User>): string {
   return `${fullName} ${levelsStr} [${cohortText}]`;
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Tutor Role Detail Groups (Connecting ARAL level, Grade, Subject, & Section)
+   ────────────────────────────────────────────────────────────────────────── */
+
+export interface TutorRoleDetailGroup {
+  id: string;
+  aralLevel: 'basic' | 'plus';
+  subjects: string[];
+  gradeLevel: string;
+  sections: string[];
+}
+
+export function createDefaultRoleDetail(
+  aralLevel: 'basic' | 'plus' = 'basic',
+  gradeLevel = 'GRADE 7'
+): TutorRoleDetailGroup {
+  return {
+    id: Math.random().toString(36).substring(2, 9),
+    aralLevel,
+    subjects: [aralLevel === 'basic' ? 'Filipino' : 'English'],
+    gradeLevel,
+    sections: [''],
+  };
+}
+
+export function buildTutorPayloadFromRoleDetails(groups: TutorRoleDetailGroup[]) {
+  const hasBasic = groups.some((g) => g.aralLevel === 'basic');
+  const hasPlus = groups.some((g) => g.aralLevel === 'plus');
+  const aralLevel = hasBasic && hasPlus ? 'basic,plus' : (hasPlus ? 'plus' : 'basic');
+  const tutorType = hasBasic && hasPlus ? 'basic_plus' : (hasPlus ? 'plus' : 'basic');
+
+  const subjectSet = new Set<string>();
+  groups.forEach((g) => {
+    g.subjects.forEach((s) => {
+      if (s) subjectSet.add(s);
+    });
+  });
+  if (subjectSet.size === 0) {
+    if (hasBasic) subjectSet.add('Filipino');
+    if (hasPlus) subjectSet.add('English');
+  }
+  const subject = Array.from(subjectSet).join(', ');
+
+  const cohortEntries: string[] = [];
+  groups.forEach((g) => {
+    const validSections = g.sections.map((s) => s.trim().toUpperCase()).filter(Boolean);
+    if (validSections.length > 0) {
+      validSections.forEach((sec) => {
+        const entry = `${g.gradeLevel} - ${sec}`;
+        if (!cohortEntries.includes(entry)) {
+          cohortEntries.push(entry);
+        }
+      });
+    } else {
+      if (!cohortEntries.includes(g.gradeLevel)) {
+        cohortEntries.push(g.gradeLevel);
+      }
+    }
+  });
+
+  let combinedGradeLevel = cohortEntries.join(', ');
+  if (combinedGradeLevel.length > 98) {
+    combinedGradeLevel = combinedGradeLevel.slice(0, 98);
+  }
+
+  return {
+    aral_level: aralLevel,
+    tutor_type: tutorType,
+    subject,
+    grade_level: combinedGradeLevel,
+  };
+}
+
+export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undefined): TutorRoleDetailGroup[] {
+  if (!user) return [createDefaultRoleDetail()];
+
+  const rawLevel = (user.aral_level || '').toLowerCase();
+  const rawType = (user.tutor_type || '').toLowerCase();
+  const handlesBasic = rawLevel.includes('basic') || rawType.includes('basic') || rawType === 'basic_plus' || (!rawLevel && !rawType);
+  const handlesPlus = rawLevel.includes('plus') || rawType.includes('plus') || rawType === 'basic_plus';
+
+  const rawSubject = (user.subject || '').toLowerCase();
+  const subjectsList: string[] = [];
+  if (rawSubject.includes('reading') || rawSubject.includes('filipino')) subjectsList.push('Filipino');
+  if (rawSubject.includes('english')) subjectsList.push('English');
+  if (rawSubject.includes('science')) subjectsList.push('Science');
+  if (rawSubject.includes('math')) subjectsList.push('Math');
+
+  const rawGradeLevel = (user.grade_level || '').trim();
+  if (!rawGradeLevel) {
+    return [
+      createDefaultRoleDetail(
+        handlesBasic ? 'basic' : 'plus',
+        'GRADE 7'
+      ),
+    ];
+  }
+
+  const parsedCohorts: { grade: string; section: string }[] = [];
+  const commaChunks = rawGradeLevel.split(',').map((c) => c.trim()).filter(Boolean);
+
+  commaChunks.forEach((chunk) => {
+    if (chunk.includes(' - ')) {
+      const parts = chunk.split(' - ').map((p) => p.trim());
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i].toUpperCase();
+        const gradeMatch = part.match(/GRADE\s*(\d+)/i);
+        if (gradeMatch) {
+          const gLabel = `GRADE ${gradeMatch[1]}`;
+          let sLabel = '';
+          if (i + 1 < parts.length && !parts[i + 1].toUpperCase().match(/GRADE\s*(\d+)/i)) {
+            sLabel = parts[i + 1].trim().toUpperCase();
+            i++;
+          }
+          parsedCohorts.push({ grade: gLabel, section: sLabel });
+        } else if (part) {
+          parsedCohorts.push({ grade: 'GRADE 7', section: part });
+        }
+      }
+    } else {
+      const part = chunk.toUpperCase();
+      const gradeMatch = part.match(/GRADE\s*(\d+)/i);
+      if (gradeMatch) {
+        parsedCohorts.push({ grade: `GRADE ${gradeMatch[1]}`, section: '' });
+      } else if (part) {
+        parsedCohorts.push({ grade: 'GRADE 7', section: part });
+      }
+    }
+  });
+
+  if (parsedCohorts.length === 0) {
+    return [createDefaultRoleDetail(handlesBasic ? 'basic' : 'plus')];
+  }
+
+  return parsedCohorts.map((cohort, index) => {
+    let groupLevel: 'basic' | 'plus' = 'basic';
+    if (handlesBasic && handlesPlus) {
+      groupLevel = index === 0 ? 'basic' : 'plus';
+    } else if (handlesPlus) {
+      groupLevel = 'plus';
+    }
+
+    const groupSubjects = groupLevel === 'basic'
+      ? (subjectsList.includes('Filipino') ? ['Filipino'] : ['Filipino'])
+      : (subjectsList.includes('English') ? ['English'] : ['English']);
+
+    if (subjectsList.includes('Science') && !groupSubjects.includes('Science')) groupSubjects.push('Science');
+    if (subjectsList.includes('Math') && !groupSubjects.includes('Math')) groupSubjects.push('Math');
+
+    return {
+      id: Math.random().toString(36).substring(2, 9),
+      aralLevel: groupLevel,
+      subjects: groupSubjects,
+      gradeLevel: cohort.grade || 'GRADE 7',
+      sections: cohort.section ? [cohort.section] : [''],
+    };
+  });
+}
+
+
