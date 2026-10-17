@@ -525,10 +525,50 @@ export const TutorHome: React.FC = () => {
     return getActiveSystemMilestone();
   }, [activeSystemSem]);
 
+  const currentClassViewLabel = useMemo(() => {
+    const isAllAral = !selectedAralLevel || selectedAralLevel.toLowerCase() === 'all';
+    const isAllSubject = !selectedSubject || selectedSubject.toLowerCase() === 'all';
+    const isAllCohort = !selectedCohort || selectedCohort.toLowerCase() === 'all' || selectedCohort.toUpperCase() === 'ALL - ALL';
+
+    if (isAllAral && isAllSubject && isAllCohort) {
+      return '';
+    }
+
+    const aralPart = isAllAral ? 'ALL ARAL LEVELS' : selectedAralLevel.toUpperCase();
+    const subjectPart = isAllSubject ? 'ALL SUBJECTS' : selectedSubject.toUpperCase();
+    const cohortPart = isAllCohort ? 'ALL COHORTS' : selectedCohort.toUpperCase();
+    return `${aralPart} • ${subjectPart} • ${cohortPart}`;
+  }, [selectedAralLevel, selectedSubject, selectedCohort]);
+
+  const performanceTrendTitle = useMemo(() => {
+    if (!currentClassViewLabel) {
+      return 'STUDENTS PERFORMANCE TREND';
+    }
+    return `${currentClassViewLabel}'S PERFORMANCE TREND`;
+  }, [currentClassViewLabel]);
+
+  const topAtRiskTitle = useMemo(() => {
+    if (!currentClassViewLabel) {
+      return 'ALL TOP AT-RISK STUDENTS';
+    }
+    return `${currentClassViewLabel}'S TOP AT-RISK`;
+  }, [currentClassViewLabel]);
+
   const last4WeeksData = useMemo(() => {
     if (filteredStudents.length === 0 || grades.length === 0) return [];
     const studentIds = new Set(filteredStudents.map((s) => String(s.id)));
-    const assessmentGrades = grades.filter((g) => studentIds.has(String(g.student)) && g.component_type === 'assessment');
+    const assessmentGrades = grades.filter((g) => {
+      if (!studentIds.has(String(g.student)) || g.component_type !== 'assessment') return false;
+      if (selectedSubject && selectedSubject.toLowerCase() !== 'all') {
+        const gradeSub = (g.subject || '').toLowerCase();
+        const selSub = selectedSubject.toLowerCase();
+        if (selSub === 'filipino' && !(gradeSub.includes('filipino') || gradeSub.includes('reading'))) return false;
+        if (selSub === 'english' && !gradeSub.includes('english')) return false;
+        if (selSub === 'science' && !gradeSub.includes('science')) return false;
+        if (selSub === 'math' && !gradeSub.includes('math')) return false;
+      }
+      return true;
+    });
     if (assessmentGrades.length === 0) return [];
 
     const now = new Date();
@@ -810,7 +850,7 @@ export const TutorHome: React.FC = () => {
         selectedCohort={selectedCohort}
         onSelectCohort={setSelectedCohort}
         allowAll={true}
-        title="DASHBOARD CLASS & COHORT FILTER"
+        title="CURRENT CLASS FOR VIEW"
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:min-h-[30rem] w-full min-w-0 max-w-full">
@@ -882,7 +922,7 @@ export const TutorHome: React.FC = () => {
         <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3.5 sm:px-5 flex flex-col flex-1 min-h-0 w-full min-w-0 max-w-full">
           <div className="flex items-center justify-between gap-2 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
             <div className="min-w-0 flex-1">
-              <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight truncate">Students Performance Trend</h3>
+              <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight truncate">{performanceTrendTitle}</h3>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
               <div className="hidden xs:flex items-center gap-2 sm:gap-3 shrink-0 whitespace-nowrap">
@@ -978,7 +1018,7 @@ export const TutorHome: React.FC = () => {
         <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-full flex flex-col max-h-[420px] lg:max-h-none shadow-2xs">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
             <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase tracking-wider">
-              Top At-Risk
+              {topAtRiskTitle}
             </h3>
             <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
               {atRiskStudents.length}

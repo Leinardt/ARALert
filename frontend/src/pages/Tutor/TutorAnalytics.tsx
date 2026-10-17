@@ -1251,12 +1251,31 @@ export const TutorAnalytics: React.FC = () => {
   };
 
   useEffect(() => {
-    const baseRows = computeStudentRiskRows(filteredStudents, rawGrades, rawAttendanceLogs);
-    setGrades(rawGrades);
-    setAttendanceLogs(rawAttendanceLogs);
+    const studentIds = new Set(filteredStudents.map((s) => String(s.id)));
+
+    const cohortAttendance = rawAttendanceLogs.filter((a: Attendance) =>
+      studentIds.has(String(getLogUserId(a)))
+    );
+
+    const cohortGrades = rawGrades.filter((g: Grade) => {
+      if (!studentIds.has(String(g.student))) return false;
+      if (selectedSubject && selectedSubject.toLowerCase() !== 'all') {
+        const gradeSub = (g.subject || '').toLowerCase();
+        const selSub = selectedSubject.toLowerCase();
+        if (selSub === 'filipino' && !(gradeSub.includes('filipino') || gradeSub.includes('reading'))) return false;
+        if (selSub === 'english' && !gradeSub.includes('english')) return false;
+        if (selSub === 'science' && !gradeSub.includes('science')) return false;
+        if (selSub === 'math' && !gradeSub.includes('math')) return false;
+      }
+      return true;
+    });
+
+    const baseRows = computeStudentRiskRows(filteredStudents, cohortGrades, cohortAttendance);
+    setGrades(cohortGrades);
+    setAttendanceLogs(cohortAttendance);
 
     const extendedRows: ExtendedRiskRow[] = baseRows.map((row) => {
-      const studentAtt = rawAttendanceLogs.filter((a: Attendance) => getLogUserId(a) === String(row.student.id));
+      const studentAtt = cohortAttendance.filter((a: Attendance) => getLogUserId(a) === String(row.student.id));
       return { ...row, absentCount: studentAtt.filter((a: Attendance) => isAbsentStatus(a.status)).length };
     });
 
@@ -1272,7 +1291,7 @@ export const TutorAnalytics: React.FC = () => {
 
     setRiskCounts(counts);
     setRows(extendedRows);
-  }, [filteredStudents, rawGrades, rawAttendanceLogs]);
+  }, [filteredStudents, selectedSubject, rawGrades, rawAttendanceLogs]);
 
   useEffect(() => {
     if (riskScope !== 'all' && !filteredStudents.some((s) => String(s.id) === riskScope)) {
@@ -1360,6 +1379,28 @@ export const TutorAnalytics: React.FC = () => {
   const selectedScoreStudent = useMemo(() => (
     scoreScope === 'all' ? null : rows.find((row) => String(row.student.id) === scoreScope)?.student || null
   ), [rows, scoreScope]);
+
+  const currentClassViewLabel = useMemo(() => {
+    const isAllAral = !selectedAralLevel || selectedAralLevel.toLowerCase() === 'all';
+    const isAllSubject = !selectedSubject || selectedSubject.toLowerCase() === 'all';
+    const isAllCohort = !selectedCohort || selectedCohort.toLowerCase() === 'all' || selectedCohort.toUpperCase() === 'ALL - ALL';
+
+    if (isAllAral && isAllSubject && isAllCohort) {
+      return '';
+    }
+
+    const aralPart = isAllAral ? 'ALL ARAL LEVELS' : selectedAralLevel.toUpperCase();
+    const subjectPart = isAllSubject ? 'ALL SUBJECTS' : selectedSubject.toUpperCase();
+    const cohortPart = isAllCohort ? 'ALL COHORTS' : selectedCohort.toUpperCase();
+    return `${aralPart} • ${subjectPart} • ${cohortPart}`;
+  }, [selectedAralLevel, selectedSubject, selectedCohort]);
+
+  const riskLevelTrendTitle = useMemo(() => {
+    if (!currentClassViewLabel) {
+      return 'RISK LEVEL TREND CHART';
+    }
+    return `${currentClassViewLabel}'S RISK LEVEL TREND CHART`;
+  }, [currentClassViewLabel]);
   const riskTrend = useMemo(() => buildRiskTrendPoints(
     riskScopedRows.map((row) => row.student),
     grades,
@@ -1688,7 +1729,7 @@ export const TutorAnalytics: React.FC = () => {
         selectedCohort={selectedCohort}
         onSelectCohort={setSelectedCohort}
         allowAll={true}
-        title="ANALYTICS CLASS & COHORT FILTER"
+        title="CURRENT CLASS FOR VIEW"
       />
 
       {/* ── View Tab Switcher ── */}
@@ -1767,7 +1808,7 @@ export const TutorAnalytics: React.FC = () => {
               <section className="rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]" aria-labelledby="risk-overview-heading">
                 <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
-                    <h3 id="risk-overview-heading" className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">RISK LEVEL TREND CHART</h3>
+                    <h3 id="risk-overview-heading" className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">{riskLevelTrendTitle}</h3>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
