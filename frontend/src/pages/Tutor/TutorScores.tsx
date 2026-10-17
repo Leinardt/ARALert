@@ -1398,6 +1398,30 @@ export const TutorScores: React.FC = () => {
   const [showMilestoneConfirmation, setShowMilestoneConfirmation] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [validationToast, setValidationToast] = useState<{
+    type: 'warning' | 'error';
+    title: string;
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!validationToast) return;
+    const timer = setTimeout(() => {
+      setValidationToast(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [validationToast]);
+
+  const missingScoreStudents = useMemo(() => {
+    return cohortStudents.filter((student) => {
+      const status = entryStatus[student.id] || 'Taken';
+      if (status !== 'Taken') return false;
+      const rawScore = entryScores[student.id];
+      return rawScore === '' || rawScore === undefined || rawScore === null;
+    });
+  }, [cohortStudents, entryStatus, entryScores]);
+
+  const hasMissingScores = missingScoreStudents.length > 0;
 
   // Attendance-pattern: track last saved batch for inline DTR row highlight
   const [lastSavedBatchId, setLastSavedBatchId] = useState<string | null>(null);
@@ -1529,6 +1553,38 @@ export const TutorScores: React.FC = () => {
     handleOpenAddEntry(levelEntry.kind);
   };
 
+  const handleSaveScoresClick = () => {
+    const activeTotal = totalScore === '' ? 0 : Number(totalScore);
+    if (activeTotal <= 0) {
+      setValidationToast({
+        type: 'warning',
+        title: 'Invalid Total Items',
+        message: 'Please specify a valid total score greater than 0 before saving.',
+      });
+      return;
+    }
+
+    if (hasMissingScores) {
+      setValidationToast({
+        type: 'warning',
+        title: 'Missing Student Scores',
+        message: `Some students marked as "Taken" in this class have no inputted scores (${missingScoreStudents.length} remaining). It remains untouched with no typed content. Please enter a score or mark as "Not Taken".`,
+      });
+      return;
+    }
+
+    if (cohortStudents.length === 0) {
+      setValidationToast({
+        type: 'warning',
+        title: 'No Students in Class',
+        message: 'There are no students in the selected class cohort to record scores for.',
+      });
+      return;
+    }
+
+    setShowSaveConfirmation(true);
+  };
+
   const confirmSaveScores = () => {
     setShowSaveConfirmation(false);
     handleAddScore();
@@ -1536,9 +1592,31 @@ export const TutorScores: React.FC = () => {
 
   const handleAddScore = async () => {
     const activeTotal = totalScore === '' ? 0 : Number(totalScore);
-    if (activeTotal <= 0) return alert('Please specify a valid total score greater than 0.');
-    if (Object.values(entryScores).every((score) => score === '' || score === undefined || score === null)) {
-      return alert('Please enter a score for at least one student.');
+    if (activeTotal <= 0) {
+      setValidationToast({
+        type: 'warning',
+        title: 'Invalid Total Items',
+        message: 'Please specify a valid total score greater than 0.',
+      });
+      return;
+    }
+
+    if (hasMissingScores) {
+      setValidationToast({
+        type: 'warning',
+        title: 'Missing Student Scores',
+        message: `Cannot save: ${missingScoreStudents.length} student${missingScoreStudents.length > 1 ? 's' : ''} marked as "Taken" in this class ${missingScoreStudents.length > 1 ? 'have' : 'has'} no inputted scores.`,
+      });
+      return;
+    }
+
+    if (Object.values(entryScores).every((score) => score === '' || score === undefined || score === null) && Object.values(entryStatus).every((s) => s !== 'Not')) {
+      setValidationToast({
+        type: 'warning',
+        title: 'No Scores Entered',
+        message: 'Please enter a score for at least one student.',
+      });
+      return;
     }
 
     setIsSaving(true);
@@ -1549,12 +1627,12 @@ export const TutorScores: React.FC = () => {
       const entriesToCreate: Partial<Grade>[] = [];
       const entriesToUpdate: { id: number; data: Partial<Grade> }[] = [];
 
-      (students || []).forEach((student) => {
+      (cohortStudents || []).forEach((student) => {
         const rawScore = entryScores[student.id];
-        const hasScore = (rawScore !== '' && rawScore !== undefined && rawScore !== null) || entryStatus[student.id] === 'Not';
+        const isNotTaken = entryStatus[student.id] === 'Not';
+        const hasScore = (rawScore !== '' && rawScore !== undefined && rawScore !== null) || isNotTaken;
         if (!hasScore) return;
 
-        const isNotTaken = entryStatus[student.id] === 'Not';
         const numScore = isNotTaken ? 0 : Number(entryScores[student.id] || 0);
         const remarks = isNotTaken ? 'Not Taken' : (numScore / activeTotal >= 0.7 ? 'Passed' : 'Failed');
         const currentSubject = user?.subject === 'Reading' ? 'Filipino' : (user?.subject || 'Filipino');
@@ -1592,7 +1670,12 @@ export const TutorScores: React.FC = () => {
 
       if (entriesToCreate.length === 0 && entriesToUpdate.length === 0) {
         setIsSaving(false);
-        return alert('No scores entered.');
+        setValidationToast({
+          type: 'warning',
+          title: 'No Scores to Save',
+          message: 'No scores entered for this class.',
+        });
+        return;
       }
 
       await Promise.all([
@@ -1651,7 +1734,11 @@ export const TutorScores: React.FC = () => {
       console.error('Error saving scores:', err);
       const data = err?.response?.data;
       const detailMsg = data ? (typeof data === 'string' ? data : JSON.stringify(data)) : err?.message || 'Failed to log scores.';
-      alert(`Failed to log scores: ${detailMsg}`);
+      setValidationToast({
+        type: 'error',
+        title: 'Failed to Save Scores',
+        message: String(detailMsg),
+      });
     } finally {
       setIsSaving(false);
     }
@@ -2213,9 +2300,16 @@ export const TutorScores: React.FC = () => {
               <div className="w-full sm:w-auto flex items-end justify-end">
                 <button
                   type="button"
-                  onClick={() => setShowSaveConfirmation(true)}
+                  onClick={handleSaveScoresClick}
                   disabled={isSaving}
-                  className="w-full sm:w-auto min-h-[44px] sm:min-h-0 sm:h-9 inline-flex items-center justify-center gap-2 rounded-md bg-[var(--brand)] px-5 py-2 text-xs font-bold text-white transition hover:bg-[var(--brand-dark)] disabled:cursor-not-allowed disabled:opacity-60 shadow-sm"
+                  title={hasMissingScores ? `Cannot save: ${missingScoreStudents.length} student(s) marked as Taken have no inputted scores.` : undefined}
+                  className={`w-full sm:w-auto min-h-[44px] sm:min-h-0 sm:h-9 inline-flex items-center justify-center gap-2 rounded-md px-5 py-2 text-xs font-bold text-white transition shadow-sm ${
+                    isSaving
+                      ? 'bg-[var(--brand)] opacity-60 cursor-not-allowed'
+                      : hasMissingScores
+                      ? 'bg-amber-600 hover:bg-amber-700 cursor-not-allowed opacity-90'
+                      : 'bg-[var(--brand)] hover:bg-[var(--brand-dark)] cursor-pointer'
+                  }`}
                 >
                   {isSaving ? (
                     <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving...</>
@@ -2259,6 +2353,14 @@ export const TutorScores: React.FC = () => {
                     />
                   </label>
                 </div>
+                {hasMissingScores && (
+                  <div className="px-4 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900/50 flex items-center gap-2 text-xs text-amber-800 dark:text-amber-200">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span>
+                      <strong>Score Entry Incomplete:</strong> {missingScoreStudents.length} student{missingScoreStudents.length > 1 ? 's' : ''} marked as <em>Taken</em> {missingScoreStudents.length > 1 ? 'have' : 'has'} no inputted score. Please enter {missingScoreStudents.length > 1 ? 'their scores' : 'a score'} or set to <em>Not Taken</em> to enable saving.
+                    </span>
+                  </div>
+                )}
                 <div className="mobile-scroll-table sm:min-h-0 sm:flex-1 sm:overflow-auto">
                   {/* Desktop Table View (>= 640px) */}
                   <table className="hidden sm:table min-w-[680px] w-full divide-y divide-gray-100 dark:divide-slate-800 text-sm">
@@ -2291,7 +2393,9 @@ export const TutorScores: React.FC = () => {
                       {sortedStudents.map((student) => {
                         const status = entryStatus[student.id] || 'Taken';
                         const isNotTaken = status === 'Not';
+                        const isTaken = status === 'Taken';
                         const rawScore = entryScores[student.id];
+                        const hasNoScore = isTaken && (rawScore === '' || rawScore === undefined || rawScore === null);
                         const activeTotal = Number(totalScore) || 0;
                         const hasValidScore = rawScore !== '' && rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore));
                         const pct = isNotTaken
@@ -2321,8 +2425,18 @@ export const TutorScores: React.FC = () => {
                                 }}
                                 placeholder={`0–${activeTotal}`}
                                 disabled={isNotTaken}
-                                className="w-full max-w-[110px] rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-gray-900 dark:text-slate-100 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60"
+                                className={`w-full max-w-[110px] rounded-md border bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60 ${
+                                  hasNoScore
+                                    ? 'border-amber-400 dark:border-amber-500/80 bg-amber-50/20 dark:bg-amber-950/20 focus:border-amber-500 focus:ring-amber-500'
+                                    : 'border-gray-200 dark:border-slate-700 focus:border-[var(--brand)] focus:ring-[var(--brand)]'
+                                }`}
                               />
+                              {hasNoScore && (
+                                <p className="mt-1 text-[10px] font-semibold text-amber-500 dark:text-amber-400 flex items-center gap-1 whitespace-nowrap">
+                                  <AlertCircle className="w-3 h-3 shrink-0" />
+                                  No inputted score
+                                </p>
+                              )}
                             </td>
                             <td className="px-4 py-2.5 text-center">
                               {pct !== null && !isNaN(pct) ? (
@@ -2366,7 +2480,9 @@ export const TutorScores: React.FC = () => {
                       mobileAlphabeticalStudents.map((student) => {
                       const status = entryStatus[student.id] || 'Taken';
                       const isNotTaken = status === 'Not';
+                      const isTaken = status === 'Taken';
                       const rawScore = entryScores[student.id];
+                      const hasNoScore = isTaken && (rawScore === '' || rawScore === undefined || rawScore === null);
                       const activeTotal = Number(totalScore) || 0;
                       const hasValidScore = rawScore !== '' && rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore));
                       const pct = isNotTaken
@@ -2407,25 +2523,37 @@ export const TutorScores: React.FC = () => {
                           </div>
 
                           <div className="flex items-center justify-between gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
-                            <div className="flex items-center gap-2">
-                              <label htmlFor={`score-input-${student.id}`} className="text-xs font-bold text-gray-600 dark:text-slate-400 shrink-0">
-                                Score:
-                              </label>
-                              <input
-                                id={`score-input-${student.id}`}
-                                type="text"
-                                inputMode="numeric"
-                                value={isNotTaken ? 0 : (entryScores[student.id] ?? '')}
-                                onKeyDown={blockSymbolKeys}
-                                onChange={(e) => {
-                                  const sanitized = sanitizeScoreInput(e.target.value, activeTotal);
-                                  setEntryScores((prev) => ({ ...prev, [student.id]: sanitized }));
-                                }}
-                                placeholder={`0–${activeTotal}`}
-                                disabled={isNotTaken}
-                                className="w-24 min-h-[44px] rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-center text-sm font-bold text-gray-900 dark:text-slate-100 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60"
-                              />
-                              <span className="text-xs font-semibold text-gray-400 shrink-0">/ {activeTotal}</span>
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-2">
+                                <label htmlFor={`score-input-${student.id}`} className="text-xs font-bold text-gray-600 dark:text-slate-400 shrink-0">
+                                  Score:
+                                </label>
+                                <input
+                                  id={`score-input-${student.id}`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={isNotTaken ? 0 : (entryScores[student.id] ?? '')}
+                                  onKeyDown={blockSymbolKeys}
+                                  onChange={(e) => {
+                                    const sanitized = sanitizeScoreInput(e.target.value, activeTotal);
+                                    setEntryScores((prev) => ({ ...prev, [student.id]: sanitized }));
+                                  }}
+                                  placeholder={`0–${activeTotal}`}
+                                  disabled={isNotTaken}
+                                  className={`w-24 min-h-[44px] rounded-lg border bg-white dark:bg-slate-800 px-3 text-center text-sm font-bold text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60 ${
+                                    hasNoScore
+                                      ? 'border-amber-400 dark:border-amber-500/80 bg-amber-50/20 dark:bg-amber-950/20 focus:border-amber-500 focus:ring-amber-500'
+                                      : 'border-gray-200 dark:border-slate-700 focus:border-[var(--brand)] focus:ring-[var(--brand)]'
+                                  }`}
+                                />
+                                <span className="text-xs font-semibold text-gray-400 shrink-0">/ {activeTotal}</span>
+                              </div>
+                              {hasNoScore && (
+                                <p className="mt-1 text-[10px] font-semibold text-amber-500 dark:text-amber-400 flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3 shrink-0" />
+                                  No inputted score
+                                </p>
+                              )}
                             </div>
 
                             <div className="flex items-center gap-1.5 shrink-0">
@@ -2739,6 +2867,46 @@ export const TutorScores: React.FC = () => {
               </div>
               <p className="mt-1 text-xs text-gray-600 leading-relaxed">
                 {saveSuccessMsg || 'Intervention Activity scores saved and highlighted below.'}
+              </p>
+            </div>
+          </div>
+        </aside>
+      )}
+
+      {/* ── Score Validation / Error Floating Notification Toast ─────────── */}
+      {validationToast && (
+        <aside
+          aria-live="assertive"
+          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+        >
+          <div className={`flex items-start gap-3 rounded-lg border p-3.5 shadow-xl bg-white dark:bg-[#111111] ${
+            validationToast.type === 'warning'
+              ? 'border-amber-300 dark:border-amber-700/80'
+              : 'border-rose-300 dark:border-rose-700/80'
+          }`}>
+            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${
+              validationToast.type === 'warning'
+                ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
+            }`}>
+              <AlertCircle className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                  {validationToast.title}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setValidationToast(null)}
+                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  aria-label="Close notification"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                {validationToast.message}
               </p>
             </div>
           </div>
