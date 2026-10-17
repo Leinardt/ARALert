@@ -2058,14 +2058,19 @@ table.divide-y > tbody > tr:first-child > td {
 .dark .bg-blue-50\/50 { background-color: var(--brand-lighter) !important; }
 
 /* Select inputs */
-.dark select {
+.dark select:not(.cohort-filter-select) {
   background-color: var(--surface-muted);
   color: var(--text-primary);
   border-color: var(--slate-200);
 }
-.dark select option {
+.dark select:not(.cohort-filter-select) option {
   background-color: var(--surface-card);
   color: var(--text-primary);
+}
+
+.dark select.cohort-filter-select,
+.dark select.cohort-filter-select option {
+  color: #60a5fa !important;
 }
 
 /* Plain text inputs with border */

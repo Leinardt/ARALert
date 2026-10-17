@@ -268,12 +268,12 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
               id="filter-aral-level"
               value={selectedAralLevel}
               onChange={(e) => onSelectAralLevel(e.target.value as any)}
-              className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-[var(--brand)] dark:text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
+              className="cohort-filter-select w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold !text-[var(--brand)] dark:!text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
             >
               {allowAll && (
                 <option
                   value="all"
-                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
+                  className="bg-white dark:bg-[#161616] !text-[var(--brand)] dark:!text-blue-400 font-bold"
                 >
                   ALL ARAL LEVELS
                 </option>
@@ -282,7 +282,7 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
                 <option
                   key={level}
                   value={level}
-                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
+                  className="bg-white dark:bg-[#161616] !text-[var(--brand)] dark:!text-blue-400 font-bold"
                 >
                   {level === 'basic' ? 'BASIC' : 'PLUS'}
                 </option>
@@ -305,12 +305,12 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
               id="filter-subject"
               value={selectedSubject}
               onChange={(e) => onSelectSubject(e.target.value)}
-              className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-[var(--brand)] dark:text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
+              className="cohort-filter-select w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold !text-[var(--brand)] dark:!text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
             >
               {allowAll && (
                 <option
                   value="all"
-                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
+                  className="bg-white dark:bg-[#161616] !text-[var(--brand)] dark:!text-blue-400 font-bold"
                 >
                   ALL SUBJECTS
                 </option>
@@ -319,7 +319,7 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
                 <option
                   key={sub.id}
                   value={sub.id}
-                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
+                  className="bg-white dark:bg-[#161616] !text-[var(--brand)] dark:!text-blue-400 font-bold"
                 >
                   {sub.label}
                 </option>
@@ -342,12 +342,12 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
               id="filter-grade-level"
               value={currentGrade}
               onChange={(e) => handleGradeChange(e.target.value)}
-              className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-[var(--brand)] dark:text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
+              className="cohort-filter-select w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold !text-[var(--brand)] dark:!text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
             >
               {allowAll && (
                 <option
                   value="ALL"
-                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
+                  className="bg-white dark:bg-[#161616] !text-[var(--brand)] dark:!text-blue-400 font-bold"
                 >
                   ALL GRADES
                 </option>
@@ -356,7 +356,7 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
                 <option
                   key={grade}
                   value={grade}
-                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
+                  className="bg-white dark:bg-[#161616] !text-[var(--brand)] dark:!text-blue-400 font-bold"
                 >
                   {grade}
                 </option>
@@ -379,12 +379,12 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
               id="filter-section"
               value={currentSection}
               onChange={(e) => handleSectionChange(e.target.value)}
-              className="w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold text-[var(--brand)] dark:text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
+              className="cohort-filter-select w-full appearance-none rounded-md border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] px-3 py-1.5 pr-8 text-xs font-bold !text-[var(--brand)] dark:!text-blue-400 shadow-xs focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)] focus:outline-none transition-colors cursor-pointer"
             >
               {allowAll && (
                 <option
                   value="ALL"
-                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
+                  className="bg-white dark:bg-[#161616] !text-[var(--brand)] dark:!text-blue-400 font-bold"
                 >
                   ALL SECTIONS
                 </option>
@@ -393,7 +393,7 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
                 <option
                   key={sec}
                   value={sec}
-                  className="bg-white dark:bg-[#161616] text-[var(--brand)] dark:text-blue-400 font-bold"
+                  className="bg-white dark:bg-[#161616] !text-[var(--brand)] dark:!text-blue-400 font-bold"
                 >
                   {sec}
                 </option>
