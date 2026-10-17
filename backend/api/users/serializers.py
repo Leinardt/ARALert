@@ -229,6 +229,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     aral_level = serializers.CharField(required=False, allow_blank=True)
     tutor_type = serializers.CharField(required=False, allow_blank=True)
+    lrn = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
+    subject = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     class Meta:
         model = User
@@ -239,6 +241,9 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             'tutor_type', 'is_available_for_students',
             'grade_level', 'parent_guardian_name', 'contact_number', 'has_bosy', 'has_mosy', 'has_eosy', 'has_summer'
         ]
+        extra_kwargs = {
+            'lrn': {'validators': []},
+        }
 
     def validate_first_name(self, value):
         v = sanitize_input_text(value)
@@ -310,13 +315,51 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Invalid tutor type.')
         return v
 
+    def validate_subject(self, value):
+        if not value:
+            return 'Filipino'
+        v = sanitize_input_text(value).strip()
+        v_title = v.capitalize()
+        if v_title in ('Filipino', 'English', 'Science', 'Math'):
+            return v_title
+        if 'filipino' in v.lower():
+            return 'Filipino'
+        if 'english' in v.lower():
+            return 'English'
+        if 'science' in v.lower():
+            return 'Science'
+        if 'math' in v.lower():
+            return 'Math'
+        return 'Filipino'
+
     def validate_lrn(self, value):
-        if value:
-            v = str(value).strip()
-            if not v.isdigit() or len(v) != 12:
-                raise serializers.ValidationError('LRN must be exactly 12 digits (numbers only).')
-            return v
-        return value
+        if not value:
+            return None
+        v = str(value).strip()
+        if not v.isdigit() or len(v) != 12:
+            raise serializers.ValidationError('LRN must be exactly 12 digits (numbers only).')
+        return v
+
+    def validate(self, data):
+        target_role = data.get('role', getattr(self.instance, 'role', None))
+        if target_role == 'student':
+            lrn = data.get('lrn', getattr(self.instance, 'lrn', None))
+            if not lrn:
+                raise serializers.ValidationError({'lrn': 'LRN is required for student accounts.'})
+            lrn = str(lrn).strip()
+            if not lrn.isdigit() or len(lrn) != 12:
+                raise serializers.ValidationError({'lrn': 'LRN must be exactly 12 digits (numbers only).'})
+            if User.objects.filter(lrn=lrn).exclude(pk=self.instance.pk).exists():
+                raise serializers.ValidationError({'lrn': 'A student with this LRN already exists.'})
+            data['lrn'] = lrn
+        else:
+            # For non-students (tutor, faculty, principal, admin, superadmin):
+            # LRN must always be None to prevent uniqueness collisions and empty-string storage.
+            data['lrn'] = None
+            data['assigned_tutor'] = None
+            data['parent_guardian_name'] = ''
+            data['contact_number'] = ''
+        return data
 
     def update(self, instance, validated_data):
         for attr, value in validated_data.items():

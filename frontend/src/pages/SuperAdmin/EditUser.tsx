@@ -42,16 +42,8 @@ const editUserSchema = z.object({
   assigned_tutor: z.string().optional().nullable(),
   aral_level: z.string().optional(),
   subject: z.string().optional(),
-  parent_guardian_name: z.string()
-    .max(200, 'Parent/Guardian Name must not exceed 200 characters.')
-    .optional()
-    .refine((v) => !v || NAME_REGEX.test(v), 'Parent / Guardian Name can only contain letters, spaces, hyphens, and periods.')
-    .refine((v) => !v || !DANGEROUS_INJECTION_PATTERN.test(v), 'Invalid characters detected.'),
-  contact_number: z.string()
-    .max(11, 'Contact Number must be exactly 11 digits.')
-    .optional()
-    .refine((v) => !v || PHONE_REGEX.test(v), 'Contact Number must be exactly 11 digits (e.g. 09123456789).')
-    .refine((v) => !v || !DANGEROUS_INJECTION_PATTERN.test(v), 'Invalid characters detected.'),
+  parent_guardian_name: z.string().optional(),
+  contact_number: z.string().optional(),
   has_bosy: z.boolean().optional(),
   has_mosy: z.boolean().optional(),
   has_eosy: z.boolean().optional(),
@@ -97,11 +89,36 @@ const editUserSchema = z.object({
         message: 'Parent / Guardian Name is required.',
         path: ['parent_guardian_name'],
       });
+    } else if (data.parent_guardian_name.length > 200) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Parent / Guardian Name must not exceed 200 characters.',
+        path: ['parent_guardian_name'],
+      });
+    } else if (!NAME_REGEX.test(data.parent_guardian_name)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Parent / Guardian Name can only contain letters, spaces, hyphens, and periods.',
+        path: ['parent_guardian_name'],
+      });
+    } else if (DANGEROUS_INJECTION_PATTERN.test(data.parent_guardian_name)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid characters detected in Parent / Guardian Name.',
+        path: ['parent_guardian_name'],
+      });
     }
+
     if (!data.contact_number || !data.contact_number.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Contact Number is required.',
+        path: ['contact_number'],
+      });
+    } else if (!PHONE_REGEX.test(data.contact_number.trim())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Contact Number must be exactly 11 digits (e.g. 09123456789).',
         path: ['contact_number'],
       });
     }
@@ -130,6 +147,16 @@ export const EditUser: React.FC = () => {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [successToastTitle, setSuccessToastTitle] = useState('Changes Saved Successfully');
   const [successToastMessage, setSuccessToastMessage] = useState('User profile has been updated.');
+  const [errorToast, setErrorToast] = useState<{ title: string; message: string } | null>(null);
+
+  // Auto-dismiss error floating toast notification after 4 seconds (matches TutorScores toast behavior)
+  useEffect(() => {
+    if (!errorToast) return;
+    const timer = setTimeout(() => {
+      setErrorToast(null);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [errorToast]);
 
   const {
     register,
@@ -380,6 +407,7 @@ export const EditUser: React.FC = () => {
     if (!id) return;
     setIsSubmitting(true);
     setServerErrors(null);
+    setErrorToast(null);
     try {
       if (data.role === 'tutor') {
         const errors: typeof tutorRoleErrors = {};
@@ -399,6 +427,11 @@ export const EditUser: React.FC = () => {
 
         if (Object.keys(errors).length > 0) {
           setTutorRoleErrors(errors);
+          const firstRoleErr = Object.values(errors)[0];
+          setErrorToast({
+            title: 'Role Details Incomplete',
+            message: firstRoleErr || 'Please check the assigned ARAL level, subject, grade, or sections.',
+          });
           setIsSubmitting(false);
           return;
         }
@@ -443,24 +476,38 @@ export const EditUser: React.FC = () => {
         first_name: data.first_name.toUpperCase().trim(),
         middle_name: data.middle_name ? data.middle_name.toUpperCase().trim() : '',
         last_name: data.last_name.toUpperCase().trim(),
-        parent_guardian_name: data.parent_guardian_name ? data.parent_guardian_name.toUpperCase().trim() : '',
-        contact_number: data.contact_number ? data.contact_number.trim() : '',
+        parent_guardian_name: data.role === 'student' && data.parent_guardian_name ? data.parent_guardian_name.toUpperCase().trim() : '',
+        contact_number: data.role === 'student' && data.contact_number ? data.contact_number.trim() : '',
         grade_level: combinedGradeLevel,
         has_bosy: !!data.has_bosy,
         has_mosy: !!data.has_mosy,
         has_eosy: !!data.has_eosy,
         has_summer: !!data.has_summer,
         assigned_tutor: data.role === 'student' && data.assigned_tutor ? data.assigned_tutor : null,
+        lrn: data.role === 'student' && data.lrn ? data.lrn.trim() : null,
         subject: tutorSubject,
         aral_level: tutorAralLevel,
         tutor_type: tutorTutorType,
       };
 
+      if (data.role !== 'student') {
+        payload.lrn = null;
+        payload.assigned_tutor = null;
+        payload.parent_guardian_name = '';
+        payload.contact_number = '';
+      }
+      delete payload.grade_level_grade;
+      delete payload.grade_level_section;
+
       await userService.updateUser(id, payload);
 
       const roleTitle = data.role ? data.role.charAt(0).toUpperCase() + data.role.slice(1) : 'User';
       setSuccessToastTitle(`${roleTitle} Changes Saved Successfully`);
-      setSuccessToastMessage(`The ${roleTitle.toLowerCase()} profile and assignments have been updated successfully.`);
+      setSuccessToastMessage(
+        data.role === 'tutor'
+          ? 'The tutor profile and assigned cohort details have been updated successfully.'
+          : `The ${roleTitle.toLowerCase()} profile and assignments have been updated successfully.`
+      );
       setShowSuccessToast(true);
 
       const getBackPath = () => {
@@ -480,15 +527,25 @@ export const EditUser: React.FC = () => {
 
       setTimeout(() => {
         navigate(getBackPath());
-      }, 1500);
+      }, 2200);
     } catch (error: any) {
-      console.error(error);
+      console.error('Update user error:', error);
       const errorsPayload = error.response?.data;
+      let errorMsg = 'An unexpected error occurred while updating the user record.';
       if (errorsPayload && typeof errorsPayload === 'object') {
         setServerErrors(errorsPayload);
-      } else {
-        alert('An unexpected error occurred while updating user.');
+        const firstField = Object.keys(errorsPayload)[0];
+        const val = errorsPayload[firstField];
+        const detail = Array.isArray(val) ? val.join(' ') : String(val);
+        errorMsg = firstField === 'detail' ? detail : `${firstField.replace(/_/g, ' ').toUpperCase()}: ${detail}`;
+      } else if (error.message) {
+        errorMsg = error.message;
       }
+      setErrorToast({
+        title: 'Unable to Save Changes',
+        message: errorMsg,
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setIsSubmitting(false);
     }
@@ -601,10 +658,13 @@ export const EditUser: React.FC = () => {
         <form
           onSubmit={handleSubmit(onSubmit, (errs) => {
             console.error('Validation errors:', errs);
-            const firstErr = Object.values(errs)[0];
-            if (firstErr && typeof firstErr === 'object' && 'message' in firstErr) {
-              alert(`Please check the form: ${firstErr.message}`);
-            }
+            const firstKey = Object.keys(errs)[0];
+            const firstErr = (errs as any)[firstKey];
+            const message = firstErr?.message || 'Please check the required fields in the form.';
+            setErrorToast({
+              title: 'Form Validation Error',
+              message: String(message),
+            });
           })}
           className="space-y-6"
         >
@@ -1215,6 +1275,38 @@ export const EditUser: React.FC = () => {
               </div>
               <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
                 {successToastMessage}
+              </p>
+            </div>
+          </div>
+        </aside>
+      )}
+
+      {/* ── Error / Validation Floating Notification Toast (Matches TutorScores Validation Toast) ── */}
+      {errorToast && (
+        <aside
+          aria-live="assertive"
+          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+        >
+          <div className="flex items-start gap-3 rounded-lg border border-rose-300 dark:border-rose-700/80 bg-white dark:bg-[#111111] p-3.5 shadow-xl">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800">
+              <AlertCircle className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                  {errorToast.title}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setErrorToast(null)}
+                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  aria-label="Close error notification"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                {errorToast.message}
               </p>
             </div>
           </div>
