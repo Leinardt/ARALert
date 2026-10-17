@@ -834,9 +834,18 @@ export const AdminHome: React.FC = () => {
       setError(null);
       try {
         const [statsData, tutorsData, studentsData, gradesData, attendanceData, facultyData, adminsData] = await Promise.all([
-          userService.getStats(),
-          userService.getAllUsers({ role: 'tutor' }),
-          userService.getAllUsers({ role: 'student' }),
+          userService.getStats().catch((err) => {
+            console.warn('Could not load stats for admin dashboard:', err);
+            return null;
+          }),
+          userService.getAllUsers({ role: 'tutor' }).catch((err) => {
+            console.warn('Could not load tutors:', err);
+            return [] as User[];
+          }),
+          userService.getAllUsers({ role: 'student' }).catch((err) => {
+            console.warn('Could not load students:', err);
+            return [] as User[];
+          }),
           academicService.getGrades().catch((err) => {
             console.warn('Could not load grades for admin dashboard:', err);
             return [] as Grade[];

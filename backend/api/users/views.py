@@ -54,22 +54,35 @@ class UserStatsView(APIView):
             unassigned_students=Count('id', filter=Q(role='student', assigned_tutor__isnull=True)),
         )
 
-        att_aggregates = StudentAttendance.objects.aggregate(
-            total_logs=Count('id'),
-            present=Count('id', filter=Q(status__iexact='PRESENT')),
-            absent=Count('id', filter=Q(status__iexact='ABSENT')),
-        )
+        total_att = 0
+        present_att = 0
+        absent_att = 0
+        att_rate = 0.0
+        avg_score = 0.0
+        total_assessments = 0
 
-        score_aggregates = AssessmentScore.objects.filter(score__isnull=False).aggregate(
-            avg_score=Avg('score'),
-            total_assessments=Count('id'),
-        )
+        try:
+            from apps.academics.models import StudentAttendance, AssessmentScore
 
-        total_att = att_aggregates['total_logs'] or 0
-        present_att = att_aggregates['present'] or 0
-        absent_att = att_aggregates['absent'] or 0
-        att_rate = round((present_att / total_att * 100.0), 1) if total_att > 0 else 0
-        avg_score = round(float(score_aggregates['avg_score']), 1) if score_aggregates['avg_score'] is not None else 0
+            att_aggregates = StudentAttendance.objects.aggregate(
+                total_logs=Count('id'),
+                present=Count('id', filter=Q(status__iexact='PRESENT')),
+                absent=Count('id', filter=Q(status__iexact='ABSENT')),
+            )
+
+            score_aggregates = AssessmentScore.objects.filter(score__isnull=False).aggregate(
+                avg_score=Avg('score'),
+                total_assessments=Count('id'),
+            )
+
+            total_att = att_aggregates['total_logs'] or 0
+            present_att = att_aggregates['present'] or 0
+            absent_att = att_aggregates['absent'] or 0
+            att_rate = round((present_att / total_att * 100.0), 1) if total_att > 0 else 0
+            avg_score = round(float(score_aggregates['avg_score']), 1) if score_aggregates['avg_score'] is not None else 0
+            total_assessments = score_aggregates['total_assessments'] or 0
+        except Exception:
+            pass
 
         stats = {
             'total_users': user_aggregates['total_users'] or 0,
@@ -90,7 +103,7 @@ class UserStatsView(APIView):
             'academic_summary': {
                 'average_score': avg_score,
                 'average_attendance_rate': att_rate,
-                'total_assessments': score_aggregates['total_assessments'] or 0,
+                'total_assessments': total_assessments,
             },
         }
         return Response(stats)
