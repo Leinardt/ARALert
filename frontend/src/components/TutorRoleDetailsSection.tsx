@@ -1,5 +1,6 @@
-import React from 'react';
-import { Plus, Trash2, Layers, Check, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Plus, Trash2, Check, AlertCircle } from 'lucide-react';
 import type { TutorRoleDetailGroup } from '../utils/tutorCohortHelpers';
 import { createDefaultRoleDetail } from '../utils/tutorCohortHelpers';
 
@@ -16,8 +17,9 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
   onChange,
   errors = {},
 }) => {
+  const [groupToRemove, setGroupToRemove] = useState<number | null>(null);
+
   const handleAddGroup = () => {
-    // If the last group was basic, default next group to plus if only 1 exists, or match pattern
     const lastGroup = groups[groups.length - 1];
     const nextLevel = lastGroup?.aralLevel === 'basic' && groups.length === 1 ? 'plus' : (lastGroup?.aralLevel || 'basic');
     const nextGrade = lastGroup?.gradeLevel === 'GRADE 7' && groups.length === 1 ? 'GRADE 8' : (lastGroup?.gradeLevel || 'GRADE 7');
@@ -74,53 +76,26 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
     handleUpdateGroup(index, { gradeLevel: grade });
   };
 
-  const handleAddSectionToGroup = (groupIndex: number) => {
-    const current = groups[groupIndex];
-    handleUpdateGroup(groupIndex, { sections: [...current.sections, ''] });
-  };
-
-  const handleRemoveSectionFromGroup = (groupIndex: number, sectionIndex: number) => {
-    const current = groups[groupIndex];
-    if (current.sections.length <= 1) {
-      handleUpdateGroup(groupIndex, { sections: [''] });
-      return;
-    }
-    handleUpdateGroup(groupIndex, {
-      sections: current.sections.filter((_, i) => i !== sectionIndex),
-    });
-  };
-
-  const handleUpdateSectionValue = (groupIndex: number, sectionIndex: number, val: string) => {
+  const handleUpdateSectionValue = (groupIndex: number, val: string) => {
     const sanitized = val.toUpperCase().replace(/[^a-zA-Z0-9\s\-]/g, '');
-    const current = groups[groupIndex];
-    const nextSections = [...current.sections];
-    nextSections[sectionIndex] = sanitized;
-    handleUpdateGroup(groupIndex, { sections: nextSections });
+    handleUpdateGroup(groupIndex, { sections: [sanitized] });
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-2">
-        <div>
-          <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100 flex items-center gap-2">
-            <Layers className="w-4 h-4 text-[var(--brand)]" />
-            ROLE DETAILS &amp; ASSIGNMENTS
-          </h4>
-          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-            Group tutor assignments by ARAL Level, Subject, Grade Level, and Sections.
-          </p>
-        </div>
-        <span className="text-xs font-semibold text-gray-500 dark:text-slate-400">
-          {groups.length} {groups.length === 1 ? 'Assignment Group' : 'Assignment Groups'}
-        </span>
+      {/* ── Section Header ────────────────────────────────────────── */}
+      <div className="border-b border-gray-100 dark:border-[#1A1A1A] pb-2">
+        <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
+          ROLE DETAILS
+        </h4>
       </div>
 
-      {/* Role Details Containers List */}
+      {/* ── Role Details Containers List ──────────────────────────── */}
       <div className="space-y-4">
         {groups.map((group, gIdx) => {
           const groupErrorKey = `group_${gIdx}`;
           const groupError = errors[groupErrorKey];
-          const validSecCount = group.sections.filter((s) => s.trim().length > 0).length;
+          const currentSection = group.sections[0] || '';
 
           return (
             <div
@@ -135,14 +110,14 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                   </span>
                   <span className="text-[11px] font-semibold text-gray-600 dark:text-slate-300 uppercase bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] px-2.5 py-0.5 rounded-md">
                     {group.aralLevel.toUpperCase()} • {group.gradeLevel} • {group.subjects.join(', ').toUpperCase()}
-                    {validSecCount > 0 ? ` • ${group.sections.filter(Boolean).join(', ')}` : ''}
+                    {currentSection.trim() ? ` • ${currentSection.trim()}` : ''}
                   </span>
                 </div>
 
                 {groups.length > 1 && (
                   <button
                     type="button"
-                    onClick={() => handleRemoveGroup(gIdx)}
+                    onClick={() => setGroupToRemove(gIdx)}
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/30 px-2.5 py-1 rounded-md transition cursor-pointer"
                     title={`Remove Role Detail #${gIdx + 1}`}
                   >
@@ -329,43 +304,20 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                 </div>
               </div>
 
-              {/* 4. Assigned Section(s) */}
-              <div className="space-y-2">
+              {/* 4. Assigned Section */}
+              <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                  Assigned Section(s) for {group.gradeLevel} <span className="text-red-500">*</span>
+                  Assigned Section for {group.gradeLevel} <span className="text-red-500">*</span>
                 </label>
-                <div className="space-y-2 max-w-lg">
-                  {group.sections.map((sec, sIdx) => (
-                    <div key={sIdx} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={sec}
-                        onChange={(e) => handleUpdateSectionValue(gIdx, sIdx, e.target.value)}
-                        placeholder={sIdx === 0 ? 'e.g. HYACINTH' : `Section ${sIdx + 1}`}
-                        className="w-full rounded-md border border-gray-300 dark:border-[#222222] bg-white dark:bg-[#181818] px-3 py-2 text-xs font-semibold uppercase shadow-2xs focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100"
-                      />
-                      {group.sections.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSectionFromGroup(gIdx, sIdx)}
-                          className="p-1.5 text-gray-400 hover:text-rose-600 transition cursor-pointer"
-                          title="Remove section"
-                          aria-label="Remove section"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                <div className="max-w-md">
+                  <input
+                    type="text"
+                    value={currentSection}
+                    onChange={(e) => handleUpdateSectionValue(gIdx, e.target.value)}
+                    placeholder="e.g. HYACINTH"
+                    className="w-full rounded-md border border-gray-300 dark:border-[#222222] bg-white dark:bg-[#181818] px-3 py-2 text-xs font-semibold uppercase shadow-2xs focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100"
+                  />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleAddSectionToGroup(gIdx)}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--brand)] hover:underline cursor-pointer pt-1"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Another Section to {group.gradeLevel}</span>
-                </button>
               </div>
             </div>
           );
@@ -379,8 +331,55 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
         className="w-full py-3 px-4 border-2 border-dashed border-gray-300 dark:border-[#262626] hover:border-[var(--brand)] dark:hover:border-[var(--brand)] rounded-xl text-xs font-bold text-gray-700 dark:text-slate-200 hover:text-[var(--brand)] dark:hover:text-[var(--brand)] bg-white/60 dark:bg-[#121212] hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
       >
         <Plus className="w-4 h-4" />
-        <span>+ Add Another Role Details</span>
+        <span>Add Another Role Details</span>
       </button>
+
+      {/* ── Remove Role Detail Confirmation Modal ───────────────────────── */}
+      {groupToRemove !== null && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+          style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setGroupToRemove(null); }}
+        >
+          <div className="relative w-full max-w-sm rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl space-y-3 animate-fade-in-scale">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900">
+                <Trash2 className="h-4.5 w-4.5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">
+                  Remove Role Detail
+                </h3>
+                <p className="mt-1.5 text-xs font-normal text-gray-500 dark:text-slate-400 leading-relaxed">
+                  Are you sure you want to remove Role Detail #{groupToRemove + 1}? Any assigned section and subjects in this role detail will be deleted.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setGroupToRemove(null)}
+                className="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleRemoveGroup(groupToRemove);
+                  setGroupToRemove(null);
+                }}
+                className="rounded-md bg-rose-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700 cursor-pointer"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
