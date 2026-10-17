@@ -1284,6 +1284,7 @@ export const TutorScores: React.FC = () => {
     setSelectedSubject,
     selectedCohort,
     setSelectedCohort,
+    setSelectedCohortFilter,
   } = useTutorCohortFilter(user);
 
   const [students, setStudents] = useState<User[]>(() => getCachedStudents(user?.id));
@@ -2215,6 +2216,9 @@ export const TutorScores: React.FC = () => {
         onSelectSubject={setSelectedSubject}
         selectedCohort={selectedCohort}
         onSelectCohort={setSelectedCohort}
+        onSelectClass={(level, subject, cohort) =>
+          setSelectedCohortFilter({ aral_level: level, subject, cohort })
+        }
         title="CURRENT CLASS FOR SCORE ENTRY"
       />
 

@@ -29,7 +29,12 @@ import {
 } from '../../utils/sessionDescriptionHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
-import { useTutorCohortFilter, isStudentInCohort, getTutorClassViewLabel } from '../../utils/tutorCohortHelpers';
+import {
+  useTutorCohortFilter,
+  isStudentInCohort,
+  getTutorClassViewLabel,
+  buildTutorClassSections,
+} from '../../utils/tutorCohortHelpers';
 
 interface ExtendedRiskRow extends StudentRiskRow {
   absentCount: number;
@@ -77,7 +82,7 @@ const getLogUserId = (log: Attendance | any): string => {
   if (typeof log.student === 'object' && log.student !== null) {
     return String(log.student.id ?? log.student.pk ?? log.student.user_id ?? '');
   }
-  return String(log.user ?? log.student ?? log.user_id ?? '');
+  return String(log.user ?? log.student ?? log.user_id ?? log.student_id ?? '');
 };
 
 const getGradeStudentId = (grade: Grade | any): string => {
@@ -85,7 +90,7 @@ const getGradeStudentId = (grade: Grade | any): string => {
   if (typeof grade.student === 'object' && grade.student !== null) {
     return String(grade.student.id ?? grade.student.pk ?? grade.student.user_id ?? '');
   }
-  return String(grade.student ?? grade.student_id ?? '');
+  return String(grade.student ?? grade.student_id ?? grade.user ?? grade.user_id ?? '');
 };
 
 const getRecordDate = (rec: any): Date | null => {
@@ -1149,10 +1154,6 @@ const getAralBadge = (level?: string | null) => {
 export const TutorAnalytics: React.FC = () => {
   const { user } = useAuth();
 
-  const [rows, setRows] = useState<ExtendedRiskRow[]>([]);
-  const [grades, setGrades] = useState<Grade[]>([]);
-  const [attendanceLogs, setAttendanceLogs] = useState<Attendance[]>([]);
-  const [riskCounts, setRiskCounts] = useState({ high: 0, moderate: 0, low: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -1213,9 +1214,36 @@ export const TutorAnalytics: React.FC = () => {
     setSelectedSubject,
     selectedCohort,
     setSelectedCohort,
+    setSelectedCohortFilter,
   } = useTutorCohortFilter(user, { allowAll: true, defaultToAll: true });
 
+  const classSections = useMemo(() => {
+    return buildTutorClassSections(user, allStudents);
+  }, [user, allStudents]);
+
   const filteredStudents = useMemo(() => {
+    const isAllAral = !selectedAralLevel || selectedAralLevel.toLowerCase() === 'all';
+    const isAllSubject = !selectedSubject || selectedSubject.toLowerCase() === 'all';
+    const isAllCohort =
+      !selectedCohort ||
+      selectedCohort.toLowerCase() === 'all' ||
+      selectedCohort.toUpperCase() === 'ALL - ALL';
+
+    if (isAllAral && isAllSubject && isAllCohort) {
+      return allStudents;
+    }
+
+    const matchedClass = classSections.find((c) => {
+      const matchAral = isAllAral || c.aralLevel.toLowerCase() === selectedAralLevel.toLowerCase();
+      const matchSubj = isAllSubject || c.subject.toLowerCase() === selectedSubject.toLowerCase();
+      const matchCohort = isAllCohort || c.cohort.toUpperCase() === selectedCohort.toUpperCase();
+      return matchAral && matchSubj && matchCohort;
+    });
+
+    if (matchedClass && matchedClass.students.length > 0) {
+      return matchedClass.students;
+    }
+
     return allStudents.filter((s) =>
       isStudentInCohort(s, {
         aral_level: selectedAralLevel,
@@ -1223,7 +1251,61 @@ export const TutorAnalytics: React.FC = () => {
         cohort: selectedCohort,
       })
     );
-  }, [allStudents, selectedAralLevel, selectedSubject, selectedCohort]);
+  }, [allStudents, classSections, selectedAralLevel, selectedSubject, selectedCohort]);
+
+  const studentIds = useMemo(() => {
+    const ids = new Set<string>();
+    filteredStudents.forEach((s) => {
+      if (s.id) ids.add(String(s.id));
+      if (s.lrn) ids.add(String(s.lrn));
+      if ((s as any).user_id) ids.add(String((s as any).user_id));
+      if ((s as any).student_id) ids.add(String((s as any).student_id));
+    });
+    return ids;
+  }, [filteredStudents]);
+
+  const attendanceLogs = useMemo(() => {
+    return rawAttendanceLogs.filter((a: Attendance) => {
+      const uid = String(getLogUserId(a));
+      return studentIds.has(uid);
+    });
+  }, [rawAttendanceLogs, studentIds]);
+
+  const grades = useMemo(() => {
+    return rawGrades.filter((g: Grade) => {
+      const sid = getGradeStudentId(g);
+      if (!studentIds.has(sid)) return false;
+      if (selectedSubject && selectedSubject.toLowerCase() !== 'all') {
+        const gradeSub = (g.subject || '').toLowerCase().trim();
+        const selSub = selectedSubject.toLowerCase().trim();
+        if (selSub === 'filipino' && !(gradeSub.includes('filipino') || gradeSub.includes('reading') || gradeSub.includes('tagalog'))) return false;
+        if (selSub === 'english' && !(gradeSub.includes('english') || gradeSub.includes('reading') || gradeSub.includes('literacy'))) return false;
+        if (selSub === 'science' && !gradeSub.includes('science')) return false;
+        if (selSub === 'math' && !(gradeSub.includes('math') || gradeSub.includes('numeracy'))) return false;
+      }
+      return true;
+    });
+  }, [rawGrades, studentIds, selectedSubject]);
+
+  const rows = useMemo<ExtendedRiskRow[]>(() => {
+    const baseRows = computeStudentRiskRows(filteredStudents, grades, attendanceLogs);
+    return baseRows.map((row) => {
+      const studentAtt = attendanceLogs.filter((a: Attendance) => getLogUserId(a) === String(row.student.id));
+      return { ...row, absentCount: studentAtt.filter((a: Attendance) => isAbsentStatus(a.status)).length };
+    });
+  }, [filteredStudents, grades, attendanceLogs]);
+
+  const riskCounts = useMemo(() => {
+    return rows.reduce(
+      (acc, row) => {
+        if (row.riskTier === 'High') acc.high += 1;
+        else if (row.riskTier === 'Medium') acc.moderate += 1;
+        else acc.low += 1;
+        return acc;
+      },
+      { high: 0, moderate: 0, low: 0 }
+    );
+  }, [rows]);
 
   const fetchAnalytics = async () => {
     if (!user) return;
@@ -1249,49 +1331,6 @@ export const TutorAnalytics: React.FC = () => {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    const studentIds = new Set(filteredStudents.map((s) => String(s.id)));
-
-    const cohortAttendance = rawAttendanceLogs.filter((a: Attendance) =>
-      studentIds.has(String(getLogUserId(a)))
-    );
-
-    const cohortGrades = rawGrades.filter((g: Grade) => {
-      if (!studentIds.has(String(g.student))) return false;
-      if (selectedSubject && selectedSubject.toLowerCase() !== 'all') {
-        const gradeSub = (g.subject || '').toLowerCase();
-        const selSub = selectedSubject.toLowerCase();
-        if (selSub === 'filipino' && !(gradeSub.includes('filipino') || gradeSub.includes('reading'))) return false;
-        if (selSub === 'english' && !gradeSub.includes('english')) return false;
-        if (selSub === 'science' && !gradeSub.includes('science')) return false;
-        if (selSub === 'math' && !gradeSub.includes('math')) return false;
-      }
-      return true;
-    });
-
-    const baseRows = computeStudentRiskRows(filteredStudents, cohortGrades, cohortAttendance);
-    setGrades(cohortGrades);
-    setAttendanceLogs(cohortAttendance);
-
-    const extendedRows: ExtendedRiskRow[] = baseRows.map((row) => {
-      const studentAtt = cohortAttendance.filter((a: Attendance) => getLogUserId(a) === String(row.student.id));
-      return { ...row, absentCount: studentAtt.filter((a: Attendance) => isAbsentStatus(a.status)).length };
-    });
-
-    const counts = extendedRows.reduce(
-      (acc, row) => {
-        if (row.riskTier === 'High') acc.high += 1;
-        else if (row.riskTier === 'Medium') acc.moderate += 1;
-        else acc.low += 1;
-        return acc;
-      },
-      { high: 0, moderate: 0, low: 0 }
-    );
-
-    setRiskCounts(counts);
-    setRows(extendedRows);
-  }, [filteredStudents, selectedSubject, rawGrades, rawAttendanceLogs]);
 
   useEffect(() => {
     if (riskScope !== 'all' && !filteredStudents.some((s) => String(s.id) === riskScope)) {
@@ -1394,6 +1433,20 @@ export const TutorAnalytics: React.FC = () => {
       return 'RISK LEVEL TREND CHART';
     }
     return `${classViewLabel}'S RISK LEVEL TREND CHART`;
+  }, [classViewLabel]);
+
+  const attendanceTrendTitle = useMemo(() => {
+    if (!classViewLabel) {
+      return 'STUDENTS ATTENDANCE RATE TREND CHART';
+    }
+    return `${classViewLabel}'S ATTENDANCE RATE TREND CHART`;
+  }, [classViewLabel]);
+
+  const scoreTrendTitle = useMemo(() => {
+    if (!classViewLabel) {
+      return 'STUDENTS AVERAGE SCORE TREND CHART';
+    }
+    return `${classViewLabel}'S AVERAGE SCORE TREND CHART`;
   }, [classViewLabel]);
   const riskTrend = useMemo(() => buildRiskTrendPoints(
     riskScopedRows.map((row) => row.student),
@@ -1722,6 +1775,9 @@ export const TutorAnalytics: React.FC = () => {
         onSelectSubject={setSelectedSubject}
         selectedCohort={selectedCohort}
         onSelectCohort={setSelectedCohort}
+        onSelectClass={(level, subject, cohort) =>
+          setSelectedCohortFilter({ aral_level: level, subject, cohort })
+        }
         allowAll={true}
         title="CURRENT CLASS FOR VIEW"
       />
@@ -2002,7 +2058,7 @@ export const TutorAnalytics: React.FC = () => {
               <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
                 <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
-                    <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS ATTENDANCE RATE TREND CHART</h3>
+                    <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">{attendanceTrendTitle}</h3>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
@@ -2127,7 +2183,7 @@ export const TutorAnalytics: React.FC = () => {
               <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
                 <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
-                    <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS AVERAGE SCORE TREND CHART</h3>
+                    <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">{scoreTrendTitle}</h3>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">

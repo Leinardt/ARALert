@@ -890,6 +890,7 @@ export const TutorQRGenerator: React.FC = () => {
     setSelectedSubject,
     selectedCohort,
     setSelectedCohort,
+    setSelectedCohortFilter,
   } = useTutorCohortFilter(user);
 
   const [students, setStudents] = useState<User[]>([]);
@@ -1596,6 +1597,9 @@ export const TutorQRGenerator: React.FC = () => {
         onSelectSubject={setSelectedSubject}
         selectedCohort={selectedCohort}
         onSelectCohort={setSelectedCohort}
+        onSelectClass={(level, subject, cohort) =>
+          setSelectedCohortFilter({ aral_level: level, subject, cohort })
+        }
         title="CURRENT CLASS FOR ATTENDANCE"
       />
 

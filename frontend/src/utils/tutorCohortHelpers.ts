@@ -264,9 +264,16 @@ export function isStudentInCohort(
     const studentSubjects = sSub.split(',').map((s) => s.trim());
 
     if (isLanguageTarget) {
-      const hasLanguage = studentSubjects.some(
-        (sub) => sub === 'reading' || sub === 'filipino' || sub === 'english'
-      );
+      const sLevel = (student.aral_level || 'basic').toLowerCase().trim();
+      const hasLanguage = studentSubjects.some((sub) => {
+        if (targetSub === 'filipino') {
+          return sub === 'filipino' || sub === 'tagalog' || (sub === 'reading' && sLevel === 'basic');
+        }
+        if (targetSub === 'english') {
+          return sub === 'english' || (sub === 'reading' && sLevel === 'plus');
+        }
+        return sub === targetSub;
+      });
       if (!hasLanguage) return false;
     } else {
       if (!studentSubjects.includes(targetSub)) return false;
@@ -412,8 +419,8 @@ export function useTutorCohortFilter(
   const setSelectedAralLevel = useCallback(
     (level: 'all' | 'basic' | 'plus') => {
       setSelectedAralLevelState(level);
-      const next = { ...stateRef.current, aral_level: level };
-      persistAndBroadcast(next);
+      stateRef.current = { ...stateRef.current, aral_level: level };
+      persistAndBroadcast(stateRef.current);
     },
     [persistAndBroadcast]
   );
@@ -421,8 +428,8 @@ export function useTutorCohortFilter(
   const setSelectedSubject = useCallback(
     (subject: string) => {
       setSelectedSubjectState(subject);
-      const next = { ...stateRef.current, subject };
-      persistAndBroadcast(next);
+      stateRef.current = { ...stateRef.current, subject };
+      persistAndBroadcast(stateRef.current);
     },
     [persistAndBroadcast]
   );
@@ -430,8 +437,19 @@ export function useTutorCohortFilter(
   const setSelectedCohort = useCallback(
     (cohort: string) => {
       setSelectedCohortState(cohort);
-      const next = { ...stateRef.current, cohort };
-      persistAndBroadcast(next);
+      stateRef.current = { ...stateRef.current, cohort };
+      persistAndBroadcast(stateRef.current);
+    },
+    [persistAndBroadcast]
+  );
+
+  const setSelectedCohortFilter = useCallback(
+    (nextState: { aral_level: 'all' | 'basic' | 'plus'; subject: string; cohort: string }) => {
+      setSelectedAralLevelState(nextState.aral_level);
+      setSelectedSubjectState(nextState.subject);
+      setSelectedCohortState(nextState.cohort);
+      stateRef.current = { ...nextState };
+      persistAndBroadcast(nextState);
     },
     [persistAndBroadcast]
   );
@@ -495,6 +513,7 @@ export function useTutorCohortFilter(
     setSelectedSubject,
     selectedCohort,
     setSelectedCohort,
+    setSelectedCohortFilter,
   };
 }
 

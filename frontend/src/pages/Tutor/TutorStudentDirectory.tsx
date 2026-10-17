@@ -105,6 +105,7 @@ export const TutorStudentDirectory: React.FC = () => {
     setSelectedSubject,
     selectedCohort,
     setSelectedCohort,
+    setSelectedCohortFilter,
   } = useTutorCohortFilter(user);
 
   // Cohort View Mode: 'active' | 'past'
@@ -485,6 +486,9 @@ const aralLevelRank: Record<string, number> = {
         onSelectSubject={setSelectedSubject}
         selectedCohort={selectedCohort}
         onSelectCohort={setSelectedCohort}
+        onSelectClass={(level, subject, cohort) =>
+          setSelectedCohortFilter({ aral_level: level, subject, cohort })
+        }
         allowAll={true}
         title="CURRENT CLASS FOR VIEW"
       />

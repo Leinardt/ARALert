@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { ChevronDown, GraduationCap, Users } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import type { User } from '../types';
 import {
   buildTutorClassSections,
@@ -15,6 +15,7 @@ export interface TutorCohortFilterProps {
   onSelectSubject: (subject: string) => void;
   selectedCohort: string;
   onSelectCohort: (cohort: string) => void;
+  onSelectClass?: (level: 'all' | 'basic' | 'plus', subject: string, cohort: string) => void;
   allowAll?: boolean;
   title?: string;
 }
@@ -28,6 +29,7 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
   onSelectSubject,
   selectedCohort,
   onSelectCohort,
+  onSelectClass,
   allowAll = false,
   title,
 }) => {
@@ -35,11 +37,6 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
   const classSections = useMemo<TutorHandledClassSection<User>[]>(() => {
     return buildTutorClassSections(user, students || []);
   }, [user, students]);
-
-  const totalLearnersCount = useMemo(() => {
-    if (students && Array.isArray(students)) return students.length;
-    return classSections.reduce((acc, cls) => acc + cls.students.length, 0);
-  }, [students, classSections]);
 
   // Determine active selected class key
   const activeClassKey = useMemo<string>(() => {
@@ -78,53 +75,47 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
   useEffect(() => {
     if (!allowAll && activeClassKey === 'ALL' && classSections.length > 0) {
       const first = classSections[0];
-      onSelectAralLevel(first.aralLevel);
-      onSelectSubject(first.subject);
-      onSelectCohort(first.cohort);
+      if (onSelectClass) {
+        onSelectClass(first.aralLevel, first.subject, first.cohort);
+      } else {
+        onSelectAralLevel(first.aralLevel);
+        onSelectSubject(first.subject);
+        onSelectCohort(first.cohort);
+      }
     }
-  }, [allowAll, activeClassKey, classSections, onSelectAralLevel, onSelectSubject, onSelectCohort]);
+  }, [allowAll, activeClassKey, classSections, onSelectAralLevel, onSelectSubject, onSelectCohort, onSelectClass]);
 
   // Handle class selection
   const handleClassSelect = (key: string) => {
     if (key === 'ALL') {
-      onSelectAralLevel('all');
-      onSelectSubject('all');
-      onSelectCohort('ALL - ALL');
+      if (onSelectClass) {
+        onSelectClass('all', 'all', 'ALL - ALL');
+      } else {
+        onSelectAralLevel('all');
+        onSelectSubject('all');
+        onSelectCohort('ALL - ALL');
+      }
       return;
     }
 
     const match = classSections.find((c) => c.key === key);
     if (match) {
-      onSelectAralLevel(match.aralLevel);
-      onSelectSubject(match.subject);
-      onSelectCohort(match.cohort);
+      if (onSelectClass) {
+        onSelectClass(match.aralLevel, match.subject, match.cohort);
+      } else {
+        onSelectAralLevel(match.aralLevel);
+        onSelectSubject(match.subject);
+        onSelectCohort(match.cohort);
+      }
     }
   };
 
-  const currentActiveClass = useMemo(() => {
-    if (activeClassKey === 'ALL') return null;
-    return classSections.find((c) => c.key === activeClassKey) || null;
-  }, [activeClassKey, classSections]);
-
   return (
-    <div className="w-full rounded-xl border border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#0E0E0E] p-3 sm:px-4 sm:py-3.5 shadow-xs space-y-3">
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <GraduationCap className="w-4 h-4 text-[var(--brand)] dark:text-blue-400" />
-          <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
-            {title || 'CURRENT CLASS FOR VIEW'}
-          </h4>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400 font-medium">
-          <Users className="w-3.5 h-3.5" />
-          <span>
-            {currentActiveClass
-              ? `${currentActiveClass.students.length} Student${currentActiveClass.students.length === 1 ? '' : 's'}`
-              : `${totalLearnersCount} Total Students`}
-          </span>
-        </div>
-      </div>
+    <div className="w-full rounded-xl border border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#0E0E0E] p-3 sm:px-4 sm:py-3.5 shadow-xs space-y-2">
+      {/* ── Header: Title Only ── */}
+      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
+        {title || 'CURRENT CLASS FOR VIEW'}
+      </h4>
 
       {/* ── Single Unified Class Dropdown ── */}
       <div className="relative">
@@ -137,40 +128,16 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
         >
           {allowAll && (
             <option value="ALL">
-              ALL HANDLED CLASSES (OVERALL VIEW) &bull; {totalLearnersCount} Learners
+              ALL HANDLED CLASSES (OVERALL VIEW)
             </option>
           )}
           {classSections.map((cls) => (
             <option key={cls.key} value={cls.key}>
-              {cls.label} &bull; {cls.students.length} Students
+              {cls.label}
             </option>
           ))}
         </select>
         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
-      </div>
-
-      {/* ── Active Class Metadata Chips ── */}
-      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-        {currentActiveClass ? (
-          <>
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider bg-blue-50 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-400 border border-blue-200/80 dark:border-blue-900/40">
-              {currentActiveClass.aralLevel.toUpperCase()}
-            </span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
-              {currentActiveClass.subject}
-            </span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
-              {currentActiveClass.cohort}
-            </span>
-            <span className="text-[11px] text-gray-400 dark:text-slate-500 ml-auto font-mono">
-              Class Roster: {currentActiveClass.students.length} Learners
-            </span>
-          </>
-        ) : (
-          <span className="text-[11px] text-gray-400 dark:text-slate-500 italic">
-            Viewing combined aggregate data across all {classSections.length} handled class{classSections.length === 1 ? '' : 'es'}.
-          </span>
-        )}
       </div>
     </div>
   );

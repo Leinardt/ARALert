@@ -433,6 +433,7 @@ export const TutorHome: React.FC = () => {
     setSelectedSubject,
     selectedCohort,
     setSelectedCohort,
+    setSelectedCohortFilter,
   } = useTutorCohortFilter(user, { allowAll: true, defaultToAll: true });
 
   const filteredStudents = useMemo(() => {
@@ -843,6 +844,9 @@ export const TutorHome: React.FC = () => {
         onSelectSubject={setSelectedSubject}
         selectedCohort={selectedCohort}
         onSelectCohort={setSelectedCohort}
+        onSelectClass={(level, subject, cohort) =>
+          setSelectedCohortFilter({ aral_level: level, subject, cohort })
+        }
         allowAll={true}
         title="CURRENT CLASS FOR VIEW"
       />
