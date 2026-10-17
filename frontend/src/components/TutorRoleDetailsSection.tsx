@@ -37,45 +37,39 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
     onChange(next);
   };
 
+  // Single-select ARAL Level (switches level and updates subject compatibility)
   const handleSetAralLevel = (index: number, level: 'basic' | 'plus') => {
     const current = groups[index];
     if (current.aralLevel === level) return;
 
-    let updatedSubjects = [...current.subjects];
-    if (level === 'basic') {
-      updatedSubjects = updatedSubjects.filter((s) => s !== 'English');
-      if (!updatedSubjects.includes('Filipino')) updatedSubjects.unshift('Filipino');
-    } else {
-      updatedSubjects = updatedSubjects.filter((s) => s !== 'Filipino');
-      if (!updatedSubjects.includes('English')) updatedSubjects.unshift('English');
+    let nextSubject = current.subjects[0] || (level === 'basic' ? 'Filipino' : 'English');
+    if (level === 'basic' && nextSubject === 'English') {
+      nextSubject = 'Filipino';
+    } else if (level === 'plus' && nextSubject === 'Filipino') {
+      nextSubject = 'English';
     }
 
     handleUpdateGroup(index, {
       aralLevel: level,
-      subjects: updatedSubjects.length > 0 ? updatedSubjects : [level === 'basic' ? 'Filipino' : 'English'],
+      subjects: [nextSubject],
     });
   };
 
-  const handleToggleSubject = (index: number, subjectName: string) => {
+  // Single-select Subject
+  const handleSelectSubject = (index: number, subjectName: string) => {
     const current = groups[index];
     if (subjectName === 'Filipino' && current.aralLevel !== 'basic') return;
     if (subjectName === 'English' && current.aralLevel !== 'plus') return;
 
-    let updated: string[];
-    if (current.subjects.includes(subjectName)) {
-      // Don't allow unchecking if it's the only subject
-      if (current.subjects.length <= 1) return;
-      updated = current.subjects.filter((s) => s !== subjectName);
-    } else {
-      updated = [...current.subjects, subjectName];
-    }
-    handleUpdateGroup(index, { subjects: updated });
+    handleUpdateGroup(index, { subjects: [subjectName] });
   };
 
+  // Single-select Grade Level
   const handleSetGradeLevel = (index: number, grade: string) => {
     handleUpdateGroup(index, { gradeLevel: grade });
   };
 
+  // Single Section value
   const handleUpdateSectionValue = (groupIndex: number, val: string) => {
     const sanitized = val.toUpperCase().replace(/[^a-zA-Z0-9\s\-]/g, '');
     handleUpdateGroup(groupIndex, { sections: [sanitized] });
@@ -96,6 +90,7 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
           const groupErrorKey = `group_${gIdx}`;
           const groupError = errors[groupErrorKey];
           const currentSection = group.sections[0] || '';
+          const currentSubject = group.subjects[0] || (group.aralLevel === 'basic' ? 'Filipino' : 'English');
 
           return (
             <div
@@ -109,7 +104,7 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                     Role Detail #{gIdx + 1}
                   </span>
                   <span className="text-[11px] font-semibold text-gray-600 dark:text-slate-300 uppercase bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] px-2.5 py-0.5 rounded-md">
-                    {group.aralLevel.toUpperCase()} • {group.gradeLevel} • {group.subjects.join(', ').toUpperCase()}
+                    {group.aralLevel.toUpperCase()} • {group.gradeLevel} • {currentSubject.toUpperCase()}
                     {currentSection.trim() ? ` • ${currentSection.trim()}` : ''}
                   </span>
                 </div>
@@ -135,7 +130,7 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                 </div>
               )}
 
-              {/* 1. ARAL Level Selector */}
+              {/* 1. ARAL Level Selector (Outline Style Matching Subject & Grade) */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
                   ARAL Level <span className="text-red-500">*</span>
@@ -144,9 +139,9 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                   <button
                     type="button"
                     onClick={() => handleSetAralLevel(gIdx, 'basic')}
-                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md border text-xs font-bold transition-all cursor-pointer ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all cursor-pointer ${
                       group.aralLevel === 'basic'
-                        ? 'border-[var(--brand)] bg-[var(--brand)] text-white shadow-2xs'
+                        ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] font-bold shadow-2xs'
                         : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838]'
                     }`}
                   >
@@ -157,9 +152,9 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                   <button
                     type="button"
                     onClick={() => handleSetAralLevel(gIdx, 'plus')}
-                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md border text-xs font-bold transition-all cursor-pointer ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all cursor-pointer ${
                       group.aralLevel === 'plus'
-                        ? 'border-[var(--brand)] bg-[var(--brand)] text-white shadow-2xs'
+                        ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] font-bold shadow-2xs'
                         : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838]'
                     }`}
                   >
@@ -169,7 +164,7 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                 </div>
               </div>
 
-              {/* 2. Assigned Subject Selector */}
+              {/* 2. Assigned Subject Selector (Single Select) */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
                   Assigned Subject <span className="text-red-500">*</span>
@@ -179,22 +174,22 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                     {/* FILIPINO: Requires Basic */}
                     {(() => {
                       const isFilipinoDisabled = group.aralLevel !== 'basic';
-                      const isFilipinoChecked = !isFilipinoDisabled && group.subjects.includes('Filipino');
+                      const isFilipinoSelected = !isFilipinoDisabled && currentSubject === 'Filipino';
                       return (
                         <button
                           type="button"
                           disabled={isFilipinoDisabled}
-                          onClick={() => handleToggleSubject(gIdx, 'Filipino')}
+                          onClick={() => handleSelectSubject(gIdx, 'Filipino')}
                           title={isFilipinoDisabled ? 'Select BASIC ARAL Level above to assign Filipino' : undefined}
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all ${
                             isFilipinoDisabled
                               ? 'cursor-not-allowed bg-gray-100/60 dark:bg-[#1e1e1e] border-gray-200 dark:border-[#282828] text-gray-400 dark:text-neutral-500 opacity-60'
-                              : isFilipinoChecked
+                              : isFilipinoSelected
                               ? 'cursor-pointer border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] font-bold shadow-2xs'
                               : 'cursor-pointer border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838]'
                           }`}
                         >
-                          {isFilipinoChecked && <Check className="w-3.5 h-3.5" />}
+                          {isFilipinoSelected && <Check className="w-3.5 h-3.5" />}
                           <span>FILIPINO</span>
                           {isFilipinoDisabled && (
                             <span className="text-[10px] font-normal text-gray-400 dark:text-neutral-500">
@@ -208,22 +203,22 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                     {/* ENGLISH: Requires Plus */}
                     {(() => {
                       const isEnglishDisabled = group.aralLevel !== 'plus';
-                      const isEnglishChecked = !isEnglishDisabled && group.subjects.includes('English');
+                      const isEnglishSelected = !isEnglishDisabled && currentSubject === 'English';
                       return (
                         <button
                           type="button"
                           disabled={isEnglishDisabled}
-                          onClick={() => handleToggleSubject(gIdx, 'English')}
+                          onClick={() => handleSelectSubject(gIdx, 'English')}
                           title={isEnglishDisabled ? 'Select PLUS ARAL Level above to assign English' : undefined}
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all ${
                             isEnglishDisabled
                               ? 'cursor-not-allowed bg-gray-100/60 dark:bg-[#1e1e1e] border-gray-200 dark:border-[#282828] text-gray-400 dark:text-neutral-500 opacity-60'
-                              : isEnglishChecked
+                              : isEnglishSelected
                               ? 'cursor-pointer border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] font-bold shadow-2xs'
                               : 'cursor-pointer border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838]'
                           }`}
                         >
-                          {isEnglishChecked && <Check className="w-3.5 h-3.5" />}
+                          {isEnglishSelected && <Check className="w-3.5 h-3.5" />}
                           <span>ENGLISH</span>
                           {isEnglishDisabled && (
                             <span className="text-[10px] font-normal text-gray-400 dark:text-neutral-500">
@@ -236,18 +231,18 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
 
                     {/* SCIENCE */}
                     {(() => {
-                      const isChecked = group.subjects.includes('Science');
+                      const isSelected = currentSubject === 'Science';
                       return (
                         <button
                           type="button"
-                          onClick={() => handleToggleSubject(gIdx, 'Science')}
+                          onClick={() => handleSelectSubject(gIdx, 'Science')}
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all cursor-pointer ${
-                            isChecked
+                            isSelected
                               ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] font-bold shadow-2xs'
                               : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838]'
                           }`}
                         >
-                          {isChecked && <Check className="w-3.5 h-3.5" />}
+                          {isSelected && <Check className="w-3.5 h-3.5" />}
                           <span>SCIENCE</span>
                         </button>
                       );
@@ -255,18 +250,18 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
 
                     {/* MATH */}
                     {(() => {
-                      const isChecked = group.subjects.includes('Math');
+                      const isSelected = currentSubject === 'Math';
                       return (
                         <button
                           type="button"
-                          onClick={() => handleToggleSubject(gIdx, 'Math')}
+                          onClick={() => handleSelectSubject(gIdx, 'Math')}
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all cursor-pointer ${
-                            isChecked
+                            isSelected
                               ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] font-bold shadow-2xs'
                               : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838]'
                           }`}
                         >
-                          {isChecked && <Check className="w-3.5 h-3.5" />}
+                          {isSelected && <Check className="w-3.5 h-3.5" />}
                           <span>MATH</span>
                         </button>
                       );
@@ -275,7 +270,7 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                 </div>
               </div>
 
-              {/* 3. Assigned Grade Level */}
+              {/* 3. Assigned Grade Level (Single Select) */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
                   Assigned Grade Level <span className="text-red-500">*</span>
@@ -353,7 +348,7 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                   Remove Role Detail
                 </h3>
                 <p className="mt-1.5 text-xs font-normal text-gray-500 dark:text-slate-400 leading-relaxed">
-                  Are you sure you want to remove Role Detail #{groupToRemove + 1}? Any assigned section and subjects in this role detail will be deleted.
+                  Are you sure you want to remove Role Detail #{groupToRemove + 1}? Any assigned ARAL Level, Subject, Grade Level, and Section in this role detail will be deleted.
                 </p>
               </div>
             </div>
