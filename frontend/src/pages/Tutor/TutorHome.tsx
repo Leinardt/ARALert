@@ -1014,11 +1014,14 @@ export const TutorHome: React.FC = () => {
       {/* ── Right 1-Column Section: Top At-Risk Panel Spanning Full Height ──── */}
       <div className="lg:col-span-1 h-full min-h-0">
         <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-full flex flex-col max-h-[420px] lg:max-h-none shadow-2xs">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
-            <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase tracking-wider">
+          <div className="flex items-center justify-between gap-1.5 px-3 sm:px-3.5 py-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
+            <h3
+              className="text-[9.5px] sm:text-[10px] xl:text-[9.5px] 2xl:text-[11px] font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate min-w-0"
+              title={topAtRiskTitle}
+            >
               {topAtRiskTitle}
             </h3>
-            <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
+            <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
               {atRiskStudents.length}
             </span>
           </div>

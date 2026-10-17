@@ -904,21 +904,31 @@ export const AdminEvaluationHub: React.FC = () => {
                             <tr className="bg-slate-50/40 dark:bg-zinc-950/40">
                               <td colSpan={3} className="p-0">
                                 <div className="p-4 sm:p-5 border-y border-slate-200 dark:border-zinc-800 space-y-5">
-                                  {buildTutorClassSections(row.tutorUser, row.students).map((cls) => (
-                                    <div key={cls.key} className="space-y-2.5">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wide">
-                                          {cls.label} ({cls.students.length} Students)
-                                        </span>
-                                      </div>
+                                  {row.students.length === 0 ? (
+                                    <div className="p-4 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A] rounded-xl border border-slate-200 dark:border-zinc-800">
+                                      No students assigned to this tutor for this semester.
+                                    </div>
+                                  ) : (
+                                    (() => {
+                                      const allSections = buildTutorClassSections(row.tutorUser, row.students);
+                                      const activeSections = allSections.filter((cls) => cls.students.length > 0);
+                                      const displaySections = activeSections.length > 0 ? activeSections : allSections;
 
-                                      {cls.students.length === 0 ? (
-                                        <div className="p-4 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A] rounded-xl border border-slate-200 dark:border-zinc-800">
-                                          No students assigned to this class for this semester.
-                                        </div>
-                                      ) : (
-                                        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
-                                          <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+                                      return displaySections.map((cls) => (
+                                        <div key={cls.key} className="space-y-2.5">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wide">
+                                              {cls.label} ({cls.students.length} Students)
+                                            </span>
+                                          </div>
+
+                                          {cls.students.length === 0 ? (
+                                            <div className="p-4 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A] rounded-xl border border-slate-200 dark:border-zinc-800">
+                                              No students assigned to this class for this semester.
+                                            </div>
+                                          ) : (
+                                            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
+                                              <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
                                             <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
                                               <tr>
                                                 <th className="w-10 px-3 py-2 text-center">#</th>
@@ -982,8 +992,10 @@ export const AdminEvaluationHub: React.FC = () => {
                                         </div>
                                       )}
                                     </div>
-                                  ))}
-                                </div>
+                                  ));
+                                })()
+                              )}
+                            </div>
                               </td>
                             </tr>
                           )}

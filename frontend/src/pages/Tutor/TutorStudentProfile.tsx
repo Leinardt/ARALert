@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
-import type { StudentAcademicProfile, Grade, Attendance, StudentEditRequest } from '../../types';
+import type { StudentAcademicProfile, Grade, Attendance, StudentEditRequest, User as UserType } from '../../types';
 import {
   ArrowLeft,
   GraduationCap,
@@ -107,9 +107,45 @@ export const TutorStudentProfile: React.FC = () => {
   const backPath = isFromDashboard ? '/tutor' : '/tutor/students';
   const backLabel = isFromDashboard ? 'Back to Home Dashboard' : 'Back to Assigned Students';
   const [profile, setProfile] = useState<StudentAcademicProfile | null>(null);
+  const [studentUser, setStudentUser] = useState<UserType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overall' | 'attendance' | 'score'>('overall');
+
+  const studentCohortInfo = useMemo(() => {
+    const rawAral = (studentUser?.aral_level || profile?.student?.aral_level || 'basic').toUpperCase();
+    const aralLevel = rawAral.includes('PLUS') ? 'PLUS' : rawAral.includes('SUMMER') ? 'SUMMER' : 'BASIC';
+
+    let subject = (studentUser?.subject || '').toUpperCase().trim();
+    if (!subject) {
+      subject = aralLevel === 'BASIC' ? 'FILIPINO' : 'ENGLISH';
+    }
+
+    const rawGrade = (studentUser?.grade_level || '').toUpperCase().trim();
+    let gradeLevel = 'GRADE 7';
+    let section = (studentUser?.section || '').toUpperCase().trim();
+
+    if (rawGrade.includes(' - ')) {
+      const parts = rawGrade.split(' - ').map((p) => p.trim());
+      gradeLevel = parts[0].startsWith('GRADE') ? parts[0] : `GRADE ${parts[0]}`;
+      if (!section) {
+        section = parts.slice(1).join(' - ').trim();
+      }
+    } else if (rawGrade) {
+      gradeLevel = rawGrade.startsWith('GRADE') ? rawGrade : `GRADE ${rawGrade}`;
+    }
+
+    if (!section || section === '—') {
+      section = 'HYACINTH';
+    }
+
+    return {
+      aralLevel,
+      subject,
+      gradeLevel,
+      section,
+    };
+  }, [studentUser, profile]);
 
   const { attendanceRate, scoreAvg, compositeScore, riskTier } = useMemo(() => {
     if (!profile) return { attendanceRate: 100, scoreAvg: 100, compositeScore: 100, riskTier: 'Low' };
@@ -321,12 +357,14 @@ export const TutorStudentProfile: React.FC = () => {
   const fetchProfile = async () => {
     if (!id) return;
     try {
-      const [data, gradesData, editReqData] = await Promise.all([
+      const [data, gradesData, editReqData, userData] = await Promise.all([
         academicService.getStudentProfile(id),
         academicService.getGrades({ student_id: id }).catch(() => [] as Grade[]),
         userService.getStudentEditRequests({ student_id: id, status: 'pending' }).catch(() => ({ results: [] })),
+        userService.getUser(id).catch(() => null as UserType | null),
       ]);
       setProfile(data);
+      setStudentUser(userData);
       setStudentGrades(gradesData);
       setPendingEditRequest(editReqData.results && editReqData.results.length > 0 ? editReqData.results[0] : null);
       setStudentForm({
@@ -565,6 +603,13 @@ export const TutorStudentProfile: React.FC = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{profile.student.name}</h1>
+              <div className="flex flex-wrap items-center gap-1.5 mt-1 text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">
+                <span className="font-bold text-[var(--brand)]">{studentCohortInfo.aralLevel}</span>
+                <span className="text-gray-300 dark:text-zinc-600">•</span>
+                <span>{studentCohortInfo.subject}</span>
+                <span className="text-gray-300 dark:text-zinc-600">•</span>
+                <span>{studentCohortInfo.gradeLevel} - {studentCohortInfo.section}</span>
+              </div>
               <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mt-1">
                 LRN: <span className="font-mono font-bold text-gray-700 dark:text-slate-300">{profile.student.lrn || 'N/A'}</span>
               </p>
@@ -653,19 +698,7 @@ export const TutorStudentProfile: React.FC = () => {
           <div className="space-y-6">
             {/* KPI Containers */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-md bg-indigo-100 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shrink-0">
-                  <Layers className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">ARAL LEVEL</p>
-                  <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5 capitalize">
-                    {profile.student.aral_level || 'Basic'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4 md:col-span-1">
                 <div className="w-10 h-10 rounded-md bg-emerald-100 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0">
                   <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
@@ -677,7 +710,7 @@ export const TutorStudentProfile: React.FC = () => {
                 </div>
               </div>
 
-              <div className={`rounded-md border p-5 flex flex-col justify-center ${riskTier === 'High'
+              <div className={`rounded-md border p-5 flex flex-col justify-center md:col-span-2 ${riskTier === 'High'
                 ? 'risk-card-high'
                 : riskTier === 'Medium'
                   ? 'risk-card-medium'
