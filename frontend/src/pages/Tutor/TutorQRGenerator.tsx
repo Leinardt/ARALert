@@ -1596,6 +1596,7 @@ export const TutorQRGenerator: React.FC = () => {
         onSelectSubject={setSelectedSubject}
         selectedCohort={selectedCohort}
         onSelectCohort={setSelectedCohort}
+        title="CURRENT CLASS FOR ATTENDANCE"
       />
 
       {/* ── Main Grid ───────────────────────────────────────────── */}

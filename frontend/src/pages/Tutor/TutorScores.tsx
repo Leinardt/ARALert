@@ -2215,6 +2215,7 @@ export const TutorScores: React.FC = () => {
         onSelectSubject={setSelectedSubject}
         selectedCohort={selectedCohort}
         onSelectCohort={setSelectedCohort}
+        title="CURRENT CLASS FOR SCORE ENTRY"
       />
 
       {/* ── Score Entry Form ───────────────────────────────────────── */}

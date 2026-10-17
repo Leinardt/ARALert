@@ -6,6 +6,7 @@ import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
 import { SchoolYear, User, Grade, Attendance } from '../../types';
 import { TableSkeleton } from '../../components/SkeletonLoader';
+import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
 
 /* ─── Helper: Normalize ARAL Level ─────────────────────────────────── */
 const normalizeAralLevel = (val?: string | null): 'BASIC' | 'PLUS' | 'SUMMER' => {
@@ -45,6 +46,7 @@ interface StudentArchiveMetric {
   assessmentScoreStr: string;
   compositeScore: number;
   status: 'PASSED' | 'RETAINED' | 'PENDING';
+  rawStudent?: User;
 }
 
 interface TutorArchiveRow {
@@ -59,6 +61,7 @@ interface TutorArchiveRow {
   retainedCount: number;
   pendingCount: number;
   students: StudentArchiveMetric[];
+  tutorUser?: User;
 }
 
 export const AssessmentsArchive: React.FC = () => {
@@ -262,6 +265,7 @@ export const AssessmentsArchive: React.FC = () => {
           assessmentScoreStr,
           compositeScore,
           status,
+          rawStudent: st,
         };
       });
 
@@ -277,6 +281,7 @@ export const AssessmentsArchive: React.FC = () => {
         retainedCount,
         pendingCount,
         students: studentMetrics,
+        tutorUser: tutor,
       };
     });
   }, [tutors, students, grades, attendance, activeTab]);
@@ -427,18 +432,6 @@ export const AssessmentsArchive: React.FC = () => {
                     <th className="px-4 py-2.5 text-left">
                       <SortableHeader label="TUTOR NAME" field="tutorName" />
                     </th>
-                    <th className="px-4 py-2.5 text-left">
-                      <SortableHeader label="GRADE LEVEL HANDLED" field="gradeLevel" />
-                    </th>
-                    <th className="px-4 py-2.5 text-left">
-                      <SortableHeader label="SECTION HANDLED" field="section" />
-                    </th>
-                    <th className="px-4 py-2.5 text-left">
-                      <SortableHeader label="SUBJECT HANDLED" field="subject" />
-                    </th>
-                    <th className="px-4 py-2.5 text-left">
-                      <SortableHeader label="ARAL LEVEL" field="aralLevel" />
-                    </th>
                     <th className="px-4 py-2.5 text-center">
                       <SortableHeader label="TOTAL STUDENTS" field="totalStudents" align="center" />
                     </th>
@@ -474,18 +467,6 @@ export const AssessmentsArchive: React.FC = () => {
                               <span>{row.tutorName}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
-                            {row.gradeLevel}
-                          </td>
-                          <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium uppercase">
-                            {row.section}
-                          </td>
-                          <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
-                            {row.subject}
-                          </td>
-                          <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium uppercase">
-                            {row.aralLevel}
-                          </td>
                           <td className="px-4 py-3 text-center text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
                             {row.totalStudents} Students
                           </td>
@@ -513,86 +494,90 @@ export const AssessmentsArchive: React.FC = () => {
                           </td>
                         </tr>
 
-                        {/* Expandable Sub-Table: Students Handled by this Tutor */}
+                        {/* Expandable Sub-Table: Classes and Students Handled by this Tutor */}
                         {isExpanded && (
                           <tr className="bg-slate-50/40 dark:bg-zinc-950/40">
-                            <td colSpan={7} className="p-0">
-                              <div className="p-4 sm:p-5 border-y border-slate-200 dark:border-zinc-800 space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wide">
-                                    Students Handled by {row.tutorName} &bull; {row.section} ({row.students.length} Students)
-                                  </span>
-                                </div>
+                            <td colSpan={3} className="p-0">
+                              <div className="p-4 sm:p-5 border-y border-slate-200 dark:border-zinc-800 space-y-5">
+                                {buildTutorClassSections(row.tutorUser, row.students).map((cls) => (
+                                  <div key={cls.key} className="space-y-2.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wide">
+                                        {cls.label} ({cls.students.length} Students)
+                                      </span>
+                                    </div>
 
-                                {row.students.length === 0 ? (
-                                  <div className="p-6 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A] rounded-xl border border-slate-200 dark:border-zinc-800">
-                                    No students assigned to this tutor for this semester.
-                                  </div>
-                                ) : (
-                                  <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
-                                    <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
-                                      <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
-                                        <tr>
-                                          <th className="w-10 px-3 py-2 text-center">#</th>
-                                          <th className="px-3 py-2 text-left">STUDENT NAME</th>
-                                          <th className="px-3 py-2 text-left">LRN</th>
-                                          <th className="px-3 py-2 text-left">ARAL LEVEL</th>
-                                          <th className="px-3 py-2 text-center">FINAL AVG ATTENDANCE RATE</th>
-                                          <th className="px-3 py-2 text-center">FINAL AVG SCORE</th>
-                                          <th className="px-3 py-2 text-center">FINAL AVG COMPOSITE</th>
-                                          <th className="px-3 py-2 text-center">
-                                            {activeTab === 'mosy' ? 'MOSY ASSESSMENT' : activeTab === 'eosy' ? 'EOSY ASSESSMENT' : 'SUMMER ASSESSMENT'}
-                                          </th>
-                                          <th className="px-3 py-2 text-center">STATUS</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
-                                        {row.students.map((st, idx) => (
-                                          <tr
-                                            key={st.id}
-                                            className="divide-x divide-gray-100 dark:divide-[#1A1A1A] hover:bg-gray-50/70 dark:hover:bg-white/[0.02] transition-colors"
-                                          >
-                                            <td className="px-3 py-2.5 text-center text-slate-400 font-medium">{idx + 1}</td>
-                                            <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
-                                              {st.name}
-                                            </td>
-                                            <td className="px-3 py-2.5 font-mono text-slate-600 dark:text-slate-300">
-                                              {st.lrn}
-                                            </td>
-                                            <td className="px-3 py-2.5 font-medium uppercase text-slate-700 dark:text-slate-300">
-                                              {st.aralLevel}
-                                            </td>
-                                            <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
-                                              {st.attendanceRate.toFixed(1)}%
-                                            </td>
-                                            <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
-                                              {st.avgScore.toFixed(1)}%
-                                            </td>
-                                            <td className="px-3 py-2.5 text-center font-bold text-slate-900 dark:text-white">
-                                              {st.compositeScore.toFixed(1)}%
-                                            </td>
-                                            <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
-                                              {st.assessmentScoreStr}
-                                            </td>
-                                            <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                                              <span
-                                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                                                  st.status === 'PASSED'
-                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
-                                                    : st.status === 'RETAINED'
-                                                    ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60'
-                                                    : 'bg-amber-50/70 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/40'
-                                                }`}
+                                    {cls.students.length === 0 ? (
+                                      <div className="p-4 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A] rounded-xl border border-slate-200 dark:border-zinc-800">
+                                        No students assigned to this class for this semester.
+                                      </div>
+                                    ) : (
+                                      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
+                                        <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+                                          <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                                            <tr>
+                                              <th className="w-10 px-3 py-2 text-center">#</th>
+                                              <th className="px-3 py-2 text-left">STUDENT NAME</th>
+                                              <th className="px-3 py-2 text-left">LRN</th>
+                                              <th className="px-3 py-2 text-left">ARAL LEVEL</th>
+                                              <th className="px-3 py-2 text-center">FINAL AVG ATTENDANCE RATE</th>
+                                              <th className="px-3 py-2 text-center">FINAL AVG SCORE</th>
+                                              <th className="px-3 py-2 text-center">FINAL AVG COMPOSITE</th>
+                                              <th className="px-3 py-2 text-center">
+                                                {activeTab === 'mosy' ? 'MOSY ASSESSMENT' : activeTab === 'eosy' ? 'EOSY ASSESSMENT' : 'SUMMER ASSESSMENT'}
+                                              </th>
+                                              <th className="px-3 py-2 text-center">STATUS</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+                                            {cls.students.map((st, idx) => (
+                                              <tr
+                                                key={st.id}
+                                                className="divide-x divide-gray-100 dark:divide-[#1A1A1A] hover:bg-gray-50/70 dark:hover:bg-white/[0.02] transition-colors"
                                               >
-                                                {st.status}
-                                              </span>
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
+                                                <td className="px-3 py-2.5 text-center text-slate-400 font-medium">{idx + 1}</td>
+                                                <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                                                  {st.name}
+                                                </td>
+                                                <td className="px-3 py-2.5 font-mono text-slate-600 dark:text-slate-300">
+                                                  {st.lrn}
+                                                </td>
+                                                <td className="px-3 py-2.5 font-medium uppercase text-slate-700 dark:text-slate-300">
+                                                  {st.aralLevel}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
+                                                  {st.attendanceRate.toFixed(1)}%
+                                                </td>
+                                                <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
+                                                  {st.avgScore.toFixed(1)}%
+                                                </td>
+                                                <td className="px-3 py-2.5 text-center font-bold text-slate-900 dark:text-white">
+                                                  {st.compositeScore.toFixed(1)}%
+                                                </td>
+                                                <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
+                                                  {st.assessmentScoreStr}
+                                                </td>
+                                                <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                                                  <span
+                                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                                                      st.status === 'PASSED'
+                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
+                                                        : st.status === 'RETAINED'
+                                                        ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60'
+                                                        : 'bg-amber-50/70 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/40'
+                                                    }`}
+                                                  >
+                                                    {st.status}
+                                                  </span>
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
+                                ))}
                               </div>
                             </td>
                           </tr>

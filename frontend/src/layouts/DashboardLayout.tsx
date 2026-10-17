@@ -12,7 +12,7 @@ import {
 import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../utils/analyticsHelpers';
-import { parseTutorRoleDetailsFromUser, isStudentInCohort } from '../utils/tutorCohortHelpers';
+import { parseTutorRoleDetailsFromUser, isStudentInCohort, buildTutorClassSections } from '../utils/tutorCohortHelpers';
 
 import type { AcademicRisk, StudentEditRequest } from '../types';
 import { TutorGreetingIntro, checkGreetingEligibility } from '../components/TutorGreetingIntro';
@@ -350,7 +350,15 @@ export const DashboardLayout: React.FC = () => {
     if (p.includes('/audit-logs')) return 'Audit Log';
     if (p.includes('/archive')) return 'Archive';
     if (p.includes('/evaluations')) return 'Assessment';
-    if (p.includes('/superadmin/users')) return 'User Management';
+    if (
+      p.includes('/superadmin/users') ||
+      p.includes('/superadmin/students') ||
+      p.includes('/superadmin/tutors') ||
+      p.includes('/superadmin/faculty') ||
+      p.includes('/superadmin/principals') ||
+      p.includes('/superadmin/admins') ||
+      p.includes('/superadmin/superadmins')
+    ) return 'User Management';
     if (p.includes('/admin/students') || p.includes('/admin/tutors') || p.includes('/admin/faculty') || p.includes('/admin/principals') || p.includes('/admin/users')) return 'User Management';
     if (p.includes('/tutor/students')) return 'Assigned Students';
     if (p.includes('/student/attendance')) return 'QR Attendance';
@@ -472,84 +480,7 @@ export const DashboardLayout: React.FC = () => {
 
   const tutorClassSections = useMemo(() => {
     if (!user || user.role !== 'tutor') return [];
-    const groups = parseTutorRoleDetailsFromUser(user);
-
-    const classes: {
-      key: string;
-      label: string;
-      aralLevel: 'basic' | 'plus';
-      subject: string;
-      gradeLevel: string;
-      section: string;
-      cohort: string;
-      students: StudentRiskRow[];
-    }[] = [];
-
-    const seenKeys = new Set<string>();
-
-    groups.forEach((g) => {
-      const subjects = g.subjects.length > 0 ? g.subjects : [g.aralLevel === 'basic' ? 'Filipino' : 'English'];
-      const sections = g.sections.length > 0 ? g.sections : [''];
-
-      subjects.forEach((subj) => {
-        sections.forEach((sec) => {
-          let cleanGrade = (g.gradeLevel || 'GRADE 7').toUpperCase().trim();
-          let cleanSec = (sec || '').toUpperCase().trim();
-
-          if (!cleanSec && cleanGrade.includes(' - ')) {
-            const parts = cleanGrade.split(' - ');
-            cleanGrade = parts[0].trim();
-            cleanSec = parts[1].trim();
-          }
-
-          const cohortStr = cleanSec ? `${cleanGrade} - ${cleanSec}` : cleanGrade;
-          const aralLabel = g.aralLevel.toUpperCase();
-          const subjectLabel = subj.toUpperCase();
-          const label = `${aralLabel} • ${subjectLabel} • ${cohortStr}`;
-          const key = `${g.aralLevel}-${subj}-${cohortStr}`.toLowerCase();
-
-          if (!seenKeys.has(key)) {
-            seenKeys.add(key);
-            classes.push({
-              key,
-              label,
-              aralLevel: g.aralLevel,
-              subject: subj,
-              gradeLevel: cleanGrade,
-              section: cleanSec,
-              cohort: cohortStr,
-              students: [],
-            });
-          }
-        });
-      });
-    });
-
-    if (classes.length === 0) {
-      classes.push({
-        key: 'default',
-        label: 'BASIC • FILIPINO • GRADE 7 - HYACINTH',
-        aralLevel: 'basic',
-        subject: 'Filipino',
-        gradeLevel: 'GRADE 7',
-        section: 'HYACINTH',
-        cohort: 'GRADE 7 - HYACINTH',
-        students: [],
-      });
-    }
-
-    // Populate students for each class
-    classes.forEach((cls) => {
-      cls.students = highRiskStudents.filter((row) =>
-        isStudentInCohort(row.student, {
-          aral_level: cls.aralLevel,
-          subject: cls.subject,
-          cohort: cls.cohort,
-        })
-      );
-    });
-
-    return classes;
+    return buildTutorClassSections(user, highRiskStudents);
   }, [user, highRiskStudents]);
 
   const handleAcknowledgeAlert = async (row: StudentRiskRow) => {
@@ -675,7 +606,16 @@ export const DashboardLayout: React.FC = () => {
             <Link
               to="/superadmin/users"
               onClick={onItemClick}
-              className={navLinkClass(isActivePrefix('/superadmin/users') || isActivePrefix('/superadmin/students') || isActivePrefix('/superadmin/tutors') || isActivePrefix('/superadmin/faculty') || isActivePrefix('/superadmin/principals') || isActivePrefix('/superadmin/admins'), collapsed)}
+              className={navLinkClass(
+                isActivePrefix('/superadmin/users') ||
+                isActivePrefix('/superadmin/students') ||
+                isActivePrefix('/superadmin/tutors') ||
+                isActivePrefix('/superadmin/faculty') ||
+                isActivePrefix('/superadmin/principals') ||
+                isActivePrefix('/superadmin/admins') ||
+                isActivePrefix('/superadmin/superadmins'),
+                collapsed
+              )}
               title="User Management"
             >
               <AssetSidebarIcon
@@ -683,7 +623,15 @@ export const DashboardLayout: React.FC = () => {
                 darkActiveSrc={studentsDarkActive}
                 lightSrc={studentsLightDefault}
                 lightActiveSrc={studentsLightActive}
-                active={isActivePrefix('/superadmin/users') || isActivePrefix('/superadmin/students') || isActivePrefix('/superadmin/tutors') || isActivePrefix('/superadmin/faculty') || isActivePrefix('/superadmin/principals') || isActivePrefix('/superadmin/admins')}
+                active={
+                  isActivePrefix('/superadmin/users') ||
+                  isActivePrefix('/superadmin/students') ||
+                  isActivePrefix('/superadmin/tutors') ||
+                  isActivePrefix('/superadmin/faculty') ||
+                  isActivePrefix('/superadmin/principals') ||
+                  isActivePrefix('/superadmin/admins') ||
+                  isActivePrefix('/superadmin/superadmins')
+                }
                 alt="User Management"
                 size={18}
                 theme={theme}

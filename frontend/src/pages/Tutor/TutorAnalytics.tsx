@@ -29,7 +29,7 @@ import {
 } from '../../utils/sessionDescriptionHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
-import { useTutorCohortFilter, isStudentInCohort } from '../../utils/tutorCohortHelpers';
+import { useTutorCohortFilter, isStudentInCohort, getTutorClassViewLabel } from '../../utils/tutorCohortHelpers';
 
 interface ExtendedRiskRow extends StudentRiskRow {
   absentCount: number;
@@ -1380,27 +1380,21 @@ export const TutorAnalytics: React.FC = () => {
     scoreScope === 'all' ? null : rows.find((row) => String(row.student.id) === scoreScope)?.student || null
   ), [rows, scoreScope]);
 
-  const currentClassViewLabel = useMemo(() => {
-    const isAllAral = !selectedAralLevel || selectedAralLevel.toLowerCase() === 'all';
-    const isAllSubject = !selectedSubject || selectedSubject.toLowerCase() === 'all';
-    const isAllCohort = !selectedCohort || selectedCohort.toLowerCase() === 'all' || selectedCohort.toUpperCase() === 'ALL - ALL';
-
-    if (isAllAral && isAllSubject && isAllCohort) {
-      return '';
-    }
-
-    const aralPart = isAllAral ? 'ALL ARAL LEVELS' : selectedAralLevel.toUpperCase();
-    const subjectPart = isAllSubject ? 'ALL SUBJECTS' : selectedSubject.toUpperCase();
-    const cohortPart = isAllCohort ? 'ALL COHORTS' : selectedCohort.toUpperCase();
-    return `${aralPart} • ${subjectPart} • ${cohortPart}`;
-  }, [selectedAralLevel, selectedSubject, selectedCohort]);
+  const classViewLabel = useMemo(() => {
+    return getTutorClassViewLabel({
+      user,
+      selectedAralLevel,
+      selectedSubject,
+      selectedCohort,
+    });
+  }, [user, selectedAralLevel, selectedSubject, selectedCohort]);
 
   const riskLevelTrendTitle = useMemo(() => {
-    if (!currentClassViewLabel) {
+    if (!classViewLabel) {
       return 'RISK LEVEL TREND CHART';
     }
-    return `${currentClassViewLabel}'S RISK LEVEL TREND CHART`;
-  }, [currentClassViewLabel]);
+    return `${classViewLabel}'S RISK LEVEL TREND CHART`;
+  }, [classViewLabel]);
   const riskTrend = useMemo(() => buildRiskTrendPoints(
     riskScopedRows.map((row) => row.student),
     grades,

@@ -869,12 +869,23 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
   if (rawSubject.includes('math')) subjectsList.push('Math');
 
   const rawGradeLevel = (user.grade_level || '').trim();
+  const rawSection = (user.section || '').trim().toUpperCase();
+
+  const groupSubjects = handlesBasic
+    ? (subjectsList.includes('Filipino') ? ['Filipino'] : ['Filipino'])
+    : (subjectsList.includes('English') ? ['English'] : ['English']);
+  if (subjectsList.includes('Science') && !groupSubjects.includes('Science')) groupSubjects.push('Science');
+  if (subjectsList.includes('Math') && !groupSubjects.includes('Math')) groupSubjects.push('Math');
+
   if (!rawGradeLevel) {
     return [
-      createDefaultRoleDetail(
-        handlesBasic ? 'basic' : 'plus',
-        'GRADE 7'
-      ),
+      {
+        id: Math.random().toString(36).substring(2, 9),
+        aralLevel: handlesBasic ? 'basic' : 'plus',
+        subjects: groupSubjects,
+        gradeLevel: 'GRADE 7',
+        sections: [rawSection || 'HYACINTH'],
+      },
     ];
   }
 
@@ -911,8 +922,29 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
   });
 
   if (parsedCohorts.length === 0) {
-    return [createDefaultRoleDetail(handlesBasic ? 'basic' : 'plus')];
+    return [
+      {
+        id: Math.random().toString(36).substring(2, 9),
+        aralLevel: handlesBasic ? 'basic' : 'plus',
+        subjects: groupSubjects,
+        gradeLevel: 'GRADE 7',
+        sections: [rawSection || 'HYACINTH'],
+      },
+    ];
   }
+
+  const rawSectionChunks = rawSection ? rawSection.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean) : [];
+  parsedCohorts.forEach((c, idx) => {
+    if (!c.section) {
+      if (rawSectionChunks.length > idx) {
+        c.section = rawSectionChunks[idx];
+      } else if (rawSectionChunks.length > 0) {
+        c.section = rawSectionChunks[0];
+      } else {
+        c.section = 'HYACINTH';
+      }
+    }
+  });
 
   return parsedCohorts.map((cohort, index) => {
     let groupLevel: 'basic' | 'plus' = 'basic';
@@ -922,21 +954,226 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
       groupLevel = 'plus';
     }
 
-    const groupSubjects = groupLevel === 'basic'
+    const itemSubjects = groupLevel === 'basic'
       ? (subjectsList.includes('Filipino') ? ['Filipino'] : ['Filipino'])
       : (subjectsList.includes('English') ? ['English'] : ['English']);
 
-    if (subjectsList.includes('Science') && !groupSubjects.includes('Science')) groupSubjects.push('Science');
-    if (subjectsList.includes('Math') && !groupSubjects.includes('Math')) groupSubjects.push('Math');
+    if (subjectsList.includes('Science') && !itemSubjects.includes('Science')) itemSubjects.push('Science');
+    if (subjectsList.includes('Math') && !itemSubjects.includes('Math')) itemSubjects.push('Math');
 
     return {
       id: Math.random().toString(36).substring(2, 9),
       aralLevel: groupLevel,
-      subjects: groupSubjects,
+      subjects: itemSubjects,
       gradeLevel: cohort.grade || 'GRADE 7',
-      sections: cohort.section ? [cohort.section] : [''],
+      sections: cohort.section ? [cohort.section] : (rawSection ? [rawSection] : ['HYACINTH']),
     };
   });
+}
+
+export interface TutorHandledClassSection<T> {
+  key: string;
+  label: string;
+  aralLevel: 'basic' | 'plus';
+  subject: string;
+  gradeLevel: string;
+  section: string;
+  cohort: string;
+  students: T[];
+}
+
+export function buildTutorClassSections<T = any>(
+  tutor: Partial<User> | null | undefined,
+  allTutorStudents: T[]
+): TutorHandledClassSection<T>[] {
+  if (!tutor) return [];
+  const groups = parseTutorRoleDetailsFromUser(tutor);
+
+  const classes: TutorHandledClassSection<T>[] = [];
+  const seenKeys = new Set<string>();
+
+  groups.forEach((g) => {
+    const subjects = g.subjects.length > 0 ? g.subjects : [g.aralLevel === 'basic' ? 'Filipino' : 'English'];
+    const sections = g.sections.length > 0 && g.sections[0] ? g.sections : [(tutor.section || 'HYACINTH')];
+
+    subjects.forEach((subj) => {
+      sections.forEach((sec) => {
+        let cleanGrade = (g.gradeLevel || 'GRADE 7').toUpperCase().trim();
+        let cleanSec = (sec || (tutor.section || 'HYACINTH')).toUpperCase().trim();
+
+        if (!cleanSec && cleanGrade.includes(' - ')) {
+          const parts = cleanGrade.split(' - ');
+          cleanGrade = parts[0].trim();
+          cleanSec = parts[1].trim();
+        }
+
+        if (!cleanSec) cleanSec = 'HYACINTH';
+
+        const cohortStr = `${cleanGrade} - ${cleanSec}`;
+        const aralLabel = g.aralLevel.toUpperCase();
+        const subjectLabel = subj.toUpperCase();
+        const label = `${aralLabel} • ${subjectLabel} • ${cohortStr}`;
+        const key = `${g.aralLevel}-${subj}-${cohortStr}`.toLowerCase();
+
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          classes.push({
+            key,
+            label,
+            aralLevel: g.aralLevel,
+            subject: subj,
+            gradeLevel: cleanGrade,
+            section: cleanSec,
+            cohort: cohortStr,
+            students: [],
+          });
+        }
+      });
+    });
+  });
+
+  if (classes.length === 0) {
+    const fallbackGrade = (tutor.grade_level || 'GRADE 7').toUpperCase();
+    const fallbackSec = (tutor.section || 'HYACINTH').toUpperCase();
+    const fallbackAral = (tutor.tutor_type || tutor.aral_level || 'BASIC').toUpperCase();
+    const fallbackSubj = (tutor.subject || 'FILIPINO').toUpperCase();
+    const cohortStr = `${fallbackGrade} - ${fallbackSec}`;
+    classes.push({
+      key: 'default',
+      label: `${fallbackAral} • ${fallbackSubj} • ${cohortStr}`,
+      aralLevel: fallbackAral.toLowerCase().includes('plus') ? 'plus' : 'basic',
+      subject: tutor.subject || 'Filipino',
+      gradeLevel: fallbackGrade,
+      section: fallbackSec,
+      cohort: cohortStr,
+      students: [],
+    });
+  }
+
+  // Populate students
+  const assignedStudentIds = new Set<string>();
+  classes.forEach((cls) => {
+    cls.students = allTutorStudents.filter((st: any) => {
+      const studentObj: Partial<User> | undefined = st?.rawStudent || st?.student || (st?.id ? st : undefined);
+      if (!studentObj) return false;
+      return isStudentInCohort(studentObj, {
+        aral_level: cls.aralLevel,
+        subject: cls.subject,
+        cohort: cls.cohort,
+      });
+    });
+    cls.students.forEach((s: any) => {
+      const id = s?.rawStudent?.id || s?.student?.id || s?.id;
+      if (id) assignedStudentIds.add(String(id));
+    });
+  });
+
+  // Handle any student assigned to tutor not matching any role detail class
+  const unassigned = allTutorStudents.filter((st: any) => {
+    const id = st?.rawStudent?.id || st?.student?.id || st?.id;
+    return !assignedStudentIds.has(String(id));
+  });
+  if (unassigned.length > 0) {
+    if (classes.length === 1 && classes[0].students.length === 0) {
+      classes[0].students = unassigned;
+    } else {
+      classes.push({
+        key: 'other-assigned',
+        label: `${(tutor.aral_level || 'BASIC').toUpperCase()} • ${(tutor.subject || 'FILIPINO').toUpperCase()} • OTHER ASSIGNED STUDENTS`,
+        aralLevel: (tutor.aral_level || 'basic').toLowerCase().includes('plus') ? 'plus' : 'basic',
+        subject: tutor.subject || 'Filipino',
+        gradeLevel: 'OTHER',
+        section: 'OTHER',
+        cohort: 'OTHER',
+        students: unassigned,
+      });
+    }
+  }
+
+  return classes;
+}
+
+export interface TutorClassViewTitleOptions {
+  user: Partial<User> | null | undefined;
+  selectedAralLevel?: string;
+  selectedSubject?: string;
+  selectedCohort?: string;
+}
+
+/**
+ * Returns the class label in format: [ARAL LEVEL] • [SUBJECT] • [GRADE LEVEL] - [SECTION]
+ * when the filter selection resolves to a specific handled class (auto-adjust to nearest match)
+ * or when all filters are explicitly done.
+ * Returns null if multiple classes match and filters are not done yet, or if all are set to ALL.
+ */
+export function getTutorClassViewLabel(options: TutorClassViewTitleOptions): string | null {
+  const { user, selectedAralLevel, selectedSubject, selectedCohort } = options;
+  if (!user) return null;
+
+  const isAllAral = !selectedAralLevel || selectedAralLevel.toLowerCase() === 'all';
+  const isAllSubject = !selectedSubject || selectedSubject.toLowerCase() === 'all';
+  const isAllCohort = !selectedCohort || selectedCohort.toLowerCase() === 'all' || selectedCohort.toUpperCase() === 'ALL - ALL';
+
+  // If all filters are set to "ALL", return null so the clean default titles are shown
+  if (isAllAral && isAllSubject && isAllCohort) {
+    return null;
+  }
+
+  // Get all concrete classes handled by the tutor
+  const classSections = buildTutorClassSections(user, []);
+  if (classSections.length === 0) {
+    return null;
+  }
+
+  // Extract grade and section from selectedCohort if provided
+  let filterGrade = 'ALL';
+  let filterSection = 'ALL';
+  if (selectedCohort && selectedCohort.includes(' - ')) {
+    const [g, s] = selectedCohort.split(' - ').map((p) => p.trim().toUpperCase());
+    filterGrade = g;
+    filterSection = s;
+  } else if (selectedCohort && selectedCohort.toUpperCase() !== 'ALL') {
+    filterGrade = selectedCohort.toUpperCase().trim();
+  }
+
+  // Filter handled classes by the active filters
+  const matchingClasses = classSections.filter((cls) => {
+    if (!isAllAral && cls.aralLevel.toLowerCase() !== selectedAralLevel.toLowerCase()) {
+      return false;
+    }
+    if (!isAllSubject) {
+      const clsSubj = cls.subject.toLowerCase();
+      const selSubj = selectedSubject.toLowerCase();
+      if (!clsSubj.includes(selSubj) && !selSubj.includes(clsSubj)) {
+        return false;
+      }
+    }
+    if (filterGrade !== 'ALL' && cls.gradeLevel.toUpperCase() !== filterGrade) {
+      return false;
+    }
+    if (filterSection !== 'ALL' && cls.section.toUpperCase() !== filterSection) {
+      return false;
+    }
+    return true;
+  });
+
+  // 1. If only 1 class handled by tutor matches (nearest match, e.g. John Doe with 1 class, or filters narrowed down):
+  if (matchingClasses.length === 1) {
+    return matchingClasses[0].label;
+  }
+
+  // 2. If all 4 filters are explicitly completed (none is ALL):
+  const isAllFiltersDone = !isAllAral && !isAllSubject && filterGrade !== 'ALL' && filterSection !== 'ALL';
+  if (isAllFiltersDone) {
+    const aralLabel = selectedAralLevel.toUpperCase();
+    const subjectLabel = selectedSubject.toUpperCase();
+    const cohortLabel = `${filterGrade} - ${filterSection}`;
+    return `${aralLabel} • ${subjectLabel} • ${cohortLabel}`;
+  }
+
+  // 3. Otherwise, multiple classes match and filters are not all done yet:
+  // Return null so it waits for all filters to be done, avoiding messy titles like "BASIC • ALL SUBJECTS • ALL COHORTS"
+  return null;
 }
 
 

@@ -485,6 +485,8 @@ const aralLevelRank: Record<string, number> = {
         onSelectSubject={setSelectedSubject}
         selectedCohort={selectedCohort}
         onSelectCohort={setSelectedCohort}
+        allowAll={true}
+        title="CURRENT CLASS FOR VIEW"
       />
 
       {/* ── States ────────────────────────────────────────────────── */}

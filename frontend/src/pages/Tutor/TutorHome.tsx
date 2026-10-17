@@ -21,7 +21,7 @@ import {
   setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
-import { useTutorCohortFilter, isStudentInCohort } from '../../utils/tutorCohortHelpers';
+import { useTutorCohortFilter, isStudentInCohort, getTutorClassViewLabel } from '../../utils/tutorCohortHelpers';
 
 interface TutorChartPoint {
   label: string;
@@ -525,34 +525,28 @@ export const TutorHome: React.FC = () => {
     return getActiveSystemMilestone();
   }, [activeSystemSem]);
 
-  const currentClassViewLabel = useMemo(() => {
-    const isAllAral = !selectedAralLevel || selectedAralLevel.toLowerCase() === 'all';
-    const isAllSubject = !selectedSubject || selectedSubject.toLowerCase() === 'all';
-    const isAllCohort = !selectedCohort || selectedCohort.toLowerCase() === 'all' || selectedCohort.toUpperCase() === 'ALL - ALL';
-
-    if (isAllAral && isAllSubject && isAllCohort) {
-      return '';
-    }
-
-    const aralPart = isAllAral ? 'ALL ARAL LEVELS' : selectedAralLevel.toUpperCase();
-    const subjectPart = isAllSubject ? 'ALL SUBJECTS' : selectedSubject.toUpperCase();
-    const cohortPart = isAllCohort ? 'ALL COHORTS' : selectedCohort.toUpperCase();
-    return `${aralPart} • ${subjectPart} • ${cohortPart}`;
-  }, [selectedAralLevel, selectedSubject, selectedCohort]);
+  const classViewLabel = useMemo(() => {
+    return getTutorClassViewLabel({
+      user,
+      selectedAralLevel,
+      selectedSubject,
+      selectedCohort,
+    });
+  }, [user, selectedAralLevel, selectedSubject, selectedCohort]);
 
   const performanceTrendTitle = useMemo(() => {
-    if (!currentClassViewLabel) {
+    if (!classViewLabel) {
       return 'STUDENTS PERFORMANCE TREND';
     }
-    return `${currentClassViewLabel}'S PERFORMANCE TREND`;
-  }, [currentClassViewLabel]);
+    return `${classViewLabel}'S PERFORMANCE TREND`;
+  }, [classViewLabel]);
 
   const topAtRiskTitle = useMemo(() => {
-    if (!currentClassViewLabel) {
+    if (!classViewLabel) {
       return 'ALL TOP AT-RISK STUDENTS';
     }
-    return `${currentClassViewLabel}'S TOP AT-RISK`;
-  }, [currentClassViewLabel]);
+    return `${classViewLabel}'S TOP AT-RISK`;
+  }, [classViewLabel]);
 
   const last4WeeksData = useMemo(() => {
     if (filteredStudents.length === 0 || grades.length === 0) return [];
