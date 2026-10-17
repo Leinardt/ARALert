@@ -242,6 +242,16 @@ class UserListCreateView(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
 
         user = serializer.save()
+        target_full_name = user.get_full_name().strip()
+        if not target_full_name:
+            if user.role == 'student' and user.lrn:
+                target_full_name = f"STUDENT {user.lrn}"
+            elif user.role == 'student':
+                target_full_name = "STUDENT"
+            else:
+                raw_u = (user.username or user.email or '').split('@')[0]
+                target_full_name = raw_u.replace('.', ' ').replace('_', ' ').strip().upper()
+
         log_audit_event(
             'USER_CREATED',
             user=request.user,
@@ -249,8 +259,9 @@ class UserListCreateView(generics.ListCreateAPIView):
             details={
                 'target_user_id': str(user.id),
                 'target_username': user.username if (user.role != 'student' and not user.username.endswith('@aralert.local')) else (user.lrn or user.username),
-                'target_name': user.get_full_name() or user.username,
+                'target_name': target_full_name,
                 'target_role': 'superadmin' if user.is_superuser else user.role,
+                'target_lrn': getattr(user, 'lrn', '') or None,
                 'role': 'superadmin' if user.is_superuser else user.role,
                 'email': user.email if (user.role != 'student' and not user.email.endswith('@aralert.local') and not user.email.startswith('student-')) else None,
                 'lrn': user.lrn if user.role == 'student' else None,
@@ -337,15 +348,33 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
                 }
             )
 
+        target_full_name = updated_user.get_full_name().strip()
+        if not target_full_name:
+            if updated_user.role == 'student' and updated_user.lrn:
+                target_full_name = f"STUDENT {updated_user.lrn}"
+            elif updated_user.role == 'student':
+                target_full_name = "STUDENT"
+            else:
+                raw_u = (updated_user.username or updated_user.email or '').split('@')[0]
+                target_full_name = raw_u.replace('.', ' ').replace('_', ' ').strip().upper()
+
+        target_display_username = updated_user.lrn if (updated_user.role == 'student' and updated_user.lrn) else updated_user.username
+        if updated_user.role == 'student' and (not target_display_username or str(target_display_username).startswith('student-') or '@' in str(target_display_username)):
+            target_display_username = updated_user.lrn or 'Student'
+
+        target_role = 'superadmin' if updated_user.is_superuser else updated_user.role
+        target_lrn = getattr(updated_user, 'lrn', '') or None
+
         log_audit_event(
             'USER_UPDATED',
             user=self.request.user,
             request=self.request,
             details={
                 'target_user_id': str(updated_user.id),
-                'target_username': updated_user.username,
-                'target_name': updated_user.get_full_name() or updated_user.username,
-                'target_role': 'superadmin' if updated_user.is_superuser else updated_user.role,
+                'target_username': target_display_username,
+                'target_name': target_full_name,
+                'target_role': target_role,
+                'target_lrn': target_lrn,
                 'updated_fields': list(serializer.validated_data.keys())
             }
         )
@@ -368,11 +397,34 @@ class UserActivateView(APIView):
         actor_role = getattr(request.user, 'role', '')
         action = 'USER_ACTIVATED_BY_SUPERADMIN' if (actor_role == 'superadmin' or request.user.is_superuser) else 'USER_ACTIVATED_BY_ADMIN'
 
+        target_full_name = user.get_full_name().strip()
+        if not target_full_name:
+            if user.role == 'student' and user.lrn:
+                target_full_name = f"STUDENT {user.lrn}"
+            elif user.role == 'student':
+                target_full_name = "STUDENT"
+            else:
+                raw_u = (user.username or user.email or '').split('@')[0]
+                target_full_name = raw_u.replace('.', ' ').replace('_', ' ').strip().upper()
+
+        target_display_username = user.lrn if (user.role == 'student' and user.lrn) else user.username
+        if user.role == 'student' and (not target_display_username or str(target_display_username).startswith('student-') or '@' in str(target_display_username)):
+            target_display_username = user.lrn or 'Student'
+
+        target_role = 'superadmin' if user.is_superuser else (user.role or '')
+        target_lrn = getattr(user, 'lrn', '') or None
+
         log_audit_event(
             action,
             user=request.user,
             request=request,
-            details={'target_user_id': str(user.id), 'target_username': user.username, 'target_name': user.get_full_name() or user.username, 'target_role': user.role}
+            details={
+                'target_user_id': str(user.id),
+                'target_username': target_display_username,
+                'target_name': target_full_name,
+                'target_role': target_role,
+                'target_lrn': target_lrn,
+            }
         )
         return Response({'detail': 'User activated successfully.'})
 
@@ -398,11 +450,34 @@ class UserDeactivateView(APIView):
         actor_role = getattr(request.user, 'role', '')
         action = 'USER_DEACTIVATED_BY_SUPERADMIN' if (actor_role == 'superadmin' or request.user.is_superuser) else 'USER_DEACTIVATED_BY_ADMIN'
 
+        target_full_name = user.get_full_name().strip()
+        if not target_full_name:
+            if user.role == 'student' and user.lrn:
+                target_full_name = f"STUDENT {user.lrn}"
+            elif user.role == 'student':
+                target_full_name = "STUDENT"
+            else:
+                raw_u = (user.username or user.email or '').split('@')[0]
+                target_full_name = raw_u.replace('.', ' ').replace('_', ' ').strip().upper()
+
+        target_display_username = user.lrn if (user.role == 'student' and user.lrn) else user.username
+        if user.role == 'student' and (not target_display_username or str(target_display_username).startswith('student-') or '@' in str(target_display_username)):
+            target_display_username = user.lrn or 'Student'
+
+        target_role = 'superadmin' if user.is_superuser else (user.role or '')
+        target_lrn = getattr(user, 'lrn', '') or None
+
         log_audit_event(
             action,
             user=request.user,
             request=request,
-            details={'target_user_id': str(user.id), 'target_username': user.username, 'target_name': user.get_full_name() or user.username, 'target_role': user.role}
+            details={
+                'target_user_id': str(user.id),
+                'target_username': target_display_username,
+                'target_name': target_full_name,
+                'target_role': target_role,
+                'target_lrn': target_lrn,
+            }
         )
         return Response({'detail': 'User deactivated successfully.'})
 
@@ -589,18 +664,29 @@ class AuditLogListView(APIView):
         # Batch resolve target users for older or target_user_id-only logs
         target_user_ids = set()
         for log in logs:
-            if isinstance(log.details, dict) and log.details.get('target_user_id') and not log.details.get('target_name'):
-                try:
-                    target_user_ids.add(uuid.UUID(str(log.details['target_user_id'])))
-                except (ValueError, TypeError):
-                    pass
+            if isinstance(log.details, dict) and log.details.get('target_user_id'):
+                t_name = str(log.details.get('target_name') or '').strip()
+                if not t_name or '@' in t_name or t_name.startswith('student-'):
+                    try:
+                        target_user_ids.add(uuid.UUID(str(log.details['target_user_id'])))
+                    except (ValueError, TypeError):
+                        pass
 
         target_users_map = {}
         if target_user_ids:
             for u in User.objects.filter(id__in=target_user_ids):
+                u_full = u.get_full_name().strip()
+                if not u_full:
+                    if u.role == 'student' and u.lrn:
+                        u_full = f"STUDENT {u.lrn}"
+                    elif u.role == 'student':
+                        u_full = "STUDENT"
+                    else:
+                        u_full = (u.username or u.email or '').split('@')[0].replace('.', ' ').replace('_', ' ').strip().upper()
                 target_users_map[str(u.id)] = {
-                    'name': u.get_full_name() or u.username,
-                    'role': 'superadmin' if u.is_superuser else (u.role or '')
+                    'name': u_full,
+                    'role': 'superadmin' if u.is_superuser else (u.role or ''),
+                    'lrn': getattr(u, 'lrn', '') or None,
                 }
 
         results = []
@@ -670,24 +756,36 @@ class AuditLogListView(APIView):
                 target_id = str(log.details.get('target_user_id') or '')
                 cached_target = target_users_map.get(target_id)
 
-                raw_target_name = (
-                    log.details.get('target_name') or
-                    (cached_target['name'] if cached_target else None) or
-                    log.details.get('student_name') or
-                    log.details.get('user_name')
-                )
+                raw_target_name = None
+                t_detail_name = str(log.details.get('target_name') or '').strip()
+                if t_detail_name and '@' not in t_detail_name and not t_detail_name.startswith('student-'):
+                    raw_target_name = t_detail_name
+                elif cached_target and cached_target.get('name'):
+                    raw_target_name = cached_target['name']
+                elif t_detail_name:
+                    raw_target_name = t_detail_name.split('@')[0].replace('.', ' ').replace('_', ' ').strip().upper()
+
+                if not raw_target_name:
+                    raw_target_name = (
+                        log.details.get('student_name') or
+                        log.details.get('user_name') or
+                        log.details.get('name')
+                    )
 
                 if not raw_target_name:
                     cand = str(log.details.get('target_username') or '')
-                    if cand and '@' not in cand and not cand.startswith('student-'):
-                        raw_target_name = cand
+                    if cand and not cand.startswith('student-'):
+                        raw_target_name = cand.split('@')[0].replace('.', ' ').replace('_', ' ').strip().upper()
+                    elif log.details.get('target_lrn') or log.details.get('lrn'):
+                        raw_target_name = f"STUDENT {log.details.get('target_lrn') or log.details.get('lrn')}"
 
                 if raw_target_name:
                     clean_name = re.sub(r'\s*\[.*?\]$', '', str(raw_target_name)).strip()
-                    if '@' in clean_name or clean_name.startswith('student-'):
-                        target = '—'
-                    else:
-                        target = clean_name or '—'
+                    if '@' in clean_name:
+                        clean_name = clean_name.split('@')[0].replace('.', ' ').replace('_', ' ').strip().upper()
+                    if clean_name.startswith('student-'):
+                        clean_name = '—'
+                    target = clean_name or '—'
 
             # Sanitize username so placeholder student emails are not exposed
             clean_username = log.username or (str(log.user) if log.user else 'Anonymous')

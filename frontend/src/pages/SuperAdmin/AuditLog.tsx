@@ -26,11 +26,13 @@ const getTargetDisplay = (log: AuditEntry): string => {
   if (!target || target === '—') {
     const d = log.details;
     if (d) {
-      const targetName = d.target_name || d.student_name || d.user_name;
+      const targetName = d.target_name || d.student_name || d.user_name || d.name;
       if (targetName) {
         target = String(targetName);
-      } else if (d.target_username && !String(d.target_username).includes('@')) {
+      } else if (d.target_username) {
         target = String(d.target_username);
+      } else if (d.target_lrn || d.lrn) {
+        target = `STUDENT ${d.target_lrn || d.lrn}`;
       }
     }
   }
@@ -39,8 +41,12 @@ const getTargetDisplay = (log: AuditEntry): string => {
   // Remove [role] if present to save space (e.g. "JUAN DELA CRUZ [STUDENT]" -> "JUAN DELA CRUZ")
   target = target.replace(/\s*\[.*?\]$/, '').trim();
 
-  // If target is an email address, do not put email in target column
-  if (target.includes('@') || target.startsWith('student-')) return '—';
+  // If target is an email address, display clean name portion rather than dropping to '—'
+  if (target.includes('@')) {
+    target = target.split('@')[0].replace(/[._]/g, ' ').trim().toUpperCase();
+  }
+
+  if (target.startsWith('student-')) return '—';
 
   return target || '—';
 };

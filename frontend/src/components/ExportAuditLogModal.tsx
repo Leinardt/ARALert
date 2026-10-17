@@ -298,7 +298,14 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
           id: String(r.id),
           timestamp: r.timestamp,
           action: r.action,
-          target: formatAuditTarget(r.target || r.details?.target_name || r.details?.student_name || r.details?.user_name),
+          target: formatAuditTarget(
+            r.target ||
+            r.details?.target_name ||
+            r.details?.student_name ||
+            r.details?.user_name ||
+            (r.details?.target_lrn ? `STUDENT ${r.details.target_lrn}` : undefined) ||
+            r.details?.target_username
+          ),
           name: r.name || 'System',
           role: r.role || '—',
           email: (r.role?.toLowerCase() === 'student' || r.email?.includes('@aralert.local') || r.email?.startsWith('student-')) ? '—' : (r.email || '—'),
@@ -322,7 +329,14 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
                 id: String(r.id),
                 timestamp: r.timestamp,
                 action: r.action,
-                target: formatAuditTarget(r.target || r.details?.target_name || r.details?.student_name || r.details?.user_name),
+                target: formatAuditTarget(
+                  r.target ||
+                  r.details?.target_name ||
+                  r.details?.student_name ||
+                  r.details?.user_name ||
+                  (r.details?.target_lrn ? `STUDENT ${r.details.target_lrn}` : undefined) ||
+                  r.details?.target_username
+                ),
                 name: r.name || 'System',
                 role: r.role || '—',
                 email: (r.role?.toLowerCase() === 'student' || r.email?.includes('@aralert.local') || r.email?.startsWith('student-')) ? '—' : (r.email || '—'),

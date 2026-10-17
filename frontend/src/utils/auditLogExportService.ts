@@ -52,8 +52,11 @@ export const formatAuditEmail = (log: AuditLogExportItem): string => {
 
 export const formatAuditTarget = (target?: string): string => {
   if (!target || target === '—') return '—';
-  const clean = target.replace(/\s*\[.*?\]$/, '').trim();
-  if (clean.includes('@') || clean.startsWith('student-')) return '—';
+  let clean = target.replace(/\s*\[.*?\]$/, '').trim();
+  if (clean.includes('@')) {
+    clean = clean.split('@')[0].replace(/[._]/g, ' ').trim().toUpperCase();
+  }
+  if (clean.startsWith('student-')) return '—';
   return clean || '—';
 };
 
