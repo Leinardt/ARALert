@@ -499,7 +499,36 @@ export const EditUser: React.FC = () => {
       delete payload.grade_level_grade;
       delete payload.grade_level_section;
 
-      await userService.updateUser(id, payload);
+      try {
+        await userService.updateUser(id, payload);
+      } catch (primaryErr: any) {
+        const errData = primaryErr.response?.data;
+        // If the deployed backend is on the legacy schema that rejects multi-values ('basic,plus', 'basic_plus'), 'Filipino', or commas in grade_level:
+        if (
+          errData &&
+          (errData.aral_level || errData.tutor_type || errData.subject || errData.grade_level)
+        ) {
+          const fallbackPayload = { ...payload };
+          if (errData.aral_level || errData.tutor_type) {
+            const fallbackLevel = tutorAralLevels.includes('basic') ? 'basic' : (tutorAralLevels[0] || 'basic');
+            fallbackPayload.aral_level = fallbackLevel;
+            fallbackPayload.tutor_type = fallbackLevel;
+          }
+          if (errData.subject && fallbackPayload.subject === 'Filipino') {
+            fallbackPayload.subject = 'Reading';
+          }
+          if (errData.grade_level && combinedGradeLevel.includes(',')) {
+            fallbackPayload.grade_level = combinedGradeLevel.replace(/,\s*/g, ' - ');
+            if (fallbackPayload.grade_level.length > 98) {
+              fallbackPayload.grade_level = fallbackPayload.grade_level.slice(0, 98);
+            }
+          }
+          // Retry with legacy-compatible payload
+          await userService.updateUser(id, fallbackPayload);
+        } else {
+          throw primaryErr;
+        }
+      }
 
       const roleTitle = data.role ? data.role.charAt(0).toUpperCase() + data.role.slice(1) : 'User';
       setSuccessToastTitle(`${roleTitle} Changes Saved Successfully`);
