@@ -42,6 +42,47 @@ const getSubjectBadge = (subject?: string | null) => {
   );
 };
 
+/* ─── Tutor Subject Display Helper ─── */
+const getTutorDisplaySubjects = (user: User) => {
+  const rawSub = (user.subject || '').trim();
+  const rawLevel = (user.aral_level || '').toLowerCase();
+  const rawType = (user.tutor_type || '').toLowerCase();
+  const isBasicPlus =
+    (rawLevel.includes('basic') && rawLevel.includes('plus')) ||
+    rawType === 'basic_plus' ||
+    rawType === 'basic,plus';
+
+  const subs: string[] = [];
+  if (rawSub) {
+    rawSub.split(',').forEach((s) => {
+      const trimmed = s.trim();
+      const norm = trimmed.toLowerCase() === 'reading' ? 'Filipino' : trimmed;
+      if (norm && !subs.some((existing) => existing.toLowerCase() === norm.toLowerCase())) {
+        subs.push(norm.charAt(0).toUpperCase() + norm.slice(1));
+      }
+    });
+  }
+
+  // If tutor is configured for both Basic and Plus levels, ensure both Filipino and English are present
+  if (isBasicPlus) {
+    if (!subs.some((s) => s.toLowerCase() === 'filipino')) subs.unshift('Filipino');
+    if (!subs.some((s) => s.toLowerCase() === 'english')) {
+      const filipinoIdx = subs.findIndex((s) => s.toLowerCase() === 'filipino');
+      subs.splice(filipinoIdx + 1, 0, 'English');
+    }
+  }
+
+  if (subs.length === 0) {
+    subs.push(rawLevel.includes('plus') ? 'English' : 'Filipino');
+  }
+
+  return (
+    <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase">
+      {subs.join(', ')}
+    </span>
+  );
+};
+
 type AccountTab = 'student' | 'tutor' | 'faculty' | 'principal' | 'admin' | 'superadmin';
 
 export const UserList: React.FC = () => {
@@ -424,11 +465,66 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
   };
 
   const getTutorDisplayCohorts = (gradeLevel?: string | null, section?: string | null) => {
-    if (!gradeLevel) return { grade: 'Grade 7', section: section || '—' };
-    const gradeMatches = Array.from(new Set(Array.from(gradeLevel.matchAll(/GRADE\s*(\d+)/gi)).map((m) => `Grade ${m[1]}`)));
-    const grade = gradeMatches.length > 0 ? gradeMatches.join(', ') : gradeLevel;
-    const sec = section || '—';
-    return { grade, section: sec };
+    if (!gradeLevel) {
+      return {
+        grade: 'Grade 7',
+        section: section ? section.toUpperCase() : '—',
+      };
+    }
+
+    const raw = gradeLevel.trim();
+    const grades: string[] = [];
+    const sections: string[] = [];
+
+    const commaChunks = raw.split(',').map((c) => c.trim()).filter(Boolean);
+
+    commaChunks.forEach((chunk) => {
+      if (chunk.includes(' - ')) {
+        const parts = chunk.split(' - ').map((p) => p.trim());
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i].toUpperCase();
+          const gradeMatch = part.match(/GRADE\s*(\d+)/i);
+          if (gradeMatch) {
+            const gLabel = `Grade ${gradeMatch[1]}`;
+            if (!grades.includes(gLabel)) grades.push(gLabel);
+            if (i + 1 < parts.length && !parts[i + 1].toUpperCase().match(/GRADE\s*(\d+)/i)) {
+              const sLabel = parts[i + 1].trim().toUpperCase();
+              if (sLabel && !sections.includes(sLabel)) sections.push(sLabel);
+              i++;
+            }
+          } else if (part && !sections.includes(part)) {
+            sections.push(part);
+          }
+        }
+      } else {
+        const part = chunk.toUpperCase();
+        const gradeMatch = part.match(/GRADE\s*(\d+)/i);
+        if (gradeMatch) {
+          const gLabel = `Grade ${gradeMatch[1]}`;
+          if (!grades.includes(gLabel)) grades.push(gLabel);
+        } else if (part && !sections.includes(part)) {
+          sections.push(part);
+        }
+      }
+    });
+
+    if (sections.length === 0 && section) {
+      sections.push(section.toUpperCase());
+    }
+
+    if (grades.length === 0) {
+      const allGradeMatches = Array.from(new Set(Array.from(raw.matchAll(/GRADE\s*(\d+)/gi)).map((m) => `Grade ${m[1]}`)));
+      if (allGradeMatches.length > 0) {
+        grades.push(...allGradeMatches);
+      } else {
+        grades.push(raw);
+      }
+    }
+
+    return {
+      grade: grades.join(', ') || 'Grade 7',
+      section: sections.join(', ') || '—',
+    };
   };
 
   return (
@@ -900,7 +996,7 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                               {u.email}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                              {getSubjectBadge(u.subject)}
+                              {getTutorDisplaySubjects(u)}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               {getAralBadge(u.aral_level)}

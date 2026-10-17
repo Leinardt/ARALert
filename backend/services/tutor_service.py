@@ -37,9 +37,11 @@ def validate_tutor_compatibility(tutor: User, student_program: str) -> None:
     s_prog = str(student_program).lower().strip() if student_program else 'basic'
 
     if t_type != s_prog:
-        raise ValidationError({
-            'tutor': f'This tutor cannot be assigned to this student because the tutor handles the {t_type.capitalize()} level only, while the student is in {s_prog.capitalize()}. Tutors can only handle one ARAL level.'
-        })
+        handles_both = 'basic_plus' in t_type or ('basic' in t_type and 'plus' in t_type)
+        if not (handles_both and s_prog in ('basic', 'plus')):
+            raise ValidationError({
+                'tutor': f'This tutor cannot be assigned to this student because the tutor handles the {t_type.capitalize()} level only, while the student is in {s_prog.capitalize()}. Tutors can only handle their assigned ARAL level.'
+            })
 
 
 def assign_tutor_to_student(

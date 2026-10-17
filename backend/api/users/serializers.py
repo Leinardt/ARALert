@@ -319,17 +319,25 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         if not value:
             return 'Filipino'
         v = sanitize_input_text(value).strip()
-        v_title = v.capitalize()
-        if v_title in ('Filipino', 'English', 'Science', 'Math'):
-            return v_title
-        if 'filipino' in v.lower():
-            return 'Filipino'
-        if 'english' in v.lower():
-            return 'English'
-        if 'science' in v.lower():
-            return 'Science'
-        if 'math' in v.lower():
-            return 'Math'
+        parts = [p.strip() for p in v.replace(';', ',').split(',') if p.strip()]
+        valid_map = {
+            'filipino': 'Filipino',
+            'reading': 'Filipino',
+            'english': 'English',
+            'science': 'Science',
+            'math': 'Math',
+        }
+        cleaned = []
+        for p in parts:
+            matched = valid_map.get(p.lower())
+            if matched and matched not in cleaned:
+                cleaned.append(matched)
+
+        if cleaned:
+            combined = ', '.join(cleaned)
+            if len(combined) <= 20:
+                return combined
+            return cleaned[0]
         return 'Filipino'
 
     def validate_lrn(self, value):

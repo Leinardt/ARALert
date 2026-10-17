@@ -151,9 +151,9 @@ class UserListCreateView(generics.ListCreateAPIView):
         subject = self.request.query_params.get('subject', '').strip()
         if subject:
             if subject.lower() in ('reading', 'filipino'):
-                queryset = queryset.filter(Q(subject__iexact='Filipino') | Q(subject__iexact='Reading'))
+                queryset = queryset.filter(Q(subject__icontains='Filipino') | Q(subject__icontains='Reading') | Q(aral_level__icontains='basic'))
             else:
-                queryset = queryset.filter(subject__iexact=subject)
+                queryset = queryset.filter(Q(subject__icontains=subject) | (Q(aral_level__icontains='plus') if subject.lower() == 'english' else Q()))
 
         aral_level = self.request.query_params.get('aral_level', '').strip()
         if aral_level:

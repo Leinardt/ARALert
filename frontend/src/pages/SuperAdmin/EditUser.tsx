@@ -313,32 +313,46 @@ export const EditUser: React.FC = () => {
           if (rawSub.includes('english')) subs.push('English');
           if (rawSub.includes('science')) subs.push('Science');
           if (rawSub.includes('math')) subs.push('Math');
-          if (subs.length === 0) {
+          if (levels.includes('basic') && levels.includes('plus')) {
+            if (!subs.includes('Filipino')) subs.push('Filipino');
+            if (!subs.includes('English')) subs.push('English');
+          } else if (subs.length === 0) {
             if (levels.includes('basic')) subs.push('Filipino');
             else subs.push('English');
           }
           setTutorSubjects(subs);
 
           if (userData.grade_level) {
-            const chunks = userData.grade_level.split(',').map((c: string) => c.trim()).filter(Boolean);
             const parsedGrades: string[] = [];
             const parsedSections: string[] = [];
+            const commaChunks = userData.grade_level.split(',').map((c: string) => c.trim()).filter(Boolean);
 
-            chunks.forEach((chunk: string) => {
+            commaChunks.forEach((chunk: string) => {
               if (chunk.includes(' - ')) {
-                const [g, s] = chunk.split(' - ').map((part: string) => part.trim().toUpperCase());
-                if (['GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10', 'GRADE 11', 'GRADE 12'].includes(g) && !parsedGrades.includes(g)) {
-                  parsedGrades.push(g);
-                }
-                if (s && !parsedSections.includes(s)) {
-                  parsedSections.push(s);
+                const parts = chunk.split(' - ').map((p: string) => p.trim());
+                for (let i = 0; i < parts.length; i++) {
+                  const part = parts[i].toUpperCase();
+                  const gradeMatch = part.match(/GRADE\s*(\d+)/i);
+                  if (gradeMatch) {
+                    const gLabel = `GRADE ${gradeMatch[1]}`;
+                    if (!parsedGrades.includes(gLabel)) parsedGrades.push(gLabel);
+                    if (i + 1 < parts.length && !parts[i + 1].toUpperCase().match(/GRADE\s*(\d+)/i)) {
+                      const sLabel = parts[i + 1].trim().toUpperCase();
+                      if (sLabel && !parsedSections.includes(sLabel)) parsedSections.push(sLabel);
+                      i++;
+                    }
+                  } else if (part && !parsedSections.includes(part)) {
+                    parsedSections.push(part);
+                  }
                 }
               } else {
-                const g = chunk.toUpperCase();
-                if (['GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10', 'GRADE 11', 'GRADE 12'].includes(g) && !parsedGrades.includes(g)) {
-                  parsedGrades.push(g);
-                } else if (g) {
-                  parsedSections.push(g);
+                const part = chunk.toUpperCase();
+                const gradeMatch = part.match(/GRADE\s*(\d+)/i);
+                if (gradeMatch) {
+                  const gLabel = `GRADE ${gradeMatch[1]}`;
+                  if (!parsedGrades.includes(gLabel)) parsedGrades.push(gLabel);
+                } else if (part && !parsedSections.includes(part)) {
+                  parsedSections.push(part);
                 }
               }
             });
@@ -468,7 +482,7 @@ export const EditUser: React.FC = () => {
         : (data.aral_level || 'basic');
 
       const tutorSubject = data.role === 'tutor'
-        ? (tutorSubjects.includes('Filipino') ? 'Filipino' : tutorSubjects[0] || 'Filipino')
+        ? (tutorSubjects.length > 0 ? tutorSubjects.join(', ') : 'Filipino')
         : (data.subject || 'Filipino');
 
       const payload: any = {
@@ -514,7 +528,9 @@ export const EditUser: React.FC = () => {
             fallbackPayload.aral_level = fallbackLevel;
             fallbackPayload.tutor_type = fallbackLevel;
           }
-          if (errData.subject && fallbackPayload.subject === 'Filipino') {
+          if (errData.subject && fallbackPayload.subject?.includes(',')) {
+            fallbackPayload.subject = tutorSubjects.includes('Filipino') ? 'Filipino' : (tutorSubjects[0] || 'Filipino');
+          } else if (errData.subject && fallbackPayload.subject === 'Filipino') {
             fallbackPayload.subject = 'Reading';
           }
           if (errData.grade_level && combinedGradeLevel.includes(',')) {

@@ -375,7 +375,7 @@ export const CreateUser: React.FC = () => {
         : (data.aral_level || 'basic');
 
       const tutorSubject = selectedRole === 'tutor'
-        ? (tutorSubjects.includes('Filipino') ? 'Filipino' : tutorSubjects[0] || 'Filipino')
+        ? (tutorSubjects.length > 0 ? tutorSubjects.join(', ') : 'Filipino')
         : (data.subject || 'Filipino');
 
       const payload: any = {
@@ -397,7 +397,36 @@ export const CreateUser: React.FC = () => {
         tutor_type: tutorTutorType,
       };
 
-      await userService.createUser(payload);
+      try {
+        await userService.createUser(payload);
+      } catch (primaryErr: any) {
+        const errData = primaryErr.response?.data;
+        if (
+          errData &&
+          (errData.aral_level || errData.tutor_type || errData.subject || errData.grade_level)
+        ) {
+          const fallbackPayload = { ...payload };
+          if (errData.aral_level || errData.tutor_type) {
+            const fallbackLevel = tutorAralLevels.includes('basic') ? 'basic' : (tutorAralLevels[0] || 'basic');
+            fallbackPayload.aral_level = fallbackLevel;
+            fallbackPayload.tutor_type = fallbackLevel;
+          }
+          if (errData.subject && fallbackPayload.subject?.includes(',')) {
+            fallbackPayload.subject = tutorSubjects.includes('Filipino') ? 'Filipino' : (tutorSubjects[0] || 'Filipino');
+          } else if (errData.subject && fallbackPayload.subject === 'Filipino') {
+            fallbackPayload.subject = 'Reading';
+          }
+          if (errData.grade_level && combinedGradeLevel.includes(',')) {
+            fallbackPayload.grade_level = combinedGradeLevel.replace(/,\s*/g, ' - ');
+            if (fallbackPayload.grade_level.length > 98) {
+              fallbackPayload.grade_level = fallbackPayload.grade_level.slice(0, 98);
+            }
+          }
+          await userService.createUser(fallbackPayload);
+        } else {
+          throw primaryErr;
+        }
+      }
       navigate(getBackLink());
     } catch (error: any) {
       console.error(error);
