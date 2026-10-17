@@ -12,7 +12,7 @@ from rest_framework import serializers
 from apps.accounts.models import User, StudentEditRequest
 
 NAME_PATTERN = re.compile(r"^[a-zA-Z\s.\-ñÑ']+$")
-SECTION_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-]+$")
+SECTION_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-,]+$")
 PHONE_PATTERN = re.compile(r"^[0-9+\-\s()]+$")
 DANGEROUS_INJECTION_PATTERN = re.compile(
     r"(--|;|\/\*|\*\/|@@|char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update|<script|<\/script>)",
@@ -69,6 +69,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     username = serializers.CharField(write_only=True, required=False, allow_blank=True)
     email = serializers.EmailField(required=False, allow_blank=True)
+    aral_level = serializers.CharField(required=False, allow_blank=True)
+    tutor_type = serializers.CharField(required=False, allow_blank=True)
     assigned_tutor = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(role='tutor', is_superuser=False),
         required=False,
@@ -135,6 +137,25 @@ class UserCreateSerializer(serializers.ModelSerializer):
         if v and (not SECTION_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v)):
             raise serializers.ValidationError('Grade level / Section contains invalid characters.')
         return v.upper()
+
+    def validate_aral_level(self, value):
+        if not value:
+            return 'basic'
+        v = sanitize_input_text(value).lower()
+        valid_parts = {'basic', 'plus', 'summer', 'graduated'}
+        parts = [p.strip() for p in v.replace('_', ',').split(',') if p.strip()]
+        if any(p not in valid_parts for p in parts):
+            raise serializers.ValidationError('Invalid ARAL level.')
+        return v
+
+    def validate_tutor_type(self, value):
+        if not value:
+            return 'basic'
+        v = sanitize_input_text(value).lower()
+        valid_types = {'basic', 'plus', 'summer', 'basic_plus', 'basic,plus'}
+        if v not in valid_types:
+            raise serializers.ValidationError('Invalid tutor type.')
+        return v
 
     def validate_role(self, value):
         """Allow roles and permit None/empty if is_superuser is set."""
@@ -206,6 +227,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
 class UserUpdateSerializer(serializers.ModelSerializer):
     """Serializer for editing a user profile or assigning a tutor."""
 
+    aral_level = serializers.CharField(required=False, allow_blank=True)
+    tutor_type = serializers.CharField(required=False, allow_blank=True)
+
     class Meta:
         model = User
         fields = [
@@ -266,6 +290,25 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         if v and (not SECTION_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v)):
             raise serializers.ValidationError('Grade level / Section contains invalid characters.')
         return v.upper()
+
+    def validate_aral_level(self, value):
+        if not value:
+            return 'basic'
+        v = sanitize_input_text(value).lower()
+        valid_parts = {'basic', 'plus', 'summer', 'graduated'}
+        parts = [p.strip() for p in v.replace('_', ',').split(',') if p.strip()]
+        if any(p not in valid_parts for p in parts):
+            raise serializers.ValidationError('Invalid ARAL level.')
+        return v
+
+    def validate_tutor_type(self, value):
+        if not value:
+            return 'basic'
+        v = sanitize_input_text(value).lower()
+        valid_types = {'basic', 'plus', 'summer', 'basic_plus', 'basic,plus'}
+        if v not in valid_types:
+            raise serializers.ValidationError('Invalid tutor type.')
+        return v
 
     def validate_lrn(self, value):
         if value:

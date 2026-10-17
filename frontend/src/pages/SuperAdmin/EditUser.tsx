@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { userService } from '../../services/userService';
 import type { User } from '../../types';
-import { ArrowLeft, AlertCircle, ShieldCheck, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, AlertCircle, ShieldCheck, Plus, Trash2, CheckCircle2, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { isTutorEligibleForStudent, formatTutorAssignmentOption } from '../../utils/tutorCohortHelpers';
 
@@ -37,11 +37,7 @@ const editUserSchema = z.object({
   }),
   lrn: z.string().optional(),
   grade_level_grade: z.string().optional(),
-  grade_level_section: z.string()
-    .max(50, 'Section must not exceed 50 characters.')
-    .optional()
-    .refine((v) => !v || SECTION_REGEX.test(v), 'Section can only contain letters, numbers, hyphens, and spaces.')
-    .refine((v) => !v || !DANGEROUS_INJECTION_PATTERN.test(v), 'Invalid characters detected.'),
+  grade_level_section: z.string().optional(),
   is_active: z.boolean(),
   assigned_tutor: z.string().optional().nullable(),
   aral_level: z.string().optional(),
@@ -68,9 +64,26 @@ const editUserSchema = z.object({
         message: 'Assigned section is required.',
         path: ['grade_level_section'],
       });
+    } else if (data.grade_level_section.length > 50) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Section must not exceed 50 characters.',
+        path: ['grade_level_section'],
+      });
+    } else if (!SECTION_REGEX.test(data.grade_level_section)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Section can only contain letters, numbers, hyphens, and spaces.',
+        path: ['grade_level_section'],
+      });
+    } else if (DANGEROUS_INJECTION_PATTERN.test(data.grade_level_section)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid characters detected.',
+        path: ['grade_level_section'],
+      });
     }
-  }
-  if (data.role === 'student') {
+
     if (!data.lrn || !LRN_REGEX.test(data.lrn)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -92,6 +105,14 @@ const editUserSchema = z.object({
         path: ['contact_number'],
       });
     }
+  } else {
+    if (!data.email || !data.email.trim() || !z.string().email().safeParse(data.email).success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'A valid email address is required.',
+        path: ['email'],
+      });
+    }
   }
 });
 
@@ -106,6 +127,9 @@ export const EditUser: React.FC = () => {
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [tutors, setTutors] = useState<User[]>([]);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [successToastTitle, setSuccessToastTitle] = useState('Changes Saved Successfully');
+  const [successToastMessage, setSuccessToastMessage] = useState('User profile has been updated.');
 
   const {
     register,
@@ -299,7 +323,7 @@ export const EditUser: React.FC = () => {
 
         let initialGrade = 'GRADE 7';
         let initialSection = '';
-        if (userData.grade_level) {
+        if (userData.role === 'student' && userData.grade_level) {
           const parts = userData.grade_level.split(' - ');
           if (parts.length >= 2) {
             const g = parts[0].trim().toUpperCase();
@@ -433,6 +457,12 @@ export const EditUser: React.FC = () => {
       };
 
       await userService.updateUser(id, payload);
+
+      const roleTitle = data.role ? data.role.charAt(0).toUpperCase() + data.role.slice(1) : 'User';
+      setSuccessToastTitle(`${roleTitle} Changes Saved Successfully`);
+      setSuccessToastMessage(`The ${roleTitle.toLowerCase()} profile and assignments have been updated successfully.`);
+      setShowSuccessToast(true);
+
       const getBackPath = () => {
         if (currentUser?.is_superuser) {
           if (data.role === 'student') return '/superadmin/students';
@@ -447,7 +477,10 @@ export const EditUser: React.FC = () => {
         if (data.role === 'tutor') return '/admin/tutors';
         return '/admin/students';
       };
-      navigate(getBackPath());
+
+      setTimeout(() => {
+        navigate(getBackPath());
+      }, 1500);
     } catch (error: any) {
       console.error(error);
       const errorsPayload = error.response?.data;
@@ -459,6 +492,23 @@ export const EditUser: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleDismissToast = () => {
+    setShowSuccessToast(false);
+    const role = watch('role') || userInitialData?.role;
+    if (currentUser?.is_superuser) {
+      if (role === 'student') return navigate('/superadmin/students');
+      if (role === 'tutor') return navigate('/superadmin/tutors');
+      if (role === 'faculty') return navigate('/superadmin/faculty');
+      if (role === 'principal') return navigate('/superadmin/principals');
+      if (role === 'admin') return navigate('/superadmin/admins');
+      return navigate('/superadmin/superadmins');
+    }
+    if (role === 'principal') return navigate('/admin/principals');
+    if (role === 'faculty') return navigate('/admin/faculty');
+    if (role === 'tutor') return navigate('/admin/tutors');
+    return navigate('/admin/students');
   };
 
   if (isLoading) {
@@ -534,14 +584,30 @@ export const EditUser: React.FC = () => {
           {selectedRole ? `Edit ${selectedRole.toUpperCase()} Profile` : 'Edit User Record'}
         </h2>
 
-        {serverErrors?.detail && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-800 text-xs rounded-md p-3 flex items-start space-x-2">
-            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-            <span>{Array.isArray(serverErrors.detail) ? serverErrors.detail[0] : serverErrors.detail}</span>
+        {serverErrors && (
+          <div className="mb-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-800 dark:text-red-300 text-xs rounded-md p-3 space-y-1.5">
+            {Object.entries(serverErrors).map(([key, val]) => (
+              <div key={key} className="flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                <span>
+                  {key !== 'detail' && <strong>{key.replace(/_/g, ' ').toUpperCase()}: </strong>}
+                  {Array.isArray(val) ? val.join(' ') : String(val)}
+                </span>
+              </div>
+            ))}
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form
+          onSubmit={handleSubmit(onSubmit, (errs) => {
+            console.error('Validation errors:', errs);
+            const firstErr = Object.values(errs)[0];
+            if (firstErr && typeof firstErr === 'object' && 'message' in firstErr) {
+              alert(`Please check the form: ${firstErr.message}`);
+            }
+          })}
+          className="space-y-6"
+        >
           {/* ── Section 1: Personal Information ─────────────────────────── */}
           <div className="space-y-3">
             <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
@@ -1122,6 +1188,38 @@ export const EditUser: React.FC = () => {
           </div>
         </form>
       </div>
+
+      {/* ── Saved Changes Floating Notification Toast (Matches TutorScores Score Success Notification) ── */}
+      {showSuccessToast && (
+        <aside
+          aria-live="polite"
+          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+        >
+          <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-white dark:bg-[#111111] dark:border-emerald-800 p-3.5 shadow-xl">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                  {successToastTitle}
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleDismissToast}
+                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  aria-label="Close notification"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                {successToastMessage}
+              </p>
+            </div>
+          </div>
+        </aside>
+      )}
     </div>
   );
 };
