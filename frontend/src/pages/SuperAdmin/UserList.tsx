@@ -506,9 +506,162 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
     });
   }, [users, activeTab, subjectFilter, gradeLevelFilter, sectionFilter, aralLevelFilter]);
 
+  const getGradeAndSection = (gradeLevel?: string | null, fallbackSection?: string | null) => {
+    if (!gradeLevel) return { grade: '8', section: fallbackSection || 'Mango' };
+    if (gradeLevel.includes(' - ')) {
+      const parts = gradeLevel.split(' - ');
+      const g = parts[0].trim().replace(/grade\s*/i, '');
+      const s = parts.slice(1).join(' - ').trim();
+      return { grade: g || '8', section: s || fallbackSection || 'Mango' };
+    }
+    return {
+      grade: gradeLevel.replace(/grade\s*/i, '').trim() || '8',
+      section: fallbackSection || 'Mango',
+    };
+  };
+
+  const getTutorDisplayCohorts = (gradeLevel?: string | null, section?: string | null) => {
+    if (!gradeLevel) {
+      return {
+        grade: 'Grade 7',
+        section: section ? section.toUpperCase() : '—',
+      };
+    }
+
+    const raw = gradeLevel.trim();
+    const grades: string[] = [];
+    const sections: string[] = [];
+
+    const commaChunks = raw.split(',').map((c) => c.trim()).filter(Boolean);
+
+    commaChunks.forEach((chunk) => {
+      if (chunk.includes(' - ')) {
+        const parts = chunk.split(' - ').map((p) => p.trim());
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i].toUpperCase();
+          const gradeMatch = part.match(/GRADE\s*(\d+)/i);
+          if (gradeMatch) {
+            const gLabel = `Grade ${gradeMatch[1]}`;
+            if (!grades.includes(gLabel)) grades.push(gLabel);
+            if (i + 1 < parts.length && !parts[i + 1].toUpperCase().match(/GRADE\s*(\d+)/i)) {
+              const sLabel = parts[i + 1].trim().toUpperCase();
+              if (sLabel && !sections.includes(sLabel)) sections.push(sLabel);
+              i++;
+            }
+          } else if (part && !sections.includes(part)) {
+            sections.push(part);
+          }
+        }
+      } else {
+        const part = chunk.toUpperCase();
+        const gradeMatch = part.match(/GRADE\s*(\d+)/i);
+        if (gradeMatch) {
+          const gLabel = `Grade ${gradeMatch[1]}`;
+          if (!grades.includes(gLabel)) grades.push(gLabel);
+        } else if (part && !sections.includes(part)) {
+          sections.push(part);
+        }
+      }
+    });
+
+    if (sections.length === 0 && section) {
+      sections.push(section.toUpperCase());
+    }
+
+    if (grades.length === 0) {
+      const allGradeMatches = Array.from(new Set(Array.from(raw.matchAll(/GRADE\s*(\d+)/gi)).map((m) => `Grade ${m[1]}`)));
+      if (allGradeMatches.length > 0) {
+        grades.push(...allGradeMatches);
+      } else {
+        grades.push(raw);
+      }
+    }
+
+    return {
+      grade: grades.join(', ') || 'Grade 7',
+      section: sections.join(', ') || '—',
+    };
+  };
+
+  const sortedAndFilteredUsers = useMemo(() => {
+    const list = [...filteredUsers];
+    if (!ordering) return list;
+
+    const isDesc = ordering.startsWith('-');
+    const field = isDesc ? ordering.slice(1) : ordering;
+
+    const extractGradeNum = (gradeStr?: string | null) => {
+      if (!gradeStr) return 0;
+      const match = gradeStr.match(/\d+/);
+      return match ? parseInt(match[0], 10) : 0;
+    };
+
+    const getSectionStr = (u: User) => {
+      if (u.role === 'tutor') {
+        return (getTutorDisplayCohorts(u.grade_level, (u as any).section).section || '').toUpperCase();
+      }
+      return (getGradeAndSection(u.grade_level, (u as any).section).section || '').toUpperCase();
+    };
+
+    return list.sort((a, b) => {
+      let comparison = 0;
+
+      if (field === 'grade_level') {
+        const gradeA = a.role === 'tutor'
+          ? extractGradeNum(getTutorDisplayCohorts(a.grade_level, (a as any).section).grade)
+          : extractGradeNum(getGradeAndSection(a.grade_level).grade);
+        const gradeB = b.role === 'tutor'
+          ? extractGradeNum(getTutorDisplayCohorts(b.grade_level, (b as any).section).grade)
+          : extractGradeNum(getGradeAndSection(b.grade_level).grade);
+        comparison = gradeA - gradeB;
+      } else if (field === 'section') {
+        const secA = getSectionStr(a);
+        const secB = getSectionStr(b);
+        comparison = secA.localeCompare(secB);
+      } else if (field === 'last_name' || field === 'first_name' || field === 'name') {
+        const nameA = (a.full_name || `${a.last_name} ${a.first_name}`).toUpperCase();
+        const nameB = (b.full_name || `${b.last_name} ${b.first_name}`).toUpperCase();
+        comparison = nameA.localeCompare(nameB);
+      } else if (field === 'assigned_tutor') {
+        const tutA = (a.assigned_tutor_name || '').toUpperCase();
+        const tutB = (b.assigned_tutor_name || '').toUpperCase();
+        comparison = tutA.localeCompare(tutB);
+      } else if (field === 'aral_level') {
+        const aralOrder: Record<string, number> = { basic: 1, plus: 2 };
+        const lvlA = aralOrder[(a.aral_level || '').toLowerCase()] || 99;
+        const lvlB = aralOrder[(b.aral_level || '').toLowerCase()] || 99;
+        comparison = lvlA - lvlB;
+      } else if (field === 'subject') {
+        comparison = (a.subject || '').localeCompare(b.subject || '');
+      } else if (field === 'lrn') {
+        comparison = (a.lrn || '').localeCompare(b.lrn || '', undefined, { numeric: true });
+      } else if (field === 'parent_guardian_name') {
+        comparison = (a.parent_guardian_name || '').localeCompare(b.parent_guardian_name || '');
+      } else if (field === 'contact_number') {
+        comparison = (a.contact_number || '').localeCompare(b.contact_number || '');
+      } else if (field === 'email') {
+        comparison = (a.email || '').localeCompare(b.email || '');
+      } else if (field === 'status' || field === 'is_active') {
+        comparison = (a.is_active === b.is_active) ? 0 : a.is_active ? -1 : 1;
+      } else {
+        const valA = String((a as any)[field] ?? '').toUpperCase();
+        const valB = String((b as any)[field] ?? '').toUpperCase();
+        comparison = valA.localeCompare(valB, undefined, { numeric: true });
+      }
+
+      if (comparison === 0) {
+        const nameA = (a.full_name || `${a.last_name} ${a.first_name}`).toUpperCase();
+        const nameB = (b.full_name || `${b.last_name} ${b.first_name}`).toUpperCase();
+        comparison = nameA.localeCompare(nameB);
+      }
+
+      return isDesc ? -comparison : comparison;
+    });
+  }, [filteredUsers, ordering]);
+
   // Multi-select handlers for students
   const toggleSelectAll = () => {
-    const studentUserIds = filteredUsers.filter((u) => u.role === 'student').map((u) => u.id);
+    const studentUserIds = sortedAndFilteredUsers.filter((u) => u.role === 'student').map((u) => u.id);
     if (selectedIds.length === studentUserIds.length && studentUserIds.length > 0) {
       setSelectedIds([]);
     } else {
@@ -635,83 +788,6 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
     if (activeTab === 'admin') return 'Search admin, email...';
     if (activeTab === 'superadmin') return 'Search super admin, email...';
     return 'Search faculty, email...';
-  };
-
-  const getGradeAndSection = (gradeLevel?: string | null, fallbackSection?: string | null) => {
-    if (!gradeLevel) return { grade: '8', section: fallbackSection || 'Mango' };
-    if (gradeLevel.includes(' - ')) {
-      const parts = gradeLevel.split(' - ');
-      const g = parts[0].trim().replace(/grade\s*/i, '');
-      const s = parts.slice(1).join(' - ').trim();
-      return { grade: g || '8', section: s || fallbackSection || 'Mango' };
-    }
-    return {
-      grade: gradeLevel.replace(/grade\s*/i, '').trim() || '8',
-      section: fallbackSection || 'Mango',
-    };
-  };
-
-  const getTutorDisplayCohorts = (gradeLevel?: string | null, section?: string | null) => {
-    if (!gradeLevel) {
-      return {
-        grade: 'Grade 7',
-        section: section ? section.toUpperCase() : '—',
-      };
-    }
-
-    const raw = gradeLevel.trim();
-    const grades: string[] = [];
-    const sections: string[] = [];
-
-    const commaChunks = raw.split(',').map((c) => c.trim()).filter(Boolean);
-
-    commaChunks.forEach((chunk) => {
-      if (chunk.includes(' - ')) {
-        const parts = chunk.split(' - ').map((p) => p.trim());
-        for (let i = 0; i < parts.length; i++) {
-          const part = parts[i].toUpperCase();
-          const gradeMatch = part.match(/GRADE\s*(\d+)/i);
-          if (gradeMatch) {
-            const gLabel = `Grade ${gradeMatch[1]}`;
-            if (!grades.includes(gLabel)) grades.push(gLabel);
-            if (i + 1 < parts.length && !parts[i + 1].toUpperCase().match(/GRADE\s*(\d+)/i)) {
-              const sLabel = parts[i + 1].trim().toUpperCase();
-              if (sLabel && !sections.includes(sLabel)) sections.push(sLabel);
-              i++;
-            }
-          } else if (part && !sections.includes(part)) {
-            sections.push(part);
-          }
-        }
-      } else {
-        const part = chunk.toUpperCase();
-        const gradeMatch = part.match(/GRADE\s*(\d+)/i);
-        if (gradeMatch) {
-          const gLabel = `Grade ${gradeMatch[1]}`;
-          if (!grades.includes(gLabel)) grades.push(gLabel);
-        } else if (part && !sections.includes(part)) {
-          sections.push(part);
-        }
-      }
-    });
-
-    if (sections.length === 0 && section) {
-      sections.push(section.toUpperCase());
-    }
-
-    if (grades.length === 0) {
-      const allGradeMatches = Array.from(new Set(Array.from(raw.matchAll(/GRADE\s*(\d+)/gi)).map((m) => `Grade ${m[1]}`)));
-      if (allGradeMatches.length > 0) {
-        grades.push(...allGradeMatches);
-      } else {
-        grades.push(raw);
-      }
-    }
-
-    return {
-      grade: grades.join(', ') || 'Grade 7',
-      section: sections.join(', ') || '—',
-    };
   };
 
   return (
@@ -944,7 +1020,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                         className="text-gray-500 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
                         title="Select All Students"
                       >
-                        {selectedIds.length === filteredUsers.length && filteredUsers.length > 0 ? (
+                        {selectedIds.length === sortedAndFilteredUsers.length && sortedAndFilteredUsers.length > 0 ? (
                           <CheckSquare className="w-4 h-4 text-[var(--brand)]" />
                         ) : (
                           <Square className="w-4 h-4" />
@@ -1106,7 +1182,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                     </button>
                   </td>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
+              ) : sortedAndFilteredUsers.length === 0 ? (
                 <tr>
                   <td
                     colSpan={activeTab === 'student' ? 13 : activeTab === 'tutor' ? 9 : 5}
@@ -1124,7 +1200,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                     </td>
                   </tr>
                 ) : (
-                  filteredUsers.map((u, index) => {
+                  sortedAndFilteredUsers.map((u, index) => {
                     const isSelected = selectedIds.includes(u.id);
                     const isStudentRow = u.role === 'student';
 

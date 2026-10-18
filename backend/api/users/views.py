@@ -6,7 +6,7 @@ and user login/logout activity history.
 
 import re
 import uuid
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Case, Count, IntegerField, Q, Value, When
 from django.db.models.functions import Lower
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
@@ -220,10 +220,28 @@ class UserListCreateView(generics.ListCreateAPIView):
             queryset = queryset.order_by('-is_active', 'last_name', 'first_name')
         elif ordering in ['-status', '-is_active']:
             queryset = queryset.order_by('is_active', 'last_name', 'first_name')
-        elif ordering in ['grade_level', 'section']:
-            queryset = queryset.order_by('grade_level', 'last_name', 'first_name')
-        elif ordering in ['-grade_level', '-section']:
-            queryset = queryset.order_by('-grade_level', 'last_name', 'first_name')
+        elif ordering in ['grade_level', '-grade_level']:
+            grade_cases = []
+            for g in range(12, 0, -1):
+                grade_cases.append(When(grade_level__istartswith=f'Grade {g}', then=Value(g)))
+                grade_cases.append(When(grade_level__icontains=f'Grade {g}', then=Value(g)))
+                grade_cases.append(When(grade_level__startswith=f'{g} ', then=Value(g)))
+                grade_cases.append(When(grade_level__startswith=f'{g}-', then=Value(g)))
+                grade_cases.append(When(grade_level__startswith=f'{g} -', then=Value(g)))
+                grade_cases.append(When(grade_level=f'{g}', then=Value(g)))
+
+            queryset = queryset.annotate(
+                grade_num=Case(
+                    *grade_cases,
+                    default=Value(99),
+                    output_field=IntegerField()
+                )
+            )
+            order_prefix = '-' if ordering.startswith('-') else ''
+            queryset = queryset.order_by(f'{order_prefix}grade_num', 'last_name', 'first_name')
+        elif ordering in ['section', '-section']:
+            order_prefix = '-' if ordering.startswith('-') else ''
+            queryset = queryset.order_by(f'{order_prefix}grade_level', 'last_name', 'first_name')
         else:
             allowed_orderings = [
                 'role', '-role',

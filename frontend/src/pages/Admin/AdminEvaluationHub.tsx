@@ -519,10 +519,18 @@ export const AdminEvaluationHub: React.FC = () => {
     }
 
     list.sort((a, b) => {
-      let aVal = (a as any)[sortField] || '';
-      let bVal = (b as any)[sortField] || '';
-      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      if (sortField === 'assignedCount') {
+        const countA = Number(a.assignedCount) || 0;
+        const countB = Number(b.assignedCount) || 0;
+        return sortOrder === 'asc' ? countA - countB : countB - countA;
+      }
+      if (sortField === 'tutorName') {
+        const nameA = (a.tutorName || '').toUpperCase();
+        const nameB = (b.tutorName || '').toUpperCase();
+        return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+      }
+      let aVal = String((a as any)[sortField] ?? '').toLowerCase();
+      let bVal = String((b as any)[sortField] ?? '').toLowerCase();
 
       if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
