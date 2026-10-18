@@ -299,7 +299,18 @@ class UserListCreateView(generics.ListCreateAPIView):
         )
 
 
-ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph'
+ROOT_SUPERADMIN_EMAIL = 'lro2023-4992-68567@bicol-u.edu.ph'
+PROTECTED_ROOT_SUPERADMIN_EMAILS = {
+    'lro2023-4992-68567@bicol-u.edu.ph',
+    'ro2023-4992-68567@bicol-u.edu.ph',
+}
+
+
+def is_root_superadmin(user_obj) -> bool:
+    if not user_obj:
+        return False
+    email = getattr(user_obj, 'email', '') or ''
+    return email.strip().lower() in PROTECTED_ROOT_SUPERADMIN_EMAILS
 
 
 class UserDetailView(generics.RetrieveUpdateAPIView):
@@ -339,7 +350,16 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
             )
 
         target_user = serializer.instance
-        if target_user.email and target_user.email.strip().lower() == ROOT_SUPERADMIN_EMAIL.lower():
+
+        # 1. Do not let admin or superadmin deactivate their own account
+        if (str(target_user.id) == str(self.request.user.id) or (
+            target_user.email and self.request.user.email and target_user.email.strip().lower() == self.request.user.email.strip().lower()
+        )) and serializer.validated_data.get('is_active') is False:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'is_active': 'You cannot deactivate your own account.'})
+
+        # 2. Do not allow anyone to deactivate or alter the role of the Primary Root SuperAdmin account
+        if is_root_superadmin(target_user):
             if serializer.validated_data.get('is_active') is False:
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({'is_active': f'The Primary Root SuperAdmin account ({ROOT_SUPERADMIN_EMAIL}) cannot be deactivated.'})
@@ -498,12 +518,28 @@ class UserDeactivateView(APIView):
         else:
             user = get_object_or_404(User, id=id, is_superuser=False)
 
-        if user.email and user.email.strip().lower() == ROOT_SUPERADMIN_EMAIL.lower():
-            from rest_framework.exceptions import PermissionDenied
+        from rest_framework.exceptions import PermissionDenied
+
+        # 1. Do not let admin or superadmin deactivate their own account
+        if str(user.id) == str(request.user.id) or (
+            user.email and request.user.email and user.email.strip().lower() == request.user.email.strip().lower()
+        ):
+            raise PermissionDenied('You cannot deactivate your own account.')
+
+        # 2. Do not allow other superadmin to deactivate the Primary Root SuperAdmin account
+        if is_root_superadmin(user):
             raise PermissionDenied(f'The Primary Root SuperAdmin account ({ROOT_SUPERADMIN_EMAIL}) is protected and cannot be deactivated.')
 
         user.is_active = False
         user.save(update_fields=['is_active'])
+
+        # Blacklist any outstanding JWT tokens so the user is forcibly logged out immediately
+        try:
+            from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+            for ot in OutstandingToken.objects.filter(user=user):
+                BlacklistedToken.objects.get_or_create(token=ot)
+        except Exception:
+            pass
 
         actor_role = getattr(request.user, 'role', '')
         action = 'USER_DEACTIVATED_BY_SUPERADMIN' if (actor_role == 'superadmin' or request.user.is_superuser) else 'USER_DEACTIVATED_BY_ADMIN'

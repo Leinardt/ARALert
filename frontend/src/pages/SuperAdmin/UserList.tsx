@@ -6,7 +6,7 @@ import {
   Search, Plus, Edit, ShieldAlert, ShieldCheck,
   ChevronLeft, ChevronRight, ArrowUpDown, UserCheck, Users,
   CheckSquare, Square, RefreshCw, History, LogIn, LogOut, Clock, X, Monitor,
-  ChevronUp, ChevronDown, User as UserIcon, CheckCircle2, AlertCircle
+  ChevronUp, ChevronDown, User as UserIcon, CheckCircle2, AlertCircle, AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { TablePagination } from '../../components/TablePagination';
@@ -292,11 +292,29 @@ export const UserList: React.FC = () => {
     fetchUsers();
   };
 
-const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
+const ROOT_SUPERADMIN_EMAIL = 'lro2023-4992-68567@bicol-u.edu.ph';
+const ROOT_SUPERADMIN_EMAILS = [
+  'lro2023-4992-68567@bicol-u.edu.ph',
+  'ro2023-4992-68567@bicol-u.edu.ph',
+];
 
-  const toggleUserStatus = async (id: string, currentlyActive: boolean) => {
-    const targetUser = users.find((u) => u.id === id);
-    if (targetUser?.email?.trim().toLowerCase() === ROOT_SUPERADMIN_EMAIL.toLowerCase()) {
+const isRootSuperAdmin = (target?: Partial<User> | null): boolean => {
+  if (!target?.email) return false;
+  return ROOT_SUPERADMIN_EMAILS.includes(target.email.trim().toLowerCase());
+};
+
+const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | null): boolean => {
+  if (!target || !current) return false;
+  if (target.id && current.id && String(target.id) === String(current.id)) return true;
+  if (target.email && current.email && target.email.trim().toLowerCase() === current.email.trim().toLowerCase()) return true;
+  return false;
+};
+
+  const [deactivateModalUser, setDeactivateModalUser] = useState<User | null>(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+
+  const handleStatusClick = (targetUser: User) => {
+    if (isRootSuperAdmin(targetUser)) {
       setToastNotification({
         show: true,
         type: 'error',
@@ -305,6 +323,73 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
       });
       return;
     }
+
+    if (isSelfUser(targetUser, currentUser)) {
+      setToastNotification({
+        show: true,
+        type: 'error',
+        title: 'Action Not Allowed',
+        message: 'You cannot deactivate your own account.',
+      });
+      return;
+    }
+
+    if (targetUser.is_active) {
+      setDeactivateModalUser(targetUser);
+    } else {
+      toggleUserStatus(targetUser.id, false);
+    }
+  };
+
+  const confirmDeactivate = async () => {
+    if (!deactivateModalUser) return;
+    setIsDeactivating(true);
+    try {
+      await userService.deactivateUser(deactivateModalUser.id);
+      fetchUsers();
+      setToastNotification({
+        show: true,
+        type: 'success',
+        title: 'Status Updated',
+        message: 'User account successfully deactivated.',
+      });
+      setDeactivateModalUser(null);
+    } catch (err: any) {
+      console.error(err);
+      const detailMsg = err?.response?.data?.detail || 'Failed to deactivate user account.';
+      setToastNotification({
+        show: true,
+        type: 'error',
+        title: 'Update Failed',
+        message: detailMsg,
+      });
+    } finally {
+      setIsDeactivating(false);
+    }
+  };
+
+  const toggleUserStatus = async (id: string, currentlyActive: boolean) => {
+    const targetUser = users.find((u) => u.id === id);
+    if (isRootSuperAdmin(targetUser)) {
+      setToastNotification({
+        show: true,
+        type: 'error',
+        title: 'Action Protected',
+        message: `The Primary Root SuperAdmin account (${ROOT_SUPERADMIN_EMAIL}) is protected and cannot be deactivated.`,
+      });
+      return;
+    }
+
+    if (isSelfUser(targetUser, currentUser)) {
+      setToastNotification({
+        show: true,
+        type: 'error',
+        title: 'Action Not Allowed',
+        message: 'You cannot deactivate your own account.',
+      });
+      return;
+    }
+
     try {
       if (currentlyActive) {
         await userService.deactivateUser(id);
@@ -1138,18 +1223,34 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                               >
                                 <Edit className="w-4 h-4" />
                               </Link>
-                              <button
-                                type="button"
-                                onClick={() => toggleUserStatus(u.id, u.is_active)}
-                                className={`inline-flex items-center justify-center p-1 cursor-pointer transition-colors ${u.is_active
-                                  ? 'text-gray-400 hover:text-red-600'
-                                  : 'text-gray-400 hover:text-emerald-600'
-                                  }`}
-                                title={u.is_active ? 'Deactivate Account' : 'Activate Account'}
-                                aria-label={u.is_active ? 'Deactivate Account' : 'Activate Account'}
-                              >
-                                {u.is_active ? <ShieldAlert className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
-                              </button>
+                              {isRootSuperAdmin(u) ? (
+                                <span
+                                  className="inline-flex items-center justify-center p-1 text-emerald-600 dark:text-emerald-400 cursor-not-allowed opacity-90"
+                                  title={`Primary Root SuperAdmin (${ROOT_SUPERADMIN_EMAIL}) - Immune from deactivation`}
+                                >
+                                  <ShieldCheck className="w-4 h-4" />
+                                </span>
+                              ) : isSelfUser(u, currentUser) ? (
+                                <span
+                                  className="inline-flex items-center justify-center p-1 text-gray-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
+                                  title="You cannot deactivate your own account"
+                                >
+                                  <ShieldCheck className="w-4 h-4" />
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleStatusClick(u)}
+                                  className={`inline-flex items-center justify-center p-1 cursor-pointer transition-colors ${u.is_active
+                                    ? 'text-gray-400 hover:text-red-600'
+                                    : 'text-gray-400 hover:text-emerald-600'
+                                    }`}
+                                  title={u.is_active ? 'Deactivate Account' : 'Activate Account'}
+                                  aria-label={u.is_active ? 'Deactivate Account' : 'Activate Account'}
+                                >
+                                  {u.is_active ? <ShieldAlert className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                                </button>
+                              )}
                             </td>
                           </>
                         )}
@@ -1193,18 +1294,34 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                               >
                                 <Edit className="w-4 h-4" />
                               </Link>
-                              <button
-                                type="button"
-                                onClick={() => toggleUserStatus(u.id, u.is_active)}
-                                className={`inline-flex items-center justify-center p-1 cursor-pointer transition-colors ${u.is_active
-                                  ? 'text-gray-400 hover:text-red-600'
-                                  : 'text-gray-400 hover:text-emerald-600'
-                                  }`}
-                                title={u.is_active ? 'Deactivate Account' : 'Activate Account'}
-                                aria-label={u.is_active ? 'Deactivate Account' : 'Activate Account'}
-                              >
-                                {u.is_active ? <ShieldAlert className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
-                              </button>
+                              {isRootSuperAdmin(u) ? (
+                                <span
+                                  className="inline-flex items-center justify-center p-1 text-emerald-600 dark:text-emerald-400 cursor-not-allowed opacity-90"
+                                  title={`Primary Root SuperAdmin (${ROOT_SUPERADMIN_EMAIL}) - Immune from deactivation`}
+                                >
+                                  <ShieldCheck className="w-4 h-4" />
+                                </span>
+                              ) : isSelfUser(u, currentUser) ? (
+                                <span
+                                  className="inline-flex items-center justify-center p-1 text-gray-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
+                                  title="You cannot deactivate your own account"
+                                >
+                                  <ShieldCheck className="w-4 h-4" />
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleStatusClick(u)}
+                                  className={`inline-flex items-center justify-center p-1 cursor-pointer transition-colors ${u.is_active
+                                    ? 'text-gray-400 hover:text-red-600'
+                                    : 'text-gray-400 hover:text-emerald-600'
+                                    }`}
+                                  title={u.is_active ? 'Deactivate Account' : 'Activate Account'}
+                                  aria-label={u.is_active ? 'Deactivate Account' : 'Activate Account'}
+                                >
+                                  {u.is_active ? <ShieldAlert className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                                </button>
+                              )}
                             </td>
                           </>
                         )}
@@ -1240,17 +1357,24 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                               >
                                 <Edit className="w-4 h-4" />
                               </Link>
-                              {u.email?.trim().toLowerCase() === ROOT_SUPERADMIN_EMAIL.toLowerCase() ? (
+                              {isRootSuperAdmin(u) ? (
                                 <span
                                   className="inline-flex items-center justify-center p-1 text-emerald-600 dark:text-emerald-400 cursor-not-allowed opacity-90"
                                   title={`Primary Root SuperAdmin (${ROOT_SUPERADMIN_EMAIL}) - Immune from deactivation`}
                                 >
                                   <ShieldCheck className="w-4 h-4" />
                                 </span>
+                              ) : isSelfUser(u, currentUser) ? (
+                                <span
+                                  className="inline-flex items-center justify-center p-1 text-gray-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
+                                  title="You cannot deactivate your own account"
+                                >
+                                  <ShieldCheck className="w-4 h-4" />
+                                </span>
                               ) : (
                                 <button
                                   type="button"
-                                  onClick={() => toggleUserStatus(u.id, u.is_active)}
+                                  onClick={() => handleStatusClick(u)}
                                   className={`inline-flex items-center justify-center p-1 cursor-pointer transition-colors ${u.is_active
                                     ? 'text-gray-400 hover:text-red-600'
                                     : 'text-gray-400 hover:text-emerald-600'
@@ -1281,6 +1405,52 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
           itemLabel="users"
         />
       </div>
+
+      {/* ── Deactivate Account Confirmation Modal ──────────────────────── */}
+      {deactivateModalUser && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 dark:border-[#1A1A1A] space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
+                  Deactivate Account
+                </h3>
+                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mt-0.5 truncate">
+                  {deactivateModalUser.full_name || `${deactivateModalUser.first_name} ${deactivateModalUser.last_name}`} ({deactivateModalUser.email || deactivateModalUser.username})
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
+              <p className="text-xs font-medium text-amber-900 dark:text-amber-200 leading-relaxed">
+                Are you sure you want to deactivate this account? Deactivating an account while the user is logged in will forcibly make them logout and locked from entering the system
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
+              <button
+                type="button"
+                disabled={isDeactivating}
+                onClick={() => setDeactivateModalUser(null)}
+                className="px-4 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-xs font-semibold text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeactivating}
+                onClick={confirmDeactivate}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-xs font-bold cursor-pointer disabled:opacity-50 shadow-xs transition-colors"
+              >
+                {isDeactivating ? 'Deactivating...' : 'Deactivate Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Bulk Assign Tutor Modal ───────────────────────────────────── */}
       {isBulkModalOpen && (
