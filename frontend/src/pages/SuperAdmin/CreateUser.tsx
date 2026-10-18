@@ -459,7 +459,7 @@ export const CreateUser: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsBatchModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-bold uppercase tracking-wider rounded-md bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white shadow-xs transition-colors cursor-pointer"
             >
               <FileSpreadsheet className="w-4 h-4" />
               Import List for Batch Enrollment
