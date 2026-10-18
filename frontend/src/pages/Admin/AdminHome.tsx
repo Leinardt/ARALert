@@ -825,6 +825,32 @@ export const AdminHome: React.FC = () => {
   const [activeSystemSem, setActiveSystemSem] = useState<SemesterType>(() => getActiveSystemSemester());
   const [isWindowOpen, setIsWindowOpen] = useState<boolean>(() => isAssessmentWindowOpen());
   const [tutorSearch, setTutorSearch] = useState<string>('');
+  const [leftColHeight, setLeftColHeight] = useState<number | null>(null);
+  const [isDesktop, setIsDesktop] = useState<boolean>(() => (typeof window !== 'undefined' ? window.innerWidth >= 1024 : true));
+  const leftColRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const updateSize = () => {
+      if (typeof window !== 'undefined') {
+        setIsDesktop(window.innerWidth >= 1024);
+      }
+      if (leftColRef.current) {
+        const h = leftColRef.current.offsetHeight;
+        if (h > 0) setLeftColHeight(h);
+      }
+    };
+
+    updateSize();
+    const ro = new ResizeObserver(updateSize);
+    if (leftColRef.current) {
+      ro.observe(leftColRef.current);
+    }
+    window.addEventListener('resize', updateSize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
+  }, []);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -1564,13 +1590,23 @@ export const AdminHome: React.FC = () => {
 
       const isEvaluated = assignedCount > 0 && evaluatedCount >= assignedCount;
 
-      let status: 'PENDING' | 'SUBMITTED' | 'COMPLETED';
+      let status: 'PENDING' | 'SUBMITTED' | 'COMPLETED' | 'CLOSED';
       let label: string;
       let badgeClass: string;
 
-      if (isEvaluated) {
-        status = 'COMPLETED';
-        label = isWindowOpen ? `${adminMilestone} Submitted` : `${adminMilestone} Completed`;
+      if (!isWindowOpen) {
+        if (isEvaluated) {
+          status = 'COMPLETED';
+          label = `${adminMilestone} Completed`;
+          badgeClass = 'bg-emerald-50 dark:bg-emerald-950/40 text-risk-low border-emerald-200 dark:border-emerald-800/60';
+        } else {
+          status = 'CLOSED';
+          label = `${adminMilestone} Closed`;
+          badgeClass = 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-zinc-700';
+        }
+      } else if (isEvaluated) {
+        status = 'SUBMITTED';
+        label = `${adminMilestone} Submitted`;
         badgeClass = 'bg-emerald-50 dark:bg-emerald-950/40 text-risk-low border-emerald-200 dark:border-emerald-800/60';
       } else {
         status = 'PENDING';
@@ -1590,7 +1626,7 @@ export const AdminHome: React.FC = () => {
     });
 
     return list.sort((a, b) => {
-      // Always show pending tutors on top and completed at the bottom
+      // Always show pending/closed tutors on top and completed/submitted at the bottom
       if (!a.isEvaluated && b.isEvaluated) return -1;
       if (a.isEvaluated && !b.isEvaluated) return 1;
       return compareNamesByLastName(a.tutor, b.tutor);
@@ -1613,6 +1649,12 @@ export const AdminHome: React.FC = () => {
   );
 
   const ratioBadgeClass = useMemo(() => {
+    if (!isWindowOpen) {
+      if (tutors.length > 0 && conductedCount >= tutors.length) {
+        return 'bg-emerald-50 dark:bg-emerald-950/40 text-risk-low border-emerald-200 dark:border-emerald-800/60';
+      }
+      return 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-zinc-700';
+    }
     if (tutors.length > 0 && conductedCount >= tutors.length) {
       return 'bg-emerald-50 dark:bg-emerald-950/40 text-risk-low border-emerald-200 dark:border-emerald-800/60';
     }
@@ -1620,7 +1662,7 @@ export const AdminHome: React.FC = () => {
       return 'bg-amber-50 dark:bg-amber-950/40 text-risk-medium border-amber-200 dark:border-amber-800/60';
     }
     return 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-zinc-700';
-  }, [tutors.length, conductedCount]);
+  }, [isWindowOpen, tutors.length, conductedCount]);
 
   // ─── Loading Skeleton ────────────────────────────────────────────────────────
   if (isLoading) {
@@ -1854,9 +1896,9 @@ export const AdminHome: React.FC = () => {
       </div>
 
       {/* ── 3. Main Section: Trend Chart (Left) & Tutor Assessment Status (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch w-full min-w-0 max-w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start w-full min-w-0 max-w-full">
         {/* ── Left Column (9 cols on lg & xl: ~75% width): PNAHS ARAL PERFORMANCE TREND CHART ── */}
-        <div className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3 w-full min-w-0 max-w-full">
+        <div ref={leftColRef} className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3 w-full min-w-0 max-w-full">
           <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full min-w-0 max-w-full shadow-2xs">
             {/* ── Row 1: Card Title & Period Toggles (Full width, never truncates title) ── */}
             <div className="flex items-center justify-between gap-3 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
@@ -2204,8 +2246,15 @@ export const AdminHome: React.FC = () => {
         </div>
 
         {/* ── Right Column (3 cols on lg & xl: ~25% width): ASSESSMENT STATUS ── */}
-        <div className="lg:col-span-3 xl:col-span-3 flex flex-col h-full min-h-0 w-full min-w-0 max-w-full">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col h-full min-h-0 max-h-[500px] lg:max-h-none shadow-2xs overflow-hidden">
+        <div className="lg:col-span-3 xl:col-span-3 flex flex-col w-full min-w-0 max-w-full">
+          <div
+            style={
+              isDesktop && leftColHeight
+                ? { height: `${leftColHeight}px`, maxHeight: `${leftColHeight}px` }
+                : undefined
+            }
+            className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full max-h-[500px] lg:max-h-none shadow-2xs overflow-hidden"
+          >
             {/* Header */}
             <div className="pb-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
               <div className="flex items-center justify-between gap-2">
