@@ -642,7 +642,6 @@ class BulkAssignTutorView(APIView):
 
         # Compatibility pre-check for all selected students
         if tutor:
-            t_type = (getattr(tutor, 'tutor_type', None) or getattr(tutor, 'aral_level', 'basic') or 'basic').lower().strip()
             for s in students:
                 s_prog = (s.aral_level or 'basic').lower().strip()
                 try:
@@ -650,9 +649,12 @@ class BulkAssignTutorView(APIView):
                 except DjangoValidationError as e:
                     t_name = tutor.get_full_name() or tutor.email or 'This tutor'
                     s_name = s.get_full_name() or s.email or 'this student'
-                    t_type_disp = t_type.capitalize()
-                    s_prog_disp = s_prog.capitalize()
-                    err_msg = f"Cannot assign {t_name} to {s_name}: this tutor teaches {t_type_disp} only while the student is in {s_prog_disp}."
+                    raw_msg = ''
+                    if hasattr(e, 'message_dict') and 'tutor' in e.message_dict:
+                        raw_msg = e.message_dict['tutor'][0]
+                    else:
+                        raw_msg = str(getattr(e, 'message', None) or e)
+                    err_msg = f"Cannot assign {t_name} to {s_name}: {raw_msg}"
                     raise RestValidationError({
                         'detail': err_msg,
                         'tutor_id': err_msg,

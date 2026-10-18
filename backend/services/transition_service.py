@@ -368,7 +368,7 @@ def execute_school_year_transition(admin_user: User | None = None) -> dict:
                         # Check if current tutor is still compatible Basic tutor
                         tutor = student.assigned_tutor
                         tutor_compatible = (
-                            tutor and (tutor.tutor_type == 'basic' or tutor.aral_level == 'basic')
+                            tutor and ('basic' in f"{getattr(tutor, 'tutor_type', '')} {getattr(tutor, 'aral_level', '')}".lower())
                         )
                         next_tutor = tutor if tutor_compatible else None
 

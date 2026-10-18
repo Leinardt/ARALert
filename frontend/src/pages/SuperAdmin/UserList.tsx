@@ -42,6 +42,20 @@ const getSubjectBadge = (subject?: string | null) => {
   );
 };
 
+/* ─── Tutor Level Display Helper ─── */
+const getTutorLevelDisplay = (tutor: User) => {
+  const rawLevel = (tutor.aral_level || '').toLowerCase();
+  const rawType = (tutor.tutor_type || '').toLowerCase();
+  const handlesBasic = rawLevel.includes('basic') || rawType.includes('basic') || rawType === 'basic_plus' || (!rawLevel && !rawType);
+  const handlesPlus = rawLevel.includes('plus') || rawType.includes('plus') || rawType === 'basic_plus';
+  const handlesSummer = rawLevel.includes('summer') || rawType.includes('summer');
+
+  if (handlesBasic && handlesPlus) return 'Basic & Plus';
+  if (handlesSummer) return 'Summer';
+  if (handlesPlus) return 'Plus';
+  return 'Basic';
+};
+
 /* ─── Tutor Subject Display Helper ─── */
 const getTutorDisplaySubjects = (user: User) => {
   const rawSub = (user.subject || '').trim();
@@ -120,9 +134,9 @@ export const UserList: React.FC = () => {
 
   // Multi-select state for students (Bulk assign)
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
-  const [selectedTargetTutorId, setSelectedTargetTutorId] = useState<string>('');
+  const [isBulkDropdownOpen, setIsBulkDropdownOpen] = useState(false);
   const [isSubmittingBulk, setIsSubmittingBulk] = useState(false);
+  const bulkDropdownRef = useRef<HTMLDivElement>(null);
 
   // User Activity History Modal State
   const [activityModalUser, setActivityModalUser] = useState<User | null>(null);
@@ -149,6 +163,19 @@ export const UserList: React.FC = () => {
     }, 4500);
     return () => clearTimeout(timer);
   }, [toastNotification.show]);
+
+  // Click outside to close bulk assign dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (bulkDropdownRef.current && !bulkDropdownRef.current.contains(event.target as Node)) {
+        setIsBulkDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Catch toast notifications passed from navigation state (e.g., from CreateUser or EditUser)
   useEffect(() => {
@@ -677,13 +704,13 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
     }
   };
 
-  const handleBulkAssignSubmit = async () => {
-    if (!selectedIds.length || !selectedTargetTutorId) return;
+  const handleBulkAssignDirect = async (tutorId: string) => {
+    if (!selectedIds.length) return;
     setIsSubmittingBulk(true);
+    setIsBulkDropdownOpen(false);
     try {
-      const tutorIdToPass = selectedTargetTutorId === 'tba' ? null : selectedTargetTutorId;
+      const tutorIdToPass = tutorId === 'tba' ? null : tutorId;
       const res = await userService.bulkAssignTutor(selectedIds, tutorIdToPass);
-      setIsBulkModalOpen(false);
       setSelectedIds([]);
       fetchUsers();
       setToastNotification({
@@ -1005,19 +1032,70 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
               />
             </form>
 
-            {/* Dynamic Action Buttons: When students are selected, replace Enroll Student with Assign Student/s to a Tutor */}
+            {/* Dynamic Action Buttons: When students are selected, replace Enroll Student with Assign Student/s to a Tutor Dropdown */}
             {activeTab === 'student' && selectedIds.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedTargetTutorId('');
-                  setIsBulkModalOpen(true);
-                }}
-                className="inline-flex items-center justify-center bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer shrink-0 w-full sm:w-auto shadow-2xs h-8 whitespace-nowrap"
-              >
-                <Users className="w-3.5 h-3.5 mr-1" />
-                Assign to Tutor ({selectedIds.length})
-              </button>
+              <div className="relative inline-block shrink-0 w-full sm:w-auto" ref={bulkDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsBulkDropdownOpen((prev) => !prev)}
+                  disabled={isSubmittingBulk}
+                  className="inline-flex items-center justify-center bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer shrink-0 w-full sm:w-auto shadow-2xs h-8 whitespace-nowrap gap-1.5 disabled:opacity-60"
+                  aria-expanded={isBulkDropdownOpen}
+                  aria-haspopup="true"
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>{isSubmittingBulk ? 'Assigning...' : `Assign to Tutor (${selectedIds.length})`}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isBulkDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isBulkDropdownOpen && (
+                  <div className="absolute right-0 mt-1 w-72 sm:w-80 max-h-72 overflow-y-auto rounded-lg bg-white dark:bg-[#111111] shadow-xl border border-gray-200 dark:border-[#222222] py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider border-b border-gray-100 dark:border-[#1E1E1E]">
+                      Select Tutor to Assign ({selectedIds.length} Student{selectedIds.length > 1 ? 's' : ''})
+                    </div>
+
+                    {/* TBA Option */}
+                    <button
+                      type="button"
+                      onClick={() => handleBulkAssignDirect('tba')}
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800/70 transition-colors flex items-center justify-between cursor-pointer border-b border-gray-100 dark:border-[#1E1E1E]"
+                    >
+                      <span className="text-gray-500 dark:text-zinc-400 italic">-- TBA (Unassign Tutor) --</span>
+                    </button>
+
+                    {/* Tutor List */}
+                    {tutors.length === 0 ? (
+                      <div className="px-3 py-3 text-xs text-gray-400 text-center">
+                        No active tutors found
+                      </div>
+                    ) : (
+                      tutors.map((tutor) => {
+                        const tutorLevelDisplay = getTutorLevelDisplay(tutor);
+                        return (
+                          <button
+                            key={tutor.id}
+                            type="button"
+                            onClick={() => handleBulkAssignDirect(tutor.id)}
+                            className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer group flex flex-col gap-0.5"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-semibold text-gray-800 dark:text-zinc-100 group-hover:text-[var(--brand)] truncate">
+                                {tutor.full_name || `${tutor.first_name} ${tutor.last_name}`}
+                              </span>
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 uppercase shrink-0">
+                                {tutorLevelDisplay}
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-gray-400 dark:text-zinc-500 font-mono truncate">
+                              {tutor.email}
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
             ) : (
               <Link
                 to={getCreateLink()}
@@ -1552,157 +1630,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
         </div>
       )}
 
-      {/* ── Bulk Assign Tutor Modal ───────────────────────────────────── */}
-      {isBulkModalOpen && (() => {
-        const selectedStudents = users.filter((u) => selectedIds.includes(u.id));
-        const selectedStudentLevels = Array.from(
-          new Set(selectedStudents.map((s) => (s.aral_level || 'basic').toLowerCase().trim()))
-        );
-        const hasMixedLevels = selectedStudentLevels.length > 1;
-        const commonStudentLevel = selectedStudentLevels.length === 1 ? selectedStudentLevels[0] : null;
 
-        const currentTutor = tutors.find((t) => t.id === selectedTargetTutorId);
-        const currentTutorLevel = currentTutor
-          ? ((currentTutor.tutor_type || currentTutor.aral_level || 'basic') as string).toLowerCase().trim()
-          : null;
-
-        const isTutorCompatible =
-          selectedTargetTutorId === 'tba' ||
-          (!hasMixedLevels &&
-            currentTutor &&
-            (currentTutorLevel === commonStudentLevel ||
-              (currentTutorLevel?.includes('basic') && currentTutorLevel?.includes('plus'))));
-
-        const canSubmitBulk =
-          selectedTargetTutorId !== '' &&
-          (selectedTargetTutorId === 'tba' ? true : isTutorCompatible);
-
-        return (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-[#0A0A0A] rounded-lg p-6 max-w-lg w-full shadow-xl border border-gray-200 dark:border-[#1A1A1A] space-y-4 max-h-[90vh] flex flex-col">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
-                    Bulk Assign Tutor to {selectedIds.length} Student(s)
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                    Select an active tutor matching the students' ARAL Level, or select TBA to unassign.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsBulkModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Selected Students Preview */}
-              {selectedStudents.length > 0 && (
-                <div className="bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3 text-xs space-y-1.5 max-h-36 overflow-y-auto">
-                  <div className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                    Selected Students ({selectedStudents.length}):
-                  </div>
-                  {selectedStudents.map((s) => {
-                    const lvl = (s.aral_level || 'basic').toUpperCase();
-                    return (
-                      <div key={s.id} className="flex items-center justify-between py-0.5">
-                        <span className="font-medium text-gray-800 dark:text-slate-200 truncate pr-2">
-                          {s.full_name || `${s.first_name} ${s.last_name}`}
-                        </span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 uppercase shrink-0">
-                          {lvl}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Mixed Levels Warning */}
-              {hasMixedLevels ? (
-                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-md text-xs text-amber-800 dark:text-amber-300 space-y-1">
-                  <div className="font-bold flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                    Mixed ARAL Levels Detected ({selectedStudentLevels.map((l) => l.toUpperCase()).join(' & ')})
-                  </div>
-                  <p className="text-[11px] leading-relaxed">
-                    Tutors can only teach students matching their specific program level (Basic or Plus). Because the selected students belong to different levels, you cannot assign them to the same tutor in one batch. You may choose <strong>TBA</strong> to unassign them, or select students of the same ARAL level.
-                  </p>
-                </div>
-              ) : commonStudentLevel ? (
-                <div className="text-[11px] text-gray-600 dark:text-slate-400 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 rounded p-2 flex items-center gap-1.5">
-                  <span className="font-semibold text-blue-700 dark:text-blue-300 uppercase">Target Level:</span>
-                  <span>{commonStudentLevel.toUpperCase()} (Tutors must be {commonStudentLevel.toUpperCase()} specialization)</span>
-                </div>
-              ) : null}
-
-              {/* Incompatibility Warning when a specific tutor is selected */}
-              {selectedTargetTutorId && selectedTargetTutorId !== 'tba' && !isTutorCompatible && (
-                <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-md text-xs text-red-700 dark:text-red-300 space-y-1">
-                  <div className="font-bold flex items-center gap-1.5">
-                    <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
-                    Incompatible Tutor Specialization
-                  </div>
-                  <p className="text-[11px] leading-relaxed">
-                    {currentTutor?.full_name || 'This tutor'} is designated as a <strong>{(currentTutorLevel || 'basic').toUpperCase()} TUTOR</strong>, while the selected student(s) are in the <strong>{commonStudentLevel ? commonStudentLevel.toUpperCase() : 'different'}</strong> level. Under ARALert policy, tutors cannot be assigned to incompatible levels.
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase mb-2">
-                  Select Tutor:
-                </label>
-                <select
-                  value={selectedTargetTutorId}
-                  onChange={(e) => setSelectedTargetTutorId(e.target.value)}
-                  className="w-full border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] text-gray-800 dark:text-slate-100 rounded-md p-2.5 text-xs font-medium focus:ring-[var(--brand)] focus:border-[var(--brand)]"
-                >
-                  <option value="">-- Choose a Tutor or TBA --</option>
-                  <option value="tba">-- TBA (Unassign Tutor) --</option>
-                  {tutors.map((t) => {
-                    const tLevel = ((t.tutor_type || t.aral_level || 'basic') as string).toUpperCase();
-                    const isCompat =
-                      !hasMixedLevels &&
-                      (tLevel.toLowerCase() === commonStudentLevel ||
-                        (tLevel.toLowerCase().includes('basic') && tLevel.toLowerCase().includes('plus')));
-                    return (
-                      <option
-                        key={t.id}
-                        value={t.id}
-                        disabled={hasMixedLevels || !isCompat}
-                      >
-                        {t.full_name || `${t.first_name} ${t.last_name}`} — [{tLevel} TUTOR]
-                        {hasMixedLevels || !isCompat ? ' (Incompatible)' : ''} ({t.email})
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-[#1A1A1A]">
-                <button
-                  type="button"
-                  onClick={() => setIsBulkModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-xs font-semibold text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={isSubmittingBulk || !canSubmitBulk}
-                  onClick={handleBulkAssignSubmit}
-                  className="px-5 py-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-md text-xs font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmittingBulk ? 'Assigning...' : 'Confirm Assignment'}
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* ── User Login & Logout History Timeline Modal ────────────────── */}
       {activityModalUser && (

@@ -19,10 +19,10 @@ def validate_tutor_compatibility(tutor: User, student_program: str) -> None:
     """
     Validate that tutor can teach the student's program level.
     Rules:
-    - A tutor can only have ONE ARAL level handled (cannot handle both basic and plus).
-    - Basic Tutor: can only teach Basic students.
-    - Plus Tutor: can only teach Plus students.
-    - Summer Tutor: can only teach Summer students.
+    - Basic Tutor: can teach Basic students.
+    - Plus Tutor: can teach Plus students.
+    - Summer Tutor: can teach Summer students.
+    - Tutors handling both Basic and Plus can teach Basic students AND Plus students.
     Invalid assignments raise ValidationError.
     """
     if not tutor:
@@ -32,16 +32,25 @@ def validate_tutor_compatibility(tutor: User, student_program: str) -> None:
     if tutor.role != 'tutor':
         raise ValidationError({'tutor': 'Assigned user is not a tutor.'})
 
-    t_type = getattr(tutor, 'tutor_type', None) or getattr(tutor, 'aral_level', 'basic')
-    t_type = str(t_type).lower().strip()
+    combined = f"{getattr(tutor, 'tutor_type', '') or ''} {getattr(tutor, 'aral_level', '') or ''}".lower().strip()
     s_prog = str(student_program).lower().strip() if student_program else 'basic'
 
-    if t_type != s_prog:
-        handles_both = 'basic_plus' in t_type or ('basic' in t_type and 'plus' in t_type)
-        if not (handles_both and s_prog in ('basic', 'plus')):
-            raise ValidationError({
-                'tutor': f'This tutor cannot be assigned to this student because the tutor handles the {t_type.capitalize()} level only, while the student is in {s_prog.capitalize()}. Tutors can only handle their assigned ARAL level.'
-            })
+    handles_basic = 'basic' in combined or not combined
+    handles_plus = 'plus' in combined
+    handles_summer = 'summer' in combined
+
+    if s_prog == 'basic' and not handles_basic:
+        raise ValidationError({
+            'tutor': 'This tutor cannot be assigned to this student because the tutor does not handle the Basic level.'
+        })
+    elif s_prog == 'plus' and not handles_plus:
+        raise ValidationError({
+            'tutor': 'This tutor cannot be assigned to this student because the tutor does not handle the Plus level.'
+        })
+    elif s_prog == 'summer' and not handles_summer:
+        raise ValidationError({
+            'tutor': 'This tutor cannot be assigned to this student because the tutor does not handle the Summer level.'
+        })
 
 
 def assign_tutor_to_student(
@@ -130,7 +139,11 @@ def get_available_tutors_data(program: str | None = None) -> list[dict]:
 
     if program:
         prog = program.lower().strip()
-        tutors_qs = tutors_qs.filter(tutor_type=prog)
+        from django.db.models import Q
+        tutors_qs = tutors_qs.filter(
+            Q(tutor_type=prog) | Q(tutor_type__icontains=prog) |
+            Q(aral_level=prog) | Q(aral_level__icontains=prog)
+        )
 
     results = []
     for tutor in tutors_qs:
@@ -138,8 +151,12 @@ def get_available_tutors_data(program: str | None = None) -> list[dict]:
         available_slots = max(0, MAX_COHORT - assigned_count)
         t_type = tutor.tutor_type or tutor.aral_level or 'basic'
 
+        comb = f"{tutor.tutor_type or ''} {tutor.aral_level or ''}".lower()
+        is_basic_plus = ('basic' in comb and 'plus' in comb) or 'basic_plus' in comb
+
         type_display = (
-            'Basic Tutor' if t_type == 'basic'
+            'Basic & Plus Tutor' if is_basic_plus
+            else 'Basic Tutor' if t_type == 'basic'
             else 'Plus Tutor' if t_type == 'plus'
             else 'Summer Tutor' if t_type == 'summer'
             else f'{t_type.capitalize()} Tutor'

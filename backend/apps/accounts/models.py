@@ -236,15 +236,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     def clean(self):
         super().clean()
         if self.role == 'tutor':
-            # A tutor can only have ONE ARAL level handled (basic, plus, or summer)
             level = (self.tutor_type or self.aral_level or 'basic').lower()
-            if level not in ('basic', 'plus', 'summer'):
+            if level not in ('basic', 'plus', 'summer', 'basic_plus', 'basic,plus'):
                 level = 'basic'
             self.aral_level = level
             self.tutor_type = level
 
     def save(self, *args, **kwargs):
-        """Normalise name fields to uppercase; auto-generate username from email; enforce single tutor level."""
+        """Normalise name fields to uppercase; auto-generate username from email; enforce valid tutor level."""
         if self.first_name:
             self.first_name = self.first_name.upper().strip()
         if self.middle_name:
@@ -253,7 +252,7 @@ class User(AbstractBaseUser, PermissionsMixin):
             self.last_name = self.last_name.upper().strip()
         if self.role == 'tutor':
             level = (self.tutor_type or self.aral_level or 'basic').lower()
-            if level in ('basic', 'plus', 'summer'):
+            if level in ('basic', 'plus', 'summer', 'basic_plus', 'basic,plus'):
                 self.aral_level = level
                 self.tutor_type = level
         if self.subject and self.subject.strip().lower() == 'reading':
