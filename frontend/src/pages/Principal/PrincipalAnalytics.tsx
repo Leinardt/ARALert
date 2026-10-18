@@ -170,28 +170,55 @@ const buildTrendPoints = (
     });
   }
 
-  return periods.map(({ start, end, label, dateKey }) => {
+  const points = periods.map((period) => {
     if (metric === 'attendance') {
-      const logsInPeriod = attendanceLogs.filter((log) => {
+      const records = attendanceLogs.filter((log) => {
+        const uid = getLogUserId(log);
+        if (!studentIds.has(uid)) return false;
         const d = getRecordDate(log);
-        return d && d >= start && d < end && studentIds.has(getLogUserId(log));
+        if (!d) return false;
+        return d >= period.start && d < period.end;
       });
-      const total = logsInPeriod.length;
-      const attended = logsInPeriod.filter((log) => isAttendedStatus(log.status)).length;
-      const rate = total > 0 ? Math.round((attended / total) * 100) : 0;
-      return { dateKey, label, value: rate };
+      if (records.length === 0) return { period, point: null };
+      const attended = records.filter((log) => isAttendedStatus(log.status)).length;
+      const point: TrendPoint = {
+        dateKey: period.dateKey,
+        label: period.label,
+        value: Math.round((attended / records.length) * 100),
+      };
+      return { period, point };
     }
 
-    const gradesInPeriod = grades.filter((grade) => {
-      if (grade.component_type === 'attendance' || grade.remarks === 'Not Taken') return false;
+    const scoreRecords = grades.filter((grade) => {
+      const sid = getGradeStudentId(grade);
+      if (!studentIds.has(sid) || grade.component_type === 'attendance' || grade.remarks === 'Not Taken') return false;
       const d = getRecordDate(grade);
-      return d && d >= start && d < end && studentIds.has(getGradeStudentId(grade));
+      if (!d) return false;
+      return d >= period.start && d < period.end;
     });
-    const validScores = gradesInPeriod
-      .filter((grade) => Number(grade.total_score) > 0)
-      .map((grade) => (Number(grade.score) / Number(grade.total_score)) * 100);
-    const avgScore = validScores.length > 0 ? Math.round(validScores.reduce((sum, score) => sum + score, 0) / validScores.length) : 0;
-    return { dateKey, label, value: avgScore };
+    if (scoreRecords.length === 0) return { period, point: null };
+    const average = scoreRecords.reduce((total, grade) => {
+      const totalScore = Number(grade.total_score) > 0 ? Number(grade.total_score) : 100;
+      return total + (Number(grade.score) / totalScore) * 100;
+    }, 0) / scoreRecords.length;
+    const point: TrendPoint = {
+      dateKey: period.dateKey,
+      label: period.label,
+      value: Math.round(Math.min(Math.max(average, 0), 100)),
+    };
+    return { period, point };
+  });
+
+  if (points.every(({ point }) => point === null)) return [];
+
+  const firstRecordedPoint = points.find(({ point }) => point !== null)?.point;
+  let lastValue = firstRecordedPoint ? firstRecordedPoint.value : (metric === 'attendance' ? 100 : 75);
+  return points.map(({ period, point }) => {
+    if (point) {
+      lastValue = point.value;
+      return point;
+    }
+    return { dateKey: period.dateKey, label: period.label, value: lastValue };
   });
 };
 
@@ -201,6 +228,13 @@ const buildRiskTrend = (
   attendanceLogs: Attendance[],
   filter: TrendFilter
 ): RiskTrendPoint[] => {
+  const studentIds = new Set<string>();
+  students.forEach((student) => {
+    if (student.id) studentIds.add(String(student.id));
+    if (student.lrn) studentIds.add(String(student.lrn));
+    if ((student as any).user_id) studentIds.add(String((student as any).user_id));
+    if ((student as any).student_id) studentIds.add(String((student as any).student_id));
+  });
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -237,20 +271,46 @@ const buildRiskTrend = (
     });
   }
 
-  return periods.map(({ end, label, dateKey }) => {
-    const cumGrades = grades.filter((g) => {
-      const d = getRecordDate(g);
-      return d ? d < end : true;
+  const points = periods.map((period) => {
+    const periodGrades = grades.filter((grade) => {
+      const sid = getGradeStudentId(grade);
+      if (!studentIds.has(sid)) return false;
+      const d = getRecordDate(grade);
+      if (!d) return false;
+      return d < period.end;
     });
-    const cumAtt = attendanceLogs.filter((a) => {
-      const d = getRecordDate(a);
-      return d ? d < end : true;
+    const periodAttendance = attendanceLogs.filter((log) => {
+      const uid = getLogUserId(log);
+      if (!studentIds.has(uid)) return false;
+      const d = getRecordDate(log);
+      if (!d) return false;
+      return d < period.end;
     });
-    const periodRows = computeStudentRiskRows(students, cumGrades, cumAtt);
-    const high = periodRows.filter((r) => r.riskTier === 'High').length;
-    const medium = periodRows.filter((r) => r.riskTier === 'Medium').length;
-    const low = periodRows.filter((r) => r.riskTier === 'Low').length;
-    return { dateKey, label, high, medium, low };
+    if (periodGrades.length === 0 && periodAttendance.length === 0) return { period, point: null };
+    const snapshot = computeStudentRiskRows(students, periodGrades, periodAttendance);
+    return {
+      period,
+      point: {
+        dateKey: period.dateKey,
+        label: period.label,
+        high: snapshot.filter((row) => row.riskTier === 'High').length,
+        medium: snapshot.filter((row) => row.riskTier === 'Medium').length,
+        low: snapshot.filter((row) => row.riskTier === 'Low').length,
+      },
+    };
+  });
+
+  if (points.every(({ point }) => point === null)) return [];
+
+  const firstRecordedPoint = points.find(({ point }) => point !== null)?.point;
+  if (!firstRecordedPoint) return [];
+  let lastPoint = firstRecordedPoint;
+  return points.map(({ period, point }) => {
+    if (point) {
+      lastPoint = point;
+      return point;
+    }
+    return { dateKey: period.dateKey, label: period.label, high: lastPoint.high, medium: lastPoint.medium, low: lastPoint.low };
   });
 };
 
@@ -555,7 +615,7 @@ const RiskTrendChart: React.FC<{
   const barWidth = Math.max(14, Math.min(34, (chartWidth / (data.length || 1)) * 0.35));
   const getBarX = (index: number) => paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1 || 1);
 
-  if (total === 0) {
+  if (total === 0 || data.length === 0) {
     return (
       <div className="flex h-52 w-full flex-col items-center justify-center gap-1.5 text-center">
         <Users className="h-6 w-6 text-gray-300 dark:text-zinc-600" />
@@ -925,7 +985,15 @@ export const PrincipalAnalytics: React.FC = () => {
   }, [allStudents, selectedTutorId, tutors]);
 
   // Available classes for selected tutor (or distinct school cohorts if ALL TUTORS)
-  const availableClasses = useMemo<{ id: string; label: string; count: number; matchFn: (s: User) => boolean }[]>(() => {
+  const availableClasses = useMemo<{
+    id: string;
+    label: string;
+    count: number;
+    subject?: string;
+    aralLevel?: string;
+    cohort?: string;
+    matchFn: (s: User) => boolean;
+  }[]>(() => {
     if (selectedTutorId !== 'all' && selectedTutorUser) {
       const sections = buildTutorClassSections(selectedTutorUser, tutorStudents);
       if (sections.length > 0) {
@@ -933,6 +1001,9 @@ export const PrincipalAnalytics: React.FC = () => {
           id: sec.key,
           label: sec.label,
           count: sec.students.length,
+          subject: sec.subject,
+          aralLevel: sec.aralLevel,
+          cohort: sec.cohort,
           matchFn: (s: User) => isStudentInCohort(s, {
             aral_level: sec.aralLevel,
             subject: sec.subject,
@@ -959,15 +1030,24 @@ export const PrincipalAnalytics: React.FC = () => {
         id: cohort,
         label: cohort,
         count: info.count,
+        subject: undefined as string | undefined,
+        aralLevel: undefined as string | undefined,
+        cohort,
         matchFn: (s: User) => ((s as any).grade_level || '').toUpperCase().trim() === cohort,
       }));
   }, [selectedTutorId, selectedTutorUser, tutorStudents, allStudents]);
 
+  const selectedClassObj = useMemo(() => {
+    if (selectedClassId === 'all') return null;
+    return availableClasses.find((c) => c.id === selectedClassId) || null;
+  }, [selectedClassId, availableClasses]);
+
+  const selectedClassSubject = selectedClassObj?.subject;
+
   const selectedClassLabel = useMemo(() => {
     if (selectedClassId === 'all') return 'ALL CLASSES';
-    const found = availableClasses.find((c) => c.id === selectedClassId);
-    return found ? found.label : 'ALL CLASSES';
-  }, [selectedClassId, availableClasses]);
+    return selectedClassObj ? selectedClassObj.label : 'ALL CLASSES';
+  }, [selectedClassId, selectedClassObj]);
 
   // Filter students based on BOTH tutor and class
   const activeStudents = useMemo(() => {
@@ -999,9 +1079,18 @@ export const PrincipalAnalytics: React.FC = () => {
   const activeGrades = useMemo(() => {
     return allGrades.filter((g: any) => {
       const sid = getGradeStudentId(g);
-      return activeStudentIds.has(sid);
+      if (!activeStudentIds.has(sid)) return false;
+      if (selectedClassSubject && selectedClassSubject.toLowerCase() !== 'all') {
+        const gradeSub = (g.subject || '').toLowerCase().trim();
+        const selSub = selectedClassSubject.toLowerCase().trim();
+        if (selSub === 'filipino' && !(gradeSub.includes('filipino') || gradeSub.includes('reading') || gradeSub.includes('tagalog'))) return false;
+        if (selSub === 'english' && !(gradeSub.includes('english') || gradeSub.includes('reading') || gradeSub.includes('literacy'))) return false;
+        if (selSub === 'science' && !gradeSub.includes('science')) return false;
+        if (selSub === 'math' && !(gradeSub.includes('math') || gradeSub.includes('numeracy'))) return false;
+      }
+      return true;
     });
-  }, [allGrades, activeStudentIds]);
+  }, [allGrades, activeStudentIds, selectedClassSubject]);
 
   const activeAttendanceLogs = useMemo(() => {
     return allAttendanceLogs.filter((a: any) => {
@@ -1205,6 +1294,37 @@ export const PrincipalAnalytics: React.FC = () => {
     const found = tutors.find((t) => t.id === selectedTutorId);
     return found ? found.name : 'ALL TUTORS';
   }, [tutors, selectedTutorId]);
+
+  const classViewLabel = useMemo(() => {
+    if (selectedClassId !== 'all') {
+      return selectedClassLabel;
+    }
+    if (selectedTutorId !== 'all') {
+      return selectedTutorLabel;
+    }
+    return null;
+  }, [selectedClassId, selectedClassLabel, selectedTutorId, selectedTutorLabel]);
+
+  const riskLevelTrendTitle = useMemo(() => {
+    if (!classViewLabel) {
+      return 'RISK LEVEL TREND CHART';
+    }
+    return `${classViewLabel}'S RISK LEVEL TREND CHART`;
+  }, [classViewLabel]);
+
+  const attendanceTrendTitle = useMemo(() => {
+    if (!classViewLabel) {
+      return 'STUDENTS ATTENDANCE RATE TREND CHART';
+    }
+    return `${classViewLabel}'S ATTENDANCE RATE TREND CHART`;
+  }, [classViewLabel]);
+
+  const scoreTrendTitle = useMemo(() => {
+    if (!classViewLabel) {
+      return 'STUDENTS AVERAGE SCORE TREND CHART';
+    }
+    return `${classViewLabel}'S AVERAGE SCORE TREND CHART`;
+  }, [classViewLabel]);
 
   if (isLoading) {
     return (
@@ -1506,7 +1626,7 @@ export const PrincipalAnalytics: React.FC = () => {
           <section className="rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]" aria-labelledby="risk-overview-heading">
             <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
               <div className="min-w-0 flex-1 truncate">
-                <h3 id="risk-overview-heading" className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">RISK LEVEL TREND CHART</h3>
+                <h3 id="risk-overview-heading" className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">{riskLevelTrendTitle}</h3>
               </div>
               <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
                 <div className="hidden xs:flex items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
@@ -1617,7 +1737,7 @@ export const PrincipalAnalytics: React.FC = () => {
           <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
             <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
               <div className="min-w-0 flex-1 truncate">
-                <h3 className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">STUDENTS ATTENDANCE RATE TREND CHART</h3>
+                <h3 className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">{attendanceTrendTitle}</h3>
               </div>
               <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
                 <div className="hidden xs:flex items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
@@ -1723,7 +1843,7 @@ export const PrincipalAnalytics: React.FC = () => {
           <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
             <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
               <div className="min-w-0 flex-1 truncate">
-                <h3 className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">STUDENTS AVERAGE SCORE TREND CHART</h3>
+                <h3 className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">{scoreTrendTitle}</h3>
               </div>
               <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
                 <div className="hidden xs:flex items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
