@@ -136,7 +136,20 @@ export const UserList: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkDropdownOpen, setIsBulkDropdownOpen] = useState(false);
   const [isSubmittingBulk, setIsSubmittingBulk] = useState(false);
+  const bulkButtonRef = useRef<HTMLButtonElement>(null);
   const bulkDropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; right: number } | null>(null);
+
+  const toggleBulkDropdown = () => {
+    if (!isBulkDropdownOpen && bulkButtonRef.current) {
+      const rect = bulkButtonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 4,
+        right: Math.max(12, window.innerWidth - rect.right),
+      });
+    }
+    setIsBulkDropdownOpen((prev) => !prev);
+  };
 
   // User Activity History Modal State
   const [activityModalUser, setActivityModalUser] = useState<User | null>(null);
@@ -164,10 +177,36 @@ export const UserList: React.FC = () => {
     return () => clearTimeout(timer);
   }, [toastNotification.show]);
 
+  // Reposition dropdown on scroll or resize while open
+  useEffect(() => {
+    if (!isBulkDropdownOpen) return;
+    const updatePosition = () => {
+      if (bulkButtonRef.current) {
+        const rect = bulkButtonRef.current.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.bottom + 4,
+          right: Math.max(12, window.innerWidth - rect.right),
+        });
+      }
+    };
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [isBulkDropdownOpen]);
+
   // Click outside to close bulk assign dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (bulkDropdownRef.current && !bulkDropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        bulkDropdownRef.current &&
+        !bulkDropdownRef.current.contains(target) &&
+        bulkButtonRef.current &&
+        !bulkButtonRef.current.contains(target)
+      ) {
         setIsBulkDropdownOpen(false);
       }
     };
@@ -865,7 +904,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
 
       {/* ── Main Integrated Directory Table Card ──────────────────────── */}
-      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative overflow-hidden">
+      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
         {/* Table Toolbar (Section Title + Action Buttons & Filters) */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 px-3 sm:px-4 py-2.5 border-b border-gray-100 dark:border-[#1A1A1A] overflow-x-auto no-scrollbar">
           {/* Left: Title & Counter */}
@@ -1034,10 +1073,11 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
             {/* Dynamic Action Buttons: When students are selected, replace Enroll Student with Assign Student/s to a Tutor Dropdown */}
             {activeTab === 'student' && selectedIds.length > 0 ? (
-              <div className="relative inline-block shrink-0 w-full sm:w-auto" ref={bulkDropdownRef}>
+              <div className="relative inline-block shrink-0 w-full sm:w-auto">
                 <button
+                  ref={bulkButtonRef}
                   type="button"
-                  onClick={() => setIsBulkDropdownOpen((prev) => !prev)}
+                  onClick={toggleBulkDropdown}
                   disabled={isSubmittingBulk}
                   className="inline-flex items-center justify-center bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer shrink-0 w-full sm:w-auto shadow-2xs h-8 whitespace-nowrap gap-1.5 disabled:opacity-60"
                   aria-expanded={isBulkDropdownOpen}
@@ -1048,8 +1088,17 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isBulkDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {isBulkDropdownOpen && (
-                  <div className="absolute right-0 mt-1 w-72 sm:w-80 max-h-72 overflow-y-auto rounded-lg bg-white dark:bg-[#111111] shadow-xl border border-gray-200 dark:border-[#222222] py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                {isBulkDropdownOpen && dropdownPosition && (
+                  <div
+                    ref={bulkDropdownRef}
+                    style={{
+                      position: 'fixed',
+                      top: `${dropdownPosition.top}px`,
+                      right: `${dropdownPosition.right}px`,
+                      zIndex: 99999,
+                    }}
+                    className="w-72 sm:w-80 max-h-72 overflow-y-auto rounded-lg bg-white dark:bg-[#111111] shadow-2xl border border-gray-200 dark:border-[#222222] py-1.5 animate-in fade-in zoom-in-95 duration-100"
+                  >
                     <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider border-b border-gray-100 dark:border-[#1E1E1E]">
                       Select Tutor to Assign ({selectedIds.length} Student{selectedIds.length > 1 ? 's' : ''})
                     </div>
