@@ -2183,77 +2183,48 @@ export const PrincipalHome: React.FC = () => {
                   {rankedTutorClasses.length === 0 ? 'No tutor classes found' : 'No tutors matching search filter'}
                 </div>
               ) : (
-                filteredRankedTutors.map((item) => {
-                  const rankBadgeClass =
-                    item.rank === 1
-                      ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-300/80 dark:border-amber-700/60'
-                      : item.rank === 2
-                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
-                      : item.rank === 3
-                      ? 'bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400 border-orange-300/80 dark:border-orange-700/60'
-                      : 'bg-gray-100 dark:bg-[#181818] text-gray-500 dark:text-slate-400 border-gray-200 dark:border-[#222222]';
-
-                  return (
-                    <div
-                      key={item.tutorId}
-                      onClick={() => navigate(`/principal/analytics?tutorId=${item.tutorId}`)}
-                      className="block p-2.5 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111]/70 hover:bg-gray-100/60 dark:hover:bg-white/[0.03] hover:border-gray-300 dark:hover:border-zinc-700 transition-colors group cursor-pointer shadow-2xs"
-                      title={`Click to view data analytics for ${item.tutorName}`}
-                    >
-                      <div className="flex items-center justify-between gap-2.5">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span
-                            className={`inline-flex items-center justify-center w-5 h-5 rounded text-[10px] font-extrabold border shrink-0 ${rankBadgeClass}`}
-                          >
-                            #{item.rank}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-bold text-gray-900 dark:text-slate-100 group-hover:text-[var(--brand)] transition-colors truncate">
-                              {item.tutorName}
-                            </p>
-                            <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-400 dark:text-slate-500 truncate">
-                              <span>{item.studentCount} stu</span>
-                              <span>•</span>
-                              <span>Att: {item.attendanceRate}%</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Composite Score Pill */}
-                        <div className="text-right shrink-0">
-                          <span
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-extrabold border ${
-                              item.compositeScore === 0
-                                ? 'text-gray-400 dark:text-slate-500 border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111]'
-                                : item.compositeScore >= 81
-                                ? 'text-risk-low border-emerald-200 bg-emerald-50 dark:border-emerald-800/80 dark:bg-emerald-950/40'
-                                : item.compositeScore >= 70
-                                ? 'text-risk-medium border-amber-200 bg-amber-50 dark:border-amber-800/80 dark:bg-amber-950/40'
-                                : 'text-risk-high border-rose-200 bg-rose-50 dark:border-rose-800/80 dark:bg-rose-950/40'
-                            }`}
-                          >
-                            {item.compositeScore === 0 ? '—' : `${item.compositeScore}%`}
-                          </span>
-                          <p className="text-[8.5px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500 mt-0.5 text-right">
-                            COMPOSITE
-                          </p>
+                filteredRankedTutors.map((item) => (
+                  <div
+                    key={item.tutorId}
+                    onClick={() => navigate(`/principal/analytics?tutorId=${item.tutorId}`)}
+                    className="block p-2.5 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111]/70 hover:bg-gray-100/60 dark:hover:bg-white/[0.03] hover:border-gray-300 dark:hover:border-zinc-700 transition-colors group cursor-pointer shadow-2xs"
+                    title={`Click to view data analytics for ${item.tutorName}`}
+                  >
+                    <div className="flex items-center justify-between gap-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-gray-900 dark:text-slate-100 group-hover:text-[var(--brand)] transition-colors truncate">
+                          {item.tutorName}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-400 dark:text-slate-500 truncate">
+                          <span>{item.studentCount} stu</span>
+                          <span>•</span>
+                          <span>Att: {item.attendanceRate}%</span>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
 
-            {/* Bottom Footer Info */}
-            <div className="pt-3 mt-3 border-t border-gray-100 dark:border-[#1A1A1A] flex items-center justify-between text-[11px] text-gray-400 dark:text-slate-500 shrink-0">
-              <span className="truncate">Ranked by Composite Score</span>
-              <Link
-                to="/principal/analytics"
-                className="font-bold text-[var(--brand)] dark:text-sky-400 hover:underline shrink-0 ml-2"
-              >
-                View Analytics &gt;
-              </Link>
+                      {/* Composite Score Pill */}
+                      <div className="text-right shrink-0">
+                        <span
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-extrabold border ${
+                            item.compositeScore === 0
+                              ? 'text-gray-400 dark:text-slate-500 border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111]'
+                              : item.compositeScore >= 81
+                              ? 'text-risk-low border-emerald-200 bg-emerald-50 dark:border-emerald-800/80 dark:bg-emerald-950/40'
+                              : item.compositeScore >= 70
+                              ? 'text-risk-medium border-amber-200 bg-amber-50 dark:border-amber-800/80 dark:bg-amber-950/40'
+                              : 'text-risk-high border-rose-200 bg-rose-50 dark:border-rose-800/80 dark:bg-rose-950/40'
+                          }`}
+                        >
+                          {item.compositeScore === 0 ? '—' : `${item.compositeScore}%`}
+                        </span>
+                        <p className="text-[8.5px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500 mt-0.5 text-right">
+                          COMPOSITE
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
