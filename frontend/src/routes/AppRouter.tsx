@@ -192,7 +192,7 @@ export const AppRouter: React.FC = () => {
         {/* ── Shared Staff routes ──────────────────── */}
         <Route
           element={
-            <ProtectedRoute allowedRoles={['admin', 'tutor', 'faculty', 'student']}>
+            <ProtectedRoute allowedRoles={['admin', 'tutor', 'faculty', 'student', 'principal']}>
               <DashboardLayout />
             </ProtectedRoute>
           }

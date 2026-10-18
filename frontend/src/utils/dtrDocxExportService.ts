@@ -139,9 +139,9 @@ export const exportDtrToDocx = async (data: DtrDocxExportData): Promise<void> =>
 
   const staffRight = data.staffNameRight || data.staffName;
 
-  // Filter records strictly to tutor, faculty, and principal only
+  // Filter records strictly to tutor, faculty, principal, and admin only
   const validRecords = data.records.filter((r) =>
-    ['tutor', 'faculty', 'principal'].includes((r.role || '').toLowerCase())
+    ['tutor', 'faculty', 'principal', 'admin'].includes((r.role || '').toLowerCase())
   );
 
   // Build 31 daily punch records for a given staff member

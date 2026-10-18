@@ -874,6 +874,22 @@ export const DashboardLayout: React.FC = () => {
               />
               {!collapsed && <span className="truncate">Data Analytics</span>}
             </Link>
+
+            <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0' }} />
+
+            <Link to="/staff/scan" onClick={onItemClick} className={navLinkClass(isActive('/staff/scan'), collapsed)} title="DTR Log">
+              <AssetSidebarIcon
+                darkSrc={clockDarkDefault}
+                darkActiveSrc={clockDarkActive}
+                lightSrc={clockLightDefault}
+                lightActiveSrc={clockLightActive}
+                active={isActive('/staff/scan')}
+                alt="DTR Log"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">DTR Log</span>}
+            </Link>
           </>
         )}
 

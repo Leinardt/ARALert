@@ -181,7 +181,7 @@ const CustomCalendarDropdown: React.FC<{
 /* ─────────────────────────── component ─────────────────────────── */
 export const StaffAttendanceScanner: React.FC = () => {
   const { user } = useAuth();
-  const tutorFirstName = user?.first_name || user?.full_name?.trim().split(' ')[0] || 'TUTOR';
+  const staffFirstName = user?.first_name || user?.full_name?.trim().split(' ')[0] || (user?.role === 'principal' ? 'PRINCIPAL' : 'STAFF');
   const [scanMode, setScanMode] = useState<'none' | 'camera' | 'text'>('none');
   const [manualCode, setManualCode] = useState('');
   const [scanResult, setScanResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -195,7 +195,6 @@ export const StaffAttendanceScanner: React.FC = () => {
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const isPrincipalMonitor = user?.role === 'principal' || Boolean(user?.is_superuser);
   const todayStr = new Date().toLocaleDateString('en-CA');
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
@@ -375,13 +374,8 @@ export const StaffAttendanceScanner: React.FC = () => {
       const res = await academicService.scanQRCode(sessionId);
       setScanResult({ type: 'success', message: res.message });
       if (user) {
-        const logs = isPrincipalMonitor
-          ? await academicService.getAttendanceHistory()
-          : await academicService.getAttendanceHistory({ user_id: user.id });
-        const visibleLogs = isPrincipalMonitor
-          ? logs.filter((log) => ['tutor', 'faculty', 'principal'].includes(log.role))
-          : logs;
-        setAttendanceLogs(visibleLogs);
+        const logs = await academicService.getAttendanceHistory({ user_id: user.id });
+        setAttendanceLogs(logs);
       }
     } catch (err: any) {
       console.error(err);
@@ -400,20 +394,15 @@ export const StaffAttendanceScanner: React.FC = () => {
     setLogsLoading(true);
     setLogsError(null);
     try {
-      const logs = isPrincipalMonitor
-        ? await academicService.getAttendanceHistory()
-        : await academicService.getAttendanceHistory({ user_id: user.id });
-      const visibleLogs = isPrincipalMonitor
-        ? logs.filter((log) => ['tutor', 'faculty', 'principal'].includes(log.role))
-        : logs;
-      setAttendanceLogs(visibleLogs);
+      const logs = await academicService.getAttendanceHistory({ user_id: user.id });
+      setAttendanceLogs(logs);
     } catch (err: any) {
       console.error(err);
       setLogsError('Failed to load DTR history.');
     } finally {
       setLogsLoading(false);
     }
-  }, [user, isPrincipalMonitor]);
+  }, [user]);
 
   useEffect(() => {
     fetchAttendanceLogs();
@@ -529,19 +518,17 @@ export const StaffAttendanceScanner: React.FC = () => {
     return (
       <div className="space-y-6 max-w-6xl mx-auto">
         {/* Status Strip Skeleton */}
-        {!isPrincipalMonitor && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="animate-pulse rounded-2xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
-                <div className="space-y-2 flex-1">
-                  <div className="h-2.5 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="animate-pulse rounded-2xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
+              <div className="space-y-2 flex-1">
+                <div className="h-2.5 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          ))}
+        </div>
 
         {/* Main Grid Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -632,23 +619,8 @@ export const StaffAttendanceScanner: React.FC = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
-      {/* ── Export button (principal only) ───────────────────────── */}
-      {isPrincipalMonitor && (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => setShowDtrExportModal(true)}
-            className="inline-flex items-center gap-2 rounded-md bg-[var(--brand)] px-4 py-2 text-sm font-bold text-white transition hover:bg-[var(--brand-dark)] shrink-0 cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            Export DTR
-          </button>
-        </div>
-      )}
-
       {/* ── Status & Info Strip ────────────────────────────────────── */}
-      {!isPrincipalMonitor && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Current Date */}
           <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 flex items-center gap-4">
             <div className="w-10 h-10 rounded-md bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#222222] flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
@@ -696,7 +668,6 @@ export const StaffAttendanceScanner: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
 
       {/* ── Main Grid ────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -852,7 +823,7 @@ export const StaffAttendanceScanner: React.FC = () => {
             {/* Feed header */}
             <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">{tutorFirstName}'S RECENT SCANS</h3>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">{staffFirstName}'S RECENT SCANS</h3>
               </div>
               <div>
                 <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
@@ -885,7 +856,7 @@ export const StaffAttendanceScanner: React.FC = () => {
                     >
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold text-gray-800 dark:text-slate-200 leading-tight truncate">
-                          {log.user_name || user?.full_name || tutorFirstName}
+                          {log.user_name || user?.full_name || staffFirstName}
                         </p>
                       </div>
                       <div className="text-right shrink-0 space-y-0.5">
@@ -914,7 +885,7 @@ export const StaffAttendanceScanner: React.FC = () => {
         {/* Section header */}
         <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-2.5 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
           <div className="min-w-0 flex-1 truncate">
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase truncate">{tutorFirstName}'S DTR HISTORY</h3>
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase truncate">{staffFirstName}'S DTR HISTORY</h3>
             <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">
               {filteredDtrRows.length} Record{filteredDtrRows.length !== 1 ? 's' : ''}
             </p>
@@ -1010,11 +981,6 @@ export const StaffAttendanceScanner: React.FC = () => {
               <table className="min-w-[600px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-[#151515]">
-                    {isPrincipalMonitor && (
-                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                        <SortableHeader label="TUTOR" sortKey="tutor" />
-                      </th>
-                    )}
                     <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
                       <SortableHeader label="DATE" sortKey="date" />
                     </th>
@@ -1049,11 +1015,6 @@ export const StaffAttendanceScanner: React.FC = () => {
 
                     return (
                       <tr key={`${log.user}-${log.date}`} className="hover:bg-gray-50/80 dark:hover:bg-[#151515] transition-colors">
-                        {isPrincipalMonitor && (
-                          <td className="px-4 py-2.5 text-left font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap">
-                            {log.user_name || 'Unknown Tutor'}
-                          </td>
-                        )}
                         <td className="px-4 py-2.5 text-left text-slate-600 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
                           {formatDateString(log.date)}
                         </td>
@@ -1080,7 +1041,7 @@ export const StaffAttendanceScanner: React.FC = () => {
       </div>
 
       {/* Export DTR Modal */}
-      {isPrincipalMonitor && (
+      {showDtrExportModal && (
         <ExportDtrModal
           isOpen={showDtrExportModal}
           onClose={() => setShowDtrExportModal(false)}
