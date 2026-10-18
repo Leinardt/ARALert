@@ -917,10 +917,6 @@ export const AdminAttendanceQR: React.FC = () => {
                 <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">
                   TODAY'S RECENT SCANS
                 </h3>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">Live Sync</span>
-                </div>
               </div>
               <div>
                 <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-2 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
