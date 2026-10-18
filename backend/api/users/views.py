@@ -49,9 +49,9 @@ class UserStatsView(APIView):
             principals=Count('id', filter=Q(role='principal')),
             faculty=Count('id', filter=Q(role='faculty')),
             tutors=Count('id', filter=Q(role='tutor')),
-            students=Count('id', filter=Q(role='student')),
-            assigned_students=Count('id', filter=Q(role='student', assigned_tutor__isnull=False)),
-            unassigned_students=Count('id', filter=Q(role='student', assigned_tutor__isnull=True)),
+            students=Count('id', filter=Q(role='student') & ~Q(aral_level='graduated')),
+            assigned_students=Count('id', filter=Q(role='student', assigned_tutor__isnull=False) & ~Q(aral_level='graduated')),
+            unassigned_students=Count('id', filter=Q(role='student', assigned_tutor__isnull=True) & ~Q(aral_level='graduated')),
         )
 
         total_att = 0
@@ -150,7 +150,7 @@ class UserListCreateView(generics.ListCreateAPIView):
         if not user.is_superuser and getattr(user, 'role', None) == 'tutor':
             if role == 'principal':
                 return queryset.filter(role='principal', is_active=True)
-            return queryset.filter(assigned_tutor=user, role='student')
+            return queryset.filter(assigned_tutor=user, role='student').exclude(aral_level='graduated')
 
         role = self.request.query_params.get('role', '').strip()
 
@@ -168,9 +168,14 @@ class UserListCreateView(generics.ListCreateAPIView):
             else:
                 queryset = queryset.filter(Q(subject__icontains=subject) | (Q(aral_level__icontains='plus') if subject.lower() == 'english' else Q()))
 
+        include_graduated = self.request.query_params.get('include_graduated', '').strip().lower() in ('true', '1')
+
         aral_level = self.request.query_params.get('aral_level', '').strip()
         if aral_level:
             queryset = queryset.filter(aral_level__iexact=aral_level)
+        elif (role == 'student' or not role) and not include_graduated:
+            # Graduated students are archived and must not appear in active student user management
+            queryset = queryset.exclude(aral_level='graduated')
 
         grade_level = self.request.query_params.get('grade_level', '').strip()
         if grade_level:
@@ -342,8 +347,40 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({'role': 'The Primary Root SuperAdmin role cannot be changed.'})
 
+        prev_level = (getattr(target_user, 'aral_level', '') or '').lower()
         prev_tutor = target_user.assigned_tutor
         updated_user = serializer.save()
+        new_level = (getattr(updated_user, 'aral_level', '') or '').lower()
+
+        # If ARAL level is changed from graduated back to basic/plus/summer (reverting a mistake)
+        if updated_user.role == 'student' and prev_level == 'graduated' and new_level in ('basic', 'plus', 'summer'):
+            try:
+                from apps.academics.models import StudentEnrollment
+                StudentEnrollment.objects.filter(
+                    student=updated_user,
+                    graduation_status='graduated'
+                ).update(
+                    graduation_status='not_eligible',
+                    enrollment_status='active',
+                    final_result=''
+                )
+            except Exception:
+                pass
+
+        # If ARAL level is manually set to graduated
+        if updated_user.role == 'student' and new_level == 'graduated' and prev_level != 'graduated':
+            try:
+                from apps.academics.models import StudentEnrollment
+                latest_enr = StudentEnrollment.objects.filter(
+                    student=updated_user
+                ).order_by('-school_year__start_date', '-id').first()
+                if latest_enr:
+                    latest_enr.graduation_status = 'graduated'
+                    latest_enr.final_result = 'Graduated'
+                    latest_enr.enrollment_status = 'completed'
+                    latest_enr.save(update_fields=['graduation_status', 'final_result', 'enrollment_status'])
+            except Exception:
+                pass
 
         # Log individual tutor assignment if changed
         if 'assigned_tutor' in serializer.validated_data and updated_user.assigned_tutor != prev_tutor:

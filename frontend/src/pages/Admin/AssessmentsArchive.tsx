@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  Search, ChevronUp, ChevronDown, ChevronRight, ArrowUpDown, Users, AlertCircle
+  Search, ChevronUp, ChevronDown, ChevronRight, ArrowUpDown, Users, AlertCircle, Edit, GraduationCap
 } from 'lucide-react';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
 import { SchoolYear, User, Grade, Attendance } from '../../types';
 import { TableSkeleton } from '../../components/SkeletonLoader';
 import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
+import { useAuth } from '../../hooks/useAuth';
 
 /* ─── Helper: Normalize ARAL Level ─────────────────────────────────── */
 const normalizeAralLevel = (val?: string | null): 'BASIC' | 'PLUS' | 'SUMMER' => {
@@ -65,9 +67,12 @@ interface TutorArchiveRow {
 }
 
 export const AssessmentsArchive: React.FC = () => {
+  const { user: currentUser } = useAuth();
+  const isSuperAdmin = Boolean(currentUser?.is_superuser);
+
   const [archivedYears, setArchivedYears] = useState<SchoolYear[]>([]);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('2026-2027');
-  const [activeTab, setActiveTab] = useState<'mosy' | 'eosy' | 'summer'>('mosy');
+  const [activeTab, setActiveTab] = useState<'mosy' | 'eosy' | 'summer' | 'graduated'>('mosy');
 
   const [tutors, setTutors] = useState<User[]>([]);
   const [students, setStudents] = useState<User[]>([]);
@@ -116,7 +121,7 @@ export const AssessmentsArchive: React.FC = () => {
     try {
       const [tutorsList, studentsList, gradesList, attendanceList] = await Promise.all([
         userService.getAllUsers({ role: 'tutor' }).catch(() => [] as User[]),
-        userService.getAllUsers({ role: 'student' }).catch(() => [] as User[]),
+        userService.getAllUsers({ role: 'student', include_graduated: true }).catch(() => [] as User[]),
         academicService.getGrades().catch(() => [] as Grade[]),
         academicService.getAttendanceHistory().catch(() => [] as Attendance[]),
       ]);
@@ -321,6 +326,25 @@ export const AssessmentsArchive: React.FC = () => {
     return list;
   }, [tutorArchiveRows, search, sortField, sortOrder]);
 
+  const graduatedStudents = useMemo(() => {
+    return students.filter((s) => (s.aral_level || '').toLowerCase() === 'graduated');
+  }, [students]);
+
+  const filteredGraduatedStudents = useMemo(() => {
+    let list = [...graduatedStudents];
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((s) => {
+        const name = (s.full_name || `${s.first_name} ${s.last_name}`).toLowerCase();
+        const lrn = (s.lrn || '').toLowerCase();
+        const grade = (s.grade_level || '').toLowerCase();
+        const sec = (s.section || '').toLowerCase();
+        return name.includes(q) || lrn.includes(q) || grade.includes(q) || sec.includes(q);
+      });
+    }
+    return list;
+  }, [graduatedStudents, search]);
+
   return (
     <div className="flex flex-col gap-5 p-4 sm:p-6 max-w-7xl mx-auto w-full" style={{ fontFamily: 'var(--font-body)' }}>
       {/* ── Top Bar: School Year & Period Switcher Tabs Only ── */}
@@ -384,6 +408,24 @@ export const AssessmentsArchive: React.FC = () => {
             >
               <span>SUMMER (Midyear)</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('graduated')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'graduated'
+                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>GRADUATED STUDENTS</span>
+              {graduatedStudents.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                  {graduatedStudents.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -400,6 +442,98 @@ export const AssessmentsArchive: React.FC = () => {
       {isLoading ? (
         <div className="space-y-4">
           <TableSkeleton rows={8} cols={7} />
+        </div>
+      ) : activeTab === 'graduated' ? (
+        <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs overflow-hidden">
+          {/* Table Header / Search Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300 flex items-center gap-2">
+                <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>GRADUATED STUDENTS ARCHIVE ({filteredGraduatedStudents.length})</span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                Archived students who successfully completed the ARAL program. Change ARAL level back to Basic or Plus to restore to User Management.
+              </p>
+            </div>
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
+              <input
+                type="text"
+                placeholder="Search name, LRN, section..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-lg text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[var(--brand)]"
+              />
+            </div>
+          </div>
+
+          {filteredGraduatedStudents.length === 0 ? (
+            <div className="p-12 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A]">
+              {graduatedStudents.length === 0
+                ? 'No graduated students recorded. Students graduate automatically upon passing EOSY or Summer Endline assessments.'
+                : 'No graduated students matching the search filter.'}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+                <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                  <tr>
+                    <th className="w-10 px-3 py-2.5 text-center">#</th>
+                    <th className="px-4 py-2.5 text-left">STUDENT NAME</th>
+                    <th className="px-4 py-2.5 text-left">LRN</th>
+                    <th className="px-4 py-2.5 text-left">GRADE & SECTION</th>
+                    <th className="px-4 py-2.5 text-center">PROGRAM STATUS</th>
+                    <th className="px-4 py-2.5 text-center">ARCHIVE STATUS</th>
+                    <th className="px-4 py-2.5 text-center">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+                  {filteredGraduatedStudents.map((st, idx) => {
+                    const { grade, section } = getGradeAndSection(st.grade_level, st.section);
+                    return (
+                      <tr
+                        key={st.id}
+                        className="divide-x divide-gray-100 dark:divide-[#1A1A1A] hover:bg-gray-50/70 dark:hover:bg-white/[0.02] transition-colors"
+                      >
+                        <td className="px-3 py-3 text-center text-slate-400 font-medium">{idx + 1}</td>
+                        <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                          {st.full_name || `${st.first_name} ${st.last_name}`}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                          {st.lrn || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700 dark:text-slate-300 uppercase whitespace-nowrap">
+                          {grade} — {section}
+                        </td>
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">
+                            {st.subject ? st.subject.toUpperCase() : 'ARAL COMPLETED'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60">
+                            <GraduationCap className="w-3.5 h-3.5" />
+                            GRADUATED
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                          <Link
+                            to={`${isSuperAdmin ? '/superadmin' : '/admin'}/students/edit/${st.id}`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 hover:border-[var(--brand)] hover:text-[var(--brand)] transition shadow-2xs"
+                            title="Edit ARAL level or revert to Basic/Plus"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            <span>Edit / Revert</span>
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       ) : (
         <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs overflow-hidden">
@@ -536,6 +670,7 @@ export const AssessmentsArchive: React.FC = () => {
                                                     {activeTab === 'mosy' ? 'MOSY ASSESSMENT' : activeTab === 'eosy' ? 'EOSY ASSESSMENT' : 'SUMMER ASSESSMENT'}
                                                   </th>
                                                   <th className="px-3 py-2 text-center">STATUS</th>
+                                                  <th className="px-3 py-2 text-center">ACTION</th>
                                                 </tr>
                                               </thead>
                                               <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
@@ -575,6 +710,16 @@ export const AssessmentsArchive: React.FC = () => {
                                                       >
                                                         {st.status}
                                                       </span>
+                                                    </td>
+                                                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                                                      <Link
+                                                        to={`${isSuperAdmin ? '/superadmin' : '/admin'}/students/edit/${st.id}`}
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-200 hover:text-[var(--brand)] hover:border-[var(--brand)] transition shadow-2xs"
+                                                        title="Edit / Revert Level"
+                                                      >
+                                                        <Edit className="w-3 h-3" />
+                                                        <span>Edit</span>
+                                                      </Link>
                                                     </td>
                                                   </tr>
                                                 ))}

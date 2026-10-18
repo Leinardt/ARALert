@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { userService } from '../../services/userService';
 import type { User } from '../../types';
-import { ArrowLeft, AlertCircle, Plus, Trash2, CheckCircle2, X } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Plus, Trash2, CheckCircle2, X, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import {
   isTutorEligibleForStudent,
@@ -15,6 +15,7 @@ import {
   buildTutorPayloadFromRoleDetails,
 } from '../../utils/tutorCohortHelpers';
 import { TutorRoleDetailsSection } from '../../components/TutorRoleDetailsSection';
+import { BatchStudentEnrollmentModal } from '../../components/BatchStudentEnrollmentModal';
 
 const NAME_REGEX = /^[a-zA-Z\s.\-ñÑ']+$/;
 const SECTION_REGEX = /^[a-zA-Z0-9\s\-]+$/;
@@ -103,7 +104,10 @@ export const CreateUser: React.FC = () => {
   const { user: currentUser } = useAuth();
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [tutors, setTutors] = useState<User[]>([]);
+  const cachedInitialTutors = userService.getCachedTutors();
+  const [tutors, setTutors] = useState<User[]>(cachedInitialTutors || []);
+  const [isLoadingTutors, setIsLoadingTutors] = useState(!cachedInitialTutors);
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
 
   // Floating Toast Notifications (Matches EditUser toast feedback system)
   const [showSuccessToast, setShowSuccessToast] = useState(false);
@@ -215,16 +219,29 @@ export const CreateUser: React.FC = () => {
   }, [isSuperUser, requestedRole, navigate]);
 
   useEffect(() => {
+    let isMounted = true;
     const loadTutors = async () => {
+      if (!userService.getCachedTutors()) {
+        setIsLoadingTutors(true);
+      }
       try {
         const response = await userService.getTutors();
-        setTutors(response);
+        if (isMounted) {
+          setTutors(response);
+        }
       } catch (error) {
         console.error('Failed to load tutors', error);
+      } finally {
+        if (isMounted) {
+          setIsLoadingTutors(false);
+        }
       }
     };
 
     loadTutors();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const getPageHeading = () => {
@@ -434,10 +451,20 @@ export const CreateUser: React.FC = () => {
       </div>
 
       <div className="rounded-md border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-6 shadow-xs">
-        <div className="mb-5 border-b border-slate-100 dark:border-[#1A1A1A] pb-4">
+        <div className="mb-5 border-b border-slate-100 dark:border-[#1A1A1A] pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white uppercase">
             {headingInfo.title}
           </h2>
+          {selectedRole === 'student' && (
+            <button
+              type="button"
+              onClick={() => setIsBatchModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              Import List for Batch Enrollment
+            </button>
+          )}
         </div>
 
         {serverErrors?.detail && (
@@ -470,6 +497,29 @@ export const CreateUser: React.FC = () => {
             </h4>
             <div className={`grid grid-cols-1 gap-4 ${selectedRole !== 'student' ? 'sm:grid-cols-2 md:grid-cols-4' : 'sm:grid-cols-3'}`}>
               <div>
+                <label htmlFor="last_name" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                  Last Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="last_name"
+                  type="text"
+                  placeholder="e.g. DELA CRUZ"
+                  {...register('last_name')}
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(/[^a-zA-Z\s.\-ñÑ']/g, '');
+                  }}
+                  className={`w-full rounded-md border px-3 py-2 text-xs font-medium uppercase shadow-2xs focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:bg-[#111111] dark:text-slate-100 ${
+                    errors.last_name || serverErrors?.last_name ? 'border-red-300 dark:border-red-800' : 'border-gray-300 dark:border-[#1A1A1A]'
+                  }`}
+                />
+                {(errors.last_name || serverErrors?.last_name) && (
+                  <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
+                    {errors.last_name?.message || serverErrors?.last_name?.[0]}
+                  </p>
+                )}
+              </div>
+
+              <div>
                 <label htmlFor="first_name" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
                   First Name <span className="text-red-500">*</span>
                 </label>
@@ -494,7 +544,7 @@ export const CreateUser: React.FC = () => {
 
               <div>
                 <label htmlFor="middle_name" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                  Middle Name <span className="font-normal text-gray-400 dark:text-slate-500">(optional)</span>
+                  Middle Name (M.I.) <span className="font-normal text-gray-400 dark:text-slate-500">(optional)</span>
                 </label>
                 <input
                   id="middle_name"
@@ -506,29 +556,6 @@ export const CreateUser: React.FC = () => {
                   }}
                   className="w-full rounded-md border border-gray-300 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-3 py-2 text-xs font-medium uppercase shadow-2xs focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100"
                 />
-              </div>
-
-              <div>
-                <label htmlFor="last_name" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                  Last Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="last_name"
-                  type="text"
-                  placeholder="e.g. DELA CRUZ"
-                  {...register('last_name')}
-                  onInput={(e) => {
-                    e.currentTarget.value = e.currentTarget.value.replace(/[^a-zA-Z\s.\-ñÑ']/g, '');
-                  }}
-                  className={`w-full rounded-md border px-3 py-2 text-xs font-medium uppercase shadow-2xs focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:bg-[#111111] dark:text-slate-100 ${
-                    errors.last_name || serverErrors?.last_name ? 'border-red-300 dark:border-red-800' : 'border-gray-300 dark:border-[#1A1A1A]'
-                  }`}
-                />
-                {(errors.last_name || serverErrors?.last_name) && (
-                  <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
-                    {errors.last_name?.message || serverErrors?.last_name?.[0]}
-                  </p>
-                )}
               </div>
 
               {/* For Staff (tutor, faculty, principal, admin, superadmin): Google Email Address is part of Personal Information */}
@@ -583,7 +610,7 @@ export const CreateUser: React.FC = () => {
             <>
               <div className="space-y-3 border-t border-gray-100 dark:border-[#1A1A1A] pt-4">
                 <h4 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
-                  ARAL Academic &amp; Tutor Assignment
+                  ARAL PROGRAM DETAILS &amp; TUTOR ASSIGNMENT
                 </h4>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <div>
@@ -705,11 +732,12 @@ export const CreateUser: React.FC = () => {
                     <select
                       id="assigned_tutor"
                       {...register('assigned_tutor')}
+                      disabled={isLoadingTutors}
                       className={`w-full rounded-md border px-3 py-2 text-xs font-medium shadow-2xs focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:bg-[#111111] dark:text-slate-100 cursor-pointer ${
                         errors.assigned_tutor || serverErrors?.assigned_tutor ? 'border-red-300 dark:border-red-800' : 'border-gray-300 dark:border-[#1A1A1A]'
-                      }`}
+                      } ${isLoadingTutors ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
-                      <option value="">To Be Assigned (TBA)</option>
+                      <option value="">{isLoadingTutors ? 'Loading available tutors...' : 'To Be Assigned (TBA)'}</option>
                       {matchingTutors.map((tutor) => (
                         <option key={tutor.id} value={tutor.id}>
                           {formatTutorAssignmentOption(tutor)}
@@ -721,7 +749,7 @@ export const CreateUser: React.FC = () => {
                         {errors.assigned_tutor?.message || serverErrors?.assigned_tutor?.[0]}
                       </p>
                     )}
-                    {matchingTutors.length === 0 && (
+                    {!isLoadingTutors && matchingTutors.length === 0 && (
                       <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
                         No tutors currently handle {watchedStudentGrade || 'this grade'}{watchedStudentSection ? `, Section ${watchedStudentSection.toUpperCase()}` : ''}, and ARAL {(watchedStudentAralLevel || 'basic').toUpperCase()}.
                       </p>
@@ -871,6 +899,29 @@ export const CreateUser: React.FC = () => {
           </div>
         </aside>
       )}
+      {/* ── Batch Student Enrollment Modal (DepEd BOSY Excel List Import) ── */}
+      <BatchStudentEnrollmentModal
+        isOpen={isBatchModalOpen}
+        onClose={() => setIsBatchModalOpen(false)}
+        tutors={tutors}
+        onEnrollmentSuccess={(count) => {
+          setSuccessToastTitle('Batch Enrollment Completed');
+          setSuccessToastMessage(`Successfully enrolled ${count} student${count === 1 ? '' : 's'} into the system.`);
+          setShowSuccessToast(true);
+          setTimeout(() => {
+            navigate(getBackLink(), {
+              state: {
+                toastNotification: {
+                  show: true,
+                  type: 'success',
+                  title: 'Batch Enrollment Completed',
+                  message: `Successfully enrolled ${count} student${count === 1 ? '' : 's'} into the system.`,
+                },
+              },
+            });
+          }, 2000);
+        }}
+      />
     </div>
   );
 };

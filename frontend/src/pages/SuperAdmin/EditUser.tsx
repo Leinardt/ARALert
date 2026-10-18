@@ -184,7 +184,7 @@ export const EditUser: React.FC = () => {
     if (!isLoading && selectedRole === 'student') {
       if (watchedStudentAralLevel === 'plus' && (watchedStudentSubject === 'Filipino' || watchedStudentSubject === 'Reading')) {
         setValue('subject', 'English');
-      } else if (watchedStudentAralLevel !== 'plus' && watchedStudentSubject === 'English') {
+      } else if (watchedStudentAralLevel === 'basic' && watchedStudentSubject === 'English') {
         setValue('subject', 'Filipino');
       }
     }
@@ -791,6 +791,8 @@ export const EditUser: React.FC = () => {
                   >
                     <option value="basic">BASIC</option>
                     <option value="plus">PLUS</option>
+                    <option value="summer">SUMMER</option>
+                    <option value="graduated">GRADUATED (Archive)</option>
                   </select>
                 </div>
 
@@ -803,8 +805,8 @@ export const EditUser: React.FC = () => {
                     {...register('subject')}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-[#1A1A1A] rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] text-xs bg-white dark:bg-[#111111] dark:text-slate-100 font-medium cursor-pointer"
                   >
-                    {watchedStudentAralLevel === 'plus' ? (
-                      <option value="English">ENGLISH (for Plus)</option>
+                    {watchedStudentAralLevel === 'plus' || watchedStudentAralLevel === 'graduated' ? (
+                      <option value="English">ENGLISH (for Plus/Graduated)</option>
                     ) : (
                       <option value="Filipino">FILIPINO (for Basic)</option>
                     )}
@@ -820,11 +822,12 @@ export const EditUser: React.FC = () => {
                   <select
                     id="assigned_tutor"
                     {...register('assigned_tutor')}
+                    disabled={isLoading}
                     className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] text-xs bg-white dark:bg-[#111111] dark:text-slate-100 cursor-pointer ${
                       errors.assigned_tutor || serverErrors?.assigned_tutor ? 'border-red-300 dark:border-red-800' : 'border-gray-300 dark:border-[#1A1A1A]'
-                    }`}
+                    } ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
-                    <option value="">To Be Assigned (TBA)</option>
+                    <option value="">{isLoading ? 'Loading available tutors...' : 'To Be Assigned (TBA)'}</option>
                     {matchingTutors.map((tutor) => (
                       <option key={tutor.id} value={tutor.id}>
                         {formatTutorAssignmentOption(tutor)}
@@ -836,7 +839,7 @@ export const EditUser: React.FC = () => {
                       {errors.assigned_tutor?.message || serverErrors?.assigned_tutor?.[0]}
                     </p>
                   )}
-                  {matchingTutors.length === 0 && (
+                  {!isLoading && matchingTutors.length === 0 && (
                     <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
                       No tutors currently handle {watchedStudentGrade || 'this grade'}{watchedStudentSection ? `, Section ${watchedStudentSection.toUpperCase()}` : ''}, and ARAL {(watchedStudentAralLevel || 'basic').toUpperCase()}.
                     </p>

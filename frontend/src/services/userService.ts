@@ -12,6 +12,7 @@ export interface GetUsersParams {
   aral_level?: string;
   grade_level?: string;
   section?: string;
+  include_graduated?: boolean;
 }
 
 export interface GetUsersResponse {
@@ -40,6 +41,9 @@ export interface UserActivityResponse {
   activities: UserActivityItem[];
 }
 
+let cachedTutors: { data: User[]; timestamp: number } | null = null;
+const TUTOR_CACHE_TTL_MS = 60000;
+
 export const userService = {
   getUsers: async (params: GetUsersParams = {}): Promise<GetUsersResponse> => {
     const response = await api.get<GetUsersResponse>('/users/', { params });
@@ -66,11 +70,17 @@ export const userService = {
 
   createUser: async (data: any): Promise<User> => {
     const response = await api.post<User>('/users/', data);
+    if (data?.role === 'tutor') {
+      cachedTutors = null;
+    }
     return response.data;
   },
 
   updateUser: async (id: string, data: any): Promise<User> => {
     const response = await api.patch<User>(`/users/${id}/`, data);
+    if (data?.role === 'tutor' || data?.tutor_type || data?.grade_level) {
+      cachedTutors = null;
+    }
     return response.data;
   },
 
@@ -108,8 +118,23 @@ export const userService = {
     return response.data;
   },
 
-  getTutors: async (): Promise<User[]> => {
+  getCachedTutors: (): User[] | null => {
+    if (cachedTutors && (Date.now() - cachedTutors.timestamp) < TUTOR_CACHE_TTL_MS) {
+      return cachedTutors.data;
+    }
+    return null;
+  },
+
+  clearTutorsCache: (): void => {
+    cachedTutors = null;
+  },
+
+  getTutors: async (forceRefresh = false): Promise<User[]> => {
+    if (!forceRefresh && cachedTutors && (Date.now() - cachedTutors.timestamp) < TUTOR_CACHE_TTL_MS) {
+      return cachedTutors.data;
+    }
     const response = await api.get<User[]>('/users/tutors/');
+    cachedTutors = { data: response.data, timestamp: Date.now() };
     return response.data;
   },
 

@@ -721,7 +721,6 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                   <option value="">All Levels</option>
                   <option value="basic">Basic</option>
                   <option value="plus">Plus</option>
-                  <option value="graduated">Graduated</option>
                 </select>
               </div>
             )}
