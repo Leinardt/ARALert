@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
+import { formatDtrTime } from '../../utils/dtrSchedule';
 import dtrLogIcon from '../../assets/icons/dtrlog_light_active.png';
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
@@ -851,17 +852,19 @@ export const FacultyHome: React.FC = () => {
                     <p className="text-xs font-bold text-gray-900 dark:text-slate-100 truncate">
                       {formattedDate}
                     </p>
-                    <p className="text-[10px] text-gray-400 dark:text-slate-500 truncate mt-0.5">
-                      {log.time_in ? (
-                        <>
-                          In: <span className="font-mono text-gray-600 dark:text-slate-300">{log.time_in}</span>
-                          {log.time_out && (
-                            <> • Out: <span className="font-mono text-gray-600 dark:text-slate-300">{log.time_out}</span></>
-                          )}
-                        </>
-                      ) : (
-                        log.aral_activity_title || 'Institutional instructional session'
-                      )}
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium truncate mt-0.5">
+                      {(() => {
+                        const effectiveIn = log.time_in || log.arrival_am || log.arrival_pm;
+                        const effectiveOut = log.time_out || log.departure_pm || log.departure_am;
+                        if (effectiveIn) {
+                          const formattedIn = formatDtrTime(effectiveIn);
+                          if (effectiveOut) {
+                            return `${formattedIn} – ${formatDtrTime(effectiveOut)}`;
+                          }
+                          return formattedIn;
+                        }
+                        return log.aral_activity_title || 'Institutional instructional session';
+                      })()}
                     </p>
                   </div>
                   <span
