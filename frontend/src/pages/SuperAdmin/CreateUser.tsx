@@ -163,7 +163,7 @@ export const CreateUser: React.FC = () => {
       role: initialRole,
       lrn: '',
       grade_level_grade: 'GRADE 7',
-      grade_level_section: 'HYACINTH',
+      grade_level_section: '',
       assigned_tutor: '',
       aral_level: 'basic',
       subject: 'Filipino',
