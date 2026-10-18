@@ -113,6 +113,8 @@ export const UserList: React.FC = () => {
   const [assignedTutorFilter, setAssignedTutorFilter] = useState('');
   const [aralLevelFilter, setAralLevelFilter] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('');
+  const [gradeLevelFilter, setGradeLevelFilter] = useState('');
+  const [sectionFilter, setSectionFilter] = useState('');
   const [ordering, setOrdering] = useState('last_name');
   const [page, setPage] = useState(1);
 
@@ -181,6 +183,8 @@ export const UserList: React.FC = () => {
     setAssignedTutorFilter('');
     setAralLevelFilter('');
     setSubjectFilter('');
+    setGradeLevelFilter('');
+    setSectionFilter('');
     setSelectedIds([]);
 
     if (location.pathname.startsWith('/admin/')) {
@@ -227,8 +231,10 @@ export const UserList: React.FC = () => {
         search: search || undefined,
         role: activeTab,
         assigned_tutor: activeTab === 'student' ? (assignedTutorFilter || undefined) : undefined,
-        aral_level: activeTab === 'student' ? (aralLevelFilter || undefined) : undefined,
-        subject: activeTab === 'tutor' ? (subjectFilter || undefined) : undefined,
+        aral_level: (activeTab === 'student' || activeTab === 'tutor') ? (aralLevelFilter || undefined) : undefined,
+        subject: (activeTab === 'student' || activeTab === 'tutor') ? (subjectFilter || undefined) : undefined,
+        grade_level: gradeLevelFilter || undefined,
+        section: sectionFilter || undefined,
         ordering,
         page,
       });
@@ -260,7 +266,7 @@ export const UserList: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [activeTab, assignedTutorFilter, aralLevelFilter, subjectFilter, ordering, page, search]);
+  }, [activeTab, assignedTutorFilter, aralLevelFilter, subjectFilter, gradeLevelFilter, sectionFilter, ordering, page, search]);
 
   useEffect(() => {
     fetchTutorsList();
@@ -319,9 +325,91 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
     setPage(1);
   };
 
+  // Dynamic sections extraction & retention
+  const [knownSections, setKnownSections] = useState<string[]>([
+    'HYACINTH', 'MANGO', 'ROSE', 'SAMPAGUITA', 'ORCHID', 'TULIP', 'JASMINE', 'SUNFLOWER', 'LILY', 'CARNATION', 'DAISY'
+  ]);
+
+  useEffect(() => {
+    if (!users || users.length === 0) return;
+    setKnownSections((prev) => {
+      const nextSet = new Set(prev);
+      users.forEach((u) => {
+        const sec = activeTab === 'tutor'
+          ? getTutorDisplayCohorts(u.grade_level, u.section).section
+          : getGradeAndSection(u.grade_level, u.section).section;
+        if (sec && sec !== '—') {
+          sec.split(',').forEach((s) => {
+            const trimmed = s.trim().toUpperCase();
+            if (trimmed && trimmed !== '—') nextSet.add(trimmed);
+          });
+        }
+      });
+      return Array.from(nextSet).sort((a, b) => a.localeCompare(b));
+    });
+  }, [users, activeTab]);
+
+  // Client-side filtering wrapper for seamless real-time response
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      if (activeTab === 'student') {
+        if (subjectFilter) {
+          const s = (u.subject || '').toLowerCase();
+          const aral = (u.aral_level || '').toLowerCase();
+          const target = subjectFilter.toLowerCase();
+          const matches =
+            target === 'filipino'
+              ? s === 'filipino' || s === 'reading' || aral === 'basic'
+              : target === 'english'
+              ? s === 'english' || aral === 'plus'
+              : s === target;
+          if (!matches) return false;
+        }
+        if (gradeLevelFilter) {
+          const { grade } = getGradeAndSection(u.grade_level, u.section);
+          const gTarget = gradeLevelFilter.replace(/grade\s*/i, '').trim();
+          if (grade !== gTarget) return false;
+        }
+        if (sectionFilter) {
+          const { section } = getGradeAndSection(u.grade_level, u.section);
+          if (section.toUpperCase() !== sectionFilter.toUpperCase()) return false;
+        }
+      } else if (activeTab === 'tutor') {
+        if (aralLevelFilter) {
+          const aral = (u.aral_level || '').toLowerCase();
+          const tType = (u.tutor_type || '').toLowerCase();
+          const target = aralLevelFilter.toLowerCase();
+          if (!aral.includes(target) && !tType.includes(target)) return false;
+        }
+        if (subjectFilter) {
+          const s = (u.subject || '').toLowerCase();
+          const aral = (u.aral_level || '').toLowerCase();
+          const target = subjectFilter.toLowerCase();
+          const matches =
+            target === 'filipino'
+              ? s.includes('filipino') || s.includes('reading') || aral.includes('basic')
+              : target === 'english'
+              ? s.includes('english') || aral.includes('plus')
+              : s.includes(target);
+          if (!matches) return false;
+        }
+        if (gradeLevelFilter) {
+          const { grade } = getTutorDisplayCohorts(u.grade_level, u.section);
+          const gTarget = gradeLevelFilter.replace(/grade\s*/i, '').trim();
+          if (!grade.includes(gTarget)) return false;
+        }
+        if (sectionFilter) {
+          const { section } = getTutorDisplayCohorts(u.grade_level, u.section);
+          if (!section.toUpperCase().includes(sectionFilter.toUpperCase())) return false;
+        }
+      }
+      return true;
+    });
+  }, [users, activeTab, subjectFilter, gradeLevelFilter, sectionFilter, aralLevelFilter]);
+
   // Multi-select handlers for students
   const toggleSelectAll = () => {
-    const studentUserIds = users.filter((u) => u.role === 'student').map((u) => u.id);
+    const studentUserIds = filteredUsers.filter((u) => u.role === 'student').map((u) => u.id);
     if (selectedIds.length === studentUserIds.length && studentUserIds.length > 0) {
       setSelectedIds([]);
     } else {
@@ -624,8 +712,27 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
               </div>
             )}
 
-            {/* Subject Filter (Tutor Tab) */}
+            {/* ARAL Level Filter (Tutor Tab) */}
             {activeTab === 'tutor' && (
+              <div className="relative inline-flex items-center">
+                <select
+                  value={aralLevelFilter}
+                  onChange={(e) => {
+                    setAralLevelFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  aria-label="Filter by ARAL Level"
+                  className="h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                >
+                  <option value="">All ARAL Levels</option>
+                  <option value="basic">Basic</option>
+                  <option value="plus">Plus</option>
+                </select>
+              </div>
+            )}
+
+            {/* Subject Filter (Student & Tutor Tabs) */}
+            {(activeTab === 'student' || activeTab === 'tutor') && (
               <div className="relative inline-flex items-center">
                 <select
                   value={subjectFilter}
@@ -641,6 +748,51 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                   <option value="English">English</option>
                   <option value="Science">Science</option>
                   <option value="Math">Math</option>
+                </select>
+              </div>
+            )}
+
+            {/* Grade Level Filter (Student & Tutor Tabs) */}
+            {(activeTab === 'student' || activeTab === 'tutor') && (
+              <div className="relative inline-flex items-center">
+                <select
+                  value={gradeLevelFilter}
+                  onChange={(e) => {
+                    setGradeLevelFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  aria-label="Filter by Grade Level"
+                  className="h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                >
+                  <option value="">All Grade Levels</option>
+                  <option value="7">Grade 7</option>
+                  <option value="8">Grade 8</option>
+                  <option value="9">Grade 9</option>
+                  <option value="10">Grade 10</option>
+                  <option value="11">Grade 11</option>
+                  <option value="12">Grade 12</option>
+                </select>
+              </div>
+            )}
+
+            {/* Section Filter (Student & Tutor Tabs) */}
+            {(activeTab === 'student' || activeTab === 'tutor') && (
+              <div className="relative inline-flex items-center">
+                <select
+                  value={sectionFilter}
+                  onChange={(e) => {
+                    setSectionFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  aria-label="Filter by Section"
+                  className="h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer uppercase"
+                >
+                  <option value="">All Sections</option>
+                  {knownSections.map((sec) => (
+                    <option key={sec} value={sec}>
+                      {sec}
+                    </option>
+                  ))}
                 </select>
               </div>
             )}
@@ -694,7 +846,7 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                         className="text-gray-500 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
                         title="Select All Students"
                       >
-                        {selectedIds.length === users.length && users.length > 0 ? (
+                        {selectedIds.length === filteredUsers.length && filteredUsers.length > 0 ? (
                           <CheckSquare className="w-4 h-4 text-[var(--brand)]" />
                         ) : (
                           <Square className="w-4 h-4" />
@@ -856,7 +1008,7 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                     </button>
                   </td>
                 </tr>
-              ) : users.length === 0 ? (
+              ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td
                     colSpan={activeTab === 'student' ? 13 : activeTab === 'tutor' ? 9 : 5}
@@ -874,7 +1026,7 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                     </td>
                   </tr>
                 ) : (
-                  users.map((u, index) => {
+                  filteredUsers.map((u, index) => {
                     const isSelected = selectedIds.includes(u.id);
                     const isStudentRow = u.role === 'student';
 

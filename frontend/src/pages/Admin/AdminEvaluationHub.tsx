@@ -934,7 +934,6 @@ export const AdminEvaluationHub: React.FC = () => {
                                                 <th className="w-10 px-3 py-2 text-center">#</th>
                                                 <th className="px-3 py-2 text-left">STUDENT NAME</th>
                                                 <th className="px-3 py-2 text-left">LRN</th>
-                                                <th className="px-3 py-2 text-left">ARAL LEVEL</th>
                                                 <th className="px-3 py-2 text-center">FINAL AVG ATTENDANCE RATE</th>
                                                 <th className="px-3 py-2 text-center">FINAL AVG SCORE</th>
                                                 <th className="px-3 py-2 text-center">FINAL AVG COMPOSITE</th>
@@ -956,9 +955,6 @@ export const AdminEvaluationHub: React.FC = () => {
                                                   </td>
                                                   <td className="px-3 py-2.5 font-mono text-slate-600 dark:text-slate-300">
                                                     {st.lrn}
-                                                  </td>
-                                                  <td className="px-3 py-2.5 font-medium uppercase text-slate-700 dark:text-slate-300">
-                                                    {st.aralLevel}
                                                   </td>
                                                   <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
                                                     {st.attendanceRate.toFixed(1)}%

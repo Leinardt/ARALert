@@ -172,6 +172,14 @@ class UserListCreateView(generics.ListCreateAPIView):
         if aral_level:
             queryset = queryset.filter(aral_level__iexact=aral_level)
 
+        grade_level = self.request.query_params.get('grade_level', '').strip()
+        if grade_level:
+            queryset = queryset.filter(grade_level__icontains=grade_level)
+
+        section = self.request.query_params.get('section', '').strip()
+        if section:
+            queryset = queryset.filter(Q(section__iexact=section) | Q(grade_level__icontains=section))
+
         search = self.request.query_params.get('search', '').strip()
         if search:
             queryset = queryset.filter(

@@ -29,8 +29,7 @@ import {
 import {
   getChartAvailableAralLevels,
   getChartAvailableSubjects,
-  getChartAvailableGrades,
-  getChartAvailableSections,
+  getChartAvailableClasses,
   isStudentMatchingChartFilters,
 } from '../../utils/tutorCohortHelpers';
 
@@ -820,8 +819,7 @@ export const AdminHome: React.FC = () => {
   const [selectedTutorId, setSelectedTutorId] = useState<string>('all');
   const [selectedAralLevel, setSelectedAralLevel] = useState<string>('all');
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
-  const [selectedGrade, setSelectedGrade] = useState<string>('all');
-  const [selectedSection, setSelectedSection] = useState<string>('all');
+  const [selectedClass, setSelectedClass] = useState<string>('all');
   const [selectedStaffFilter, setSelectedStaffFilter] = useState<string>('all');
   const [staffTrendFilter, setStaffTrendFilter] = useState<TrendFilter>('week');
   const [activeSystemSem, setActiveSystemSem] = useState<SemesterType>(() => getActiveSystemSemester());
@@ -931,13 +929,9 @@ export const AdminHome: React.FC = () => {
     return getChartAvailableSubjects(selectedTutorObj, selectedAralLevel);
   }, [selectedTutorObj, selectedAralLevel]);
 
-  const chartGrades = useMemo(() => {
-    return getChartAvailableGrades(selectedTutorObj, students);
+  const chartClasses = useMemo(() => {
+    return getChartAvailableClasses(selectedTutorObj, students);
   }, [selectedTutorObj, students]);
-
-  const chartSections = useMemo(() => {
-    return getChartAvailableSections(selectedTutorObj, selectedGrade, students);
-  }, [selectedTutorObj, selectedGrade, students]);
 
   // When selected tutor changes, auto-adjust other dropdowns to the tutor's handled class
   const prevTutorIdRef = useRef(selectedTutorId);
@@ -947,8 +941,7 @@ export const AdminHome: React.FC = () => {
       if (selectedTutorId === 'all') {
         setSelectedAralLevel('all');
         setSelectedSubject('all');
-        setSelectedGrade('all');
-        setSelectedSection('all');
+        setSelectedClass('all');
       } else if (selectedTutorObj) {
         // 1. ARAL level
         const avLevels = getChartAvailableAralLevels(selectedTutorObj);
@@ -970,30 +963,20 @@ export const AdminHome: React.FC = () => {
             : 'all';
         setSelectedSubject(nextSub);
 
-        // 3. Grade
-        const avGrades = getChartAvailableGrades(selectedTutorObj, students);
-        const nextGrade =
-          avGrades.length === 1
-            ? avGrades[0]
-            : avGrades.includes(selectedGrade)
-            ? selectedGrade
+        // 3. Class
+        const avClasses = getChartAvailableClasses(selectedTutorObj, students);
+        const nextClass =
+          avClasses.length === 1
+            ? avClasses[0]
+            : avClasses.includes(selectedClass)
+            ? selectedClass
             : 'all';
-        setSelectedGrade(nextGrade);
-
-        // 4. Section
-        const avSections = getChartAvailableSections(selectedTutorObj, nextGrade, students);
-        const nextSec =
-          avSections.length === 1
-            ? avSections[0]
-            : avSections.includes(selectedSection)
-            ? selectedSection
-            : 'all';
-        setSelectedSection(nextSec);
+        setSelectedClass(nextClass);
       }
     }
-  }, [selectedTutorId, selectedTutorObj, students, selectedAralLevel, selectedSubject, selectedGrade, selectedSection]);
+  }, [selectedTutorId, selectedTutorObj, students, selectedAralLevel, selectedSubject, selectedClass]);
 
-  // Reactive auto-adjustment when parent filters (ARAL level / Grade) change
+  // Reactive auto-adjustment when parent filters (ARAL level / Subject / Class) change
   useEffect(() => {
     if (selectedTutorId !== 'all' && chartAralLevels.length === 1) {
       if (selectedAralLevel !== chartAralLevels[0].id) {
@@ -1015,24 +998,14 @@ export const AdminHome: React.FC = () => {
   }, [selectedSubject, chartSubjects, selectedTutorId]);
 
   useEffect(() => {
-    if (selectedTutorId !== 'all' && chartGrades.length === 1) {
-      if (selectedGrade !== chartGrades[0]) {
-        setSelectedGrade(chartGrades[0]);
+    if (selectedTutorId !== 'all' && chartClasses.length === 1) {
+      if (selectedClass !== chartClasses[0]) {
+        setSelectedClass(chartClasses[0]);
       }
-    } else if (selectedGrade !== 'all' && !chartGrades.includes(selectedGrade)) {
-      setSelectedGrade('all');
+    } else if (selectedClass !== 'all' && !chartClasses.includes(selectedClass)) {
+      setSelectedClass('all');
     }
-  }, [selectedGrade, chartGrades, selectedTutorId]);
-
-  useEffect(() => {
-    if (selectedTutorId !== 'all' && chartSections.length === 1) {
-      if (selectedSection !== chartSections[0]) {
-        setSelectedSection(chartSections[0]);
-      }
-    } else if (selectedSection !== 'all' && !chartSections.includes(selectedSection)) {
-      setSelectedSection('all');
-    }
-  }, [selectedSection, chartSections, selectedTutorId]);
+  }, [selectedClass, chartClasses, selectedTutorId]);
 
   // Filter students based on selected tutor and additional chart filters
   const filteredStudents = useMemo(() => {
@@ -1041,11 +1014,10 @@ export const AdminHome: React.FC = () => {
         tutorId: selectedTutorId,
         aralLevel: selectedAralLevel,
         subject: selectedSubject,
-        grade: selectedGrade,
-        section: selectedSection,
+        classCohort: selectedClass,
       })
     );
-  }, [students, selectedTutorId, selectedAralLevel, selectedSubject, selectedGrade, selectedSection]);
+  }, [students, selectedTutorId, selectedAralLevel, selectedSubject, selectedClass]);
 
   // ── Stakeholder-Validated Overall Metrics Calculations (Always for ALL students) ──
   const studentRiskRows = useMemo(() => {
@@ -1983,32 +1955,17 @@ export const AdminHome: React.FC = () => {
                 ))}
               </select>
 
-              {/* Grade Level Filter Dropdown */}
+              {/* Class Filter Dropdown */}
               <select
-                aria-label="Filter by Grade Level"
-                value={selectedGrade}
-                onChange={(e) => setSelectedGrade(e.target.value)}
-                className="h-8 px-2 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[150px] flex-1 max-w-[180px]"
+                aria-label="Filter by Class"
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                className="h-8 px-2 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[140px] flex-1 max-w-[200px]"
               >
-                <option value="all">ALL GRADE LEVELS</option>
-                {chartGrades.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
-
-              {/* Section Filter Dropdown */}
-              <select
-                aria-label="Filter by Section"
-                value={selectedSection}
-                onChange={(e) => setSelectedSection(e.target.value)}
-                className="h-8 px-2 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[125px] flex-1 max-w-[160px]"
-              >
-                <option value="all">ALL SECTIONS</option>
-                {chartSections.map((sec) => (
-                  <option key={sec} value={sec}>
-                    {sec}
+                <option value="all">ALL CLASSES</option>
+                {chartClasses.map((cls) => (
+                  <option key={cls} value={cls}>
+                    {cls}
                   </option>
                 ))}
               </select>

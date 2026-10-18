@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Download, Calendar, Filter, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Download, Calendar, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { User } from '../types';
 import api from '../api/axios';
 import {
@@ -555,11 +555,10 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
             <div className="lg:col-span-4 xl:col-span-3 space-y-3 lg:sticky lg:top-0">
               {/* Date Range Selection Box */}
               <div className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3 space-y-2.5 shadow-sm text-xs">
-                <div className="flex items-center justify-between">
+                <div>
                   <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     Date Range Filter
                   </span>
-                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
                 </div>
 
                 {/* Preset Chips */}
@@ -711,24 +710,25 @@ export const ExportAuditLogModal: React.FC<ExportAuditLogModalProps> = ({
 
                 {/* Search Text Filter */}
                 <div className="pt-2 border-t border-slate-100 dark:border-[#1A1A1A]">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 flex items-center justify-between">
-                    <span>Search Filter</span>
-                    <Search className="w-3 h-3 text-slate-400" />
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Search Filter
                   </label>
-                  <input
-                    type="text"
-                    value={searchFilter}
-                    onChange={(e) => setSearchFilter(e.target.value)}
-                    placeholder="Search name, email, or LRN…"
-                    className="w-full h-8 px-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)]"
-                  />
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={searchFilter}
+                      onChange={(e) => setSearchFilter(e.target.value)}
+                      placeholder="Search name, email, or LRN…"
+                      className="w-full h-8 pl-8 pr-2.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)]"
+                    />
+                  </div>
                 </div>
 
                 {/* Event Category Filter */}
                 <div className="pt-2 border-t border-slate-100 dark:border-[#1A1A1A]">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 flex items-center justify-between">
-                    <span>Filter Event</span>
-                    <Filter className="w-3 h-3 text-slate-400" />
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Filter Event
                   </label>
                   <select
                     value={actionFilter}

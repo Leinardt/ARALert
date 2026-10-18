@@ -10,6 +10,8 @@ export interface GetUsersParams {
   assigned_tutor?: string;
   subject?: string;
   aral_level?: string;
+  grade_level?: string;
+  section?: string;
 }
 
 export interface GetUsersResponse {

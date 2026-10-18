@@ -720,6 +720,67 @@ export function getChartAvailableSections(
 }
 
 /**
+ * Returns available classes (e.g. ['GRADE 7 - HYACINTH', 'GRADE 8 - MANGO']) for chart filtering,
+ * adjusted for tutor, sorted logically by numeric grade first then section.
+ */
+export function getChartAvailableClasses(
+  tutor: Partial<User> | null | undefined,
+  allStudents: User[]
+): string[] {
+  const classesSet = new Set<string>();
+
+  const addClass = (grade: string, section: string) => {
+    let cleanG = grade ? grade.trim().toUpperCase() : '';
+    let cleanS = section ? section.trim().toUpperCase() : '';
+    if (cleanG && !cleanG.startsWith('GRADE')) {
+      const num = cleanG.replace(/[^0-9]/g, '');
+      if (num) cleanG = `GRADE ${num}`;
+    }
+    if (cleanG && cleanS) {
+      classesSet.add(`${cleanG} - ${cleanS}`);
+    } else if (cleanG) {
+      classesSet.add(cleanG);
+    } else if (cleanS) {
+      classesSet.add(cleanS);
+    }
+  };
+
+  if (!tutor) {
+    allStudents.forEach((s) => {
+      const { grade, section } = parseStudentGradeAndSection(s);
+      addClass(grade, section);
+    });
+  } else {
+    const cohorts = parseTutorHandledCohorts(tutor);
+    cohorts.forEach((c) => {
+      if (c.includes(' - ')) {
+        const [g, sec] = c.split(' - ').map((p) => p.trim().toUpperCase());
+        addClass(g, sec);
+      } else {
+        const trimmed = c.trim().toUpperCase();
+        if (trimmed) classesSet.add(trimmed);
+      }
+    });
+
+    allStudents.forEach((s) => {
+      if (String(s.assigned_tutor) === String(tutor.id)) {
+        const { grade, section } = parseStudentGradeAndSection(s);
+        addClass(grade, section);
+      }
+    });
+  }
+
+  return Array.from(classesSet).sort((a, b) => {
+    const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0;
+    const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0;
+    if (numA !== numB) {
+      return numA - numB;
+    }
+    return a.localeCompare(b);
+  });
+}
+
+/**
  * Checks whether a student matches the selected chart filters.
  */
 export function isStudentMatchingChartFilters(
@@ -728,8 +789,9 @@ export function isStudentMatchingChartFilters(
     tutorId: string;
     aralLevel: string;
     subject: string;
-    grade: string;
-    section: string;
+    grade?: string;
+    section?: string;
+    classCohort?: string;
   }
 ): boolean {
   if (filters.tutorId !== 'all') {
@@ -752,12 +814,39 @@ export function isStudentMatchingChartFilters(
   }
 
   const { grade, section } = parseStudentGradeAndSection(student);
-  if (filters.grade !== 'all') {
+  if (filters.grade && filters.grade !== 'all') {
     if (grade !== filters.grade) return false;
   }
 
-  if (filters.section !== 'all') {
+  if (filters.section && filters.section !== 'all') {
     if (section !== filters.section) return false;
+  }
+
+  if (filters.classCohort && filters.classCohort !== 'all') {
+    const targetCohort = filters.classCohort.toUpperCase().trim();
+    if (targetCohort.includes(' - ')) {
+      const [tGrade, tSec] = targetCohort.split(' - ').map((p) => p.trim());
+      const sGradeNum = grade.replace(/[^0-9]/g, '');
+      const tGradeNum = tGrade.replace(/[^0-9]/g, '');
+      if (tGradeNum && sGradeNum && tGradeNum !== sGradeNum) {
+        return false;
+      }
+      if (tSec && section !== tSec) {
+        return false;
+      }
+    } else {
+      const targetGradeNum = targetCohort.replace(/[^0-9]/g, '');
+      const sGradeNum = grade.replace(/[^0-9]/g, '');
+      if (targetCohort.startsWith('GRADE') || /^\d+$/.test(targetCohort)) {
+        if (targetGradeNum && sGradeNum && targetGradeNum !== sGradeNum) {
+          return false;
+        }
+      } else {
+        if (section !== targetCohort) {
+          return false;
+        }
+      }
+    }
   }
 
   return true;

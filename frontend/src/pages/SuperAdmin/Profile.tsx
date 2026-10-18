@@ -264,10 +264,12 @@ export const Profile: React.FC = () => {
   }
 
   const readonlyStyle: React.CSSProperties = {
+    width: '100%',
     padding: '0.65rem 0.85rem',
     borderRadius: 'var(--radius-md)',
     border: '1px solid var(--slate-200)',
     background: 'var(--surface-muted)',
+    backgroundColor: 'var(--surface-muted)',
     fontSize: '0.875rem',
     color: 'var(--text-muted)',
     cursor: 'not-allowed',
@@ -567,13 +569,30 @@ export const Profile: React.FC = () => {
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                 {localUser.role === 'student' ? 'Learner Reference Number (LRN)' : 'Email Address'}
               </label>
-              <input
-                type={localUser.role === 'student' ? 'text' : 'email'}
-                value={localUser.role === 'student' ? (localUser.lrn || '—') : localUser.email}
-                readOnly
-                disabled
-                style={readonlyStyle}
-              />
+              <div
+                className="relative group cursor-not-allowed w-full"
+                title={localUser.role !== 'student' ? 'Contact admin to change email' : undefined}
+              >
+                <input
+                  type="text"
+                  name="profile_email_readonly"
+                  autoComplete="off"
+                  value={localUser.role === 'student' ? (localUser.lrn || '—') : localUser.email}
+                  readOnly
+                  disabled
+                  tabIndex={-1}
+                  style={readonlyStyle}
+                  className="w-full pointer-events-none select-none"
+                />
+
+                {localUser.role !== 'student' && (
+                  <div className="pointer-events-none absolute bottom-full left-3 mb-2 hidden group-hover:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/95 dark:bg-zinc-800 text-white text-xs font-semibold shadow-xl border border-slate-700/60 dark:border-zinc-700 whitespace-nowrap z-30 transition-all animate-in fade-in duration-150">
+                    <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                    <span>Contact admin to change email</span>
+                    <div className="absolute top-full left-6 -mt-1 border-4 border-transparent border-t-slate-900/95 dark:border-t-zinc-800" />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
