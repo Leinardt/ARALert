@@ -830,6 +830,7 @@ export const AdminHome: React.FC = () => {
   const leftColRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let animId: number;
     const updateSize = () => {
       if (typeof window !== 'undefined') {
         setIsDesktop(window.innerWidth >= 1024);
@@ -841,16 +842,21 @@ export const AdminHome: React.FC = () => {
     };
 
     updateSize();
+    animId = requestAnimationFrame(updateSize);
+    const timeout = setTimeout(updateSize, 300);
+
     const ro = new ResizeObserver(updateSize);
     if (leftColRef.current) {
       ro.observe(leftColRef.current);
     }
     window.addEventListener('resize', updateSize);
     return () => {
+      cancelAnimationFrame(animId);
+      clearTimeout(timeout);
       ro.disconnect();
       window.removeEventListener('resize', updateSize);
     };
-  }, []);
+  }, [isLoading]);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -1896,7 +1902,7 @@ export const AdminHome: React.FC = () => {
       </div>
 
       {/* ── 3. Main Section: Trend Chart (Left) & Tutor Assessment Status (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start w-full min-w-0 max-w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch w-full min-w-0 max-w-full">
         {/* ── Left Column (9 cols on lg & xl: ~75% width): PNAHS ARAL PERFORMANCE TREND CHART ── */}
         <div ref={leftColRef} className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3 w-full min-w-0 max-w-full">
           <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full min-w-0 max-w-full shadow-2xs">
@@ -2246,14 +2252,14 @@ export const AdminHome: React.FC = () => {
         </div>
 
         {/* ── Right Column (3 cols on lg & xl: ~25% width): ASSESSMENT STATUS ── */}
-        <div className="lg:col-span-3 xl:col-span-3 flex flex-col w-full min-w-0 max-w-full">
+        <div className="lg:col-span-3 xl:col-span-3 lg:relative flex flex-col w-full min-w-0 max-w-full">
           <div
             style={
               isDesktop && leftColHeight
                 ? { height: `${leftColHeight}px`, maxHeight: `${leftColHeight}px` }
                 : undefined
             }
-            className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full max-h-[500px] lg:max-h-none shadow-2xs overflow-hidden"
+            className="lg:absolute lg:inset-0 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full max-h-[500px] lg:max-h-none shadow-2xs overflow-hidden"
           >
             {/* Header */}
             <div className="pb-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
