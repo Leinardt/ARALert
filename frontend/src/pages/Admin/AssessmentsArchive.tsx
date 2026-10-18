@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Search, ChevronUp, ChevronDown, ChevronRight, ArrowUpDown, Users, AlertCircle, Edit, GraduationCap
+  Search, ChevronUp, ChevronDown, ChevronRight, ArrowUpDown, Users, AlertCircle, Edit, GraduationCap, CheckCircle2
 } from 'lucide-react';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
@@ -47,7 +47,7 @@ interface StudentArchiveMetric {
   avgScore: number;
   assessmentScoreStr: string;
   compositeScore: number;
-  status: 'PASSED' | 'RETAINED' | 'PENDING';
+  status: 'MOVED_UP' | 'GRADUATED' | 'RETAINED' | 'PENDING';
   rawStudent?: User;
 }
 
@@ -59,7 +59,8 @@ interface TutorArchiveRow {
   subject: string;
   aralLevel: 'BASIC' | 'PLUS' | 'SUMMER';
   totalStudents: number;
-  passedCount: number;
+  movedUpCount: number;
+  graduatedCount: number;
   retainedCount: number;
   pendingCount: number;
   students: StudentArchiveMetric[];
@@ -72,7 +73,7 @@ export const AssessmentsArchive: React.FC = () => {
 
   const [archivedYears, setArchivedYears] = useState<SchoolYear[]>([]);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('2026-2027');
-  const [activeTab, setActiveTab] = useState<'mosy' | 'eosy' | 'summer' | 'graduated'>('mosy');
+  const [activeTab, setActiveTab] = useState<'mosy' | 'eosy' | 'summer'>('mosy');
 
   const [tutors, setTutors] = useState<User[]>([]);
   const [students, setStudents] = useState<User[]>([]);
@@ -194,10 +195,19 @@ export const AssessmentsArchive: React.FC = () => {
   // 5. Aggregate Tutors & Students metrics for selected period
   const tutorArchiveRows = useMemo<TutorArchiveRow[]>(() => {
     return tutors.map((tutor) => {
-      const tutorStudents = students.filter((s) => String(s.assigned_tutor) === String(tutor.id));
+      const tutorStudents = students.filter((s) => {
+        if (String(s.assigned_tutor) === String(tutor.id)) return true;
+        // Fallback: Check if student has a logged grade matching this tutor
+        return grades.some((g) => {
+          const sid = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
+          const tid = typeof g.tutor === 'object' && g.tutor !== null ? (g.tutor as any).id : (g as any).tutor_id || (g as any).tutor;
+          return String(sid) === String(s.id) && String(tid) === String(tutor.id);
+        });
+      });
       const { grade, section } = getGradeAndSection(tutor.grade_level, tutor.section);
 
-      let passedCount = 0;
+      let movedUpCount = 0;
+      let graduatedCount = 0;
       let retainedCount = 0;
       let pendingCount = 0;
 
@@ -235,28 +245,60 @@ export const AssessmentsArchive: React.FC = () => {
         // Compute Composite Score (40% Attendance + 60% Academic Performance)
         const compositeScore = Math.round(((attendanceRate * 0.4) + (avgScore * 0.6)) * 10) / 10;
 
-        // Determine Status & Assessment Score: PASSED, RETAINED, or PENDING
+        // Determine Status & Assessment Score
         // Check if student has explicit evaluation record
         const evalGrade = sGrades.find((g) => {
           const subj = (g.subject || '').toUpperCase();
-          if (activeTab === 'mosy') return subj.includes('MOSY');
-          if (activeTab === 'eosy') return subj.includes('EOSY');
-          return subj.includes('SUMMER');
+          const rem = (g.remarks || '').toUpperCase();
+          if (activeTab === 'mosy') return subj.includes('MOSY') || rem.includes('MOSY');
+          if (activeTab === 'eosy') return subj.includes('EOSY') || rem.includes('EOSY');
+          return subj.includes('SUMMER') || rem.includes('SUMMER');
         });
 
         let assessmentScoreStr = '—';
-        let status: 'PASSED' | 'RETAINED' | 'PENDING' = 'PENDING';
+        let status: 'MOVED_UP' | 'GRADUATED' | 'RETAINED' | 'PENDING' = 'PENDING';
+
+        const rawLevel = (st.aral_level || '').toLowerCase();
+        const tutorLevel = (tutor.tutor_type || tutor.aral_level || '').toLowerCase();
+        const isPlusCohort = rawLevel === 'plus' || rawLevel === 'graduated' || tutorLevel === 'plus';
 
         if (evalGrade && evalGrade.remarks?.toLowerCase() !== 'not taken') {
           const ts = Number(evalGrade.total_score) || 40;
           const sc = Number(evalGrade.score) || 0;
           const pct = Math.round((sc / ts) * 1000) / 10;
           assessmentScoreStr = `${pct.toFixed(1)}%`;
-          const passedEval = ts === 40 ? sc >= 28 : (sc / ts) >= 0.7;
-          status = passedEval ? 'PASSED' : 'RETAINED';
+          const isPassed = ts === 40 ? sc >= 28 : (sc / ts) >= 0.7;
+
+          if (activeTab === 'mosy') {
+            // In MOSY (Q1 & Q2): Passed students move up an ARAL level (Basic -> Plus).
+            // Retained students remain in their ARAL level (they failed but we don't call it fail).
+            status = isPassed ? 'MOVED_UP' : 'RETAINED';
+          } else if (activeTab === 'eosy') {
+            // In EOSY (Q3 & Q4): Plus students who pass graduate!
+            // Basic students who pass move up an ARAL level (Basic -> Plus).
+            // Retained students keep their ARAL level.
+            if (isPassed || rawLevel === 'graduated') {
+              status = isPlusCohort ? 'GRADUATED' : 'MOVED_UP';
+            } else {
+              status = 'RETAINED';
+            }
+          } else {
+            // In SUMMER (Midyear):
+            // Students who pass graduate!
+            // Retained students keep their ARAL level.
+            if (isPassed || rawLevel === 'graduated') {
+              status = 'GRADUATED';
+            } else {
+              status = 'RETAINED';
+            }
+          }
+        } else if (rawLevel === 'graduated' && (activeTab === 'eosy' || activeTab === 'summer')) {
+          status = 'GRADUATED';
+          assessmentScoreStr = 'Passed';
         }
 
-        if (status === 'PASSED') passedCount++;
+        if (status === 'GRADUATED') graduatedCount++;
+        else if (status === 'MOVED_UP') movedUpCount++;
         else if (status === 'RETAINED') retainedCount++;
         else pendingCount++;
 
@@ -282,7 +324,8 @@ export const AssessmentsArchive: React.FC = () => {
         subject: tutor.subject === 'Reading' ? 'Filipino' : (tutor.subject || 'Filipino'),
         aralLevel: normalizeAralLevel(tutor.tutor_type || tutor.aral_level),
         totalStudents: tutorStudents.length,
-        passedCount,
+        movedUpCount,
+        graduatedCount,
         retainedCount,
         pendingCount,
         students: studentMetrics,
@@ -307,7 +350,10 @@ export const AssessmentsArchive: React.FC = () => {
             (st) =>
               st.name.toLowerCase().includes(q) ||
               st.lrn.toLowerCase().includes(q) ||
-              st.status.toLowerCase().includes(q)
+              st.status.toLowerCase().includes(q) ||
+              (q === 'graduated' && st.status === 'GRADUATED') ||
+              (q.includes('move') && st.status === 'MOVED_UP') ||
+              (q.includes('retain') && st.status === 'RETAINED')
           )
       );
     }
@@ -326,24 +372,24 @@ export const AssessmentsArchive: React.FC = () => {
     return list;
   }, [tutorArchiveRows, search, sortField, sortOrder]);
 
-  const graduatedStudents = useMemo(() => {
-    return students.filter((s) => (s.aral_level || '').toLowerCase() === 'graduated');
-  }, [students]);
+  // Cohort totals across all tutors for the current phase
+  const cohortTotals = useMemo(() => {
+    let totalStudents = 0;
+    let movedUpCount = 0;
+    let graduatedCount = 0;
+    let retainedCount = 0;
+    let pendingCount = 0;
 
-  const filteredGraduatedStudents = useMemo(() => {
-    let list = [...graduatedStudents];
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter((s) => {
-        const name = (s.full_name || `${s.first_name} ${s.last_name}`).toLowerCase();
-        const lrn = (s.lrn || '').toLowerCase();
-        const grade = (s.grade_level || '').toLowerCase();
-        const sec = (s.section || '').toLowerCase();
-        return name.includes(q) || lrn.includes(q) || grade.includes(q) || sec.includes(q);
-      });
+    for (const r of sortedAndFilteredRows) {
+      totalStudents += r.totalStudents;
+      movedUpCount += r.movedUpCount;
+      graduatedCount += r.graduatedCount;
+      retainedCount += r.retainedCount;
+      pendingCount += r.pendingCount;
     }
-    return list;
-  }, [graduatedStudents, search]);
+
+    return { totalStudents, movedUpCount, graduatedCount, retainedCount, pendingCount };
+  }, [sortedAndFilteredRows]);
 
   return (
     <div className="flex flex-col gap-5 p-4 sm:p-6 max-w-7xl mx-auto w-full" style={{ fontFamily: 'var(--font-body)' }}>
@@ -409,23 +455,6 @@ export const AssessmentsArchive: React.FC = () => {
               <span>SUMMER (Midyear)</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('graduated')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-                activeTab === 'graduated'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <GraduationCap className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>GRADUATED STUDENTS</span>
-              {graduatedStudents.length > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                  {graduatedStudents.length}
-                </span>
-              )}
-            </button>
           </div>
         </div>
       </div>
@@ -443,104 +472,36 @@ export const AssessmentsArchive: React.FC = () => {
         <div className="space-y-4">
           <TableSkeleton rows={8} cols={7} />
         </div>
-      ) : activeTab === 'graduated' ? (
-        <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs overflow-hidden">
-          {/* Table Header / Search Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
-            <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300 flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>GRADUATED STUDENTS ARCHIVE ({filteredGraduatedStudents.length})</span>
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
-                Archived students who successfully completed the ARAL program. Change ARAL level back to Basic or Plus to restore to User Management.
-              </p>
-            </div>
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
-              <input
-                type="text"
-                placeholder="Search name, LRN, section..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-lg text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[var(--brand)]"
-              />
-            </div>
-          </div>
-
-          {filteredGraduatedStudents.length === 0 ? (
-            <div className="p-12 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A]">
-              {graduatedStudents.length === 0
-                ? 'No graduated students recorded. Students graduate automatically upon passing EOSY or Summer Endline assessments.'
-                : 'No graduated students matching the search filter.'}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
-                <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
-                  <tr>
-                    <th className="w-10 px-3 py-2.5 text-center">#</th>
-                    <th className="px-4 py-2.5 text-left">STUDENT NAME</th>
-                    <th className="px-4 py-2.5 text-left">LRN</th>
-                    <th className="px-4 py-2.5 text-left">GRADE & SECTION</th>
-                    <th className="px-4 py-2.5 text-center">PROGRAM STATUS</th>
-                    <th className="px-4 py-2.5 text-center">ARCHIVE STATUS</th>
-                    <th className="px-4 py-2.5 text-center">ACTION</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
-                  {filteredGraduatedStudents.map((st, idx) => {
-                    const { grade, section } = getGradeAndSection(st.grade_level, st.section);
-                    return (
-                      <tr
-                        key={st.id}
-                        className="divide-x divide-gray-100 dark:divide-[#1A1A1A] hover:bg-gray-50/70 dark:hover:bg-white/[0.02] transition-colors"
-                      >
-                        <td className="px-3 py-3 text-center text-slate-400 font-medium">{idx + 1}</td>
-                        <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
-                          {st.full_name || `${st.first_name} ${st.last_name}`}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                          {st.lrn || '—'}
-                        </td>
-                        <td className="px-4 py-3 text-slate-700 dark:text-slate-300 uppercase whitespace-nowrap">
-                          {grade} — {section}
-                        </td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
-                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">
-                            {st.subject ? st.subject.toUpperCase() : 'ARAL COMPLETED'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60">
-                            <GraduationCap className="w-3.5 h-3.5" />
-                            GRADUATED
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
-                          <Link
-                            to={`${isSuperAdmin ? '/superadmin' : '/admin'}/students/edit/${st.id}`}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 hover:border-[var(--brand)] hover:text-[var(--brand)] transition shadow-2xs"
-                            title="Edit ARAL level or revert to Basic/Plus"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                            <span>Edit / Revert</span>
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
       ) : (
         <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs overflow-hidden">
           {/* Table Header / Search Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
-              ARCHIVED TUTOR EVALUATION ROSTER ({sortedAndFilteredRows.length})
+            <div className="space-y-1">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
+                ARCHIVED TUTOR EVALUATION ROSTER ({sortedAndFilteredRows.length})
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-xs pt-0.5">
+                <span className="text-slate-500 dark:text-zinc-400 font-medium">
+                  {cohortTotals.totalStudents} Total Students
+                </span>
+                {cohortTotals.graduatedCount > 0 && (
+                  <span className="inline-flex items-center gap-1 font-semibold text-[var(--brand)]">
+                    <GraduationCap className="w-3.5 h-3.5" />
+                    {cohortTotals.graduatedCount} Graduated
+                  </span>
+                )}
+                {cohortTotals.movedUpCount > 0 && (
+                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {cohortTotals.movedUpCount} Moved Up ARAL Level
+                  </span>
+                )}
+                {cohortTotals.retainedCount > 0 && (
+                  <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
+                    {cohortTotals.retainedCount} Retained ARAL Level
+                  </span>
+                )}
+              </div>
             </div>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
@@ -605,10 +566,16 @@ export const AssessmentsArchive: React.FC = () => {
                             {row.totalStudents} Students
                           </td>
                           <td className="px-4 py-3 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1.5">
-                              {row.passedCount > 0 && (
+                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                              {row.graduatedCount > 0 && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-[var(--brand-light)] text-[var(--brand)] border-[var(--brand-border)] dark:bg-[var(--brand)]/15 dark:text-blue-300 dark:border-[var(--brand)]/50">
+                                  <GraduationCap className="w-3 h-3" />
+                                  {row.graduatedCount} Graduated
+                                </span>
+                              )}
+                              {row.movedUpCount > 0 && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60">
-                                  {row.passedCount} Passed
+                                  {row.movedUpCount} Moved Up
                                 </span>
                               )}
                               {row.retainedCount > 0 && (
@@ -616,8 +583,8 @@ export const AssessmentsArchive: React.FC = () => {
                                   {row.retainedCount} Retained
                                 </span>
                               )}
-                              {row.passedCount === 0 && row.retainedCount === 0 && row.totalStudents > 0 && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60">
+                              {row.pendingCount > 0 && row.graduatedCount === 0 && row.movedUpCount === 0 && row.retainedCount === 0 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
                                   Pending Evaluation
                                 </span>
                               )}
@@ -699,17 +666,24 @@ export const AssessmentsArchive: React.FC = () => {
                                                       {st.assessmentScoreStr}
                                                     </td>
                                                     <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                                                      <span
-                                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                                                          st.status === 'PASSED'
-                                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
-                                                            : st.status === 'RETAINED'
-                                                            ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60'
-                                                            : 'bg-amber-50/70 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/40'
-                                                        }`}
-                                                      >
-                                                        {st.status}
-                                                      </span>
+                                                      {st.status === 'GRADUATED' ? (
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-[var(--brand-light)] text-[var(--brand)] border-[var(--brand-border)] dark:bg-[var(--brand)]/15 dark:text-blue-300 dark:border-[var(--brand)]/50">
+                                                          <GraduationCap className="w-3.5 h-3.5" />
+                                                          Graduated
+                                                        </span>
+                                                      ) : st.status === 'MOVED_UP' ? (
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60">
+                                                          Moved Up ARAL Level
+                                                        </span>
+                                                      ) : st.status === 'RETAINED' ? (
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60">
+                                                          Retained ARAL Level
+                                                        </span>
+                                                      ) : (
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
+                                                          Pending Evaluation
+                                                        </span>
+                                                      )}
                                                     </td>
                                                     <td className="px-3 py-2.5 text-center whitespace-nowrap">
                                                       <Link
