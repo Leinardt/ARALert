@@ -823,6 +823,38 @@ export const PrincipalHome: React.FC = () => {
   const [selectedStaffFilter, setSelectedStaffFilter] = useState<string>('all');
   const [staffTrendFilter, setStaffTrendFilter] = useState<TrendFilter>('week');
   const [activeSystemSem, setActiveSystemSem] = useState<SemesterType>(() => getActiveSystemSemester());
+  const [leftColHeight, setLeftColHeight] = useState<number | null>(null);
+  const [isDesktop, setIsDesktop] = useState<boolean>(() => (typeof window !== 'undefined' ? window.innerWidth >= 1024 : true));
+  const leftColRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let animId: number;
+    const updateSize = () => {
+      if (typeof window !== 'undefined') {
+        setIsDesktop(window.innerWidth >= 1024);
+      }
+      if (leftColRef.current) {
+        const h = leftColRef.current.offsetHeight;
+        if (h > 0) setLeftColHeight(h);
+      }
+    };
+
+    updateSize();
+    animId = requestAnimationFrame(updateSize);
+    const timeout = setTimeout(updateSize, 300);
+
+    const ro = new ResizeObserver(updateSize);
+    if (leftColRef.current) {
+      ro.observe(leftColRef.current);
+    }
+    window.addEventListener('resize', updateSize);
+    return () => {
+      cancelAnimationFrame(animId);
+      clearTimeout(timeout);
+      ro.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
+  }, [isLoading]);
 
   const loadDashboard = async () => {
     setIsLoading(true);
@@ -836,7 +868,7 @@ export const PrincipalHome: React.FC = () => {
         }),
         academicService.getAttendanceHistory().catch(() => [] as Attendance[]),
         userService.getAllUsers({ role: 'student' }).catch(() => [] as User[]),
-        userService.getTutors().catch(() => [] as User[]),
+        userService.getAllUsers({ role: 'tutor' }).catch(() => [] as User[]),
         userService.getAllUsers({ role: 'faculty' }).catch(() => [] as User[]),
         userService.getAllUsers({ role: 'admin' }).catch(() => [] as User[]),
       ]);
@@ -1020,10 +1052,11 @@ export const PrincipalHome: React.FC = () => {
       // Find students assigned to this tutor
       const assignedStudents = studentRiskRows.filter((r) => {
         const assigned = (r.student as any).assigned_tutor;
+        const assignedTutorId = (r.student as any).assigned_tutor_id;
         const assignedId =
           typeof assigned === 'object' && assigned !== null
             ? String(assigned.id ?? assigned.pk ?? '')
-            : String(assigned ?? '');
+            : String(assigned ?? assignedTutorId ?? '');
         return assignedId === tutorIdStr;
       });
 
@@ -1033,14 +1066,26 @@ export const PrincipalHome: React.FC = () => {
       let averageScore = 0;
 
       if (assignedStudents.length > 0) {
-        const totalComp = assignedStudents.reduce((acc, s) => acc + s.compositeScore, 0);
-        compositeScore = Math.round((totalComp / assignedStudents.length) * 10) / 10;
+        const studentsWithAtt = assignedStudents.filter((s) => s.totalDays > 0);
+        const studentsWithScores = assignedStudents.filter((s) => s.scoreCount > 0);
 
-        const totalAtt = assignedStudents.reduce((acc, s) => acc + s.attendanceRate, 0);
-        attendanceRate = Math.round((totalAtt / assignedStudents.length) * 10) / 10;
+        if (studentsWithAtt.length > 0) {
+          const totalAtt = studentsWithAtt.reduce((acc, s) => acc + s.attendanceRate, 0);
+          attendanceRate = Math.round((totalAtt / studentsWithAtt.length) * 10) / 10;
+        }
 
-        const totalSc = assignedStudents.reduce((acc, s) => acc + s.scoreAvg, 0);
-        averageScore = Math.round((totalSc / assignedStudents.length) * 10) / 10;
+        if (studentsWithScores.length > 0) {
+          const totalSc = studentsWithScores.reduce((acc, s) => acc + s.scoreAvg, 0);
+          averageScore = Math.round((totalSc / studentsWithScores.length) * 10) / 10;
+        }
+
+        if (attendanceRate > 0 && averageScore > 0) {
+          compositeScore = Math.round(((attendanceRate * 0.4) + (averageScore * 0.6)) * 10) / 10;
+        } else if (attendanceRate > 0) {
+          compositeScore = attendanceRate;
+        } else if (averageScore > 0) {
+          compositeScore = averageScore;
+        }
       } else {
         // Fallback to per_tutor_performance trend points if direct student records aren't loaded
         const tutorTrend =
@@ -1055,9 +1100,16 @@ export const PrincipalHome: React.FC = () => {
         }
       }
 
+      const tutorName =
+        tutor.name ||
+        (tutor as any).full_name ||
+        `${(tutor as any).first_name || ''} ${(tutor as any).last_name || ''}`.trim() ||
+        (tutor as any).username ||
+        'Unknown Tutor';
+
       return {
         tutorId: tutorIdStr,
-        tutorName: tutor.name,
+        tutorName,
         studentCount,
         compositeScore,
         attendanceRate,
@@ -1146,20 +1198,19 @@ export const PrincipalHome: React.FC = () => {
     return 0;
   }, [overallAttendanceRate, overallAvgScore]);
 
-  // ── Compute performance trend data matching Admin ──
+  // ── Compute performance trend combining composite scores (matching Admin logic) ──
   const chartTrendData = useMemo<PrincipalChartPoint[]>(() => {
-    if (students.length > 0 && filteredStudents.length === 0) return [];
-
+    if (filteredStudents.length === 0 || grades.length === 0) return [];
     const studentIds = new Set(filteredStudents.map((s) => String(s.id)));
     const assessmentGrades = grades.filter((g) => {
       const gStudent = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
       const gStudentId = (g as any).student_id;
-      const matchesStudent = studentIds.size > 0 ? (studentIds.has(String(gStudent)) || studentIds.has(String(gStudentId))) : true;
-      const matchesTutor = selectedTutorId === 'all' || String(g.tutor) === String(selectedTutorId);
-      if (!matchesStudent || !matchesTutor) return false;
+      const matchesStudent = studentIds.has(String(gStudent)) || studentIds.has(String(gStudentId));
+      if (!matchesStudent) return false;
 
       return g.component_type === 'assessment';
     });
+    if (assessmentGrades.length === 0) return [];
 
     const now = new Date();
     const oneDay = 24 * 60 * 60 * 1000;
@@ -1246,83 +1297,72 @@ export const PrincipalHome: React.FC = () => {
       });
     }
 
-    if (assessmentGrades.length > 0) {
-      assessmentGrades.forEach((g) => {
-        const dateStr = g.date_logged ? g.date_logged.slice(0, 10) : '';
-        if (!dateStr) return;
-        const gDate = new Date(`${dateStr}T00:00:00`);
-        if (isNaN(gDate.getTime())) return;
-        for (const p of periods) {
-          if (gDate >= p.start && gDate < p.end) {
-            const scorePercent = g.total_score && g.total_score > 0 ? (g.score / g.total_score) * 100 : g.score;
-            p.scores.push(scorePercent);
-            const assessmentText = `${g.subject} ${g.remarks ?? ''}`.toUpperCase();
-            if (assessmentText.includes(adminMilestone.toUpperCase())) {
-              p.assessmentLabels.add(adminMilestone);
-            }
+    assessmentGrades.forEach((g) => {
+      const dateStr = g.date_logged ? g.date_logged.slice(0, 10) : '';
+      if (!dateStr) return;
+      const gDate = new Date(`${dateStr}T00:00:00`);
+      if (isNaN(gDate.getTime())) return;
+      for (const p of periods) {
+        if (gDate >= p.start && gDate < p.end) {
+          const scorePercent = g.total_score && g.total_score > 0 ? (g.score / g.total_score) * 100 : g.score;
+          p.scores.push(scorePercent);
+          const assessmentText = `${g.subject} ${g.remarks ?? ''}`.toUpperCase();
+          if (assessmentText.includes(adminMilestone.toUpperCase())) {
+            p.assessmentLabels.add(adminMilestone);
+          } else if (assessmentText.includes('ARAL SUMMER') || assessmentText.includes('SUMMER') || assessmentText.includes('BOSY')) {
+            p.assessmentLabels.add('ARAL Summer Assessment');
+          } else if (assessmentText.includes('MOSY')) {
+            p.assessmentLabels.add('MOSY');
+          } else if (assessmentText.includes('EOSY')) {
+            p.assessmentLabels.add('EOSY');
           }
+          break;
         }
-      });
+      }
+    });
 
-      attendance.forEach((a) => {
-        if (!a.date) return;
-        const aUser = typeof a.user === 'object' && a.user !== null ? (a.user as any).id : a.user;
-        const aUserId = (a as any).user_id || (a as any).student_id;
-        if (studentIds.size > 0 && !studentIds.has(String(aUser)) && !studentIds.has(String(aUserId))) return;
-        const aDate = new Date(`${a.date}T00:00:00`);
-        if (isNaN(aDate.getTime())) return;
-        for (const p of periods) {
-          if (aDate >= p.start && aDate < p.end) {
-            p.attendanceCount++;
-          }
+    attendance.forEach((att) => {
+      const aUser = typeof att.user === 'object' && att.user !== null ? (att.user as any).id : att.user;
+      const aUserId = (att as any).user_id || (att as any).student_id;
+      if (!studentIds.has(String(aUser)) && !studentIds.has(String(aUserId))) return;
+      const dateStr = att.date ? att.date.slice(0, 10) : '';
+      if (!dateStr) return;
+      const attDate = new Date(`${dateStr}T00:00:00`);
+      if (isNaN(attDate.getTime())) return;
+      for (const p of periods) {
+        if (attDate >= p.start && attDate < p.end) {
+          p.attendanceCount += 1;
+          break;
         }
-      });
+      }
+    });
 
-      return periods.map((p) => {
-        const scoreAvg = p.scores.length > 0 ? p.scores.reduce((sum, s) => sum + s, 0) / p.scores.length : 0;
-        const composite = scoreAvg > 0 ? Math.round(scoreAvg * 10) / 10 : 0;
-        return {
-          label: p.label,
-          fullDateLabel: p.fullDateLabel,
-          dateRange: p.dateRange,
-          value: composite,
-          actualCount: p.scores.length,
-          attendanceCount: p.attendanceCount,
-          assessmentLabels: Array.from(p.assessmentLabels),
-        };
-      });
-    }
+    const points = periods.map((p) => ({
+      label: p.label,
+      fullDateLabel: p.fullDateLabel,
+      dateRange: p.dateRange,
+      value: p.scores.length > 0 ? Math.round(p.scores.reduce((a, b) => a + b, 0) / p.scores.length) : null,
+      count: p.scores.length,
+      attendanceCount: p.attendanceCount,
+      assessmentLabels: Array.from(p.assessmentLabels),
+    }));
 
-    // Fallback if grades aren't populated: project from dashboardData.class_performance_trend
-    const trendPoints =
-      selectedTutorId !== 'all'
-        ? dashboardData?.per_tutor_performance?.find((t) => t.tutor_id === selectedTutorId)?.trend ?? []
-        : dashboardData?.class_performance_trend ?? [];
+    if (points.every((p) => p.value === null)) return [];
 
-    if (trendPoints.length === 0) return [];
-
-    return trendPoints.slice(-10).map((pt) => {
-      const d = new Date(pt.date);
-      const label = isNaN(d.getTime()) ? pt.date : formatDate(d);
-      const scoreVal = pt.average_score || 0;
-      const attVal = pt.attendance_rate || 0;
-      const compositeVal = scoreVal > 0 && attVal > 0
-        ? Math.round((attVal * 0.4 + scoreVal * 0.6) * 10) / 10
-        : scoreVal > 0
-        ? scoreVal
-        : attVal;
-
+    let lastValid = 75;
+    return points.map((p) => {
+      if (p.value !== null) lastValid = p.value;
       return {
-        label,
-        fullDateLabel: isNaN(d.getTime()) ? pt.date : d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-        dateRange: pt.date,
-        value: Math.round(compositeVal * 10) / 10,
-        actualCount: scoreVal > 0 ? 1 : 0,
-        attendanceCount: attVal > 0 ? 1 : 0,
-        assessmentLabels: [],
+        label: p.label,
+        fullDateLabel: p.fullDateLabel,
+        dateRange: p.dateRange,
+        value: p.value !== null ? p.value : lastValid,
+        actualCount: p.count,
+        attendanceCount: p.attendanceCount,
+        assessmentLabels: p.assessmentLabels,
       };
     });
-  }, [grades, attendance, selectedTutorId, trendFilter, adminMilestone, dashboardData, filteredStudents, students]);
+  }, [filteredStudents, grades, attendance, trendFilter, adminMilestone]);
 
   // High/Low score calculations
   const numericScores = useMemo(
@@ -1617,16 +1657,13 @@ export const PrincipalHome: React.FC = () => {
             </div>
           </div>
           <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3">
-            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[600px] lg:min-h-full h-full shadow-2xs flex flex-col justify-between">
-              <div>
-                <div className="h-4 w-36 rounded bg-gray-200 dark:bg-gray-800 mb-3" />
-                <div className="space-y-2">
-                  {[1, 2, 3, 4, 5, 6, 7].map((k) => (
-                    <div key={k} className="h-12 rounded bg-gray-50 dark:bg-[#111111]" />
-                  ))}
-                </div>
+            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-2xs">
+              <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-800 mb-3" />
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5].map((k) => (
+                  <div key={k} className="h-10 rounded bg-gray-50 dark:bg-[#111111]" />
+                ))}
               </div>
-              <div className="pt-3 border-t border-gray-100 dark:border-[#1A1A1A] h-8 rounded bg-gray-50 dark:bg-[#111111]" />
             </div>
           </div>
         </div>
@@ -1762,8 +1799,8 @@ export const PrincipalHome: React.FC = () => {
       {/* ── 2. Main Section: Trend Chart (Left) & Top Performing Classes (Right) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch w-full min-w-0 max-w-full">
         {/* ── Left Column (9 cols on lg & xl: ~75% width): Performance Trend Chart ── */}
-        <div className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3 w-full min-w-0 max-w-full">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 w-full min-w-0 max-w-full shadow-2xs">
+        <div ref={leftColRef} className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3 w-full min-w-0 max-w-full">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full min-w-0 max-w-full shadow-2xs">
             {/* ── Row 1: Card Title & Period Toggles (Full width, never truncates title) ── */}
             <div className="flex items-center justify-between gap-3 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
               <div className="min-w-0">
@@ -1829,7 +1866,7 @@ export const PrincipalHome: React.FC = () => {
             </div>
 
             {/* Chart Canvas */}
-            <div className="relative min-h-[220px] sm:min-h-[260px] flex-1 w-full mt-3 sm:mt-4 bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-4 sm:py-3 overflow-hidden">
+            <div className="relative h-[210px] sm:h-[240px] w-full mt-3 sm:mt-4 bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-4 sm:py-3 overflow-hidden">
               {chartTrendData.length > 0 ? (
                 <InteractivePrincipalPerformanceChart data={chartTrendData} trendFilter={trendFilter} />
               ) : (
@@ -1924,7 +1961,7 @@ export const PrincipalHome: React.FC = () => {
           </div>
 
           {/* ── Card 2: STAFF DTR ATTENDANCE RATE CHART ── */}
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 w-full min-w-0 max-w-full shadow-2xs">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full min-w-0 max-w-full shadow-2xs">
             <div className="flex items-center justify-between gap-2 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
               <div className="min-w-0 flex-1">
                 <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate">
@@ -2007,7 +2044,7 @@ export const PrincipalHome: React.FC = () => {
             </div>
 
             {/* Chart Canvas */}
-            <div className="relative min-h-[220px] sm:min-h-[260px] flex-1 w-full mt-3 sm:mt-4 bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-4 sm:py-3 overflow-hidden">
+            <div className="relative h-[210px] sm:h-[240px] w-full mt-3 sm:mt-4 bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-4 sm:py-3 overflow-hidden">
               {staffAttendanceTrendData.length > 0 ? (
                 <InteractiveStaffAttendanceChart data={staffAttendanceTrendData} trendFilter={staffTrendFilter} />
               ) : (
@@ -2108,8 +2145,15 @@ export const PrincipalHome: React.FC = () => {
         </div>
 
         {/* ── Right Column (3 cols on lg & xl: ~25% width): TOP PERFORMING CLASSES ── */}
-        <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3 w-full min-w-0 max-w-full">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 h-full min-h-[600px] lg:min-h-full shadow-2xs">
+        <div className="lg:col-span-3 xl:col-span-3 lg:relative flex flex-col w-full min-w-0 max-w-full">
+          <div
+            style={
+              isDesktop && leftColHeight
+                ? { height: `${leftColHeight}px`, maxHeight: `${leftColHeight}px` }
+                : undefined
+            }
+            className="lg:absolute lg:inset-0 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full max-h-[500px] lg:max-h-none shadow-2xs overflow-hidden"
+          >
             {/* Header */}
             <div className="pb-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0 flex items-center justify-between gap-2">
               <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight truncate">
@@ -2133,7 +2177,7 @@ export const PrincipalHome: React.FC = () => {
             </div>
 
             {/* Ranked Tutors List */}
-            <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5 max-h-[700px] lg:max-h-none">
+            <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5">
               {filteredRankedTutors.length === 0 ? (
                 <div className="py-8 text-center text-xs text-gray-400 dark:text-slate-500">
                   {rankedTutorClasses.length === 0 ? 'No tutor classes found' : 'No tutors matching search filter'}
