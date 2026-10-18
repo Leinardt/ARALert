@@ -737,11 +737,19 @@ class AttendanceScanView(APIView):
                         'error': 'No active attendance session found. Please start a session before scanning students.'
                     }, status=status.HTTP_400_BAD_REQUEST)
 
-                # Check if student is already marked present for today
-                existing_att = ApiAttendance.objects.filter(user=student_candidate, date=today).first()
+                # Check if student is already marked present for this session
+                existing_att = ApiAttendance.objects.filter(user=student_candidate, session=active_session).first()
+                if not existing_att:
+                    existing_att = ApiAttendance.objects.filter(
+                        user=student_candidate,
+                        date=today,
+                        tutor=active_session.creator,
+                        session__isnull=True
+                    ).first()
+
                 if existing_att:
                     return Response({
-                        'error': f"{student_candidate.get_full_name()} is already marked {existing_att.status.upper()} for today.",
+                        'error': f"{student_candidate.get_full_name()} is already marked {existing_att.status.upper()} for this session.",
                         'student': {
                             'id': str(student_candidate.id),
                             'name': student_candidate.get_full_name(),
@@ -849,8 +857,8 @@ class AttendanceScanView(APIView):
             if user.role != 'student':
                 return Response({'error': 'This QR code is for students only.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            if ApiAttendance.objects.filter(user=user, date=today).exists():
-                return Response({'error': 'Attendance already recorded for today.'}, status=status.HTTP_400_BAD_REQUEST)
+            if ApiAttendance.objects.filter(user=user, session=session).exists():
+                return Response({'error': f"{user.get_full_name()} is already marked PRESENT for this session."}, status=status.HTTP_400_BAD_REQUEST)
 
             attendance = ApiAttendance.objects.create(
                 user          = user,

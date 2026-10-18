@@ -1014,7 +1014,7 @@ export const TutorQRGenerator: React.FC = () => {
 
   // Tutor camera scanner state for scanning student permanent QR codes
   const [isTutorScanning, setIsTutorScanning] = useState<boolean>(false);
-  const [tutorScanMessage, setTutorScanMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [tutorScanMessage, setTutorScanMessage] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
   const [tutorCameraError, setTutorCameraError] = useState<string | null>(null);
   const [isProcessingStudentScan, setIsProcessingStudentScan] = useState<boolean>(false);
   const [manualStudentInput, setManualStudentInput] = useState<string>('');
@@ -1079,9 +1079,12 @@ export const TutorQRGenerator: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Scan error:', err);
+      const rawError = err.response?.data?.error || 'Failed to record student attendance. Verify student QR pass.';
+      const isAlreadyMarked = /already marked/i.test(rawError);
+      const message = rawError.replace(/for today\./i, 'for this session.');
       setTutorScanMessage({
-        type: 'error',
-        message: err.response?.data?.error || 'Failed to record student attendance. Verify student QR pass.',
+        type: isAlreadyMarked ? 'warning' : 'error',
+        message,
       });
     } finally {
       setTimeout(() => {
@@ -1695,21 +1698,30 @@ export const TutorQRGenerator: React.FC = () => {
                     className={`mb-3 flex items-start justify-between gap-2.5 w-full rounded-md p-3 text-xs font-medium animate-fade-in ${
                       tutorScanMessage.type === 'success'
                         ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50'
-                        : 'bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50'
+                        : tutorScanMessage.type === 'warning'
+                          ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-900 dark:text-orange-200 border border-orange-300 dark:border-orange-800/60 shadow-xs'
+                          : 'bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50'
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       {tutorScanMessage.type === 'success' ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      ) : tutorScanMessage.type === 'warning' ? (
+                        <AlertCircle className="w-4 h-4 text-orange-600 dark:text-orange-400 shrink-0" />
                       ) : (
-                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
                       )}
                       <span>{tutorScanMessage.message}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setTutorScanMessage(null)}
-                      className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 cursor-pointer"
+                      className={`cursor-pointer transition p-0.5 rounded ${
+                        tutorScanMessage.type === 'warning'
+                          ? 'text-orange-500 hover:text-orange-700 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/40'
+                          : 'text-gray-400 hover:text-gray-600 dark:hover:text-slate-300'
+                      }`}
+                      aria-label="Dismiss scan message"
                     >
                       <X className="w-4 h-4" />
                     </button>
