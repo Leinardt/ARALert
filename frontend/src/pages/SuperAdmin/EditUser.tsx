@@ -91,44 +91,36 @@ const editUserSchema = z.object({
         path: ['lrn'],
       });
     }
-    if (!data.parent_guardian_name || !data.parent_guardian_name.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Parent / Guardian Name is required.',
-        path: ['parent_guardian_name'],
-      });
-    } else if (data.parent_guardian_name.length > 200) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Parent / Guardian Name must not exceed 200 characters.',
-        path: ['parent_guardian_name'],
-      });
-    } else if (!NAME_REGEX.test(data.parent_guardian_name)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Parent / Guardian Name can only contain letters, spaces, hyphens, and periods.',
-        path: ['parent_guardian_name'],
-      });
-    } else if (DANGEROUS_INJECTION_PATTERN.test(data.parent_guardian_name)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Invalid characters detected in Parent / Guardian Name.',
-        path: ['parent_guardian_name'],
-      });
+    if (data.parent_guardian_name && data.parent_guardian_name.trim()) {
+      if (data.parent_guardian_name.length > 200) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Parent / Guardian Name must not exceed 200 characters.',
+          path: ['parent_guardian_name'],
+        });
+      } else if (!NAME_REGEX.test(data.parent_guardian_name)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Parent / Guardian Name can only contain letters, spaces, hyphens, and periods.',
+          path: ['parent_guardian_name'],
+        });
+      } else if (DANGEROUS_INJECTION_PATTERN.test(data.parent_guardian_name)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Invalid characters detected in Parent / Guardian Name.',
+          path: ['parent_guardian_name'],
+        });
+      }
     }
 
-    if (!data.contact_number || !data.contact_number.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Contact Number is required.',
-        path: ['contact_number'],
-      });
-    } else if (!PHONE_REGEX.test(data.contact_number.trim())) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Contact Number must be exactly 11 digits (e.g. 09123456789).',
-        path: ['contact_number'],
-      });
+    if (data.contact_number && data.contact_number.trim()) {
+      if (!PHONE_REGEX.test(data.contact_number.trim())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Contact Number must be exactly 11 digits (e.g. 09123456789).',
+          path: ['contact_number'],
+        });
+      }
     }
   } else {
     if (!data.email || !data.email.trim() || !z.string().email().safeParse(data.email).success) {
@@ -837,7 +829,7 @@ export const EditUser: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="parent_guardian_name" className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                      Parent / Guardian Name <span className="text-red-500">*</span>
+                      Parent / Guardian Name <span className="text-gray-400 font-normal">(optional)</span>
                     </label>
                     <input
                       id="parent_guardian_name"
@@ -860,7 +852,7 @@ export const EditUser: React.FC = () => {
 
                   <div>
                     <label htmlFor="contact_number" className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                      Contact Number <span className="text-red-500">*</span>
+                      Contact Number <span className="text-gray-400 font-normal">(optional)</span>
                     </label>
                     <input
                       id="contact_number"

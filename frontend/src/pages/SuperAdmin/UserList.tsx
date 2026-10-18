@@ -530,12 +530,12 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
   };
 
   const getSearchPlaceholder = () => {
-    if (activeTab === 'student') return 'Search Student Name, LRN...';
-    if (activeTab === 'tutor') return 'Search Tutor Name, Email...';
-    if (activeTab === 'principal') return 'Search Principal Name, Email...';
-    if (activeTab === 'admin') return 'Search Admin Name, Email...';
-    if (activeTab === 'superadmin') return 'Search Super Admin Name, Email...';
-    return 'Search Faculty Name, Email...';
+    if (activeTab === 'student') return 'Search student, LRN...';
+    if (activeTab === 'tutor') return 'Search tutor, email...';
+    if (activeTab === 'principal') return 'Search principal, email...';
+    if (activeTab === 'admin') return 'Search admin, email...';
+    if (activeTab === 'superadmin') return 'Search super admin, email...';
+    return 'Search faculty, email...';
   };
 
   const getGradeAndSection = (gradeLevel?: string | null, fallbackSection?: string | null) => {
@@ -644,10 +644,10 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
       {/* ── Main Integrated Directory Table Card ──────────────────────── */}
       <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative overflow-hidden">
         {/* Table Toolbar (Section Title + Action Buttons & Filters) */}
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 px-3 sm:px-4 py-2.5 border-b border-gray-100 dark:border-[#1A1A1A] overflow-x-auto no-scrollbar">
           {/* Left: Title & Counter */}
-          <div className="min-w-0">
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase tracking-wide">
+          <div className="shrink-0 flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase tracking-wide whitespace-nowrap">
               {activeTab === 'student'
                 ? 'STUDENTS DIRECTORY'
                 : activeTab === 'tutor'
@@ -662,16 +662,16 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                           ? 'SUPER ADMINS DIRECTORY'
                           : 'USER DIRECTORY'}
             </h3>
-            <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
-              {totalCount} Registered Account{totalCount !== 1 ? 's' : ''}
-            </p>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-[#1A1A1A] text-slate-600 dark:text-slate-300 whitespace-nowrap">
+              {totalCount} {totalCount === 1 ? 'user' : 'users'}
+            </span>
           </div>
 
           {/* Right: Actions & Filter Controls */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full xl:w-auto">
+          <div className="flex flex-wrap lg:flex-nowrap items-center gap-1.5 w-full lg:w-auto shrink-0">
             {/* Tutor Assignment Filter (Student Tab) */}
             {activeTab === 'student' && (
-              <div className="relative inline-flex items-center">
+              <div className="relative inline-flex items-center shrink-0">
                 <select
                   value={assignedTutorFilter}
                   onChange={(e) => {
@@ -679,9 +679,9 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                     setPage(1);
                   }}
                   aria-label="Filter by Assigned Tutor"
-                  className="h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                  className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
                 >
-                  <option value="">ALL TUTORS</option>
+                  <option value="">All Tutors</option>
                   <option value="none">TBA (Unassigned)</option>
                   {tutors.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -694,7 +694,7 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
 
             {/* ARAL Level Filter (Student Tab) */}
             {activeTab === 'student' && (
-              <div className="relative inline-flex items-center">
+              <div className="relative inline-flex items-center shrink-0">
                 <select
                   value={aralLevelFilter}
                   onChange={(e) => {
@@ -702,9 +702,9 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                     setPage(1);
                   }}
                   aria-label="Filter by ARAL Level"
-                  className="h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                  className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
                 >
-                  <option value="">All ARAL Levels</option>
+                  <option value="">All Levels</option>
                   <option value="basic">Basic</option>
                   <option value="plus">Plus</option>
                   <option value="graduated">Graduated</option>
@@ -714,7 +714,7 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
 
             {/* ARAL Level Filter (Tutor Tab) */}
             {activeTab === 'tutor' && (
-              <div className="relative inline-flex items-center">
+              <div className="relative inline-flex items-center shrink-0">
                 <select
                   value={aralLevelFilter}
                   onChange={(e) => {
@@ -722,9 +722,9 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                     setPage(1);
                   }}
                   aria-label="Filter by ARAL Level"
-                  className="h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                  className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
                 >
-                  <option value="">All ARAL Levels</option>
+                  <option value="">All Levels</option>
                   <option value="basic">Basic</option>
                   <option value="plus">Plus</option>
                 </select>
@@ -733,7 +733,7 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
 
             {/* Subject Filter (Student & Tutor Tabs) */}
             {(activeTab === 'student' || activeTab === 'tutor') && (
-              <div className="relative inline-flex items-center">
+              <div className="relative inline-flex items-center shrink-0">
                 <select
                   value={subjectFilter}
                   onChange={(e) => {
@@ -741,7 +741,7 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                     setPage(1);
                   }}
                   aria-label="Filter by Subject"
-                  className="h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                  className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
                 >
                   <option value="">All Subjects</option>
                   <option value="Filipino">Filipino</option>
@@ -754,7 +754,7 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
 
             {/* Grade Level Filter (Student & Tutor Tabs) */}
             {(activeTab === 'student' || activeTab === 'tutor') && (
-              <div className="relative inline-flex items-center">
+              <div className="relative inline-flex items-center shrink-0">
                 <select
                   value={gradeLevelFilter}
                   onChange={(e) => {
@@ -762,9 +762,9 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                     setPage(1);
                   }}
                   aria-label="Filter by Grade Level"
-                  className="h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                  className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
                 >
-                  <option value="">All Grade Levels</option>
+                  <option value="">All Grades</option>
                   <option value="7">Grade 7</option>
                   <option value="8">Grade 8</option>
                   <option value="9">Grade 9</option>
@@ -777,7 +777,7 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
 
             {/* Section Filter (Student & Tutor Tabs) */}
             {(activeTab === 'student' || activeTab === 'tutor') && (
-              <div className="relative inline-flex items-center">
+              <div className="relative inline-flex items-center shrink-0">
                 <select
                   value={sectionFilter}
                   onChange={(e) => {
@@ -785,7 +785,7 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
                     setPage(1);
                   }}
                   aria-label="Filter by Section"
-                  className="h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer uppercase"
+                  className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer uppercase"
                 >
                   <option value="">All Sections</option>
                   {knownSections.map((sec) => (
@@ -798,15 +798,15 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
             )}
 
             {/* Search Input Bar */}
-            <form onSubmit={handleSearchSubmit} className="relative flex w-full sm:w-auto flex-1 sm:flex-initial min-w-0 sm:min-w-56 items-center">
-              <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-gray-400" />
+            <form onSubmit={handleSearchSubmit} className="relative flex w-full sm:w-auto flex-1 sm:flex-initial min-w-0 items-center shrink-0">
+              <Search className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-gray-400" />
               <input
                 type="search"
                 placeholder={getSearchPlaceholder()}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Search users"
-                className="h-9 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] pl-9 pr-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] focus:ring-2 focus:ring-[var(--brand)]/10"
+                className="h-8 w-full sm:w-36 lg:w-44 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] pl-8 pr-2.5 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] focus:ring-2 focus:ring-[var(--brand)]/10"
               />
             </form>
 
@@ -815,17 +815,17 @@ const ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph';
               <button
                 type="button"
                 onClick={() => setIsBulkModalOpen(true)}
-                className="inline-flex items-center justify-center bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3.5 py-2 rounded-md text-xs font-bold transition-all cursor-pointer shrink-0 w-full sm:w-auto shadow-2xs"
+                className="inline-flex items-center justify-center bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer shrink-0 w-full sm:w-auto shadow-2xs h-8 whitespace-nowrap"
               >
-                <Users className="w-3.5 h-3.5 mr-1.5" />
-                Assign Student/s to a Tutor ({selectedIds.length})
+                <Users className="w-3.5 h-3.5 mr-1" />
+                Assign to Tutor ({selectedIds.length})
               </button>
             ) : (
               <Link
                 to={getCreateLink()}
-                className="inline-flex items-center justify-center bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3.5 py-2 rounded-md text-xs font-bold transition-all cursor-pointer shrink-0 w-full sm:w-auto"
+                className="inline-flex items-center justify-center bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer shrink-0 w-full sm:w-auto h-8 whitespace-nowrap"
               >
-                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                <Plus className="w-3.5 h-3.5 mr-1" />
                 {getCreateLabel()}
               </Link>
             )}

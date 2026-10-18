@@ -84,20 +84,6 @@ const createUserSchema = z.object({
         path: ['lrn'],
       });
     }
-    if (!data.parent_guardian_name || !data.parent_guardian_name.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Parent / Guardian Name is required.',
-        path: ['parent_guardian_name'],
-      });
-    }
-    if (!data.contact_number || !data.contact_number.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Contact Number is required.',
-        path: ['contact_number'],
-      });
-    }
   } else {
     if (!data.email || !z.string().email().safeParse(data.email).success) {
       ctx.addIssue({
@@ -678,7 +664,7 @@ export const CreateUser: React.FC = () => {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label htmlFor="parent_guardian_name" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                      Parent / Guardian Name <span className="text-red-500">*</span>
+                      Parent / Guardian Name <span className="text-gray-400 font-normal">(optional)</span>
                     </label>
                     <input
                       id="parent_guardian_name"
@@ -701,7 +687,7 @@ export const CreateUser: React.FC = () => {
 
                   <div>
                     <label htmlFor="contact_number" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                      Contact Number <span className="text-red-500">*</span>
+                      Contact Number <span className="text-gray-400 font-normal">(optional)</span>
                     </label>
                     <input
                       id="contact_number"
