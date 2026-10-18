@@ -7,7 +7,6 @@ import {
   Calendar,
   UserCheck,
   Scissors,
-  Printer,
   Search,
 } from 'lucide-react';
 import type { Attendance, User } from '../types';
@@ -696,7 +695,7 @@ export const ExportDtrModal: React.FC<ExportDtrModalProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200 dark:border-[#1A1A1A] px-5 py-2.5 sm:py-3 flex-shrink-0 bg-white dark:bg-[#0A0A0A] z-20">
             <div>
               <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
-                EXPORT DAILY TIME RECORD (CS FORM 48)
+                EXPORT DAILY TIME RECORD
               </h3>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -1087,15 +1086,7 @@ export const ExportDtrModal: React.FC<ExportDtrModalProps> = ({
             </div>
           </div>
         ) : (
-          <div className="flex-shrink-0 bg-white dark:bg-[#0A0A0A] border-t border-slate-200 dark:border-[#1A1A1A] px-5 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
-            <button
-              type="button"
-              onClick={handleDirectPrint}
-              className="w-full sm:w-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer inline-flex items-center justify-center gap-1.5"
-            >
-              <Printer className="w-3.5 h-3.5 text-slate-500" />
-              Print Sheet
-            </button>
+          <div className="flex-shrink-0 bg-white dark:bg-[#0A0A0A] border-t border-slate-200 dark:border-[#1A1A1A] px-5 py-2.5 flex flex-col sm:flex-row items-center justify-end gap-2 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
               <button
                 type="button"
