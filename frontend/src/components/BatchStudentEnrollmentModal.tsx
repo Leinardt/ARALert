@@ -754,12 +754,12 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>{readyCount} Ready to Enroll</span>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-100/90 dark:bg-zinc-800/80 font-semibold text-orange-600 dark:text-orange-400 shadow-2xs">
-                  <XCircle className="w-4 h-4 text-orange-500 dark:text-orange-400" />
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-100/90 dark:bg-zinc-800/80 font-semibold text-red-600 dark:text-red-400 shadow-2xs">
+                  <XCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
                   <span>{needLrnCount} Need LRN</span>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-100/90 dark:bg-zinc-800/80 font-semibold text-orange-600 dark:text-orange-400 shadow-2xs">
-                  <XCircle className="w-4 h-4 text-orange-500 dark:text-orange-400" />
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-100/90 dark:bg-zinc-800/80 font-semibold text-red-600 dark:text-red-400 shadow-2xs">
+                  <XCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
                   <span>{needAralCount} Need ARAL Level</span>
                 </div>
               </div>
@@ -891,7 +891,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                   ? 'bg-rose-50/70 dark:bg-rose-950/20'
                                   : isRowReady
                                   ? 'hover:bg-slate-50 dark:hover:bg-zinc-800/40'
-                                  : 'bg-amber-50/40 dark:bg-amber-950/10 hover:bg-amber-50/70'
+                                  : 'bg-red-50/30 dark:bg-red-950/10 hover:bg-red-50/60'
                               }`}
                             >
                               <td className="py-2 px-3 text-center text-slate-400 font-mono text-[11px] border-r border-slate-200 dark:border-zinc-800">
@@ -948,7 +948,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                     className={`w-full pl-2 pr-7 py-1 text-xs font-mono font-bold rounded border uppercase shadow-2xs focus:outline-none focus:ring-1 focus:ring-[var(--brand)] dark:bg-zinc-800 dark:text-white ${
                                       hasValidLrn
                                         ? 'border-emerald-400 bg-emerald-50/40 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300'
-                                        : 'border-amber-300 bg-white dark:border-amber-700/80'
+                                        : 'border-red-300 bg-white dark:border-red-700/80'
                                     }`}
                                   />
                                   {hasValidLrn && (
