@@ -1562,25 +1562,21 @@ export const AdminHome: React.FC = () => {
       const assignedCount = tutorStudents.length;
       const evaluatedCount = tutorStudents.filter((s) => milestoneEvaluatedStudentIds.has(String(s.id))).length;
 
-      let status: 'SUBMITTED' | 'PENDING' | 'CLOSED';
+      const isEvaluated = assignedCount > 0 && evaluatedCount >= assignedCount;
+
+      let status: 'PENDING' | 'SUBMITTED' | 'COMPLETED';
       let label: string;
       let badgeClass: string;
 
-      if (!isWindowOpen) {
-        status = 'CLOSED';
-        label = `${adminMilestone} Closed`;
-        badgeClass = 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-zinc-700';
-      } else if (assignedCount > 0 && evaluatedCount >= assignedCount) {
-        status = 'SUBMITTED';
-        label = `${adminMilestone} Submitted`;
+      if (isEvaluated) {
+        status = 'COMPLETED';
+        label = isWindowOpen ? `${adminMilestone} Submitted` : `${adminMilestone} Completed`;
         badgeClass = 'bg-emerald-50 dark:bg-emerald-950/40 text-risk-low border-emerald-200 dark:border-emerald-800/60';
       } else {
         status = 'PENDING';
         label = `${adminMilestone} Pending`;
         badgeClass = 'bg-amber-50 dark:bg-amber-950/40 text-risk-medium border-amber-200 dark:border-amber-800/60';
       }
-
-      const isEvaluated = assignedCount > 0 && evaluatedCount >= assignedCount;
 
       return {
         tutor,
@@ -1593,18 +1589,10 @@ export const AdminHome: React.FC = () => {
       };
     });
 
-    const statusOrder: Record<'PENDING' | 'SUBMITTED' | 'CLOSED', number> = {
-      PENDING: 1,
-      SUBMITTED: 2,
-      CLOSED: 3,
-    };
-
     return list.sort((a, b) => {
-      const orderA = statusOrder[a.status] ?? 99;
-      const orderB = statusOrder[b.status] ?? 99;
-      if (orderA !== orderB) {
-        return orderA - orderB;
-      }
+      // Always show pending tutors on top and completed at the bottom
+      if (!a.isEvaluated && b.isEvaluated) return -1;
+      if (a.isEvaluated && !b.isEvaluated) return 1;
       return compareNamesByLastName(a.tutor, b.tutor);
     });
   }, [tutors, students, milestoneEvaluatedStudentIds, isWindowOpen, adminMilestone]);
@@ -1625,14 +1613,14 @@ export const AdminHome: React.FC = () => {
   );
 
   const ratioBadgeClass = useMemo(() => {
-    if (!isWindowOpen) {
-      return 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-zinc-700';
-    }
     if (tutors.length > 0 && conductedCount >= tutors.length) {
       return 'bg-emerald-50 dark:bg-emerald-950/40 text-risk-low border-emerald-200 dark:border-emerald-800/60';
     }
-    return 'bg-amber-50 dark:bg-amber-950/40 text-risk-medium border-amber-200 dark:border-amber-800/60';
-  }, [isWindowOpen, tutors.length, conductedCount]);
+    if (conductedCount > 0) {
+      return 'bg-amber-50 dark:bg-amber-950/40 text-risk-medium border-amber-200 dark:border-amber-800/60';
+    }
+    return 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-zinc-700';
+  }, [tutors.length, conductedCount]);
 
   // ─── Loading Skeleton ────────────────────────────────────────────────────────
   if (isLoading) {
@@ -1869,7 +1857,7 @@ export const AdminHome: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch w-full min-w-0 max-w-full">
         {/* ── Left Column (9 cols on lg & xl: ~75% width): PNAHS ARAL PERFORMANCE TREND CHART ── */}
         <div className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3 w-full min-w-0 max-w-full">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 w-full min-w-0 max-w-full shadow-2xs">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full min-w-0 max-w-full shadow-2xs">
             {/* ── Row 1: Card Title & Period Toggles (Full width, never truncates title) ── */}
             <div className="flex items-center justify-between gap-3 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
               <div className="min-w-0">
@@ -1972,7 +1960,7 @@ export const AdminHome: React.FC = () => {
             </div>
 
             {/* Chart Canvas */}
-            <div className="relative min-h-[220px] sm:min-h-[260px] flex-1 w-full mt-3 sm:mt-4 bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-4 sm:py-3 overflow-hidden">
+            <div className="relative h-[210px] sm:h-[240px] w-full mt-3 sm:mt-4 bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-4 sm:py-3 overflow-hidden">
               {chartTrendData.length > 0 ? (
                 <InteractiveAdminPerformanceChart data={chartTrendData} trendFilter={trendFilter} />
               ) : (
@@ -2032,7 +2020,7 @@ export const AdminHome: React.FC = () => {
           </div>
 
           {/* ── Card 2: STAFF DTR ATTENDANCE RATE CHART ── */}
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 w-full min-w-0 max-w-full shadow-2xs">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full min-w-0 max-w-full shadow-2xs">
             <div className="flex items-center justify-between gap-2 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
               <div className="min-w-0 flex-1">
                 <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate">
@@ -2115,7 +2103,7 @@ export const AdminHome: React.FC = () => {
             </div>
 
             {/* Chart Canvas */}
-            <div className="relative min-h-[220px] sm:min-h-[260px] flex-1 w-full mt-3 sm:mt-4 bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-4 sm:py-3 overflow-hidden">
+            <div className="relative h-[200px] sm:h-[230px] w-full mt-3 sm:mt-4 bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-4 sm:py-3 overflow-hidden">
               {staffAttendanceTrendData.length > 0 ? (
                 <InteractiveStaffAttendanceChart data={staffAttendanceTrendData} trendFilter={staffTrendFilter} />
               ) : (
@@ -2216,8 +2204,8 @@ export const AdminHome: React.FC = () => {
         </div>
 
         {/* ── Right Column (3 cols on lg & xl: ~25% width): ASSESSMENT STATUS ── */}
-        <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3 w-full min-w-0 max-w-full">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col flex-1 h-full min-h-[420px] shadow-2xs">
+        <div className="lg:col-span-3 xl:col-span-3 flex flex-col h-full min-h-0 w-full min-w-0 max-w-full">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col h-full min-h-0 max-h-[500px] lg:max-h-none shadow-2xs overflow-hidden">
             {/* Header */}
             <div className="pb-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
               <div className="flex items-center justify-between gap-2">

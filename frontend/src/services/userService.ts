@@ -63,6 +63,23 @@ export const userService = {
     return users;
   },
 
+  checkExistingLrns: async (lrns: string[]): Promise<string[]> => {
+    if (!lrns || lrns.length === 0) return [];
+    try {
+      const response = await api.post<{ existing_lrns: string[] }>('/users/check-lrns/', { lrns });
+      return response.data.existing_lrns || [];
+    } catch (err) {
+      console.warn('Failed to call check-lrns endpoint, falling back to student list check:', err);
+      try {
+        const existingStudents = await userService.getAllUsers({ role: 'student' });
+        const set = new Set(existingStudents.map((s) => s.lrn).filter(Boolean));
+        return lrns.filter((l) => set.has(l));
+      } catch {
+        return [];
+      }
+    }
+  },
+
   getUser: async (id: string): Promise<User> => {
     const response = await api.get<User>(`/users/${id}/`);
     return response.data;

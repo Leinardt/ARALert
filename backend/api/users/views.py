@@ -299,6 +299,29 @@ class UserListCreateView(generics.ListCreateAPIView):
         )
 
 
+class CheckExistingLrnsView(APIView):
+    """
+    POST /api/users/check-lrns/
+    Checks a batch of LRNs against existing database users.
+    Returns: {"existing_lrns": ["123456789012", ...]}
+    """
+    permission_classes = [IsAdmin]
+
+    def post(self, request, *args, **kwargs):
+        lrns = request.data.get('lrns', [])
+        if not isinstance(lrns, list):
+            return Response({'error': 'lrns must be a list of strings.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        clean_lrns = [str(l).strip() for l in lrns if str(l).strip()]
+        if not clean_lrns:
+            return Response({'existing_lrns': []}, status=status.HTTP_200_OK)
+
+        existing = list(
+            User.objects.filter(lrn__in=clean_lrns, role='student').values_list('lrn', flat=True)
+        )
+        return Response({'existing_lrns': existing}, status=status.HTTP_200_OK)
+
+
 ROOT_SUPERADMIN_EMAIL = 'lro2023-4992-68567@bicol-u.edu.ph'
 PROTECTED_ROOT_SUPERADMIN_EMAILS = {
     'lro2023-4992-68567@bicol-u.edu.ph',

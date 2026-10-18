@@ -18,6 +18,7 @@ import type { User } from '../types';
 
 export interface BatchParsedStudent {
   id: string; // client-side unique id for keying
+  rowNumber: number; // original Excel row number (e.g. 5, 25)
   sheetName: string;
   grade_level_grade: string; // e.g. "GRADE 7"
   grade_level_section: string; // e.g. "HYACINTH"
@@ -103,6 +104,10 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [enrollSummary, setEnrollSummary] = useState<{ success: number; failed: number } | null>(null);
 
+  // Pre-check against existing database records
+  const [existingDbLrns, setExistingDbLrns] = useState<Set<string>>(new Set());
+  const [isCheckingDbLrns, setIsCheckingDbLrns] = useState<boolean>(false);
+
   // Attempt close: prompt confirmation if students exist
   const handleAttemptClose = () => {
     if (isSubmitting) return;
@@ -124,6 +129,8 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     setEnrollSummary(null);
     setSelectedSheet('all');
     setSearchQuery('');
+    setExistingDbLrns(new Set());
+    setIsCheckingDbLrns(false);
     onClose();
   };
 
@@ -146,6 +153,8 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     setEnrollSummary(null);
     setSelectedSheet('all');
     setSearchQuery('');
+    setExistingDbLrns(new Set());
+    setIsCheckingDbLrns(false);
     setTimeout(() => {
       fileInputRef.current?.click();
     }, 50);
@@ -397,6 +406,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
 
           parsedList.push({
             id: `student_${sheetId}_${r}_${Date.now()}_${Math.random()}`,
+            rowNumber: r,
             sheetName,
             grade_level_grade: detectedGrade,
             grade_level_section: detectedSection,
@@ -423,6 +433,22 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
         setParseError('No learner rows could be extracted from this Excel file. Please ensure the file follows the specified column format.');
       } else {
         setStudents(parsedList);
+
+        // Pre-check against existing database records immediately
+        const validLrns = Array.from(new Set(parsedList.map((s) => s.lrn.trim()).filter((l) => LRN_REGEX.test(l))));
+        if (validLrns.length > 0) {
+          setIsCheckingDbLrns(true);
+          try {
+            const foundInDb = await userService.checkExistingLrns(validLrns);
+            setExistingDbLrns(new Set(foundInDb));
+          } catch (checkErr) {
+            console.error('Failed to pre-check existing LRNs in DB:', checkErr);
+          } finally {
+            setIsCheckingDbLrns(false);
+          }
+        } else {
+          setExistingDbLrns(new Set());
+        }
       }
     } catch (err: any) {
       console.error('Failed to parse Excel file:', err);
@@ -496,6 +522,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
         const updated = { ...s, [field]: val };
         if (field === 'lrn') {
           updated.lrn = String(val).replace(/\D/g, '').slice(0, 12);
+          delete updated.errorMessage;
         } else if (field === 'grade_level_grade') {
           updated.grade_level_grade = String(val).toUpperCase();
         } else if (field === 'grade_level_section') {
@@ -511,6 +538,23 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
         return updated;
       })
     );
+
+    if (field === 'lrn') {
+      const clean = String(val).replace(/\D/g, '').slice(0, 12);
+      if (LRN_REGEX.test(clean)) {
+        userService.checkExistingLrns([clean]).then((res) => {
+          setExistingDbLrns((prev) => {
+            const next = new Set(prev);
+            if (res.includes(clean)) {
+              next.add(clean);
+            } else {
+              next.delete(clean);
+            }
+            return next;
+          });
+        }).catch((err) => console.error('Error verifying edited LRN in DB:', err));
+      }
+    }
   };
 
   // Remove row
@@ -518,17 +562,96 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     setStudents((prev) => prev.filter((s) => s.id !== id));
   };
 
+  // ── 1. Intra-File Duplicate Pre-Detection ────────────────────────────────────
+  // Map of 12-digit LRN -> array of student ID & Excel row number
+  const intraFileLrnMap = useMemo(() => {
+    const map = new Map<string, { id: string; rowNumber: number }[]>();
+    students.forEach((s) => {
+      const clean = (s.lrn || '').trim();
+      if (clean && LRN_REGEX.test(clean)) {
+        if (!map.has(clean)) {
+          map.set(clean, []);
+        }
+        map.get(clean)!.push({ id: s.id, rowNumber: s.rowNumber });
+      }
+    });
+    return map;
+  }, [students]);
+
+  // Students flagged with intra-file duplicate LRNs
+  const duplicateLrnStudents = useMemo(() => {
+    return students.filter((s) => {
+      const clean = (s.lrn || '').trim();
+      if (!clean || !LRN_REGEX.test(clean)) return false;
+      const dups = intraFileLrnMap.get(clean);
+      return dups && dups.length > 1;
+    });
+  }, [students, intraFileLrnMap]);
+
+  const duplicateLrnCount = duplicateLrnStudents.length;
+
+  // ── 2. Pre-check Against Existing Database LRNs ──────────────────────────────
+  const alreadyEnrolledStudents = useMemo(() => {
+    return students.filter((s) => {
+      const clean = (s.lrn || '').trim();
+      return clean && existingDbLrns.has(clean);
+    });
+  }, [students, existingDbLrns]);
+
+  const existingDbLrnCount = alreadyEnrolledStudents.length;
+
+  // Helper to get LRN-specific validation error for each row
+  const getRowLrnError = (student: BatchParsedStudent): string | null => {
+    if (student.errorMessage) return student.errorMessage;
+    const clean = (student.lrn || '').trim();
+    if (!clean) return null; // Missing LRN is indicated by missing state
+    if (!LRN_REGEX.test(clean)) return 'LRN must be exactly 12 digits.';
+
+    // 1. Check intra-file duplicates
+    const dups = intraFileLrnMap.get(clean);
+    if (dups && dups.length > 1) {
+      const rowList = dups.map((d) => `Row ${d.rowNumber}`).join(' & ');
+      return `Duplicate LRN detected in file (${rowList})`;
+    }
+
+    // 2. Check already enrolled in database
+    if (existingDbLrns.has(clean)) {
+      return 'Already Enrolled in System';
+    }
+
+    return null;
+  };
+
   // Counts
   const totalCount = students.length;
-  const readyCount = students.filter((s) => LRN_REGEX.test(s.lrn) && Boolean(s.aral_level)).length;
-  const needLrnCount = students.filter((s) => !LRN_REGEX.test(s.lrn)).length;
+  const needLrnCount = students.filter((s) => !LRN_REGEX.test((s.lrn || '').trim())).length;
   const needAralCount = students.filter((s) => !s.aral_level).length;
+  const readyCount = students.filter(
+    (s) => LRN_REGEX.test((s.lrn || '').trim()) && Boolean(s.aral_level) && !getRowLrnError(s)
+  ).length;
 
   // Disabled logic for ENROLL STUDENTS button:
-  const canEnroll = totalCount > 0 && needLrnCount === 0 && needAralCount === 0 && !isSubmitting;
+  const canEnroll =
+    totalCount > 0 &&
+    needLrnCount === 0 &&
+    needAralCount === 0 &&
+    duplicateLrnCount === 0 &&
+    existingDbLrnCount === 0 &&
+    !isSubmitting &&
+    !isCheckingDbLrns;
 
   const getDisabledReason = () => {
     if (totalCount === 0) return 'No students imported.';
+    if (isCheckingDbLrns) return 'Checking student LRNs against existing database records...';
+    if (duplicateLrnCount > 0 && existingDbLrnCount > 0) {
+      return `Cannot enroll: ${duplicateLrnCount} student(s) have duplicate LRNs in file, and ${existingDbLrnCount} student(s) are already enrolled in the system.`;
+    }
+    if (duplicateLrnCount > 0) {
+      return `Cannot enroll: Duplicate LRN detected in file. Please resolve or remove duplicate rows before enrolling.`;
+    }
+    if (existingDbLrnCount > 0) {
+      return `Cannot enroll: ${existingDbLrnCount} student(s) already enrolled in the system. Please remove or update already enrolled students.`;
+    }
     if (needLrnCount > 0 && needAralCount > 0) {
       return `Cannot enroll: ${needLrnCount} student(s) missing 12-digit LRN, and ${needAralCount} student(s) missing ARAL Level. All students must have complete details before enrolling.`;
     }
@@ -754,6 +877,24 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>{readyCount} Ready to Enroll</span>
                 </div>
+                {duplicateLrnCount > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 font-semibold text-rose-600 dark:text-rose-400 shadow-2xs">
+                    <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                    <span>{duplicateLrnCount} Duplicate in File</span>
+                  </div>
+                )}
+                {existingDbLrnCount > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 font-semibold text-rose-600 dark:text-rose-400 shadow-2xs">
+                    <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                    <span>{existingDbLrnCount} Already in System</span>
+                  </div>
+                )}
+                {isCheckingDbLrns && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-sky-300 dark:border-sky-900/60 bg-sky-50 dark:bg-sky-950/40 font-semibold text-sky-700 dark:text-sky-300 shadow-2xs animate-pulse">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Checking Database Records...</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-100/90 dark:bg-zinc-800/80 font-semibold text-red-600 dark:text-red-400 shadow-2xs">
                   <XCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
                   <span>{needLrnCount} Need LRN</span>
@@ -879,15 +1020,17 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                         </tr>
                       ) : (
                         filteredStudents.map((student, idx) => {
-                          const hasValidLrn = LRN_REGEX.test(student.lrn);
+                          const lrnError = getRowLrnError(student);
+                          const hasValidLrn = LRN_REGEX.test((student.lrn || '').trim()) && !lrnError;
                           const hasValidAral = Boolean(student.aral_level);
                           const isRowReady = hasValidLrn && hasValidAral;
+                          const isErrorRow = Boolean(lrnError) || student.status === 'error';
 
                           return (
                             <tr
                               key={student.id}
                               className={`divide-x divide-slate-200 dark:divide-zinc-800 transition-colors ${
-                                student.status === 'error'
+                                isErrorRow
                                   ? 'bg-rose-50/70 dark:bg-rose-950/20'
                                   : isRowReady
                                   ? 'hover:bg-slate-50 dark:hover:bg-zinc-800/40'
@@ -895,7 +1038,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                               }`}
                             >
                               <td className="py-2 px-3 text-center text-slate-400 font-mono text-[11px] border-r border-slate-200 dark:border-zinc-800">
-                                {idx + 1}
+                                {student.rowNumber ? student.rowNumber : idx + 1}
                               </td>
 
                               {/* Last Name */}
@@ -946,18 +1089,22 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                     placeholder="12-digit LRN"
                                     onChange={(e) => updateStudentField(student.id, 'lrn', e.target.value)}
                                     className={`w-full pl-2 pr-7 py-1 text-xs font-mono font-bold rounded border uppercase shadow-2xs focus:outline-none focus:ring-1 focus:ring-[var(--brand)] dark:bg-zinc-800 dark:text-white ${
-                                      hasValidLrn
+                                      lrnError
+                                        ? 'border-rose-400 bg-rose-50/60 text-rose-900 dark:border-rose-700 dark:bg-rose-950/30 dark:text-rose-200'
+                                        : hasValidLrn
                                         ? 'border-emerald-400 bg-emerald-50/40 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300'
                                         : 'border-red-300 bg-white dark:border-red-700/80'
                                     }`}
                                   />
-                                  {hasValidLrn && (
+                                  {lrnError ? (
+                                    <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 absolute right-2 top-2" />
+                                  ) : hasValidLrn ? (
                                     <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 absolute right-2 top-2" />
-                                  )}
+                                  ) : null}
                                 </div>
-                                {student.errorMessage && (
-                                  <p className="text-[10px] text-rose-600 dark:text-rose-400 mt-0.5">
-                                    {student.errorMessage}
+                                {lrnError && (
+                                  <p className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1">
+                                    <span>{lrnError}</span>
                                   </p>
                                 )}
                               </td>
@@ -1097,9 +1244,17 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
         <div className="px-6 py-4 border-t border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/50 flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="text-xs text-slate-500 dark:text-zinc-400">
             {students.length > 0 && (
-              <span>
-                Ready: <strong className="text-[var(--brand)]">{readyCount}</strong> of {totalCount} students
-              </span>
+              <div className="flex flex-wrap items-center gap-3">
+                <span>
+                  Ready: <strong className="text-[var(--brand)]">{readyCount}</strong> of {totalCount} students
+                </span>
+                {!canEnroll && getDisabledReason() && (
+                  <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{getDisabledReason()}</span>
+                  </span>
+                )}
+              </div>
             )}
           </div>
 

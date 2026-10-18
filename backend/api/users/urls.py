@@ -7,6 +7,7 @@ from django.urls import path
 from .views import (
     AuditLogListView,
     BulkAssignTutorView,
+    CheckExistingLrnsView,
     StudentEditRequestListCreateView,
     StudentEditRequestReviewView,
     TutorListView,
@@ -19,6 +20,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path('check-lrns/', CheckExistingLrnsView.as_view(), name='check-lrns'),
     path('stats/', UserStatsView.as_view(), name='user-stats'),
     path('tutors/', TutorListView.as_view(), name='tutor-list'),
     path('bulk-assign-tutor/', BulkAssignTutorView.as_view(), name='bulk-assign-tutor'),
