@@ -77,8 +77,9 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
   const [selectedSheet, setSelectedSheet] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Confirmation modals
+  // Confirmation dialogs
   const [showCloseConfirm, setShowCloseConfirm] = useState<boolean>(false);
+  const [showChangeFileConfirm, setShowChangeFileConfirm] = useState<boolean>(false);
   const [showEnrollConfirm, setShowEnrollConfirm] = useState<boolean>(false);
 
   // Submission state
@@ -99,6 +100,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
 
   const executeClose = () => {
     setShowCloseConfirm(false);
+    setShowChangeFileConfirm(false);
     setShowEnrollConfirm(false);
     setStudents([]);
     setFileName('');
@@ -108,6 +110,30 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     setSelectedSheet('all');
     setSearchQuery('');
     onClose();
+  };
+
+  // Attempt change file: prompt confirmation if students exist
+  const handleAttemptChangeFile = () => {
+    if (isSubmitting) return;
+    if (students.length > 0) {
+      setShowChangeFileConfirm(true);
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const executeChangeFile = () => {
+    setShowChangeFileConfirm(false);
+    setStudents([]);
+    setFileName('');
+    setParseError(null);
+    setGlobalError(null);
+    setEnrollSummary(null);
+    setSelectedSheet('all');
+    setSearchQuery('');
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 50);
   };
 
   // Helper to match tutor name from Excel string to active system tutors
@@ -359,7 +385,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
             middle_name,
             last_name,
             lrn: explicitLrn || '',
-            aral_level: '', // LRN and ARAL level not supported in template, manual input required
+            aral_level: '', // LRN and ARAL level not in template, manual input required
             subject: cleanSubject,
             assigned_tutor_id: detectedTutor ? detectedTutor.id : null,
             assigned_tutor_name: detectedTutor ? detectedTutor.full_name : detectedTutorName || 'To Be Assigned',
@@ -425,7 +451,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     return list;
   }, [students, selectedSheet, searchQuery]);
 
-  // Bulk actions: Set visible to Basic or Plus (uncolored buttons)
+  // Bulk actions: Set visible to Basic or Plus (System Blue buttons)
   const handleSetAllAralLevel = (level: 'basic' | 'plus') => {
     setStudents((prev) =>
       prev.map((s) => {
@@ -473,7 +499,6 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
   const needAralCount = students.filter((s) => !s.aral_level).length;
 
   // Disabled logic for ENROLL STUDENTS button:
-  // Must be disabled when there are still students needing LRN or ARAL level
   const canEnroll = totalCount > 0 && needLrnCount === 0 && needAralCount === 0 && !isSubmitting;
 
   const getDisabledReason = () => {
@@ -580,6 +605,16 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       <div className="bg-white dark:bg-[#0f1117] border border-slate-200 dark:border-zinc-800 rounded-2xl w-[98vw] max-w-[1550px] max-h-[95vh] flex flex-col shadow-2xl overflow-hidden animate-scale-up">
+        {/* Hidden Global File Input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          onChange={handleFileInputChange}
+          className="hidden"
+          id="excel-file-hidden-input"
+        />
+
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between shrink-0 bg-slate-50/70 dark:bg-zinc-900/50">
           <div>
@@ -594,7 +629,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
               )}
             </div>
             {students.length > 0 && (
-              <p className="text-xs font-semibold text-orange-500 dark:text-orange-400 mt-0.5">
+              <p className="text-xs font-medium text-slate-500 dark:text-zinc-400 mt-0.5">
                 Please always double check all the details
               </p>
             )}
@@ -602,22 +637,13 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
 
           <div className="flex items-center gap-2">
             {students.length > 0 && (
-              <>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileInputChange}
-                  className="hidden"
-                  id="excel-reupload-input"
-                />
-                <label
-                  htmlFor="excel-reupload-input"
-                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
-                >
-                  Change Excel File
-                </label>
-              </>
+              <button
+                type="button"
+                onClick={handleAttemptChangeFile}
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+              >
+                Change Excel File
+              </button>
             )}
             <button
               type="button"
@@ -635,16 +661,8 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
           {/* File Upload Dropzone (Initial State) */}
           {students.length === 0 && (
-            <div className="border-2 border-dashed border-slate-300 dark:border-zinc-700 rounded-2xl p-8 sm:p-12 text-center bg-slate-50/50 dark:bg-zinc-900/20 hover:border-emerald-500/50 dark:hover:border-emerald-500/50 transition-colors">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileInputChange}
-                className="hidden"
-                id="excel-file-input"
-              />
-              <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center mb-4 shadow-xs">
+            <div className="border-2 border-dashed border-slate-300 dark:border-zinc-700 rounded-2xl p-8 sm:p-12 text-center bg-slate-50/50 dark:bg-zinc-900/20 hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-colors">
+              <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 mx-auto flex items-center justify-center mb-4 shadow-xs">
                 {isParsing ? <Loader2 className="w-7 h-7 animate-spin" /> : <Upload className="w-7 h-7" />}
               </div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white uppercase tracking-tight">
@@ -659,14 +677,14 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                 <div className="space-y-1.5 text-[11px] text-slate-600 dark:text-zinc-400">
                   <p>
                     <strong className="text-slate-800 dark:text-slate-200">Table Column Headers:</strong> Each class table must have columns named:{' '}
-                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">No.</code>,{' '}
-                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">Name of Learner</code> (LASTNAME, FIRSTNAME M.I.),{' '}
-                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">BOSY</code>,{' '}
-                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">MOSY</code>,{' '}
-                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">EOSY</code>,{' '}
-                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">Subject Focus</code>,{' '}
-                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">Parent/Guardian</code>,{' '}
-                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">Contact No.</code>
+                    <code className="text-blue-700 dark:text-blue-400 font-mono font-bold">No.</code>,{' '}
+                    <code className="text-blue-700 dark:text-blue-400 font-mono font-bold">Name of Learner</code> (LASTNAME, FIRSTNAME M.I.),{' '}
+                    <code className="text-blue-700 dark:text-blue-400 font-mono font-bold">BOSY</code>,{' '}
+                    <code className="text-blue-700 dark:text-blue-400 font-mono font-bold">MOSY</code>,{' '}
+                    <code className="text-blue-700 dark:text-blue-400 font-mono font-bold">EOSY</code>,{' '}
+                    <code className="text-blue-700 dark:text-blue-400 font-mono font-bold">Subject Focus</code>,{' '}
+                    <code className="text-blue-700 dark:text-blue-400 font-mono font-bold">Parent/Guardian</code>,{' '}
+                    <code className="text-blue-700 dark:text-blue-400 font-mono font-bold">Contact No.</code>
                   </p>
                   <p>
                     <strong className="text-slate-800 dark:text-slate-200">Top Header Format:</strong> At the top of each sheet/table, specify Grade Level &amp; Section (e.g.{' '}
@@ -679,13 +697,14 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                 </div>
               </div>
 
-              <label
-                htmlFor="excel-file-input"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
               >
                 <FileSpreadsheet className="w-4 h-4" />
                 Select Excel File (.xlsx)
-              </label>
+              </button>
 
               {parseError && (
                 <div className="mt-5 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-200 max-w-lg mx-auto flex items-center gap-2 text-left">
@@ -699,7 +718,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           {/* Parsed Students View */}
           {students.length > 0 && (
             <div className="space-y-3.5">
-              {/* 1. Stats Line (No Container Box, Black Total icon, System Check & System Cross) */}
+              {/* 1. Stats Line (Black Total icon, System Check, Orange Need LRN & Need ARAL Level) */}
               <div className="flex flex-wrap items-center gap-6 text-xs px-1">
                 <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white">
                   <Users className="w-4 h-4 text-black dark:text-white" />
@@ -709,30 +728,30 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>{readyCount} Ready to Enroll</span>
                 </div>
-                <div className="flex items-center gap-1.5 font-semibold text-rose-600 dark:text-rose-400">
-                  <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                <div className="flex items-center gap-1.5 font-semibold text-orange-600 dark:text-orange-400">
+                  <XCircle className="w-4 h-4 text-orange-500 dark:text-orange-400" />
                   <span>{needLrnCount} Need LRN</span>
                 </div>
-                <div className="flex items-center gap-1.5 font-semibold text-rose-600 dark:text-rose-400">
-                  <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                <div className="flex items-center gap-1.5 font-semibold text-orange-600 dark:text-orange-400">
+                  <XCircle className="w-4 h-4 text-orange-500 dark:text-orange-400" />
                   <span>{needAralCount} Need ARAL Level</span>
                 </div>
               </div>
 
-              {/* 2. Bulk Actions Row (Above Class tabs, no "Bulk Actions" word, uncolored buttons) */}
+              {/* 2. Bulk Actions Row (Above Class tabs, System Blue Buttons) */}
               <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => handleSetAllAralLevel('basic')}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 transition cursor-pointer shadow-2xs"
+                    className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition-colors cursor-pointer"
                   >
                     SET ALL TO ARAL LEVEL: BASIC
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSetAllAralLevel('plus')}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 transition cursor-pointer shadow-2xs"
+                    className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition-colors cursor-pointer"
                   >
                     SET ALL TO ARAL LEVEL: PLUS
                   </button>
@@ -746,19 +765,19 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search name or section..."
-                    className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
-              {/* 3. Class Tabs Row (Directly above table) */}
+              {/* 3. Class Tabs Row (System Blue for Active Tab) */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-slate-200 dark:border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setSelectedSheet('all')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 cursor-pointer ${
                     selectedSheet === 'all'
-                      ? 'bg-emerald-600 text-white shadow-xs'
+                      ? 'bg-blue-600 text-white shadow-xs'
                       : 'bg-slate-100 dark:bg-zinc-800/80 text-slate-600 dark:text-slate-400 hover:text-slate-900'
                   }`}
                 >
@@ -771,7 +790,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                     onClick={() => setSelectedSheet(name)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 cursor-pointer ${
                       selectedSheet === name
-                        ? 'bg-emerald-600 text-white shadow-xs'
+                        ? 'bg-blue-600 text-white shadow-xs'
                         : 'bg-slate-100 dark:bg-zinc-800/80 text-slate-600 dark:text-slate-400 hover:text-slate-900'
                     }`}
                   >
@@ -789,9 +808,9 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
               )}
 
               {enrollSummary && (
-                <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between">
+                <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 text-xs text-blue-800 dark:text-blue-200 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
                     <span>
                       Successfully enrolled <strong>{enrollSummary.success}</strong> students!
                       {enrollSummary.failed > 0 && ` (${enrollSummary.failed} failed due to errors)`}
@@ -858,7 +877,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                   type="text"
                                   value={student.last_name}
                                   onChange={(e) => updateStudentField(student.id, 'last_name', e.target.value.toUpperCase())}
-                                  className="w-full px-2 py-1 rounded border border-transparent hover:border-slate-300 dark:hover:border-zinc-700 focus:border-emerald-500 bg-transparent uppercase text-xs"
+                                  className="w-full px-2 py-1 rounded border border-transparent hover:border-slate-300 dark:hover:border-zinc-700 focus:border-blue-500 bg-transparent uppercase text-xs"
                                 />
                               </td>
 
@@ -868,7 +887,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                   type="text"
                                   value={student.first_name}
                                   onChange={(e) => updateStudentField(student.id, 'first_name', e.target.value.toUpperCase())}
-                                  className="w-full px-2 py-1 rounded border border-transparent hover:border-slate-300 dark:hover:border-zinc-700 focus:border-emerald-500 bg-transparent uppercase text-xs"
+                                  className="w-full px-2 py-1 rounded border border-transparent hover:border-slate-300 dark:hover:border-zinc-700 focus:border-blue-500 bg-transparent uppercase text-xs"
                                 />
                               </td>
 
@@ -879,7 +898,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                   maxLength={5}
                                   value={student.middle_name}
                                   onChange={(e) => updateStudentField(student.id, 'middle_name', e.target.value.toUpperCase())}
-                                  className="w-full px-1.5 py-1 rounded border border-transparent hover:border-slate-300 dark:hover:border-zinc-700 focus:border-emerald-500 bg-transparent uppercase text-xs text-center"
+                                  className="w-full px-1.5 py-1 rounded border border-transparent hover:border-slate-300 dark:hover:border-zinc-700 focus:border-blue-500 bg-transparent uppercase text-xs text-center"
                                 />
                               </td>
 
@@ -893,7 +912,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                     value={student.lrn}
                                     placeholder="12-digit LRN"
                                     onChange={(e) => updateStudentField(student.id, 'lrn', e.target.value)}
-                                    className={`w-full pl-2 pr-7 py-1 text-xs font-mono font-bold rounded border uppercase shadow-2xs focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:bg-zinc-800 dark:text-white ${
+                                    className={`w-full pl-2 pr-7 py-1 text-xs font-mono font-bold rounded border uppercase shadow-2xs focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-zinc-800 dark:text-white ${
                                       hasValidLrn
                                         ? 'border-emerald-400 bg-emerald-50/40 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300'
                                         : 'border-amber-300 bg-white dark:border-amber-700/80'
@@ -910,18 +929,12 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                 )}
                               </td>
 
-                              {/* ARAL Level */}
+                              {/* ARAL Level (No special colors - clean neutral style) */}
                               <td className="py-2 px-3 border-r border-slate-200 dark:border-zinc-800">
                                 <select
                                   value={student.aral_level}
                                   onChange={(e) => updateStudentField(student.id, 'aral_level', e.target.value)}
-                                  className={`w-full px-2 py-1 text-xs font-semibold rounded border cursor-pointer dark:bg-zinc-800 dark:text-white ${
-                                    student.aral_level === 'plus'
-                                      ? 'border-purple-300 bg-purple-50/40 text-purple-900 dark:border-purple-800 dark:text-purple-300'
-                                      : student.aral_level === 'basic'
-                                      ? 'border-blue-300 bg-blue-50/40 text-blue-900 dark:border-blue-800 dark:text-blue-300'
-                                      : 'border-amber-300 bg-white text-slate-400 dark:border-amber-700'
-                                  }`}
+                                  className="w-full px-2 py-1 text-xs font-semibold rounded border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-200 cursor-pointer"
                                 >
                                   <option value="">Select Level...</option>
                                   <option value="basic">BASIC</option>
@@ -981,7 +994,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                   value={student.parent_guardian_name}
                                   onChange={(e) => updateStudentField(student.id, 'parent_guardian_name', e.target.value.toUpperCase())}
                                   placeholder="Parent Name"
-                                  className="w-full px-2 py-1 text-xs uppercase rounded border border-transparent hover:border-slate-300 dark:hover:border-zinc-700 focus:border-emerald-500 bg-transparent text-slate-700 dark:text-slate-300"
+                                  className="w-full px-2 py-1 text-xs uppercase rounded border border-transparent hover:border-slate-300 dark:hover:border-zinc-700 focus:border-blue-500 bg-transparent text-slate-700 dark:text-slate-300"
                                 />
                               </td>
 
@@ -994,7 +1007,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                   value={student.contact_number}
                                   onChange={(e) => updateStudentField(student.id, 'contact_number', e.target.value)}
                                   placeholder="09XXXXXXXXX"
-                                  className="w-full px-2 py-1 text-xs rounded border border-transparent hover:border-slate-300 dark:hover:border-zinc-700 focus:border-emerald-500 bg-transparent text-slate-700 dark:text-slate-300"
+                                  className="w-full px-2 py-1 text-xs rounded border border-transparent hover:border-slate-300 dark:hover:border-zinc-700 focus:border-blue-500 bg-transparent text-slate-700 dark:text-slate-300"
                                 />
                               </td>
 
@@ -1026,7 +1039,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           <div className="text-xs text-slate-500 dark:text-zinc-400">
             {students.length > 0 && (
               <span>
-                Ready: <strong className="text-emerald-600">{readyCount}</strong> of {totalCount} students
+                Ready: <strong className="text-blue-600 dark:text-blue-400">{readyCount}</strong> of {totalCount} students
               </span>
             )}
           </div>
@@ -1053,7 +1066,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                 title={getDisabledReason()}
                 className={`px-5 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 uppercase shadow-md ${
                   canEnroll
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
                     : 'bg-slate-200 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 cursor-not-allowed opacity-60'
                 }`}
               >
@@ -1081,7 +1094,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs animate-fade-in">
           <div className="bg-white dark:bg-[#11131a] border border-slate-200 dark:border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-scale-up">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
                 <AlertCircle className="w-5 h-5" />
               </div>
               <div className="space-y-1">
@@ -1104,7 +1117,44 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
               <button
                 type="button"
                 onClick={executeClose}
-                className="px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition cursor-pointer uppercase"
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition cursor-pointer uppercase shadow-xs"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog: Change Excel File */}
+      {showChangeFileConfirm && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white dark:bg-[#11131a] border border-slate-200 dark:border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase">
+                  Change File?
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                  Are you sure you want to change file? Any imported and inputted data will be cleared.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setShowChangeFileConfirm(false)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer uppercase"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={executeChangeFile}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition cursor-pointer uppercase shadow-xs"
               >
                 Confirm
               </button>
@@ -1118,7 +1168,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs animate-fade-in">
           <div className="bg-white dark:bg-[#11131a] border border-slate-200 dark:border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-scale-up">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
                 <CheckCircle2 className="w-5 h-5" />
               </div>
               <div className="space-y-1">
@@ -1141,7 +1191,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
               <button
                 type="button"
                 onClick={handleEnrollConfirmed}
-                className="px-5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition cursor-pointer uppercase shadow-xs"
+                className="px-5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition cursor-pointer uppercase shadow-xs"
               >
                 CONFIRM
               </button>
