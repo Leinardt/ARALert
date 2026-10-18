@@ -664,7 +664,7 @@ export const CreateUser: React.FC = () => {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label htmlFor="parent_guardian_name" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                      Parent / Guardian Name <span className="text-gray-400 font-normal">(optional)</span>
+                      Parent / Guardian Name
                     </label>
                     <input
                       id="parent_guardian_name"
@@ -687,7 +687,7 @@ export const CreateUser: React.FC = () => {
 
                   <div>
                     <label htmlFor="contact_number" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                      Contact Number <span className="text-gray-400 font-normal">(optional)</span>
+                      Contact Number
                     </label>
                     <input
                       id="contact_number"
