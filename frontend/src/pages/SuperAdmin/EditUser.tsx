@@ -422,7 +422,19 @@ export const EditUser: React.FC = () => {
       };
 
       setTimeout(() => {
-        navigate(getBackPath());
+        navigate(getBackPath(), {
+          state: {
+            toastNotification: {
+              show: true,
+              type: 'success',
+              title: `${roleTitle} Changes Saved Successfully`,
+              message:
+                data.role === 'tutor'
+                  ? 'The tutor profile and assigned cohort details have been updated successfully.'
+                  : `The ${roleTitle.toLowerCase()} profile and assignments have been updated successfully.`,
+            },
+          },
+        });
       }, 2200);
     } catch (error: any) {
       console.error('Update user error:', error);
@@ -450,18 +462,29 @@ export const EditUser: React.FC = () => {
   const handleDismissToast = () => {
     setShowSuccessToast(false);
     const role = watch('role') || userInitialData?.role;
+    let target = '/admin/students';
     if (currentUser?.is_superuser) {
-      if (role === 'student') return navigate('/superadmin/students');
-      if (role === 'tutor') return navigate('/superadmin/tutors');
-      if (role === 'faculty') return navigate('/superadmin/faculty');
-      if (role === 'principal') return navigate('/superadmin/principals');
-      if (role === 'admin') return navigate('/superadmin/admins');
-      return navigate('/superadmin/superadmins');
+      if (role === 'student') target = '/superadmin/students';
+      else if (role === 'tutor') target = '/superadmin/tutors';
+      else if (role === 'faculty') target = '/superadmin/faculty';
+      else if (role === 'principal') target = '/superadmin/principals';
+      else if (role === 'admin') target = '/superadmin/admins';
+      else target = '/superadmin/superadmins';
+    } else {
+      if (role === 'principal') target = '/admin/principals';
+      else if (role === 'faculty') target = '/admin/faculty';
+      else if (role === 'tutor') target = '/admin/tutors';
     }
-    if (role === 'principal') return navigate('/admin/principals');
-    if (role === 'faculty') return navigate('/admin/faculty');
-    if (role === 'tutor') return navigate('/admin/tutors');
-    return navigate('/admin/students');
+    navigate(target, {
+      state: {
+        toastNotification: {
+          show: true,
+          type: 'success',
+          title: successToastTitle,
+          message: successToastMessage,
+        },
+      },
+    });
   };
 
   if (isLoading) {

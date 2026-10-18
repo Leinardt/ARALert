@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { userService } from '../../services/userService';
 import type { User } from '../../types';
-import { ArrowLeft, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Plus, Trash2, CheckCircle2, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import {
   isTutorEligibleForStudent,
@@ -104,6 +104,34 @@ export const CreateUser: React.FC = () => {
   const [serverErrors, setServerErrors] = useState<Record<string, string[]> | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tutors, setTutors] = useState<User[]>([]);
+
+  // Floating Toast Notifications (Matches EditUser toast feedback system)
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [successToastTitle, setSuccessToastTitle] = useState('Account Registered Successfully');
+  const [successToastMessage, setSuccessToastMessage] = useState('User account has been registered.');
+  const [errorToast, setErrorToast] = useState<{ title: string; message: string } | null>(null);
+
+  useEffect(() => {
+    if (!errorToast) return;
+    const timer = setTimeout(() => {
+      setErrorToast(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [errorToast]);
+
+  const handleDismissToast = () => {
+    setShowSuccessToast(false);
+    navigate(getBackLink(), {
+      state: {
+        toastNotification: {
+          show: true,
+          type: 'success',
+          title: successToastTitle,
+          message: successToastMessage,
+        },
+      },
+    });
+  };
 
   const isSuperUser = Boolean(currentUser?.is_superuser);
   const searchParams = new URLSearchParams(location.search);
@@ -343,14 +371,48 @@ export const CreateUser: React.FC = () => {
           throw primaryErr;
         }
       }
-      navigate(getBackLink());
+      const roleTitle = selectedRole ? selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1) : 'User';
+      const successTitle = selectedRole === 'student' ? 'Student Enrolled Successfully' : `${roleTitle} Registered Successfully`;
+      const successMessage =
+        selectedRole === 'student'
+          ? 'The student has been enrolled and registered into the system successfully.'
+          : selectedRole === 'tutor'
+            ? 'The tutor account and cohort assignments have been created successfully.'
+            : `The ${roleTitle.toLowerCase()} account has been created successfully.`;
+
+      setSuccessToastTitle(successTitle);
+      setSuccessToastMessage(successMessage);
+      setShowSuccessToast(true);
+
+      const targetPath = getBackLink();
+      setTimeout(() => {
+        navigate(targetPath, {
+          state: {
+            toastNotification: {
+              show: true,
+              type: 'success',
+              title: successTitle,
+              message: successMessage,
+            },
+          },
+        });
+      }, 2200);
     } catch (error: any) {
       console.error(error);
       const errorsPayload = error.response?.data;
       if (errorsPayload && typeof errorsPayload === 'object') {
         setServerErrors(errorsPayload);
+        const firstKey = Object.keys(errorsPayload)[0];
+        const firstVal = Array.isArray(errorsPayload[firstKey]) ? errorsPayload[firstKey][0] : errorsPayload[firstKey];
+        setErrorToast({
+          title: 'Registration Failed',
+          message: typeof firstVal === 'string' ? firstVal : 'Please check the highlighted errors in the form.',
+        });
       } else {
-        alert('An unexpected error occurred while creating account.');
+        setErrorToast({
+          title: 'Registration Error',
+          message: error?.response?.data?.detail || 'An unexpected error occurred while creating the account.',
+        });
       }
     } finally {
       setIsSubmitting(false);
@@ -385,7 +447,19 @@ export const CreateUser: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <form
+          onSubmit={handleSubmit(onSubmit, (formErrors) => {
+            const firstKey = Object.keys(formErrors)[0];
+            const firstErr = formErrors[firstKey as keyof CreateUserFields];
+            if (firstErr?.message) {
+              setErrorToast({
+                title: 'Missing Required Information',
+                message: firstErr.message,
+              });
+            }
+          })}
+          className="space-y-5"
+        >
           {/* Hidden input to preserve role without showing redundant dropdown */}
           <input type="hidden" {...register('role')} value={selectedRole} />
 
@@ -733,6 +807,70 @@ export const CreateUser: React.FC = () => {
           </div>
         </form>
       </div>
+
+      {/* ── Saved Changes Floating Notification Toast (Matches EditUser / TutorScores Toast System) ── */}
+      {showSuccessToast && (
+        <aside
+          aria-live="polite"
+          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+        >
+          <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-white dark:bg-[#111111] dark:border-emerald-800 p-3.5 shadow-xl">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                  {successToastTitle}
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleDismissToast}
+                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  aria-label="Close notification"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                {successToastMessage}
+              </p>
+            </div>
+          </div>
+        </aside>
+      )}
+
+      {/* ── Error / Validation Floating Notification Toast (Matches EditUser / TutorScores Validation Toast) ── */}
+      {errorToast && (
+        <aside
+          aria-live="assertive"
+          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+        >
+          <div className="flex items-start gap-3 rounded-lg border border-rose-300 dark:border-rose-700/80 bg-white dark:bg-[#111111] p-3.5 shadow-xl">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800">
+              <AlertCircle className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                  {errorToast.title}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setErrorToast(null)}
+                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                  aria-label="Close error notification"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                {errorToast.message}
+              </p>
+            </div>
+          </div>
+        </aside>
+      )}
     </div>
   );
 };

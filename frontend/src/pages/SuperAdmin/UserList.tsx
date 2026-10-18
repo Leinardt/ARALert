@@ -150,6 +150,20 @@ export const UserList: React.FC = () => {
     return () => clearTimeout(timer);
   }, [toastNotification.show]);
 
+  // Catch toast notifications passed from navigation state (e.g., from CreateUser or EditUser)
+  useEffect(() => {
+    if (location.state?.toastNotification) {
+      setToastNotification({
+        show: true,
+        type: location.state.toastNotification.type || 'success',
+        title: location.state.toastNotification.title || 'Success',
+        message: location.state.toastNotification.message || '',
+      });
+      // Clear navigation state so browser refresh does not re-trigger toast
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   // Sync tab with pathname on URL change
   useEffect(() => {
     if (location.pathname.includes('/superadmins')) {
