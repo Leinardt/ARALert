@@ -642,24 +642,38 @@ class BulkAssignTutorView(APIView):
 
         # Compatibility pre-check for all selected students
         if tutor:
+            t_type = (getattr(tutor, 'tutor_type', None) or getattr(tutor, 'aral_level', 'basic') or 'basic').lower().strip()
             for s in students:
-                s_prog = s.aral_level or 'basic'
+                s_prog = (s.aral_level or 'basic').lower().strip()
                 try:
                     validate_tutor_compatibility(tutor, s_prog)
                 except DjangoValidationError as e:
+                    t_name = tutor.get_full_name() or tutor.email or 'This tutor'
+                    s_name = s.get_full_name() or s.email or 'this student'
+                    t_type_disp = t_type.capitalize()
+                    s_prog_disp = s_prog.capitalize()
+                    err_msg = f"Cannot assign {t_name} to {s_name}: this tutor teaches {t_type_disp} only while the student is in {s_prog_disp}."
                     raise RestValidationError({
-                        'tutor_id': f"Cannot assign {tutor.get_full_name()} to {s.get_full_name()}: this tutor teaches {tutor.tutor_type} only while the student is in {s_prog.capitalize()}."
+                        'detail': err_msg,
+                        'tutor_id': err_msg,
                     })
 
         # Process assignments
         for s in students:
-            assign_tutor_to_student(
-                student=s,
-                tutor=tutor,
-                assigned_by=request.user,
-                period='MOSY',
-                notes='Bulk tutor assignment',
-            )
+            try:
+                assign_tutor_to_student(
+                    student=s,
+                    tutor=tutor,
+                    assigned_by=request.user,
+                    period='MOSY',
+                    notes='Bulk tutor assignment',
+                )
+            except DjangoValidationError as e:
+                err_msg = str(getattr(e, 'message', None) or e)
+                raise RestValidationError({
+                    'detail': err_msg,
+                    'tutor_id': err_msg,
+                })
 
         updated_count = len(students)
         tutor_name = tutor.get_full_name() if tutor else 'TBA'
