@@ -77,7 +77,7 @@ def get_mosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
         assigned_count = len(assigned_students)
 
         if assigned_count == 0:
-            tutors_progress_list.append({
+            tutor_data = {
                 'tutor_id': str(tutor.id),
                 'tutor_name': tutor.get_full_name(),
                 'email': tutor.email,
@@ -85,11 +85,13 @@ def get_mosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
                 'assigned_students_count': 0,
                 'evaluated_count': 0,
                 'remaining_count': 0,
-                'status': 'Completed',  # 0 students does not block
+                'status': 'Pending',  # 0 students is Pending until students are assigned and evaluated
                 'has_no_students': True,
                 'incomplete_students': [],
-            })
-            completed_tutors_count += 1
+            }
+            tutors_progress_list.append(tutor_data)
+            pending_tutors_count += 1
+            incomplete_tutors_list.append(tutor_data)
             continue
 
         total_assigned_students += assigned_count
@@ -139,7 +141,9 @@ def get_mosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
         if rem > 0:
             incomplete_tutors_list.append(tutor_data)
 
-    is_all_complete = (students_remaining == 0 and total_assigned_students > 0)
+    is_all_complete = (
+        students_remaining == 0 and total_assigned_students > 0 and pending_tutors_count == 0 and in_progress_tutors_count == 0
+    )
 
     return {
         'school_year': school_year.school_year if school_year else '2026-2027',

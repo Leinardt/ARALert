@@ -343,9 +343,9 @@ export const AdminEvaluationHub: React.FC = () => {
         const p = mosyData?.tutors_progress?.find((tp) => tp.tutor_id === String(tutor.id));
         if (p) {
           evaluatedCount = p.evaluated_count;
-          status = p.status === 'Completed' || p.remaining_count === 0 ? 'Completed' : 'Pending';
+          status = assignedCount > 0 && (p.status === 'Completed' || p.remaining_count === 0) ? 'Completed' : 'Pending';
         } else if (assignedCount === 0) {
-          status = 'Completed';
+          status = 'Pending';
         } else {
           const evaluatedStudents = tutorStudents.filter((s) => {
             return grades.some((g) => {
@@ -354,15 +354,15 @@ export const AdminEvaluationHub: React.FC = () => {
             });
           });
           evaluatedCount = evaluatedStudents.length;
-          status = evaluatedCount >= assignedCount ? 'Completed' : 'Pending';
+          status = assignedCount > 0 && evaluatedCount >= assignedCount ? 'Completed' : 'Pending';
         }
       } else if (activeTab === 'eosy') {
         const p = eosyData?.tutors_progress?.find((tp) => tp.tutor_id === String(tutor.id));
         if (p) {
           evaluatedCount = p.evaluated_count;
-          status = p.status === 'Completed' || p.remaining_count === 0 ? 'Completed' : 'Pending';
+          status = assignedCount > 0 && (p.status === 'Completed' || p.remaining_count === 0) ? 'Completed' : 'Pending';
         } else if (assignedCount === 0) {
-          status = 'Completed';
+          status = 'Pending';
         } else {
           const evaluatedStudents = tutorStudents.filter((s) => {
             return grades.some((g) => {
@@ -371,7 +371,7 @@ export const AdminEvaluationHub: React.FC = () => {
             });
           });
           evaluatedCount = evaluatedStudents.length;
-          status = evaluatedCount >= assignedCount ? 'Completed' : 'Pending';
+          status = assignedCount > 0 && evaluatedCount >= assignedCount ? 'Completed' : 'Pending';
         }
       } else {
         // Summer
@@ -384,11 +384,11 @@ export const AdminEvaluationHub: React.FC = () => {
             return st && String(st.assigned_tutor) === String(tutor.id);
           });
           if (tutorSummerRecords.length === 0) {
-            status = 'Completed';
+            status = 'Pending';
           } else {
             const comp = tutorSummerRecords.filter((sr) => sr.summer_status === 'summer_completed' || sr.summer_result).length;
             evaluatedCount = comp;
-            status = comp >= tutorSummerRecords.length ? 'Completed' : 'Pending';
+            status = tutorSummerRecords.length > 0 && comp >= tutorSummerRecords.length ? 'Completed' : 'Pending';
           }
         }
       }
