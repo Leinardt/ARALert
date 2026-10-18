@@ -5,22 +5,16 @@ import {
   FileSpreadsheet,
   Upload,
   CheckCircle2,
+  XCircle,
   AlertCircle,
-  AlertTriangle,
   Users,
   Trash2,
-  Sparkles,
-  ClipboardList,
   Check,
   Search,
   Loader2,
-  ChevronRight,
-  ShieldCheck,
-  BookOpen,
 } from 'lucide-react';
 import { userService } from '../services/userService';
 import type { User } from '../types';
-import { formatTutorAssignmentOption } from '../utils/tutorCohortHelpers';
 
 export interface BatchParsedStudent {
   id: string; // client-side unique id for keying
@@ -53,7 +47,6 @@ interface BatchStudentEnrollmentModalProps {
 }
 
 const LRN_REGEX = /^\d{12}$/;
-const PHONE_REGEX = /^09\d{9}$/;
 
 // Known section abbreviations to clean names
 const SECTION_MAP: Record<string, string> = {
@@ -84,9 +77,9 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
   const [selectedSheet, setSelectedSheet] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Quick paste LRNs modal state
-  const [isPasteLrnOpen, setIsPasteLrnOpen] = useState<boolean>(false);
-  const [pasteLrnText, setPasteLrnText] = useState<string>('');
+  // Confirmation modals
+  const [showCloseConfirm, setShowCloseConfirm] = useState<boolean>(false);
+  const [showEnrollConfirm, setShowEnrollConfirm] = useState<boolean>(false);
 
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -94,9 +87,19 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [enrollSummary, setEnrollSummary] = useState<{ success: number; failed: number } | null>(null);
 
-  // Reset state on open/close
-  const handleClose = () => {
+  // Attempt close: prompt confirmation if students exist
+  const handleAttemptClose = () => {
     if (isSubmitting) return;
+    if (students.length > 0) {
+      setShowCloseConfirm(true);
+    } else {
+      executeClose();
+    }
+  };
+
+  const executeClose = () => {
+    setShowCloseConfirm(false);
+    setShowEnrollConfirm(false);
     setStudents([]);
     setFileName('');
     setParseError(null);
@@ -152,7 +155,6 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
 
       if (tokens.length > 1) {
         const lastToken = tokens[tokens.length - 1];
-        // If last token looks like a middle initial e.g. "A.", "A", "M.", "JR.", "III"
         if (lastToken.length <= 3 && /^[A-Za-z.]+$/.test(lastToken)) {
           return {
             last_name: lastName,
@@ -168,7 +170,6 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
       };
     }
 
-    // Fallback: If no comma was used (e.g. "FIRSTNAME LASTNAME")
     const parts = clean.split(' ').filter(Boolean);
     if (parts.length === 1) {
       return { last_name: parts[0].toUpperCase(), first_name: parts[0].toUpperCase(), middle_name: '' };
@@ -206,7 +207,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     return String(raw).trim();
   };
 
-  // Main Excel file processor (works with multi-tab workbooks)
+  // Process uploaded Excel file
   const processExcelFile = async (file: File) => {
     setIsParsing(true);
     setParseError(null);
@@ -220,15 +221,12 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
 
       const parsedList: BatchParsedStudent[] = [];
 
-      // Loop through all worksheets in the Excel file
       workbook.eachSheet((worksheet, sheetId) => {
         const sheetName = worksheet.name.trim();
 
-        // 1. Detect Grade and Section from sheet headers or tab name
         let detectedGrade = 'GRADE 7';
         let detectedSection = 'HYACINTH';
 
-        // Try extracting from sheet tab name (e.g. "7-HYA", "7-DAFF", "8-MANG", "9-ACA")
         const tabMatch = sheetName.match(/^(\d{1,2})\s*[-_–]\s*([A-Za-z0-9\s]+)$/i);
         if (tabMatch) {
           detectedGrade = `GRADE ${tabMatch[1]}`;
@@ -236,7 +234,6 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           detectedSection = SECTION_MAP[rawSec] || rawSec;
         }
 
-        // Try reading Grade & Section from top rows (cells 1 to 15)
         let detectedTutorName = '';
         let detectedTutor: User | null = null;
         let headerRowIdx = -1;
@@ -247,28 +244,24 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
             const cellVal = row.getCell(c).text?.trim() || '';
             if (!cellVal) continue;
 
-            // Search for "GRADE LEVEL: 7 - HYACINTH"
             const gradeCellMatch = cellVal.match(/GRADE(?:\s*LEVEL)?[:\s]+(?:GRADE\s*)?(\d{1,2})\s*[-–:]\s*([A-Za-z0-9\s\-]+)/i);
             if (gradeCellMatch) {
               detectedGrade = `GRADE ${gradeCellMatch[1]}`;
               detectedSection = gradeCellMatch[2].trim().toUpperCase();
             }
 
-            // Search for "TUTOR: RIZA J. GADIA"
             const tutorCellMatch = cellVal.match(/TUTOR[:\s]+([A-Za-z\s.\-ñÑ']+)/i);
             if (tutorCellMatch && !detectedTutorName) {
               detectedTutorName = tutorCellMatch[1].trim();
               detectedTutor = findMatchingTutor(detectedTutorName);
             }
 
-            // Check if this row is the column headers row
             if (/Name of Learner/i.test(cellVal) || (/Learner/i.test(cellVal) && /No/i.test(row.getCell(1).text || ''))) {
               headerRowIdx = r;
             }
           }
         }
 
-        // Also check bottom rows for "Prepared by: ... (TUTOR)" if tutor wasn't in header
         if (!detectedTutorName) {
           for (let r = 50; r <= Math.min(worksheet.rowCount, 70); r++) {
             const row = worksheet.getRow(r);
@@ -285,7 +278,6 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           }
         }
 
-        // Fallback header row index if not explicitly located
         if (headerRowIdx === -1) {
           for (let r = 1; r <= 20; r++) {
             const row = worksheet.getRow(r);
@@ -298,12 +290,8 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           }
         }
 
-        if (headerRowIdx === -1) {
-          // If no recognized table header in this sheet, skip it
-          return;
-        }
+        if (headerRowIdx === -1) return;
 
-        // Map column indices
         const headerRow = worksheet.getRow(headerRowIdx);
         let colNo = 1;
         let colName = 2;
@@ -328,13 +316,11 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           else if (/LRN/i.test(colTitle)) colLrn = c;
         }
 
-        // 2. Parse student rows
         for (let r = headerRowIdx + 1; r <= worksheet.rowCount; r++) {
           const row = worksheet.getRow(r);
           const rawNo = row.getCell(colNo).text?.trim() || '';
           const rawName = row.getCell(colName).text?.trim() || '';
 
-          // Stop parsing if we hit footer signatures or non-student rows
           if (
             /Prepared|Checked|Noted|Adviser|Principal|Total|Summary/i.test(rawNo) ||
             /Prepared|Checked|Noted|Adviser|Principal|Total|Summary/i.test(rawName)
@@ -342,7 +328,6 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
             break;
           }
 
-          // If learner name is empty, continue
           if (!rawName) continue;
 
           const { last_name, first_name, middle_name } = parseLearnerName(rawName);
@@ -350,13 +335,6 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
 
           const rawSubject = row.getCell(colSubject).text?.trim();
           const cleanSubject = normalizeSubject(rawSubject);
-
-          // Auto-suggest ARAL Level based on DepEd subject focus:
-          // English -> plus, Filipino -> basic
-          let suggestedAralLevel: 'basic' | 'plus' | '' = '';
-          if (cleanSubject === 'English') suggestedAralLevel = 'plus';
-          else if (cleanSubject === 'Filipino') suggestedAralLevel = 'basic';
-          else suggestedAralLevel = 'basic';
 
           const rawGuardian = row.getCell(colGuardian).text?.trim() || '';
           const rawContact = row.getCell(colContact).value;
@@ -381,7 +359,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
             middle_name,
             last_name,
             lrn: explicitLrn || '',
-            aral_level: suggestedAralLevel,
+            aral_level: '', // LRN and ARAL level not supported in template, manual input required
             subject: cleanSubject,
             assigned_tutor_id: detectedTutor ? detectedTutor.id : null,
             assigned_tutor_name: detectedTutor ? detectedTutor.full_name : detectedTutorName || 'To Be Assigned',
@@ -391,13 +369,13 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
             has_mosy: hasMosy,
             has_eosy: hasEosy,
             has_summer: false,
-            status: explicitLrn && LRN_REGEX.test(explicitLrn) && suggestedAralLevel ? 'ready' : 'pending',
+            status: 'pending',
           });
         }
       });
 
       if (parsedList.length === 0) {
-        setParseError('No learner rows could be extracted from this Excel file. Please ensure the file follows the BOSY List format.');
+        setParseError('No learner rows could be extracted from this Excel file. Please ensure the file follows the specified column format.');
       } else {
         setStudents(parsedList);
       }
@@ -417,7 +395,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     }
   };
 
-  // Distinct sheet names for tab navigation
+  // Distinct sheets
   const uniqueSheets = useMemo(() => {
     const map = new Map<string, number>();
     students.forEach((s) => {
@@ -426,7 +404,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     return Array.from(map.entries()).map(([name, count]) => ({ name, count }));
   }, [students]);
 
-  // Filtered students by active tab & search query
+  // Filtered students
   const filteredStudents = useMemo(() => {
     let list = students;
     if (selectedSheet !== 'all') {
@@ -447,7 +425,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     return list;
   }, [students, selectedSheet, searchQuery]);
 
-  // Bulk actions for visible students
+  // Bulk actions: Set visible to Basic or Plus (uncolored buttons)
   const handleSetAllAralLevel = (level: 'basic' | 'plus') => {
     setStudents((prev) =>
       prev.map((s) => {
@@ -464,56 +442,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     );
   };
 
-  const handleAutoMapAralLevel = () => {
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (selectedSheet !== 'all' && s.sheetName !== selectedSheet) return s;
-        const level: 'basic' | 'plus' = s.subject === 'English' ? 'plus' : 'basic';
-        const isReady = LRN_REGEX.test(s.lrn) && Boolean(level);
-        return {
-          ...s,
-          aral_level: level,
-          status: isReady ? 'ready' : 'pending',
-        };
-      })
-    );
-  };
-
-  // Quick Paste LRNs sequentially into active tab's students
-  const handleApplyPastedLrns = () => {
-    if (!pasteLrnText.trim()) return;
-    const lrnCandidates = pasteLrnText
-      .split(/[\r\n,;\t\s]+/)
-      .map((item) => item.replace(/\D/g, '').trim())
-      .filter((item) => item.length === 12);
-
-    if (lrnCandidates.length === 0) {
-      alert('No 12-digit LRNs found in pasted text. Please verify.');
-      return;
-    }
-
-    let candidateIdx = 0;
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (selectedSheet !== 'all' && s.sheetName !== selectedSheet) return s;
-        if (candidateIdx < lrnCandidates.length) {
-          const newLrn = lrnCandidates[candidateIdx++];
-          const isReady = LRN_REGEX.test(newLrn) && Boolean(s.aral_level);
-          return {
-            ...s,
-            lrn: newLrn,
-            status: isReady ? 'ready' : 'pending',
-          };
-        }
-        return s;
-      })
-    );
-
-    setIsPasteLrnOpen(false);
-    setPasteLrnText('');
-  };
-
-  // Student field updater
+  // Update single student field
   const updateStudentField = (id: string, field: keyof BatchParsedStudent, val: any) => {
     setStudents((prev) =>
       prev.map((s) => {
@@ -532,35 +461,49 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     );
   };
 
-  // Delete student row
+  // Remove row
   const removeStudentRow = (id: string) => {
     setStudents((prev) => prev.filter((s) => s.id !== id));
   };
 
-  // Compute counts
+  // Counts
   const totalCount = students.length;
   const readyCount = students.filter((s) => LRN_REGEX.test(s.lrn) && Boolean(s.aral_level)).length;
-  const pendingCount = totalCount - readyCount;
+  const needLrnCount = students.filter((s) => !LRN_REGEX.test(s.lrn)).length;
+  const needAralCount = students.filter((s) => !s.aral_level).length;
+
+  // Disabled logic for ENROLL STUDENTS button:
+  // Must be disabled when there are still students needing LRN or ARAL level
+  const canEnroll = totalCount > 0 && needLrnCount === 0 && needAralCount === 0 && !isSubmitting;
+
+  const getDisabledReason = () => {
+    if (totalCount === 0) return 'No students imported.';
+    if (needLrnCount > 0 && needAralCount > 0) {
+      return `Cannot enroll: ${needLrnCount} student(s) missing 12-digit LRN, and ${needAralCount} student(s) missing ARAL Level. All students must have complete details before enrolling.`;
+    }
+    if (needLrnCount > 0) {
+      return `Cannot enroll: ${needLrnCount} student(s) missing 12-digit LRN. All students must have a valid 12-digit LRN.`;
+    }
+    if (needAralCount > 0) {
+      return `Cannot enroll: ${needAralCount} student(s) missing ARAL Level. Please assign BASIC or PLUS to all students.`;
+    }
+    return '';
+  };
 
   // Execute batch enrollment
-  const handleEnrollAll = async () => {
-    const readyStudents = students.filter((s) => LRN_REGEX.test(s.lrn) && Boolean(s.aral_level));
-    if (readyStudents.length === 0) {
-      setGlobalError('Please provide a 12-digit LRN and ARAL level for at least one student before enrolling.');
-      return;
-    }
-
+  const handleEnrollConfirmed = async () => {
+    setShowEnrollConfirm(false);
     setIsSubmitting(true);
     setGlobalError(null);
-    setEnrollProgress({ current: 0, total: readyStudents.length });
+    setEnrollProgress({ current: 0, total: totalCount });
 
     let successCount = 0;
     let failCount = 0;
     const remainingStudents: BatchParsedStudent[] = [...students];
 
-    for (let i = 0; i < readyStudents.length; i++) {
-      const student = readyStudents[i];
-      setEnrollProgress({ current: i + 1, total: readyStudents.length });
+    for (let i = 0; i < students.length; i++) {
+      const student = students[i];
+      setEnrollProgress({ current: i + 1, total: students.length });
 
       const combinedGradeLevel = student.grade_level_section
         ? `${student.grade_level_grade} - ${student.grade_level_section}`
@@ -588,7 +531,6 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
       try {
         await userService.createUser(payload);
         successCount++;
-        // Remove from list
         const idx = remainingStudents.findIndex((s) => s.id === student.id);
         if (idx !== -1) {
           remainingStudents.splice(idx, 1);
@@ -602,7 +544,6 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           const val = errorData[firstKey];
           msg = Array.isArray(val) ? val[0] : typeof val === 'string' ? val : msg;
         }
-        // Mark student as error
         const idx = remainingStudents.findIndex((s) => s.id === student.id);
         if (idx !== -1) {
           remainingStudents[idx] = {
@@ -625,7 +566,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
       }
       if (failCount === 0) {
         setTimeout(() => {
-          handleClose();
+          executeClose();
         }, 1500);
       }
     }
@@ -634,43 +575,65 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/70 backdrop-blur-sm animate-fade-in font-sans">
-      <div className="bg-white dark:bg-[#0f1117] border border-slate-200 dark:border-zinc-800 rounded-2xl w-full max-w-6xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden animate-scale-up">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/70 backdrop-blur-sm animate-fade-in"
+      style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+    >
+      <div className="bg-white dark:bg-[#0f1117] border border-slate-200 dark:border-zinc-800 rounded-2xl w-[98vw] max-w-[1550px] max-h-[95vh] flex flex-col shadow-2xl overflow-hidden animate-scale-up">
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between shrink-0 bg-slate-50/70 dark:bg-zinc-900/50">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
-              <FileSpreadsheet className="w-5 h-5" />
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-tight">
+                BATCH STUDENT ENROLLMENT
+              </h2>
+              {fileName && (
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 font-medium">
+                  {fileName}
+                </span>
+              )}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                  Batch Student Enrollment
-                </h2>
-                {fileName && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 font-medium">
-                    {fileName}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Import official DepEd BOSY List Excel file (.xlsx) with multi-tab class cohorts
+            {students.length > 0 && (
+              <p className="text-xs font-semibold text-orange-500 dark:text-orange-400 mt-0.5">
+                Please always double check all the details
               </p>
-            </div>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            disabled={isSubmitting}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer disabled:opacity-40"
-          >
-            <X className="w-5 h-5" />
-          </button>
+
+          <div className="flex items-center gap-2">
+            {students.length > 0 && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileInputChange}
+                  className="hidden"
+                  id="excel-reupload-input"
+                />
+                <label
+                  htmlFor="excel-reupload-input"
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                >
+                  Change Excel File
+                </label>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={handleAttemptClose}
+              disabled={isSubmitting}
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer disabled:opacity-40"
+              title="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
-          {/* File Upload Banner (if no students parsed yet) */}
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
+          {/* File Upload Dropzone (Initial State) */}
           {students.length === 0 && (
             <div className="border-2 border-dashed border-slate-300 dark:border-zinc-700 rounded-2xl p-8 sm:p-12 text-center bg-slate-50/50 dark:bg-zinc-900/20 hover:border-emerald-500/50 dark:hover:border-emerald-500/50 transition-colors">
               <input
@@ -684,12 +647,38 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
               <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center mb-4 shadow-xs">
                 {isParsing ? <Loader2 className="w-7 h-7 animate-spin" /> : <Upload className="w-7 h-7" />}
               </div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                {isParsing ? 'Reading and Parsing Excel Sheets...' : 'Upload DepEd Master List / BOSY Excel File'}
+              <h3 className="text-base font-bold text-slate-900 dark:text-white uppercase tracking-tight">
+                {isParsing ? 'Reading and Parsing Excel Sheets...' : 'Upload Excel File Master List'}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 max-w-md mx-auto mt-1 mb-5">
-                Upload a single workbook with multiple tabs per class (e.g. 7-HYA, 7-DAFF, 8-MANG). All sections, tutor assignments, names, subjects, and contacts will be automatically extracted!
-              </p>
+
+              {/* Requirement explanation & template guidance */}
+              <div className="max-w-2xl mx-auto mt-3 mb-6 text-xs text-slate-600 dark:text-zinc-300 space-y-2.5 text-left bg-white dark:bg-zinc-900 p-4 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-2xs">
+                <p className="font-semibold text-slate-800 dark:text-white">
+                  Upload a single Excel file (multiple tabs in a single file are supported).
+                </p>
+                <div className="space-y-1.5 text-[11px] text-slate-600 dark:text-zinc-400">
+                  <p>
+                    <strong className="text-slate-800 dark:text-slate-200">Table Column Headers:</strong> Each class table must have columns named:{' '}
+                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">No.</code>,{' '}
+                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">Name of Learner</code> (LASTNAME, FIRSTNAME M.I.),{' '}
+                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">BOSY</code>,{' '}
+                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">MOSY</code>,{' '}
+                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">EOSY</code>,{' '}
+                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">Subject Focus</code>,{' '}
+                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">Parent/Guardian</code>,{' '}
+                    <code className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">Contact No.</code>
+                  </p>
+                  <p>
+                    <strong className="text-slate-800 dark:text-slate-200">Top Header Format:</strong> At the top of each sheet/table, specify Grade Level &amp; Section (e.g.{' '}
+                    <code className="font-mono bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-slate-800 dark:text-slate-200">GRADE LEVEL: 7 - HYACINTH</code>) and the assigned Tutor (e.g.{' '}
+                    <code className="font-mono bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-slate-800 dark:text-slate-200">TUTOR: RIZA J. GADIA</code>).
+                  </p>
+                  <p className="text-amber-700 dark:text-amber-400 pt-1.5 border-t border-slate-100 dark:border-zinc-800 font-medium">
+                    Important Notice: LRN and ARAL Level are not supported in the template; they must be manually inputted and double checked. Please always double check all the details to avoid mistakes.
+                  </p>
+                </div>
+              </div>
+
               <label
                 htmlFor="excel-file-input"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
@@ -709,45 +698,60 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
 
           {/* Parsed Students View */}
           {students.length > 0 && (
-            <div className="space-y-4">
-              {/* Top Banner: Status & Quick Re-upload */}
-              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-slate-50 dark:bg-zinc-900/60 rounded-xl border border-slate-200 dark:border-zinc-800">
-                <div className="flex items-center gap-4 text-xs">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-white">
-                    <Users className="w-4 h-4 text-emerald-600" />
-                    <span>{totalCount} Total Students</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{readyCount} Ready to Enroll</span>
-                  </div>
-                  {pendingCount > 0 && (
-                    <div className="flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-400">
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      <span>{pendingCount} Need LRN / ARAL Level</span>
-                    </div>
-                  )}
+            <div className="space-y-3.5">
+              {/* 1. Stats Line (No Container Box, Black Total icon, System Check & System Cross) */}
+              <div className="flex flex-wrap items-center gap-6 text-xs px-1">
+                <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white">
+                  <Users className="w-4 h-4 text-black dark:text-white" />
+                  <span>{totalCount} Total Students</span>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleFileInputChange}
-                    className="hidden"
-                    id="excel-reupload-input"
-                  />
-                  <label
-                    htmlFor="excel-reupload-input"
-                    className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
-                  >
-                    Change Excel File
-                  </label>
+                <div className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>{readyCount} Ready to Enroll</span>
+                </div>
+                <div className="flex items-center gap-1.5 font-semibold text-rose-600 dark:text-rose-400">
+                  <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                  <span>{needLrnCount} Need LRN</span>
+                </div>
+                <div className="flex items-center gap-1.5 font-semibold text-rose-600 dark:text-rose-400">
+                  <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                  <span>{needAralCount} Need ARAL Level</span>
                 </div>
               </div>
 
-              {/* Class Sheet Tabs (Multi-tab support) */}
+              {/* 2. Bulk Actions Row (Above Class tabs, no "Bulk Actions" word, uncolored buttons) */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSetAllAralLevel('basic')}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 transition cursor-pointer shadow-2xs"
+                  >
+                    SET ALL TO ARAL LEVEL: BASIC
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetAllAralLevel('plus')}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 transition cursor-pointer shadow-2xs"
+                  >
+                    SET ALL TO ARAL LEVEL: PLUS
+                  </button>
+                </div>
+
+                {/* Search input */}
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search name or section..."
+                    className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* 3. Class Tabs Row (Directly above table) */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-slate-200 dark:border-zinc-800">
                 <button
                   type="button"
@@ -776,104 +780,6 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                 ))}
               </div>
 
-              {/* Bulk Toolbar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-2xs">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    Bulk Actions:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleSetAllAralLevel('basic')}
-                    className="px-2.5 py-1 text-xs font-semibold rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40 hover:bg-blue-100 transition cursor-pointer"
-                  >
-                    Set Visible to BASIC
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSetAllAralLevel('plus')}
-                    className="px-2.5 py-1 text-xs font-semibold rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-900/40 hover:bg-purple-100 transition cursor-pointer"
-                  >
-                    Set Visible to PLUS
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleAutoMapAralLevel}
-                    className="px-2.5 py-1 text-xs font-semibold rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40 hover:bg-emerald-100 transition cursor-pointer flex items-center gap-1"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    Auto-Map by Subject
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsPasteLrnOpen(true)}
-                    className="px-2.5 py-1 text-xs font-semibold rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-zinc-700 hover:bg-slate-200 transition cursor-pointer flex items-center gap-1"
-                  >
-                    <ClipboardList className="w-3 h-3 text-emerald-600" />
-                    Quick Paste LRNs
-                  </button>
-                </div>
-
-                {/* Search */}
-                <div className="relative w-full sm:w-56">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search name or section..."
-                    className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
-              {/* Quick Paste LRNs Modal / Overlay */}
-              {isPasteLrnOpen && (
-                <div className="p-4 rounded-xl bg-slate-100 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 space-y-3 animate-fade-in">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <ClipboardList className="w-4 h-4 text-emerald-600" />
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                        Sequential LRN Paste Helper
-                      </h4>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsPasteLrnOpen(false)}
-                      className="text-slate-400 hover:text-slate-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-                    Paste a list of 12-digit LRNs (copied from your master list column or text file). They will be assigned top-to-bottom to the students in the currently selected view.
-                  </p>
-                  <textarea
-                    rows={3}
-                    value={pasteLrnText}
-                    onChange={(e) => setPasteLrnText(e.target.value)}
-                    placeholder="e.g. 108501130001, 108501130002, 108501130003..."
-                    className="w-full p-2.5 text-xs font-mono rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsPasteLrnOpen(false)}
-                      className="px-3 py-1 text-xs font-semibold rounded-lg text-slate-600 hover:bg-slate-200 dark:hover:bg-zinc-800"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleApplyPastedLrns}
-                      className="px-3 py-1 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
-                    >
-                      Apply LRNs to Students
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {/* Notifications & Error messages */}
               {globalError && (
                 <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-200 flex items-center gap-2">
@@ -894,34 +800,34 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                 </div>
               )}
 
-              {/* Student Cards / Table */}
+              {/* 4. Student Table with Column & Row Lines */}
               <div className="border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-2xs bg-white dark:bg-[#0c0d12]">
-                <div className="overflow-x-auto max-h-[48vh]">
+                <div className="overflow-x-auto max-h-[50vh]">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead className="bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 font-bold sticky top-0 z-10 border-b border-slate-200 dark:border-zinc-800">
-                      <tr>
-                        <th className="py-2.5 px-3 w-8 text-center">#</th>
-                        <th className="py-2.5 px-3 min-w-[130px]">Last Name</th>
-                        <th className="py-2.5 px-3 min-w-[130px]">First Name</th>
-                        <th className="py-2.5 px-3 min-w-[80px]">M.I.</th>
-                        <th className="py-2.5 px-3 min-w-[140px]">
+                      <tr className="divide-x divide-slate-200 dark:divide-zinc-800">
+                        <th className="py-2.5 px-3 w-10 text-center border-r border-slate-200 dark:border-zinc-800">#</th>
+                        <th className="py-2.5 px-3 min-w-[130px] border-r border-slate-200 dark:border-zinc-800">Last Name</th>
+                        <th className="py-2.5 px-3 min-w-[130px] border-r border-slate-200 dark:border-zinc-800">First Name</th>
+                        <th className="py-2.5 px-3 min-w-[75px] border-r border-slate-200 dark:border-zinc-800">M.I.</th>
+                        <th className="py-2.5 px-3 min-w-[145px] border-r border-slate-200 dark:border-zinc-800">
                           LRN <span className="text-red-500">*</span>
                         </th>
-                        <th className="py-2.5 px-3 min-w-[110px]">
+                        <th className="py-2.5 px-3 min-w-[125px] border-r border-slate-200 dark:border-zinc-800">
                           ARAL Level <span className="text-red-500">*</span>
                         </th>
-                        <th className="py-2.5 px-3 min-w-[110px]">Subject</th>
-                        <th className="py-2.5 px-3 min-w-[150px]">Grade &amp; Section</th>
-                        <th className="py-2.5 px-3 min-w-[150px]">Assigned Tutor</th>
-                        <th className="py-2.5 px-3 min-w-[140px]">Parent / Guardian</th>
-                        <th className="py-2.5 px-3 min-w-[110px]">Contact No.</th>
+                        <th className="py-2.5 px-3 min-w-[120px] border-r border-slate-200 dark:border-zinc-800">Subject</th>
+                        <th className="py-2.5 px-3 min-w-[150px] border-r border-slate-200 dark:border-zinc-800">Grade &amp; Section</th>
+                        <th className="py-2.5 px-3 min-w-[160px] border-r border-slate-200 dark:border-zinc-800">Assigned Tutor</th>
+                        <th className="py-2.5 px-3 min-w-[150px] border-r border-slate-200 dark:border-zinc-800">Parent / Guardian</th>
+                        <th className="py-2.5 px-3 min-w-[120px] border-r border-slate-200 dark:border-zinc-800">Contact No.</th>
                         <th className="py-2.5 px-3 w-10 text-center"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
+                    <tbody className="divide-y divide-slate-200 dark:divide-zinc-800">
                       {filteredStudents.length === 0 ? (
                         <tr>
-                          <td colSpan={12} className="py-8 text-center text-slate-400">
+                          <td colSpan={12} className="py-10 text-center text-slate-400">
                             No students found matching your filters.
                           </td>
                         </tr>
@@ -934,7 +840,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                           return (
                             <tr
                               key={student.id}
-                              className={`transition-colors ${
+                              className={`divide-x divide-slate-200 dark:divide-zinc-800 transition-colors ${
                                 student.status === 'error'
                                   ? 'bg-rose-50/70 dark:bg-rose-950/20'
                                   : isRowReady
@@ -942,12 +848,12 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                   : 'bg-amber-50/40 dark:bg-amber-950/10 hover:bg-amber-50/70'
                               }`}
                             >
-                              <td className="py-2 px-3 text-center text-slate-400 font-mono text-[11px]">
+                              <td className="py-2 px-3 text-center text-slate-400 font-mono text-[11px] border-r border-slate-200 dark:border-zinc-800">
                                 {idx + 1}
                               </td>
 
                               {/* Last Name */}
-                              <td className="py-2 px-3 font-semibold text-slate-900 dark:text-white uppercase">
+                              <td className="py-2 px-3 font-semibold text-slate-900 dark:text-white uppercase border-r border-slate-200 dark:border-zinc-800">
                                 <input
                                   type="text"
                                   value={student.last_name}
@@ -957,7 +863,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                               </td>
 
                               {/* First Name */}
-                              <td className="py-2 px-3 font-medium text-slate-800 dark:text-slate-200 uppercase">
+                              <td className="py-2 px-3 font-medium text-slate-800 dark:text-slate-200 uppercase border-r border-slate-200 dark:border-zinc-800">
                                 <input
                                   type="text"
                                   value={student.first_name}
@@ -967,7 +873,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                               </td>
 
                               {/* Middle Initial */}
-                              <td className="py-2 px-3 text-slate-600 dark:text-slate-400 uppercase">
+                              <td className="py-2 px-3 text-slate-600 dark:text-slate-400 uppercase border-r border-slate-200 dark:border-zinc-800">
                                 <input
                                   type="text"
                                   maxLength={5}
@@ -978,7 +884,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                               </td>
 
                               {/* LRN (Required 12 digits) */}
-                              <td className="py-2 px-3">
+                              <td className="py-2 px-3 border-r border-slate-200 dark:border-zinc-800">
                                 <div className="relative">
                                   <input
                                     type="text"
@@ -1005,7 +911,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                               </td>
 
                               {/* ARAL Level */}
-                              <td className="py-2 px-3">
+                              <td className="py-2 px-3 border-r border-slate-200 dark:border-zinc-800">
                                 <select
                                   value={student.aral_level}
                                   onChange={(e) => updateStudentField(student.id, 'aral_level', e.target.value)}
@@ -1024,7 +930,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                               </td>
 
                               {/* Subject */}
-                              <td className="py-2 px-3">
+                              <td className="py-2 px-3 border-r border-slate-200 dark:border-zinc-800">
                                 <select
                                   value={student.subject}
                                   onChange={(e) => updateStudentField(student.id, 'subject', e.target.value)}
@@ -1041,14 +947,14 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                               </td>
 
                               {/* Grade & Section */}
-                              <td className="py-2 px-3">
+                              <td className="py-2 px-3 border-r border-slate-200 dark:border-zinc-800">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300">
                                   {student.grade_level_grade} - {student.grade_level_section}
                                 </span>
                               </td>
 
                               {/* Tutor */}
-                              <td className="py-2 px-3">
+                              <td className="py-2 px-3 border-r border-slate-200 dark:border-zinc-800">
                                 <select
                                   value={student.assigned_tutor_id || ''}
                                   onChange={(e) => {
@@ -1069,7 +975,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                               </td>
 
                               {/* Parent / Guardian */}
-                              <td className="py-2 px-3">
+                              <td className="py-2 px-3 border-r border-slate-200 dark:border-zinc-800">
                                 <input
                                   type="text"
                                   value={student.parent_guardian_name}
@@ -1080,7 +986,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                               </td>
 
                               {/* Contact Number */}
-                              <td className="py-2 px-3">
+                              <td className="py-2 px-3 border-r border-slate-200 dark:border-zinc-800">
                                 <input
                                   type="text"
                                   inputMode="numeric"
@@ -1128,9 +1034,9 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleClose}
+              onClick={handleAttemptClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer disabled:opacity-40"
+              className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer disabled:opacity-40 uppercase"
             >
               Cancel
             </button>
@@ -1138,9 +1044,18 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
             {students.length > 0 && (
               <button
                 type="button"
-                onClick={handleEnrollAll}
-                disabled={isSubmitting || readyCount === 0}
-                className="px-5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all cursor-pointer disabled:opacity-40 flex items-center gap-2"
+                onClick={() => {
+                  if (canEnroll) {
+                    setShowEnrollConfirm(true);
+                  }
+                }}
+                disabled={!canEnroll}
+                title={getDisabledReason()}
+                className={`px-5 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 uppercase shadow-md ${
+                  canEnroll
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
+                    : 'bg-slate-200 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 cursor-not-allowed opacity-60'
+                }`}
               >
                 {isSubmitting ? (
                   <>
@@ -1152,9 +1067,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                 ) : (
                   <>
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>
-                      Enroll {readyCount} Ready Student{readyCount === 1 ? '' : 's'}
-                    </span>
+                    <span>ENROLL STUDENTS</span>
                   </>
                 )}
               </button>
@@ -1162,6 +1075,80 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog: Close Batch Enrollment */}
+      {showCloseConfirm && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white dark:bg-[#11131a] border border-slate-200 dark:border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase">
+                  Close Batch Student Enrollment?
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                  Are you sure you want to close the batch student enrollment? Any imported and inputted data will be cleared.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setShowCloseConfirm(false)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer uppercase"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={executeClose}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition cursor-pointer uppercase"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog: Double Check Details Before Enrolling */}
+      {showEnrollConfirm && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white dark:bg-[#11131a] border border-slate-200 dark:border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase">
+                  Confirm Student Enrollment
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                  Have you double checked each student's details? Please ensure all names, grade levels, sections, subjects, tutors, LRNs, and ARAL levels are completely accurate before finalizing enrollment.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setShowEnrollConfirm(false)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer uppercase"
+              >
+                BACK
+              </button>
+              <button
+                type="button"
+                onClick={handleEnrollConfirmed}
+                className="px-5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition cursor-pointer uppercase shadow-xs"
+              >
+                CONFIRM
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
