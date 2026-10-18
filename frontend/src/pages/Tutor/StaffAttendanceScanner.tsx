@@ -980,10 +980,6 @@ export const StaffAttendanceScanner: React.FC = () => {
                 : 'Faculty / Principal / Admin: 8:00–11:30 AM & 1:00–4:30 PM'}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Auto-refresh Active (3.5s)</span>
-          </div>
         </div>
 
         {/* Table content */}

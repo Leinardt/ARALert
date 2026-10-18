@@ -1121,10 +1121,6 @@ export const AdminAttendanceQR: React.FC = () => {
               Tutor: <strong className="ml-1 font-semibold text-slate-900 dark:text-slate-100">4:30–5:00 PM</strong>
             </span>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Auto-refresh Active (3.5s)</span>
-          </div>
         </div>
 
         {/* Table Content */}
