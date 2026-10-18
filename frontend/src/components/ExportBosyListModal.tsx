@@ -74,7 +74,7 @@ export const ExportBosyListModal: React.FC<ExportBosyListModalProps> = ({
   const [tutorName, setTutorName] = useState(
     currentUser?.role === 'tutor'
       ? currentUser.full_name || `${currentUser.first_name} ${currentUser.last_name}`
-      : 'RIZA J. GADIA'
+      : 'JUAN D. CRUZ'
   );
   const [adviserName, setAdviserName] = useState('HAROLD M. BALBUENA');
   const [asstPrincipalName, setAsstPrincipalName] = useState('GEORGE B. BASAS');
@@ -263,7 +263,7 @@ export const ExportBosyListModal: React.FC<ExportBosyListModalProps> = ({
       const single = availableTutors[0];
       return (single.full_name || `${single.first_name} ${single.last_name}`).toUpperCase();
     }
-    return (tutorName || 'RIZA J. GADIA').toUpperCase();
+    return (tutorName || 'JUAN D. CRUZ').toUpperCase();
   }, [selectedTutorId, tutors, availableTutors, tutorName]);
 
   if (!isOpen) return null;

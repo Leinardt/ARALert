@@ -689,7 +689,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                   <p>
                     <strong className="text-slate-800 dark:text-slate-200">Top Header Format:</strong> At the top of each sheet/table, specify Grade Level &amp; Section (e.g.{' '}
                     <code className="font-mono bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-slate-800 dark:text-slate-200">GRADE LEVEL: 7 - HYACINTH</code>) and the assigned Tutor (e.g.{' '}
-                    <code className="font-mono bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-slate-800 dark:text-slate-200">TUTOR: RIZA J. GADIA</code>).
+                    <code className="font-mono bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-slate-800 dark:text-slate-200">TUTOR: JUAN D. CRUZ</code>).
                   </p>
                   <p className="text-amber-700 dark:text-amber-400 pt-1.5 border-t border-slate-100 dark:border-zinc-800 font-medium">
                     Important Notice: LRN and ARAL Level are not supported in the template; they must be manually inputted and double checked. Please always double check all the details to avoid mistakes.
@@ -718,21 +718,21 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           {/* Parsed Students View */}
           {students.length > 0 && (
             <div className="space-y-3.5">
-              {/* 1. Stats Line (Black Total icon, System Check, Orange Need LRN & Need ARAL Level) */}
-              <div className="flex flex-wrap items-center gap-6 text-xs px-1">
-                <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white">
-                  <Users className="w-4 h-4 text-black dark:text-white" />
+              {/* 1. Stats Line Enclosed in Gray Containers */}
+              <div className="flex flex-wrap items-center gap-2.5 text-xs">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-100/90 dark:bg-zinc-800/80 font-bold text-slate-900 dark:text-white shadow-2xs">
+                  <Users className="w-4 h-4 text-slate-700 dark:text-slate-300" />
                   <span>{totalCount} Total Students</span>
                 </div>
-                <div className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-100/90 dark:bg-zinc-800/80 font-semibold text-emerald-700 dark:text-emerald-400 shadow-2xs">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>{readyCount} Ready to Enroll</span>
                 </div>
-                <div className="flex items-center gap-1.5 font-semibold text-orange-600 dark:text-orange-400">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-100/90 dark:bg-zinc-800/80 font-semibold text-orange-600 dark:text-orange-400 shadow-2xs">
                   <XCircle className="w-4 h-4 text-orange-500 dark:text-orange-400" />
                   <span>{needLrnCount} Need LRN</span>
                 </div>
-                <div className="flex items-center gap-1.5 font-semibold text-orange-600 dark:text-orange-400">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-100/90 dark:bg-zinc-800/80 font-semibold text-orange-600 dark:text-orange-400 shadow-2xs">
                   <XCircle className="w-4 h-4 text-orange-500 dark:text-orange-400" />
                   <span>{needAralCount} Need ARAL Level</span>
                 </div>
