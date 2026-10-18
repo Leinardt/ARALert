@@ -27,8 +27,6 @@ import {
   SemesterType,
 } from '../../utils/sessionDescriptionHelpers';
 import {
-  getChartAvailableAralLevels,
-  getChartAvailableSubjects,
   getChartAvailableClasses,
   isStudentMatchingChartFilters,
 } from '../../utils/tutorCohortHelpers';
@@ -817,8 +815,6 @@ export const AdminHome: React.FC = () => {
 
   const [trendFilter, setTrendFilter] = useState<TrendFilter>('week');
   const [selectedTutorId, setSelectedTutorId] = useState<string>('all');
-  const [selectedAralLevel, setSelectedAralLevel] = useState<string>('all');
-  const [selectedSubject, setSelectedSubject] = useState<string>('all');
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [selectedStaffFilter, setSelectedStaffFilter] = useState<string>('all');
   const [staffTrendFilter, setStaffTrendFilter] = useState<TrendFilter>('week');
@@ -952,104 +948,39 @@ export const AdminHome: React.FC = () => {
     return tutors.find((t) => String(t.id) === String(selectedTutorId)) || null;
   }, [tutors, selectedTutorId]);
 
-  // Dynamic filter choices adjusting to the selected tutor and parent filters
-  const chartAralLevels = useMemo(() => {
-    return getChartAvailableAralLevels(selectedTutorObj);
-  }, [selectedTutorObj]);
-
-  const chartSubjects = useMemo(() => {
-    return getChartAvailableSubjects(selectedTutorObj, selectedAralLevel);
-  }, [selectedTutorObj, selectedAralLevel]);
-
+  // Classes handled by the selected tutor (empty if all tutors selected, defaulting to all students)
   const chartClasses = useMemo(() => {
+    if (!selectedTutorObj) return [];
     return getChartAvailableClasses(selectedTutorObj, students);
   }, [selectedTutorObj, students]);
 
-  // When selected tutor changes, auto-adjust other dropdowns to the tutor's handled class
+  // When selected tutor changes, auto-reset class filter to default all students ('all')
   const prevTutorIdRef = useRef(selectedTutorId);
   useEffect(() => {
     if (prevTutorIdRef.current !== selectedTutorId) {
       prevTutorIdRef.current = selectedTutorId;
-      if (selectedTutorId === 'all') {
-        setSelectedAralLevel('all');
-        setSelectedSubject('all');
-        setSelectedClass('all');
-      } else if (selectedTutorObj) {
-        // 1. ARAL level
-        const avLevels = getChartAvailableAralLevels(selectedTutorObj);
-        const nextLevel =
-          avLevels.length === 1
-            ? avLevels[0].id
-            : avLevels.some((l) => l.id === selectedAralLevel)
-            ? selectedAralLevel
-            : 'all';
-        setSelectedAralLevel(nextLevel);
-
-        // 2. Subject
-        const avSubjects = getChartAvailableSubjects(selectedTutorObj, nextLevel);
-        const nextSub =
-          avSubjects.length === 1
-            ? avSubjects[0].id
-            : avSubjects.some((s) => s.id === selectedSubject)
-            ? selectedSubject
-            : 'all';
-        setSelectedSubject(nextSub);
-
-        // 3. Class
-        const avClasses = getChartAvailableClasses(selectedTutorObj, students);
-        const nextClass =
-          avClasses.length === 1
-            ? avClasses[0]
-            : avClasses.includes(selectedClass)
-            ? selectedClass
-            : 'all';
-        setSelectedClass(nextClass);
-      }
-    }
-  }, [selectedTutorId, selectedTutorObj, students, selectedAralLevel, selectedSubject, selectedClass]);
-
-  // Reactive auto-adjustment when parent filters (ARAL level / Subject / Class) change
-  useEffect(() => {
-    if (selectedTutorId !== 'all' && chartAralLevels.length === 1) {
-      if (selectedAralLevel !== chartAralLevels[0].id) {
-        setSelectedAralLevel(chartAralLevels[0].id);
-      }
-    } else if (selectedAralLevel !== 'all' && !chartAralLevels.some((l) => l.id === selectedAralLevel)) {
-      setSelectedAralLevel('all');
-    }
-  }, [selectedAralLevel, chartAralLevels, selectedTutorId]);
-
-  useEffect(() => {
-    if (selectedTutorId !== 'all' && chartSubjects.length === 1) {
-      if (selectedSubject !== chartSubjects[0].id) {
-        setSelectedSubject(chartSubjects[0].id);
-      }
-    } else if (selectedSubject !== 'all' && !chartSubjects.some((s) => s.id === selectedSubject)) {
-      setSelectedSubject('all');
-    }
-  }, [selectedSubject, chartSubjects, selectedTutorId]);
-
-  useEffect(() => {
-    if (selectedTutorId !== 'all' && chartClasses.length === 1) {
-      if (selectedClass !== chartClasses[0]) {
-        setSelectedClass(chartClasses[0]);
-      }
-    } else if (selectedClass !== 'all' && !chartClasses.includes(selectedClass)) {
       setSelectedClass('all');
     }
-  }, [selectedClass, chartClasses, selectedTutorId]);
+  }, [selectedTutorId]);
 
-  // Filter students based on selected tutor and additional chart filters
+  // Reset class filter if the currently selected class is not handled by the tutor
+  useEffect(() => {
+    if (selectedClass !== 'all' && !chartClasses.includes(selectedClass)) {
+      setSelectedClass('all');
+    }
+  }, [selectedClass, chartClasses]);
+
+  // Filter students based on selected tutor and class cohort
   const filteredStudents = useMemo(() => {
     return students.filter((s) =>
       isStudentMatchingChartFilters(s, {
         tutorId: selectedTutorId,
-        aralLevel: selectedAralLevel,
-        subject: selectedSubject,
+        aralLevel: 'all',
+        subject: 'all',
         classCohort: selectedClass,
       })
     );
-  }, [students, selectedTutorId, selectedAralLevel, selectedSubject, selectedClass]);
+  }, [students, selectedTutorId, selectedClass]);
 
   // ── Stakeholder-Validated Overall Metrics Calculations (Always for ALL students) ──
   const studentRiskRows = useMemo(() => {
@@ -1143,14 +1074,6 @@ export const AdminHome: React.FC = () => {
       const matchesStudent = studentIds.has(String(gStudent)) || studentIds.has(String(gStudentId));
       if (!matchesStudent) return false;
 
-      if (selectedSubject !== 'all') {
-        const gSub = (g.subject || '').toLowerCase().trim();
-        const targetSub = selectedSubject.toLowerCase().trim();
-        const matchesLanguage =
-          (targetSub === 'reading' && (gSub === 'reading' || gSub === 'filipino')) ||
-          (targetSub === 'filipino' && (gSub === 'reading' || gSub === 'filipino'));
-        if (!matchesLanguage && gSub !== targetSub) return false;
-      }
       return g.component_type === 'assessment';
     });
     if (assessmentGrades.length === 0) return [];
@@ -1302,7 +1225,7 @@ export const AdminHome: React.FC = () => {
         assessmentLabels: p.assessmentLabels,
       };
     });
-  }, [filteredStudents, grades, attendance, trendFilter, adminMilestone, selectedSubject]);
+  }, [filteredStudents, grades, attendance, trendFilter, adminMilestone]);
 
   const highestScore = useMemo(() => (chartTrendData.length === 0 ? 0 : Math.max(...chartTrendData.map((d) => d.value))), [chartTrendData]);
   const lowestScore = useMemo(() => (chartTrendData.length === 0 ? 0 : Math.min(...chartTrendData.map((d) => d.value))), [chartTrendData]);
@@ -1935,14 +1858,14 @@ export const AdminHome: React.FC = () => {
               </div>
             </div>
 
-            {/* ── Row 2: Filter Controls Bar (No 'Filters:' label, generous width to avoid truncation) ── */}
+            {/* ── Row 2: Filter Controls Bar (Tutor Dropdown and Handled Classes Dropdown) ── */}
             <div className="flex items-center gap-2 pt-2.5 pb-1 flex-wrap w-full">
               {/* Tutor Filter Dropdown */}
               <select
-                aria-label="Filter by Tutor Class"
+                aria-label="Filter by Tutor"
                 value={selectedTutorId}
                 onChange={(e) => setSelectedTutorId(e.target.value)}
-                className="h-8 px-2 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[130px] flex-1 max-w-[200px]"
+                className="h-8 px-2.5 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[140px] flex-1 max-w-[220px]"
               >
                 <option value="all">ALL TUTORS</option>
                 {[...tutors]
@@ -1961,44 +1884,14 @@ export const AdminHome: React.FC = () => {
                   })}
               </select>
 
-              {/* ARAL Level Filter Dropdown */}
-              <select
-                aria-label="Filter by ARAL Level"
-                value={selectedAralLevel}
-                onChange={(e) => setSelectedAralLevel(e.target.value)}
-                className="h-8 px-2 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[130px] flex-1 max-w-[170px]"
-              >
-                <option value="all">ALL ARAL LEVELS</option>
-                {chartAralLevels.map((lvl) => (
-                  <option key={lvl.id} value={lvl.id}>
-                    {lvl.label}
-                  </option>
-                ))}
-              </select>
-
-              {/* Subject Filter Dropdown */}
-              <select
-                aria-label="Filter by Subject"
-                value={selectedSubject}
-                onChange={(e) => setSelectedSubject(e.target.value)}
-                className="h-8 px-2 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[125px] flex-1 max-w-[160px]"
-              >
-                <option value="all">ALL SUBJECTS</option>
-                {chartSubjects.map((sub) => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.label}
-                  </option>
-                ))}
-              </select>
-
-              {/* Class Filter Dropdown */}
+              {/* Class Filter Dropdown (defaults to ALL STUDENTS, filled with tutor's classes once selected) */}
               <select
                 aria-label="Filter by Class"
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
-                className="h-8 px-2 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[140px] flex-1 max-w-[200px]"
+                className="h-8 px-2.5 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[140px] flex-1 max-w-[220px]"
               >
-                <option value="all">ALL CLASSES</option>
+                <option value="all">ALL STUDENTS</option>
                 {chartClasses.map((cls) => (
                   <option key={cls} value={cls}>
                     {cls}

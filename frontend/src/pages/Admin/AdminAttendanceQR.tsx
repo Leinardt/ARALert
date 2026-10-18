@@ -15,6 +15,8 @@ import { exportStaffQrPrintFile, type ExportFormat } from '../../utils/staffQrPr
 import { ExportDtrModal } from '../../components/ExportDtrModal';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
 
+import { getStaffDtrStatus, getStaffUndertimeStr } from '../../utils/dtrSchedule';
+
 /* ─────────────────────────── helpers ─────────────────────────── */
 
 const formatDtrTime = (value: string | null | undefined) => {
@@ -39,27 +41,6 @@ const formatDateString = (value: string | null) => {
   const day = date.getDate();
   const year = date.getFullYear();
   return `${month} ${day}, ${year} | ${weekday}`;
-};
-
-// Tutor standard schedule: Time In = 8:00 AM / 4:30 PM
-const TUTOR_TIME_IN_MINS = 8 * 60 + 0;   // 8:00 AM standard
-const TUTOR_TIME_OUT_MINS = 11 * 60 + 30; // 11:30 AM standard
-
-const getTutorStatus = (timeInMins: number | null, timeOutMins: number | null): 'Completed' | 'Late' | 'Early Out' | 'Present' | '—' => {
-  if (timeInMins === null && timeOutMins === null) return '—';
-  if (timeInMins !== null && timeOutMins === null) return 'Present';
-  if (timeInMins !== null && timeInMins > TUTOR_TIME_IN_MINS + 15) return 'Late';
-  if (timeOutMins !== null && timeOutMins < TUTOR_TIME_OUT_MINS) return 'Early Out';
-  if (timeInMins !== null || timeOutMins !== null) return 'Completed';
-  return '—';
-};
-
-const getUndertimeStr = (timeOutMins: number | null): string => {
-  if (timeOutMins === null || timeOutMins >= TUTOR_TIME_OUT_MINS) return '—';
-  const diff = TUTOR_TIME_OUT_MINS - timeOutMins;
-  const h = Math.floor(diff / 60);
-  const m = diff % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
 
 /* ─── Custom Calendar Dropdown ────────────────────────────────── */
@@ -240,31 +221,50 @@ export const AdminAttendanceQR: React.FC = () => {
 
   useEffect(() => {
     initOrLoadQR();
-    fetchDtrData();
+    fetchDtrData(false);
+
+    // Silent background polling so phone scans immediately update admin logs
+    const pollInterval = setInterval(() => {
+      fetchDtrData(true);
+    }, 3500);
+
+    return () => clearInterval(pollInterval);
   }, []);
 
   // Fetch Attendance & Staff Users (Tutors, Faculty, Principals, Admins)
-  const fetchDtrData = async () => {
-    setLogsLoading(true);
-    setLogsError(null);
+  const fetchDtrData = async (silent = false) => {
+    if (!silent) {
+      setLogsLoading(true);
+      setLogsError(null);
+    }
     try {
-      const [attData, tutorData, facultyData, principalData, adminData] = await Promise.all([
-        academicService.getAttendanceHistory(),
-        userService.getAllUsers({ role: 'tutor' }).catch(() => [] as User[]),
-        userService.getAllUsers({ role: 'faculty' }).catch(() => [] as User[]),
-        userService.getAllUsers({ role: 'principal' }).catch(() => [] as User[]),
-        userService.getAllUsers({ role: 'admin' }).catch(() => [] as User[]),
-      ]);
-      setAttendanceLogs(attData);
-      setTutors(tutorData);
-      setFaculty(facultyData);
-      setPrincipals(principalData);
-      setAdmins(adminData);
+      if (silent) {
+        // Fast silent sync of attendance history
+        const attData = await academicService.getAttendanceHistory();
+        setAttendanceLogs(attData);
+      } else {
+        const [attData, tutorData, facultyData, principalData, adminData] = await Promise.all([
+          academicService.getAttendanceHistory(),
+          userService.getAllUsers({ role: 'tutor' }).catch(() => [] as User[]),
+          userService.getAllUsers({ role: 'faculty' }).catch(() => [] as User[]),
+          userService.getAllUsers({ role: 'principal' }).catch(() => [] as User[]),
+          userService.getAllUsers({ role: 'admin' }).catch(() => [] as User[]),
+        ]);
+        setAttendanceLogs(attData);
+        setTutors(tutorData);
+        setFaculty(facultyData);
+        setPrincipals(principalData);
+        setAdmins(adminData);
+      }
     } catch (err) {
       console.error('Failed to load DTR logs:', err);
-      setLogsError('Failed to load DTR history records.');
+      if (!silent) {
+        setLogsError('Failed to load DTR history records.');
+      }
     } finally {
-      setLogsLoading(false);
+      if (!silent) {
+        setLogsLoading(false);
+      }
     }
   };
 
@@ -595,16 +595,18 @@ export const AdminAttendanceQR: React.FC = () => {
           result = (a.time_out || '').localeCompare(b.time_out || '');
           break;
         case 'undertime': {
-          const aMins = timeToMinutes(a.time_out);
-          const bMins = timeToMinutes(b.time_out);
-          const aDiff = aMins !== null && aMins < TUTOR_TIME_OUT_MINS ? TUTOR_TIME_OUT_MINS - aMins : 0;
-          const bDiff = bMins !== null && bMins < TUTOR_TIME_OUT_MINS ? TUTOR_TIME_OUT_MINS - bMins : 0;
-          result = aDiff - bDiff;
+          const staffA = staffMap.get(String(a.user));
+          const staffB = staffMap.get(String(b.user));
+          const utA = getStaffUndertimeStr(staffA?.role || a.role, a.time_out, a.departure_am, a.departure_pm);
+          const utB = getStaffUndertimeStr(staffB?.role || b.role, b.time_out, b.departure_am, b.departure_pm);
+          result = utA.localeCompare(utB);
           break;
         }
         case 'status': {
-          const stA = getTutorStatus(timeToMinutes(a.time_in), timeToMinutes(a.time_out));
-          const stB = getTutorStatus(timeToMinutes(b.time_in), timeToMinutes(b.time_out));
+          const staffA = staffMap.get(String(a.user));
+          const staffB = staffMap.get(String(b.user));
+          const stA = getStaffDtrStatus(staffA?.role || a.role, a.time_in, a.arrival_am, a.arrival_pm);
+          const stB = getStaffDtrStatus(staffB?.role || b.role, b.time_in, b.arrival_am, b.arrival_pm);
           result = stA.localeCompare(stB);
           break;
         }
@@ -915,6 +917,10 @@ export const AdminAttendanceQR: React.FC = () => {
                 <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">
                   TODAY'S RECENT SCANS
                 </h3>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">Live Sync</span>
+                </div>
               </div>
               <div>
                 <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-2 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
@@ -931,16 +937,23 @@ export const AdminAttendanceQR: React.FC = () => {
                     <UserCheck className="w-7 h-7 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
                   </div>
                   <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center">
-                    Staff QR scans of today will appear here
+                    Staff QR scans of today will appear here in real-time
                   </p>
                 </div>
               ) : (
                 recentScansToday.map((log) => {
                   const staff = staffMap.get(String(log.user));
-                  const timeInMins = timeToMinutes(log.time_in);
-                  const timeOutMins = timeToMinutes(log.time_out);
-                  const st = getTutorStatus(timeInMins, timeOutMins);
-                  const timeDisplay = log.time_out ? formatDtrTime(log.time_out) : log.time_in ? formatDtrTime(log.time_in) : 'Logged';
+                  const role = staff?.role || log.role;
+                  const st = getStaffDtrStatus(role, log.time_in, log.arrival_am, log.arrival_pm);
+                  const timeDisplay = log.time_out
+                    ? formatDtrTime(log.time_out)
+                    : log.time_in
+                    ? formatDtrTime(log.time_in)
+                    : log.arrival_pm
+                    ? formatDtrTime(log.arrival_pm)
+                    : log.arrival_am
+                    ? formatDtrTime(log.arrival_am)
+                    : 'Logged';
                   const roleLabel = staff?.role === 'faculty' ? 'Faculty' : staff?.role === 'tutor' ? 'Tutor' : staff?.role === 'principal' ? 'Principal' : staff?.role === 'admin' ? 'Admin' : (log.role ? log.role.charAt(0).toUpperCase() + log.role.slice(1) : 'Staff');
 
                   return (
@@ -957,15 +970,15 @@ export const AdminAttendanceQR: React.FC = () => {
                         </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
-                          st === 'Completed' ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800' :
-                          st === 'Present' ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border-blue-100 dark:border-blue-800' :
-                          st === 'Late' ? 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-amber-100 dark:border-amber-800' :
-                          st === 'Early Out' ? 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-100 dark:border-rose-800' :
-                          'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800'
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
+                          st === 'Late'
+                            ? 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'
+                            : st === 'Present'
+                            ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
+                            : 'text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
                         }`}>
                           <CheckCircle2 className="w-3 h-3" />
-                          {timeDisplay}
+                          {st !== '—' && <span className="font-bold">{st}:</span>} {timeDisplay}
                         </span>
                       </div>
                     </div>
@@ -1101,6 +1114,23 @@ export const AdminAttendanceQR: React.FC = () => {
           </div>
         )}
 
+        {/* Official Schedules & Sync Banner */}
+        <div className="px-4 sm:px-6 py-2.5 bg-slate-50 dark:bg-[#151515] border-b border-gray-100 dark:border-[#1A1A1A] flex flex-wrap items-center justify-between gap-2.5 text-[11px]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">Official Schedules:</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded bg-white dark:bg-[#1f1f1f] border border-gray-200 dark:border-[#2a2a2a] text-slate-700 dark:text-slate-300 font-medium">
+              Faculty / Principal / Admin: <strong className="ml-1 font-semibold text-slate-900 dark:text-slate-100">8:00–11:30 AM</strong>&nbsp;•&nbsp;<strong className="font-semibold text-slate-900 dark:text-slate-100">1:00–4:30 PM</strong>
+            </span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded bg-white dark:bg-[#1f1f1f] border border-gray-200 dark:border-[#2a2a2a] text-slate-700 dark:text-slate-300 font-medium">
+              Tutor: <strong className="ml-1 font-semibold text-slate-900 dark:text-slate-100">4:30–5:00 PM</strong>
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Auto-refresh Active (3.5s)</span>
+          </div>
+        </div>
+
         {/* Table Content */}
         <div className="p-4 sm:p-6">
           {logsLoading ? (
@@ -1155,10 +1185,11 @@ export const AdminAttendanceQR: React.FC = () => {
                 <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
                   {sortedDtrRows.map((log) => {
                     const staff = staffMap.get(String(log.user));
+                    const role = staff?.role || log.role;
                     const timeInMins = timeToMinutes(log.time_in);
                     const timeOutMins = timeToMinutes(log.time_out);
-                    const status = getTutorStatus(timeInMins, timeOutMins);
-                    const undertime = getUndertimeStr(timeOutMins);
+                    const status = getStaffDtrStatus(role, log.time_in, log.arrival_am, log.arrival_pm);
+                    const undertime = getStaffUndertimeStr(role, log.time_out, log.departure_am, log.departure_pm);
 
                     // Calculate total hours
                     let totalHoursStr = '—';
@@ -1202,17 +1233,13 @@ export const AdminAttendanceQR: React.FC = () => {
                           {undertime}
                         </td>
                         <td className="px-4 py-2.5 text-center whitespace-nowrap">
-                          {status === 'Completed' ? (
+                          {status === 'Present' ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60">
-                              Completed
-                            </span>
-                          ) : status === 'Present' ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/60">
                               Present
                             </span>
-                          ) : status === 'Late' || status === 'Early Out' ? (
+                          ) : status === 'Late' ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60">
-                              {status}
+                              Late
                             </span>
                           ) : (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
