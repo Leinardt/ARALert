@@ -197,10 +197,14 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
       if (tokens.length > 1) {
         const lastToken = tokens[tokens.length - 1];
         if (lastToken.length <= 3 && /^[A-Za-z.]+$/.test(lastToken)) {
+          let mi = lastToken.toUpperCase();
+          if (mi && !mi.endsWith('.')) {
+            mi = `${mi}.`;
+          }
           return {
             last_name: lastName,
             first_name: tokens.slice(0, tokens.length - 1).join(' ').toUpperCase(),
-            middle_name: lastToken.toUpperCase(),
+            middle_name: mi,
           };
         }
       }
@@ -496,6 +500,8 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           updated.grade_level_grade = String(val).toUpperCase();
         } else if (field === 'grade_level_section') {
           updated.grade_level_section = String(val).toUpperCase();
+        } else if (field === 'middle_name') {
+          updated.middle_name = String(val).toUpperCase();
         } else if (field === 'aral_level') {
           if (val === 'plus' && updated.subject === 'Filipino') updated.subject = 'English';
           if (val === 'basic' && updated.subject === 'English') updated.subject = 'Filipino';
@@ -919,7 +925,13 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                   maxLength={5}
                                   value={student.middle_name}
                                   onChange={(e) => updateStudentField(student.id, 'middle_name', e.target.value.toUpperCase())}
-                                  className="w-full px-1.5 py-1 rounded border border-transparent hover:border-slate-300 dark:hover:border-zinc-700 focus:border-[var(--brand)] bg-transparent uppercase text-xs text-center"
+                                  onBlur={(e) => {
+                                    const val = e.target.value.trim();
+                                    if (val && !val.endsWith('.')) {
+                                      updateStudentField(student.id, 'middle_name', `${val}.`);
+                                    }
+                                  }}
+                                  className="w-full px-1.5 py-1 rounded border border-transparent hover:border-slate-300 dark:hover:border-zinc-700 focus:border-[var(--brand)] bg-transparent uppercase text-xs text-center font-medium"
                                 />
                               </td>
 

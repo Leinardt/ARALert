@@ -622,7 +622,14 @@ export const EditUser: React.FC = () => {
                   id="middle_name"
                   type="text"
                   placeholder="e.g. SANTOS"
-                  {...register('middle_name')}
+                  {...register('middle_name', {
+                    onBlur: (e) => {
+                      const val = e.target.value?.trim();
+                      if (val && val.length <= 2 && !val.endsWith('.')) {
+                        setValue('middle_name', `${val.toUpperCase()}.`);
+                      }
+                    },
+                  })}
                   onInput={(e) => {
                     e.currentTarget.value = e.currentTarget.value.replace(/[^a-zA-Z\s.\-ñÑ']/g, '');
                   }}
