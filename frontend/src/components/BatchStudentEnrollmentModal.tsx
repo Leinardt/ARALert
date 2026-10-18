@@ -610,7 +610,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     // 1. Check intra-file duplicates
     const dups = intraFileLrnMap.get(clean);
     if (dups && dups.length > 1) {
-      const rowList = dups.map((d) => `Row ${d.rowNumber}`).join(' & ');
+      const rowList = dups.map((d) => `Excel Row ${d.rowNumber}`).join(' & ');
       return `Duplicate LRN detected in file (${rowList})`;
     }
 
@@ -1038,7 +1038,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                               }`}
                             >
                               <td className="py-2 px-3 text-center text-slate-400 font-mono text-[11px] border-r border-slate-200 dark:border-zinc-800">
-                                {student.rowNumber ? student.rowNumber : idx + 1}
+                                {idx + 1}
                               </td>
 
                               {/* Last Name */}
