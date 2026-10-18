@@ -63,6 +63,21 @@ const SECTION_MAP: Record<string, string> = {
   'TURN': 'TURNIP',
 };
 
+const GRADE_LEVEL_OPTIONS = [
+  'GRADE 7',
+  'GRADE 8',
+  'GRADE 9',
+  'GRADE 10',
+  'GRADE 11',
+  'GRADE 12',
+  'GRADE 1',
+  'GRADE 2',
+  'GRADE 3',
+  'GRADE 4',
+  'GRADE 5',
+  'GRADE 6',
+];
+
 export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalProps> = ({
   isOpen,
   onClose,
@@ -444,6 +459,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           s.first_name.toLowerCase().includes(q) ||
           s.middle_name.toLowerCase().includes(q) ||
           s.lrn.includes(q) ||
+          s.grade_level_grade.toLowerCase().includes(q) ||
           s.grade_level_section.toLowerCase().includes(q) ||
           s.parent_guardian_name.toLowerCase().includes(q)
       );
@@ -476,6 +492,10 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
         const updated = { ...s, [field]: val };
         if (field === 'lrn') {
           updated.lrn = String(val).replace(/\D/g, '').slice(0, 12);
+        } else if (field === 'grade_level_grade') {
+          updated.grade_level_grade = String(val).toUpperCase();
+        } else if (field === 'grade_level_section') {
+          updated.grade_level_section = String(val).toUpperCase();
         } else if (field === 'aral_level') {
           if (val === 'plus' && updated.subject === 'Filipino') updated.subject = 'English';
           if (val === 'basic' && updated.subject === 'English') updated.subject = 'Filipino';
@@ -836,7 +856,8 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                           ARAL Level <span className="text-red-500">*</span>
                         </th>
                         <th className="py-2.5 px-3 min-w-[120px] border-r border-slate-200 dark:border-zinc-800">Subject</th>
-                        <th className="py-2.5 px-3 min-w-[150px] border-r border-slate-200 dark:border-zinc-800">Grade &amp; Section</th>
+                        <th className="py-2.5 px-3 min-w-[125px] border-r border-slate-200 dark:border-zinc-800">Grade Level</th>
+                        <th className="py-2.5 px-3 min-w-[130px] border-r border-slate-200 dark:border-zinc-800">Section</th>
                         <th className="py-2.5 px-3 min-w-[160px] border-r border-slate-200 dark:border-zinc-800">Assigned Tutor</th>
                         <th className="py-2.5 px-3 min-w-[150px] border-r border-slate-200 dark:border-zinc-800">Parent / Guardian</th>
                         <th className="py-2.5 px-3 min-w-[120px] border-r border-slate-200 dark:border-zinc-800">Contact No.</th>
@@ -846,7 +867,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                     <tbody className="divide-y divide-slate-200 dark:divide-zinc-800">
                       {filteredStudents.length === 0 ? (
                         <tr>
-                          <td colSpan={12} className="py-10 text-center text-slate-400">
+                          <td colSpan={13} className="py-10 text-center text-slate-400">
                             No students found matching your filters.
                           </td>
                         </tr>
@@ -959,11 +980,37 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                 </select>
                               </td>
 
-                              {/* Grade & Section */}
+                              {/* Grade Level */}
                               <td className="py-2 px-3 border-r border-slate-200 dark:border-zinc-800">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300">
-                                  {student.grade_level_grade} - {student.grade_level_section}
-                                </span>
+                                <select
+                                  value={student.grade_level_grade}
+                                  onChange={(e) => updateStudentField(student.id, 'grade_level_grade', e.target.value)}
+                                  className="w-full px-2 py-1 text-xs font-semibold rounded border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-200 cursor-pointer"
+                                >
+                                  {!GRADE_LEVEL_OPTIONS.includes(student.grade_level_grade) && student.grade_level_grade && (
+                                    <option value={student.grade_level_grade}>{student.grade_level_grade}</option>
+                                  )}
+                                  {GRADE_LEVEL_OPTIONS.map((g) => (
+                                    <option key={g} value={g}>
+                                      {g}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+
+                              {/* Section */}
+                              <td className="py-2 px-3 border-r border-slate-200 dark:border-zinc-800">
+                                <input
+                                  type="text"
+                                  value={student.grade_level_section}
+                                  onChange={(e) => updateStudentField(student.id, 'grade_level_section', e.target.value.toUpperCase())}
+                                  placeholder="SECTION"
+                                  className={`w-full px-2 py-1 text-xs uppercase font-medium rounded border transition-colors bg-transparent ${
+                                    !student.grade_level_section?.trim()
+                                      ? 'border-amber-300 dark:border-amber-700 bg-amber-50/20'
+                                      : 'border-transparent hover:border-slate-300 dark:hover:border-zinc-700 focus:border-[var(--brand)] text-slate-800 dark:text-slate-200'
+                                  }`}
+                                />
                               </td>
 
                               {/* Tutor */}
