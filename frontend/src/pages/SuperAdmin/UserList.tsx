@@ -743,20 +743,20 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
       <button
         type="button"
         onClick={() => handleSort(field)}
-        className={`inline-flex items-center gap-1.5 text-${align} transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap text-${align} transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
           isActive ? 'text-gray-700 dark:text-slate-200' : 'text-gray-400 dark:text-slate-400'
         } cursor-pointer`}
         aria-label={`Sort by ${label}`}
       >
-        <span>{label}</span>
+        <span className="whitespace-nowrap">{label}</span>
         {isActive ? (
           isAscending ? (
-            <ChevronUp className="w-3.5 h-3.5" />
+            <ChevronUp className="w-3.5 h-3.5 shrink-0" />
           ) : (
-            <ChevronDown className="w-3.5 h-3.5" />
+            <ChevronDown className="w-3.5 h-3.5 shrink-0" />
           )
         ) : (
-          <ArrowUpDown className="w-3.5 h-3.5 opacity-40" />
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-40 shrink-0" />
         )}
       </button>
     );
@@ -1008,12 +1008,12 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
         {/* ── Table Content ────────────────────────────────────────── */}
         <div className="overflow-x-auto mobile-scroll-table w-full">
-          <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
+          <table className={`${activeTab === 'student' ? 'min-w-[1100px]' : activeTab === 'tutor' ? 'min-w-[920px]' : 'min-w-[760px]'} w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal`}>
             <thead>
                 <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
                   {/* Select All Checkbox (Students) */}
                   {activeTab === 'student' && (
-                    <th className="w-10 px-3 py-2.5 text-center">
+                    <th className="w-10 px-3 py-2.5 text-center whitespace-nowrap">
                       <button
                         type="button"
                         onClick={toggleSelectAll}
@@ -1029,11 +1029,11 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                     </th>
                   )}
 
-                  <th className="w-12 px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                  <th className="w-12 px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                     #
                   </th>
 
-                  <th className="px-4 py-2.5 text-left">
+                  <th className="px-4 py-2.5 text-left whitespace-nowrap">
                     <SortableHeader
                       label={
                         activeTab === 'student' ? 'STUDENT' :
@@ -1048,70 +1048,70 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
                   {activeTab === 'student' ? (
                     <>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="LRN" field="lrn" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="ARAL LEVEL" field="aral_level" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="ASSIGNED TUTOR" field="assigned_tutor" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="SUBJECT" field="subject" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="GRADE LEVEL" field="grade_level" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="SECTION" field="section" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="PARENT / GUARDIAN" field="parent_guardian_name" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="CONTACT NO." field="contact_number" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="STATUS" field="status" />
                       </th>
-                      <th className="w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                      <th className="w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         ACTION
                       </th>
                     </>
                   ) : activeTab === 'tutor' ? (
                     <>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="EMAIL" field="email" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="ARAL SUBJECT" field="subject" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="ARAL LEVEL" field="aral_level" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="GRADE LEVEL" field="grade_level" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="SECTION" field="section" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="STATUS" field="status" />
                       </th>
-                      <th className="w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                      <th className="w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         ACTION
                       </th>
                     </>
                   ) : (
                     <>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="EMAIL" field="email" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="STATUS" field="status" />
                       </th>
-                      <th className="w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                      <th className="w-20 px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         ACTION
                       </th>
                     </>

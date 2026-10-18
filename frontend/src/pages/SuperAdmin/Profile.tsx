@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import type { User, StudentEditRequest } from '../../types';
 import { userService } from '../../services/userService';
+import { parseTutorRoleDetailsFromUser } from '../../utils/tutorCohortHelpers';
 import {
   User as UserIcon,
   Mail,
@@ -103,6 +104,12 @@ const SecurityHelpButton: React.FC<{ label: string; description: string }> = ({ 
 export const Profile: React.FC = () => {
   const { user, updateProfile } = useAuth();
   const [localUser, setLocalUser] = useState<User | null>(user);
+
+  // Compute tutor role details / classes handled
+  const tutorRoleDetails = useMemo(() => {
+    if (localUser?.role !== 'tutor') return [];
+    return parseTutorRoleDetailsFromUser(localUser);
+  }, [localUser]);
 
   // Staff direct editing state
   const [isEditing, setIsEditing] = useState(false);
@@ -326,7 +333,7 @@ export const Profile: React.FC = () => {
                 <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--brand-light)', color: 'var(--brand-dark)', border: '1px solid var(--brand-border)' }}>
                   {localUser.is_superuser ? 'SuperAdmin' : localUser.role?.toUpperCase() || 'USER'}
                 </span>
-                {(localUser.role === 'student' || localUser.role === 'tutor') && (
+                {localUser.role === 'student' && (
                   <>
                     <span className="text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
                       {formatAralLevel(localUser.aral_level).toUpperCase()}
@@ -336,6 +343,22 @@ export const Profile: React.FC = () => {
                       {localUser.subject === 'Reading' ? 'Filipino' : (localUser.subject || 'Filipino')}
                     </span>
                   </>
+                )}
+                {localUser.role === 'tutor' && tutorRoleDetails.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {tutorRoleDetails.map((group, idx) => {
+                      const subjectName = group.subjects[0] || (group.aralLevel === 'basic' ? 'Filipino' : 'English');
+                      const sectionName = group.sections[0] || localUser.section || 'HYACINTH';
+                      return (
+                        <span
+                          key={group.id || idx}
+                          className="text-[11px] font-semibold text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 px-2 py-0.5 rounded-md"
+                        >
+                          {group.aralLevel.toUpperCase()} • {subjectName.toUpperCase()} • {group.gradeLevel} - {sectionName}
+                        </span>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>
@@ -608,31 +631,71 @@ export const Profile: React.FC = () => {
             </div>
           </div>
 
-          {/* Tutor Academic Assignment */}
+          {/* Tutor Role Details & Handled Classes */}
           {localUser.role === 'tutor' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  ARAL Level Assigned
-                </label>
-                <input
-                  value={formatAralLevel(localUser.aral_level)}
-                  readOnly
-                  disabled
-                  style={readonlyStyle}
-                />
+            <div className="mt-2 pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                    ASSIGNED CLASSES & ROLE DETAILS ({tutorRoleDetails.length})
+                  </h3>
+                  <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
+                    Official ARAL program classes, subjects, and grade sections handled
+                  </p>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  ARAL Subject Assigned
-                </label>
-                <input
-                  value={localUser.subject === 'Reading' ? 'Filipino' : (localUser.subject || 'Filipino')}
-                  readOnly
-                  disabled
-                  style={readonlyStyle}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {tutorRoleDetails.map((group, idx) => {
+                  const subjectName = group.subjects[0] || (group.aralLevel === 'basic' ? 'Filipino' : 'English');
+                  const sectionName = group.sections[0] || localUser.section || 'HYACINTH';
+                  const isPlus = group.aralLevel === 'plus';
+
+                  return (
+                    <div
+                      key={group.id || idx}
+                      className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 p-3.5 space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                          Role Detail #{idx + 1}
+                        </span>
+                        <span
+                          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${
+                            isPlus
+                              ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                              : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                          }`}
+                        >
+                          {group.aralLevel.toUpperCase()}
+                        </span>
+                      </div>
+
+                      <div className="text-xs font-bold text-gray-900 dark:text-white pb-2 border-b border-slate-200/60 dark:border-zinc-800/80">
+                        {group.aralLevel.toUpperCase()} • {subjectName.toUpperCase()} • {group.gradeLevel} - {sectionName}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 block uppercase">
+                            Subject
+                          </span>
+                          <span className="font-semibold text-gray-800 dark:text-slate-200">
+                            {subjectName}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 block uppercase">
+                            Grade & Section
+                          </span>
+                          <span className="font-semibold text-gray-800 dark:text-slate-200">
+                            {group.gradeLevel} - {sectionName}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

@@ -173,20 +173,20 @@ export const AssessmentsArchive: React.FC = () => {
       <button
         type="button"
         onClick={() => handleSort(field)}
-        className={`inline-flex items-center gap-1.5 text-${align} transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap text-${align} transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
           isActive ? 'text-gray-700 dark:text-slate-200' : 'text-gray-400 dark:text-slate-400'
         } cursor-pointer`}
         aria-label={`Sort by ${label}`}
       >
-        <span>{label}</span>
+        <span className="whitespace-nowrap">{label}</span>
         {isActive ? (
           sortOrder === 'asc' ? (
-            <ChevronUp className="w-3.5 h-3.5" />
+            <ChevronUp className="w-3.5 h-3.5 shrink-0" />
           ) : (
-            <ChevronDown className="w-3.5 h-3.5" />
+            <ChevronDown className="w-3.5 h-3.5 shrink-0" />
           )
         ) : (
-          <ArrowUpDown className="w-3.5 h-3.5 opacity-40" />
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-40 shrink-0" />
         )}
       </button>
     );
@@ -532,14 +532,14 @@ export const AssessmentsArchive: React.FC = () => {
               <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
                 <thead>
                   <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-                    <th className="px-4 py-2.5 text-left">
+                    <th className="px-4 py-2.5 text-left whitespace-nowrap">
                       <SortableHeader label="TUTOR NAME" field="tutorName" />
                     </th>
-                    <th className="px-4 py-2.5 text-center">
+                    <th className="px-4 py-2.5 text-center whitespace-nowrap">
                       <SortableHeader label="TOTAL STUDENTS" field="totalStudents" align="center" />
                     </th>
-                    <th className="px-4 py-2.5 text-center">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                    <th className="px-4 py-2.5 text-center whitespace-nowrap">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         OUTCOME SUMMARY
                       </span>
                     </th>
@@ -635,17 +635,17 @@ export const AssessmentsArchive: React.FC = () => {
                                             <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
                                               <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
                                                 <tr>
-                                                  <th className="w-10 px-3 py-2 text-center">#</th>
-                                                  <th className="px-3 py-2 text-left">STUDENT NAME</th>
-                                                  <th className="px-3 py-2 text-left">LRN</th>
-                                                  <th className="px-3 py-2 text-center">FINAL AVG ATTENDANCE RATE</th>
-                                                  <th className="px-3 py-2 text-center">FINAL AVG SCORE</th>
-                                                  <th className="px-3 py-2 text-center">FINAL AVG COMPOSITE</th>
-                                                  <th className="px-3 py-2 text-center">
+                                                  <th className="w-10 px-3 py-2 text-center whitespace-nowrap">#</th>
+                                                  <th className="px-3 py-2 text-left whitespace-nowrap">STUDENT NAME</th>
+                                                  <th className="px-3 py-2 text-left whitespace-nowrap">LRN</th>
+                                                  <th className="px-3 py-2 text-center whitespace-nowrap">FINAL AVG ATTENDANCE RATE</th>
+                                                  <th className="px-3 py-2 text-center whitespace-nowrap">FINAL AVG SCORE</th>
+                                                  <th className="px-3 py-2 text-center whitespace-nowrap">FINAL AVG COMPOSITE</th>
+                                                  <th className="px-3 py-2 text-center whitespace-nowrap">
                                                     {activeTab === 'mosy' ? 'MOSY ASSESSMENT' : activeTab === 'eosy' ? 'EOSY ASSESSMENT' : 'SUMMER ASSESSMENT'}
                                                   </th>
-                                                  <th className="px-3 py-2 text-center">STATUS</th>
-                                                  <th className="px-3 py-2 text-center">ACTION</th>
+                                                  <th className="px-3 py-2 text-center whitespace-nowrap">STATUS</th>
+                                                  <th className="px-3 py-2 text-center whitespace-nowrap">ACTION</th>
                                                 </tr>
                                               </thead>
                                               <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
@@ -654,23 +654,23 @@ export const AssessmentsArchive: React.FC = () => {
                                                     key={st.id}
                                                     className="divide-x divide-gray-100 dark:divide-[#1A1A1A] hover:bg-gray-50/70 dark:hover:bg-white/[0.02] transition-colors"
                                                   >
-                                                    <td className="px-3 py-2.5 text-center text-slate-400 font-medium">{idx + 1}</td>
+                                                    <td className="px-3 py-2.5 text-center text-slate-400 font-medium whitespace-nowrap">{idx + 1}</td>
                                                     <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                                                       {st.name}
                                                     </td>
-                                                    <td className="px-3 py-2.5 font-mono text-slate-600 dark:text-slate-300">
+                                                    <td className="px-3 py-2.5 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">
                                                       {st.lrn}
                                                     </td>
-                                                    <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
+                                                    <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
                                                       {st.attendanceRate.toFixed(1)}%
                                                     </td>
-                                                    <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
+                                                    <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
                                                       {st.avgScore.toFixed(1)}%
                                                     </td>
-                                                    <td className="px-3 py-2.5 text-center font-bold text-slate-900 dark:text-white">
+                                                    <td className="px-3 py-2.5 text-center font-bold text-slate-900 dark:text-white whitespace-nowrap">
                                                       {st.compositeScore.toFixed(1)}%
                                                     </td>
-                                                    <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
+                                                    <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
                                                       {st.assessmentScoreStr}
                                                     </td>
                                                     <td className="px-3 py-2.5 text-center whitespace-nowrap">

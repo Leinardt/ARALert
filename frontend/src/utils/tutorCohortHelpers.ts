@@ -934,18 +934,9 @@ export function buildTutorPayloadFromRoleDetails(groups: TutorRoleDetailGroup[])
   const cohortEntries: string[] = [];
   groups.forEach((g) => {
     const validSections = g.sections.map((s) => s.trim().toUpperCase()).filter(Boolean);
-    if (validSections.length > 0) {
-      validSections.forEach((sec) => {
-        const entry = `${g.gradeLevel} - ${sec}`;
-        if (!cohortEntries.includes(entry)) {
-          cohortEntries.push(entry);
-        }
-      });
-    } else {
-      if (!cohortEntries.includes(g.gradeLevel)) {
-        cohortEntries.push(g.gradeLevel);
-      }
-    }
+    const sec = validSections[0] || 'HYACINTH';
+    const entry = `${g.gradeLevel} - ${sec}`;
+    cohortEntries.push(entry);
   });
 
   let combinedGradeLevel = cohortEntries.join(', ');
@@ -975,17 +966,36 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
   if (rawSubject.includes('english')) subjectsList.push('English');
   if (rawSubject.includes('science')) subjectsList.push('Science');
   if (rawSubject.includes('math')) subjectsList.push('Math');
+  if (subjectsList.length === 0) subjectsList.push('Filipino');
 
   const rawGradeLevel = (user.grade_level || '').trim();
   const rawSection = (user.section || '').trim().toUpperCase();
 
   const groupSubjects = handlesBasic
-    ? (subjectsList.includes('Filipino') ? ['Filipino'] : ['Filipino'])
-    : (subjectsList.includes('English') ? ['English'] : ['English']);
+    ? (subjectsList.includes('Filipino') ? ['Filipino'] : [subjectsList[0] || 'Filipino'])
+    : (subjectsList.includes('English') ? ['English'] : [subjectsList[0] || 'English']);
   if (subjectsList.includes('Science') && !groupSubjects.includes('Science')) groupSubjects.push('Science');
   if (subjectsList.includes('Math') && !groupSubjects.includes('Math')) groupSubjects.push('Math');
 
   if (!rawGradeLevel) {
+    if (handlesBasic && handlesPlus) {
+      return [
+        {
+          id: 'rd-basic-1',
+          aralLevel: 'basic',
+          subjects: ['Filipino'],
+          gradeLevel: 'GRADE 7',
+          sections: [rawSection || 'HYACINTH'],
+        },
+        {
+          id: 'rd-plus-2',
+          aralLevel: 'plus',
+          subjects: subjectsList.includes('English') ? ['English'] : ['Filipino'],
+          gradeLevel: 'GRADE 7',
+          sections: [rawSection || 'HYACINTH'],
+        },
+      ];
+    }
     return [
       {
         id: Math.random().toString(36).substring(2, 9),
@@ -1030,15 +1040,7 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
   });
 
   if (parsedCohorts.length === 0) {
-    return [
-      {
-        id: Math.random().toString(36).substring(2, 9),
-        aralLevel: handlesBasic ? 'basic' : 'plus',
-        subjects: groupSubjects,
-        gradeLevel: 'GRADE 7',
-        sections: [rawSection || 'HYACINTH'],
-      },
-    ];
+    parsedCohorts.push({ grade: 'GRADE 7', section: rawSection || 'HYACINTH' });
   }
 
   const rawSectionChunks = rawSection ? rawSection.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean) : [];
@@ -1054,17 +1056,42 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
     }
   });
 
+  // If tutor handles both Basic & Plus and only 1 cohort is listed, they handle 2 distinct role details
+  if (handlesBasic && handlesPlus && parsedCohorts.length === 1) {
+    const cohort = parsedCohorts[0];
+    const sec = cohort.section || rawSection || 'HYACINTH';
+    const subjBasic = subjectsList.includes('Filipino') ? 'Filipino' : (subjectsList[0] || 'Filipino');
+    const subjPlus = subjectsList.includes('English') ? 'English' : (subjectsList[0] || 'Filipino');
+
+    return [
+      {
+        id: 'rd-basic-1',
+        aralLevel: 'basic',
+        subjects: [subjBasic],
+        gradeLevel: cohort.grade || 'GRADE 7',
+        sections: [sec],
+      },
+      {
+        id: 'rd-plus-2',
+        aralLevel: 'plus',
+        subjects: [subjPlus],
+        gradeLevel: cohort.grade || 'GRADE 7',
+        sections: [sec],
+      },
+    ];
+  }
+
   return parsedCohorts.map((cohort, index) => {
     let groupLevel: 'basic' | 'plus' = 'basic';
     if (handlesBasic && handlesPlus) {
-      groupLevel = index === 0 ? 'basic' : 'plus';
+      groupLevel = index % 2 === 0 ? 'basic' : 'plus';
     } else if (handlesPlus) {
       groupLevel = 'plus';
     }
 
     const itemSubjects = groupLevel === 'basic'
-      ? (subjectsList.includes('Filipino') ? ['Filipino'] : ['Filipino'])
-      : (subjectsList.includes('English') ? ['English'] : ['English']);
+      ? (subjectsList.includes('Filipino') ? ['Filipino'] : [subjectsList[0] || 'Filipino'])
+      : (subjectsList.includes('English') ? ['English'] : [subjectsList[0] || 'English']);
 
     if (subjectsList.includes('Science') && !itemSubjects.includes('Science')) itemSubjects.push('Science');
     if (subjectsList.includes('Math') && !itemSubjects.includes('Math')) itemSubjects.push('Math');
@@ -1098,45 +1125,35 @@ export function buildTutorClassSections<T = any>(
   const groups = parseTutorRoleDetailsFromUser(tutor);
 
   const classes: TutorHandledClassSection<T>[] = [];
-  const seenKeys = new Set<string>();
 
-  groups.forEach((g) => {
-    const subjects = g.subjects.length > 0 ? g.subjects : [g.aralLevel === 'basic' ? 'Filipino' : 'English'];
-    const sections = g.sections.length > 0 && g.sections[0] ? g.sections : [(tutor.section || 'HYACINTH')];
+  groups.forEach((g, gIdx) => {
+    const subj = g.subjects[0] || (g.aralLevel === 'basic' ? 'Filipino' : 'English');
+    const sec = (g.sections[0] || tutor.section || 'HYACINTH').toUpperCase().trim();
+    let cleanGrade = (g.gradeLevel || 'GRADE 7').toUpperCase().trim();
+    let cleanSec = sec;
 
-    subjects.forEach((subj) => {
-      sections.forEach((sec) => {
-        let cleanGrade = (g.gradeLevel || 'GRADE 7').toUpperCase().trim();
-        let cleanSec = (sec || (tutor.section || 'HYACINTH')).toUpperCase().trim();
+    if (!cleanSec && cleanGrade.includes(' - ')) {
+      const parts = cleanGrade.split(' - ');
+      cleanGrade = parts[0].trim();
+      cleanSec = parts[1].trim();
+    }
+    if (!cleanSec) cleanSec = 'HYACINTH';
 
-        if (!cleanSec && cleanGrade.includes(' - ')) {
-          const parts = cleanGrade.split(' - ');
-          cleanGrade = parts[0].trim();
-          cleanSec = parts[1].trim();
-        }
+    const cohortStr = `${cleanGrade} - ${cleanSec}`;
+    const aralLabel = g.aralLevel.toUpperCase();
+    const subjectLabel = subj.toUpperCase();
+    const label = `${aralLabel} • ${subjectLabel} • ${cohortStr}`;
+    const key = `${g.aralLevel}-${subj}-${cohortStr}-${gIdx}`.toLowerCase();
 
-        if (!cleanSec) cleanSec = 'HYACINTH';
-
-        const cohortStr = `${cleanGrade} - ${cleanSec}`;
-        const aralLabel = g.aralLevel.toUpperCase();
-        const subjectLabel = subj.toUpperCase();
-        const label = `${aralLabel} • ${subjectLabel} • ${cohortStr}`;
-        const key = `${g.aralLevel}-${subj}-${cohortStr}`.toLowerCase();
-
-        if (!seenKeys.has(key)) {
-          seenKeys.add(key);
-          classes.push({
-            key,
-            label,
-            aralLevel: g.aralLevel,
-            subject: subj,
-            gradeLevel: cleanGrade,
-            section: cleanSec,
-            cohort: cohortStr,
-            students: [],
-          });
-        }
-      });
+    classes.push({
+      key,
+      label,
+      aralLevel: g.aralLevel,
+      subject: subj,
+      gradeLevel: cleanGrade,
+      section: cleanSec,
+      cohort: cohortStr,
+      students: [],
     });
   });
 
@@ -1158,8 +1175,7 @@ export function buildTutorClassSections<T = any>(
     });
   }
 
-  // Populate students
-  const assignedStudentIds = new Set<string>();
+  // Populate students into their matching role detail / class
   classes.forEach((cls) => {
     cls.students = allTutorStudents.filter((st: any) => {
       const studentObj: Partial<User> | undefined = st?.rawStudent || st?.student || (st?.id ? st : undefined);
@@ -1170,33 +1186,30 @@ export function buildTutorClassSections<T = any>(
         cohort: cls.cohort,
       });
     });
+  });
+
+  // Assign any unmatched students to closest class (strictly NO "OTHER ASSIGNED STUDENTS" option in dropdown)
+  const assignedStudentIds = new Set<string>();
+  classes.forEach((cls) => {
     cls.students.forEach((s: any) => {
       const id = s?.rawStudent?.id || s?.student?.id || s?.id;
       if (id) assignedStudentIds.add(String(id));
     });
   });
 
-  // Handle any student assigned to tutor not matching any role detail class
-  const unassigned = allTutorStudents.filter((st: any) => {
+  const unmatched = allTutorStudents.filter((st: any) => {
     const id = st?.rawStudent?.id || st?.student?.id || st?.id;
     return !assignedStudentIds.has(String(id));
   });
-  if (unassigned.length > 0) {
-    if (classes.length === 1 && classes[0].students.length === 0) {
-      classes[0].students = unassigned;
-    } else {
-      classes.push({
-        key: 'other-assigned',
-        label: `${(tutor.aral_level || 'BASIC').toUpperCase()} • ${(tutor.subject || 'FILIPINO').toUpperCase()} • OTHER ASSIGNED STUDENTS`,
-        aralLevel: (tutor.aral_level || 'basic').toLowerCase().includes('plus') ? 'plus' : 'basic',
-        subject: tutor.subject || 'Filipino',
-        gradeLevel: 'OTHER',
-        section: 'OTHER',
-        cohort: 'OTHER',
-        students: unassigned,
-      });
+
+  unmatched.forEach((st: any) => {
+    const studentObj: Partial<User> | undefined = st?.rawStudent || st?.student || (st?.id ? st : undefined);
+    const sLevel = (studentObj?.aral_level || 'basic').toLowerCase().trim();
+    const match = classes.find((c) => c.aralLevel === sLevel) || classes[0];
+    if (match) {
+      match.students.push(st);
     }
-  }
+  });
 
   return classes;
 }

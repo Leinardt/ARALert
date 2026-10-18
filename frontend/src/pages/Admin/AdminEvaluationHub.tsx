@@ -62,7 +62,7 @@ interface TutorEvaluationRow {
   aralLevel: 'BASIC' | 'PLUS' | 'SUMMER';
   assignedCount: number;
   evaluatedCount: number;
-  status: 'Pending' | 'Completed';
+  status: 'Pending' | 'Completed' | 'Closed' | 'No Students';
   students: StudentMetric[];
   tutorUser?: User;
 }
@@ -247,20 +247,20 @@ export const AdminEvaluationHub: React.FC = () => {
       <button
         type="button"
         onClick={() => handleSort(field)}
-        className={`inline-flex items-center gap-1.5 text-${align} transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap text-${align} transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
           isActive ? 'text-gray-700 dark:text-slate-200' : 'text-gray-400 dark:text-slate-400'
         } cursor-pointer`}
         aria-label={`Sort by ${label}`}
       >
-        <span>{label}</span>
+        <span className="whitespace-nowrap">{label}</span>
         {isActive ? (
           sortOrder === 'asc' ? (
-            <ChevronUp className="w-3.5 h-3.5" />
+            <ChevronUp className="w-3.5 h-3.5 shrink-0" />
           ) : (
-            <ChevronDown className="w-3.5 h-3.5" />
+            <ChevronDown className="w-3.5 h-3.5 shrink-0" />
           )
         ) : (
-          <ArrowUpDown className="w-3.5 h-3.5 opacity-40" />
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-40 shrink-0" />
         )}
       </button>
     );
@@ -337,15 +337,15 @@ export const AdminEvaluationHub: React.FC = () => {
       const assignedCount = tutorStudents.length;
 
       let evaluatedCount = 0;
-      let status: 'Pending' | 'Completed' = 'Pending';
+      let isCompleted = false;
 
       if (activeTab === 'mosy') {
         const p = mosyData?.tutors_progress?.find((tp) => tp.tutor_id === String(tutor.id));
         if (p) {
           evaluatedCount = p.evaluated_count;
-          status = assignedCount > 0 && (p.status === 'Completed' || p.remaining_count === 0) ? 'Completed' : 'Pending';
+          isCompleted = assignedCount > 0 && (p.status === 'Completed' || p.remaining_count === 0);
         } else if (assignedCount === 0) {
-          status = 'Pending';
+          isCompleted = false;
         } else {
           const evaluatedStudents = tutorStudents.filter((s) => {
             return grades.some((g) => {
@@ -354,15 +354,15 @@ export const AdminEvaluationHub: React.FC = () => {
             });
           });
           evaluatedCount = evaluatedStudents.length;
-          status = assignedCount > 0 && evaluatedCount >= assignedCount ? 'Completed' : 'Pending';
+          isCompleted = assignedCount > 0 && evaluatedCount >= assignedCount;
         }
       } else if (activeTab === 'eosy') {
         const p = eosyData?.tutors_progress?.find((tp) => tp.tutor_id === String(tutor.id));
         if (p) {
           evaluatedCount = p.evaluated_count;
-          status = assignedCount > 0 && (p.status === 'Completed' || p.remaining_count === 0) ? 'Completed' : 'Pending';
+          isCompleted = assignedCount > 0 && (p.status === 'Completed' || p.remaining_count === 0);
         } else if (assignedCount === 0) {
-          status = 'Pending';
+          isCompleted = false;
         } else {
           const evaluatedStudents = tutorStudents.filter((s) => {
             return grades.some((g) => {
@@ -371,26 +371,37 @@ export const AdminEvaluationHub: React.FC = () => {
             });
           });
           evaluatedCount = evaluatedStudents.length;
-          status = assignedCount > 0 && evaluatedCount >= assignedCount ? 'Completed' : 'Pending';
+          isCompleted = assignedCount > 0 && evaluatedCount >= assignedCount;
         }
       } else {
         // Summer
         if (currentActiveSemester !== 'summer') {
           evaluatedCount = 0;
-          status = 'Pending';
+          isCompleted = false;
         } else {
           const tutorSummerRecords = summerRecords.filter((sr) => {
             const st = students.find((s) => s.id === sr.student || s.lrn === sr.student_lrn);
             return st && String(st.assigned_tutor) === String(tutor.id);
           });
           if (tutorSummerRecords.length === 0) {
-            status = 'Pending';
+            isCompleted = false;
           } else {
             const comp = tutorSummerRecords.filter((sr) => sr.summer_status === 'summer_completed' || sr.summer_result).length;
             evaluatedCount = comp;
-            status = tutorSummerRecords.length > 0 && comp >= tutorSummerRecords.length ? 'Completed' : 'Pending';
+            isCompleted = tutorSummerRecords.length > 0 && comp >= tutorSummerRecords.length;
           }
         }
+      }
+
+      let status: 'Pending' | 'Completed' | 'Closed' | 'No Students';
+      if (isCompleted) {
+        status = 'Completed';
+      } else if (assignedCount === 0) {
+        status = 'No Students';
+      } else if (!isWindowOpen) {
+        status = 'Closed';
+      } else {
+        status = 'Pending';
       }
 
       const studentMetrics: StudentMetric[] = tutorStudents.map((st) => {
@@ -490,12 +501,12 @@ export const AdminEvaluationHub: React.FC = () => {
         tutorUser: tutor,
       };
     });
-  }, [tutors, students, grades, attendance, mosyData, eosyData, summerRecords, activeTab, currentActiveSemester]);
+  }, [tutors, students, grades, attendance, mosyData, eosyData, summerRecords, activeTab, currentActiveSemester, isWindowOpen]);
 
   const totalTutorsCount = tutorRows.length;
   const completedTutorsCount = tutorRows.filter((r) => r.status === 'Completed').length;
-  const pendingTutorsCount = Math.max(0, totalTutorsCount - completedTutorsCount);
-  const isAllTutorsComplete = totalTutorsCount > 0 && completedTutorsCount === totalTutorsCount;
+  const pendingTutorsCount = tutorRows.filter((r) => r.status === 'Pending').length;
+  const isAllTutorsComplete = totalTutorsCount > 0 && tutorRows.filter((r) => r.assignedCount > 0).length > 0 && tutorRows.filter((r) => r.assignedCount > 0).every((r) => r.status === 'Completed');
 
   const sortedAndFilteredTutorRows = useMemo(() => {
     let list = [...tutorRows];
@@ -855,13 +866,13 @@ export const AdminEvaluationHub: React.FC = () => {
                 <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
                   <thead>
                     <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="TUTOR NAME" field="tutorName" />
                       </th>
-                      <th className="px-4 py-2.5 text-center">
+                      <th className="px-4 py-2.5 text-center whitespace-nowrap">
                         <SortableHeader label="TOTAL STUDENTS" field="assignedCount" align="center" />
                       </th>
-                      <th className="px-4 py-2.5 text-center">
+                      <th className="px-4 py-2.5 text-center whitespace-nowrap">
                         <SortableHeader label="STATUS" field="status" align="center" />
                       </th>
                     </tr>
@@ -899,7 +910,9 @@ export const AdminEvaluationHub: React.FC = () => {
                                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
                                   row.status === 'Completed'
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
-                                    : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60'
+                                    : row.status === 'Pending'
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60'
+                                    : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
                                 }`}
                               >
                                 {row.status}
@@ -939,16 +952,16 @@ export const AdminEvaluationHub: React.FC = () => {
                                               <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
                                             <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
                                               <tr>
-                                                <th className="w-10 px-3 py-2 text-center">#</th>
-                                                <th className="px-3 py-2 text-left">STUDENT NAME</th>
-                                                <th className="px-3 py-2 text-left">LRN</th>
-                                                <th className="px-3 py-2 text-center">FINAL AVG ATTENDANCE RATE</th>
-                                                <th className="px-3 py-2 text-center">FINAL AVG SCORE</th>
-                                                <th className="px-3 py-2 text-center">FINAL AVG COMPOSITE</th>
-                                                <th className="px-3 py-2 text-center">
+                                                <th className="w-10 px-3 py-2 text-center whitespace-nowrap">#</th>
+                                                <th className="px-3 py-2 text-left whitespace-nowrap">STUDENT NAME</th>
+                                                <th className="px-3 py-2 text-left whitespace-nowrap">LRN</th>
+                                                <th className="px-3 py-2 text-center whitespace-nowrap">FINAL AVG ATTENDANCE RATE</th>
+                                                <th className="px-3 py-2 text-center whitespace-nowrap">FINAL AVG SCORE</th>
+                                                <th className="px-3 py-2 text-center whitespace-nowrap">FINAL AVG COMPOSITE</th>
+                                                <th className="px-3 py-2 text-center whitespace-nowrap">
                                                   {activeTab === 'mosy' ? 'MOSY ASSESSMENT' : activeTab === 'eosy' ? 'EOSY ASSESSMENT' : 'SUMMER ASSESSMENT'}
                                                 </th>
-                                                <th className="px-3 py-2 text-center">STATUS</th>
+                                                <th className="px-3 py-2 text-center whitespace-nowrap">STATUS</th>
                                               </tr>
                                             </thead>
                                             <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
@@ -957,23 +970,23 @@ export const AdminEvaluationHub: React.FC = () => {
                                                   key={st.id}
                                                   className="divide-x divide-gray-100 dark:divide-[#1A1A1A] hover:bg-gray-50/70 dark:hover:bg-white/[0.02] transition-colors"
                                                 >
-                                                  <td className="px-3 py-2.5 text-center text-slate-400 font-medium">{idx + 1}</td>
+                                                  <td className="px-3 py-2.5 text-center text-slate-400 font-medium whitespace-nowrap">{idx + 1}</td>
                                                   <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                                                     {st.name}
                                                   </td>
-                                                  <td className="px-3 py-2.5 font-mono text-slate-600 dark:text-slate-300">
+                                                  <td className="px-3 py-2.5 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">
                                                     {st.lrn}
                                                   </td>
-                                                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
+                                                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
                                                     {st.attendanceRate.toFixed(1)}%
                                                   </td>
-                                                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
+                                                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
                                                     {st.avgScore.toFixed(1)}%
                                                   </td>
-                                                  <td className="px-3 py-2.5 text-center font-bold text-slate-900 dark:text-white">
+                                                  <td className="px-3 py-2.5 text-center font-bold text-slate-900 dark:text-white whitespace-nowrap">
                                                     {st.compositeScore.toFixed(1)}%
                                                   </td>
-                                                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
+                                                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
                                                     {st.assessmentScoreStr}
                                                   </td>
                                                   <td className="px-3 py-2.5 text-center whitespace-nowrap">
@@ -983,10 +996,12 @@ export const AdminEvaluationHub: React.FC = () => {
                                                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
                                                           : st.status === 'RETAINED'
                                                           ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60'
+                                                          : !isWindowOpen
+                                                          ? 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
                                                           : 'bg-amber-50/70 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/40'
                                                       }`}
                                                     >
-                                                      {st.status}
+                                                      {!isWindowOpen && st.status === 'PENDING' ? 'CLOSED' : st.status}
                                                     </span>
                                                   </td>
                                                 </tr>
