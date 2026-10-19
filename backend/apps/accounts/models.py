@@ -236,8 +236,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     def clean(self):
         super().clean()
         if self.role == 'tutor':
-            level = (self.tutor_type or self.aral_level or 'basic').lower()
-            if level not in ('basic', 'plus', 'summer', 'basic_plus', 'basic,plus'):
+            combined = f"{self.tutor_type or ''} {self.aral_level or ''}".lower()
+            if ('basic' in combined and 'plus' in combined) or 'basic_plus' in combined or 'basic,plus' in combined:
+                level = 'basic,plus'
+            elif 'plus' in combined:
+                level = 'plus'
+            elif 'summer' in combined:
+                level = 'summer'
+            else:
                 level = 'basic'
             self.aral_level = level
             self.tutor_type = level
@@ -251,10 +257,17 @@ class User(AbstractBaseUser, PermissionsMixin):
         if self.last_name:
             self.last_name = self.last_name.upper().strip()
         if self.role == 'tutor':
-            level = (self.tutor_type or self.aral_level or 'basic').lower()
-            if level in ('basic', 'plus', 'summer', 'basic_plus', 'basic,plus'):
-                self.aral_level = level
-                self.tutor_type = level
+            combined = f"{self.tutor_type or ''} {self.aral_level or ''}".lower()
+            if ('basic' in combined and 'plus' in combined) or 'basic_plus' in combined or 'basic,plus' in combined:
+                level = 'basic,plus'
+            elif 'plus' in combined:
+                level = 'plus'
+            elif 'summer' in combined:
+                level = 'summer'
+            else:
+                level = 'basic'
+            self.aral_level = level
+            self.tutor_type = level
         if self.subject and self.subject.strip().lower() == 'reading':
             self.subject = 'Filipino'
         # Auto-generate username from email for Django internal compatibility

@@ -30,7 +30,7 @@ export interface User {
   weekly_tasks_weight: number;
   attendance_weight: number;
   aral_level?: 'basic' | 'plus' | 'summer' | 'graduated' | string | null;
-  tutor_type?: 'basic' | 'plus' | 'summer' | 'basic_plus' | string | null;
+  tutor_type?: 'basic' | 'plus' | 'summer' | 'basic_plus' | 'basic,plus' | string | null;
   is_available_for_students?: boolean;
   subject?: 'Filipino' | 'Reading' | 'Science' | 'Math' | 'English' | string | null;
   faculty_type?: string | null;

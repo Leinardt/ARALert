@@ -73,7 +73,7 @@ def assign_tutor_to_student(
                 defaults={'status': 'ACTIVE', 'is_active': True}
             )
 
-    student_prog = student.aral_level or 'basic'
+    student_prog = (student.aral_level or 'basic').lower().strip()
 
     if tutor:
         validate_tutor_compatibility(tutor, student_prog)

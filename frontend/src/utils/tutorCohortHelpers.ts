@@ -917,7 +917,7 @@ export function buildTutorPayloadFromRoleDetails(groups: TutorRoleDetailGroup[])
   const hasBasic = groups.some((g) => g.aralLevel === 'basic');
   const hasPlus = groups.some((g) => g.aralLevel === 'plus');
   const aralLevel = hasBasic && hasPlus ? 'basic,plus' : (hasPlus ? 'plus' : 'basic');
-  const tutorType = hasBasic && hasPlus ? 'basic_plus' : (hasPlus ? 'plus' : 'basic');
+  const tutorType = hasBasic && hasPlus ? 'basic,plus' : (hasPlus ? 'plus' : 'basic');
 
   const subjectSet = new Set<string>();
   groups.forEach((g) => {
