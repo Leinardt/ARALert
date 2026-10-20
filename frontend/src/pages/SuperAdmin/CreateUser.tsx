@@ -912,6 +912,7 @@ export const CreateUser: React.FC = () => {
         onClose={() => setIsBatchModalOpen(false)}
         tutors={tutors}
         onEnrollmentSuccess={(count) => {
+          setIsBatchModalOpen(false);
           setSuccessToastTitle('Batch Enrollment Completed');
           setSuccessToastMessage(`Successfully enrolled ${count} student${count === 1 ? '' : 's'} into the system.`);
           setShowSuccessToast(true);

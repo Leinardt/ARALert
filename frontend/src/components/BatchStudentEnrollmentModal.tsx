@@ -103,6 +103,8 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
   const [enrollProgress, setEnrollProgress] = useState<{ current: number; total: number } | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [enrollSummary, setEnrollSummary] = useState<{ success: number; failed: number } | null>(null);
+  const [enrollScope, setEnrollScope] = useState<'all' | 'active'>('all');
+  const [totalEnrolledCount, setTotalEnrolledCount] = useState<number>(0);
 
   // Pre-check against existing database records
   const [existingDbLrns, setExistingDbLrns] = useState<Set<string>>(new Set());
@@ -131,6 +133,8 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     setSearchQuery('');
     setExistingDbLrns(new Set());
     setIsCheckingDbLrns(false);
+    setEnrollScope('all');
+    setTotalEnrolledCount(0);
     onClose();
   };
 
@@ -155,6 +159,8 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     setSearchQuery('');
     setExistingDbLrns(new Set());
     setIsCheckingDbLrns(false);
+    setEnrollScope('all');
+    setTotalEnrolledCount(0);
     setTimeout(() => {
       fileInputRef.current?.click();
     }, 50);
@@ -602,13 +608,13 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     return list;
   }, [students, selectedSheet, searchQuery]);
 
-  // Bulk actions: Set visible to Basic or Plus (ARALert System Brand Blue Buttons)
-  const handleSetAllAralLevel = (level: 'basic' | 'plus') => {
+  // Bulk actions: Set visible to Basic or Plus (scope can be 'all' or 'active')
+  const handleSetAllAralLevel = (level: 'basic' | 'plus', scope: 'all' | 'active' = 'all') => {
     setStudents((prev) =>
       prev.map((s) => {
-        if (selectedSheet !== 'all' && s.sheetName !== selectedSheet) return s;
+        if (scope === 'active' && selectedSheet !== 'all' && s.sheetName !== selectedSheet) return s;
         const newSubject = level === 'plus' && s.subject === 'Filipino' ? 'English' : level === 'basic' && s.subject === 'English' ? 'Filipino' : s.subject;
-        const isReady = LRN_REGEX.test(s.lrn) && Boolean(level);
+        const isReady = LRN_REGEX.test(s.lrn) && Boolean(level) && !s.errorMessage;
         return {
           ...s,
           aral_level: level,
@@ -625,9 +631,9 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
       prev.map((s) => {
         if (s.id !== id) return s;
         const updated = { ...s, [field]: val };
+        delete updated.errorMessage;
         if (field === 'lrn') {
           updated.lrn = String(val).replace(/\D/g, '').slice(0, 12);
-          delete updated.errorMessage;
         } else if (field === 'grade_level_grade') {
           updated.grade_level_grade = String(val).toUpperCase();
         } else if (field === 'grade_level_section') {
@@ -734,6 +740,15 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
   }, [students, selectedSheet]);
 
   const totalCount = students.length;
+  const totalNeedLrnCount = students.filter((s) => !LRN_REGEX.test((s.lrn || '').trim())).length;
+  const totalNeedAralCount = students.filter((s) => !s.aral_level).length;
+  const totalDuplicateLrnCount = duplicateLrnCount;
+  const totalExistingDbLrnCount = existingDbLrnCount;
+  const totalErrorCount = students.filter((s) => s.status === 'error' || Boolean(s.errorMessage)).length;
+  const totalReadyCount = students.filter(
+    (s) => LRN_REGEX.test((s.lrn || '').trim()) && Boolean(s.aral_level) && !getRowLrnError(s) && s.status !== 'error'
+  ).length;
+
   const activeTotalCount = activeStudents.length;
   const activeNeedLrnCount = activeStudents.filter((s) => !LRN_REGEX.test((s.lrn || '').trim())).length;
   const activeNeedAralCount = activeStudents.filter((s) => !s.aral_level).length;
@@ -747,56 +762,80 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     const clean = (s.lrn || '').trim();
     return clean && existingDbLrns.has(clean);
   }).length;
+  const activeErrorCount = activeStudents.filter((s) => s.status === 'error' || Boolean(s.errorMessage)).length;
   const activeReadyCount = activeStudents.filter(
-    (s) => LRN_REGEX.test((s.lrn || '').trim()) && Boolean(s.aral_level) && !getRowLrnError(s)
+    (s) => LRN_REGEX.test((s.lrn || '').trim()) && Boolean(s.aral_level) && !getRowLrnError(s) && s.status !== 'error'
   ).length;
 
-  // Disabled logic for ENROLL button (validates current active tab or all classes)
-  const canEnroll =
+  // Disabled logic for ENROLL buttons
+  const canEnrollAll =
+    totalCount > 0 &&
+    totalNeedLrnCount === 0 &&
+    totalNeedAralCount === 0 &&
+    totalDuplicateLrnCount === 0 &&
+    totalExistingDbLrnCount === 0 &&
+    totalErrorCount === 0 &&
+    !isSubmitting &&
+    !isCheckingDbLrns;
+
+  const canEnrollActive =
     activeTotalCount > 0 &&
     activeNeedLrnCount === 0 &&
     activeNeedAralCount === 0 &&
     activeDuplicateLrnCount === 0 &&
     activeExistingDbLrnCount === 0 &&
+    activeErrorCount === 0 &&
     !isSubmitting &&
     !isCheckingDbLrns;
 
-  const getDisabledReason = () => {
-    if (activeTotalCount === 0) return 'No students in selected view.';
+  const getDisabledReason = (scope: 'all' | 'active' = 'all') => {
+    const isAll = scope === 'all';
+    const tCount = isAll ? totalCount : activeTotalCount;
+    const needLrn = isAll ? totalNeedLrnCount : activeNeedLrnCount;
+    const needAral = isAll ? totalNeedAralCount : activeNeedAralCount;
+    const dupLrn = isAll ? totalDuplicateLrnCount : activeDuplicateLrnCount;
+    const existingDb = isAll ? totalExistingDbLrnCount : activeExistingDbLrnCount;
+    const errCount = isAll ? totalErrorCount : activeErrorCount;
+    const scopeLabel = isAll ? 'in file' : `in ${selectedSheet}`;
+
+    if (tCount === 0) return `No students ${scopeLabel}.`;
     if (isCheckingDbLrns) return 'Checking student LRNs against existing database records...';
-    if (activeDuplicateLrnCount > 0 && activeExistingDbLrnCount > 0) {
-      return `Cannot enroll: ${activeDuplicateLrnCount} student(s) have duplicate LRNs in file, and ${activeExistingDbLrnCount} student(s) are already enrolled in the system.`;
+    if (errCount > 0) {
+      return `Cannot enroll: ${errCount} student(s) encountered errors. Please resolve or remove the affected rows before retrying.`;
     }
-    if (activeDuplicateLrnCount > 0) {
+    if (dupLrn > 0 && existingDb > 0) {
+      return `Cannot enroll: ${dupLrn} student(s) have duplicate LRNs in file, and ${existingDb} student(s) already enrolled in system.`;
+    }
+    if (dupLrn > 0) {
       return `Cannot enroll: Duplicate LRN detected in file. Please resolve or remove duplicate rows before enrolling.`;
     }
-    if (activeExistingDbLrnCount > 0) {
-      return `Cannot enroll: ${activeExistingDbLrnCount} student(s) already enrolled in the system. Please remove or update already enrolled students.`;
+    if (existingDb > 0) {
+      return `Cannot enroll: ${existingDb} student(s) already enrolled in the system. Please remove or update already enrolled students.`;
     }
-    if (activeNeedLrnCount > 0 && activeNeedAralCount > 0) {
-      return `Cannot enroll: ${activeNeedLrnCount} student(s) missing 12-digit LRN, and ${activeNeedAralCount} student(s) missing ARAL Level. All students in this class must have complete details before enrolling.`;
+    if (needLrn > 0 && needAral > 0) {
+      return `Cannot enroll: ${needLrn} student(s) missing 12-digit LRN, and ${needAral} student(s) missing ARAL Level. All students ${scopeLabel} must have complete details before enrolling.`;
     }
-    if (activeNeedLrnCount > 0) {
-      return `Cannot enroll: ${activeNeedLrnCount} student(s) missing 12-digit LRN. All students must have a valid 12-digit LRN.`;
+    if (needLrn > 0) {
+      return `Cannot enroll: ${needLrn} student(s) missing 12-digit LRN. All students must have a valid 12-digit LRN.`;
     }
-    if (activeNeedAralCount > 0) {
-      return `Cannot enroll: ${activeNeedAralCount} student(s) missing ARAL Level. Please assign BASIC or PLUS to all students in this class.`;
+    if (needAral > 0) {
+      return `Cannot enroll: ${needAral} student(s) missing ARAL Level. Please assign BASIC or PLUS before enrolling.`;
     }
     return '';
   };
 
-  // Execute batch enrollment for active tab or all classes
+  // Execute batch enrollment for all classes or active tab
   const handleEnrollConfirmed = async () => {
     setShowEnrollConfirm(false);
     setIsSubmitting(true);
     setGlobalError(null);
 
-    const studentsToEnroll = activeStudents;
+    const studentsToEnroll = enrollScope === 'all' ? [...students] : [...activeStudents];
     setEnrollProgress({ current: 0, total: studentsToEnroll.length });
 
     let successCount = 0;
     let failCount = 0;
-    const remainingStudents: BatchParsedStudent[] = [...students];
+    let remainingStudents: BatchParsedStudent[] = [...students];
 
     for (let i = 0; i < studentsToEnroll.length; i++) {
       const student = studentsToEnroll[i];
@@ -828,10 +867,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
       try {
         await userService.createUser(payload);
         successCount++;
-        const idx = remainingStudents.findIndex((s) => s.id === student.id);
-        if (idx !== -1) {
-          remainingStudents.splice(idx, 1);
-        }
+        remainingStudents = remainingStudents.filter((s) => s.id !== student.id);
       } catch (err: any) {
         failCount++;
         const errorData = err.response?.data;
@@ -841,31 +877,39 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           const val = errorData[firstKey];
           msg = Array.isArray(val) ? val[0] : typeof val === 'string' ? val : msg;
         }
-        const idx = remainingStudents.findIndex((s) => s.id === student.id);
-        if (idx !== -1) {
-          remainingStudents[idx] = {
-            ...remainingStudents[idx],
-            status: 'error',
-            errorMessage: msg,
-          };
-        }
+        remainingStudents = remainingStudents.map((s) =>
+          s.id === student.id
+            ? { ...s, status: 'error', errorMessage: msg }
+            : s
+        );
       }
     }
 
     setStudents(remainingStudents);
     setIsSubmitting(false);
     setEnrollProgress(null);
+
+    const newCumulative = totalEnrolledCount + successCount;
+    setTotalEnrolledCount(newCumulative);
     setEnrollSummary({ success: successCount, failed: failCount });
 
-    if (successCount > 0) {
+    // ONLY close and notify parent if 100% of all students across the entire batch have succeeded and ZERO errors exist!
+    if (remainingStudents.length === 0 && failCount === 0) {
       if (onEnrollmentSuccess) {
-        onEnrollmentSuccess(successCount);
+        onEnrollmentSuccess(newCumulative);
       }
-      if (remainingStudents.length === 0) {
-        setTimeout(() => {
-          executeClose();
-        }, 1500);
-      } else if (selectedSheet !== 'all') {
+      setTimeout(() => {
+        executeClose();
+      }, 1500);
+    } else {
+      // KEEP MODAL OPEN!
+      // Do NOT trigger onEnrollmentSuccess (which would prematurely close/navigate CreateUser)
+      // Do NOT auto-close modal!
+      if (failCount > 0) {
+        setGlobalError(
+          `${failCount} student record(s) encountered an error during enrollment. The modal will remain open so you can review and correct the errors below.`
+        );
+      } else if (remainingStudents.length > 0 && selectedSheet !== 'all') {
         const stillInThisSheet = remainingStudents.some((s) => s.sheetName === selectedSheet);
         if (!stillInThisSheet) {
           const nextSheet = remainingStudents[0]?.sheetName || 'all';
@@ -1008,6 +1052,12 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>{activeReadyCount} Ready to Enroll</span>
                 </div>
+                {activeErrorCount > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 font-semibold text-rose-600 dark:text-rose-400 shadow-2xs">
+                    <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                    <span>{activeErrorCount} Need Correction</span>
+                  </div>
+                )}
                 {activeDuplicateLrnCount > 0 && (
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-rose-300 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 font-semibold text-rose-600 dark:text-rose-400 shadow-2xs">
                     <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
@@ -1041,18 +1091,41 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handleSetAllAralLevel('basic')}
+                    onClick={() => handleSetAllAralLevel('basic', 'all')}
                     className="px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white shadow-xs transition-colors cursor-pointer"
+                    title={`Assign BASIC to all ${totalCount} students across all classes in file`}
                   >
-                    SET ALL TO ARAL LEVEL: BASIC
+                    SET ALL TO BASIC ({totalCount})
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleSetAllAralLevel('plus')}
+                    onClick={() => handleSetAllAralLevel('plus', 'all')}
                     className="px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white shadow-xs transition-colors cursor-pointer"
+                    title={`Assign PLUS to all ${totalCount} students across all classes in file`}
                   >
-                    SET ALL TO ARAL LEVEL: PLUS
+                    SET ALL TO PLUS ({totalCount})
                   </button>
+                  {selectedSheet !== 'all' && (
+                    <>
+                      <span className="text-slate-300 dark:text-zinc-700 hidden sm:inline">|</span>
+                      <button
+                        type="button"
+                        onClick={() => handleSetAllAralLevel('basic', 'active')}
+                        className="px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-lg border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                        title={`Assign BASIC only to ${selectedSheet} (${activeTotalCount} students)`}
+                      >
+                        Set {selectedSheet} to Basic ({activeTotalCount})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSetAllAralLevel('plus', 'active')}
+                        className="px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-lg border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                        title={`Assign PLUS only to ${selectedSheet} (${activeTotalCount} students)`}
+                      >
+                        Set {selectedSheet} to Plus ({activeTotalCount})
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* Search input */}
@@ -1106,12 +1179,37 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
               )}
 
               {enrollSummary && (
-                <div className="p-3.5 rounded-xl bg-[var(--brand-light)] border border-[var(--brand-border)] text-xs text-[var(--brand-dark)] flex items-center justify-between">
+                <div
+                  className={`p-3.5 rounded-xl border text-xs flex items-center justify-between ${
+                    enrollSummary.failed > 0
+                      ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60 text-rose-900 dark:text-rose-200'
+                      : 'bg-[var(--brand-light)] border-[var(--brand-border)] text-[var(--brand-dark)]'
+                  }`}
+                >
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[var(--brand)] shrink-0" />
+                    {enrollSummary.failed > 0 ? (
+                      <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4 text-[var(--brand)] shrink-0" />
+                    )}
                     <span>
-                      Successfully enrolled <strong>{enrollSummary.success}</strong> students!
-                      {enrollSummary.failed > 0 && ` (${enrollSummary.failed} failed due to errors)`}
+                      {enrollSummary.success > 0 && (
+                        <>
+                          Successfully enrolled <strong>{enrollSummary.success}</strong> student
+                          {enrollSummary.success === 1 ? '' : 's'}!{' '}
+                        </>
+                      )}
+                      {enrollSummary.failed > 0 ? (
+                        <strong>
+                          {enrollSummary.failed} student{enrollSummary.failed === 1 ? '' : 's'} encountered an error. Please review and resolve the highlighted errors below before retrying.
+                        </strong>
+                      ) : students.length > 0 ? (
+                        <span className="text-slate-600 dark:text-zinc-400">
+                          ({students.length} student{students.length === 1 ? '' : 's'} remaining across classes)
+                        </span>
+                      ) : (
+                        <strong>All students successfully enrolled!</strong>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -1154,7 +1252,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                           const lrnError = getRowLrnError(student);
                           const hasValidLrn = LRN_REGEX.test((student.lrn || '').trim()) && !lrnError;
                           const hasValidAral = Boolean(student.aral_level);
-                          const isRowReady = hasValidLrn && hasValidAral;
+                          const isRowReady = hasValidLrn && hasValidAral && student.status !== 'error';
                           const isErrorRow = Boolean(lrnError) || student.status === 'error';
 
                           return (
@@ -1220,22 +1318,22 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                     placeholder="12-digit LRN"
                                     onChange={(e) => updateStudentField(student.id, 'lrn', e.target.value)}
                                     className={`w-full pl-2 pr-7 py-1 text-xs font-mono font-bold rounded border uppercase shadow-2xs focus:outline-none focus:ring-1 focus:ring-[var(--brand)] dark:bg-zinc-800 dark:text-white ${
-                                      lrnError
+                                      isErrorRow
                                         ? 'border-rose-400 bg-rose-50/60 text-rose-900 dark:border-rose-700 dark:bg-rose-950/30 dark:text-rose-200'
                                         : hasValidLrn
                                         ? 'border-emerald-400 bg-emerald-50/40 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300'
                                         : 'border-red-300 bg-white dark:border-red-700/80'
                                     }`}
                                   />
-                                  {lrnError ? (
+                                  {isErrorRow ? (
                                     <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 absolute right-2 top-2" />
                                   ) : hasValidLrn ? (
                                     <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 absolute right-2 top-2" />
                                   ) : null}
                                 </div>
-                                {lrnError && (
+                                {isErrorRow && (
                                   <p className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1">
-                                    <span>{lrnError}</span>
+                                    <span>{student.errorMessage || lrnError}</span>
                                   </p>
                                 )}
                               </td>
@@ -1377,13 +1475,13 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
             {students.length > 0 && (
               <div className="flex flex-wrap items-center gap-3">
                 <span>
-                  Ready: <strong className="text-[var(--brand)]">{activeReadyCount}</strong> of {activeTotalCount} students
-                  {selectedSheet !== 'all' ? ` in ${selectedSheet}` : ''}
+                  Ready: <strong className="text-[var(--brand)]">{totalReadyCount}</strong> of {totalCount} total students
+                  {selectedSheet !== 'all' ? ` (${activeReadyCount} of ${activeTotalCount} in ${selectedSheet})` : ''}
                 </span>
-                {!canEnroll && getDisabledReason() && (
+                {!canEnrollAll && getDisabledReason('all') && (
                   <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{getDisabledReason()}</span>
+                    <span>{getDisabledReason('all')}</span>
                   </span>
                 )}
               </div>
@@ -1400,18 +1498,40 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
               Cancel
             </button>
 
+            {students.length > 0 && selectedSheet !== 'all' && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (canEnrollActive) {
+                    setEnrollScope('active');
+                    setShowEnrollConfirm(true);
+                  }
+                }}
+                disabled={!canEnrollActive || isSubmitting}
+                title={getDisabledReason('active')}
+                className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-colors flex items-center gap-1.5 uppercase ${
+                  canEnrollActive && !isSubmitting
+                    ? 'border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand)]/10 cursor-pointer'
+                    : 'border-slate-300 dark:border-zinc-700 text-slate-400 dark:text-zinc-500 cursor-not-allowed opacity-60'
+                }`}
+              >
+                <span>ENROLL ONLY {selectedSheet} ({activeTotalCount})</span>
+              </button>
+            )}
+
             {students.length > 0 && (
               <button
                 type="button"
                 onClick={() => {
-                  if (canEnroll) {
+                  if (canEnrollAll) {
+                    setEnrollScope('all');
                     setShowEnrollConfirm(true);
                   }
                 }}
-                disabled={!canEnroll}
-                title={getDisabledReason()}
+                disabled={!canEnrollAll || isSubmitting}
+                title={getDisabledReason('all')}
                 className={`px-5 py-2 text-xs font-bold rounded-xl transition-colors flex items-center gap-2 uppercase shadow-md ${
-                  canEnroll
+                  canEnrollAll && !isSubmitting
                     ? 'bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white cursor-pointer'
                     : 'bg-slate-200 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 cursor-not-allowed opacity-60'
                 }`}
@@ -1427,9 +1547,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                   <>
                     <CheckCircle2 className="w-4 h-4" />
                     <span>
-                      {selectedSheet === 'all'
-                        ? `ENROLL ALL CLASSES (${activeTotalCount})`
-                        : `ENROLL ${selectedSheet.toUpperCase()} (${activeTotalCount})`}
+                      ENROLL ALL CLASSES ({totalCount})
                     </span>
                   </>
                 )}
@@ -1452,7 +1570,13 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                   Close Batch Student Enrollment?
                 </h3>
                 <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-                  Are you sure you want to close the batch student enrollment? Any imported and inputted data will be cleared.
+                  {totalEnrolledCount > 0 ? (
+                    <>
+                      You have enrolled <strong>{totalEnrolledCount}</strong> student{totalEnrolledCount === 1 ? '' : 's'} so far. Are you sure you want to exit? The remaining {students.length} student record{students.length === 1 ? '' : 's'} will not be enrolled.
+                    </>
+                  ) : (
+                    'Are you sure you want to close the batch student enrollment? Any imported and inputted data will be cleared.'
+                  )}
                 </p>
               </div>
             </div>
@@ -1466,7 +1590,12 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
               </button>
               <button
                 type="button"
-                onClick={executeClose}
+                onClick={() => {
+                  if (totalEnrolledCount > 0 && onEnrollmentSuccess) {
+                    onEnrollmentSuccess(totalEnrolledCount);
+                  }
+                  executeClose();
+                }}
                 className="px-4 py-2 text-xs font-bold rounded-xl bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white transition-colors cursor-pointer uppercase shadow-xs"
               >
                 Confirm
@@ -1528,7 +1657,9 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                 <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
                   Have you double checked each student's details for{' '}
                   <strong className="text-slate-800 dark:text-white">
-                    {selectedSheet === 'all' ? 'All Classes' : selectedSheet} ({activeTotalCount} students)
+                    {enrollScope === 'all'
+                      ? `All Classes (${totalCount} students)`
+                      : `${selectedSheet} (${activeTotalCount} students)`}
                   </strong>? Please ensure all names, grade levels, sections, subjects, tutors, LRNs, and ARAL levels are completely accurate before finalizing enrollment.
                 </p>
               </div>
