@@ -95,32 +95,47 @@ export function parseTutorHandledSubjects(
 /**
  * Extracts the grade-section cohort combinations handled by a tutor (e.g. ['GRADE 8 - MANGO', 'GRADE 9 - APPLE']).
  */
-export function parseTutorHandledCohorts(tutor: Partial<User> | null | undefined): string[] {
-  if (!tutor || !tutor.grade_level) {
-    return ['GRADE 7 - HYACINTH'];
+export function parseTutorHandledCohorts(tutor: Partial<User> | null | undefined, students?: any[]): string[] {
+  const cohortSet = new Set<string>();
+
+  if (tutor && tutor.grade_level) {
+    const raw = tutor.grade_level.trim();
+    if (raw) {
+      raw
+        .split(',')
+        .map((p) => {
+          const trimmed = p.trim().toUpperCase();
+          if (trimmed === 'GRADE 7' || trimmed === '7') {
+            return 'GRADE 7 - HYACINTH';
+          }
+          if (trimmed === 'GRADE 8' || trimmed === '8') {
+            return 'GRADE 8 - MANGO';
+          }
+          return trimmed;
+        })
+        .filter(Boolean)
+        .forEach((c) => cohortSet.add(c));
+    }
   }
 
-  const raw = tutor.grade_level.trim();
-  if (!raw) return ['GRADE 7 - HYACINTH'];
-
-  const parts = raw
-    .split(',')
-    .map((p) => {
-      const trimmed = p.trim().toUpperCase();
-      if (trimmed === 'GRADE 7' || trimmed === '7') {
-        return 'GRADE 7 - HYACINTH';
+  // Also include cohorts from assigned students
+  if (Array.isArray(students)) {
+    students.forEach((st) => {
+      const studentObj: any = st?.rawStudent || st?.student || (st?.id ? st : undefined) || {};
+      const rawGrade = (studentObj.grade_level || st?.grade_level || st?.gradeLevel || '').toUpperCase().trim();
+      const rawSec = (studentObj.section || st?.section || '').toUpperCase().trim();
+      if (rawGrade.includes(' - ')) {
+        cohortSet.add(rawGrade);
+      } else if (rawGrade && rawSec) {
+        cohortSet.add(`${rawGrade} - ${rawSec}`);
       }
-      if (trimmed === 'GRADE 8' || trimmed === '8') {
-        return 'GRADE 8 - MANGO';
-      }
-      return trimmed;
-    })
-    .filter(Boolean);
+    });
+  }
 
-  // Sort alphabetically so default is alphabetical
-  parts.sort((a, b) => a.localeCompare(b));
+  const parts = Array.from(cohortSet);
+  parts.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
-  return parts.length > 0 ? parts : [raw.toUpperCase()];
+  return parts.length > 0 ? parts : ['GRADE 7 - HYACINTH'];
 }
 
 /**
@@ -1122,10 +1137,61 @@ export function buildTutorClassSections<T = any>(
   allTutorStudents: T[]
 ): TutorHandledClassSection<T>[] {
   if (!tutor) return [];
-  const groups = parseTutorRoleDetailsFromUser(tutor);
 
+  // Helper to extract student's actual cohort details
+  const getStudentInfo = (st: any) => {
+    const studentObj: Partial<User> | any = st?.rawStudent || st?.student || (st?.id ? st : undefined) || {};
+    const rawAral = (studentObj.aral_level || st?.aralLevel || 'basic').toLowerCase().trim();
+    const aralLevel: 'basic' | 'plus' = rawAral.includes('plus') ? 'plus' : 'basic';
+
+    let rawSub = (studentObj.subject || st?.subject || '').trim();
+    if (!rawSub) {
+      rawSub = aralLevel === 'basic' ? 'Filipino' : 'English';
+    } else {
+      const norm = rawSub.toLowerCase();
+      if (norm.includes('filipino') || norm.includes('reading')) rawSub = 'Filipino';
+      else if (norm.includes('english')) rawSub = 'English';
+      else if (norm.includes('math')) rawSub = 'Math';
+      else if (norm.includes('sci')) rawSub = 'Science';
+      else rawSub = rawSub.charAt(0).toUpperCase() + rawSub.slice(1);
+    }
+
+    let rawGrade = (studentObj.grade_level || st?.grade_level || st?.gradeLevel || '').toUpperCase().trim();
+    let rawSec = (studentObj.section || st?.section || '').toUpperCase().trim();
+
+    let cleanGrade = 'GRADE 7';
+    let cleanSec = rawSec;
+
+    if (rawGrade.includes(' - ')) {
+      const parts = rawGrade.split(' - ');
+      cleanGrade = parts[0].trim();
+      if (!cleanSec && parts[1]) cleanSec = parts[1].trim();
+    } else if (rawGrade) {
+      const gMatch = rawGrade.match(/GRADE\s*(\d+)/i);
+      if (gMatch) {
+        cleanGrade = `GRADE ${gMatch[1]}`;
+      } else {
+        cleanGrade = rawGrade;
+      }
+    }
+
+    if (!cleanSec) cleanSec = 'HYACINTH';
+    const cohort = `${cleanGrade} - ${cleanSec}`;
+
+    return {
+      studentObj,
+      aralLevel,
+      subject: rawSub,
+      gradeLevel: cleanGrade,
+      section: cleanSec,
+      cohort,
+    };
+  };
+
+  const groups = parseTutorRoleDetailsFromUser(tutor);
   const classes: TutorHandledClassSection<T>[] = [];
 
+  // 1. Initial classes from tutor's configured role groups
   groups.forEach((g, gIdx) => {
     const subj = g.subjects[0] || (g.aralLevel === 'basic' ? 'Filipino' : 'English');
     const sec = (g.sections[0] || tutor.section || 'HYACINTH').toUpperCase().trim();
@@ -1143,7 +1209,7 @@ export function buildTutorClassSections<T = any>(
     const aralLabel = g.aralLevel.toUpperCase();
     const subjectLabel = subj.toUpperCase();
     const label = `${aralLabel} • ${subjectLabel} • ${cohortStr}`;
-    const key = `${g.aralLevel}-${subj}-${cohortStr}-${gIdx}`.toLowerCase();
+    const key = `${g.aralLevel}-${subj}-${cohortStr}-${gIdx}`.toLowerCase().replace(/\s+/g, '-');
 
     classes.push({
       key,
@@ -1157,38 +1223,48 @@ export function buildTutorClassSections<T = any>(
     });
   });
 
-  if (classes.length === 0) {
-    const fallbackGrade = (tutor.grade_level || 'GRADE 7').toUpperCase();
-    const fallbackSec = (tutor.section || 'HYACINTH').toUpperCase();
-    const fallbackAral = (tutor.tutor_type || tutor.aral_level || 'BASIC').toUpperCase();
-    const fallbackSubj = (tutor.subject || 'FILIPINO').toUpperCase();
-    const cohortStr = `${fallbackGrade} - ${fallbackSec}`;
-    classes.push({
-      key: 'default',
-      label: `${fallbackAral} • ${fallbackSubj} • ${cohortStr}`,
-      aralLevel: fallbackAral.toLowerCase().includes('plus') ? 'plus' : 'basic',
-      subject: tutor.subject || 'Filipino',
-      gradeLevel: fallbackGrade,
-      section: fallbackSec,
-      cohort: cohortStr,
-      students: [],
+  // 2. Discover any additional distinct cohorts present among the tutor's assigned students
+  if (Array.isArray(allTutorStudents)) {
+    allTutorStudents.forEach((st) => {
+      const info = getStudentInfo(st);
+      const existing = classes.find(
+        (c) =>
+          c.cohort.toUpperCase() === info.cohort.toUpperCase() &&
+          c.aralLevel.toLowerCase() === info.aralLevel.toLowerCase()
+      );
+
+      if (!existing) {
+        const aralLabel = info.aralLevel.toUpperCase();
+        const subjectLabel = info.subject.toUpperCase();
+        const label = `${aralLabel} • ${subjectLabel} • ${info.cohort}`;
+        const key = `${info.aralLevel}-${info.subject}-${info.cohort}-${classes.length}`.toLowerCase().replace(/\s+/g, '-');
+
+        classes.push({
+          key,
+          label,
+          aralLevel: info.aralLevel,
+          subject: info.subject,
+          gradeLevel: info.gradeLevel,
+          section: info.section,
+          cohort: info.cohort,
+          students: [],
+        });
+      }
     });
   }
 
-  // Populate students into their matching role detail / class
+  // 3. Populate each student into their matching class section
   classes.forEach((cls) => {
     cls.students = allTutorStudents.filter((st: any) => {
-      const studentObj: Partial<User> | undefined = st?.rawStudent || st?.student || (st?.id ? st : undefined);
-      if (!studentObj) return false;
-      return isStudentInCohort(studentObj, {
-        aral_level: cls.aralLevel,
-        subject: cls.subject,
-        cohort: cls.cohort,
-      });
+      const info = getStudentInfo(st);
+      return (
+        cls.cohort.toUpperCase() === info.cohort.toUpperCase() &&
+        cls.aralLevel.toLowerCase() === info.aralLevel.toLowerCase()
+      );
     });
   });
 
-  // Assign any unmatched students to closest class (strictly NO "OTHER ASSIGNED STUDENTS" option in dropdown)
+  // 4. Any unmatched students: try matching by cohort first
   const assignedStudentIds = new Set<string>();
   classes.forEach((cls) => {
     cls.students.forEach((s: any) => {
@@ -1203,15 +1279,45 @@ export function buildTutorClassSections<T = any>(
   });
 
   unmatched.forEach((st: any) => {
-    const studentObj: Partial<User> | undefined = st?.rawStudent || st?.student || (st?.id ? st : undefined);
-    const sLevel = (studentObj?.aral_level || 'basic').toLowerCase().trim();
-    const match = classes.find((c) => c.aralLevel === sLevel) || classes[0];
-    if (match) {
-      match.students.push(st);
+    const info = getStudentInfo(st);
+    const cohortMatch = classes.find((c) => c.cohort.toUpperCase() === info.cohort.toUpperCase());
+    if (cohortMatch) {
+      cohortMatch.students.push(st);
+    } else {
+      const levelMatch = classes.find((c) => c.aralLevel === info.aralLevel) || classes[0];
+      if (levelMatch) {
+        levelMatch.students.push(st);
+      }
     }
   });
 
-  return classes;
+  // 5. Update subject label on each class if students in it have a specific subject
+  classes.forEach((cls) => {
+    if (cls.students.length > 0) {
+      const firstStudentInfo = getStudentInfo(cls.students[0]);
+      if (firstStudentInfo.subject && firstStudentInfo.subject.toLowerCase() !== cls.subject.toLowerCase()) {
+        cls.subject = firstStudentInfo.subject;
+        cls.label = `${cls.aralLevel.toUpperCase()} • ${cls.subject.toUpperCase()} • ${cls.cohort}`;
+      }
+    }
+  });
+
+  // 6. If we have active classes with students, remove any empty placeholder classes that were just default fallbacks
+  const hasActiveClasses = classes.some((cls) => cls.students.length > 0);
+  let result = classes;
+  if (hasActiveClasses) {
+    result = classes.filter((cls) => cls.students.length > 0);
+  }
+
+  // 7. Sort classes cleanly: Grade 7, Grade 8, Grade 9, Grade 10, then Section alphabetically
+  result.sort((a, b) => {
+    const aGradeNum = parseInt(a.gradeLevel.replace(/\D/g, ''), 10) || 0;
+    const bGradeNum = parseInt(b.gradeLevel.replace(/\D/g, ''), 10) || 0;
+    if (aGradeNum !== bGradeNum) return aGradeNum - bGradeNum;
+    return a.section.localeCompare(b.section);
+  });
+
+  return result;
 }
 
 export interface TutorClassViewTitleOptions {
