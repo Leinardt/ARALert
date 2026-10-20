@@ -11,6 +11,7 @@ import { TutorCohortFilter } from '../../components/TutorCohortFilter';
 import {
   useTutorCohortFilter,
   isStudentInCohort,
+  getCachedTutorStudents,
 } from '../../utils/tutorCohortHelpers';
 import type { TutorCohortHistoryData, TutorHistoricalCohortRecord } from '../../types';
 import { getActiveSystemSemester } from '../../utils/sessionDescriptionHelpers';
@@ -88,10 +89,10 @@ export const getSemesterFromGrade = (grade: Grade): '1st' | '2nd' | 'summer' => 
 /* ─── Component ────────────────────────────────────────────────── */
 export const TutorStudentDirectory: React.FC = () => {
   const { user } = useAuth();
-  const [students, setStudents] = useState<User[]>([]);
+  const [students, setStudents] = useState<User[]>(() => getCachedTutorStudents(user?.id));
   const [grades, setGrades] = useState<Grade[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => getCachedTutorStudents(user?.id).length === 0);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<string>('name');
@@ -480,6 +481,7 @@ const aralLevelRank: Record<string, number> = {
       <TutorCohortFilter
         user={user}
         students={students}
+        isLoading={isLoading}
         selectedAralLevel={selectedAralLevel}
         onSelectAralLevel={setSelectedAralLevel}
         selectedSubject={selectedSubject}

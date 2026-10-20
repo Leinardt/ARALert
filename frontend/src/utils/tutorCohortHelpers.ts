@@ -89,7 +89,97 @@ export function parseTutorHandledSubjects(
     );
   }
 
+  if (tutor?.id) {
+    const cached = getCachedTutorClassSections(tutor.id);
+    if (cached) {
+      cached.forEach((c) => {
+        if (c.subject && !options.some((o) => o.id.toLowerCase() === c.subject.toLowerCase())) {
+          options.push({
+            id: c.subject,
+            label: c.subject.toUpperCase(),
+            dbSubject: c.subject,
+          });
+        }
+      });
+    }
+  }
+
   return options;
+}
+
+const CACHED_TUTOR_CLASSES_KEY_PREFIX = 'aralert_cached_tutor_classes_';
+const CACHED_TUTOR_STUDENTS_KEY_PREFIX = 'aralert_assigned_students_';
+
+/**
+ * Retrieves cached class sections for a tutor from localStorage.
+ */
+export function getCachedTutorClassSections<T = any>(userId?: string | number): TutorHandledClassSection<T>[] | null {
+  if (!userId) return null;
+  try {
+    const raw = localStorage.getItem(`${CACHED_TUTOR_CLASSES_KEY_PREFIX}${userId}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((cls) => ({
+          ...cls,
+          students: [],
+        }));
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to parse cached tutor classes:', err);
+  }
+  return null;
+}
+
+/**
+ * Saves class sections for a tutor to localStorage.
+ */
+export function setCachedTutorClassSections<T = any>(userId: string | number, classes: TutorHandledClassSection<T>[]): void {
+  if (!userId || !Array.isArray(classes) || classes.length === 0) return;
+  try {
+    const metadata = classes.map((cls) => ({
+      key: cls.key,
+      label: cls.label,
+      aralLevel: cls.aralLevel,
+      subject: cls.subject,
+      gradeLevel: cls.gradeLevel,
+      section: cls.section,
+      cohort: cls.cohort,
+    }));
+    localStorage.setItem(`${CACHED_TUTOR_CLASSES_KEY_PREFIX}${userId}`, JSON.stringify(metadata));
+  } catch (err) {
+    console.warn('Failed to set cached tutor classes:', err);
+  }
+}
+
+/**
+ * Retrieves cached student list for a tutor from localStorage.
+ */
+export function getCachedTutorStudents(userId?: string | number): User[] {
+  if (!userId) return [];
+  try {
+    const raw = localStorage.getItem(`${CACHED_TUTOR_STUDENTS_KEY_PREFIX}${userId}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err) {
+    console.warn('Failed to parse cached tutor students:', err);
+  }
+  return [];
+}
+
+/**
+ * Saves assigned student list for a tutor to localStorage.
+ */
+export function setCachedTutorStudents(userId: string | number, students: User[]): void {
+  if (!userId || !Array.isArray(students)) return;
+  try {
+    localStorage.setItem(`${CACHED_TUTOR_STUDENTS_KEY_PREFIX}${userId}`, JSON.stringify(students));
+  } catch (err) {
+    console.warn('Failed to set cached tutor students:', err);
+  }
 }
 
 /**
@@ -119,7 +209,7 @@ export function parseTutorHandledCohorts(tutor: Partial<User> | null | undefined
   }
 
   // Also include cohorts from assigned students
-  if (Array.isArray(students)) {
+  if (Array.isArray(students) && students.length > 0) {
     students.forEach((st) => {
       const studentObj: any = st?.rawStudent || st?.student || (st?.id ? st : undefined) || {};
       const rawGrade = (studentObj.grade_level || st?.grade_level || st?.gradeLevel || '').toUpperCase().trim();
@@ -130,6 +220,26 @@ export function parseTutorHandledCohorts(tutor: Partial<User> | null | undefined
         cohortSet.add(`${rawGrade} - ${rawSec}`);
       }
     });
+  } else if (tutor?.id) {
+    const cachedClasses = getCachedTutorClassSections(tutor.id);
+    if (cachedClasses && cachedClasses.length > 0) {
+      cachedClasses.forEach((c) => {
+        if (c.cohort) cohortSet.add(c.cohort);
+      });
+    } else {
+      const cachedStudents = getCachedTutorStudents(tutor.id);
+      if (cachedStudents && cachedStudents.length > 0) {
+        cachedStudents.forEach((st) => {
+          const rawGrade = (st.grade_level || '').toUpperCase().trim();
+          const rawSec = (st.section || '').toUpperCase().trim();
+          if (rawGrade.includes(' - ')) {
+            cohortSet.add(rawGrade);
+          } else if (rawGrade && rawSec) {
+            cohortSet.add(`${rawGrade} - ${rawSec}`);
+          }
+        });
+      }
+    }
   }
 
   const parts = Array.from(cohortSet);
@@ -1138,6 +1248,21 @@ export function buildTutorClassSections<T = any>(
 ): TutorHandledClassSection<T>[] {
   if (!tutor) return [];
 
+  const tutorId = tutor.id ? String(tutor.id) : '';
+
+  // Fast-path: If students are still loading/empty, serve cached classes immediately
+  // to avoid flashing outdated single profile sections or buffering delays
+  if ((!allTutorStudents || allTutorStudents.length === 0) && tutorId) {
+    const cachedClasses = getCachedTutorClassSections<T>(tutorId);
+    if (cachedClasses && cachedClasses.length > 0) {
+      return cachedClasses;
+    }
+    const cachedStudents = getCachedTutorStudents(tutorId);
+    if (cachedStudents && cachedStudents.length > 0) {
+      allTutorStudents = cachedStudents as unknown as T[];
+    }
+  }
+
   // Helper to extract student's actual cohort details
   const getStudentInfo = (st: any) => {
     const studentObj: Partial<User> | any = st?.rawStudent || st?.student || (st?.id ? st : undefined) || {};
@@ -1316,6 +1441,11 @@ export function buildTutorClassSections<T = any>(
     if (aGradeNum !== bGradeNum) return aGradeNum - bGradeNum;
     return a.section.localeCompare(b.section);
   });
+
+  // 8. Cache computed classes so subsequent page views render immediately without network delay
+  if (tutorId && result.length > 0 && Array.isArray(allTutorStudents) && allTutorStudents.length > 0) {
+    setCachedTutorClassSections(tutorId, result);
+  }
 
   return result;
 }

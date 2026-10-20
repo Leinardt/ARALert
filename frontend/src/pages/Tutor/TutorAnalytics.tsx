@@ -34,6 +34,7 @@ import {
   isStudentInCohort,
   getTutorClassViewLabel,
   buildTutorClassSections,
+  getCachedTutorStudents,
 } from '../../utils/tutorCohortHelpers';
 
 interface ExtendedRiskRow extends StudentRiskRow {
@@ -1154,7 +1155,7 @@ const getAralBadge = (level?: string | null) => {
 export const TutorAnalytics: React.FC = () => {
   const { user } = useAuth();
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => getCachedTutorStudents(user?.id).length === 0);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState<AnalyticsTab>(() => {
@@ -1203,7 +1204,7 @@ export const TutorAnalytics: React.FC = () => {
 
 
 
-  const [allStudents, setAllStudents] = useState<User[]>([]);
+  const [allStudents, setAllStudents] = useState<User[]>(() => getCachedTutorStudents(user?.id));
   const [rawGrades, setRawGrades] = useState<Grade[]>([]);
   const [rawAttendanceLogs, setRawAttendanceLogs] = useState<Attendance[]>([]);
 
@@ -1769,6 +1770,7 @@ export const TutorAnalytics: React.FC = () => {
       <TutorCohortFilter
         user={user}
         students={allStudents}
+        isLoading={isLoading}
         selectedAralLevel={selectedAralLevel}
         onSelectAralLevel={setSelectedAralLevel}
         selectedSubject={selectedSubject}

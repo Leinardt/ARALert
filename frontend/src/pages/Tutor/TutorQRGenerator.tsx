@@ -39,6 +39,7 @@ import { TutorCohortFilter } from '../../components/TutorCohortFilter';
 import {
   useTutorCohortFilter,
   isStudentInCohort,
+  getCachedTutorStudents,
 } from '../../utils/tutorCohortHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
@@ -893,7 +894,7 @@ export const TutorQRGenerator: React.FC = () => {
     setSelectedCohortFilter,
   } = useTutorCohortFilter(user);
 
-  const [students, setStudents] = useState<User[]>([]);
+  const [students, setStudents] = useState<User[]>(() => getCachedTutorStudents(user?.id));
 
   // Filter students matching the currently selected cohort
   const filteredStudents = useMemo(() => {
@@ -917,7 +918,7 @@ export const TutorQRGenerator: React.FC = () => {
   const [attendanceHistory, setAttendanceHistory] = useState<Attendance[]>([]);
   const [attendanceHistoryLoading, setAttendanceHistoryLoading] = useState<boolean>(true);
   const [attendanceHistoryError, setAttendanceHistoryError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(() => getCachedTutorStudents(user?.id).length === 0);
   const [error, setError] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
 
@@ -1594,6 +1595,7 @@ export const TutorQRGenerator: React.FC = () => {
       <TutorCohortFilter
         user={user}
         students={students}
+        isLoading={isLoading}
         selectedAralLevel={selectedAralLevel}
         onSelectAralLevel={setSelectedAralLevel}
         selectedSubject={selectedSubject}

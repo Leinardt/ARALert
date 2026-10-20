@@ -2210,6 +2210,7 @@ export const TutorScores: React.FC = () => {
       <TutorCohortFilter
         user={user}
         students={students}
+        isLoading={isLoading}
         selectedAralLevel={selectedAralLevel}
         onSelectAralLevel={setSelectedAralLevel}
         selectedSubject={selectedSubject}

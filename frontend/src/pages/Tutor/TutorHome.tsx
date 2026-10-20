@@ -21,7 +21,7 @@ import {
   setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
-import { useTutorCohortFilter, isStudentInCohort, getTutorClassViewLabel } from '../../utils/tutorCohortHelpers';
+import { useTutorCohortFilter, isStudentInCohort, getTutorClassViewLabel, getCachedTutorStudents } from '../../utils/tutorCohortHelpers';
 
 interface TutorChartPoint {
   label: string;
@@ -394,11 +394,10 @@ import { getStudentAvatarColor as avatarColor } from '../../utils/studentFormatt
 export const TutorHome: React.FC = () => {
   const { user } = useAuth();
 
-
-  const [students, setStudents] = useState<User[]>([]);
+  const [students, setStudents] = useState<User[]>(() => getCachedTutorStudents(user?.id));
   const [grades, setGrades] = useState<Grade[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => getCachedTutorStudents(user?.id).length === 0);
   const [error, setError] = useState<string | null>(null);
   const [trendFilter, setTrendFilter] = useState<TrendFilter>('week');
 
@@ -838,6 +837,7 @@ export const TutorHome: React.FC = () => {
       <TutorCohortFilter
         user={user}
         students={students}
+        isLoading={isLoading}
         selectedAralLevel={selectedAralLevel}
         onSelectAralLevel={setSelectedAralLevel}
         selectedSubject={selectedSubject}

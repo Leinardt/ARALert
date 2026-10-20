@@ -1,5 +1,6 @@
 import api from '../api/axios';
 import type { User, UserStats, StudentEditRequest, CreateStudentEditRequestPayload } from '../types';
+import { setCachedTutorStudents } from '../utils/tutorCohortHelpers';
 
 export interface GetUsersParams {
   search?: string;
@@ -44,6 +45,17 @@ export interface UserActivityResponse {
 let cachedTutors: { data: User[]; timestamp: number } | null = null;
 const TUTOR_CACHE_TTL_MS = 60000;
 
+const tutorStudentsCache = new Map<string, { data: User[]; timestamp: number }>();
+const TUTOR_STUDENTS_CACHE_TTL_MS = 60000;
+
+export const invalidateTutorStudentsCache = (tutorId?: string | number): void => {
+  if (tutorId) {
+    tutorStudentsCache.delete(String(tutorId));
+  } else {
+    tutorStudentsCache.clear();
+  }
+};
+
 export const userService = {
   getUsers: async (params: GetUsersParams = {}): Promise<GetUsersResponse> => {
     const response = await api.get<GetUsersResponse>('/users/', { params });
@@ -51,6 +63,25 @@ export const userService = {
   },
 
   getAllUsers: async (params: GetUsersParams = {}): Promise<User[]> => {
+    const isPureTutorStudentsQuery =
+      params.role === 'student' &&
+      !!params.assigned_tutor &&
+      !params.search &&
+      !params.status &&
+      !params.grade_level &&
+      !params.section &&
+      !params.subject &&
+      !params.ordering;
+
+    const tutorKey = isPureTutorStudentsQuery ? String(params.assigned_tutor) : null;
+
+    if (tutorKey) {
+      const cached = tutorStudentsCache.get(tutorKey);
+      if (cached && Date.now() - cached.timestamp < TUTOR_STUDENTS_CACHE_TTL_MS) {
+        return cached.data;
+      }
+    }
+
     const users: User[] = [];
     let page = 1;
     let response = await userService.getUsers({ ...params, page });
@@ -60,6 +91,12 @@ export const userService = {
       response = await userService.getUsers({ ...params, page });
       users.push(...response.results);
     }
+
+    if (tutorKey) {
+      tutorStudentsCache.set(tutorKey, { data: users, timestamp: Date.now() });
+      setCachedTutorStudents(tutorKey, users);
+    }
+
     return users;
   },
 
@@ -90,6 +127,9 @@ export const userService = {
     if (data?.role === 'tutor') {
       cachedTutors = null;
     }
+    if (data?.role === 'student' || data?.assigned_tutor) {
+      invalidateTutorStudentsCache(data?.assigned_tutor);
+    }
     return response.data;
   },
 
@@ -98,6 +138,7 @@ export const userService = {
     if (data?.role === 'tutor' || data?.tutor_type || data?.grade_level) {
       cachedTutors = null;
     }
+    invalidateTutorStudentsCache(data?.assigned_tutor);
     return response.data;
   },
 
@@ -122,6 +163,7 @@ export const userService = {
         tutor_id: tutorId,
       }
     );
+    invalidateTutorStudentsCache(tutorId || undefined);
     return response.data;
   },
 
@@ -188,6 +230,7 @@ export const userService = {
       '/users/wipe-students/',
       { confirm: true }
     );
+    invalidateTutorStudentsCache();
     return response.data;
   },
 };

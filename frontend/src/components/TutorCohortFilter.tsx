@@ -9,6 +9,7 @@ import {
 export interface TutorCohortFilterProps {
   user: User | null;
   students?: User[];
+  isLoading?: boolean;
   selectedAralLevel: 'all' | 'basic' | 'plus';
   onSelectAralLevel: (level: 'all' | 'basic' | 'plus') => void;
   selectedSubject: string;
@@ -23,6 +24,7 @@ export interface TutorCohortFilterProps {
 export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
   user,
   students,
+  isLoading = false,
   selectedAralLevel,
   onSelectAralLevel,
   selectedSubject,
@@ -109,6 +111,22 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
       }
     }
   };
+
+  if (isLoading && classSections.length === 0) {
+    return (
+      <div className="w-full rounded-xl border border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#0E0E0E] p-3 sm:px-4 sm:py-3.5 shadow-xs space-y-2">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
+          {title || 'CURRENT CLASS FOR VIEW'}
+        </h4>
+        <div className="h-10 rounded-lg border border-gray-200 dark:border-[#222222] bg-gray-50/70 dark:bg-[#141414] px-3.5 flex items-center gap-2 animate-pulse">
+          <div className="w-3.5 h-3.5 rounded-full border-2 border-[var(--brand)] border-t-transparent animate-spin" />
+          <span className="text-xs font-semibold text-gray-400 dark:text-slate-500">
+            Loading handled classes...
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full rounded-xl border border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#0E0E0E] p-3 sm:px-4 sm:py-3.5 shadow-xs space-y-2">
