@@ -14,6 +14,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { userService } from '../services/userService';
+import { useAuth } from '../hooks/useAuth';
 import type { User } from '../types';
 
 export interface BatchParsedStudent {
@@ -85,6 +86,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
   tutors,
   onEnrollmentSuccess,
 }) => {
+  const { user: currentUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string>('');
   const [isParsing, setIsParsing] = useState<boolean>(false);
@@ -97,6 +99,8 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
   const [showCloseConfirm, setShowCloseConfirm] = useState<boolean>(false);
   const [showChangeFileConfirm, setShowChangeFileConfirm] = useState<boolean>(false);
   const [showEnrollConfirm, setShowEnrollConfirm] = useState<boolean>(false);
+  const [showWipeConfirm, setShowWipeConfirm] = useState<boolean>(false);
+  const [isWiping, setIsWiping] = useState<boolean>(false);
 
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -109,6 +113,29 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
   // Pre-check against existing database records
   const [existingDbLrns, setExistingDbLrns] = useState<Set<string>>(new Set());
   const [isCheckingDbLrns, setIsCheckingDbLrns] = useState<boolean>(false);
+
+  // TEMPORARY TESTING UTILITY: WIPE STUDENTS (To be removed after user testing)
+  const handleWipeStudents = async () => {
+    setIsWiping(true);
+    setGlobalError(null);
+    try {
+      await userService.wipeStudents();
+      // Clear any conflict marks on all loaded students
+      setExistingDbLrns(new Set());
+      setStudents((prev) =>
+        prev.map((s) => ({
+          ...s,
+          serverError: undefined,
+        }))
+      );
+      setShowWipeConfirm(false);
+    } catch (err: any) {
+      console.error(err);
+      setGlobalError(err?.response?.data?.detail || err?.message || 'Failed to wipe students from database.');
+    } finally {
+      setIsWiping(false);
+    }
+  };
 
   // Attempt close: prompt confirmation if students exist
   const handleAttemptClose = () => {
@@ -958,6 +985,17 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           </div>
 
           <div className="flex items-center gap-2">
+            {currentUser?.is_superuser && (
+              <button
+                type="button"
+                onClick={() => setShowWipeConfirm(true)}
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-rose-300 dark:border-rose-900/60 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                title="Temporary test reset: wipe database students to re-test batch enrollment"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Wipe Existing Students
+              </button>
+            )}
             {students.length > 0 && (
               <button
                 type="button"
@@ -1678,6 +1716,64 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                 className="px-5 py-2 text-xs font-bold rounded-xl bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white transition-colors cursor-pointer uppercase shadow-xs"
               >
                 CONFIRM
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TEMPORARY TESTING UTILITY: Wipe Students Confirmation Modal */}
+      {showWipeConfirm && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white dark:bg-[#11131a] border border-slate-200 dark:border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex items-start gap-3 text-rose-600 dark:text-rose-400">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/40 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase">
+                  Wipe All Students (Testing Reset)
+                </h3>
+                <p className="text-xs text-rose-600 dark:text-rose-400 font-semibold">
+                  Temporary utility for testing batch enrollment
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+              Are you sure you want to delete all student records from the database? This will clear all existing enrolled students so you can re-test the batch import completely clean.
+            </p>
+
+            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-[11px] text-emerald-800 dark:text-emerald-300">
+              <strong>Staff Protection:</strong> All Tutors, Faculty, Principals, Admins, and SuperAdmins are protected and will remain untouched.
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
+              <button
+                type="button"
+                disabled={isWiping}
+                onClick={() => setShowWipeConfirm(false)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer uppercase"
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                disabled={isWiping}
+                onClick={handleWipeStudents}
+                className="px-5 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer uppercase shadow-xs flex items-center gap-1.5"
+              >
+                {isWiping ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Wiping Students...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    CONFIRM WIPE
+                  </>
+                )}
               </button>
             </div>
           </div>

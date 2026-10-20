@@ -181,4 +181,14 @@ export const userService = {
     );
     return response.data;
   },
+
+  // TEMPORARY TESTING UTILITY: WIPE STUDENTS (To be removed after user testing)
+  wipeStudents: async (): Promise<{ detail: string; output: string }> => {
+    const response = await api.post<{ detail: string; output: string }>(
+      '/users/wipe-students/',
+      { confirm: true }
+    );
+    return response.data;
+  },
 };
+
