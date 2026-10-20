@@ -586,6 +586,18 @@ def finalize_session_attendance(session, target_student_ids=None):
 
     # Find candidate assigned students strictly belonging to this session's class
     if target_student_ids:
+        target_ids_set = {str(sid) for sid in target_student_ids}
+        # Crucial check: verify that AT LEAST ONE student from target_student_ids actually scanned present in this session!
+        scanned_target_students = [
+            att for att in scanned_attendances
+            if str(att.user_id) in target_ids_set
+        ]
+        if not scanned_target_students:
+            # Not a single student from this target class roster scanned present in this session.
+            # (e.g., 0 students from this class attended, or session was started for a different class).
+            # Under NO circumstances should students of this class be marked absent!
+            return
+
         assigned_students = User.objects.filter(
             id__in=target_student_ids,
             role='student',

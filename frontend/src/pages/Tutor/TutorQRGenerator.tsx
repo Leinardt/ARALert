@@ -50,6 +50,8 @@ interface StoredSessionData {
   session: AttendanceSession;
   durationMinutes: number;
   localExpiresAt: number;
+  cohort?: string;
+  studentIds?: string[];
 }
 
 const getStorageKey = (userId?: string | number) =>
@@ -919,6 +921,22 @@ export const TutorQRGenerator: React.FC = () => {
   }, [filteredStudentIds]);
   const [expiresIn, setExpiresIn] = useState<number>(5);
   const [session, setSession] = useState<AttendanceSession | null>(null);
+  const [sessionCohort, setSessionCohort] = useState<string | null>(null);
+  const [sessionStudentIds, setSessionStudentIds] = useState<string[]>([]);
+  const sessionCohortRef = useRef<string | null>(null);
+  const sessionStudentIdsRef = useRef<string[]>([]);
+  useEffect(() => {
+    sessionCohortRef.current = sessionCohort;
+  }, [sessionCohort]);
+  useEffect(() => {
+    sessionStudentIdsRef.current = sessionStudentIds;
+  }, [sessionStudentIds]);
+
+  const isSessionForCurrentClass = useMemo(() => {
+    if (!session || !session.is_active) return true;
+    if (!sessionCohort) return true;
+    return doesStudentMatchCohort({ grade_level: sessionCohort }, selectedCohort);
+  }, [session, sessionCohort, selectedCohort]);
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [scannedStudents, setScannedStudents] = useState<Attendance[]>([]);
   const [attendanceHistory, setAttendanceHistory] = useState<Attendance[]>([]);
@@ -1384,12 +1402,21 @@ export const TutorQRGenerator: React.FC = () => {
         }
 
         if (targetSession.id) {
+          const targetIds =
+            sessionStudentIdsRef.current.length > 0
+              ? sessionStudentIdsRef.current
+              : Array.from(filteredStudentIdsRef.current);
           void academicService.closeAttendanceSession(targetSession.id, {
-            student_ids: Array.from(filteredStudentIdsRef.current),
+            student_ids: targetIds,
           }).catch(() => { });
         }
 
         setSession((curr) => (curr ? { ...curr, is_active: false, time_left: 0 } : null));
+        setSessionCohort(null);
+        setSessionStudentIds([]);
+        sessionCohortRef.current = null;
+        sessionStudentIdsRef.current = [];
+        setScannedStudents([]);
         void fetchAttendanceHistory();
       }
     }, 1000);
@@ -1410,6 +1437,14 @@ export const TutorQRGenerator: React.FC = () => {
           const remaining = calcRemainingSeconds(parsed.session, parsed.localExpiresAt);
           if (parsed.session && parsed.session.is_active && remaining > 0) {
             setSession(parsed.session);
+            if (parsed.cohort) {
+              setSessionCohort(parsed.cohort);
+              sessionCohortRef.current = parsed.cohort;
+            }
+            if (parsed.studentIds) {
+              setSessionStudentIds(parsed.studentIds);
+              sessionStudentIdsRef.current = parsed.studentIds;
+            }
             setTimeLeft(remaining);
             setIsTutorScanning(true);
             if (parsed.durationMinutes) {
@@ -1450,6 +1485,8 @@ export const TutorQRGenerator: React.FC = () => {
                   session: activeSession,
                   durationMinutes,
                   localExpiresAt,
+                  cohort: sessionCohortRef.current || undefined,
+                  studentIds: sessionStudentIdsRef.current || undefined,
                 })
               );
             }
@@ -1494,6 +1531,12 @@ export const TutorQRGenerator: React.FC = () => {
 
       const newSession = await academicService.createAttendanceSession(payload);
       setSession(newSession);
+      const currentCohort = selectedCohort;
+      const currentStudentIds = Array.from(filteredStudentIds);
+      setSessionCohort(currentCohort);
+      setSessionStudentIds(currentStudentIds);
+      sessionCohortRef.current = currentCohort;
+      sessionStudentIdsRef.current = currentStudentIds;
       setIsTutorScanning(true);
       const remaining = newSession.time_left || expiresIn * 60;
       setTimeLeft(remaining);
@@ -1512,6 +1555,8 @@ export const TutorQRGenerator: React.FC = () => {
             session: newSession,
             durationMinutes: expiresIn,
             localExpiresAt,
+            cohort: currentCohort,
+            studentIds: currentStudentIds,
           })
         );
       }
@@ -1538,14 +1583,23 @@ export const TutorQRGenerator: React.FC = () => {
 
     if (session?.id) {
       try {
+        const targetIds =
+          sessionStudentIdsRef.current.length > 0
+            ? sessionStudentIdsRef.current
+            : Array.from(filteredStudentIds);
+
         await academicService.closeAttendanceSession(session.id, {
-          student_ids: Array.from(filteredStudentIds),
+          student_ids: targetIds,
         });
       } catch (err) {
         console.error('Failed to close session:', err);
       }
     }
     setSession(null);
+    setSessionCohort(null);
+    setSessionStudentIds([]);
+    sessionCohortRef.current = null;
+    sessionStudentIdsRef.current = [];
     setScannedStudents([]);
     void fetchAttendanceHistory();
   };
@@ -1553,19 +1607,30 @@ export const TutorQRGenerator: React.FC = () => {
 
 
   const handleCancelSessionClick = () => {
+    const targetCohort = sessionCohortRef.current || selectedCohort;
+    const targetIds =
+      sessionStudentIdsRef.current.length > 0
+        ? new Set(sessionStudentIdsRef.current)
+        : filteredStudentIds;
+
     const hasScannedStudents =
-      scannedStudents.length > 0 ||
+      scannedStudents.some((s) => targetIds.has(String((s as any).user_id || s.user))) ||
       (session?.id
-        ? attendanceHistory.some((log) => log.session === session.id && log.status === 'present')
+        ? attendanceHistory.some(
+            (log) =>
+              log.session === session.id &&
+              log.status === 'present' &&
+              targetIds.has(String((log as any).user_id || log.user))
+          )
         : false);
 
     const message = hasScannedStudents
-      ? 'Are you sure you want to close this attendance session? At least 1 student has already recorded attendance, so students who did not scan or input their code will be marked absent. Students will no longer be able to scan for this session.'
-      : 'Are you sure you want to close this attendance session? No students have recorded attendance yet, so no students will be marked absent if you want to start a fresh session. Students will no longer be able to scan for this session.';
+      ? `Are you sure you want to close this attendance session for ${targetCohort}? At least 1 student has already recorded attendance, so students in ${targetCohort} who did not scan or input their code will be marked absent. Students will no longer be able to scan for this session.`
+      : `Are you sure you want to close this attendance session for ${targetCohort}? No students from this class have recorded attendance yet, so no students will be marked absent if you want to start a fresh session. Students will no longer be able to scan for this session.`;
 
     setConfirmAction({
       isOpen: true,
-      title: 'Close Attendance Session',
+      title: `Close Attendance Session (${targetCohort})`,
       message,
       confirmText: 'Yes, Close Session',
       confirmStyle: 'danger',
@@ -1723,7 +1788,7 @@ export const TutorQRGenerator: React.FC = () => {
               <div>
                 <h2 className="text-base font-bold text-gray-900 dark:text-slate-100 uppercase">ATTENDANCE SCANNER SETUP</h2>
               </div>
-              {session && (
+              {session && isSessionForCurrentClass && (
                 <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border ${session.is_active
                   ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                   : 'bg-red-50 text-red-600 border-red-200'
@@ -1736,7 +1801,43 @@ export const TutorQRGenerator: React.FC = () => {
 
             <div className="p-6 flex flex-col gap-5">
 
-              {!session && (
+              {/* Alert if active session belongs to a different class */}
+              {!isSessionForCurrentClass && session && session.is_active && (
+                <div className="order-1 rounded-md border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/30 p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                        Active Session in Progress for Another Class
+                      </h4>
+                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                        An attendance session is currently active for <span className="font-bold">{sessionCohort}</span>.
+                        Students from <span className="font-bold">{selectedCohort}</span> cannot scan into that session.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (sessionCohort) setSelectedCohort(sessionCohort);
+                      }}
+                      className="px-3 py-1.5 rounded-md text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition cursor-pointer"
+                    >
+                      Return to {sessionCohort}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelSessionClick}
+                      className="px-3 py-1.5 rounded-md text-xs font-bold border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition cursor-pointer"
+                    >
+                      Close {sessionCohort} Session
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {(!session || !isSessionForCurrentClass) && (
                 <div className="order-2 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/60 dark:bg-[#161616] p-4 space-y-4">
                   {/* Duration */}
                   <div>
@@ -1763,7 +1864,7 @@ export const TutorQRGenerator: React.FC = () => {
                 </div>
               )}
 
-              {!session ? (
+              {!session || !isSessionForCurrentClass ? (
                 <button
                   onClick={generateStudentQR}
                   disabled={isLoading}
@@ -1775,7 +1876,7 @@ export const TutorQRGenerator: React.FC = () => {
                       Starting session...
                     </>
                   ) : (
-                    'Start Attendance Session'
+                    `Start Attendance Session for ${selectedCohort}`
                   )}
                 </button>
               ) : (
@@ -1834,7 +1935,7 @@ export const TutorQRGenerator: React.FC = () => {
                 )}
 
                 {/* Viewport: Active Session Scanner OR Expired OR Awaiting Session */}
-                {session?.is_active ? (
+                {session?.is_active && isSessionForCurrentClass ? (
                   <div className="space-y-3">
                     <div className="relative flex min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-4 overflow-hidden">
                       <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-xs z-10" />
@@ -1913,6 +2014,36 @@ export const TutorQRGenerator: React.FC = () => {
                       </form>
                     </div>
                   </div>
+                ) : session?.is_active && !isSessionForCurrentClass ? (
+                  <div className="relative flex min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 p-6 text-center">
+                    <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center mb-3">
+                      <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm">
+                      Attendance Session Active for {sessionCohort}
+                    </h3>
+                    <p className="text-xs text-gray-600 dark:text-slate-300 mt-1.5 max-w-sm leading-relaxed">
+                      You are currently viewing <span className="font-bold">{selectedCohort}</span>. Switch back to <span className="font-bold">{sessionCohort}</span> to scan student QR codes, or close the {sessionCohort} session to start one for {selectedCohort}.
+                    </p>
+                    <div className="mt-4 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (sessionCohort) setSelectedCohort(sessionCohort);
+                        }}
+                        className="px-3.5 py-1.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-md text-xs font-bold transition-all cursor-pointer shadow-xs"
+                      >
+                        Return to {sessionCohort}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelSessionClick}
+                        className="px-3.5 py-1.5 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#202020] rounded-md text-xs font-bold transition-all cursor-pointer shadow-xs"
+                      >
+                        Close {sessionCohort} Session
+                      </button>
+                    </div>
+                  </div>
                 ) : session && !session.is_active ? (
                   <div className="relative flex min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-6 text-center">
                     <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/50 flex items-center justify-center mb-3">
@@ -1951,7 +2082,7 @@ export const TutorQRGenerator: React.FC = () => {
                 )}
 
                 {/* Countdown + session info */}
-                {session?.is_active && (
+                {session?.is_active && isSessionForCurrentClass && (
                   <div className="mt-4 space-y-1.5">
                     {/* Progress bar */}
                     <div className="flex items-center justify-between">
@@ -1985,14 +2116,24 @@ export const TutorQRGenerator: React.FC = () => {
               </div>
               <div>
                 <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
-                  {scannedStudents.length}
+                  {isSessionForCurrentClass ? scannedStudents.length : 0}
                 </span>
               </div>
             </div>
 
             {/* Feed list */}
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {scannedStudents.length === 0 ? (
+              {!isSessionForCurrentClass && session?.is_active ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-3 min-h-[280px]">
+                  <div className="w-14 h-14 rounded-md border border-dashed border-amber-200 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20 flex items-center justify-center">
+                    <UserCheck className="w-7 h-7 text-amber-500/70 stroke-[1.5]" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-700 dark:text-slate-200">Session belongs to {sessionCohort}</p>
+                    <p className="text-[11px] text-gray-400 dark:text-slate-400 mt-0.5">Switch to {sessionCohort} to view live scans.</p>
+                  </div>
+                </div>
+              ) : (isSessionForCurrentClass ? scannedStudents : []).length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-3 min-h-[280px]">
                   <div className="w-14 h-14 rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] flex items-center justify-center">
                     <UserCheck className="w-7 h-7 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
@@ -2000,7 +2141,7 @@ export const TutorQRGenerator: React.FC = () => {
                   <div>
                     <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center whitespace-nowrap">Scanned students will appear here in real-time</p>
                   </div>
-                  {!session && (
+                  {(!session || !session.is_active) && (
                     <p className="text-[11px] text-gray-300 dark:text-slate-600 font-medium">Start an attendance session to begin</p>
                   )}
                 </div>
