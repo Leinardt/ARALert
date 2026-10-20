@@ -1051,16 +1051,59 @@ export const TutorQRGenerator: React.FC = () => {
     setTutorScanMessage(null);
     try {
       let payload = decodedText.trim();
-      if (payload.length === 6 && students.length > 0) {
-        const norm = payload.toLowerCase();
-        const match = students.find(
-          (s) =>
-            String(s.id).replace(/-/g, '').toLowerCase().startsWith(norm)
-        );
-        if (match) {
-          payload = `ARALERT:STUDENT:${match.id}`;
-        }
+      let searchToken = payload;
+      if (payload.toUpperCase().startsWith('ARALERT:STUDENT:')) {
+        searchToken = payload.split(':', 2)[2].trim();
       }
+
+      const normToken = searchToken.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      // Identify whether this student belongs to this tutor
+      let matchedStudent: User | undefined;
+      if (students.length > 0) {
+        matchedStudent = students.find((s) => {
+          const sId = String(s.id).toLowerCase();
+          const sNormId = sId.replace(/[^a-z0-9]/g, '');
+          const sLrn = (s.lrn || '').trim();
+          return (
+            sId === searchToken.toLowerCase() ||
+            sNormId === normToken ||
+            (normToken.length === 6 && sNormId.startsWith(normToken)) ||
+            (sLrn && (sLrn === searchToken || sLrn.endsWith(searchToken)))
+          );
+        });
+      }
+
+      // If student is assigned to this tutor, verify whether they belong to the currently selected class
+      if (matchedStudent) {
+        const isStudentInActiveClass = filteredStudents.some(
+          (fs) => String(fs.id) === String(matchedStudent!.id)
+        );
+
+        if (!isStudentInActiveClass) {
+          const studentSection = matchedStudent.section
+            ? `${matchedStudent.grade_level || 'Grade'} - ${matchedStudent.section}`
+            : (matchedStudent.grade_level || 'another section');
+          const studentName = matchedStudent.full_name || `${matchedStudent.first_name} ${matchedStudent.last_name}`;
+
+          setTutorScanMessage({
+            type: 'error',
+            message: `${studentName} belongs to ${studentSection}, not the selected class (${selectedCohort}).`,
+          });
+          return;
+        }
+
+        // Student is valid for this active class session
+        payload = `ARALERT:STUDENT:${matchedStudent.id}`;
+      } else if (payload.length === 6 && students.length > 0) {
+        // Manual 6-digit code did not match any student assigned to this tutor
+        setTutorScanMessage({
+          type: 'error',
+          message: `Student does not belong to the selected class (${selectedCohort}) or this tutor.`,
+        });
+        return;
+      }
+
       const res = await academicService.scanQRCode(payload);
       setTutorScanMessage({
         type: 'success',
@@ -1080,9 +1123,14 @@ export const TutorQRGenerator: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Scan error:', err);
-      const rawError = err.response?.data?.error || 'Failed to record student attendance. Verify student QR pass.';
+      const rawError = err.response?.data?.error || '';
       const isAlreadyMarked = /already marked/i.test(rawError);
-      const message = rawError.replace(/for today\./i, 'for this session.');
+      let message = rawError.replace(/for today\./i, 'for this session.');
+
+      if (!message || /Verify student QR pass|session code|not found/i.test(message)) {
+        message = `Student does not belong to the selected class (${selectedCohort}) or this tutor.`;
+      }
+
       setTutorScanMessage({
         type: isAlreadyMarked ? 'warning' : 'error',
         message,
