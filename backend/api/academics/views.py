@@ -552,12 +552,14 @@ class AttendanceSessionCreateView(APIView):
         return Response(AttendanceSessionSerializer(session).data, status=status.HTTP_201_CREATED)
 
 
-def finalize_session_attendance(session):
+def finalize_session_attendance(session, target_student_ids=None):
     """
     Finalizes attendance for a student session:
-    - If at least 1 student has recorded attendance (present) in this session / for this tutor today:
-      Mark all remaining assigned students of this tutor who have NOT recorded attendance today as 'absent'.
-    - If NO students recorded attendance (count == 0):
+    - If at least 1 student has recorded attendance (present) in this session:
+      Mark all remaining students of THIS session's class/cohort as 'absent'.
+    - If target_student_ids is explicitly provided:
+      Mark only those targeted assigned students who have not recorded attendance today as 'absent'.
+    - If NO students recorded attendance (count == 0) and no target_student_ids provided:
       Do NOT label any students as absent (session was a test or abandoned).
     """
     if not session or session.session_type != 'student':
@@ -566,26 +568,46 @@ def finalize_session_attendance(session):
     today = timezone.localdate()
     tutor = session.creator
 
-    # Check if at least 1 student recorded attendance in this session (or for this tutor today)
-    scanned_count = ApiAttendance.objects.filter(
-        session=session,
-        role='student',
-        status='present'
-    ).count()
-
-    if scanned_count == 0:
-        scanned_count = ApiAttendance.objects.filter(
-            tutor=tutor,
-            date=today,
+    # Check which students recorded attendance (present) strictly in THIS session
+    scanned_attendances = list(
+        ApiAttendance.objects.filter(
+            session=session,
             role='student',
             status='present'
-        ).count()
+        ).select_related('user')
+    )
 
-    if scanned_count == 0:
+    if not scanned_attendances and not target_student_ids:
+        # No students attended this session, and no explicit class roster target was given.
         return
 
-    # At least 1 student attended: find all assigned students for this tutor
-    assigned_students = User.objects.filter(role='student', assigned_tutor=tutor, is_active=True)
+    # Find candidate assigned students strictly belonging to this session's class
+    if target_student_ids:
+        assigned_students = User.objects.filter(
+            id__in=target_student_ids,
+            role='student',
+            assigned_tutor=tutor,
+            is_active=True
+        )
+    else:
+        # Identify the cohort/section of the students who scanned into this session
+        scanned_grades = {
+            att.user.grade_level.strip().upper()
+            for att in scanned_attendances
+            if att.user and att.user.grade_level
+        }
+        scanned_arals = {
+            att.user.aral_level.strip().lower()
+            for att in scanned_attendances
+            if att.user and att.user.aral_level
+        }
+
+        qs = User.objects.filter(role='student', assigned_tutor=tutor, is_active=True)
+        if scanned_grades:
+            qs = qs.filter(grade_level__in=scanned_grades)
+        if scanned_arals:
+            qs = qs.filter(aral_level__in=scanned_arals)
+        assigned_students = qs
 
     # Find which students already have an attendance record for today (present or absent)
     existing_student_ids = set(
@@ -629,9 +651,11 @@ class AttendanceSessionCloseView(APIView):
         if session.creator != request.user and not request.user.is_superuser:
             return Response({'error': 'You do not have permission to close this session.'}, status=status.HTTP_403_FORBIDDEN)
 
+        target_student_ids = request.data.get('student_ids')
+
         session.is_active = False
         session.save(update_fields=['is_active'])
-        finalize_session_attendance(session)
+        finalize_session_attendance(session, target_student_ids=target_student_ids)
 
         log_audit_event(
             'ATTENDANCE_SESSION_CLOSED',
@@ -1092,6 +1116,44 @@ class AttendanceHistoryView(generics.ListAPIView):
         if user.role == 'faculty':
             return qs.filter(user=user)
         return qs.none()
+
+    def delete(self, request):
+        user = request.user
+        if user.role != 'tutor' and not user.is_superuser and user.role not in ('admin', 'principal'):
+            return Response({'error': 'Only tutors or admins can delete attendance records.'}, status=status.HTTP_403_FORBIDDEN)
+
+        date_param = request.query_params.get('date') or request.data.get('date')
+        all_param = request.query_params.get('all') or request.data.get('all')
+        student_ids = request.data.get('student_ids')
+
+        qs = self.get_queryset().filter(role='student')
+        if user.role == 'tutor':
+            assigned_ids = user.assigned_students.values_list('id', flat=True)
+            qs = qs.filter(Q(tutor=user) | Q(session__creator=user) | Q(user_id__in=assigned_ids))
+
+        if student_ids and isinstance(student_ids, list):
+            qs = qs.filter(user_id__in=student_ids)
+
+        if date_param and not all_param:
+            qs = qs.filter(date=date_param)
+
+        count = qs.count()
+        qs.delete()
+
+        log_audit_event(
+            'ATTENDANCE_RECORDS_DELETED',
+            user=user,
+            request=request,
+            details={
+                'deleted_count': count,
+                'date': date_param or 'all',
+            }
+        )
+
+        return Response({
+            'message': f'Successfully cleared {count} attendance records.',
+            'count': count
+        }, status=status.HTTP_200_OK)
 
 
 class AttendanceDetailView(generics.RetrieveUpdateDestroyAPIView):

@@ -911,6 +911,10 @@ export const TutorQRGenerator: React.FC = () => {
     () => new Set(filteredStudents.map((s) => String(s.id))),
     [filteredStudents]
   );
+  const filteredStudentIdsRef = useRef<Set<string>>(filteredStudentIds);
+  useEffect(() => {
+    filteredStudentIdsRef.current = filteredStudentIds;
+  }, [filteredStudentIds]);
   const [expiresIn, setExpiresIn] = useState<number>(5);
   const [session, setSession] = useState<AttendanceSession | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -974,18 +978,57 @@ export const TutorQRGenerator: React.FC = () => {
     setConfirmAction({
       isOpen: true,
       title: 'Delete Record Entry',
-      message: 'Are you sure you want to delete this record entry? It will stay in the records for 30 days until it is gone forever.',
+      message: 'Are you sure you want to delete this record entry? This will permanently delete the attendance records for this date.',
       confirmText: 'Delete Record Entry',
       confirmStyle: 'danger',
-      onConfirm: () => {
+      onConfirm: async () => {
         trashbinService.trashDate('attendance', dateStr, recordIds, user?.id);
         setTrashVersion((v) => v + 1);
         setEditDayModeDate(null);
         setConfirmAction((prev) => ({ ...prev, isOpen: false }));
+        try {
+          if (recordIds && recordIds.length > 0) {
+            await Promise.all(recordIds.map((id) => academicService.deleteAttendance(id)));
+          } else {
+            await academicService.clearAttendanceHistory({ date: dateStr });
+          }
+          await fetchAttendanceHistory();
+        } catch (err) {
+          console.error('Failed to delete attendance records on server:', err);
+        }
         setSuccessToast({
-          title: 'Record Entry Moved to Trash',
-          message: 'This record entry will stay in the records for 30 days until it is gone forever.',
+          title: 'Records Deleted',
+          message: 'The attendance records for this date have been cleared.',
         });
+      },
+    });
+  };
+
+  const handlePromptResetAttendance = () => {
+    setConfirmAction({
+      isOpen: true,
+      title: 'Reset Attendance Records',
+      message: 'Are you sure you want to clear attendance records? This will delete the attendance logs so you can test fresh without affecting other classes.',
+      confirmText: 'Yes, Clear Records',
+      confirmStyle: 'danger',
+      onConfirm: async () => {
+        setConfirmAction((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await academicService.clearAttendanceHistory({ all: true });
+          if (user?.id) {
+            try {
+              localStorage.removeItem(`aralert_trash_attendance_${user.id}`);
+            } catch { }
+          }
+          await fetchAttendanceHistory();
+          setSuccessToast({
+            title: 'Attendance Reset',
+            message: 'All attendance records have been successfully cleared.',
+          });
+        } catch (err: any) {
+          console.error('Failed to reset attendance:', err);
+          setError(err?.response?.data?.error || 'Failed to clear attendance records.');
+        }
       },
     });
   };
@@ -1333,7 +1376,9 @@ export const TutorQRGenerator: React.FC = () => {
         }
 
         if (targetSession.id) {
-          void academicService.closeAttendanceSession(targetSession.id).catch(() => { });
+          void academicService.closeAttendanceSession(targetSession.id, {
+            student_ids: Array.from(filteredStudentIdsRef.current),
+          }).catch(() => { });
         }
 
         setSession((curr) => (curr ? { ...curr, is_active: false, time_left: 0 } : null));
@@ -1485,7 +1530,9 @@ export const TutorQRGenerator: React.FC = () => {
 
     if (session?.id) {
       try {
-        await academicService.closeAttendanceSession(session.id);
+        await academicService.closeAttendanceSession(session.id, {
+          student_ids: Array.from(filteredStudentIds),
+        });
       } catch (err) {
         console.error('Failed to close session:', err);
       }
@@ -2043,6 +2090,19 @@ export const TutorQRGenerator: React.FC = () => {
                 />
               )}
             </div>
+
+            {/* Reset Attendance button */}
+            {activeHistoryRecords.length > 0 && (
+              <button
+                type="button"
+                onClick={handlePromptResetAttendance}
+                className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-red-600 dark:text-red-400 transition-all hover:bg-red-100 dark:hover:bg-red-900/40 cursor-pointer shrink-0 whitespace-nowrap"
+                title="Clear attendance records to test fresh"
+              >
+                <RotateCcw className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-600 dark:text-red-400" />
+                <span>Reset Records</span>
+              </button>
+            )}
 
             {/* Export Attendance Sheet button */}
             <button

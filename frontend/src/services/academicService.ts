@@ -181,8 +181,8 @@ export const academicService = {
     }
   },
 
-  closeAttendanceSession: async (sessionId: string): Promise<{ message: string; session: AttendanceSession }> => {
-    const response = await api.post<{ message: string; session: AttendanceSession }>(`/academics/attendance/session/${sessionId}/close/`);
+  closeAttendanceSession: async (sessionId: string, data?: { student_ids?: string[] }): Promise<{ message: string; session: AttendanceSession }> => {
+    const response = await api.post<{ message: string; session: AttendanceSession }>(`/academics/attendance/session/${sessionId}/close/`, data || {});
     return response.data;
   },
 
@@ -226,6 +226,14 @@ export const academicService = {
       next = nextData?.next;
     }
     return records;
+  },
+
+  clearAttendanceHistory: async (params?: { date?: string; all?: boolean; student_ids?: string[] }): Promise<{ message: string; count: number }> => {
+    const response = await api.delete<{ message: string; count: number }>('/academics/attendance/history/', {
+      params: { date: params?.date, all: params?.all ? 'true' : undefined },
+      data: { student_ids: params?.student_ids },
+    });
+    return response.data;
   },
 
   updateAttendance: async (id: number | string, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>): Promise<Attendance> => {
