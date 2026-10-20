@@ -289,9 +289,12 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
       await workbook.xlsx.load(buffer);
 
       const parsedList: BatchParsedStudent[] = [];
+      const seenStudentNamesAcrossSheets = new Set<string>();
 
       workbook.eachSheet((worksheet, sheetId) => {
         const sheetName = worksheet.name.trim();
+        let sheetStudentCount = 0;
+        let sheetHasBosyPopulated = false;
 
         let detectedGrade = 'GRADE 7';
         let detectedSection = '';
@@ -468,18 +471,39 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
           const { last_name, first_name, middle_name } = parseLearnerName(rawName);
           if (!last_name && !first_name) continue;
 
+          const normKey = `${last_name}|${first_name}`.replace(/[^A-Z]/g, '');
+
+          // Detect un-cleared template copies from earlier tabs:
+          // When a teacher duplicates an earlier sheet (e.g. Tab 1) as a template for subsequent classes,
+          // any students left at the bottom of the table are duplicates from the earlier sheet's roster.
+          if (sheetStudentCount > 0 && seenStudentNamesAcrossSheets.has(normKey)) {
+            break;
+          }
+
+          const rawBosy = row.getCell(colBosy).text?.trim().toUpperCase();
+          const rawMosy = row.getCell(colMosy).text?.trim().toUpperCase();
+          const rawEosy = row.getCell(colEosy).text?.trim().toUpperCase();
           const rawSubject = row.getCell(colSubject).text?.trim();
+
+          // If preceding rows had BOSY populated and this row is completely empty for BOSY and Subject
+          if (sheetHasBosyPopulated && !rawBosy && !rawSubject) {
+            break;
+          }
+
+          if (rawBosy) {
+            sheetHasBosyPopulated = true;
+          }
+
+          seenStudentNamesAcrossSheets.add(normKey);
+          sheetStudentCount++;
+
           const cleanSubject = normalizeSubject(rawSubject);
 
           const rawGuardian = row.getCell(colGuardian).text?.trim() || '';
           const rawContact = row.getCell(colContact).value;
           const normalizedContact = normalizePhoneNumber(rawContact);
 
-          const rawBosy = row.getCell(colBosy).text?.trim().toUpperCase();
-          const rawMosy = row.getCell(colMosy).text?.trim().toUpperCase();
-          const rawEosy = row.getCell(colEosy).text?.trim().toUpperCase();
-
-          const hasBosy = rawBosy === 'TRUE' || rawBosy === '1' || rawBosy === 'YES' || rawBosy === 'Y' || true;
+          const hasBosy = rawBosy === 'TRUE' || rawBosy === '1' || rawBosy === 'YES' || rawBosy === 'Y' || Boolean(rawBosy);
           const hasMosy = rawMosy === 'TRUE' || rawMosy === '1' || rawMosy === 'YES';
           const hasEosy = rawEosy === 'TRUE' || rawEosy === '1' || rawEosy === 'YES';
 
