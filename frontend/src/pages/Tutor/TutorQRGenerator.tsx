@@ -39,7 +39,9 @@ import { TutorCohortFilter } from '../../components/TutorCohortFilter';
 import {
   useTutorCohortFilter,
   isStudentInCohort,
+  doesStudentMatchCohort,
   getCachedTutorStudents,
+  setCachedTutorStudents,
 } from '../../utils/tutorCohortHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
@@ -1096,7 +1098,7 @@ export const TutorQRGenerator: React.FC = () => {
       let payload = decodedText.trim();
       let searchToken = payload;
       if (payload.toUpperCase().startsWith('ARALERT:STUDENT:')) {
-        searchToken = payload.split(':', 2)[2].trim();
+        searchToken = payload.replace(/^ARALERT:STUDENT:/i, '').trim();
       }
 
       const normToken = searchToken.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -1119,9 +1121,9 @@ export const TutorQRGenerator: React.FC = () => {
 
       // If student is assigned to this tutor, verify whether they belong to the currently selected class
       if (matchedStudent) {
-        const isStudentInActiveClass = filteredStudents.some(
-          (fs) => String(fs.id) === String(matchedStudent!.id)
-        );
+        const isStudentInActiveClass =
+          filteredStudents.some((fs) => String(fs.id) === String(matchedStudent!.id)) ||
+          doesStudentMatchCohort(matchedStudent, selectedCohort);
 
         if (!isStudentInActiveClass) {
           const studentSection = matchedStudent.section
@@ -1142,7 +1144,7 @@ export const TutorQRGenerator: React.FC = () => {
         // Manual 6-digit code did not match any student assigned to this tutor
         setTutorScanMessage({
           type: 'error',
-          message: `Student does not belong to the selected class (${selectedCohort}) or this tutor.`,
+          message: `Code does not match any student assigned to this tutor for ${selectedCohort}.`,
         });
         return;
       }
@@ -1170,7 +1172,9 @@ export const TutorQRGenerator: React.FC = () => {
       const isAlreadyMarked = /already marked/i.test(rawError);
       let message = rawError.replace(/for today\./i, 'for this session.');
 
-      if (!message || /Verify student QR pass|session code|not found/i.test(message)) {
+      if (!message) {
+        message = err.message || `Failed to record attendance for ${selectedCohort}. Please verify student QR pass.`;
+      } else if (/Verify student QR pass/i.test(message)) {
         message = `Student does not belong to the selected class (${selectedCohort}) or this tutor.`;
       }
 
@@ -1284,9 +1288,13 @@ export const TutorQRGenerator: React.FC = () => {
         } catch {
           res = await userService.getUsers({ role: 'student' });
         }
-        setStudents(Array.isArray(res) ? res : Array.isArray(res?.results) ? res.results : []);
+        const studentList = Array.isArray(res) ? res : Array.isArray(res?.results) ? res.results : [];
+        setStudents(studentList);
+        if (studentList.length > 0 && user?.id) {
+          setCachedTutorStudents(user.id, studentList);
+        }
       } catch (err) {
-        console.error('Failed to load students for export', err);
+        console.error('Failed to load students for tutor', err);
       }
     };
     fetchStudents();

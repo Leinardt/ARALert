@@ -408,6 +408,44 @@ export function isStudentInCohort(
   return true;
 }
 
+/**
+ * Checks whether a student belongs to a given cohort (e.g. "GRADE 9 - MOLAVE").
+ * Compares both grade level (e.g. 9) and section (e.g. MOLAVE) cleanly.
+ */
+export function doesStudentMatchCohort(
+  student: Partial<User> | null | undefined,
+  targetCohort: string
+): boolean {
+  if (!student) return false;
+  if (!targetCohort || targetCohort.toUpperCase() === 'ALL' || targetCohort.toUpperCase() === 'ALL - ALL') {
+    return true;
+  }
+  const sGrade = (student.grade_level || '').toUpperCase().trim();
+  const sSec = ((student as any).section || '').toUpperCase().trim();
+  const target = targetCohort.toUpperCase().trim();
+
+  if (target.includes(' - ')) {
+    const [targetGrade, targetSection] = target.split(' - ').map((s) => s.trim());
+    const sGradeNum = sGrade.replace(/[^0-9]/g, '');
+    const targetGradeNum = targetGrade.replace(/[^0-9]/g, '');
+
+    // Check grade number if target specifies a specific grade
+    if (targetGrade !== 'ALL' && sGradeNum && targetGradeNum && sGradeNum !== targetGradeNum) {
+      return false;
+    }
+
+    // Check section name if target specifies a specific section
+    if (targetSection && targetSection !== 'ALL') {
+      if (!sGrade.includes(targetSection) && sSec !== targetSection) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return sGrade.includes(target) || sSec.includes(target);
+}
+
 export interface UseTutorCohortFilterOptions {
   allowAll?: boolean;
   defaultToAll?: boolean;

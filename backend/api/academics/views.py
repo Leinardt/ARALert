@@ -577,8 +577,11 @@ def finalize_session_attendance(session, target_student_ids=None):
         ).select_related('user')
     )
 
-    if not scanned_attendances and not target_student_ids:
-        # No students attended this session, and no explicit class roster target was given.
+    if not scanned_attendances:
+        # At least 1 student must have recorded attendance (present) in this session
+        # to make that session valid for auto-marking unscanned students as absent.
+        # If 0 students attended (session was abandoned, test, or closed without attendance),
+        # do NOT mark anyone as absent.
         return
 
     # Find candidate assigned students strictly belonging to this session's class
@@ -737,7 +740,17 @@ class AttendanceScanView(APIView):
                             'error': 'Multiple students match this 6-digit code. Please enter the full LRN.'
                         }, status=status.HTTP_400_BAD_REQUEST)
 
+            if clean_code.upper().startswith('ARALERT:STUDENT:') and not student_candidate:
+                return Response({
+                    'error': 'Student QR pass is invalid or student not found.'
+                }, status=status.HTTP_404_NOT_FOUND)
+
             if student_candidate:
+                if user.role == 'tutor' and student_candidate.assigned_tutor_id and student_candidate.assigned_tutor_id != user.id:
+                    return Response({
+                        'error': f"{student_candidate.get_full_name()} is assigned to another tutor."
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
                 # Find an active, unexpired student attendance session created by this tutor/staff for today
                 now = timezone.now()
                 active_session = ApiAttendanceSession.objects.filter(
