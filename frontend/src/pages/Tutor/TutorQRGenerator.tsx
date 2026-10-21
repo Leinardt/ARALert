@@ -1083,6 +1083,35 @@ export const TutorQRGenerator: React.FC = () => {
   const [isProcessingStudentScan, setIsProcessingStudentScan] = useState<boolean>(false);
   const [manualStudentInput, setManualStudentInput] = useState<string>('');
 
+  // Synchronous lock ref to prevent duplicate/concurrent executions from 10 FPS camera callback
+  const isProcessingScanRef = useRef<boolean>(false);
+  // Track recently scanned student keys and tokens to ignore continuous camera frames (5 second cooldown)
+  const recentScansMapRef = useRef<Map<string, number>>(new Map());
+  // Ref keeping track of students already marked present in this session
+  const sessionScannedIdsRef = useRef<Set<string>>(new Set());
+
+  // Ref to always provide the latest scan handler to Html5Qrcode without restarting camera
+  const handleStudentScanResultRef = useRef<(decodedText: string, isManual?: boolean) => Promise<void>>(async () => {});
+
+  // Sync sessionScannedIdsRef with scannedStudents
+  useEffect(() => {
+    const set = new Set<string>();
+    scannedStudents.forEach((s) => {
+      const id = String(s.user || (s as any).user_id || (s as any).id);
+      if (id) set.add(id.toLowerCase());
+    });
+    sessionScannedIdsRef.current = set;
+  }, [scannedStudents]);
+
+  // Auto-dismiss tutor scan message after 6 seconds
+  useEffect(() => {
+    if (!tutorScanMessage) return;
+    const timeout = setTimeout(() => {
+      setTutorScanMessage(null);
+    }, 6000);
+    return () => clearTimeout(timeout);
+  }, [tutorScanMessage]);
+
   // Restart tutor camera scanner
   const restartTutorScanner = async () => {
     await stopTutorScanner();
@@ -1108,70 +1137,134 @@ export const TutorQRGenerator: React.FC = () => {
   };
 
   // Handle scanned student QR code or manual 6-digit code / LRN
-  const handleStudentScanResult = async (decodedText: string) => {
-    if (isProcessingStudentScan) return;
-    setIsProcessingStudentScan(true);
-    setTutorScanMessage(null);
-    try {
-      let payload = decodedText.trim();
-      let searchToken = payload;
-      if (payload.toUpperCase().startsWith('ARALERT:STUDENT:')) {
-        searchToken = payload.replace(/^ARALERT:STUDENT:/i, '').trim();
+  const handleStudentScanResult = async (decodedText: string, isManual = false) => {
+    // 1. Immediate synchronous lock - prevents any other frame from entering while async request is active
+    if (isProcessingScanRef.current) return;
+
+    const now = Date.now();
+
+    // 2. Prune old cooldown entries (> 30s)
+    recentScansMapRef.current.forEach((timestamp, key) => {
+      if (now - timestamp > 30000) {
+        recentScansMapRef.current.delete(key);
       }
+    });
 
-      const normToken = searchToken.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let payload = decodedText.trim();
+    let searchToken = payload;
+    if (payload.toUpperCase().startsWith('ARALERT:STUDENT:')) {
+      searchToken = payload.replace(/^ARALERT:STUDENT:/i, '').trim();
+    }
 
-      // Identify whether this student belongs to this tutor
-      let matchedStudent: User | undefined;
-      if (students.length > 0) {
-        matchedStudent = students.find((s) => {
-          const sId = String(s.id).toLowerCase();
-          const sNormId = sId.replace(/[^a-z0-9]/g, '');
-          const sLrn = (s.lrn || '').trim();
-          return (
-            sId === searchToken.toLowerCase() ||
-            sNormId === normToken ||
-            (normToken.length === 6 && sNormId.startsWith(normToken)) ||
-            (sLrn && (sLrn === searchToken || sLrn.endsWith(searchToken)))
-          );
-        });
+    const normToken = searchToken.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // 3. Cooldown check: if camera is scanning the same token within 5 seconds, drop silently
+    if (!isManual) {
+      const lastTokenScan = recentScansMapRef.current.get(normToken);
+      if (lastTokenScan && now - lastTokenScan < 5000) {
+        return;
       }
+    }
 
-      // If student is assigned to this tutor, verify whether they belong to the currently selected class
-      if (matchedStudent) {
-        const isStudentInActiveClass =
-          filteredStudents.some((fs) => String(fs.id) === String(matchedStudent!.id)) ||
-          doesStudentMatchCohort(matchedStudent, selectedCohort);
+    // 4. Identify whether this student belongs to this tutor
+    let matchedStudent: User | undefined;
+    if (students.length > 0) {
+      matchedStudent = students.find((s) => {
+        const sId = String(s.id).toLowerCase();
+        const sNormId = sId.replace(/[^a-z0-9]/g, '');
+        const sLrn = (s.lrn || '').trim();
+        return (
+          sId === searchToken.toLowerCase() ||
+          sNormId === normToken ||
+          (normToken.length === 6 && sNormId.startsWith(normToken)) ||
+          (sLrn && (sLrn === searchToken || sLrn.endsWith(searchToken)))
+        );
+      });
+    }
 
-        if (!isStudentInActiveClass) {
-          const studentSection = matchedStudent.section
-            ? `${matchedStudent.grade_level || 'Grade'} - ${matchedStudent.section}`
-            : (matchedStudent.grade_level || 'another section');
-          const studentName = matchedStudent.full_name || `${matchedStudent.first_name} ${matchedStudent.last_name}`;
+    // 5. If matched student, check student-level cooldown & session deduplication
+    if (matchedStudent) {
+      const studentIdStr = String(matchedStudent.id).toLowerCase();
 
-          setTutorScanMessage({
-            type: 'error',
-            message: `${studentName} belongs to ${studentSection}, not the selected class (${selectedCohort}).`,
-          });
+      if (!isManual) {
+        const lastStudentScan = recentScansMapRef.current.get(studentIdStr);
+        if (lastStudentScan && now - lastStudentScan < 5000) {
           return;
         }
 
-        // Student is valid for this active class session
-        payload = `ARALERT:STUDENT:${matchedStudent.id}`;
-      } else if (payload.length === 6 && students.length > 0) {
-        // Manual 6-digit code did not match any student assigned to this tutor
+        // Check if student was already marked present in this active session
+        const isAlreadyScannedInSession = sessionScannedIdsRef.current.has(studentIdStr);
+        if (isAlreadyScannedInSession) {
+          // If within 15 seconds, student is just lowering their QR code — ignore completely
+          if (lastStudentScan && now - lastStudentScan < 15000) {
+            return;
+          }
+          // If scanned much earlier, show notice once and update cooldown
+          const studentName = matchedStudent.full_name || `${matchedStudent.first_name} ${matchedStudent.last_name}`;
+          setTutorScanMessage({
+            type: 'warning',
+            message: `${studentName} is already marked PRESENT for this session.`,
+          });
+          recentScansMapRef.current.set(studentIdStr, now);
+          recentScansMapRef.current.set(normToken, now);
+          return;
+        }
+      }
+
+      // Verify whether student belongs to the currently selected class
+      const isStudentInActiveClass =
+        filteredStudents.some((fs) => String(fs.id) === String(matchedStudent!.id)) ||
+        doesStudentMatchCohort(matchedStudent, selectedCohort);
+
+      if (!isStudentInActiveClass) {
+        const studentSection = matchedStudent.section
+          ? `${matchedStudent.grade_level || 'Grade'} - ${matchedStudent.section}`
+          : (matchedStudent.grade_level || 'another section');
+        const studentName = matchedStudent.full_name || `${matchedStudent.first_name} ${matchedStudent.last_name}`;
+
         setTutorScanMessage({
           type: 'error',
-          message: `Code does not match any student assigned to this tutor for ${selectedCohort}.`,
+          message: `${studentName} belongs to ${studentSection}, not the selected class (${selectedCohort}).`,
         });
+        recentScansMapRef.current.set(studentIdStr, now);
+        recentScansMapRef.current.set(normToken, now);
         return;
       }
 
+      // Student is valid for this active class session
+      payload = `ARALERT:STUDENT:${matchedStudent.id}`;
+    } else if (payload.length === 6 && students.length > 0) {
+      // Manual 6-digit code did not match any student assigned to this tutor
+      setTutorScanMessage({
+        type: 'error',
+        message: `Code does not match any student assigned to this tutor for ${selectedCohort}.`,
+      });
+      recentScansMapRef.current.set(normToken, now);
+      return;
+    }
+
+    // 6. Acquire synchronous lock and trigger API call
+    isProcessingScanRef.current = true;
+    setIsProcessingStudentScan(true);
+    setTutorScanMessage(null);
+
+    try {
       const res = await academicService.scanQRCode(payload);
+      const scanTime = Date.now();
+
+      // Record in cooldown map
+      recentScansMapRef.current.set(normToken, scanTime);
+      if (matchedStudent) {
+        const studentIdStr = String(matchedStudent.id).toLowerCase();
+        recentScansMapRef.current.set(studentIdStr, scanTime);
+        sessionScannedIdsRef.current.add(studentIdStr);
+      }
+
       setTutorScanMessage({
         type: 'success',
         message: res.message || 'Student attendance recorded successfully!',
       });
+
       // Refresh attendance logs & session scanned list
       void fetchAttendanceHistory();
       if (session?.id) {
@@ -1188,6 +1281,17 @@ export const TutorQRGenerator: React.FC = () => {
       console.error('Scan error:', err);
       const rawError = err.response?.data?.error || '';
       const isAlreadyMarked = /already marked/i.test(rawError);
+
+      if (isAlreadyMarked && matchedStudent) {
+        const studentIdStr = String(matchedStudent.id).toLowerCase();
+        sessionScannedIdsRef.current.add(studentIdStr);
+        recentScansMapRef.current.set(studentIdStr, Date.now());
+        // If a success message is already shown for this student, don't overwrite with warning
+        if (tutorScanMessage?.type === 'success') {
+          return;
+        }
+      }
+
       let message = rawError.replace(/for today\./i, 'for this session.');
 
       if (!message) {
@@ -1201,11 +1305,12 @@ export const TutorQRGenerator: React.FC = () => {
         message,
       });
     } finally {
-      setTimeout(() => {
-        setIsProcessingStudentScan(false);
-      }, 1500);
+      isProcessingScanRef.current = false;
+      setIsProcessingStudentScan(false);
     }
   };
+
+  handleStudentScanResultRef.current = handleStudentScanResult;
 
   // Tutor Camera scanner effect
   useEffect(() => {
@@ -1252,7 +1357,7 @@ export const TutorQRGenerator: React.FC = () => {
             cameraChoice,
             config,
             (decodedText) => {
-              void handleStudentScanResult(decodedText);
+              void handleStudentScanResultRef.current(decodedText, false);
             },
             () => {}
           );
@@ -1262,7 +1367,7 @@ export const TutorQRGenerator: React.FC = () => {
             { facingMode: 'user' },
             config,
             (decodedText) => {
-              void handleStudentScanResult(decodedText);
+              void handleStudentScanResultRef.current(decodedText, false);
             },
             () => {}
           );
@@ -1417,6 +1522,8 @@ export const TutorQRGenerator: React.FC = () => {
         sessionCohortRef.current = null;
         sessionStudentIdsRef.current = [];
         setScannedStudents([]);
+        sessionScannedIdsRef.current.clear();
+        recentScansMapRef.current.clear();
         void fetchAttendanceHistory();
       }
     }, 1000);
@@ -1601,6 +1708,8 @@ export const TutorQRGenerator: React.FC = () => {
     sessionCohortRef.current = null;
     sessionStudentIdsRef.current = [];
     setScannedStudents([]);
+    sessionScannedIdsRef.current.clear();
+    recentScansMapRef.current.clear();
     void fetchAttendanceHistory();
   };
 
@@ -1983,7 +2092,7 @@ export const TutorQRGenerator: React.FC = () => {
                         onSubmit={(e) => {
                           e.preventDefault();
                           if (manualStudentInput.trim()) {
-                            void handleStudentScanResult(manualStudentInput.trim());
+                            void handleStudentScanResult(manualStudentInput.trim(), true);
                             setManualStudentInput('');
                           }
                         }}
@@ -2060,6 +2169,8 @@ export const TutorQRGenerator: React.FC = () => {
                         setSession(null);
                         setIsTutorScanning(false);
                         setScannedStudents([]);
+                        sessionScannedIdsRef.current.clear();
+                        recentScansMapRef.current.clear();
                         void fetchAttendanceHistory();
                       }}
                       className="mt-4 px-4 py-1.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-md text-xs font-bold transition-all cursor-pointer"
