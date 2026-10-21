@@ -581,21 +581,28 @@ def finalize_session_attendance(session, target_student_ids=None):
         # At least 1 student must have recorded attendance (present) in this session
         # to make that session valid for auto-marking unscanned students as absent.
         # If 0 students attended (session was abandoned, test, or closed without attendance),
-        # do NOT mark anyone as absent.
+        # do NOT mark anyone as absent. Remove any stray absent records for this invalid session.
+        ApiAttendance.objects.filter(session=session, status='absent').delete()
         return
 
     # Find candidate assigned students strictly belonging to this session's class
-    if target_student_ids:
-        target_ids_set = {str(sid) for sid in target_student_ids}
+    if target_student_ids is not None:
+        target_ids_set = {str(sid).lower() for sid in target_student_ids}
+        if not target_ids_set:
+            # Explicit empty target roster provided (e.g., frontend signaled 0 scans for this cohort)
+            ApiAttendance.objects.filter(session=session, status='absent').delete()
+            return
+
         # Crucial check: verify that AT LEAST ONE student from target_student_ids actually scanned present in this session!
         scanned_target_students = [
             att for att in scanned_attendances
-            if str(att.user_id) in target_ids_set
+            if str(att.user_id).lower() in target_ids_set
         ]
         if not scanned_target_students:
             # Not a single student from this target class roster scanned present in this session.
             # (e.g., 0 students from this class attended, or session was started for a different class).
             # Under NO circumstances should students of this class be marked absent!
+            ApiAttendance.objects.filter(session=session, status='absent').delete()
             return
 
         assigned_students = User.objects.filter(
@@ -611,15 +618,22 @@ def finalize_session_attendance(session, target_student_ids=None):
             for att in scanned_attendances
             if att.user and att.user.grade_level
         }
+        if not scanned_grades:
+            # Cannot safely determine cohort; do NOT mark anyone absent!
+            return
+
         scanned_arals = {
             att.user.aral_level.strip().lower()
             for att in scanned_attendances
             if att.user and att.user.aral_level
         }
 
-        qs = User.objects.filter(role='student', assigned_tutor=tutor, is_active=True)
-        if scanned_grades:
-            qs = qs.filter(grade_level__in=scanned_grades)
+        qs = User.objects.filter(
+            role='student',
+            assigned_tutor=tutor,
+            grade_level__in=scanned_grades,
+            is_active=True
+        )
         if scanned_arals:
             qs = qs.filter(aral_level__in=scanned_arals)
         assigned_students = qs

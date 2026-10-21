@@ -1511,8 +1511,16 @@ export const TutorQRGenerator: React.FC = () => {
             sessionStudentIdsRef.current.length > 0
               ? sessionStudentIdsRef.current
               : Array.from(filteredStudentIdsRef.current);
+          const targetIdsSet = new Set(targetIds.map((id) => String(id).toLowerCase()));
+
+          // Verify whether at least 1 student from this class actually scanned into this session
+          const hasScannedInSession =
+            sessionScannedIdsRef.current.size > 0 &&
+            Array.from(sessionScannedIdsRef.current).some((sid) => targetIdsSet.has(sid.toLowerCase()));
+
+          // If 0 students scanned, pass empty student_ids so session is treated as invalid (no absents)
           void academicService.closeAttendanceSession(targetSession.id, {
-            student_ids: targetIds,
+            student_ids: hasScannedInSession ? targetIds : [],
           }).catch(() => { });
         }
 
@@ -1694,9 +1702,28 @@ export const TutorQRGenerator: React.FC = () => {
           sessionStudentIdsRef.current.length > 0
             ? sessionStudentIdsRef.current
             : Array.from(filteredStudentIds);
+        const targetIdsSet = new Set(targetIds.map((id) => String(id).toLowerCase()));
 
+        // Check if ANY student from this target class actually scanned present in this session
+        const hasScannedInSession =
+          scannedStudents.some((s) => {
+            const sid = String((s as any).user_id || s.user || '').toLowerCase();
+            return targetIdsSet.has(sid);
+          }) ||
+          (session?.id
+            ? attendanceHistory.some((log) => {
+                const sid = String((log as any).user_id || log.user || '').toLowerCase();
+                return (
+                  log.session === session.id &&
+                  log.status === 'present' &&
+                  targetIdsSet.has(sid)
+                );
+              })
+            : false);
+
+        // If 0 students scanned, pass empty student_ids: [] so the session is invalid and NO students are marked absent
         await academicService.closeAttendanceSession(session.id, {
-          student_ids: targetIds,
+          student_ids: hasScannedInSession ? targetIds : [],
         });
       } catch (err) {
         console.error('Failed to close session:', err);
