@@ -1937,42 +1937,6 @@ export const TutorQRGenerator: React.FC = () => {
 
             <div className="p-6 flex flex-col gap-5">
 
-              {/* Alert if active session belongs to a different class */}
-              {!isSessionForCurrentClass && session && session.is_active && (
-                <div className="order-1 rounded-md border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/30 p-4 space-y-3">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
-                        Active Session in Progress for Another Class
-                      </h4>
-                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                        An attendance session is currently active for <span className="font-bold">{sessionCohort}</span>.
-                        Students from <span className="font-bold">{selectedCohort}</span> cannot scan into that session.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (sessionCohort) setSelectedCohort(sessionCohort);
-                      }}
-                      className="px-3 py-1.5 rounded-md text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition cursor-pointer"
-                    >
-                      Return to {sessionCohort}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCancelSessionClick}
-                      className="px-3 py-1.5 rounded-md text-xs font-bold border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition cursor-pointer"
-                    >
-                      Close {sessionCohort} Session
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {(!session || !isSessionForCurrentClass) && (
                 <div className="order-2 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/60 dark:bg-[#161616] p-4 space-y-4">
                   {/* Duration */}
@@ -2151,7 +2115,7 @@ export const TutorQRGenerator: React.FC = () => {
                     </div>
                   </div>
                 ) : session?.is_active && !isSessionForCurrentClass ? (
-                  <div className="relative flex min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 p-6 text-center">
+                  <div className="relative flex min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 px-4 py-6 text-center">
                     <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center mb-3">
                       <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                     </div>
@@ -2161,20 +2125,20 @@ export const TutorQRGenerator: React.FC = () => {
                     <p className="text-xs text-gray-600 dark:text-slate-300 mt-1.5 max-w-sm leading-relaxed">
                       You are currently viewing <span className="font-bold">{selectedCohort}</span>. Switch back to <span className="font-bold">{sessionCohort}</span> to scan student QR codes, or close the {sessionCohort} session to start one for {selectedCohort}.
                     </p>
-                    <div className="mt-4 flex items-center gap-2">
+                    <div className="mt-4 flex w-full items-center justify-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => {
                           if (sessionCohort) setSelectedCohort(sessionCohort);
                         }}
-                        className="px-3.5 py-1.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-md text-xs font-bold transition-all cursor-pointer shadow-xs"
+                        className="px-2.5 py-1.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-md text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer shadow-xs"
                       >
                         Return to {sessionCohort}
                       </button>
                       <button
                         type="button"
                         onClick={handleCancelSessionClick}
-                        className="px-3.5 py-1.5 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#202020] rounded-md text-xs font-bold transition-all cursor-pointer shadow-xs"
+                        className="px-2.5 py-1.5 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#161616] text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#202020] rounded-md text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer shadow-xs"
                       >
                         Close {sessionCohort} Session
                       </button>
