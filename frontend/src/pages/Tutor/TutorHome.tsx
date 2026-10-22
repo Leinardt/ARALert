@@ -763,7 +763,7 @@ export const TutorHome: React.FC = () => {
           </div>
 
           {/* Chart card skeleton */}
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-5 flex flex-col h-[372px] sm:h-[388px] animate-pulse">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-3.5 sm:px-5 flex flex-col h-[372px] sm:h-[388px] overflow-hidden animate-pulse">
             <div className="flex items-center justify-between gap-2 shrink-0 pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
               <div className="min-w-0 flex-1">
                 <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
@@ -775,14 +775,14 @@ export const TutorHome: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3.5 sm:mt-4">
-              <div className="relative h-[220px] sm:h-[235px] shrink-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-sm" />
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1 shrink-0">
+            <div className="flex-1 flex flex-col min-h-0 gap-2.5 mt-3">
+              <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-sm" />
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 shrink-0">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1 skeleton-row-3">
                   {[1, 2, 3, 4].map((j) => (
-                    <div key={j} className="bg-gray-50 dark:bg-[#111111] p-2 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
+                    <div key={j} className="bg-gray-50 dark:bg-[#111111] px-2 py-1.5 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
                       <div className="h-2.5 w-12 rounded bg-gray-200 dark:bg-gray-800 mx-auto" />
-                      <div className="h-5 w-14 rounded bg-gray-200 dark:bg-gray-800 mx-auto mt-1" />
+                      <div className="h-4 w-14 rounded bg-gray-200 dark:bg-gray-800 mx-auto mt-1" />
                     </div>
                   ))}
                 </div>
@@ -917,8 +917,8 @@ export const TutorHome: React.FC = () => {
         </div>
 
         {/* Row 2: Performance Trend Chart */}
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3.5 sm:px-5 flex flex-col h-[372px] sm:h-[388px] w-full min-w-0 max-w-full">
-          <div className="flex items-center justify-between gap-2 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3 sm:px-5 sm:py-3.5 flex flex-col h-[372px] sm:h-[388px] overflow-hidden w-full min-w-0 max-w-full">
+          <div className="flex items-center justify-between gap-2 shrink-0 pb-2 sm:pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
             <div className="min-w-0 flex-1">
               <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight truncate">{performanceTrendTitle}</h3>
             </div>
@@ -950,8 +950,8 @@ export const TutorHome: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col justify-between min-h-0 gap-3 mt-3 sm:mt-3.5">
-            <div className="relative h-[220px] sm:h-[235px] shrink-0 w-full min-w-0 max-w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-5 sm:py-2.5 overflow-hidden">
+          <div className="flex-1 flex flex-col justify-between min-h-0 gap-2 sm:gap-2.5 mt-2.5 sm:mt-3">
+            <div className="relative flex-1 min-h-0 w-full min-w-0 max-w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-5 sm:py-2.5 overflow-hidden">
               {last4WeeksData.length > 0 ? (
                 <InteractiveTutorChart data={last4WeeksData} trendFilter={trendFilter} />
               ) : (
@@ -967,7 +967,7 @@ export const TutorHome: React.FC = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
               {[
                 {
                   label: 'Highest',
@@ -980,28 +980,28 @@ export const TutorHome: React.FC = () => {
                   color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : lowestScore >= 81 ? 'text-risk-low' : lowestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
                 },
               ].map((stat) => (
-                <div key={stat.label} className="bg-gray-50/80 dark:bg-[#111111] p-2.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">{stat.label}</p>
-                  <p className={`text-base sm:text-lg font-extrabold mt-0.5 ${stat.color}`}>{stat.value}</p>
+                <div key={stat.label} className="bg-gray-50/80 dark:bg-[#111111] px-2.5 py-1.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
+                  <p className="text-[9.5px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide leading-tight">{stat.label}</p>
+                  <p className={`text-sm sm:text-base font-extrabold mt-0.5 leading-tight ${stat.color}`}>{stat.value}</p>
                 </div>
               ))}
-              <div className="bg-gray-50/80 dark:bg-[#111111] p-2.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
-                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">Trend</p>
-                <div className="mt-0.5">
+              <div className="bg-gray-50/80 dark:bg-[#111111] px-2.5 py-1.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
+                <p className="text-[9.5px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide leading-tight">Trend</p>
+                <div className="mt-0.5 leading-tight">
                   {last4WeeksData.length === 0 ? (
-                    <span className="text-base sm:text-lg font-extrabold text-gray-400 dark:text-slate-500">—</span>
+                    <span className="text-sm sm:text-base font-extrabold text-gray-400 dark:text-slate-500">—</span>
                   ) : tutorTrendDir === 'up' ? (
-                    <span className="text-base sm:text-lg font-extrabold text-risk-low">Improving</span>
+                    <span className="text-sm sm:text-base font-extrabold text-risk-low">Improving</span>
                   ) : tutorTrendDir === 'down' ? (
-                    <span className="text-base sm:text-lg font-extrabold text-risk-high">Declining</span>
+                    <span className="text-sm sm:text-base font-extrabold text-risk-high">Declining</span>
                   ) : (
-                    <span className="text-base sm:text-lg font-extrabold text-gray-500 dark:text-slate-400">Stable</span>
+                    <span className="text-sm sm:text-base font-extrabold text-gray-500 dark:text-slate-400">Stable</span>
                   )}
                 </div>
               </div>
               <Link
                 to="/tutor/analytics"
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-4 py-2.5 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300"
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-3 py-1.5 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300"
               >
                 <span>See More</span>
                 <span className="font-bold" aria-hidden="true">&gt;</span>
