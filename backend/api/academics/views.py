@@ -189,6 +189,12 @@ def evaluate_student_aral_progression(student):
     }
 
 
+def _is_milestone_grade(subject: str | None, remarks: str | None = None) -> bool:
+    """Return True only if the grade belongs to a milestone assessment (MOSY, EOSY, Summer, EndLine, BOSY)."""
+    text = f"{subject or ''} {remarks or ''}".lower()
+    return any(token in text for token in ('mosy', 'eosy', 'summer', 'endline', 'bosy'))
+
+
 # ---------------------------------------------------------------------------
 # Grades
 # ---------------------------------------------------------------------------
@@ -197,7 +203,7 @@ def evaluate_student_aral_progression(student):
 class GradeListCreateView(generics.ListCreateAPIView):
     """
     GET  /api/academics/grades/         — list grades (role-filtered)
-    POST /api/academics/grades/         — create a grade (tutor only)
+    POST /api/academics/grades/         — create single or bulk grades (tutor only)
     """
     serializer_class   = GradeSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -226,6 +232,170 @@ class GradeListCreateView(generics.ListCreateAPIView):
             return qs.filter(student=user)
         return qs.none()
 
+    def create(self, request, *args, **kwargs):
+        if not isinstance(request.data, list):
+            return super().create(request, *args, **kwargs)
+
+        user = request.user
+        if user.role != 'tutor' and not user.is_superuser:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Only tutors can log grades.')
+
+        if not request.data:
+            return Response([], status=status.HTTP_201_CREATED)
+
+        now = timezone.now()
+        today = timezone.localdate()
+
+        create_payloads = []
+        update_payloads = []
+        for item in request.data:
+            if isinstance(item, dict) and item.get('id'):
+                update_payloads.append(item)
+            else:
+                create_payloads.append(item)
+
+        saved_grades = []
+        audit_logs_data = []
+
+        # 1. Bulk create new grades in a single query
+        if create_payloads:
+            serializer = self.get_serializer(data=create_payloads, many=True)
+            serializer.is_valid(raise_exception=True)
+
+            objs_to_create = []
+            for validated in serializer.validated_data:
+                objs_to_create.append(
+                    ApiGrade(
+                        student=validated.get('student'),
+                        tutor=user,
+                        subject=validated.get('subject', ''),
+                        quarter=validated.get('quarter', 1),
+                        score=validated.get('score', 0),
+                        total_score=validated.get('total_score', 40),
+                        component_type=validated.get('component_type', 'assessment'),
+                        remarks=validated.get('remarks', ''),
+                        date_logged=validated.get('date_logged') or today,
+                        batch_id=validated.get('batch_id', str(uuid.uuid4())),
+                        created_at=validated.get('created_at') or now,
+                    )
+                )
+
+            created_objs = ApiGrade.objects.bulk_create(objs_to_create)
+            if created_objs and getattr(created_objs[0], 'id', None) is None:
+                batch_ids = {g.batch_id for g in objs_to_create if g.batch_id}
+                if batch_ids:
+                    created_objs = list(
+                        ApiGrade.objects.select_related('student', 'tutor')
+                        .filter(batch_id__in=batch_ids, tutor=user)
+                        .order_by('id')
+                    )
+
+            for grade in created_objs:
+                saved_grades.append(grade)
+                if grade.student:
+                    if _is_milestone_grade(grade.subject, grade.remarks):
+                        evaluate_student_aral_progression(grade.student)
+                    audit_logs_data.append((
+                        'GRADE_RECORDED',
+                        {
+                            'student_id': str(grade.student.id),
+                            'student_name': grade.student.get_full_name(),
+                            'lrn': grade.student.lrn,
+                            'subject': grade.subject,
+                            'score': float(grade.score) if grade.score is not None else 0,
+                            'total_score': float(grade.total_score) if grade.total_score else 40,
+                            'quarter': grade.quarter,
+                        },
+                    ))
+
+        # 2. Bulk update existing grades (e.g. re-saving MOSY/EOSY/Summer milestone scores)
+        if update_payloads:
+            update_ids = [int(item['id']) for item in update_payloads if item.get('id')]
+            existing_map = {
+                g.id: g
+                for g in ApiGrade.objects.select_related('student', 'tutor').filter(id__in=update_ids)
+            }
+            objs_to_update = []
+            for item in update_payloads:
+                gid = int(item['id'])
+                instance = existing_map.get(gid)
+                if not instance:
+                    continue
+                old_score = float(instance.score) if instance.score is not None else 0
+                old_total = float(instance.total_score) if instance.total_score else 40
+
+                if 'score' in item:
+                    instance.score = item['score']
+                if 'total_score' in item:
+                    instance.total_score = item['total_score']
+                if 'remarks' in item:
+                    instance.remarks = item['remarks']
+                if 'date_logged' in item and item['date_logged']:
+                    instance.date_logged = item['date_logged']
+                if 'subject' in item and item['subject']:
+                    instance.subject = item['subject']
+
+                objs_to_update.append(instance)
+                saved_grades.append(instance)
+
+                if instance.student:
+                    audit_logs_data.append((
+                        'GRADE_UPDATED',
+                        {
+                            'student_id': str(instance.student.id),
+                            'student_name': instance.student.get_full_name(),
+                            'lrn': instance.student.lrn,
+                            'subject': instance.subject,
+                            'previous_score': old_score,
+                            'new_score': float(instance.score) if instance.score is not None else 0,
+                            'previous_total': old_total,
+                            'total_score': float(instance.total_score) if instance.total_score else 40,
+                        },
+                    ))
+
+            if objs_to_update:
+                ApiGrade.objects.bulk_update(
+                    objs_to_update,
+                    ['score', 'total_score', 'remarks', 'date_logged', 'subject'],
+                )
+                for instance in objs_to_update:
+                    if instance.student and _is_milestone_grade(instance.subject, instance.remarks):
+                        evaluate_student_aral_progression(instance.student)
+
+        # 3. Bulk insert all audit log entries in a single query
+        if audit_logs_data:
+            try:
+                from apps.accounts.models import AuditLog
+                from utilities.audit import _get_client_ip
+
+                ip_address = _get_client_ip(request) if request else None
+                user_agent = request.META.get('HTTP_USER_AGENT', '')[:500] if request else ''
+                email = getattr(user, 'email', '')
+                if email and not email.endswith('@aralert.local') and not email.startswith('student-'):
+                    resolved_username = email
+                else:
+                    resolved_username = getattr(user, 'lrn', '') or getattr(user, 'username', '') or str(user)
+
+                AuditLog.objects.bulk_create([
+                    AuditLog(
+                        user=user if getattr(user, 'pk', None) else None,
+                        username=resolved_username,
+                        action=action,
+                        ip_address=ip_address,
+                        user_agent=user_agent,
+                        details=details,
+                    )
+                    for action, details in audit_logs_data
+                ])
+            except Exception:
+                pass
+
+        return Response(
+            GradeSerializer(saved_grades, many=True).data,
+            status=status.HTTP_201_CREATED,
+        )
+
     def perform_create(self, serializer):
         user = self.request.user
         if user.role != 'tutor' and not user.is_superuser:
@@ -233,7 +403,8 @@ class GradeListCreateView(generics.ListCreateAPIView):
             raise PermissionDenied('Only tutors can log grades.')
         grade = serializer.save(tutor=user, created_at=timezone.now())
         if grade.student:
-            evaluate_student_aral_progression(grade.student)
+            if _is_milestone_grade(grade.subject, grade.remarks):
+                evaluate_student_aral_progression(grade.student)
             log_audit_event(
                 'GRADE_RECORDED',
                 user=user,
@@ -267,7 +438,8 @@ class GradeDetailView(generics.RetrieveUpdateDestroyAPIView):
         old_total = float(instance.total_score) if instance.total_score else 40
         grade = serializer.save()
         if grade.student:
-            evaluate_student_aral_progression(grade.student)
+            if _is_milestone_grade(grade.subject, grade.remarks):
+                evaluate_student_aral_progression(grade.student)
             log_audit_event(
                 'GRADE_UPDATED',
                 user=self.request.user,

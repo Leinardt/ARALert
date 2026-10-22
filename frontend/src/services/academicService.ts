@@ -108,6 +108,31 @@ export const academicService = {
     return response.data;
   },
 
+  saveGradesBulk: async (
+    entriesToCreate: Partial<Grade>[],
+    entriesToUpdate: { id: number; data: Partial<Grade> }[] = []
+  ): Promise<Grade[]> => {
+    const payload = [
+      ...entriesToCreate,
+      ...entriesToUpdate.map(({ id, data }) => ({ id, ...data })),
+    ];
+    if (payload.length === 0) return [];
+
+    try {
+      const response = await api.post<Grade[]>('/academics/grades/', payload);
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (err: any) {
+      // Safe fallback if backend hasn't deployed bulk list support yet
+      if (err?.response?.status === 400 && err?.response?.data?.non_field_errors) {
+        return Promise.all([
+          ...entriesToCreate.map((entry) => academicService.createGrade(entry)),
+          ...entriesToUpdate.map(({ id, data }) => academicService.updateGrade(id, data)),
+        ]);
+      }
+      throw err;
+    }
+  },
+
   updateGrade: async (id: number, data: Partial<Grade>): Promise<Grade> => {
     const response = await api.patch<Grade>(`/academics/grades/${id}/`, data);
     return response.data;

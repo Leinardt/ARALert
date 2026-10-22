@@ -1685,10 +1685,7 @@ export const TutorScores: React.FC = () => {
         return;
       }
 
-      await Promise.all([
-        ...entriesToCreate.map((entry) => academicService.createGrade(entry)),
-        ...entriesToUpdate.map(({ id, data }) => academicService.updateGrade(id, data)),
-      ]);
+      const savedGrades = await academicService.saveGradesBulk(entriesToCreate, entriesToUpdate);
 
       // Cleanly reset current entry kind draft and form state
       const resetScores: Record<string, number | ''> = {};
@@ -1722,7 +1719,20 @@ export const TutorScores: React.FC = () => {
         }
       }
 
-      await fetchGrades();
+      if (savedGrades.length > 0) {
+        setGrades((prev) => {
+          const savedById = new Map(savedGrades.map((g) => [g.id, g]));
+          const updatedExisting = prev.map((g) => savedById.get(g.id) ?? g);
+          const existingIds = new Set(prev.map((g) => g.id));
+          const newlyCreated = savedGrades.filter((g) => !existingIds.has(g.id));
+          return [...newlyCreated, ...updatedExisting];
+        });
+        if (todayDateStr) {
+          setSelectedDate(todayDateStr.slice(0, 10));
+        }
+      } else {
+        await fetchGrades();
+      }
 
       // ── Attendance-pattern: store batch ID → highlights the DTR row ──
       setLastSavedBatchId(batchId);
@@ -1836,8 +1846,10 @@ export const TutorScores: React.FC = () => {
       if (editTime) {
         payload.created_at = `${editDate}T${editTime}:00`;
       }
-      await academicService.updateGrade(editingGradeId, payload);
-      await fetchGrades();
+      const updatedGrade = await academicService.updateGrade(editingGradeId, payload);
+      setGrades((prev) =>
+        prev.map((g) => (g.id === editingGradeId ? { ...g, ...updatedGrade } : g))
+      );
       setEditingGradeId(null);
       setOpenEditPicker(null);
       setSuccessModalTitle('Score Record Updated');
