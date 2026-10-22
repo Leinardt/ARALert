@@ -14,6 +14,7 @@ import { exportScoresToPdf } from '../utils/scorePdfExportService';
 import { DEPED_LOGO_SRC, PNAHS_LOGO_SRC } from '../assets/template_logos/logosBase64';
 import { formatStudentName } from '../utils/studentFormatters';
 import { getScoreDescription, getTutorAssignedMilestone } from '../utils/sessionDescriptionHelpers';
+import { trashbinService } from '../utils/trashbinService';
 
 export interface ExportScoreModalProps {
   isOpen: boolean;
@@ -70,21 +71,19 @@ export const getScoreWeeksForMonth = (
   const startOfMonth = new Date(year, month, 1);
   const endOfMonth = new Date(year, month + 1, 0);
   const monthRangeLabel = `${formatNumericDate(startOfMonth)} - ${formatNumericDate(endOfMonth)}`;
-  const dayNames = ['M', 'T', 'W', 'TH', 'F'];
+  const dayNames = ['SU', 'M', 'T', 'W', 'TH', 'F', 'SA'];
   const days: Array<{ dateKey: string; dayNum: string; dayName?: string }> = [];
 
   for (let d = 1; d <= endOfMonth.getDate(); d++) {
     const cur = new Date(year, month, d);
     const dayOfWeek = cur.getDay(); // 0: Sun, 1: Mon, ..., 5: Fri, 6: Sat
-    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-      const mStr = String(month + 1).padStart(2, '0');
-      const dStr = String(d).padStart(2, '0');
-      days.push({
-        dateKey: `${year}-${mStr}-${dStr}`,
-        dayNum: String(d),
-        dayName: dayNames[dayOfWeek - 1],
-      });
-    }
+    const mStr = String(month + 1).padStart(2, '0');
+    const dStr = String(d).padStart(2, '0');
+    days.push({
+      dateKey: `${year}-${mStr}-${dStr}`,
+      dayNum: String(d),
+      dayName: dayNames[dayOfWeek],
+    });
   }
 
   return [
@@ -635,19 +634,29 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
       ];
     }
 
-    // Monthly mode
+    // Monthly mode: only include dates in the selected month that have a session
     const [yr, mo] = (selectedMonthKey || new Date().toISOString().slice(0, 7))
       .split('-')
       .map(Number);
     const computed = getScoreWeeksForMonth(yr, mo - 1);
+    const studentIdSet = new Set(students.map((s) => String(s.id)));
     return computed.map((w, idx) => {
-      const activeDatesInWeek = w.days.filter((day) =>
-        assessmentGrades.some((g) => {
+      const activeDatesInWeek = w.days.filter((day) => {
+        if (trashbinService.isDateTrashed('score', day.dateKey, currentUser?.id)) {
+          return false;
+        }
+        return assessmentGrades.some((g) => {
+          const sid =
+            typeof g.student === 'object' && g.student !== null
+              ? String((g.student as any).id ?? (g.student as any).pk ?? '')
+              : String(g.student ?? (g as any).student_id ?? '');
+          if (studentIdSet.size > 0 && !studentIdSet.has(sid)) return false;
           const gKey = g.date_logged?.length >= 10 ? g.date_logged.slice(0, 10) : new Date(g.date_logged).toISOString().slice(0, 10);
           return gKey === day.dateKey;
-        })
-      );
-      const effectiveDays = activeDatesInWeek.length > 0 ? activeDatesInWeek : [w.days[0]];
+        });
+      });
+      const fallbackDay = w.days.find((d) => d.dayName !== 'SU' && d.dayName !== 'SA') || w.days[0];
+      const effectiveDays = activeDatesInWeek.length > 0 ? activeDatesInWeek : (fallbackDay ? [fallbackDay] : []);
       return {
         ...w,
         label: customWeekLabels[idx] || w.label,
@@ -662,7 +671,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
         })),
       };
     });
-  }, [exportMode, selectedDateKey, selectedWeekKey, selectedMonthKey, customWeekLabels, getSessionNumberForDate, assessmentGrades]);
+  }, [exportMode, selectedDateKey, selectedWeekKey, selectedMonthKey, customWeekLabels, getSessionNumberForDate, assessmentGrades, students, currentUser?.id]);
 
   const allEntryCols = useMemo(() => {
     return weeks.flatMap((w) =>

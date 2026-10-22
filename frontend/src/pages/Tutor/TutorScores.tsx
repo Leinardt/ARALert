@@ -287,10 +287,10 @@ const ScoreCalendarDropdown: React.FC<{
   const alignmentClass = className?.includes('fixed')
     ? ''
     : align === 'center'
-    ? 'left-1/2 -translate-x-1/2'
-    : align === 'left'
-    ? 'left-0'
-    : 'right-0';
+      ? 'left-1/2 -translate-x-1/2'
+      : align === 'left'
+        ? 'left-0'
+        : 'right-0';
 
   return (
     <div
@@ -359,15 +359,14 @@ const ScoreCalendarDropdown: React.FC<{
                 onSelectDate(dateKey);
                 onClose();
               }}
-              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                isSelected
+              className={`relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold transition-all cursor-pointer ${isSelected
                   ? 'bg-[var(--brand)] text-white font-bold shadow-xs'
                   : isToday
-                  ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
-                  : hasRecords
-                  ? 'bg-blue-50 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50'
-                  : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#1A1A1A]'
-              }`}
+                    ? 'border border-[var(--brand)] text-[var(--brand)] font-bold hover:bg-[var(--brand-light)]'
+                    : hasRecords
+                      ? 'bg-blue-50 dark:bg-blue-950/40 text-[var(--brand)] dark:text-blue-300 font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                      : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#1A1A1A]'
+                }`}
             >
               <span>{day}</span>
               {hasRecords && !isSelected && (
@@ -747,11 +746,10 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
             <div
               key={`mobile-row-${grade.id}`}
               ref={isLastSaved ? (lastRowRef as any) : undefined}
-              className={`rounded-xl border p-4 space-y-3 transition-colors ${
-                isLastSaved
+              className={`rounded-xl border p-4 space-y-3 transition-colors ${isLastSaved
                   ? 'border-[var(--brand)] bg-[var(--brand-light)] dark:bg-slate-800'
                   : 'border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900'
-              }`}
+                }`}
             >
               {/* Header: Student Name + Action */}
               <div className="flex items-start justify-between gap-2">
@@ -784,23 +782,21 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                 </span>
 
                 <span
-                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
-                    isNotTaken
+                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${isNotTaken
                       ? 'border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'
                       : scorePercentage >= 70
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                      : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-                  }`}
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                        : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                    }`}
                 >
                   {isNotTaken ? 'Not Taken' : scorePercentage >= 70 ? 'Passed' : 'Failed'}
                 </span>
 
                 <span
-                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize ${
-                    isNotTaken
+                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize ${isNotTaken
                       ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
                       : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                  }`}
+                    }`}
                 >
                   {isNotTaken ? 'Not Taken' : 'Taken'}
                 </span>
@@ -1132,26 +1128,25 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
                     type="button"
                     disabled={!hasRecord}
                     onClick={() => onSelectDate(dateStr)}
-                    className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all inline-flex items-center gap-1.5 ${
-                      hasRecord
+                    className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all inline-flex items-center gap-1.5 ${hasRecord
                         ? isTrashed
                           ? isSelected
                             ? 'bg-gray-500 text-white shadow-xs font-bold border border-gray-500 cursor-pointer'
                             : 'bg-gray-100 text-gray-500 border border-dashed border-gray-300 dark:bg-[#1A1A1A] dark:text-gray-400 dark:border-gray-700 cursor-pointer font-semibold'
                           : isSelected
-                          ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
-                          : hasMilestone
-                          ? 'bg-orange-50 text-orange-700 border border-orange-300 hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800/60 cursor-pointer font-semibold'
-                          : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
+                            ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
+                            : hasMilestone
+                              ? 'bg-orange-50 text-orange-700 border border-orange-300 hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800/60 cursor-pointer font-semibold'
+                              : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
                         : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
-                    }`}
+                      }`}
                     title={
                       hasRecord
                         ? isTrashed
                           ? `${label} (In Trashbin - 30 days retention)`
                           : isSelected
-                          ? `Active: ${label}`
-                          : `View ${label}${hasMilestone ? ' (Milestone Assessment)' : ''}`
+                            ? `Active: ${label}`
+                            : `View ${label}${hasMilestone ? ' (Milestone Assessment)' : ''}`
                         : `No records on ${label}`
                     }
                     aria-label={label}
@@ -1170,11 +1165,10 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
                     <button
                       type="button"
                       onClick={() => onToggleEditDay(dateStr)}
-                      className={`h-7.5 w-7.5 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
-                        isDayEditMode
+                      className={`h-7.5 w-7.5 rounded-md flex items-center justify-center transition-colors cursor-pointer ${isDayEditMode
                           ? 'bg-gray-200 text-gray-700 dark:bg-[#222222] dark:text-slate-200'
                           : 'text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-[#222222] dark:hover:text-slate-200'
-                      }`}
+                        }`}
                       title={isDayEditMode ? 'Exit edit mode for this day' : 'Edit entry for this day'}
                       aria-label="Edit entry for this day"
                     >
@@ -1956,7 +1950,7 @@ export const TutorScores: React.FC = () => {
         setActiveSystemSem(sem);
         setIsWindowOpen(isAssessmentWindowOpen(sem));
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
     const handleSemChange = (e: any) => {
       const newSem = e?.detail?.semester || getActiveSystemSemester();
@@ -2258,13 +2252,12 @@ export const TutorScores: React.FC = () => {
                 onClick={handleMilestoneEntryClick}
                 disabled={!isWindowOpen}
                 title={!isWindowOpen ? `The ${assignedPeriod} assessment window is closed by administration.` : undefined}
-                className={`inline-flex min-h-[44px] sm:min-h-0 sm:h-8 w-full sm:w-auto shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-xs font-bold transition ${
-                  !isWindowOpen
+                className={`inline-flex min-h-[44px] sm:min-h-0 sm:h-8 w-full sm:w-auto shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-xs font-bold transition ${!isWindowOpen
                     ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-500'
                     : entryKind !== 'daily'
-                    ? 'border-[var(--brand)] bg-[var(--brand-light)] text-[var(--brand-dark)] cursor-pointer'
-                    : 'border-orange-500 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-orange-500 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700/60 cursor-pointer'
-                }`}
+                      ? 'border-[var(--brand)] bg-[var(--brand-light)] text-[var(--brand-dark)] cursor-pointer'
+                      : 'border-orange-500 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-orange-500 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700/60 cursor-pointer'
+                  }`}
               >
                 {!isWindowOpen ? (
                   <Lock className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
@@ -2282,7 +2275,7 @@ export const TutorScores: React.FC = () => {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,260px)_160px]">
                   <div className="w-full relative z-30">
                     <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1.5">
-                      DATE
+                      SESSION DATE
                     </label>
                     <div className="relative w-full z-30">
                       <button
@@ -2327,11 +2320,10 @@ export const TutorScores: React.FC = () => {
                   onClick={handleSaveScoresClick}
                   disabled={isSaving}
                   title={hasMissingScores ? `Cannot save: ${missingScoreStudents.length} student(s) marked as Taken have no inputted scores.` : undefined}
-                  className={`w-full sm:w-auto min-h-[44px] sm:min-h-0 sm:h-9 inline-flex items-center justify-center gap-2 rounded-md px-5 py-2 text-xs font-bold text-white transition shadow-sm ${
-                    isSaving
+                  className={`w-full sm:w-auto min-h-[44px] sm:min-h-0 sm:h-9 inline-flex items-center justify-center gap-2 rounded-md px-5 py-2 text-xs font-bold text-white transition shadow-sm ${isSaving
                       ? 'bg-[var(--brand)] opacity-60 cursor-not-allowed'
                       : 'bg-[var(--brand)] hover:bg-[var(--brand-dark)] cursor-pointer'
-                  }`}
+                    }`}
                 >
                   {isSaving ? (
                     <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving...</>
@@ -2441,11 +2433,10 @@ export const TutorScores: React.FC = () => {
                                 }}
                                 placeholder={`0–${activeTotal}`}
                                 disabled={isNotTaken}
-                                className={`w-full max-w-[110px] rounded-md border bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60 ${
-                                  hasNoScore && hasAttemptedSave
+                                className={`w-full max-w-[110px] rounded-md border bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60 ${hasNoScore && hasAttemptedSave
                                     ? 'border-amber-400 dark:border-amber-500/80 bg-amber-50/20 dark:bg-amber-950/20 focus:border-amber-500 focus:ring-amber-500'
                                     : 'border-gray-200 dark:border-slate-700 focus:border-[var(--brand)] focus:ring-[var(--brand)]'
-                                }`}
+                                  }`}
                               />
                               {hasNoScore && hasAttemptedSave && (
                                 <p className="mt-1 text-[10px] font-semibold text-amber-500 dark:text-amber-400 flex items-center gap-1 whitespace-nowrap">
@@ -2494,103 +2485,102 @@ export const TutorScores: React.FC = () => {
                       <p className="text-center py-6 text-xs text-gray-400">No students found matching "{studentSearch}".</p>
                     ) : (
                       mobileAlphabeticalStudents.map((student) => {
-                      const status = entryStatus[student.id] || 'Taken';
-                      const isNotTaken = status === 'Not';
-                      const isTaken = status === 'Taken';
-                      const rawScore = entryScores[student.id];
-                      const hasNoScore = isTaken && (rawScore === '' || rawScore === undefined || rawScore === null);
-                      const activeTotal = Number(totalScore) || 0;
-                      const hasValidScore = rawScore !== '' && rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore));
-                      const pct = isNotTaken
-                        ? 0
-                        : (hasValidScore && activeTotal > 0
-                          ? Math.round((Number(rawScore) / activeTotal) * 100 * 10) / 10
-                          : null);
-                      const isPassingMilestone = entryKind !== 'daily' && pct !== null && !isNaN(pct) && pct >= 70;
+                        const status = entryStatus[student.id] || 'Taken';
+                        const isNotTaken = status === 'Not';
+                        const isTaken = status === 'Taken';
+                        const rawScore = entryScores[student.id];
+                        const hasNoScore = isTaken && (rawScore === '' || rawScore === undefined || rawScore === null);
+                        const activeTotal = Number(totalScore) || 0;
+                        const hasValidScore = rawScore !== '' && rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore));
+                        const pct = isNotTaken
+                          ? 0
+                          : (hasValidScore && activeTotal > 0
+                            ? Math.round((Number(rawScore) / activeTotal) * 100 * 10) / 10
+                            : null);
+                        const isPassingMilestone = entryKind !== 'daily' && pct !== null && !isNaN(pct) && pct >= 70;
 
-                      return (
-                        <div
-                          key={`mobile-entry-${student.id}`}
-                          className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3 shadow-xs"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              <p className="font-bold text-sm text-gray-900 dark:text-slate-100 break-words">
-                                {student.full_name}
-                              </p>
-                              <p className="text-[11px] font-medium text-gray-400 dark:text-slate-500 mt-0.5">
-                                LRN: {student.lrn || 'N/A'}
-                              </p>
-                            </div>
-                            <div className="shrink-0">
-                              <select
-                                value={status}
-                                onChange={(e) => {
-                                  const newStatus = e.target.value as 'Taken' | 'Not';
-                                  setEntryStatus((prev) => ({ ...prev, [student.id]: newStatus }));
-                                  if (newStatus === 'Not') setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
-                                }}
-                                className="min-h-[44px] rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-slate-200 focus:border-[var(--brand)] focus:outline-none cursor-pointer"
-                              >
-                                <option value="Taken">Taken</option>
-                                <option value="Not">Not Taken</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-2">
-                                <label htmlFor={`score-input-${student.id}`} className="text-xs font-bold text-gray-600 dark:text-slate-400 shrink-0">
-                                  Score:
-                                </label>
-                                <input
-                                  id={`score-input-${student.id}`}
-                                  type="text"
-                                  inputMode="numeric"
-                                  value={isNotTaken ? 0 : (entryScores[student.id] ?? '')}
-                                  onKeyDown={blockSymbolKeys}
-                                  onChange={(e) => {
-                                    const sanitized = sanitizeScoreInput(e.target.value, activeTotal);
-                                    setEntryScores((prev) => ({ ...prev, [student.id]: sanitized }));
-                                  }}
-                                  placeholder={`0–${activeTotal}`}
-                                  disabled={isNotTaken}
-                                  className={`w-24 min-h-[44px] rounded-lg border bg-white dark:bg-slate-800 px-3 text-center text-sm font-bold text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60 ${
-                                    hasNoScore && hasAttemptedSave
-                                      ? 'border-amber-400 dark:border-amber-500/80 bg-amber-50/20 dark:bg-amber-950/20 focus:border-amber-500 focus:ring-amber-500'
-                                      : 'border-gray-200 dark:border-slate-700 focus:border-[var(--brand)] focus:ring-[var(--brand)]'
-                                  }`}
-                                />
-                                <span className="text-xs font-semibold text-gray-400 shrink-0">/ {activeTotal}</span>
-                              </div>
-                              {hasNoScore && hasAttemptedSave && (
-                                <p className="mt-1 text-[10px] font-semibold text-amber-500 dark:text-amber-400 flex items-center gap-1">
-                                  <AlertCircle className="w-3 h-3 shrink-0" />
-                                  No inputted score
+                        return (
+                          <div
+                            key={`mobile-entry-${student.id}`}
+                            className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3 shadow-xs"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-bold text-sm text-gray-900 dark:text-slate-100 break-words">
+                                  {student.full_name}
                                 </p>
-                              )}
+                                <p className="text-[11px] font-medium text-gray-400 dark:text-slate-500 mt-0.5">
+                                  LRN: {student.lrn || 'N/A'}
+                                </p>
+                              </div>
+                              <div className="shrink-0">
+                                <select
+                                  value={status}
+                                  onChange={(e) => {
+                                    const newStatus = e.target.value as 'Taken' | 'Not';
+                                    setEntryStatus((prev) => ({ ...prev, [student.id]: newStatus }));
+                                    if (newStatus === 'Not') setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
+                                  }}
+                                  className="min-h-[44px] rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-slate-200 focus:border-[var(--brand)] focus:outline-none cursor-pointer"
+                                >
+                                  <option value="Taken">Taken</option>
+                                  <option value="Not">Not Taken</option>
+                                </select>
+                              </div>
                             </div>
 
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <span className="text-xs font-medium text-gray-400">Preview:</span>
-                              {pct !== null && !isNaN(pct) ? (
-                                <div className="flex items-center gap-1">
-                                  <span className={`text-sm font-black ${scoreColor(pct)}`}>{pct}%</span>
-                                  {entryKind !== 'daily' && (
-                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isPassingMilestone ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400'}`}>
-                                      {isPassingMilestone ? 'Pass' : 'Fail'}
-                                    </span>
-                                  )}
+                            <div className="flex items-center justify-between gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                  <label htmlFor={`score-input-${student.id}`} className="text-xs font-bold text-gray-600 dark:text-slate-400 shrink-0">
+                                    Score:
+                                  </label>
+                                  <input
+                                    id={`score-input-${student.id}`}
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={isNotTaken ? 0 : (entryScores[student.id] ?? '')}
+                                    onKeyDown={blockSymbolKeys}
+                                    onChange={(e) => {
+                                      const sanitized = sanitizeScoreInput(e.target.value, activeTotal);
+                                      setEntryScores((prev) => ({ ...prev, [student.id]: sanitized }));
+                                    }}
+                                    placeholder={`0–${activeTotal}`}
+                                    disabled={isNotTaken}
+                                    className={`w-24 min-h-[44px] rounded-lg border bg-white dark:bg-slate-800 px-3 text-center text-sm font-bold text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60 ${hasNoScore && hasAttemptedSave
+                                        ? 'border-amber-400 dark:border-amber-500/80 bg-amber-50/20 dark:bg-amber-950/20 focus:border-amber-500 focus:ring-amber-500'
+                                        : 'border-gray-200 dark:border-slate-700 focus:border-[var(--brand)] focus:ring-[var(--brand)]'
+                                      }`}
+                                  />
+                                  <span className="text-xs font-semibold text-gray-400 shrink-0">/ {activeTotal}</span>
                                 </div>
-                              ) : (
-                                <span className="text-xs text-gray-400 font-semibold">0%</span>
-                              )}
+                                {hasNoScore && hasAttemptedSave && (
+                                  <p className="mt-1 text-[10px] font-semibold text-amber-500 dark:text-amber-400 flex items-center gap-1">
+                                    <AlertCircle className="w-3 h-3 shrink-0" />
+                                    No inputted score
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="text-xs font-medium text-gray-400">Preview:</span>
+                                {pct !== null && !isNaN(pct) ? (
+                                  <div className="flex items-center gap-1">
+                                    <span className={`text-sm font-black ${scoreColor(pct)}`}>{pct}%</span>
+                                    {entryKind !== 'daily' && (
+                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isPassingMilestone ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400'}`}>
+                                        {isPassingMilestone ? 'Pass' : 'Fail'}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-gray-400 font-semibold">0%</span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    }))}
+                        );
+                      }))}
                   </div>
                 </div>
               </div>
@@ -2704,15 +2694,15 @@ export const TutorScores: React.FC = () => {
                 {scoreStudentSearch.trim()
                   ? 'No matching score records'
                   : jumpDate
-                  ? 'No records for this date'
-                  : 'No score records yet'}
+                    ? 'No records for this date'
+                    : 'No score records yet'}
               </p>
               <p className="text-[11px] text-gray-400">
                 {scoreStudentSearch.trim()
                   ? 'Try a different student name or subject'
                   : jumpDate
-                  ? 'Try a different date or clear the filter'
-                  : 'Records will appear after logging scores'}
+                    ? 'Try a different date or clear the filter'
+                    : 'Records will appear after logging scores'}
               </p>
             </div>
           ) : (
@@ -2895,16 +2885,14 @@ export const TutorScores: React.FC = () => {
           aria-live="assertive"
           className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
         >
-          <div className={`flex items-start gap-3 rounded-lg border p-3.5 shadow-xl bg-white dark:bg-[#111111] ${
-            validationToast.type === 'warning'
+          <div className={`flex items-start gap-3 rounded-lg border p-3.5 shadow-xl bg-white dark:bg-[#111111] ${validationToast.type === 'warning'
               ? 'border-amber-300 dark:border-amber-700/80'
               : 'border-rose-300 dark:border-rose-700/80'
-          }`}>
-            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${
-              validationToast.type === 'warning'
+            }`}>
+            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${validationToast.type === 'warning'
                 ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
                 : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
-            }`}>
+              }`}>
               <AlertCircle className="h-4 w-4" />
             </div>
             <div className="flex-1 min-w-0">

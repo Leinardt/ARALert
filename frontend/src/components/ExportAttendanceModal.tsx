@@ -11,6 +11,7 @@ import { exportAttendanceToDocx } from '../utils/attendanceDocxExportService';
 import { exportAttendanceToPdf } from '../utils/attendancePdfExportService';
 import { DEPED_LOGO_SRC, PNAHS_LOGO_SRC } from '../assets/template_logos/logosBase64';
 import { formatStudentName } from '../utils/studentFormatters';
+import { trashbinService } from '../utils/trashbinService';
 
 export interface ExportAttendanceModalProps {
   isOpen: boolean;
@@ -65,22 +66,20 @@ export const getAttendanceWeeksForMonth = (
   const startOfMonth = new Date(year, month, 1);
   const endOfMonth = new Date(year, month + 1, 0);
   const monthRangeLabel = `${formatNumericDate(startOfMonth)} - ${formatNumericDate(endOfMonth)}`;
-  const dayNames = ['M', 'T', 'W', 'TH', 'F'];
+  const dayNames = ['SU', 'M', 'T', 'W', 'TH', 'F', 'SA'];
   const days: Array<{ dateKey: string; dayNum: string; dayName?: string }> = [];
 
   for (let d = 1; d <= endOfMonth.getDate(); d++) {
     const cur = new Date(year, month, d);
     const dayOfWeek = cur.getDay(); // 0: Sun, 1: Mon, ..., 5: Fri, 6: Sat
-    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-      const mStr = String(month + 1).padStart(2, '0');
-      const dStr = String(d).padStart(2, '0');
-      const dateKey = `${year}-${mStr}-${dStr}`;
-      days.push({
-        dateKey,
-        dayNum: String(d),
-        dayName: dayNames[dayOfWeek - 1],
-      });
-    }
+    const mStr = String(month + 1).padStart(2, '0');
+    const dStr = String(d).padStart(2, '0');
+    const dateKey = `${year}-${mStr}-${dStr}`;
+    days.push({
+      dateKey,
+      dayNum: String(d),
+      dayName: dayNames[dayOfWeek],
+    });
   }
 
   return [
@@ -550,16 +549,36 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
       ];
     }
 
-    // Monthly mode
+    // Monthly mode: only include dates in the selected month that have a session
     const [yr, mo] = (selectedMonthKey || new Date().toISOString().slice(0, 7))
       .split('-')
       .map(Number);
     const computed = getAttendanceWeeksForMonth(yr, mo - 1);
-    return computed.map((w, idx) => ({
-      ...w,
-      label: customWeekLabels[idx] || w.label,
-    }));
-  }, [exportMode, selectedDateKey, selectedWeekKey, selectedMonthKey, customWeekLabels]);
+    const studentIdSet = new Set(students.map((s) => String(s.id)));
+    return computed.map((w, idx) => {
+      const activeDatesInMonth = w.days.filter((day) => {
+        if (trashbinService.isDateTrashed('attendance', day.dateKey, currentUser?.id)) {
+          return false;
+        }
+        return attendanceLogs.some((l) => {
+          const uid = String(l.user ?? (l as any).student ?? (l as any).user_id ?? '');
+          if (studentIdSet.size > 0 && !studentIdSet.has(uid)) return false;
+          const lKey = l.date?.length >= 10 ? l.date.slice(0, 10) : l.date;
+          return lKey === day.dateKey;
+        });
+      });
+      const fallbackDay = w.days.find((d) => d.dayName !== 'SU' && d.dayName !== 'SA') || w.days[0];
+      const effectiveDays = activeDatesInMonth.length > 0 ? activeDatesInMonth : (fallbackDay ? [fallbackDay] : []);
+      return {
+        ...w,
+        label: customWeekLabels[idx] || w.label,
+        days:
+          effectiveDays.length === 1
+            ? [{ ...effectiveDays[0], dayNum: formatNumericDate(effectiveDays[0].dateKey) }]
+            : effectiveDays,
+      };
+    });
+  }, [exportMode, selectedDateKey, selectedWeekKey, selectedMonthKey, customWeekLabels, attendanceLogs, students, currentUser?.id]);
 
   const allDays = useMemo(() => weeks.flatMap((w) => w.days), [weeks]);
 

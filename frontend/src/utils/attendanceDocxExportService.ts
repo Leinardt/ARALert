@@ -449,7 +449,7 @@ export const exportAttendanceToDocx = async (data: AttendanceExportData): Promis
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 spacing: { before: headSpaceY, after: headSpaceY, line: 220 },
-                children: [new TextRun({ text: data.weeks[0]?.label || 'DATE', font: 'Times New Roman', size: headerFontSize, bold: true, color: '0F172A' })],
+                children: [new TextRun({ text: formatAttendanceDateHeader(allDays[0]?.dateKey, allDays[0]?.dayNum) || data.weeks[0]?.label || 'DATE', font: 'Times New Roman', size: headerFontSize, bold: true, color: '0F172A' })],
               }),
             ],
           }),
