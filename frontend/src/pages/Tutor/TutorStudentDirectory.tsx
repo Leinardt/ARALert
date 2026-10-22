@@ -26,7 +26,7 @@ const getAralBadge = (level?: string | null) => {
   );
 };
 
-import { buildAvatarColorMap, compareNamesByLastName } from '../../utils/studentFormatters';
+import { compareNamesByLastName } from '../../utils/studentFormatters';
 import { matchesSearch } from '../../utils/searchHelpers';
 
 function getDepEdSchoolYear(date: Date = new Date()) {
@@ -293,11 +293,6 @@ export const TutorStudentDirectory: React.FC = () => {
   const studentRows = useMemo(() => {
     return computeStudentRiskRows(cohortStudents, filteredGrades, filteredAttendance).map((r) => ({ ...r, email: r.student.email }));
   }, [cohortStudents, filteredGrades, filteredAttendance]);
-
-  const avatarColor = useMemo(
-    () => buildAvatarColorMap(cohortStudents.length > 0 ? cohortStudents : studentRows.map((r) => r.student)),
-    [cohortStudents, studentRows]
-  );
 
   const handleSort = (field: string) => {
     if (sortField === field) setSortAsc(!sortAsc);
@@ -593,12 +588,7 @@ const aralLevelRank: Record<string, number> = {
                           {index + 1}
                         </td>
                         <td className="px-4 py-2.5 font-semibold text-gray-800 dark:text-slate-100">
-                          <div className="flex items-center gap-2.5">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs ${avatarColor(row.student.full_name || '')}`}>
-                              <UserIcon className="w-3 h-3" />
-                            </div>
-                            <span className="truncate font-semibold text-gray-800 dark:text-slate-100">{row.student.full_name}</span>
-                          </div>
+                          <span className="block truncate font-semibold text-gray-800 dark:text-slate-100">{row.student.full_name}</span>
                         </td>
                         <td className="px-4 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs font-normal font-mono">
                           {row.student.lrn || 'N/A'}
