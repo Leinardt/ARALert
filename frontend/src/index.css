@@ -43,6 +43,15 @@ html, body, #root {
   width: 100%;
 }
 
+/* ── Hide scrollbar for clean horizontal scrolls ── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 @media (max-width: 640px) {
   button, a, input, select, textarea {
     touch-action: manipulation;
@@ -123,12 +132,10 @@ html, body, #root {
 }
 
 .glass-btn {
-  background-color: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  background-color: #ffffff;
+  border: 1.5px solid #cbd5e1;
   color: #0052B7;
-  box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.08), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.08);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -159,11 +166,9 @@ html, body, #root {
 
 /* Glass Card Option Buttons */
 .glass-card-btn {
-  background-color: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.06), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
+  background-color: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 2px 10px -2px rgba(15, 23, 42, 0.06);
   transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -2053,14 +2058,19 @@ table.divide-y > tbody > tr:first-child > td {
 .dark .bg-blue-50\/50 { background-color: var(--brand-lighter) !important; }
 
 /* Select inputs */
-.dark select {
+.dark select:not(.cohort-filter-select) {
   background-color: var(--surface-muted);
   color: var(--text-primary);
   border-color: var(--slate-200);
 }
-.dark select option {
+.dark select:not(.cohort-filter-select) option {
   background-color: var(--surface-card);
   color: var(--text-primary);
+}
+
+.dark select.cohort-filter-select,
+.dark select.cohort-filter-select option {
+  color: #60a5fa !important;
 }
 
 /* Plain text inputs with border */

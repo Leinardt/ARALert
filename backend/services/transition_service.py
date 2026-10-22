@@ -81,7 +81,7 @@ def get_eosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
         assigned_count = assigned_students.count()
 
         if assigned_count == 0:
-            tutors_progress_list.append({
+            tutor_data = {
                 'tutor_id': str(tutor.id),
                 'tutor_name': tutor.get_full_name(),
                 'email': tutor.email,
@@ -89,11 +89,13 @@ def get_eosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
                 'assigned_students_count': 0,
                 'evaluated_count': 0,
                 'remaining_count': 0,
-                'status': 'Completed',
+                'status': 'Pending',
                 'has_no_students': True,
                 'incomplete_students': [],
-            })
-            completed_tutors_count += 1
+            }
+            tutors_progress_list.append(tutor_data)
+            pending_tutors_count += 1
+            incomplete_tutors_list.append(tutor_data)
             continue
 
         total_assigned_students += assigned_count
@@ -144,7 +146,15 @@ def get_eosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
 
     current_sy_str = school_year.school_year if school_year else '2026-2027'
     next_sy_str = get_next_school_year_string(current_sy_str)
-    can_transition = (students_remaining == 0 and total_assigned_students > 0)
+    can_transition = (
+        students_remaining == 0 and total_assigned_students > 0 and pending_tutors_count == 0 and in_progress_tutors_count == 0
+    )
+
+    warning_msg = None if can_transition else (
+        'EOSY evaluations are incomplete. All tutors must have assigned students and completed evaluations before starting the next school year.'
+        if (pending_tutors_count > 0 or in_progress_tutors_count > 0)
+        else 'EOSY evaluations are incomplete. The next school year cannot be started yet.'
+    )
 
     return {
         'current_school_year': current_sy_str,
@@ -152,7 +162,7 @@ def get_eosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
         'current_school_year_status': school_year.status if school_year else 'ACTIVE',
         'eosy_completion_status': 'Complete' if can_transition else f'Incomplete ({students_remaining} remaining)',
         'can_transition': can_transition,
-        'warning_message': None if can_transition else 'EOSY evaluations are incomplete. The next school year cannot be started yet.',
+        'warning_message': warning_msg,
         'total_tutors': tutors.count(),
         'completed_tutors': completed_tutors_count,
         'in_progress_tutors': in_progress_tutors_count,
@@ -358,7 +368,7 @@ def execute_school_year_transition(admin_user: User | None = None) -> dict:
                         # Check if current tutor is still compatible Basic tutor
                         tutor = student.assigned_tutor
                         tutor_compatible = (
-                            tutor and (tutor.tutor_type == 'basic' or tutor.aral_level == 'basic')
+                            tutor and ('basic' in f"{getattr(tutor, 'tutor_type', '')} {getattr(tutor, 'aral_level', '')}".lower())
                         )
                         next_tutor = tutor if tutor_compatible else None
 
@@ -418,13 +428,12 @@ def execute_school_year_transition(admin_user: User | None = None) -> dict:
             notes='Concluded at EOSY — all pairings reset for new school year cohort reassignment.'
         )
 
-        # Unassign ALL non-graduated active students (reset for Admin to reassign)
-        for student in User.objects.filter(role='student', is_active=True).exclude(aral_level='graduated'):
-            if student.assigned_tutor:
-                student.assigned_tutor = None
-                student.save(update_fields=['assigned_tutor'])
-                summary_stats['unassigned_students'] += 1
-                summary_stats['tutor_changes'] += 1
+        # Unassign ALL non-graduated active students (reset for Admin to reassign in 1 atomic query)
+        unassign_qs = User.objects.filter(role='student', is_active=True, assigned_tutor__isnull=False).exclude(aral_level='graduated')
+        unassigned_count = unassign_qs.count()
+        unassign_qs.update(assigned_tutor=None)
+        summary_stats['unassigned_students'] += unassigned_count
+        summary_stats['tutor_changes'] += unassigned_count
 
         # STEP 8: Identify Available Tutors (handled dynamically via get_available_tutors_data)
         # STEP 9: Identify Unassigned Students (handled dynamically)

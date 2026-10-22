@@ -207,7 +207,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'id', 'email', 'first_name', 'middle_name', 'last_name',
             'full_name', 'role', 'is_active', 'is_superuser',
             'date_joined', 'last_login', 'avatar', 'lrn', 'faculty_type',
-            'aral_level', 'subject', 'privacy_consent_accepted_at', 'is_first_login',
+            'aral_level', 'tutor_type', 'subject', 'grade_level',
+            'privacy_consent_accepted_at', 'is_first_login',
         ]
         read_only_fields = fields
 

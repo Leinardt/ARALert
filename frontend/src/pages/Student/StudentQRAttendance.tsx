@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { academicService } from '../../services/academicService';
 import type { Attendance } from '../../types';
 import {
-  Keyboard,
   CheckCircle2,
   AlertCircle,
   Clock,
@@ -18,10 +17,19 @@ import {
   Users,
   UserCheck,
   Check,
-  RefreshCw,
+  QrCode,
+  Download,
 } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
 import { useAuth } from '../../hooks/useAuth';
+import { ExportStudentQrModal } from '../../components/ExportStudentQrModal';
+import {
+  exportStudentQrToJpeg,
+  exportStudentQrToPdf,
+  exportStudentQrToDocx,
+  generateStudentQrDataUrl,
+  getStudentManualCode,
+} from '../../utils/studentQrExportService';
+import { formatStudentName, extractLastNameAndFirstName, compareNamesByLastName } from '../../utils/studentFormatters';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 
@@ -70,27 +78,63 @@ const formatDateKey = (year: number, month: number, day: number) => {
   return `${year}-${m}-${d}`;
 };
 
+const formatDateButtonLabel = (dateStr: string) => {
+  const d = new Date(`${dateStr}T00:00:00`);
+  const month = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${month} ${day}`;
+};
+
+const getWeekdaysForMonday = (mondayStr: string, extraDates: string[] = []): string[] => {
+  const dates: string[] = [];
+  const monday = new Date(`${mondayStr}T00:00:00`);
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    dates.push(d.toLocaleDateString('en-CA'));
+  }
+  extraDates.forEach((d) => {
+    if (d && !dates.includes(d)) dates.push(d);
+  });
+  return dates.sort();
+};
+
+const computeWeekOfMonth = (dateObj: Date): number => {
+  const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+  const day = d.getDay();
+  const wedDiff = day === 0 ? 3 : 3 - day;
+  const wednesday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + wedDiff);
+  const firstDay = new Date(wednesday.getFullYear(), wednesday.getMonth(), 1).getDay();
+  return Math.ceil((wednesday.getDate() + (firstDay === 0 ? 6 : firstDay - 1)) / 7);
+};
+
 const getWeekKey = (dateStr: string) => {
   const d = new Date(dateStr + 'T00:00:00');
   const day = d.getDay();
   const mon = new Date(d);
   mon.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-  return mon.toISOString().slice(0, 10);
+  return mon.toLocaleDateString('en-CA');
 };
 
-const weekLabel = (mondayStr: string) => {
-  const mon = new Date(mondayStr + 'T00:00:00');
-  const fri = new Date(mon);
-  fri.setDate(mon.getDate() + 4);
-  const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  return `${fmt(mon)} – ${fmt(fri)}, ${fri.getFullYear()}`;
+const getWeekTitle = (mondayStr: string) => {
+  const d = new Date(`${mondayStr}T00:00:00`);
+  const weekNum = computeWeekOfMonth(d);
+  return `WEEK ${weekNum}`;
 };
 
 const getMonthKey = (dateStr: string) => dateStr.slice(0, 7);
 
-const monthLabel = (key: string) => {
-  const d = new Date(key + '-01T00:00:00');
-  return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+const getMonthTitle = (monthKey: string) => {
+  const d = new Date(`${monthKey}-01T00:00:00`);
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+};
+
+type AttendanceTableGroup = {
+  key: string;
+  title: string;
+  weekMonday?: string;
+  isMonthGroup?: boolean;
+  records: Attendance[];
 };
 
 /* ─── Custom Calendar Dropdown (Exact Match to TutorQRGenerator) ── */
@@ -249,26 +293,242 @@ const CustomCalendarDropdown: React.FC<{
   );
 };
 
+/* ─── AttendanceHistoryGroupSection (matches Tutor Attendance UI & Sorting) ── */
+
+interface AttendanceHistoryGroupSectionProps {
+  group: AttendanceTableGroup;
+  selectedDate: string | null;
+  onSelectDate: (dateStr: string) => void;
+  formatDateString: (value: string | null | undefined) => string;
+  formatTimeString: (value: string | null | undefined) => string;
+  studentName?: string;
+}
+
+const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps> = ({
+  group,
+  selectedDate,
+  onSelectDate,
+  formatDateString,
+  formatTimeString,
+  studentName,
+}) => {
+  const datesWithRecords = useMemo(() => {
+    return new Set(group.records.map((r) => r.date?.slice(0, 10)));
+  }, [group.records]);
+
+  const groupDates = useMemo(() => {
+    if (group.isMonthGroup) {
+      return Array.from(datesWithRecords).sort();
+    }
+    const recordDates = Array.from(datesWithRecords);
+    return getWeekdaysForMonday(group.weekMonday || group.key, recordDates);
+  }, [group.isMonthGroup, group.weekMonday, group.key, datesWithRecords]);
+
+  const isOpen = useMemo(() => {
+    if (!selectedDate) return false;
+    return groupDates.includes(selectedDate);
+  }, [groupDates, selectedDate]);
+
+  const displayRecords = useMemo(() => {
+    if (!selectedDate || !isOpen) return group.records;
+    return group.records.filter((r) => r.date?.slice(0, 10) === selectedDate);
+  }, [group.records, selectedDate, isOpen]);
+
+  type SortKey = 'student' | 'date' | 'time' | 'status';
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey | null; direction: 'asc' | 'desc' }>({
+    key: null,
+    direction: 'asc',
+  });
+
+  const toggleSort = (key: SortKey) => {
+    setSortConfig((current) => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const sortedRecords = useMemo(() => {
+    if (!sortConfig.key) return displayRecords;
+    const getSortValue = (log: Attendance) => {
+      switch (sortConfig.key) {
+        case 'student': return log.user_name || studentName || '';
+        case 'date': return log.date || '';
+        case 'time': return log.time_in || '';
+        case 'status': return log.status_display || log.status || '';
+        default: return '';
+      }
+    };
+    return [...displayRecords].sort((a, b) => {
+      let result = 0;
+      if (sortConfig.key === 'student') {
+        result = compareNamesByLastName(a.user_name || studentName || '', b.user_name || studentName || '');
+      } else {
+        result = String(getSortValue(a)).localeCompare(String(getSortValue(b)), undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        });
+      }
+      return sortConfig.direction === 'asc' ? result : -result;
+    });
+  }, [displayRecords, sortConfig, studentName]);
+
+  const SortableHeader: React.FC<{ label: string; sortKey: SortKey }> = ({ label, sortKey }) => {
+    const isActive = sortConfig.key === sortKey;
+    return (
+      <button
+        type="button"
+        onClick={() => toggleSort(sortKey)}
+        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer"
+        aria-label={`Sort by ${label}`}
+      >
+        {label}
+        {isActive ? (
+          sortConfig.direction === 'asc' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />
+        ) : (
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-50" />
+        )}
+      </button>
+    );
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 py-0.5">
+            <span className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none">
+              {group.title}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {groupDates.map((dateStr) => {
+              const hasRecord = datesWithRecords.has(dateStr);
+              const isSelected = selectedDate === dateStr;
+              const label = formatDateButtonLabel(dateStr);
+              return (
+                <button
+                  key={dateStr}
+                  type="button"
+                  disabled={!hasRecord}
+                  onClick={() => onSelectDate(dateStr)}
+                  className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all inline-flex items-center gap-1.5 ${
+                    hasRecord
+                      ? isSelected
+                        ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
+                        : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
+                      : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
+                  }`}
+                  title={
+                    hasRecord
+                      ? isSelected
+                        ? `Active: ${label}`
+                        : `View ${label}`
+                      : `No records on ${label}`
+                  }
+                  aria-label={label}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {isOpen && (
+          <span className="text-[11px] font-semibold text-gray-400">
+            {displayRecords.length} Record{displayRecords.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2">
+          <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
+            <thead>
+              <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
+                <th className="w-[35%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                  <SortableHeader label="STUDENT" sortKey="student" />
+                </th>
+                <th className="w-[30%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                  <SortableHeader label="DATE" sortKey="date" />
+                </th>
+                <th className="w-[20%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                  <SortableHeader label="TIME" sortKey="time" />
+                </th>
+                <th className="w-[15%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                  <SortableHeader label="STATUS" sortKey="status" />
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 bg-white dark:divide-[#1A1A1A] dark:bg-[#111111]">
+              {sortedRecords.map((log) => {
+                const isPresent = log.status === 'present';
+                return (
+                  <tr
+                    key={log.id}
+                    className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]"
+                  >
+                    <td className="px-4 py-2.5 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
+                      {log.user_name || studentName}
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
+                      {formatDateString(log.date)}
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
+                      {log.time_in ? formatTimeString(log.time_in) : '—'}
+                    </td>
+                    <td className="px-4 py-2.5 text-left whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${
+                          isPresent
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                            : 'bg-rose-50 text-rose-700 border-rose-200 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                        }`}
+                      >
+                        {log.status_display || (isPresent ? 'Present' : 'Absent')}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ─── Main StudentQRAttendance Component ──────────────────────── */
 
 export const StudentQRAttendance: React.FC = () => {
   const { user } = useAuth();
-  const [manualCode, setManualCode] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [scanResult, setScanResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [isCameraActive, setIsCameraActive] = useState(true);
-
   const [attendanceLogs, setAttendanceLogs] = useState<Attendance[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
   const [logsError, setLogsError] = useState<string | null>(null);
 
-  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
 
-  const scannerRef = useRef<Html5Qrcode | null>(null);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  const [studentQrUrl, setStudentQrUrl] = useState<string | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+
+  // Load permanent QR code data url
+  useEffect(() => {
+    let isMounted = true;
+    if (user?.id) {
+      generateStudentQrDataUrl(user.id, 280)
+        .then((url) => {
+          if (isMounted) setStudentQrUrl(url);
+        })
+        .catch((err) => console.error('Failed to generate student QR:', err));
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   // Live ticking clock
   useEffect(() => {
@@ -311,38 +571,48 @@ export const StudentQRAttendance: React.FC = () => {
 
 
 
-  const [currentPage, setCurrentPage] = useState(1);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [jumpDate, viewMode]);
-
   // Attendance history helpers
   const sortedHistory = useMemo(() => {
     return [...attendanceLogs].sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
   }, [attendanceLogs]);
 
-  const jumpFiltered = useMemo(
-    () => (jumpDate ? sortedHistory.filter((l) => l.date === jumpDate) : null),
+  const activeRecords = useMemo(
+    () => (jumpDate ? sortedHistory.filter((l) => l.date === jumpDate) : sortedHistory),
     [sortedHistory, jumpDate]
   );
 
-  const activeRecords = useMemo(
-    () => (jumpFiltered !== null ? jumpFiltered : sortedHistory),
-    [jumpFiltered, sortedHistory]
-  );
+  const mostRecentDateWithEntry = useMemo(() => {
+    if (activeRecords.length === 0) return null;
+    return activeRecords[0].date?.slice(0, 10) || null;
+  }, [activeRecords]);
 
-  const paginatedLogs = useMemo(
-    () => activeRecords.slice((currentPage - 1) * 30, currentPage * 30),
-    [activeRecords, currentPage]
-  );
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  type Group = { key: string; label: string; records: Attendance[] };
-  const groupedHistory = useMemo((): Group[] => {
-    if (jumpFiltered !== null) return [];
+  useEffect(() => {
+    if (jumpDate) {
+      setSelectedDate(jumpDate);
+    } else if (mostRecentDateWithEntry) {
+      setSelectedDate(mostRecentDateWithEntry);
+    } else {
+      setSelectedDate(null);
+    }
+  }, [jumpDate, mostRecentDateWithEntry, viewMode]);
+
+  const groupedHistory = useMemo((): AttendanceTableGroup[] => {
+    if (jumpDate) {
+      return [{
+        key: jumpDate,
+        title: viewMode === 'week' ? getWeekTitle(getWeekKey(jumpDate)) : getMonthTitle(getMonthKey(jumpDate)),
+        weekMonday: getWeekKey(jumpDate),
+        isMonthGroup: viewMode === 'month',
+        records: activeRecords,
+      }];
+    }
     const grouped = new Map<string, Attendance[]>();
-    for (const log of paginatedLogs) {
-      const key = viewMode === 'week' ? getWeekKey(log.date) : getMonthKey(log.date);
+    for (const log of activeRecords) {
+      const dateKey = log.date?.slice(0, 10) || log.date;
+      if (!dateKey) continue;
+      const key = viewMode === 'week' ? getWeekKey(dateKey) : getMonthKey(dateKey);
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key)!.push(log);
     }
@@ -350,138 +620,14 @@ export const StudentQRAttendance: React.FC = () => {
       .sort(([a], [b]) => (b > a ? 1 : -1))
       .map(([key, records]) => ({
         key,
-        label: viewMode === 'week' ? weekLabel(key) : monthLabel(key),
+        title: viewMode === 'week' ? getWeekTitle(key) : getMonthTitle(key),
+        weekMonday: viewMode === 'week' ? key : undefined,
+        isMonthGroup: viewMode === 'month',
         records,
       }));
-  }, [paginatedLogs, viewMode, jumpFiltered]);
+  }, [activeRecords, jumpDate, viewMode]);
 
-  const timeGroupedHistory = useMemo((): Group[] => {
-    const source = paginatedLogs;
-    const grouped = new Map<string, Attendance[]>();
-    for (const log of source) {
-      const timeStr = log.time_in ? formatTimeString(log.time_in) : '—';
-      const key = `${log.date}|${timeStr}`;
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key)!.push(log);
-    }
-    return Array.from(grouped.entries()).map(([key, records]) => {
-      const [date, time] = key.split('|');
-      return {
-        key,
-        label: time !== '—' ? `${formatDateString(date)} | ${time}` : formatDateString(date),
-        records,
-      };
-    });
-  }, [paginatedLogs]);
-
-  const toggleSort = (key: SortKey) => {
-    setSortConfig((prev) => ({
-      key,
-      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
-    }));
-  };
-
-  const sortRecords = (list: Attendance[]) => {
-    if (viewMode === 'day') return list;
-    return [...list].sort((a, b) => {
-      let aVal = '';
-      let bVal = '';
-      if (sortConfig.key === 'student') {
-        aVal = user?.full_name || '';
-        bVal = user?.full_name || '';
-      } else if (sortConfig.key === 'date') {
-        aVal = a.date;
-        bVal = b.date;
-      } else if (sortConfig.key === 'time') {
-        aVal = a.time_in || '';
-        bVal = b.time_in || '';
-      } else if (sortConfig.key === 'status') {
-        aVal = a.status_display || a.status;
-        bVal = b.status_display || b.status;
-      }
-      const cmp = aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: 'base' });
-      return sortConfig.direction === 'asc' ? cmp : -cmp;
-    });
-  };
-
-  const SortableHeader: React.FC<{ label: string; sortKey: SortKey }> = ({ label, sortKey }) => {
-    if (viewMode === 'day') {
-      return <span>{label}</span>;
-    }
-    const isActive = sortConfig.key === sortKey;
-    return (
-      <button
-        type="button"
-        onClick={() => toggleSort(sortKey)}
-        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer"
-        aria-label={`Sort by ${label}`}
-      >
-        {label}
-        {isActive ? (
-          sortConfig.direction === 'asc' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />
-        ) : (
-          <ArrowUpDown className="w-3.5 h-3.5 opacity-50" />
-        )}
-      </button>
-    );
-  };
-
-  const renderTable = (records: Attendance[]) => (
-    <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2">
-      <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
-        <thead>
-          <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-            <th className="w-[35%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-              <SortableHeader label="STUDENT" sortKey="student" />
-            </th>
-            <th className="w-[25%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-              <SortableHeader label="DATE" sortKey="date" />
-            </th>
-            <th className="w-[20%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-              <SortableHeader label="TIME" sortKey="time" />
-            </th>
-            <th className="w-[20%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-              <SortableHeader label="STATUS" sortKey="status" />
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
-          {records.map((log) => {
-            const isPresent = log.status === 'present';
-            return (
-              <tr
-                key={log.id}
-                className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#111111]/80"
-              >
-                <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
-                  {user?.full_name || studentFirstName}
-                </td>
-                <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
-                  {formatDateString(log.date)}
-                </td>
-                <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
-                  {log.time_in ? formatTimeString(log.time_in) : '—'}
-                </td>
-                <td className="px-4 py-3 text-left whitespace-nowrap">
-                  <span
-                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${
-                      isPresent
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                        : 'bg-rose-50 text-rose-700 border-rose-200 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-                    }`}
-                  >
-                    {log.status_display || (isPresent ? 'Present' : 'Absent')}
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-
-  const currentRecordsCount = jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length;
+  const currentRecordsCount = activeRecords.length;
 
   const loggedDates = useMemo(() => {
     const set = new Set<string>();
@@ -513,143 +659,18 @@ export const StudentQRAttendance: React.FC = () => {
     fetchAttendanceLogs();
   }, [fetchAttendanceLogs]);
 
-  // Stop scanner
-  const stopScanner = async () => {
-    if (scannerRef.current) {
-      try {
-        if (scannerRef.current.isScanning) {
-          await scannerRef.current.stop();
-        }
-        scannerRef.current.clear();
-      } catch (err) {
-        console.warn('Failed to clear scanner:', err);
-      }
-      scannerRef.current = null;
+
+
+  const studentFirstName = (() => {
+    if (user?.first_name?.trim()) return user.first_name.trim();
+    const candidate = user?.full_name || (user as any)?.name;
+    if (candidate) {
+      const { firstName } = extractLastNameAndFirstName(candidate);
+      if (firstName?.trim()) return firstName.trim();
     }
-  };
-
-  // Restart camera scanner
-  const restartScanner = async () => {
-    await stopScanner();
-    setIsCameraActive(false);
-    setTimeout(() => {
-      setIsCameraActive(true);
-    }, 100);
-  };
-
-  // Submit scan (QR camera or manual code)
-  const handleScanSubmit = async (sessionId: string) => {
-    if (!sessionId.trim() || isSubmitting) return;
-    setIsSubmitting(true);
-    setScanResult(null);
-
-    try {
-      const res = await academicService.scanQRCode(sessionId.trim());
-      setScanResult({ type: 'success', message: res.message || 'Attendance logged successfully!' });
-      setManualCode('');
-      await fetchAttendanceLogs();
-    } catch (err: any) {
-      console.error(err);
-      setScanResult({
-        type: 'error',
-        message: err.response?.data?.error || 'Attendance check-in failed. Please verify the QR session validity.',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Camera scanner initialization
-  useEffect(() => {
-    if (!isCameraActive) {
-      setCameraError(null);
-      return;
-    }
-
-    let isMounted = true;
-
-    const timer = setTimeout(async () => {
-      setCameraError(null);
-      await stopScanner();
-      if (!isMounted) return;
-
-      try {
-        const qrContainer = document.getElementById('student-qr-reader');
-        if (!qrContainer) return;
-
-        const html5QrCode = new Html5Qrcode('student-qr-reader');
-        scannerRef.current = html5QrCode;
-
-        const config = {
-          fps: 10,
-          qrbox: { width: 220, height: 220 },
-          aspectRatio: 1.0,
-        };
-
-        const cameras = await Html5Qrcode.getCameras().catch(() => []);
-        if (!isMounted) {
-          await stopScanner();
-          return;
-        }
-
-        const preferredCamera =
-          cameras.find((cam) => /back|rear|environment/i.test(cam.label)) ||
-          cameras.find((cam) => /integrated|built-?in|webcam|front|user|face/i.test(cam.label)) ||
-          cameras[0];
-
-        const cameraChoice = preferredCamera?.id ? preferredCamera.id : { facingMode: 'environment' };
-
-        try {
-          await html5QrCode.start(
-            cameraChoice,
-            config,
-            async (decodedText) => {
-              await stopScanner();
-              if (isMounted) {
-                setIsCameraActive(false);
-              }
-              handleScanSubmit(decodedText);
-            },
-            () => {}
-          );
-        } catch (initialErr) {
-          if (!isMounted) return;
-          // Fallback to front camera or default
-          await html5QrCode.start(
-            { facingMode: 'user' },
-            config,
-            async (decodedText) => {
-              await stopScanner();
-              if (isMounted) {
-                setIsCameraActive(false);
-              }
-              handleScanSubmit(decodedText);
-            },
-            () => {}
-          );
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          console.error('Camera init error:', err);
-          if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-            setCameraError('Camera permission was denied. Please allow camera access in your browser settings and try again.');
-          } else if (err?.name === 'NotFoundError' || err?.message?.includes('No camera')) {
-            setCameraError('No camera was detected on this device.');
-          } else {
-            setCameraError(err?.message || 'Unable to access your camera. Please allow camera permission and try again.');
-          }
-        }
-      }
-    }, 150);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-      void stopScanner();
-    };
-  }, [isCameraActive]);
-
-  const studentFirstName = user?.first_name || user?.full_name?.trim().split(' ')[0] || 'Student';
+    return 'STUDENT';
+  })();
+  const studentFormattedName = formatStudentName(user) || (user?.full_name ? user.full_name.toUpperCase() : studentFirstName.toUpperCase());
 
   return (
     <div
@@ -658,122 +679,77 @@ export const StudentQRAttendance: React.FC = () => {
     >
       {/* ── Main Grid ───────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* ── LEFT: Attendance Scanner Card ── */}
+        {/* ── LEFT: Student Permanent QR Code Card ── */}
         <div className="lg:col-span-7">
           <div className="h-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden flex flex-col justify-between">
             {/* Card Header */}
             <div className="h-[52px] shrink-0 flex items-center justify-between px-5 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">SCAN QR CODE</h2>
+                <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">
+                  {studentFirstName.toUpperCase()}'S ATTENDANCE QR CODE
+                </h2>
               </div>
             </div>
 
             {/* Card Body */}
-            <div className="p-5 flex flex-col items-center gap-4 flex-1 justify-between">
-              {/* Notification Banner */}
-              {scanResult && (
-                <div
-                  className={`flex items-start justify-between gap-2.5 w-full rounded-md p-3 text-xs font-medium animate-fade-in ${
-                    scanResult.type === 'success'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50'
-                      : 'bg-rose-50 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {scanResult.type === 'success' ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div className="p-5 flex flex-col items-center gap-5 flex-1 justify-between">
+              {/* Permanent Student QR Badge View */}
+              <div className="w-full flex flex-col items-center gap-5 my-auto">
+                <div className="w-full max-w-sm flex flex-col items-center justify-center p-6 bg-gradient-to-b from-slate-50 to-slate-100/70 dark:from-[#111111] dark:to-[#161616] rounded-xl border border-dashed border-gray-300 dark:border-white/10 relative">
+                  <span className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-sm" />
+                  <span className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-sm" />
+                  <span className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-sm" />
+                  <span className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-[var(--brand)] rounded-br-sm" />
+
+                  {/* 1. QR CODE */}
+                  <div className="p-3 bg-white rounded-lg shadow-sm border border-gray-200 dark:border-gray-300">
+                    {studentQrUrl ? (
+                      <img
+                        src={studentQrUrl}
+                        alt={`${studentFormattedName}'s QR Code`}
+                        className="w-48 h-48 sm:w-56 sm:h-56 rounded object-contain"
+                      />
                     ) : (
-                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <div className="w-48 h-48 flex items-center justify-center text-xs text-gray-400">
+                        Generating permanent QR code...
+                      </div>
                     )}
-                    <span>{scanResult.message}</span>
                   </div>
+
+                  {/* 2. LASTNAME, FIRSTNAME M.I. */}
+                  <div className="mt-3 text-center">
+                    <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white uppercase tracking-wide">
+                      {studentFormattedName}
+                    </h3>
+                  </div>
+
+                  {/* [small gap] */}
+                  {/* 3. MANUAL ATTENDANCE CODE: + [MANUAL ATTENDANCE CODE] + Use this 6-digit code if there are problems scanning the QR code. */}
+                  <div className="mt-2.5 flex flex-col items-center">
+                    <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-slate-300">
+                      MANUAL ATTENDANCE CODE:
+                    </span>
+                    <span className="mt-1 text-base sm:text-lg font-extrabold font-mono tracking-widest text-[var(--brand)] dark:text-blue-400 bg-white dark:bg-[#1A1A1A] px-3.5 py-1 rounded-md border border-gray-200 dark:border-[#2A2A2A] shadow-xs select-all">
+                      {user?.id ? getStudentManualCode(String(user.id)) : '------'}
+                    </span>
+                    <p className="text-[10px] text-gray-400 dark:text-slate-500 text-center mt-1.5 max-w-[280px] leading-tight">
+                      Use this 6-digit code if there are problems scanning the QR code.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Export QR Code Action Button */}
+                <div className="flex flex-row items-center justify-center gap-2 w-full max-w-full flex-nowrap overflow-x-auto py-1">
                   <button
                     type="button"
-                    onClick={() => setScanResult(null)}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 cursor-pointer"
+                    disabled={!user}
+                    onClick={() => setShowExportModal(true)}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-3.5 sm:px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer whitespace-nowrap"
+                    title="Export Student Attendance QR Code"
                   >
-                    <X className="w-4 h-4" />
+                    <Download className="w-3.5 h-3.5 text-white" />
+                    <span>Export QR Code</span>
                   </button>
-                </div>
-              )}
-
-              {/* Viewport Frame with Corner Scan Brackets */}
-              <div className="w-full">
-                <div className="relative flex min-h-[320px] sm:min-h-[360px] w-full items-center justify-center rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#111111]/60 p-5 overflow-hidden">
-                  {/* Scan frame corners */}
-                  <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-sm z-10" />
-                  <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-sm z-10" />
-                  <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-sm z-10" />
-                  <span className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[var(--brand)] rounded-br-sm z-10" />
-
-                  <div className="w-full max-w-md mx-auto space-y-3">
-                    {cameraError && (
-                      <div className="flex items-start gap-2.5 rounded-md border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30 p-3 text-xs text-red-700 dark:text-red-300">
-                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                        <span>{cameraError}</span>
-                      </div>
-                    )}
-                    <div
-                      id="student-qr-reader"
-                      className="w-full font-mono text-xs text-white overflow-hidden rounded-md"
-                    />
-                    {!isCameraActive && (
-                      <div className="flex justify-center pt-2">
-                        <button
-                          type="button"
-                          onClick={restartScanner}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[var(--brand)] text-white text-xs font-bold hover:bg-[var(--brand-dark)] transition cursor-pointer"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          <span>Scan Again</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Manual Input Container */}
-              <div className="w-full">
-                <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] p-3.5 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase">MANUAL ENTRY</h3>
-                      <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
-                        Enter the 6-character code from your tutor's screen
-                      </p>
-                    </div>
-                  </div>
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleScanSubmit(manualCode);
-                    }}
-                    className="space-y-2"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Enter 6-char code (e.g. 550E84) or session ID..."
-                      value={manualCode}
-                      onChange={(e) => setManualCode(e.target.value.toUpperCase())}
-                      maxLength={36}
-                      className="w-full px-3 py-2 border border-gray-200 dark:border-[#262626] rounded-md text-xs bg-white dark:bg-[#0A0A0A] font-mono tracking-wider text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition-colors uppercase"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!manualCode.trim() || isSubmitting}
-                      className="w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2 rounded-md text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Verifying...</span>
-                        </>
-                      ) : (
-                        'Submit Session Code'
-                      )}
-                    </button>
-                  </form>
                 </div>
               </div>
             </div>
@@ -822,7 +798,7 @@ export const StudentQRAttendance: React.FC = () => {
                     </p>
                   </div>
                   <p className="text-[11px] text-gray-300 dark:text-slate-500 font-medium">
-                    Scan tutor's QR code to record attendance
+                    Present your QR pass to your tutor to record attendance
                   </p>
                 </div>
               ) : (
@@ -897,21 +873,21 @@ export const StudentQRAttendance: React.FC = () => {
       {/* ── Attendance History ──── */}
       <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
         {/* Section Header with Pills and Calendar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-          <div>
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm uppercase">
+        <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+          <div className="min-w-0 flex-1 truncate">
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase truncate">
               {studentFirstName}'S ATTENDANCE HISTORY
             </h3>
-            <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-slate-400">
+            <p className="mt-0.5 text-[10px] sm:text-xs font-medium text-gray-500 dark:text-slate-400 truncate">
               {currentRecordsCount} Record{currentRecordsCount !== 1 ? 's' : ''}
             </p>
           </div>
 
           {/* Controls */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
             {/* View Mode Toggle */}
-            <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5">
-              {(['day', 'week', 'month'] as const).map((mode) => (
+            <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
+              {(['week', 'month'] as const).map((mode) => (
                 <button
                   key={mode}
                   id={`student-att-view-${mode}`}
@@ -920,7 +896,7 @@ export const StudentQRAttendance: React.FC = () => {
                     setViewMode(mode);
                     setJumpDate(null);
                   }}
-                  className={`h-7 whitespace-nowrap rounded-sm px-3 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                  className={`h-7.5 sm:h-7 whitespace-nowrap rounded-sm px-2 sm:px-3 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer ${
                     viewMode === mode && !jumpDate
                       ? 'bg-[var(--brand)] text-white'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
@@ -932,20 +908,20 @@ export const StudentQRAttendance: React.FC = () => {
             </div>
 
             {/* Custom Calendar Dropdown Button */}
-            <div className="relative inline-flex items-center">
+            <div className="relative inline-flex items-center shrink-0">
               <button
                 type="button"
                 id="student-attendance-calendar-btn"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border p-0 transition-all ${
+                className={`flex h-7.5 w-7.5 sm:h-8 sm:w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border p-0 transition-all ${
                   jumpDate
                     ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
                     : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)]'
                 }`}
                 title="Select a specific date from calendar"
-                aria-label="Open score calendar"
+                aria-label="Open Calendar"
               >
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
 
               {showCalendarPopover && (
@@ -1010,91 +986,51 @@ export const StudentQRAttendance: React.FC = () => {
               <AlertCircle className="w-5 h-5" />
               <span>{logsError}</span>
             </div>
-          ) : jumpFiltered !== null ? (
-            jumpFiltered.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-12 text-center">
-                <CalendarDays className="w-8 h-8 text-gray-200 dark:text-gray-700" />
-                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">
-                  No records for this date
-                </p>
-                <p className="text-[11px] text-gray-400 dark:text-slate-500">
-                  Try a different date or clear the filter
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {timeGroupedHistory.map((group) => (
-                  <div key={group.key}>
-                    <div className="mb-2.5 flex items-center gap-3">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-                        {group.label}
-                      </span>
-                      <div className="h-px flex-1 bg-gray-100 dark:bg-[#1A1A1A]" />
-                      <span className="text-[11px] font-semibold text-gray-400 dark:text-slate-500">
-                        {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    {renderTable(sortRecords(group.records))}
-                  </div>
-                ))}
-              </div>
-            )
-          ) : viewMode === 'day' ? (
-            sortedHistory.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-12 text-center">
-                <CalendarDays className="w-8 h-8 text-gray-200 dark:text-gray-700" />
-                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">
-                  No attendance records yet
-                </p>
-                <p className="text-[11px] text-gray-400 dark:text-slate-500">
-                  Records will appear once attendance is logged for you
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {timeGroupedHistory.map((group) => (
-                  <div key={group.key}>
-                    <div className="mb-2.5 flex items-center gap-3">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-                        {group.label}
-                      </span>
-                      <div className="h-px flex-1 bg-gray-100 dark:bg-[#1A1A1A]" />
-                      <span className="text-[11px] font-semibold text-gray-400 dark:text-slate-500">
-                        {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    {renderTable(sortRecords(group.records))}
-                  </div>
-                ))}
-              </div>
-            )
-          ) : groupedHistory.length === 0 ? (
+          ) : activeRecords.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
-              <CalendarDays className="w-8 h-8 text-gray-200 dark:text-gray-700" />
-              <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">
-                No records to display
+              <CalendarDays className="w-10 h-10 text-gray-200 dark:text-gray-700" />
+              <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">
+                {jumpDate ? 'No records for this date' : 'No attendance records yet'}
+              </p>
+              <p className="text-xs text-gray-400 dark:text-slate-500">
+                {jumpDate ? 'Try a different date or clear the filter' : 'Records will appear once attendance is logged for you'}
               </p>
             </div>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-6">
               {groupedHistory.map((group) => (
-                <div key={group.key}>
-                  <div className="flex items-center gap-3 mb-2.5">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-                      {group.label}
-                    </span>
-                    <div className="flex-1 h-px bg-gray-100 dark:bg-[#1A1A1A]" />
-                    <span className="text-[11px] font-semibold text-gray-400 dark:text-slate-500">
-                      {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  {renderTable(sortRecords(group.records))}
-                </div>
+                <AttendanceHistoryGroupSection
+                  key={group.key}
+                  group={group}
+                  selectedDate={selectedDate}
+                  onSelectDate={setSelectedDate}
+                  formatDateString={formatDateString}
+                  formatTimeString={formatTimeString}
+                  studentName={user?.full_name || studentFirstName}
+                />
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Export Student QR Code Modal */}
+      <ExportStudentQrModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        student={
+          user
+            ? {
+                id: String(user.id),
+                name: studentFormattedName,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                middle_name: user.middle_name,
+                lrn: user.lrn,
+              }
+            : null
+        }
+      />
     </div>
   );
 };

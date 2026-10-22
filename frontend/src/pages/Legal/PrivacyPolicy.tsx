@@ -1,7 +1,5 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShieldCheck, Lock, Eye, Database, FileCheck, CheckCircle2, UserCheck, AlertCircle, School } from 'lucide-react';
-import aralertLogo from '../../assets/ARALert_Logo_LIGHT.png';
 
 export const PrivacyPolicy: React.FC = () => {
   const navigate = useNavigate();
@@ -11,197 +9,258 @@ export const PrivacyPolicy: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex-1 w-full bg-slate-50 dark:bg-[#0A0A0A] text-slate-800 dark:text-slate-200 pt-28 sm:pt-32 pb-20 px-4 sm:px-6 lg:px-8 transition-colors">
-      <div className="max-w-4xl mx-auto bg-white dark:bg-[#111111] rounded-3xl border border-slate-200 dark:border-neutral-800 shadow-xl p-6 sm:p-12 space-y-10">
-        
-        {/* Navigation & Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-neutral-800 pb-6">
+    <div
+      className="min-h-screen w-full bg-slate-50 dark:bg-[#0A0A0A] text-slate-800 dark:text-slate-200 pt-24 sm:pt-28 pb-24 px-4 sm:px-6 lg:px-8 transition-colors"
+      style={{ fontFamily: "'Poppins', sans-serif" }}
+    >
+      <div className="max-w-4xl mx-auto space-y-8">
+
+        {/* Navigation */}
+        <div className="flex items-center justify-between pb-2">
           <button
             type="button"
             onClick={() => {
               if (window.history.length > 1) {
                 navigate(-1);
               } else {
-                navigate('/');
+                navigate('/login');
               }
             }}
-            className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-[#0052B7] dark:hover:text-blue-400 transition-colors cursor-pointer px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-neutral-800"
+            className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-[#0052B7] dark:hover:text-blue-400 transition-colors cursor-pointer py-1"
           >
-            <ArrowLeft className="w-4 h-4" /> Back
+            &larr; Return to Previous Page
           </button>
-          <div className="flex items-center gap-2.5">
-            <img src={aralertLogo} alt="ARALert Logo" className="h-7 sm:h-8 w-auto object-contain" />
-            <span className="font-extrabold text-lg sm:text-xl text-slate-900 dark:text-white tracking-tight">ARALert</span>
-          </div>
+          <span className="text-xs font-medium text-slate-500 dark:text-neutral-500">
+            Institutional Document
+          </span>
         </div>
 
-        {/* Title Badge & Heading */}
-        <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider">
-            <ShieldCheck className="w-4 h-4" /> Republic Act No. 10173 Compliance
+        {/* Institutional Document Header */}
+        <header className="border-b border-slate-300 dark:border-neutral-800 pb-8 space-y-4">
+          <div className="space-y-1 text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400">
+            <p className="font-semibold">Republic of the Philippines</p>
+            <p className="font-semibold">Department of Education &bull; Region V (Bicol) &bull; Division of Masbate</p>
+            <p className="font-bold text-slate-700 dark:text-slate-300">Palanas National Agriculture High School</p>
           </div>
-          <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Data Privacy Statement & Policy
+
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight pt-2">
+            Data Privacy Statement and Compliance Policy
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-neutral-400">
-            In compliance with the Philippine Data Privacy Act of 2012 (RA 10173) and National Privacy Commission (NPC) Circulars
+
+          <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-y-1 gap-x-6 text-xs text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-neutral-800/80 pt-4">
+            <div>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Document Identifier: </span>
+              <span>DepEd-PNAHS-ARAL-DPA-2025</span>
+            </div>
+            <div>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Statutory Authority: </span>
+              <span>Republic Act No. 10173 (Data Privacy Act of 2012)</span>
+            </div>
+            <div>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Supervisory Body: </span>
+              <span>National Privacy Commission (NPC)</span>
+            </div>
+            <div>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Effective Date: </span>
+              <span>School Year 2025–2026 onwards</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Preamble */}
+        <div className="space-y-4 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+          <p>
+            Palanas National Agriculture High School recognizes its fundamental legal obligation under the 1987 Constitution of the Republic of the Philippines and the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong> to uphold the confidentiality, security, and integrity of all educational, personal, and biometric records processed through the <strong>ARALert Academic Early Warning System</strong>.
+          </p>
+          <p>
+            This Policy details our institutional governance framework regarding the collection, handling, safeguarding, and disposal of learner academic evaluations and personnel attendance records under the <strong>Academic Recovery and Accessible Learning (ARAL) Program Act (Republic Act No. 12028)</strong>.
           </p>
         </div>
 
-        {/* Highlight Summary Box */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 flex items-start gap-3.5">
-          <Lock className="w-5 h-5 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" />
-          <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed space-y-1">
-            <strong className="text-slate-900 dark:text-white block">Commitment to Learner & Personnel Data Privacy</strong>
-            <span>
-              ARALert strictly protects the privacy and confidentiality of student academic records, tutor daily time logs, and educator profiles. We do not sell, share, or monetize any educational data with external commercial entities.
-            </span>
+        {/* Section 1 */}
+        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+            Section 1. Institutional Privacy Declaration and Commitments
+          </h2>
+          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+            <p>
+              <strong>1.1 Institutional Role.</strong> Palanas National Agriculture High School operates as the Personal Information Controller (PIC) for all educational data processed within ARALert. The School Administration exercises authoritative control over processing guidelines and technical safeguards.
+            </p>
+            <p>
+              <strong>1.2 Strict Non-Monetization Policy.</strong> Student learning performance metrics, tutor Daily Time Records (DTR), and assessment records are institutional educational assets. We maintain an unconditional prohibition against the commercialization, external monetization, marketing, or unauthorized transfer of user data to third-party entities.
+            </p>
+            <p>
+              <strong>1.3 Principle of Proportionality.</strong> The platform gathers solely the minimum extent of personal information strictly indispensable to satisfy the educational monitoring and early intervention objectives of the ARAL Program.
+            </p>
           </div>
-        </div>
+        </section>
 
-        {/* Main Content Sections */}
-        <div className="space-y-8 text-xs sm:text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-          
-          {/* Section 1 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Eye className="w-5 h-5 text-[#0052B7] dark:text-blue-400" />
-              1. General Privacy Declaration
-            </h2>
+        {/* Section 2 */}
+        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+            Section 2. Categories of Personal and Educational Data Processed
+          </h2>
+          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
             <p>
-              <strong>ARALert</strong> (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;platform&rdquo;) operates in accordance with the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong>, its Implementing Rules and Regulations (IRR), and applicable guidelines issued by the Department of Education (DepEd) and the National Privacy Commission (NPC).
+              In execution of mandated educational intervention functions, ARALert processes the following data categories:
             </p>
-            <p>
-              This policy outlines how personal and academic data is collected, stored, processed, and safeguarded when you access the platform at Palanas National Agriculture High School.
-            </p>
-          </section>
-
-          {/* Section 2 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Database className="w-5 h-5 text-[#0052B7] dark:text-blue-400" />
-              2. Categories of Data Collected
-            </h2>
-            <p>To implement the DepEd ARAL Program effectively, ARALert processes the following data categories:</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-              
-              <div className="p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/50 space-y-2">
-                <div className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
-                  Student Learner Data
-                </div>
-                <ul className="list-disc list-inside space-y-1 text-xs text-slate-600 dark:text-slate-400">
-                  <li>Official 12-digit Learner Reference Number (LRN)</li>
-                  <li>Full Legal Name, Grade Level & Section</li>
-                  <li>Assigned ARAL Subject (Reading, Math, Science)</li>
-                  <li>ARAL Program Level (Basic, Plus, Summer, Graduated)</li>
-                  <li>Assessment Scores (BOSY, MOSY, EOSY, Tasks)</li>
-                  <li>Daily QR Session Attendance Records</li>
-                </ul>
-              </div>
-
-              <div className="p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/50 space-y-2">
-                <div className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
-                  Educator & Personnel Data
-                </div>
-                <ul className="list-disc list-inside space-y-1 text-xs text-slate-600 dark:text-slate-400">
-                  <li>Full Name & Institutional DepEd Email</li>
-                  <li>Assigned Role (Principal, Admin, Faculty, Tutor)</li>
-                  <li>Specialization & Assigned Student Cohorts</li>
-                  <li>Daily Time Record (DTR) check-in timestamps</li>
-                  <li>System Audit Logs (IP, timestamps for security)</li>
-                </ul>
-              </div>
-
+            <div className="pl-4 border-l-2 border-slate-300 dark:border-neutral-700 space-y-2.5">
+              <p>
+                <strong>2.1 Student Learner Records:</strong> Official 12-digit Learner Reference Number (LRN), full legal name, grade level, section, assigned ARAL subject (Filipino, English, Mathematics, or Science), assigned program cohort (Basic, Plus, Summer, or Graduated), formative and periodic marks (BOSY, MOSY, EOSY, and performance tasks), calculated risk level classifications, and daily QR session attendance timestamps.
+              </p>
+              <p>
+                <strong>2.2 Educator and Personnel Information:</strong> Full legal name, institutional DepEd Google account email (@deped.gov.ph or authorized domain), administrative designation (Principal, Administrator, Faculty, or Tutor), assigned student cohorts, and Daily Time Record (DTR) QR check-in and check-out logs.
+              </p>
+              <p>
+                <strong>2.3 System Audit and Security Telemetry:</strong> Network Internet Protocol (IP) addresses, cryptographic session tokens, user-agent details, and immutable audit logs recording every score creation, attendance submission, profile edit review, and administrative action.
+              </p>
             </div>
-          </section>
+          </div>
+        </section>
 
-          {/* Section 3 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <FileCheck className="w-5 h-5 text-[#0052B7] dark:text-blue-400" />
-              3. Lawful Basis & Purpose of Processing
-            </h2>
+        {/* Section 3 */}
+        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+            Section 3. Lawful Basis and Educational Purposes of Processing
+          </h2>
+          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
             <p>
-              Under Sections 12 and 13 of RA 10173, the processing of learner data is strictly justified under statutory compliance with <strong>Republic Act No. 12028 (ARAL Program Act)</strong> and the legitimate educational mandates of the Department of Education. Data is processed exclusively to:
+              <strong>3.1 Statutory Basis.</strong> Under Section 12 (Criteria for Lawful Processing of Personal Information) and Section 13 (Sensitive Personal Information) of Republic Act No. 10173, data processing within ARALert is legally grounded in compliance with statutory obligations established by <strong>Republic Act No. 12028 (ARAL Program Act)</strong> and the constitutional mandate of the Department of Education to ensure accessible, quality basic education.
             </p>
-            <ul className="list-disc list-inside space-y-1.5 ml-2 text-slate-600 dark:text-slate-300">
-              <li>Identify learning competencies requiring urgent recovery and targeted tutoring.</li>
-              <li>Monitor daily student participation and tutor instructional hours.</li>
-              <li>Compute milestone progression (30% Assessment, 50% Tasks, 20% Attendance).</li>
-              <li>Generate official DepEd Division and Regional accomplishment reports.</li>
-            </ul>
-          </section>
-
-          {/* Section 4 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Lock className="w-5 h-5 text-[#0052B7] dark:text-blue-400" />
-              4. Technical & Organizational Security Controls
-            </h2>
             <p>
-              ARALert maintains rigorous physical, technical, and administrative controls to protect information:
+              <strong>3.2 Specific Operational Purposes.</strong> Data processed within the system is utilized exclusively for:
             </p>
-            <div className="space-y-2 pt-1">
-              <div className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Role-Based Access Control (RBAC):</strong> Strict cryptographic permissions guarantee that tutors only see assigned learners, students only see their own scores, and administrators have scoped management access.</span>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Encrypted Communications:</strong> All data transmissions are protected via SSL/TLS 256-bit encryption.</span>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Audit Trails:</strong> All administrative modifications to scores or accounts generate immutable audit logs.</span>
-              </div>
+            <div className="pl-4 border-l-2 border-slate-300 dark:border-neutral-700 space-y-1.5 text-xs sm:text-sm">
+              <p>&bull; Identifying learners requiring immediate literacy and numeracy remediation.</p>
+              <p>&bull; Generating early warning academic risk cohort classifications (Low, Medium, and High Risk).</p>
+              <p>&bull; Computing weighted performance metrics under DepEd validated standards (30% Formative Assessments, 50% Tasks, and 20% Attendance Rate).</p>
+              <p>&bull; Evaluating student readiness for cohort graduation or progression to advanced ARAL tiers.</p>
+              <p>&bull; Formulating mandatory institutional performance and accomplishment reports for the Division of Masbate and DepEd Regional Office V.</p>
             </div>
-          </section>
+          </div>
+        </section>
 
-          {/* Section 5 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <UserCheck className="w-5 h-5 text-[#0052B7] dark:text-blue-400" />
-              5. Rights of Data Subjects under Philippine Law
-            </h2>
+        {/* Section 4 */}
+        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+            Section 4. Technical, Physical, and Organizational Security Safeguards
+          </h2>
+          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
             <p>
-              As a data subject (or as a parent/legal guardian exercising rights on behalf of a minor student), you are entitled to the following rights under RA 10173:
+              Palanas National Agriculture High School implements comprehensive defense-in-depth safeguards to prevent unauthorized access, interception, or tampering:
             </p>
-            <ul className="list-disc list-inside space-y-1.5 ml-2 text-slate-600 dark:text-slate-300">
-              <li><strong>Right to be Informed:</strong> To know how and why your personal data is collected and processed.</li>
-              <li><strong>Right to Access:</strong> To view your academic history and attendance records anytime through the student portal.</li>
-              <li><strong>Right to Rectification:</strong> To request correction of inaccurate names, LRNs, or erroneous scores through the official School Admin review process.</li>
-              <li><strong>Right to File a Complaint:</strong> To seek redress with the National Privacy Commission (NPC) if your privacy rights have been infringed.</li>
-            </ul>
-          </section>
-
-          {/* Section 6 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <School className="w-5 h-5 text-[#0052B7] dark:text-blue-400" />
-              6. Data Protection Inquiries
-            </h2>
-            <p>
-              To exercise your data privacy rights, file a correction request, or submit an inquiry, please contact:
-            </p>
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 space-y-1 text-xs sm:text-sm">
-              <div className="font-bold text-slate-900 dark:text-white">
-                Data Protection Compliance Committee
-              </div>
-              <p className="text-slate-500 dark:text-neutral-400">Palanas National Agriculture High School &bull; DepEd Masbate</p>
-              <p className="text-slate-500 dark:text-neutral-400">Official Email: <a href="mailto:contact@aralert.ph" className="text-[#0052B7] dark:text-blue-400 hover:underline">contact@aralert.ph</a></p>
-              <p className="text-slate-500 dark:text-neutral-400">Website: <a href="https://privacy.gov.ph" target="_blank" rel="noopener noreferrer" className="text-[#0052B7] dark:text-blue-400 hover:underline">National Privacy Commission (NPC)</a></p>
+            <div className="pl-4 border-l-2 border-slate-300 dark:border-neutral-700 space-y-2.5">
+              <p>
+                <strong>4.1 Transport-Layer and Storage Cryptography.</strong> All network transmissions between client browsers and the school server perimeter are protected through Transport Layer Security (TLS 1.3 / SSL 256-bit encryption). Data storage is hardened against unauthorized exfiltration.
+              </p>
+              <p>
+                <strong>4.2 Role-Based Access Control (RBAC).</strong> Strict authorization boundaries are enforced at the API gateway: tutors cannot view unassigned students; learners can view only their own records; and administrative functions are strictly restricted to verified personnel.
+              </p>
+              <p>
+                <strong>4.3 Immutable Audit Logging.</strong> Any administrative modification, student profile edit approval, or grade adjustment creates an unalterable audit log entry containing the exact timestamp, acting user ID, and previous versus updated values.
+              </p>
+              <p>
+                <strong>4.4 Automated Session Expiration.</strong> Authenticated user sessions are subject to strict inactivity timeouts to prevent unauthorized terminal access on shared school workstations.
+              </p>
             </div>
-          </section>
+          </div>
+        </section>
 
-        </div>
+        {/* Section 5 */}
+        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+            Section 5. Data Retention, Archival, and Secure Disposal
+          </h2>
+          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+            <p>
+              <strong>5.1 Active Retention.</strong> Student assessment and attendance records are maintained actively throughout the student&rsquo;s enrollment in the ARAL Program and across the active school year cycle.
+            </p>
+            <p>
+              <strong>5.2 Official Archival.</strong> Upon school year completion or student program graduation, performance data is securely transitioned into the historical evaluation archives in compliance with Department of Education record retention schedules and the National Archives of the Philippines Act (Republic Act No. 9470).
+            </p>
+            <p>
+              <strong>5.3 Secure Destruction.</strong> Expired temporary data, obsolete session caches, and transient diagnostic logs are expunged using secure cryptographic erasure protocols.
+            </p>
+          </div>
+        </section>
 
-        {/* Footer Link Switcher */}
-        <div className="pt-6 border-t border-slate-100 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-neutral-400">
-          <span>&copy; {new Date().getFullYear()} ARALert &bull; DepEd ARAL Program</span>
-          <Link to="/terms" className="text-[#0052B7] dark:text-blue-400 hover:underline font-bold flex items-center gap-1">
-            Read Terms of Service &rarr;
-          </Link>
-        </div>
+        {/* Section 6 */}
+        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+            Section 6. Statutory Rights of Data Subjects under Republic Act No. 10173
+          </h2>
+          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+            <p>
+              Registered learners (acting through their parents or legal guardians if minor) and personnel possess enforceable legal rights under the Data Privacy Act of 2012:
+            </p>
+            <div className="pl-4 border-l-2 border-slate-300 dark:border-neutral-700 space-y-2">
+              <p>
+                <strong>6.1 Right to be Informed.</strong> Data subjects have the right to be notified regarding the nature, purpose, and extent of automated processing of their educational records.
+              </p>
+              <p>
+                <strong>6.2 Right to Access.</strong> Learners and staff may access their verified performance history, DTR logs, and personal profile information at any time via authenticated portal access.
+              </p>
+              <p>
+                <strong>6.3 Right to Rectification.</strong> If personal information or encoded assessment marks are inaccurate or incomplete, data subjects may lodge a formal Profile Edit Request or grade verification petition with the School Administration.
+              </p>
+              <p>
+                <strong>6.4 Right to File a Complaint.</strong> If a data subject has reasonable grounds to believe that their privacy rights have been compromised, they have the statutory right to seek redress with the National Privacy Commission (NPC).
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 7 */}
+        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+            Section 7. Institutional Privacy Oversight and Contact Information
+          </h2>
+          <div className="space-y-2 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+            <p>
+              For formal data privacy inquiries, requests for record verification, or statutory complaints, please direct official communications to:
+            </p>
+            <div className="pl-4 border-l-2 border-slate-300 dark:border-neutral-700 space-y-1 text-xs sm:text-sm">
+              <p className="font-bold text-slate-900 dark:text-white">Data Protection Compliance Committee</p>
+              <p className="text-slate-600 dark:text-slate-400">Palanas National Agriculture High School &bull; DepEd Division of Masbate</p>
+              <p className="text-slate-600 dark:text-slate-400">Palanas, Masbate, Region V (Bicol), Philippines</p>
+              <p className="text-slate-600 dark:text-slate-400">
+                Official Email:{' '}
+                <a href="mailto:contact@aralert.ph" className="font-semibold text-[#0052B7] dark:text-blue-400 hover:underline">
+                  contact@aralert.ph
+                </a>
+              </p>
+              <p className="text-slate-600 dark:text-slate-400">
+                Supervisory Authority:{' '}
+                <a
+                  href="https://privacy.gov.ph"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-[#0052B7] dark:text-blue-400 hover:underline"
+                >
+                  National Privacy Commission (NPC) Official Portal
+                </a>
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Formal Document Footer */}
+        <footer className="pt-8 border-t border-slate-300 dark:border-neutral-800 text-xs text-slate-500 dark:text-neutral-500 space-y-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <p>
+              &copy; {new Date().getFullYear()} Palanas National Agriculture High School. ARALert Educational System.
+            </p>
+            <p>
+              Related Document:{' '}
+              <Link to="/terms" className="font-semibold text-[#0052B7] dark:text-blue-400 hover:underline">
+                Terms of Service &rarr;
+              </Link>
+            </p>
+          </div>
+          <p className="text-[11px] text-slate-400 dark:text-neutral-600">
+            Formulated in strict adherence to Republic Act No. 10173 and National Privacy Commission Circulars. Maintained by the Data Protection Compliance Committee.
+          </p>
+        </footer>
 
       </div>
     </div>

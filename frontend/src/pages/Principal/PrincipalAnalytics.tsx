@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { Attendance, Grade, User } from '../../types';
 import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
+import { buildTutorClassSections, isStudentInCohort } from '../../utils/tutorCohortHelpers';
 
 interface ExtendedRiskRow extends StudentRiskRow {
   absentCount: number;
@@ -32,6 +33,7 @@ type RiskScope = 'all' | string;
 interface TutorOption {
   id: string;
   name: string;
+  user?: User;
 }
 
 interface RiskTrendPoint {
@@ -44,6 +46,38 @@ interface RiskTrendPoint {
 
 const toLocalDateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const getPeriodDateRange = (filter: TrendFilter): { start: Date; end: Date; label: string } => {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+  if (filter === 'day') {
+    return { start: startOfToday, end: endOfToday, label: 'Today' };
+  } else if (filter === 'month') {
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    return { start: startOfMonth, end: endOfMonth, label: 'This Month' };
+  } else {
+    // Week: Monday of current week to Sunday end
+    const dayOfWeek = now.getDay();
+    const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const currentWeekMon = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + diffToMon, 0, 0, 0, 0);
+    const currentWeekSun = new Date(currentWeekMon.getFullYear(), currentWeekMon.getMonth(), currentWeekMon.getDate() + 6, 23, 59, 59, 999);
+    return { start: currentWeekMon, end: currentWeekSun, label: 'This Week' };
+  }
+};
+
+const isStudentOfTutor = (s: any, tutorId: string, tutorName?: string): boolean => {
+  const assignedId = typeof s.assigned_tutor === 'object' && s.assigned_tutor !== null
+    ? String(s.assigned_tutor.id ?? s.assigned_tutor.pk ?? '')
+    : String(s.assigned_tutor ?? s.tutor_id ?? (typeof s.tutor === 'object' ? s.tutor?.id : s.tutor) ?? '');
+  if (assignedId && assignedId === tutorId) return true;
+  if (tutorName && s.assigned_tutor_name && s.assigned_tutor_name.toLowerCase() === tutorName.toLowerCase()) {
+    return true;
+  }
+  return false;
+};
 
 const getLogUserId = (log: Attendance | any): string => {
   if (!log) return '';
@@ -93,7 +127,13 @@ const buildTrendPoints = (
   metric: 'attendance' | 'score',
   filter: TrendFilter
 ): TrendPoint[] => {
-  const studentIds = new Set(students.map((student) => String(student.id)));
+  const studentIds = new Set<string>();
+  students.forEach((student) => {
+    if (student.id) studentIds.add(String(student.id));
+    if (student.lrn) studentIds.add(String(student.lrn));
+    if ((student as any).user_id) studentIds.add(String((student as any).user_id));
+    if ((student as any).student_id) studentIds.add(String((student as any).student_id));
+  });
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -130,28 +170,55 @@ const buildTrendPoints = (
     });
   }
 
-  return periods.map(({ start, end, label, dateKey }) => {
+  const points = periods.map((period) => {
     if (metric === 'attendance') {
-      const logsInPeriod = attendanceLogs.filter((log) => {
+      const records = attendanceLogs.filter((log) => {
+        const uid = getLogUserId(log);
+        if (!studentIds.has(uid)) return false;
         const d = getRecordDate(log);
-        return d && d >= start && d < end && studentIds.has(getLogUserId(log));
+        if (!d) return false;
+        return d >= period.start && d < period.end;
       });
-      const total = logsInPeriod.length;
-      const attended = logsInPeriod.filter((log) => isAttendedStatus(log.status)).length;
-      const rate = total > 0 ? Math.round((attended / total) * 100) : 0;
-      return { dateKey, label, value: rate };
+      if (records.length === 0) return { period, point: null };
+      const attended = records.filter((log) => isAttendedStatus(log.status)).length;
+      const point: TrendPoint = {
+        dateKey: period.dateKey,
+        label: period.label,
+        value: Math.round((attended / records.length) * 100),
+      };
+      return { period, point };
     }
 
-    const gradesInPeriod = grades.filter((grade) => {
-      if (grade.component_type === 'attendance' || grade.remarks === 'Not Taken') return false;
+    const scoreRecords = grades.filter((grade) => {
+      const sid = getGradeStudentId(grade);
+      if (!studentIds.has(sid) || grade.component_type === 'attendance' || grade.remarks === 'Not Taken') return false;
       const d = getRecordDate(grade);
-      return d && d >= start && d < end && studentIds.has(getGradeStudentId(grade));
+      if (!d) return false;
+      return d >= period.start && d < period.end;
     });
-    const validScores = gradesInPeriod
-      .filter((grade) => Number(grade.total_score) > 0)
-      .map((grade) => (Number(grade.score) / Number(grade.total_score)) * 100);
-    const avgScore = validScores.length > 0 ? Math.round(validScores.reduce((sum, score) => sum + score, 0) / validScores.length) : 0;
-    return { dateKey, label, value: avgScore };
+    if (scoreRecords.length === 0) return { period, point: null };
+    const average = scoreRecords.reduce((total, grade) => {
+      const totalScore = Number(grade.total_score) > 0 ? Number(grade.total_score) : 100;
+      return total + (Number(grade.score) / totalScore) * 100;
+    }, 0) / scoreRecords.length;
+    const point: TrendPoint = {
+      dateKey: period.dateKey,
+      label: period.label,
+      value: Math.round(Math.min(Math.max(average, 0), 100)),
+    };
+    return { period, point };
+  });
+
+  if (points.every(({ point }) => point === null)) return [];
+
+  const firstRecordedPoint = points.find(({ point }) => point !== null)?.point;
+  let lastValue = firstRecordedPoint ? firstRecordedPoint.value : (metric === 'attendance' ? 100 : 75);
+  return points.map(({ period, point }) => {
+    if (point) {
+      lastValue = point.value;
+      return point;
+    }
+    return { dateKey: period.dateKey, label: period.label, value: lastValue };
   });
 };
 
@@ -161,6 +228,13 @@ const buildRiskTrend = (
   attendanceLogs: Attendance[],
   filter: TrendFilter
 ): RiskTrendPoint[] => {
+  const studentIds = new Set<string>();
+  students.forEach((student) => {
+    if (student.id) studentIds.add(String(student.id));
+    if (student.lrn) studentIds.add(String(student.lrn));
+    if ((student as any).user_id) studentIds.add(String((student as any).user_id));
+    if ((student as any).student_id) studentIds.add(String((student as any).student_id));
+  });
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -197,20 +271,46 @@ const buildRiskTrend = (
     });
   }
 
-  return periods.map(({ end, label, dateKey }) => {
-    const cumGrades = grades.filter((g) => {
-      const d = getRecordDate(g);
-      return d ? d < end : true;
+  const points = periods.map((period) => {
+    const periodGrades = grades.filter((grade) => {
+      const sid = getGradeStudentId(grade);
+      if (!studentIds.has(sid)) return false;
+      const d = getRecordDate(grade);
+      if (!d) return false;
+      return d < period.end;
     });
-    const cumAtt = attendanceLogs.filter((a) => {
-      const d = getRecordDate(a);
-      return d ? d < end : true;
+    const periodAttendance = attendanceLogs.filter((log) => {
+      const uid = getLogUserId(log);
+      if (!studentIds.has(uid)) return false;
+      const d = getRecordDate(log);
+      if (!d) return false;
+      return d < period.end;
     });
-    const periodRows = computeStudentRiskRows(students, cumGrades, cumAtt);
-    const high = periodRows.filter((r) => r.riskTier === 'High').length;
-    const medium = periodRows.filter((r) => r.riskTier === 'Medium').length;
-    const low = periodRows.filter((r) => r.riskTier === 'Low').length;
-    return { dateKey, label, high, medium, low };
+    if (periodGrades.length === 0 && periodAttendance.length === 0) return { period, point: null };
+    const snapshot = computeStudentRiskRows(students, periodGrades, periodAttendance);
+    return {
+      period,
+      point: {
+        dateKey: period.dateKey,
+        label: period.label,
+        high: snapshot.filter((row) => row.riskTier === 'High').length,
+        medium: snapshot.filter((row) => row.riskTier === 'Medium').length,
+        low: snapshot.filter((row) => row.riskTier === 'Low').length,
+      },
+    };
+  });
+
+  if (points.every(({ point }) => point === null)) return [];
+
+  const firstRecordedPoint = points.find(({ point }) => point !== null)?.point;
+  if (!firstRecordedPoint) return [];
+  let lastPoint = firstRecordedPoint;
+  return points.map(({ period, point }) => {
+    if (point) {
+      lastPoint = point;
+      return point;
+    }
+    return { dateKey: period.dateKey, label: period.label, high: lastPoint.high, medium: lastPoint.medium, low: lastPoint.low };
   });
 };
 
@@ -515,7 +615,7 @@ const RiskTrendChart: React.FC<{
   const barWidth = Math.max(14, Math.min(34, (chartWidth / (data.length || 1)) * 0.35));
   const getBarX = (index: number) => paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1 || 1);
 
-  if (total === 0) {
+  if (total === 0 || data.length === 0) {
     return (
       <div className="flex h-52 w-full flex-col items-center justify-center gap-1.5 text-center">
         <Users className="h-6 w-6 text-gray-300 dark:text-zinc-600" />
@@ -667,7 +767,7 @@ const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; o
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((open) => !open)}
-        className="flex h-9 min-w-40 items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 dark:border-[#1A1A1A] dark:bg-[#111111] px-3 text-xs font-semibold tracking-normal text-gray-700 dark:text-slate-200 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer"
+        className="flex h-8 sm:h-9 w-28 xs:w-36 sm:min-w-40 items-center justify-between gap-1.5 sm:gap-3 rounded-xl border border-gray-200 bg-gray-50 dark:border-[#1A1A1A] dark:bg-[#111111] px-2 sm:px-3 text-[11px] sm:text-xs font-semibold tracking-normal text-gray-700 dark:text-slate-200 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shrink-0"
         style={{ fontFamily: 'var(--font-body)' }}
       >
         <span className="truncate">{selectedLabel}</span>
@@ -713,6 +813,7 @@ export const PrincipalAnalytics: React.FC = () => {
   const location = useLocation();
 
   // Tutor Filter state
+  const [allTutorUsers, setAllTutorUsers] = useState<User[]>([]);
   const [tutors, setTutors] = useState<TutorOption[]>([]);
   const [selectedTutorId, setSelectedTutorId] = useState<'all' | string>(() => {
     const requestedTutor = new URLSearchParams(window.location.search).get('tutorId');
@@ -720,6 +821,13 @@ export const PrincipalAnalytics: React.FC = () => {
   });
   const [isTutorDropdownOpen, setIsTutorDropdownOpen] = useState(false);
   const tutorDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Class Filter state (select which class of tutor to see)
+  const [selectedClassId, setSelectedClassId] = useState<string>(() => {
+    return new URLSearchParams(window.location.search).get('class') || 'all';
+  });
+  const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
+  const classDropdownRef = useRef<HTMLDivElement>(null);
 
   // Raw data from API
   const [allStudents, setAllStudents] = useState<User[]>([]);
@@ -746,13 +854,14 @@ export const PrincipalAnalytics: React.FC = () => {
   const [attendanceScope, setAttendanceScope] = useState<RiskScope>('all');
   const [scoreScope, setScoreScope] = useState<RiskScope>('all');
 
-
-
-  // Close tutor dropdown when clicked outside
+  // Close dropdowns when clicked outside
   useEffect(() => {
     const closeDropdown = (e: MouseEvent) => {
       if (tutorDropdownRef.current && !tutorDropdownRef.current.contains(e.target as Node)) {
         setIsTutorDropdownOpen(false);
+      }
+      if (classDropdownRef.current && !classDropdownRef.current.contains(e.target as Node)) {
+        setIsClassDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', closeDropdown);
@@ -767,6 +876,12 @@ export const PrincipalAnalytics: React.FC = () => {
     } else if (params.has('tutorId') && !requestedTutor) {
       setSelectedTutorId('all');
     }
+    const requestedClass = params.get('class');
+    if (requestedClass) {
+      setSelectedClassId(requestedClass);
+    } else if (params.has('class') && !requestedClass) {
+      setSelectedClassId('all');
+    }
     const requestedTab = params.get('tab');
     if (requestedTab === 'overall' || requestedTab === 'attendance' || requestedTab === 'score') {
       setActiveAnalyticsTab(requestedTab);
@@ -775,17 +890,30 @@ export const PrincipalAnalytics: React.FC = () => {
 
   const handleSelectTutor = (tutorId: 'all' | string) => {
     setSelectedTutorId(tutorId);
+    setSelectedClassId('all');
     setIsTutorDropdownOpen(false);
+    setIsClassDropdownOpen(false);
     const url = new URL(window.location.href);
     if (tutorId === 'all') {
       url.searchParams.delete('tutorId');
     } else {
       url.searchParams.set('tutorId', tutorId);
     }
+    url.searchParams.delete('class');
     window.history.replaceState(null, '', url.pathname + url.search);
   };
 
-
+  const handleSelectClass = (classId: string) => {
+    setSelectedClassId(classId);
+    setIsClassDropdownOpen(false);
+    const url = new URL(window.location.href);
+    if (classId === 'all') {
+      url.searchParams.delete('class');
+    } else {
+      url.searchParams.set('class', classId);
+    }
+    window.history.replaceState(null, '', url.pathname + url.search);
+  };
 
   // Fetch initial analytics data (tutors, students, grades, attendance)
   const fetchAnalytics = async () => {
@@ -801,12 +929,16 @@ export const PrincipalAnalytics: React.FC = () => {
         academicService.getPrincipalDashboard({ days: 30 }).catch(() => null),
       ]);
 
+      const tutorUserList = Array.isArray(tutorsData) ? tutorsData : [];
+      setAllTutorUsers(tutorUserList);
+
       // Populate Tutors list
       let parsedTutors: TutorOption[] = [];
-      if (Array.isArray(tutorsData) && tutorsData.length > 0) {
-        parsedTutors = tutorsData.map((t) => ({
+      if (tutorUserList.length > 0) {
+        parsedTutors = tutorUserList.map((t) => ({
           id: String(t.id),
           name: t.full_name || `${t.first_name || ''} ${t.last_name || ''}`.trim() || t.username,
+          user: t,
         }));
       } else if (dashboardData?.per_tutor_performance?.length) {
         parsedTutors = dashboardData.per_tutor_performance.map((t) => ({
@@ -839,43 +971,133 @@ export const PrincipalAnalytics: React.FC = () => {
     fetchAnalytics();
   }, [user]);
 
-  // Filter students, grades, and attendance when selectedTutorId changes
-  const activeStudents = useMemo(() => {
+  // Selected tutor user details
+  const selectedTutorUser = useMemo(() => {
+    if (selectedTutorId === 'all') return null;
+    return allTutorUsers.find((t) => String(t.id) === selectedTutorId) || null;
+  }, [allTutorUsers, selectedTutorId]);
+
+  // All students belonging to the currently selected tutor (or school)
+  const tutorStudents = useMemo(() => {
     if (selectedTutorId === 'all') return allStudents;
-    return allStudents.filter((s: any) => {
-      const assignedId = typeof s.assigned_tutor === 'object' && s.assigned_tutor !== null
-        ? String(s.assigned_tutor.id ?? s.assigned_tutor.pk ?? '')
-        : String(s.assigned_tutor ?? '');
-      if (assignedId === selectedTutorId) return true;
-      const tutorObj = tutors.find((t) => t.id === selectedTutorId);
-      if (tutorObj && s.assigned_tutor_name && s.assigned_tutor_name.toLowerCase() === tutorObj.name.toLowerCase()) {
-        return true;
-      }
-      return false;
-    });
+    const tObj = tutors.find((t) => t.id === selectedTutorId);
+    return allStudents.filter((s) => isStudentOfTutor(s, selectedTutorId, tObj?.name));
   }, [allStudents, selectedTutorId, tutors]);
 
+  // Available classes for selected tutor (or distinct school cohorts if ALL TUTORS)
+  const availableClasses = useMemo<{
+    id: string;
+    label: string;
+    count: number;
+    subject?: string;
+    aralLevel?: string;
+    cohort?: string;
+    matchFn: (s: User) => boolean;
+  }[]>(() => {
+    if (selectedTutorId !== 'all' && selectedTutorUser) {
+      const sections = buildTutorClassSections(selectedTutorUser, tutorStudents);
+      if (sections.length > 0) {
+        return sections.map((sec) => ({
+          id: sec.key,
+          label: sec.label,
+          count: sec.students.length,
+          subject: sec.subject,
+          aralLevel: sec.aralLevel,
+          cohort: sec.cohort,
+          matchFn: (s: User) => isStudentInCohort(s, {
+            aral_level: sec.aralLevel,
+            subject: sec.subject,
+            cohort: sec.cohort,
+          }),
+        }));
+      }
+    }
+
+    // Cohorts from students
+    const sourceStudents = selectedTutorId === 'all' ? allStudents : tutorStudents;
+    const cohortMap = new Map<string, { count: number; students: User[] }>();
+    sourceStudents.forEach((s: any) => {
+      const gl = (s.grade_level || '').toUpperCase().trim() || 'UNASSIGNED CLASS';
+      const existing = cohortMap.get(gl) || { count: 0, students: [] };
+      existing.count += 1;
+      existing.students.push(s);
+      cohortMap.set(gl, existing);
+    });
+
+    return Array.from(cohortMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([cohort, info]) => ({
+        id: cohort,
+        label: cohort,
+        count: info.count,
+        subject: undefined as string | undefined,
+        aralLevel: undefined as string | undefined,
+        cohort,
+        matchFn: (s: User) => ((s as any).grade_level || '').toUpperCase().trim() === cohort,
+      }));
+  }, [selectedTutorId, selectedTutorUser, tutorStudents, allStudents]);
+
+  const selectedClassObj = useMemo(() => {
+    if (selectedClassId === 'all') return null;
+    return availableClasses.find((c) => c.id === selectedClassId) || null;
+  }, [selectedClassId, availableClasses]);
+
+  const selectedClassSubject = selectedClassObj?.subject;
+
+  const selectedClassLabel = useMemo(() => {
+    if (selectedClassId === 'all') return 'ALL CLASSES';
+    return selectedClassObj ? selectedClassObj.label : 'ALL CLASSES';
+  }, [selectedClassId, selectedClassObj]);
+
+  // Filter students based on BOTH tutor and class
+  const activeStudents = useMemo(() => {
+    let list = allStudents;
+    if (selectedTutorId !== 'all') {
+      const tObj = tutors.find((t) => t.id === selectedTutorId);
+      list = list.filter((s) => isStudentOfTutor(s, selectedTutorId, tObj?.name));
+    }
+    if (selectedClassId !== 'all') {
+      const classOpt = availableClasses.find((c) => c.id === selectedClassId);
+      if (classOpt) {
+        list = list.filter(classOpt.matchFn);
+      }
+    }
+    return list;
+  }, [allStudents, selectedTutorId, selectedClassId, tutors, availableClasses]);
+
   const activeStudentIds = useMemo(() => {
-    return new Set(activeStudents.map((s) => String(s.id)));
+    const ids = new Set<string>();
+    activeStudents.forEach((s) => {
+      if (s.id) ids.add(String(s.id));
+      if (s.lrn) ids.add(String(s.lrn));
+      if ((s as any).user_id) ids.add(String((s as any).user_id));
+      if ((s as any).student_id) ids.add(String((s as any).student_id));
+    });
+    return ids;
   }, [activeStudents]);
 
   const activeGrades = useMemo(() => {
-    if (selectedTutorId === 'all') return allGrades;
     return allGrades.filter((g: any) => {
-      const gTutorId = typeof g.tutor === 'object' && g.tutor !== null
-        ? String(g.tutor.id ?? g.tutor.pk ?? '')
-        : String(g.tutor ?? '');
-      if (gTutorId === selectedTutorId) return true;
-      return activeStudentIds.has(getGradeStudentId(g));
+      const sid = getGradeStudentId(g);
+      if (!activeStudentIds.has(sid)) return false;
+      if (selectedClassSubject && selectedClassSubject.toLowerCase() !== 'all') {
+        const gradeSub = (g.subject || '').toLowerCase().trim();
+        const selSub = selectedClassSubject.toLowerCase().trim();
+        if (selSub === 'filipino' && !(gradeSub.includes('filipino') || gradeSub.includes('reading') || gradeSub.includes('tagalog'))) return false;
+        if (selSub === 'english' && !(gradeSub.includes('english') || gradeSub.includes('reading') || gradeSub.includes('literacy'))) return false;
+        if (selSub === 'science' && !gradeSub.includes('science')) return false;
+        if (selSub === 'math' && !(gradeSub.includes('math') || gradeSub.includes('numeracy'))) return false;
+      }
+      return true;
     });
-  }, [allGrades, selectedTutorId, activeStudentIds]);
+  }, [allGrades, activeStudentIds, selectedClassSubject]);
 
   const activeAttendanceLogs = useMemo(() => {
-    if (selectedTutorId === 'all') return allAttendanceLogs;
     return allAttendanceLogs.filter((a: any) => {
-      return activeStudentIds.has(getLogUserId(a));
+      const uid = getLogUserId(a);
+      return activeStudentIds.has(uid);
     });
-  }, [allAttendanceLogs, selectedTutorId, activeStudentIds]);
+  }, [allAttendanceLogs, activeStudentIds]);
 
   // Re-compute rows whenever activeStudents, activeGrades, or activeAttendanceLogs change
   useEffect(() => {
@@ -897,7 +1119,7 @@ export const PrincipalAnalytics: React.FC = () => {
 
     setRiskCounts(counts);
     setRows(extendedRows);
-    // Reset student scopes when tutor changes
+    // Reset student scopes when tutor or class changes
     setRiskScope('all');
     setAttendanceScope('all');
     setScoreScope('all');
@@ -914,6 +1136,19 @@ export const PrincipalAnalytics: React.FC = () => {
     return rows.filter((r) => String(r.student.id) === riskScope);
   }, [rows, riskScope]);
 
+  const displayedRiskCounts = useMemo(() => {
+    if (riskScope !== 'all') {
+      const studentRow = rows.find((r) => String(r.student.id) === riskScope);
+      if (!studentRow) return { high: 0, moderate: 0, low: 0 };
+      return {
+        high: studentRow.riskTier === 'High' ? 1 : 0,
+        moderate: studentRow.riskTier === 'Medium' ? 1 : 0,
+        low: studentRow.riskTier === 'Low' ? 1 : 0,
+      };
+    }
+    return riskCounts;
+  }, [riskScope, rows, riskCounts]);
+
   const riskTrend = useMemo(() => {
     const studentsForTrend = riskScope === 'all'
       ? activeStudents
@@ -921,23 +1156,55 @@ export const PrincipalAnalytics: React.FC = () => {
     return buildRiskTrend(studentsForTrend, activeGrades, activeAttendanceLogs, riskTrendFilter);
   }, [activeStudents, activeGrades, activeAttendanceLogs, riskScope, riskTrendFilter]);
 
-  // Attendance Tab Calculations
-  const attendanceSummary = useMemo(() => {
-    const todayStr = toLocalDateKey(new Date());
-    const todayLogs = activeAttendanceLogs.filter((log) => {
-      const d = getRecordDate(log);
-      return d ? toLocalDateKey(d) === todayStr : false;
+  // Attendance Tab Calculations (reactive to attendanceScope and attendanceFilter)
+  const scopedAttendanceLogs = useMemo(() => {
+    if (attendanceScope === 'all') return activeAttendanceLogs;
+    const targetStudent = activeStudents.find((s) => String(s.id) === attendanceScope);
+    const targetIds = new Set<string>([attendanceScope]);
+    if (targetStudent) {
+      if (targetStudent.id) targetIds.add(String(targetStudent.id));
+      if (targetStudent.lrn) targetIds.add(String(targetStudent.lrn));
+      if ((targetStudent as any).user_id) targetIds.add(String((targetStudent as any).user_id));
+      if ((targetStudent as any).student_id) targetIds.add(String((targetStudent as any).student_id));
+    }
+    return activeAttendanceLogs.filter((a) => {
+      const uid = getLogUserId(a);
+      return targetIds.has(uid);
     });
+  }, [activeAttendanceLogs, attendanceScope, activeStudents]);
+
+  const attendanceSummary = useMemo(() => {
+    const { start, end, label } = getPeriodDateRange(attendanceFilter);
+    const periodLogs = scopedAttendanceLogs.filter((log) => {
+      const d = getRecordDate(log);
+      return d ? d >= start && d <= end : false;
+    });
+
+    const present = periodLogs.filter((log) => isAttendedStatus(log.status)).length;
+    const absent = periodLogs.filter((log) => isAbsentStatus(log.status)).length;
+    const total = present + absent;
+    const periodRate = total > 0 ? Math.round((present / total) * 10000) / 100 : null;
+
     return {
-      present: todayLogs.filter((log) => isAttendedStatus(log.status)).length,
-      absent: todayLogs.filter((log) => isAbsentStatus(log.status)).length,
+      present,
+      absent,
+      total,
+      periodRate,
+      periodLabel: label,
     };
-  }, [activeAttendanceLogs]);
+  }, [scopedAttendanceLogs, attendanceFilter]);
 
   const avgAttendance = useMemo(() => {
+    if (attendanceSummary.periodRate !== null) {
+      return attendanceSummary.periodRate;
+    }
+    if (attendanceScope !== 'all') {
+      const studentRow = rows.find((r) => String(r.student.id) === attendanceScope);
+      return studentRow ? studentRow.attendanceRate : 0;
+    }
     if (rows.length === 0) return 0;
     return Math.round((rows.reduce((acc, r) => acc + r.attendanceRate, 0) / rows.length) * 100) / 100;
-  }, [rows]);
+  }, [attendanceSummary, attendanceScope, rows]);
 
   const selectedAttendanceStudent = useMemo(() => {
     if (attendanceScope === 'all') return undefined;
@@ -951,26 +1218,64 @@ export const PrincipalAnalytics: React.FC = () => {
     return buildTrendPoints(studentsForTrend, activeGrades, activeAttendanceLogs, 'attendance', attendanceFilter);
   }, [activeStudents, activeGrades, activeAttendanceLogs, attendanceScope, attendanceFilter]);
 
+  // Score Tab Calculations (reactive to scoreScope and scoreFilter)
+  const scopedGrades = useMemo(() => {
+    if (scoreScope === 'all') return activeGrades;
+    const targetStudent = activeStudents.find((s) => String(s.id) === scoreScope);
+    const targetIds = new Set<string>([scoreScope]);
+    if (targetStudent) {
+      if (targetStudent.id) targetIds.add(String(targetStudent.id));
+      if (targetStudent.lrn) targetIds.add(String(targetStudent.lrn));
+      if ((targetStudent as any).user_id) targetIds.add(String((targetStudent as any).user_id));
+      if ((targetStudent as any).student_id) targetIds.add(String((targetStudent as any).student_id));
+    }
+    return activeGrades.filter((g) => {
+      const sid = getGradeStudentId(g);
+      return targetIds.has(sid);
+    });
+  }, [activeGrades, scoreScope, activeStudents]);
 
-
-  // Score Tab Calculations
   const scoreSummary = useMemo(() => {
-    const todayStr = toLocalDateKey(new Date());
-    const scoreRecords = activeGrades.filter((grade) => {
+    const { start, end, label } = getPeriodDateRange(scoreFilter);
+    const scoreRecords = scopedGrades.filter((grade) => {
       if (grade.component_type === 'attendance' || grade.remarks === 'Not Taken') return false;
       const d = getRecordDate(grade);
-      return d ? toLocalDateKey(d) === todayStr : false;
+      return d ? d >= start && d <= end : false;
     });
+
+    const passed = scoreRecords.filter(
+      (grade) => Number(grade.total_score) > 0 && (Number(grade.score) / Number(grade.total_score)) >= 0.7
+    ).length;
+    const failed = scoreRecords.filter(
+      (grade) => Number(grade.total_score) > 0 && (Number(grade.score) / Number(grade.total_score)) < 0.7
+    ).length;
+    const total = passed + failed;
+
+    const validScores = scoreRecords
+      .filter((grade) => Number(grade.total_score) > 0)
+      .map((grade) => (Number(grade.score) / Number(grade.total_score)) * 100);
+    const periodAvg = validScores.length > 0 ? Math.round((validScores.reduce((a, b) => a + b, 0) / validScores.length) * 100) / 100 : null;
+
     return {
-      passed: scoreRecords.filter((grade) => Number(grade.total_score) > 0 && (Number(grade.score) / Number(grade.total_score)) >= 0.7).length,
-      failed: scoreRecords.filter((grade) => Number(grade.total_score) > 0 && (Number(grade.score) / Number(grade.total_score)) < 0.7).length,
+      passed,
+      failed,
+      total,
+      periodAvg,
+      periodLabel: label,
     };
-  }, [activeGrades]);
+  }, [scopedGrades, scoreFilter]);
 
   const avgScore = useMemo(() => {
+    if (scoreSummary.periodAvg !== null) {
+      return scoreSummary.periodAvg;
+    }
+    if (scoreScope !== 'all') {
+      const studentRow = rows.find((r) => String(r.student.id) === scoreScope);
+      return studentRow ? studentRow.scoreAvg : 0;
+    }
     if (rows.length === 0) return 0;
     return Math.round((rows.reduce((acc, r) => acc + r.scoreAvg, 0) / rows.length) * 100) / 100;
-  }, [rows]);
+  }, [scoreSummary, scoreScope, rows]);
 
   const selectedScoreStudent = useMemo(() => {
     if (scoreScope === 'all') return undefined;
@@ -984,19 +1289,51 @@ export const PrincipalAnalytics: React.FC = () => {
     return buildTrendPoints(studentsForTrend, activeGrades, activeAttendanceLogs, 'score', scoreFilter);
   }, [activeStudents, activeGrades, activeAttendanceLogs, scoreScope, scoreFilter]);
 
-
-
   const selectedTutorLabel = useMemo(() => {
     if (selectedTutorId === 'all') return 'ALL TUTORS';
     const found = tutors.find((t) => t.id === selectedTutorId);
     return found ? found.name : 'ALL TUTORS';
   }, [tutors, selectedTutorId]);
 
+  const classViewLabel = useMemo(() => {
+    if (selectedClassId !== 'all') {
+      return selectedClassLabel;
+    }
+    if (selectedTutorId !== 'all') {
+      return selectedTutorLabel;
+    }
+    return null;
+  }, [selectedClassId, selectedClassLabel, selectedTutorId, selectedTutorLabel]);
+
+  const riskLevelTrendTitle = useMemo(() => {
+    if (!classViewLabel) {
+      return 'RISK LEVEL TREND CHART';
+    }
+    return `${classViewLabel}'S RISK LEVEL TREND CHART`;
+  }, [classViewLabel]);
+
+  const attendanceTrendTitle = useMemo(() => {
+    if (!classViewLabel) {
+      return 'STUDENTS ATTENDANCE RATE TREND CHART';
+    }
+    return `${classViewLabel}'S ATTENDANCE RATE TREND CHART`;
+  }, [classViewLabel]);
+
+  const scoreTrendTitle = useMemo(() => {
+    if (!classViewLabel) {
+      return 'STUDENTS AVERAGE SCORE TREND CHART';
+    }
+    return `${classViewLabel}'S AVERAGE SCORE TREND CHART`;
+  }, [classViewLabel]);
+
   if (isLoading) {
     return (
       <div className="space-y-4 skeleton-container" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-        {/* Tutor filter skeleton */}
-        <div className="h-9 w-60 rounded-md bg-gray-200 dark:bg-gray-800 animate-pulse" />
+        {/* Filters skeleton */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="h-9 w-52 rounded-md bg-gray-200 dark:bg-gray-800 animate-pulse" />
+          <div className="h-9 w-44 rounded-md bg-gray-200 dark:bg-gray-800 animate-pulse" />
+        </div>
 
         {/* View Tab Switcher Skeleton */}
         <div className="flex w-full rounded-md bg-gray-100 dark:bg-[#111111] p-0.5 gap-0.5 animate-pulse">
@@ -1063,69 +1400,152 @@ export const PrincipalAnalytics: React.FC = () => {
 
   return (
     <div className="space-y-4 data-loaded-content w-full min-w-0 max-w-full" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-      {/* ── Tutor Filter Dropdown (Above Main Tab Buttons) ── */}
-      <div className="relative z-40 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 shrink-0 flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 opacity-70" />
-            FILTER BY TUTOR:
-          </span>
-          <div className="relative z-50" ref={tutorDropdownRef}>
-            <button
-              type="button"
-              aria-label="Filter by Tutor"
-              aria-haspopup="listbox"
-              aria-expanded={isTutorDropdownOpen}
-              onClick={() => setIsTutorDropdownOpen((prev) => !prev)}
-              className="flex h-9 min-w-48 items-center justify-between gap-3 rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] px-3 text-xs font-semibold tracking-normal text-gray-900 dark:text-slate-100 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-2xs"
-            >
-              <span className="truncate">{selectedTutorLabel}</span>
-              <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${isTutorDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {isTutorDropdownOpen && (
-              <div
-                className="absolute left-0 top-full z-50 mt-1 max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1 shadow-2xl"
-                role="listbox"
+      {/* ── Filter Dropdowns (Tutor & Class) ── */}
+      <div className="relative z-40 flex flex-wrap items-center justify-between gap-2.5 min-w-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          {/* Tutor Filter */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 shrink-0 flex items-center gap-1">
+              <Filter className="w-3.5 h-3.5 opacity-70" />
+              <span className="hidden xs:inline">FILTER BY TUTOR:</span>
+              <span className="xs:hidden">TUTOR:</span>
+            </span>
+            <div className="relative z-50 shrink-0" ref={tutorDropdownRef}>
+              <button
+                type="button"
+                aria-label="Filter by Tutor"
+                aria-haspopup="listbox"
+                aria-expanded={isTutorDropdownOpen}
+                onClick={() => {
+                  setIsTutorDropdownOpen((prev) => !prev);
+                  setIsClassDropdownOpen(false);
+                }}
+                className="flex h-8 sm:h-9 min-w-36 xs:min-w-44 sm:min-w-48 items-center justify-between gap-2 sm:gap-3 rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold tracking-normal text-gray-900 dark:text-slate-100 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-2xs"
               >
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={selectedTutorId === 'all'}
-                  onClick={() => handleSelectTutor('all')}
-                  className={`block w-full rounded px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
-                    selectedTutorId === 'all'
-                      ? 'bg-[var(--brand)] text-white'
-                      : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                  }`}
+                <span className="truncate">{selectedTutorLabel}</span>
+                <ChevronDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-gray-400 transition-transform ${isTutorDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isTutorDropdownOpen && (
+                <div
+                  className="absolute left-0 top-full z-50 mt-1 max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1 shadow-2xl"
+                  role="listbox"
                 >
-                  ALL TUTORS
-                </button>
-                {tutors.map((t) => {
-                  const isSel = selectedTutorId === t.id;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      role="option"
-                      aria-selected={isSel}
-                      onClick={() => handleSelectTutor(t.id)}
-                      className={`block w-full truncate rounded px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
-                        isSel
-                          ? 'bg-[var(--brand)] text-white'
-                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
-                      }`}
-                    >
-                      {t.name}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={selectedTutorId === 'all'}
+                    onClick={() => handleSelectTutor('all')}
+                    className={`block w-full rounded px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                      selectedTutorId === 'all'
+                        ? 'bg-[var(--brand)] text-white'
+                        : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                    }`}
+                  >
+                    ALL TUTORS
+                  </button>
+                  {tutors.map((t) => {
+                    const isSel = selectedTutorId === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        role="option"
+                        aria-selected={isSel}
+                        onClick={() => handleSelectTutor(t.id)}
+                        className={`block w-full truncate rounded px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                          isSel
+                            ? 'bg-[var(--brand)] text-white'
+                            : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                        }`}
+                      >
+                        {t.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Class Filter (Immediately to the right of Tutor filter) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 shrink-0">
+              CLASS:
+            </span>
+            <div className="relative z-50 shrink-0" ref={classDropdownRef}>
+              <button
+                type="button"
+                aria-label="Filter by Class"
+                aria-haspopup="listbox"
+                aria-expanded={isClassDropdownOpen}
+                onClick={() => {
+                  setIsClassDropdownOpen((prev) => !prev);
+                  setIsTutorDropdownOpen(false);
+                }}
+                className="flex h-8 sm:h-9 min-w-36 xs:min-w-44 sm:min-w-48 items-center justify-between gap-2 sm:gap-3 rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold tracking-normal text-gray-900 dark:text-slate-100 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-2xs"
+              >
+                <span className="truncate">{selectedClassLabel}</span>
+                <ChevronDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-gray-400 transition-transform ${isClassDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isClassDropdownOpen && (
+                <div
+                  className="absolute left-0 top-full z-50 mt-1 max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1 shadow-2xl"
+                  role="listbox"
+                >
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={selectedClassId === 'all'}
+                    onClick={() => handleSelectClass('all')}
+                    className={`flex items-center justify-between w-full rounded px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                      selectedClassId === 'all'
+                        ? 'bg-[var(--brand)] text-white'
+                        : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                    }`}
+                  >
+                    <span>ALL CLASSES</span>
+                    <span className={`text-[10px] font-medium ${selectedClassId === 'all' ? 'text-white/80' : 'text-gray-400 dark:text-slate-500'}`}>
+                      ({tutorStudents.length})
+                    </span>
+                  </button>
+                  {availableClasses.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-gray-400 italic">No classes available</div>
+                  ) : (
+                    availableClasses.map((c) => {
+                      const isSel = selectedClassId === c.id;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          role="option"
+                          aria-selected={isSel}
+                          onClick={() => handleSelectClass(c.id)}
+                          className={`flex items-center justify-between w-full truncate rounded px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                            isSel
+                              ? 'bg-[var(--brand)] text-white'
+                              : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                          }`}
+                        >
+                          <span className="truncate mr-2">{c.label}</span>
+                          <span className={`shrink-0 text-[10px] font-medium ${isSel ? 'text-white/80' : 'text-gray-400 dark:text-slate-500'}`}>
+                            ({c.count})
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="text-[11px] font-medium text-gray-400 dark:text-slate-500">
-          Showing {selectedTutorId === 'all' ? 'All Classes' : `${selectedTutorLabel}'s Class`} ({activeStudents.length} Students)
+        {/* Subtitle / Counter */}
+        <div className="text-[10px] sm:text-[11px] font-medium text-gray-400 dark:text-slate-500 shrink-0 truncate">
+          <span className="hidden sm:inline">
+            Showing {selectedTutorLabel} {selectedClassId !== 'all' ? `• ${selectedClassLabel}` : ''}{' '}
+          </span>
+          ({activeStudents.length} {activeStudents.length === 1 ? 'Student' : 'Students'})
         </div>
       </div>
 
@@ -1170,7 +1590,7 @@ export const PrincipalAnalytics: React.FC = () => {
                 <div className="flex items-center gap-1 text-risk-high">
                   <p className="text-[10px] font-bold uppercase tracking-wider">High Risk</p>
                 </div>
-                <p className="text-2xl font-extrabold text-risk-high mt-0.5">{riskCounts.high}</p>
+                <p className="text-2xl font-extrabold text-risk-high mt-0.5">{displayedRiskCounts.high}</p>
                 <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students needing immediate intervention</p>
               </div>
             </div>
@@ -1183,7 +1603,7 @@ export const PrincipalAnalytics: React.FC = () => {
                 <div className="flex items-center gap-1 text-risk-medium">
                   <p className="text-[10px] font-bold uppercase tracking-wider">Medium Risk</p>
                 </div>
-                <p className="text-2xl font-extrabold text-risk-medium mt-0.5">{riskCounts.moderate}</p>
+                <p className="text-2xl font-extrabold text-risk-medium mt-0.5">{displayedRiskCounts.moderate}</p>
                 <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students requiring monitoring</p>
               </div>
             </div>
@@ -1196,7 +1616,7 @@ export const PrincipalAnalytics: React.FC = () => {
                 <div className="flex items-center gap-1 text-risk-low">
                   <p className="text-[10px] font-bold uppercase tracking-wider">Low Risk</p>
                 </div>
-                <p className="text-2xl font-extrabold text-risk-low mt-0.5">{riskCounts.low}</p>
+                <p className="text-2xl font-extrabold text-risk-low mt-0.5">{displayedRiskCounts.low}</p>
                 <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students performing well</p>
               </div>
             </div>
@@ -1204,28 +1624,28 @@ export const PrincipalAnalytics: React.FC = () => {
 
           {/* ── Risk Level Trend Chart ── */}
           <section className="rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]" aria-labelledby="risk-overview-heading">
-            <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
-              <div>
-                <h3 id="risk-overview-heading" className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">RISK LEVEL TREND CHART</h3>
+            <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
+              <div className="min-w-0 flex-1 truncate">
+                <h3 id="risk-overview-heading" className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">{riskLevelTrendTitle}</h3>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
+                <div className="hidden xs:flex items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#EF4444' }} />High Risk</span>
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#F59E0B' }} />Medium Risk</span>
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#22C55E' }} />Low Risk</span>
                 </div>
-                <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0">
                   <StudentRiskFilter rows={rows} value={riskScope} onChange={setRiskScope} />
                 </label>
-                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Filter risk chart by time period">
+                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0 whitespace-nowrap" role="group" aria-label="Filter risk chart by time period">
                   {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                     <button
                       key={filter}
                       type="button"
                       onClick={() => setRiskTrendFilter(filter)}
-                      className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${
+                      className={`cursor-pointer rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all whitespace-nowrap ${
                         riskTrendFilter === filter
-                          ? 'bg-[var(--brand)] text-white'
+                          ? 'bg-[var(--brand)] text-white shadow-xs'
                           : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                       }`}
                     >
@@ -1269,27 +1689,45 @@ export const PrincipalAnalytics: React.FC = () => {
             <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
               <Check className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Present Today</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  Present {attendanceSummary.periodLabel}
+                </p>
                 <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{attendanceSummary.present}</p>
-                <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students marked present today</p>
+                <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">
+                  {attendanceScope === 'all'
+                    ? `Records marked present ${attendanceSummary.periodLabel.toLowerCase()}`
+                    : `Days marked present ${attendanceSummary.periodLabel.toLowerCase()}`}
+                </p>
               </div>
             </div>
             <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
               <X className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Absent Today</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                  Absent {attendanceSummary.periodLabel}
+                </p>
                 <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{attendanceSummary.absent}</p>
-                <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students marked absent today</p>
+                <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">
+                  {attendanceScope === 'all'
+                    ? `Records marked absent ${attendanceSummary.periodLabel.toLowerCase()}`
+                    : `Days marked absent ${attendanceSummary.periodLabel.toLowerCase()}`}
+                </p>
               </div>
             </div>
             <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Attendance</p>
-                <p className={`text-2xl font-extrabold mt-0.5 ${activeAttendanceLogs.length === 0 ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
-                  {activeAttendanceLogs.length === 0 ? '—' : `${smartPct(avgAttendance)}%`}
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
+                  Average Attendance {attendanceSummary.periodLabel !== 'Today' ? `(${attendanceSummary.periodLabel})` : ''}
+                </p>
+                <p className={`text-2xl font-extrabold mt-0.5 ${attendanceSummary.total === 0 && activeAttendanceLogs.length === 0 ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                  {attendanceSummary.total === 0 && activeAttendanceLogs.length === 0 ? '—' : `${smartPct(avgAttendance)}%`}
                 </p>
                 <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">
-                  {selectedTutorId === 'all' ? 'School-wide average attendance rate' : "Class average attendance rate"}
+                  {attendanceScope !== 'all'
+                    ? 'Student average attendance rate'
+                    : selectedTutorId === 'all' && selectedClassId === 'all'
+                    ? 'School-wide average attendance rate'
+                    : `${selectedClassLabel !== 'ALL CLASSES' ? selectedClassLabel : selectedTutorLabel} average attendance`}
                 </p>
               </div>
             </div>
@@ -1297,26 +1735,26 @@ export const PrincipalAnalytics: React.FC = () => {
 
           {/* Attendance Trend Chart */}
           <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-            <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
-              <div>
-                <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS ATTENDANCE RATE TREND CHART</h3>
+            <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
+              <div className="min-w-0 flex-1 truncate">
+                <h3 className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">{attendanceTrendTitle}</h3>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
+                <div className="hidden xs:flex items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Attendance Rate</span>
                 </div>
-                <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0">
                   <StudentRiskFilter rows={rows} value={attendanceScope} onChange={setAttendanceScope} />
                 </label>
-                <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Attendance trend period">
+                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0 whitespace-nowrap" aria-label="Attendance trend period">
                   {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                     <button
                       key={filter}
                       type="button"
                       onClick={() => setAttendanceFilter(filter)}
-                      className={`rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                      className={`rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                         attendanceFilter === filter
-                          ? 'bg-[var(--brand)] text-white'
+                          ? 'bg-[var(--brand)] text-white shadow-xs'
                           : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                       }`}
                     >
@@ -1337,13 +1775,19 @@ export const PrincipalAnalytics: React.FC = () => {
                     ? 'No recorded attendance this week'
                     : 'No recorded attendance this month'
                 }
-                valueLabel={selectedAttendanceStudent ? selectedAttendanceStudent.full_name : selectedTutorId === 'all' ? 'School Average Attendance' : 'Class Average Attendance'}
+                valueLabel={
+                  selectedAttendanceStudent
+                    ? selectedAttendanceStudent.full_name
+                    : selectedClassId !== 'all'
+                    ? `${selectedClassLabel} Average Attendance`
+                    : selectedTutorId === 'all'
+                    ? 'School Average Attendance'
+                    : `${selectedTutorLabel}'s Average Attendance`
+                }
                 trendFilter={attendanceFilter}
               />
             </div>
           </div>
-
-
         </>
       )}
 
@@ -1355,27 +1799,41 @@ export const PrincipalAnalytics: React.FC = () => {
             <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
               <Check className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Passed Today</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  Passed {scoreSummary.periodLabel}
+                </p>
                 <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{scoreSummary.passed}</p>
-                <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Assessments scored ≥ 70% today</p>
+                <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">
+                  Assessments scored ≥ 70% {scoreSummary.periodLabel.toLowerCase()}
+                </p>
               </div>
             </div>
             <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
               <X className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Failed Today</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                  Failed {scoreSummary.periodLabel}
+                </p>
                 <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{scoreSummary.failed}</p>
-                <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Assessments scored ≤ 69% today</p>
+                <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">
+                  Assessments scored ≤ 69% {scoreSummary.periodLabel.toLowerCase()}
+                </p>
               </div>
             </div>
             <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Score</p>
-                <p className={`text-2xl font-extrabold mt-0.5 ${activeGrades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
-                  {activeGrades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? '—' : `${smartPct(avgScore)}%`}
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
+                  Average Score {scoreSummary.periodLabel !== 'Today' ? `(${scoreSummary.periodLabel})` : ''}
+                </p>
+                <p className={`text-2xl font-extrabold mt-0.5 ${scoreSummary.total === 0 && activeGrades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                  {scoreSummary.total === 0 && activeGrades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? '—' : `${smartPct(avgScore)}%`}
                 </p>
                 <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">
-                  {selectedTutorId === 'all' ? 'School-wide average score rate' : "Class average score rate"}
+                  {scoreScope !== 'all'
+                    ? 'Student average score rate'
+                    : selectedTutorId === 'all' && selectedClassId === 'all'
+                    ? 'School-wide average score rate'
+                    : `${selectedClassLabel !== 'ALL CLASSES' ? selectedClassLabel : selectedTutorLabel} average score`}
                 </p>
               </div>
             </div>
@@ -1383,26 +1841,26 @@ export const PrincipalAnalytics: React.FC = () => {
 
           {/* Score Trend Chart */}
           <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-            <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
-              <div>
-                <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS AVERAGE SCORE TREND CHART</h3>
+            <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
+              <div className="min-w-0 flex-1 truncate">
+                <h3 className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">{scoreTrendTitle}</h3>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
+                <div className="hidden xs:flex items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Average Score</span>
                 </div>
-                <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0">
                   <StudentRiskFilter rows={rows} value={scoreScope} onChange={setScoreScope} />
                 </label>
-                <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Score trend period">
+                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0 whitespace-nowrap" aria-label="Score trend period">
                   {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                     <button
                       key={filter}
                       type="button"
                       onClick={() => setScoreFilter(filter)}
-                      className={`rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                      className={`rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                         scoreFilter === filter
-                          ? 'bg-[var(--brand)] text-white'
+                          ? 'bg-[var(--brand)] text-white shadow-xs'
                           : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                       }`}
                     >
@@ -1423,13 +1881,19 @@ export const PrincipalAnalytics: React.FC = () => {
                     ? 'No recorded score this week'
                     : 'No recorded score this month'
                 }
-                valueLabel={selectedScoreStudent ? selectedScoreStudent.full_name : selectedTutorId === 'all' ? 'School Average Score' : 'Class Average Score'}
+                valueLabel={
+                  selectedScoreStudent
+                    ? selectedScoreStudent.full_name
+                    : selectedClassId !== 'all'
+                    ? `${selectedClassLabel} Average Score`
+                    : selectedTutorId === 'all'
+                    ? 'School Average Score'
+                    : `${selectedTutorLabel}'s Average Score`
+                }
                 trendFilter={scoreFilter}
               />
             </div>
           </div>
-
-
         </>
       )}
     </div>

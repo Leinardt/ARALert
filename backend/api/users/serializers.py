@@ -12,10 +12,10 @@ from rest_framework import serializers
 from apps.accounts.models import User, StudentEditRequest
 
 NAME_PATTERN = re.compile(r"^[a-zA-Z\s.\-ñÑ']+$")
-SECTION_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-]+$")
+SECTION_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-,]+$")
 PHONE_PATTERN = re.compile(r"^[0-9+\-\s()]+$")
 DANGEROUS_INJECTION_PATTERN = re.compile(
-    r"(--|;|\/\*|\*\/|@@|char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update|<script|<\/script>)",
+    r"(--|;|\/\*|\*\/|@@|\b(char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update)\b|<script|<\/script>)",
     re.IGNORECASE
 )
 
@@ -40,7 +40,7 @@ class UserListSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'full_name', 'first_name', 'middle_name', 'last_name',
-            'username', 'email', 'role', 'lrn', 'status', 'is_active',
+            'username', 'email', 'role', 'is_superuser', 'lrn', 'status', 'is_active',
             'date_joined', 'last_login', 'has_logged_in',
             'assigned_tutor', 'assigned_tutor_name', 'assessment_weight', 'weekly_tasks_weight',
             'attendance_weight', 'aral_level', 'subject', 'tutor_type', 'is_available_for_students',
@@ -69,6 +69,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     username = serializers.CharField(write_only=True, required=False, allow_blank=True)
     email = serializers.EmailField(required=False, allow_blank=True)
+    aral_level = serializers.CharField(required=False, allow_blank=True)
+    tutor_type = serializers.CharField(required=False, allow_blank=True)
     assigned_tutor = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(role='tutor', is_superuser=False),
         required=False,
@@ -79,7 +81,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'first_name', 'middle_name', 'last_name', 'username', 'email',
-            'role', 'lrn', 'is_active',
+            'role', 'is_superuser', 'lrn', 'is_active',
             'assigned_tutor', 'assessment_weight', 'weekly_tasks_weight', 'attendance_weight',
             'aral_level', 'subject', 'tutor_type', 'is_available_for_students',
             'grade_level', 'parent_guardian_name', 'contact_number', 'has_bosy', 'has_mosy', 'has_eosy', 'has_summer'
@@ -120,9 +122,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def validate_contact_number(self, value):
         if not value:
             return ''
-        v = sanitize_input_text(value)
-        if v and (not PHONE_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v)):
-            raise serializers.ValidationError('Contact number can only contain digits, spaces, hyphens, and plus sign (+).')
+        v = sanitize_input_text(value).strip()
+        if v:
+            if not v.isdigit() or len(v) != 11:
+                raise serializers.ValidationError('Contact number must be exactly 11 digits (e.g., 09123456789).')
+            if DANGEROUS_INJECTION_PATTERN.search(v):
+                raise serializers.ValidationError('Invalid characters detected.')
         return v
 
     def validate_grade_level(self, value):
@@ -133,8 +138,33 @@ class UserCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Grade level / Section contains invalid characters.')
         return v.upper()
 
+    def validate_aral_level(self, value):
+        if not value:
+            return 'basic'
+        v = sanitize_input_text(value).lower()
+        if v in ('basic_plus', 'basic,plus') or ('basic' in v and 'plus' in v):
+            return 'basic,plus'
+        valid_parts = {'basic', 'plus', 'summer', 'graduated'}
+        parts = [p.strip() for p in v.replace('_', ',').split(',') if p.strip()]
+        if any(p not in valid_parts for p in parts):
+            raise serializers.ValidationError('Invalid ARAL level.')
+        return v
+
+    def validate_tutor_type(self, value):
+        if not value:
+            return 'basic'
+        v = sanitize_input_text(value).lower()
+        if v in ('basic_plus', 'basic,plus') or ('basic' in v and 'plus' in v):
+            return 'basic,plus'
+        valid_types = {'basic', 'plus', 'summer', 'basic_plus', 'basic,plus'}
+        if v not in valid_types:
+            raise serializers.ValidationError('Invalid tutor type.')
+        return v
+
     def validate_role(self, value):
-        """Prevent SuperAdmin role assignment via API."""
+        """Allow roles and permit None/empty if is_superuser is set."""
+        if value is None or value == '' or value == 'superadmin':
+            return None
         allowed_roles = [r[0] for r in User.Role.choices]
         if value not in allowed_roles:
             raise serializers.ValidationError(
@@ -162,9 +192,24 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({'lrn': 'LRN must be exactly 12 digits (numbers only).'})
             if User.objects.filter(lrn=lrn, role='student').exists():
                 raise serializers.ValidationError({'lrn': 'A student with this LRN already exists.'})
-        else:
+        elif role == 'tutor':
             data['lrn'] = None
             data['assigned_tutor'] = None
+            data['parent_guardian_name'] = ''
+            data['contact_number'] = ''
+            if not data.get('email'):
+                raise serializers.ValidationError({'email': 'Email is required for staff accounts.'})
+        else:
+            # Faculty, Principal, Admin, SuperAdmin:
+            # Strictly no LRN, tutor assignment, subject, section/grade, or aral level
+            data['lrn'] = None
+            data['assigned_tutor'] = None
+            data['parent_guardian_name'] = ''
+            data['contact_number'] = ''
+            data['subject'] = None
+            data['grade_level'] = None
+            data['aral_level'] = None
+            data['tutor_type'] = None
             if not data.get('email'):
                 raise serializers.ValidationError({'email': 'Email is required for staff accounts.'})
 
@@ -177,6 +222,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         Students: created with LRN (log in via Name + LRN). Can be assigned to a tutor or set to TBA.
         """
         role = validated_data.get('role')
+        is_superuser = validated_data.get('is_superuser', False)
         email = validated_data.get('email', '').strip().lower()
 
         if not email and role == 'student':
@@ -185,6 +231,11 @@ class UserCreateSerializer(serializers.ModelSerializer):
         validated_data['email'] = email
         validated_data['username'] = email
         validated_data['is_active'] = True
+
+        if is_superuser:
+            validated_data['role'] = None
+            validated_data['is_staff'] = True
+            validated_data['is_superuser'] = True
 
         user = User(**validated_data)
         user.set_unusable_password()
@@ -195,6 +246,11 @@ class UserCreateSerializer(serializers.ModelSerializer):
 class UserUpdateSerializer(serializers.ModelSerializer):
     """Serializer for editing a user profile or assigning a tutor."""
 
+    aral_level = serializers.CharField(required=False, allow_blank=True)
+    tutor_type = serializers.CharField(required=False, allow_blank=True)
+    lrn = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
+    subject = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
     class Meta:
         model = User
         fields = [
@@ -204,6 +260,9 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             'tutor_type', 'is_available_for_students',
             'grade_level', 'parent_guardian_name', 'contact_number', 'has_bosy', 'has_mosy', 'has_eosy', 'has_summer'
         ]
+        extra_kwargs = {
+            'lrn': {'validators': []},
+        }
 
     def validate_first_name(self, value):
         v = sanitize_input_text(value)
@@ -240,9 +299,12 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     def validate_contact_number(self, value):
         if not value:
             return ''
-        v = sanitize_input_text(value)
-        if v and (not PHONE_PATTERN.match(v) or DANGEROUS_INJECTION_PATTERN.search(v)):
-            raise serializers.ValidationError('Contact number can only contain digits, spaces, hyphens, and plus sign (+).')
+        v = sanitize_input_text(value).strip()
+        if v:
+            if not v.isdigit() or len(v) != 11:
+                raise serializers.ValidationError('Contact number must be exactly 11 digits (e.g., 09123456789).')
+            if DANGEROUS_INJECTION_PATTERN.search(v):
+                raise serializers.ValidationError('Invalid characters detected.')
         return v
 
     def validate_grade_level(self, value):
@@ -253,13 +315,91 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Grade level / Section contains invalid characters.')
         return v.upper()
 
+    def validate_aral_level(self, value):
+        if not value:
+            return 'basic'
+        v = sanitize_input_text(value).lower()
+        if v in ('basic_plus', 'basic,plus') or ('basic' in v and 'plus' in v):
+            return 'basic,plus'
+        valid_parts = {'basic', 'plus', 'summer', 'graduated'}
+        parts = [p.strip() for p in v.replace('_', ',').split(',') if p.strip()]
+        if any(p not in valid_parts for p in parts):
+            raise serializers.ValidationError('Invalid ARAL level.')
+        return v
+
+    def validate_tutor_type(self, value):
+        if not value:
+            return 'basic'
+        v = sanitize_input_text(value).lower()
+        if v in ('basic_plus', 'basic,plus') or ('basic' in v and 'plus' in v):
+            return 'basic,plus'
+        valid_types = {'basic', 'plus', 'summer', 'basic_plus', 'basic,plus'}
+        if v not in valid_types:
+            raise serializers.ValidationError('Invalid tutor type.')
+        return v
+
+    def validate_subject(self, value):
+        if not value:
+            return 'Filipino'
+        v = sanitize_input_text(value).strip()
+        parts = [p.strip() for p in v.replace(';', ',').split(',') if p.strip()]
+        valid_map = {
+            'filipino': 'Filipino',
+            'reading': 'Filipino',
+            'english': 'English',
+            'science': 'Science',
+            'math': 'Math',
+        }
+        cleaned = []
+        for p in parts:
+            matched = valid_map.get(p.lower())
+            if matched and matched not in cleaned:
+                cleaned.append(matched)
+
+        if cleaned:
+            combined = ', '.join(cleaned)
+            if len(combined) <= 20:
+                return combined
+            return cleaned[0]
+        return 'Filipino'
+
     def validate_lrn(self, value):
-        if value:
-            v = str(value).strip()
-            if not v.isdigit() or len(v) != 12:
-                raise serializers.ValidationError('LRN must be exactly 12 digits (numbers only).')
-            return v
-        return value
+        if not value:
+            return None
+        v = str(value).strip()
+        if not v.isdigit() or len(v) != 12:
+            raise serializers.ValidationError('LRN must be exactly 12 digits (numbers only).')
+        return v
+
+    def validate(self, data):
+        target_role = data.get('role', getattr(self.instance, 'role', None))
+        if target_role == 'student':
+            lrn = data.get('lrn', getattr(self.instance, 'lrn', None))
+            if not lrn:
+                raise serializers.ValidationError({'lrn': 'LRN is required for student accounts.'})
+            lrn = str(lrn).strip()
+            if not lrn.isdigit() or len(lrn) != 12:
+                raise serializers.ValidationError({'lrn': 'LRN must be exactly 12 digits (numbers only).'})
+            if User.objects.filter(lrn=lrn).exclude(pk=self.instance.pk).exists():
+                raise serializers.ValidationError({'lrn': 'A student with this LRN already exists.'})
+            data['lrn'] = lrn
+        elif target_role == 'tutor':
+            data['lrn'] = None
+            data['assigned_tutor'] = None
+            data['parent_guardian_name'] = ''
+            data['contact_number'] = ''
+        else:
+            # For non-students and non-tutors (faculty, principal, admin, superadmin):
+            # Strictly no LRN, tutor assignment, subject, section/grade, or aral level
+            data['lrn'] = None
+            data['assigned_tutor'] = None
+            data['parent_guardian_name'] = ''
+            data['contact_number'] = ''
+            data['subject'] = None
+            data['grade_level'] = None
+            data['aral_level'] = None
+            data['tutor_type'] = None
+        return data
 
     def update(self, instance, validated_data):
         for attr, value in validated_data.items():

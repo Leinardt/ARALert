@@ -7,19 +7,26 @@ import type { User, Grade, Attendance } from '../../types';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
 import { User as UserIcon, Search, ArrowUpDown, Users, ChevronUp, ChevronDown, AlertCircle, History, Calendar, CheckCircle2, Award, Clock } from 'lucide-react';
 import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
+import { TutorCohortFilter } from '../../components/TutorCohortFilter';
+import {
+  useTutorCohortFilter,
+  isStudentInCohort,
+  getCachedTutorStudents,
+} from '../../utils/tutorCohortHelpers';
 import type { TutorCohortHistoryData, TutorHistoricalCohortRecord } from '../../types';
+import { getActiveSystemSemester } from '../../utils/sessionDescriptionHelpers';
 
-/* ─── Badge helpers ────────────────────────────────────────────── */
+/* ─── Badge helpers (Clean typography without pill container) ─── */
 const getAralBadge = (level?: string | null) => {
-  const formatted = level ? level.charAt(0).toUpperCase() + level.slice(1).toLowerCase() : 'Basic';
+  const formatted = level ? level.toUpperCase() : 'BASIC';
   return (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 dark:bg-[#1A1A1A] dark:text-slate-300 dark:border-[#262626]">
+    <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase">
       {formatted}
     </span>
   );
 };
 
-import { buildAvatarColorMap, compareNamesByLastName } from '../../utils/studentFormatters';
+import { compareNamesByLastName } from '../../utils/studentFormatters';
 import { matchesSearch } from '../../utils/searchHelpers';
 
 function getDepEdSchoolYear(date: Date = new Date()) {
@@ -82,14 +89,25 @@ export const getSemesterFromGrade = (grade: Grade): '1st' | '2nd' | 'summer' => 
 /* ─── Component ────────────────────────────────────────────────── */
 export const TutorStudentDirectory: React.FC = () => {
   const { user } = useAuth();
-  const [students, setStudents] = useState<User[]>([]);
+  const [students, setStudents] = useState<User[]>(() => getCachedTutorStudents(user?.id));
   const [grades, setGrades] = useState<Grade[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => getCachedTutorStudents(user?.id).length === 0);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<string>('name');
   const [sortAsc, setSortAsc] = useState(true);
+
+  // Cohort top filter state (ARAL Level, Subject, Grade - Section) synced across tutor dashboard
+  const {
+    selectedAralLevel,
+    setSelectedAralLevel,
+    selectedSubject,
+    setSelectedSubject,
+    selectedCohort,
+    setSelectedCohort,
+    setSelectedCohortFilter,
+  } = useTutorCohortFilter(user);
 
   // Cohort View Mode: 'active' | 'past'
   const [cohortViewMode, setCohortViewMode] = useState<'active' | 'past'>('active');
@@ -99,19 +117,21 @@ export const TutorStudentDirectory: React.FC = () => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
 
   const currentSchoolYear = useMemo(() => getDepEdSchoolYear(), []);
+  const [activeSystemSy, setActiveSystemSy] = useState<string>(
+    () => `${currentSchoolYear.syStart}-${currentSchoolYear.syEnd}`
+  );
+  const [activeSystemSem, setActiveSystemSem] = useState<'1st' | '2nd' | 'summer'>(
+    () => (getActiveSystemSemester() || currentSchoolYear.currentPeriod) as '1st' | '2nd' | 'summer'
+  );
+  const activePeriodKey = useMemo(() => `${activeSystemSy}|${activeSystemSem}`, [activeSystemSy, activeSystemSem]);
+
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>(
     () => `${currentSchoolYear.syStart}-${currentSchoolYear.syEnd}|${currentSchoolYear.currentPeriod}`
   );
 
   const schoolYearOptions = useMemo(() => {
-    const { syStart, syEnd, currentPeriod } = currentSchoolYear;
-    const activeSy = `${syStart}-${syEnd}`;
-    const activePeriodKey = `${activeSy}|${currentPeriod || '1st'}`;
-
+    const activeKey = `${activeSystemSy}|${activeSystemSem}`;
     const recordedPeriods = new Set<string>();
-
-    // Always include current active period
-    recordedPeriods.add(activePeriodKey);
 
     // 1. From grades
     for (const g of grades) {
@@ -133,6 +153,9 @@ export const TutorStudentDirectory: React.FC = () => {
       }
     }
 
+    // Always include current active period
+    recordedPeriods.add(activeKey);
+
     // Convert to list of { sy, sem }
     const periodsList = Array.from(recordedPeriods).map((key) => {
       const [sy, sem] = key.split('|');
@@ -141,6 +164,9 @@ export const TutorStudentDirectory: React.FC = () => {
 
     const semRank: Record<string, number> = { '1st': 1, '2nd': 2, 'summer': 3 };
     periodsList.sort((a, b) => {
+      // Put active period first so it is default in both display and DOM order
+      if (a.key === activeKey) return -1;
+      if (b.key === activeKey) return 1;
       const yearA = parseInt(a.sy.split('-')[0], 10) || 0;
       const yearB = parseInt(b.sy.split('-')[0], 10) || 0;
       if (yearA !== yearB) {
@@ -149,14 +175,11 @@ export const TutorStudentDirectory: React.FC = () => {
       return (semRank[a.sem] || 0) - (semRank[b.sem] || 0);
     });
 
-    const options: { key: string; label: string }[] = [
-      { key: 'all|all', label: 'All School Years & Semesters' },
-    ];
+    const options: { key: string; label: string }[] = [];
 
     periodsList.forEach(({ key, sy, sem }) => {
-      const isCurrentSy = sy === activeSy;
-      const isCurrentSem = isCurrentSy && sem === (currentPeriod || '1st');
-      const tag = isCurrentSem ? ' (Active)' : '';
+      const isCurrent = key === activeKey;
+      const tag = isCurrent ? ' (Active)' : '';
       const syDisplay = `SY ${sy.replace('-', '–')}`;
       const semDisplay = sem === '1st' ? '1st Semester' : sem === '2nd' ? '2nd Semester' : 'Summer';
 
@@ -167,7 +190,7 @@ export const TutorStudentDirectory: React.FC = () => {
     });
 
     return options;
-  }, [currentSchoolYear, grades, attendance]);
+  }, [activeSystemSy, activeSystemSem, grades, attendance]);
 
   const fetchData = async () => {
     if (!user) return;
@@ -195,10 +218,15 @@ export const TutorStudentDirectory: React.FC = () => {
       }
       if (currentSyData.status === 'fulfilled' && currentSyData.value?.school_year) {
         const activeSy = currentSyData.value.school_year;
+        const activeSem = (currentSyData.value.current_semester || currentSyData.value.current_period || getActiveSystemSemester() || '1st') as '1st' | '2nd' | 'summer';
+        setActiveSystemSy(activeSy);
+        setActiveSystemSem(activeSem);
+        const resolvedActiveKey = `${activeSy}|${activeSem}`;
         setSelectedSchoolYear((prev) => {
-          if (prev === 'all|all') return prev;
-          const sem = prev.split('|')[1] || currentSchoolYear.currentPeriod;
-          return `${activeSy}|${sem}`;
+          if (!prev || prev === `${currentSchoolYear.syStart}-${currentSchoolYear.syEnd}|${currentSchoolYear.currentPeriod}` || prev === activePeriodKey) {
+            return resolvedActiveKey;
+          }
+          return prev;
         });
       }
     } catch (err) {
@@ -211,19 +239,26 @@ export const TutorStudentDirectory: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [user]);
 
-  const [filterSy, filterSem] = useMemo(() => {
-    if (selectedSchoolYear === 'all|all' || !selectedSchoolYear.includes('|')) {
-      return ['all', 'all'];
+  const effectiveSelectedSchoolYear = useMemo(() => {
+    if (schoolYearOptions.some((opt) => opt.key === selectedSchoolYear)) {
+      return selectedSchoolYear;
     }
-    return selectedSchoolYear.split('|');
-  }, [selectedSchoolYear]);
+    return activePeriodKey;
+  }, [selectedSchoolYear, schoolYearOptions, activePeriodKey]);
+
+  const [filterSy, filterSem] = useMemo(() => {
+    if (!effectiveSelectedSchoolYear.includes('|')) {
+      return ['', ''];
+    }
+    return effectiveSelectedSchoolYear.split('|');
+  }, [effectiveSelectedSchoolYear]);
 
   const filteredGrades = useMemo(() => {
     return grades.filter((g) => {
       const gDate = g.date_logged || g.created_at;
       const gSy = getSchoolYearFromDate(gDate);
-      if (filterSy && filterSy !== 'all' && gSy !== filterSy) return false;
-      if (filterSem && filterSem !== 'all') {
+      if (filterSy && gSy !== filterSy) return false;
+      if (filterSem) {
         const gSem = getSemesterFromGrade(g);
         if (gSem !== filterSem) return false;
       }
@@ -235,8 +270,8 @@ export const TutorStudentDirectory: React.FC = () => {
     return attendance.filter((a) => {
       const aDate = a.date;
       const aSy = getSchoolYearFromDate(aDate);
-      if (filterSy && filterSy !== 'all' && aSy !== filterSy) return false;
-      if (filterSem && filterSem !== 'all') {
+      if (filterSy && aSy !== filterSy) return false;
+      if (filterSem) {
         const aSem = getSemesterFromDate(aDate);
         if (aSem !== filterSem) return false;
       }
@@ -244,36 +279,20 @@ export const TutorStudentDirectory: React.FC = () => {
     });
   }, [attendance, filterSy, filterSem]);
 
+  // Filter students matching the currently selected cohort
+  const cohortStudents = useMemo(() => {
+    return students.filter((s) =>
+      isStudentInCohort(s, {
+        aral_level: selectedAralLevel,
+        subject: selectedSubject,
+        cohort: selectedCohort,
+      })
+    );
+  }, [students, selectedAralLevel, selectedSubject, selectedCohort]);
+
   const studentRows = useMemo(() => {
-    return computeStudentRiskRows(students, filteredGrades, filteredAttendance).map((r) => ({ ...r, email: r.student.email }));
-  }, [students, filteredGrades, filteredAttendance]);
-
-  const directorySubjects = useMemo(() => {
-    const studentIds = new Set(students.map((student) => String(student.id)));
-    const subjects = [...new Set(grades
-      .filter((grade) => studentIds.has(String(grade.student)))
-      .map((grade) => grade.subject?.trim())
-      .filter(Boolean)
-      .filter((subject) => !['intervention activity', 'attendance'].includes(subject!.toLowerCase()))
-      .map((subject) => {
-        const normalizedSubject = subject!.toLowerCase();
-        if (normalizedSubject.includes('reading')) return 'Reading';
-        if (normalizedSubject.includes('math')) return 'Math';
-        if (normalizedSubject.includes('science')) return 'Science';
-        return subject!.replace(/\b\w/g, (letter) => letter.toUpperCase());
-      }))];
-    return subjects.length ? subjects : ['Reading'];
-  }, [students, grades]);
-  const tutorAralLevel = useMemo(() => {
-    if (!user?.aral_level) return 'Basic';
-    const lvl = user.aral_level.toLowerCase();
-    return lvl.charAt(0).toUpperCase() + lvl.slice(1);
-  }, [user?.aral_level]);
-
-  const avatarColor = useMemo(
-    () => buildAvatarColorMap(students.length > 0 ? students : studentRows.map((r) => r.student)),
-    [students, studentRows]
-  );
+    return computeStudentRiskRows(cohortStudents, filteredGrades, filteredAttendance).map((r) => ({ ...r, email: r.student.email }));
+  }, [cohortStudents, filteredGrades, filteredAttendance]);
 
   const handleSort = (field: string) => {
     if (sortField === field) setSortAsc(!sortAsc);
@@ -330,7 +349,7 @@ const aralLevelRank: Record<string, number> = {
   const filteredAndSorted = useMemo(() => {
     return studentRows
       .filter((r) => {
-        return matchesSearch(search, r.student.full_name, r.student.first_name, r.student.last_name, r.student.lrn);
+        return matchesSearch(search, r.student.full_name, r.student.first_name, r.student.last_name, r.student.lrn, r.student.parent_guardian_name, r.student.contact_number);
       })
       .sort((a, b) => {
         if (sortField === 'name' || !sortField) {
@@ -342,9 +361,14 @@ const aralLevelRank: Record<string, number> = {
           const valB = b.student.lrn || '';
           return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
         }
-        if (sortField === 'sex') {
-          const valA = a.student.sex || a.student.gender || '';
-          const valB = b.student.sex || b.student.gender || '';
+        if (sortField === 'parent_guardian') {
+          const valA = a.student.parent_guardian_name || '';
+          const valB = b.student.parent_guardian_name || '';
+          return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        if (sortField === 'contact') {
+          const valA = a.student.contact_number || '';
+          const valB = b.student.contact_number || '';
           return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
         }
         if (sortField === 'level') {
@@ -368,14 +392,14 @@ const aralLevelRank: Record<string, number> = {
       <button
         type="button"
         onClick={() => handleSort(field)}
-        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-700 select-none"
+        className="inline-flex items-center gap-1.5 whitespace-nowrap text-left transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none cursor-pointer"
         aria-label={`Sort by ${label}`}
       >
-        {label}
+        <span className="whitespace-nowrap">{label}</span>
         {isActive ? (
-          sortAsc ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />
+          sortAsc ? <ChevronUp className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
         ) : (
-          <ArrowUpDown className="w-3.5 h-3.5 opacity-50" />
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-40 hover:opacity-75 shrink-0" />
         )}
       </button>
     );
@@ -384,17 +408,14 @@ const aralLevelRank: Record<string, number> = {
   if (isLoading) {
     return (
       <div className="space-y-6 skeleton-container" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-        {/* Top KPI cards skeleton */}
-        <div className="grid gap-4 sm:grid-cols-3 skeleton-row-1">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 animate-pulse flex flex-col justify-center space-y-2"
-            >
-              <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800" />
-              <div className="h-6 w-16 rounded bg-gray-200 dark:bg-gray-800" />
-            </div>
-          ))}
+        {/* Cohort Filter Skeleton */}
+        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3 animate-pulse">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            <div className="h-9 w-full rounded bg-gray-100 dark:bg-gray-800" />
+            <div className="h-9 w-full rounded bg-gray-100 dark:bg-gray-800" />
+            <div className="h-9 w-full rounded bg-gray-100 dark:bg-gray-800" />
+            <div className="h-9 w-full rounded bg-gray-100 dark:bg-gray-800" />
+          </div>
         </div>
 
         {/* Directory Table Card skeleton */}
@@ -451,20 +472,23 @@ const aralLevelRank: Record<string, number> = {
   return (
     <div className="space-y-6 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">TOTAL STUDENTS</p>
-          <p className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">{students.length}</p>
-        </div>
-        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">SUBJECT</p>
-          <p className="mt-0.5 truncate text-xl font-extrabold text-gray-900 dark:text-slate-100" title={directorySubjects.join(', ')}>{directorySubjects.join(', ')}</p>
-        </div>
-        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">ARAL LEVEL</p>
-          <p className="mt-0.5 truncate text-xl font-extrabold text-gray-900 dark:text-slate-100" title={tutorAralLevel}>{tutorAralLevel}</p>
-        </div>
-      </div>
+      {/* ── Tutor Multi-Cohort Filter (ARAL Level, Subject, Grade - Section) ── */}
+      <TutorCohortFilter
+        user={user}
+        students={students}
+        isLoading={isLoading}
+        selectedAralLevel={selectedAralLevel}
+        onSelectAralLevel={setSelectedAralLevel}
+        selectedSubject={selectedSubject}
+        onSelectSubject={setSelectedSubject}
+        selectedCohort={selectedCohort}
+        onSelectCohort={setSelectedCohort}
+        onSelectClass={(level, subject, cohort) =>
+          setSelectedCohortFilter({ aral_level: level, subject, cohort })
+        }
+        allowAll={true}
+        title="CURRENT CLASS FOR VIEW"
+      />
 
       {/* ── States ────────────────────────────────────────────────── */}
       {students.length === 0 ? (
@@ -478,23 +502,23 @@ const aralLevelRank: Record<string, number> = {
       ) : (
         <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative">
           {/* Section header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
-            <div>
-              <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">ASSIGNED STUDENTS DETAILS</h3>
-              <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">
+          <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-2.5 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+            <div className="min-w-0 flex-1 truncate">
+              <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase truncate">ASSIGNED STUDENTS DETAILS</h3>
+              <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">
                 {filteredAndSorted.length} Student{filteredAndSorted.length !== 1 ? 's' : ''}
               </p>
             </div>
 
             {/* Controls */}
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
               {/* Auto-updating School Year Dropdown */}
-              <div className="relative inline-flex items-center">
+              <div className="relative inline-flex items-center shrink-0">
                 <select
-                  value={selectedSchoolYear}
+                  value={effectiveSelectedSchoolYear}
                   onChange={(e) => setSelectedSchoolYear(e.target.value)}
                   aria-label="Filter by School Year"
-                  className="h-8.5 appearance-none rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-3 pr-8 text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer"
+                  className="h-7.5 sm:h-8.5 appearance-none rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-2.5 pr-7 sm:pl-3 sm:pr-8 text-[11px] sm:text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer"
                 >
                   {schoolYearOptions.map((opt) => (
                     <option key={opt.key} value={opt.key} className="bg-white dark:bg-[#111111] text-gray-800 dark:text-slate-200 font-medium">
@@ -502,18 +526,18 @@ const aralLevelRank: Record<string, number> = {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-[var(--brand)] opacity-75" />
+                <ChevronDown className="pointer-events-none absolute right-2 sm:right-2.5 h-3 sm:h-3.5 w-3 sm:w-3.5 text-[var(--brand)] opacity-75" />
               </div>
 
-              <label className="relative flex w-full sm:w-auto sm:min-w-52 items-center">
-                <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-gray-400" />
+              <label className="relative flex w-28 xs:w-36 sm:w-52 items-center shrink-0">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <input
                   type="search"
-                  placeholder="Search Student Name"
+                  placeholder="Search student..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   aria-label="Search assigned students"
-                  className="h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-9 pr-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
+                  className="h-7.5 sm:h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-8 pr-2.5 text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
                 />
               </label>
             </div>
@@ -525,33 +549,34 @@ const aralLevelRank: Record<string, number> = {
               <div className="flex flex-col items-center gap-2 py-12 text-center">
                 <Users className="w-10 h-10 text-gray-200 dark:text-gray-700" />
                 <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No matching students found</p>
-                <p className="text-xs text-gray-400 dark:text-slate-500">Try a different student name or LRN</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">
+                  {search.trim() ? 'Try a different student name or LRN' : 'No students found in this cohort'}
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2">
-                <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                <table className="min-w-[800px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                   <thead>
                     <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-                      <th className="w-12 px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                      <th className="w-12 px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
                         #
                       </th>
-                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
                         <SortableHeader label="STUDENT" field="name" />
                       </th>
-                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
                         <SortableHeader label="LRN" field="lrn" />
                       </th>
-                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                        <SortableHeader label="SEX" field="sex" />
+                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                        <SortableHeader label="PARENT / GUARDIAN" field="parent_guardian" />
                       </th>
-                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                        {hasMultipleAralLevels ? (
-                          <SortableHeader label="ARAL LEVEL" field="level" />
-                        ) : (
-                          <span className="select-none">ARAL LEVEL</span>
-                        )}
+                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                        <SortableHeader label="CONTACT NO." field="contact" />
                       </th>
-                      <th className="w-16 px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                        <SortableHeader label="ARAL LEVEL" field="level" />
+                      </th>
+                      <th className="w-16 px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
                         ACTION
                       </th>
                     </tr>
@@ -563,18 +588,16 @@ const aralLevelRank: Record<string, number> = {
                           {index + 1}
                         </td>
                         <td className="px-4 py-2.5 font-semibold text-gray-800 dark:text-slate-100">
-                          <div className="flex items-center gap-2.5">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs ${avatarColor(row.student.full_name || '')}`}>
-                              <UserIcon className="w-3 h-3" />
-                            </div>
-                            <span className="truncate font-semibold text-gray-800 dark:text-slate-100">{row.student.full_name}</span>
-                          </div>
+                          <span className="block truncate font-semibold text-gray-800 dark:text-slate-100">{row.student.full_name}</span>
                         </td>
                         <td className="px-4 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs font-normal font-mono">
                           {row.student.lrn || 'N/A'}
                         </td>
-                        <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-normal">
-                          {row.student.sex || row.student.gender || '—'}
+                        <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-normal uppercase">
+                          {row.student.parent_guardian_name || '—'}
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-mono">
+                          {row.student.contact_number || '—'}
                         </td>
                         <td className="px-4 py-2.5 whitespace-nowrap">
                           {getAralBadge(row.student.aral_level)}

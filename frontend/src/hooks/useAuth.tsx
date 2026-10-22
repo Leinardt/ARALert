@@ -18,8 +18,17 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     // Session-based authentication: closing the browser or tab terminates the session.
-    const storedUser = sessionStorage.getItem('user');
-    return storedUser ? JSON.parse(storedUser) : null;
+    try {
+      const storedUser = sessionStorage.getItem('user');
+      if (!storedUser || storedUser === 'undefined' || storedUser === 'null') {
+        return null;
+      }
+      return JSON.parse(storedUser);
+    } catch (err) {
+      console.warn('Failed to parse stored user from sessionStorage:', err);
+      sessionStorage.removeItem('user');
+      return null;
+    }
   });
 
   const isAuthenticated = Boolean(user);
@@ -30,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     resetActivity();
     sessionStorage.setItem('aralert_login_greeting_pending', 'true');
+    sessionStorage.removeItem('aralert_greeting_played_in_session');
     sessionStorage.setItem('access_token', response.access);
     sessionStorage.setItem('refresh_token', response.refresh);
     sessionStorage.setItem('user', JSON.stringify(response.user));
@@ -62,12 +72,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     const refreshToken = sessionStorage.getItem('refresh_token') || localStorage.getItem('refresh_token');
-    try {
-      await authService.logout(refreshToken);
-    } catch (error) {
-      console.warn('Logout request failed', error);
-    }
+
+    // Immediately clear all session & local storage to eliminate UI lag
     sessionStorage.removeItem('aralert_login_greeting_pending');
+    sessionStorage.removeItem('aralert_greeting_played_in_session');
+    sessionStorage.removeItem('aralert_is_first_login');
     sessionStorage.removeItem('access_token');
     sessionStorage.removeItem('refresh_token');
     sessionStorage.removeItem('user');
@@ -75,6 +84,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
     setUser(null);
+
+    try {
+      await authService.logout(refreshToken);
+    } catch (error) {
+      console.warn('Logout request failed', error);
+    }
   };
 
   useEffect(() => {

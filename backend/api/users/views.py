@@ -1,17 +1,18 @@
-"""
+﻿"""
 Users API Views.
 SuperAdmin and Admin endpoints for user management with audit logging, bulk tutor assignment,
 and user login/logout activity history.
 """
 
-from django.db.models import Avg, Count, Q
+import re
+import uuid
+from django.db.models import Avg, Case, Count, IntegerField, Q, Value, When
 from django.db.models.functions import Lower
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.academics.models import AssessmentScore, Prediction, StudentAttendance
 from apps.accounts.models import AuditLog, User, StudentEditRequest
 from permissions.role_permissions import IsAdmin, IsTutor, role_required
 from utilities.audit import log_audit_event
@@ -48,27 +49,40 @@ class UserStatsView(APIView):
             principals=Count('id', filter=Q(role='principal')),
             faculty=Count('id', filter=Q(role='faculty')),
             tutors=Count('id', filter=Q(role='tutor')),
-            students=Count('id', filter=Q(role='student')),
-            assigned_students=Count('id', filter=Q(role='student', assigned_tutor__isnull=False)),
-            unassigned_students=Count('id', filter=Q(role='student', assigned_tutor__isnull=True)),
+            students=Count('id', filter=Q(role='student') & ~Q(aral_level='graduated')),
+            assigned_students=Count('id', filter=Q(role='student', assigned_tutor__isnull=False) & ~Q(aral_level='graduated')),
+            unassigned_students=Count('id', filter=Q(role='student', assigned_tutor__isnull=True) & ~Q(aral_level='graduated')),
         )
 
-        att_aggregates = StudentAttendance.objects.aggregate(
-            total_logs=Count('id'),
-            present=Count('id', filter=Q(status__iexact='PRESENT')),
-            absent=Count('id', filter=Q(status__iexact='ABSENT')),
-        )
+        total_att = 0
+        present_att = 0
+        absent_att = 0
+        att_rate = 0.0
+        avg_score = 0.0
+        total_assessments = 0
 
-        score_aggregates = AssessmentScore.objects.filter(score__isnull=False).aggregate(
-            avg_score=Avg('score'),
-            total_assessments=Count('id'),
-        )
+        try:
+            from apps.academics.models import StudentAttendance, AssessmentScore
 
-        total_att = att_aggregates['total_logs'] or 0
-        present_att = att_aggregates['present'] or 0
-        absent_att = att_aggregates['absent'] or 0
-        att_rate = round((present_att / total_att * 100.0), 1) if total_att > 0 else 0
-        avg_score = round(float(score_aggregates['avg_score']), 1) if score_aggregates['avg_score'] is not None else 0
+            att_aggregates = StudentAttendance.objects.aggregate(
+                total_logs=Count('id'),
+                present=Count('id', filter=Q(status__iexact='PRESENT')),
+                absent=Count('id', filter=Q(status__iexact='ABSENT')),
+            )
+
+            score_aggregates = AssessmentScore.objects.filter(score__isnull=False).aggregate(
+                avg_score=Avg('score'),
+                total_assessments=Count('id'),
+            )
+
+            total_att = att_aggregates['total_logs'] or 0
+            present_att = att_aggregates['present'] or 0
+            absent_att = att_aggregates['absent'] or 0
+            att_rate = round((present_att / total_att * 100.0), 1) if total_att > 0 else 0
+            avg_score = round(float(score_aggregates['avg_score']), 1) if score_aggregates['avg_score'] is not None else 0
+            total_assessments = score_aggregates['total_assessments'] or 0
+        except Exception:
+            pass
 
         stats = {
             'total_users': user_aggregates['total_users'] or 0,
@@ -89,7 +103,7 @@ class UserStatsView(APIView):
             'academic_summary': {
                 'average_score': avg_score,
                 'average_attendance_rate': att_rate,
-                'total_assessments': score_aggregates['total_assessments'] or 0,
+                'total_assessments': total_assessments,
             },
         }
         return Response(stats)
@@ -117,20 +131,26 @@ class UserListCreateView(generics.ListCreateAPIView):
         return UserListSerializer
 
     def get_queryset(self):
-        queryset = User.objects.filter(is_superuser=False).select_related('assigned_tutor')
         user = getattr(self.request, 'user', None)
         if not user or not user.is_authenticated:
-            return queryset.none()
+            return User.objects.none()
 
-        if not user.is_superuser:
-            # School Admins cannot view or manage Admin accounts; only SuperAdmin can
-            queryset = queryset.exclude(role='admin')
+        role = self.request.query_params.get('role', '').strip()
+
+        # SuperAdmin accounts are only visible to authenticated superusers
+        if user.is_superuser:
+            if role == 'superadmin':
+                queryset = User.objects.filter(is_superuser=True).select_related('assigned_tutor')
+            else:
+                queryset = User.objects.filter(is_superuser=False).select_related('assigned_tutor')
+        else:
+            # School Admins and lower cannot view SuperAdmins or Admins
+            queryset = User.objects.filter(is_superuser=False).exclude(role='admin').select_related('assigned_tutor')
 
         if not user.is_superuser and getattr(user, 'role', None) == 'tutor':
-            role = self.request.query_params.get('role', '').strip()
             if role == 'principal':
                 return queryset.filter(role='principal', is_active=True)
-            return queryset.filter(assigned_tutor=user, role='student')
+            return queryset.filter(assigned_tutor=user, role='student').exclude(aral_level='graduated')
 
         role = self.request.query_params.get('role', '').strip()
 
@@ -143,11 +163,27 @@ class UserListCreateView(generics.ListCreateAPIView):
 
         subject = self.request.query_params.get('subject', '').strip()
         if subject:
-            queryset = queryset.filter(subject__iexact=subject)
+            if subject.lower() in ('reading', 'filipino'):
+                queryset = queryset.filter(Q(subject__icontains='Filipino') | Q(subject__icontains='Reading') | Q(aral_level__icontains='basic'))
+            else:
+                queryset = queryset.filter(Q(subject__icontains=subject) | (Q(aral_level__icontains='plus') if subject.lower() == 'english' else Q()))
+
+        include_graduated = self.request.query_params.get('include_graduated', '').strip().lower() in ('true', '1')
 
         aral_level = self.request.query_params.get('aral_level', '').strip()
         if aral_level:
             queryset = queryset.filter(aral_level__iexact=aral_level)
+        elif (role == 'student' or not role) and not include_graduated:
+            # Graduated students are archived and must not appear in active student user management
+            queryset = queryset.exclude(aral_level='graduated')
+
+        grade_level = self.request.query_params.get('grade_level', '').strip()
+        if grade_level:
+            queryset = queryset.filter(grade_level__icontains=grade_level)
+
+        section = self.request.query_params.get('section', '').strip()
+        if section:
+            queryset = queryset.filter(Q(section__iexact=section) | Q(grade_level__icontains=section))
 
         search = self.request.query_params.get('search', '').strip()
         if search:
@@ -159,7 +195,7 @@ class UserListCreateView(generics.ListCreateAPIView):
                 | Q(lrn__icontains=search)
             )
 
-        if role:
+        if role and role != 'superadmin':
             if role == 'staff':
                 queryset = queryset.filter(role__in=['admin', 'principal', 'faculty', 'tutor'])
             else:
@@ -184,10 +220,28 @@ class UserListCreateView(generics.ListCreateAPIView):
             queryset = queryset.order_by('-is_active', 'last_name', 'first_name')
         elif ordering in ['-status', '-is_active']:
             queryset = queryset.order_by('is_active', 'last_name', 'first_name')
-        elif ordering in ['grade_level', 'section']:
-            queryset = queryset.order_by('grade_level', 'last_name', 'first_name')
-        elif ordering in ['-grade_level', '-section']:
-            queryset = queryset.order_by('-grade_level', 'last_name', 'first_name')
+        elif ordering in ['grade_level', '-grade_level']:
+            grade_cases = []
+            for g in range(12, 0, -1):
+                grade_cases.append(When(grade_level__istartswith=f'Grade {g}', then=Value(g)))
+                grade_cases.append(When(grade_level__icontains=f'Grade {g}', then=Value(g)))
+                grade_cases.append(When(grade_level__startswith=f'{g} ', then=Value(g)))
+                grade_cases.append(When(grade_level__startswith=f'{g}-', then=Value(g)))
+                grade_cases.append(When(grade_level__startswith=f'{g} -', then=Value(g)))
+                grade_cases.append(When(grade_level=f'{g}', then=Value(g)))
+
+            queryset = queryset.annotate(
+                grade_num=Case(
+                    *grade_cases,
+                    default=Value(99),
+                    output_field=IntegerField()
+                )
+            )
+            order_prefix = '-' if ordering.startswith('-') else ''
+            queryset = queryset.order_by(f'{order_prefix}grade_num', 'last_name', 'first_name')
+        elif ordering in ['section', '-section']:
+            order_prefix = '-' if ordering.startswith('-') else ''
+            queryset = queryset.order_by(f'{order_prefix}grade_level', 'last_name', 'first_name')
         else:
             allowed_orderings = [
                 'role', '-role',
@@ -208,21 +262,54 @@ class UserListCreateView(generics.ListCreateAPIView):
 
     def create(self, request, *args, **kwargs):
         target_role = request.data.get('role')
-        if not request.user.is_superuser and target_role == 'admin':
+        is_creating_superadmin = (target_role == 'superadmin' or request.data.get('is_superuser') is True)
+
+        if is_creating_superadmin:
+            if not request.user.is_superuser:
+                return Response(
+                    {'detail': 'Only SuperAdmin can register SuperAdmin accounts.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        if target_role == 'admin' and not request.user.is_superuser:
             return Response(
                 {'detail': 'Only SuperAdmin can register School Admin accounts.'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        serializer = UserCreateSerializer(data=request.data)
+        data = request.data.copy()
+        if is_creating_superadmin:
+            data['is_superuser'] = True
+            data['role'] = None
+
+        serializer = UserCreateSerializer(data=data)
         serializer.is_valid(raise_exception=True)
 
         user = serializer.save()
+        target_full_name = user.get_full_name().strip()
+        if not target_full_name:
+            if user.role == 'student' and user.lrn:
+                target_full_name = f"STUDENT {user.lrn}"
+            elif user.role == 'student':
+                target_full_name = "STUDENT"
+            else:
+                raw_u = (user.username or user.email or '').split('@')[0]
+                target_full_name = raw_u.replace('.', ' ').replace('_', ' ').strip().upper()
+
         log_audit_event(
             'USER_CREATED',
             user=request.user,
             request=request,
-            details={'target_user_id': str(user.id), 'target_username': user.username, 'role': user.role, 'email': user.email}
+            details={
+                'target_user_id': str(user.id),
+                'target_username': user.username if (user.role != 'student' and not user.username.endswith('@aralert.local')) else (user.lrn or user.username),
+                'target_name': target_full_name,
+                'target_role': 'superadmin' if user.is_superuser else user.role,
+                'target_lrn': getattr(user, 'lrn', '') or None,
+                'role': 'superadmin' if user.is_superuser else user.role,
+                'email': user.email if (user.role != 'student' and not user.email.endswith('@aralert.local') and not user.email.startswith('student-')) else None,
+                'lrn': user.lrn if user.role == 'student' else None,
+            }
         )
         return Response(
             UserListSerializer(user).data,
@@ -230,7 +317,41 @@ class UserListCreateView(generics.ListCreateAPIView):
         )
 
 
-ROOT_SUPERADMIN_EMAIL = 'ro2023-4992-68567@bicol-u.edu.ph'
+class CheckExistingLrnsView(APIView):
+    """
+    POST /api/users/check-lrns/
+    Checks a batch of LRNs against existing database users.
+    Returns: {"existing_lrns": ["123456789012", ...]}
+    """
+    permission_classes = [IsAdmin]
+
+    def post(self, request, *args, **kwargs):
+        lrns = request.data.get('lrns', [])
+        if not isinstance(lrns, list):
+            return Response({'error': 'lrns must be a list of strings.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        clean_lrns = [str(l).strip() for l in lrns if str(l).strip()]
+        if not clean_lrns:
+            return Response({'existing_lrns': []}, status=status.HTTP_200_OK)
+
+        existing = list(
+            User.objects.filter(lrn__in=clean_lrns, role='student').values_list('lrn', flat=True)
+        )
+        return Response({'existing_lrns': existing}, status=status.HTTP_200_OK)
+
+
+ROOT_SUPERADMIN_EMAIL = 'lro2023-4992-68567@bicol-u.edu.ph'
+PROTECTED_ROOT_SUPERADMIN_EMAILS = {
+    'lro2023-4992-68567@bicol-u.edu.ph',
+    'ro2023-4992-68567@bicol-u.edu.ph',
+}
+
+
+def is_root_superadmin(user_obj) -> bool:
+    if not user_obj:
+        return False
+    email = getattr(user_obj, 'email', '') or ''
+    return email.strip().lower() in PROTECTED_ROOT_SUPERADMIN_EMAILS
 
 
 class UserDetailView(generics.RetrieveUpdateAPIView):
@@ -263,14 +384,25 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         return UserListSerializer
 
     def perform_update(self, serializer):
-        if self.request.user.role == 'tutor':
-            from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied(
-                'Student profile edits require administrative approval. Please submit a Student Edit Request.'
-            )
+        if getattr(self.request.user, 'role', None) == 'tutor':
+            # Tutors can update identity and academic details of their assigned students.
+            # Disallow changing sensitive security, administrative, or reassignment fields.
+            for restricted_field in ['role', 'is_superuser', 'is_staff', 'is_active', 'assigned_tutor']:
+                if restricted_field in serializer.validated_data:
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied(f'Tutors are not permitted to modify {restricted_field}.')
 
         target_user = serializer.instance
-        if target_user.email and target_user.email.strip().lower() == ROOT_SUPERADMIN_EMAIL.lower():
+
+        # 1. Do not let admin or superadmin deactivate their own account
+        if (str(target_user.id) == str(self.request.user.id) or (
+            target_user.email and self.request.user.email and target_user.email.strip().lower() == self.request.user.email.strip().lower()
+        )) and serializer.validated_data.get('is_active') is False:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'is_active': 'You cannot deactivate your own account.'})
+
+        # 2. Do not allow anyone to deactivate or alter the role of the Primary Root SuperAdmin account
+        if is_root_superadmin(target_user):
             if serializer.validated_data.get('is_active') is False:
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({'is_active': f'The Primary Root SuperAdmin account ({ROOT_SUPERADMIN_EMAIL}) cannot be deactivated.'})
@@ -278,8 +410,40 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({'role': 'The Primary Root SuperAdmin role cannot be changed.'})
 
+        prev_level = (getattr(target_user, 'aral_level', '') or '').lower()
         prev_tutor = target_user.assigned_tutor
         updated_user = serializer.save()
+        new_level = (getattr(updated_user, 'aral_level', '') or '').lower()
+
+        # If ARAL level is changed from graduated back to basic/plus/summer (reverting a mistake)
+        if updated_user.role == 'student' and prev_level == 'graduated' and new_level in ('basic', 'plus', 'summer'):
+            try:
+                from apps.academics.models import StudentEnrollment
+                StudentEnrollment.objects.filter(
+                    student=updated_user,
+                    graduation_status='graduated'
+                ).update(
+                    graduation_status='not_eligible',
+                    enrollment_status='active',
+                    final_result=''
+                )
+            except Exception:
+                pass
+
+        # If ARAL level is manually set to graduated
+        if updated_user.role == 'student' and new_level == 'graduated' and prev_level != 'graduated':
+            try:
+                from apps.academics.models import StudentEnrollment
+                latest_enr = StudentEnrollment.objects.filter(
+                    student=updated_user
+                ).order_by('-school_year__start_date', '-id').first()
+                if latest_enr:
+                    latest_enr.graduation_status = 'graduated'
+                    latest_enr.final_result = 'Graduated'
+                    latest_enr.enrollment_status = 'completed'
+                    latest_enr.save(update_fields=['graduation_status', 'final_result', 'enrollment_status'])
+            except Exception:
+                pass
 
         # Log individual tutor assignment if changed
         if 'assigned_tutor' in serializer.validated_data and updated_user.assigned_tutor != prev_tutor:
@@ -305,11 +469,35 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
                 }
             )
 
+        target_full_name = updated_user.get_full_name().strip()
+        if not target_full_name:
+            if updated_user.role == 'student' and updated_user.lrn:
+                target_full_name = f"STUDENT {updated_user.lrn}"
+            elif updated_user.role == 'student':
+                target_full_name = "STUDENT"
+            else:
+                raw_u = (updated_user.username or updated_user.email or '').split('@')[0]
+                target_full_name = raw_u.replace('.', ' ').replace('_', ' ').strip().upper()
+
+        target_display_username = updated_user.lrn if (updated_user.role == 'student' and updated_user.lrn) else updated_user.username
+        if updated_user.role == 'student' and (not target_display_username or str(target_display_username).startswith('student-') or '@' in str(target_display_username)):
+            target_display_username = updated_user.lrn or 'Student'
+
+        target_role = 'superadmin' if updated_user.is_superuser else updated_user.role
+        target_lrn = getattr(updated_user, 'lrn', '') or None
+
         log_audit_event(
             'USER_UPDATED',
             user=self.request.user,
             request=self.request,
-            details={'target_user_id': str(updated_user.id), 'target_username': updated_user.username, 'updated_fields': list(serializer.validated_data.keys())}
+            details={
+                'target_user_id': str(updated_user.id),
+                'target_username': target_display_username,
+                'target_name': target_full_name,
+                'target_role': target_role,
+                'target_lrn': target_lrn,
+                'updated_fields': list(serializer.validated_data.keys())
+            }
         )
 
 
@@ -330,11 +518,34 @@ class UserActivateView(APIView):
         actor_role = getattr(request.user, 'role', '')
         action = 'USER_ACTIVATED_BY_SUPERADMIN' if (actor_role == 'superadmin' or request.user.is_superuser) else 'USER_ACTIVATED_BY_ADMIN'
 
+        target_full_name = user.get_full_name().strip()
+        if not target_full_name:
+            if user.role == 'student' and user.lrn:
+                target_full_name = f"STUDENT {user.lrn}"
+            elif user.role == 'student':
+                target_full_name = "STUDENT"
+            else:
+                raw_u = (user.username or user.email or '').split('@')[0]
+                target_full_name = raw_u.replace('.', ' ').replace('_', ' ').strip().upper()
+
+        target_display_username = user.lrn if (user.role == 'student' and user.lrn) else user.username
+        if user.role == 'student' and (not target_display_username or str(target_display_username).startswith('student-') or '@' in str(target_display_username)):
+            target_display_username = user.lrn or 'Student'
+
+        target_role = 'superadmin' if user.is_superuser else (user.role or '')
+        target_lrn = getattr(user, 'lrn', '') or None
+
         log_audit_event(
             action,
             user=request.user,
             request=request,
-            details={'target_user_id': str(user.id), 'target_username': user.username, 'target_role': user.role}
+            details={
+                'target_user_id': str(user.id),
+                'target_username': target_display_username,
+                'target_name': target_full_name,
+                'target_role': target_role,
+                'target_lrn': target_lrn,
+            }
         )
         return Response({'detail': 'User activated successfully.'})
 
@@ -350,21 +561,60 @@ class UserDeactivateView(APIView):
         else:
             user = get_object_or_404(User, id=id, is_superuser=False)
 
-        if user.email and user.email.strip().lower() == ROOT_SUPERADMIN_EMAIL.lower():
-            from rest_framework.exceptions import PermissionDenied
+        from rest_framework.exceptions import PermissionDenied
+
+        # 1. Do not let admin or superadmin deactivate their own account
+        if str(user.id) == str(request.user.id) or (
+            user.email and request.user.email and user.email.strip().lower() == request.user.email.strip().lower()
+        ):
+            raise PermissionDenied('You cannot deactivate your own account.')
+
+        # 2. Do not allow other superadmin to deactivate the Primary Root SuperAdmin account
+        if is_root_superadmin(user):
             raise PermissionDenied(f'The Primary Root SuperAdmin account ({ROOT_SUPERADMIN_EMAIL}) is protected and cannot be deactivated.')
 
         user.is_active = False
         user.save(update_fields=['is_active'])
 
+        # Blacklist any outstanding JWT tokens so the user is forcibly logged out immediately
+        try:
+            from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+            for ot in OutstandingToken.objects.filter(user=user):
+                BlacklistedToken.objects.get_or_create(token=ot)
+        except Exception:
+            pass
+
         actor_role = getattr(request.user, 'role', '')
         action = 'USER_DEACTIVATED_BY_SUPERADMIN' if (actor_role == 'superadmin' or request.user.is_superuser) else 'USER_DEACTIVATED_BY_ADMIN'
+
+        target_full_name = user.get_full_name().strip()
+        if not target_full_name:
+            if user.role == 'student' and user.lrn:
+                target_full_name = f"STUDENT {user.lrn}"
+            elif user.role == 'student':
+                target_full_name = "STUDENT"
+            else:
+                raw_u = (user.username or user.email or '').split('@')[0]
+                target_full_name = raw_u.replace('.', ' ').replace('_', ' ').strip().upper()
+
+        target_display_username = user.lrn if (user.role == 'student' and user.lrn) else user.username
+        if user.role == 'student' and (not target_display_username or str(target_display_username).startswith('student-') or '@' in str(target_display_username)):
+            target_display_username = user.lrn or 'Student'
+
+        target_role = 'superadmin' if user.is_superuser else (user.role or '')
+        target_lrn = getattr(user, 'lrn', '') or None
 
         log_audit_event(
             action,
             user=request.user,
             request=request,
-            details={'target_user_id': str(user.id), 'target_username': user.username, 'target_role': user.role}
+            details={
+                'target_user_id': str(user.id),
+                'target_username': target_display_username,
+                'target_name': target_full_name,
+                'target_role': target_role,
+                'target_lrn': target_lrn,
+            }
         )
         return Response({'detail': 'User deactivated successfully.'})
 
@@ -395,23 +645,39 @@ class BulkAssignTutorView(APIView):
         # Compatibility pre-check for all selected students
         if tutor:
             for s in students:
-                s_prog = s.aral_level or 'basic'
+                s_prog = (s.aral_level or 'basic').lower().strip()
                 try:
                     validate_tutor_compatibility(tutor, s_prog)
                 except DjangoValidationError as e:
+                    t_name = tutor.get_full_name() or tutor.email or 'This tutor'
+                    s_name = s.get_full_name() or s.email or 'this student'
+                    raw_msg = ''
+                    if hasattr(e, 'message_dict') and 'tutor' in e.message_dict:
+                        raw_msg = e.message_dict['tutor'][0]
+                    else:
+                        raw_msg = str(getattr(e, 'message', None) or e)
+                    err_msg = f"Cannot assign {t_name} to {s_name}: {raw_msg}"
                     raise RestValidationError({
-                        'tutor_id': f"Cannot assign {tutor.get_full_name()} to {s.get_full_name()}: this tutor teaches {tutor.tutor_type} only while the student is in {s_prog.capitalize()}."
+                        'detail': err_msg,
+                        'tutor_id': err_msg,
                     })
 
         # Process assignments
         for s in students:
-            assign_tutor_to_student(
-                student=s,
-                tutor=tutor,
-                assigned_by=request.user,
-                period='MOSY',
-                notes='Bulk tutor assignment',
-            )
+            try:
+                assign_tutor_to_student(
+                    student=s,
+                    tutor=tutor,
+                    assigned_by=request.user,
+                    period='MOSY',
+                    notes='Bulk tutor assignment',
+                )
+            except DjangoValidationError as e:
+                err_msg = str(getattr(e, 'message', None) or e)
+                raise RestValidationError({
+                    'detail': err_msg,
+                    'tutor_id': err_msg,
+                })
 
         updated_count = len(students)
         tutor_name = tutor.get_full_name() if tutor else 'TBA'
@@ -548,19 +814,37 @@ class AuditLogListView(APIView):
         offset = (page - 1) * page_size
         logs = qs[offset: offset + page_size]
 
+        # Batch resolve target users for older or target_user_id-only logs
+        target_user_ids = set()
+        for log in logs:
+            if isinstance(log.details, dict) and log.details.get('target_user_id'):
+                t_name = str(log.details.get('target_name') or '').strip()
+                if not t_name or '@' in t_name or t_name.startswith('student-'):
+                    try:
+                        target_user_ids.add(uuid.UUID(str(log.details['target_user_id'])))
+                    except (ValueError, TypeError):
+                        pass
+
+        target_users_map = {}
+        if target_user_ids:
+            for u in User.objects.filter(id__in=target_user_ids):
+                u_full = u.get_full_name().strip()
+                if not u_full:
+                    if u.role == 'student' and u.lrn:
+                        u_full = f"STUDENT {u.lrn}"
+                    elif u.role == 'student':
+                        u_full = "STUDENT"
+                    else:
+                        u_full = (u.username or u.email or '').split('@')[0].replace('.', ' ').replace('_', ' ').strip().upper()
+                target_users_map[str(u.id)] = {
+                    'name': u_full,
+                    'role': 'superadmin' if u.is_superuser else (u.role or ''),
+                    'lrn': getattr(u, 'lrn', '') or None,
+                }
+
         results = []
         for log in logs:
-            # 1. Name
-            if log.user and (log.user.first_name or log.user.last_name):
-                name = log.user.get_full_name()
-            elif isinstance(log.details, dict) and (log.details.get('student_name') or log.details.get('user_name') or log.details.get('name')):
-                name = log.details.get('student_name') or log.details.get('user_name') or log.details.get('name')
-            elif log.username:
-                name = log.username
-            else:
-                name = 'System'
-
-            # 2. Role
+            # 1. Role
             if log.user:
                 if log.user.is_superuser:
                     role = 'SuperAdmin'
@@ -570,20 +854,24 @@ class AuditLogListView(APIView):
                     role = 'SuperAdmin'
             elif isinstance(log.details, dict) and log.details.get('role'):
                 role = str(log.details.get('role')).capitalize()
+            elif isinstance(log.details, dict) and log.details.get('target_role') and not log.user:
+                role = str(log.details.get('target_role')).capitalize()
             else:
                 role = 'System'
 
-            # 3. Email
-            if log.user and log.user.email and not log.user.email.endswith('@aralert.local'):
-                email = log.user.email
-            elif isinstance(log.details, dict) and log.details.get('email'):
-                email = log.details.get('email')
-            elif log.user and log.user.email:
-                email = log.user.email
+            # 2. Name
+            if log.user and (log.user.first_name or log.user.last_name):
+                name = log.user.get_full_name()
+            elif isinstance(log.details, dict) and (log.details.get('student_name') or log.details.get('user_name') or log.details.get('name')):
+                name = log.details.get('student_name') or log.details.get('user_name') or log.details.get('name')
+            elif log.username and not log.username.endswith('@aralert.local') and not log.username.startswith('student-'):
+                name = log.username
+            elif log.user and log.user.lrn:
+                name = log.user.lrn
             else:
-                email = '—'
+                name = 'System'
 
-            # 4. LRN
+            # 3. LRN
             if log.user and log.user.lrn:
                 lrn = log.user.lrn
             elif isinstance(log.details, dict) and (log.details.get('lrn') or log.details.get('student_lrn') or log.details.get('proposed_lrn')):
@@ -591,15 +879,82 @@ class AuditLogListView(APIView):
             else:
                 lrn = '—'
 
+            # 4. Email:
+            # Students only have an LRN and MUST NOT have any email in the audit log.
+            # Also never display dummy/placeholder @aralert.local / student-* emails.
+            is_student = (
+                role.lower() == 'student' or
+                (log.user and (log.user.role == 'student' or bool(log.user.lrn))) or
+                (isinstance(log.details, dict) and str(log.details.get('role', '')).lower() == 'student')
+            )
+
+            if is_student:
+                email = '—'
+            else:
+                raw_email = ''
+                if log.user and log.user.email:
+                    raw_email = log.user.email
+                elif isinstance(log.details, dict) and log.details.get('email'):
+                    raw_email = str(log.details.get('email'))
+
+                if raw_email and not raw_email.endswith('@aralert.local') and not raw_email.startswith('student-'):
+                    email = raw_email
+                else:
+                    email = '—'
+
+            # 5. Target (The user or entity created, updated, or affected by this event)
+            # Only put the target name (not email) and omit the [role] tag to save space.
+            target = '—'
+            if isinstance(log.details, dict):
+                target_id = str(log.details.get('target_user_id') or '')
+                cached_target = target_users_map.get(target_id)
+
+                raw_target_name = None
+                t_detail_name = str(log.details.get('target_name') or '').strip()
+                if t_detail_name and '@' not in t_detail_name and not t_detail_name.startswith('student-'):
+                    raw_target_name = t_detail_name
+                elif cached_target and cached_target.get('name'):
+                    raw_target_name = cached_target['name']
+                elif t_detail_name:
+                    raw_target_name = t_detail_name.split('@')[0].replace('.', ' ').replace('_', ' ').strip().upper()
+
+                if not raw_target_name:
+                    raw_target_name = (
+                        log.details.get('student_name') or
+                        log.details.get('user_name') or
+                        log.details.get('name')
+                    )
+
+                if not raw_target_name:
+                    cand = str(log.details.get('target_username') or '')
+                    if cand and not cand.startswith('student-'):
+                        raw_target_name = cand.split('@')[0].replace('.', ' ').replace('_', ' ').strip().upper()
+                    elif log.details.get('target_lrn') or log.details.get('lrn'):
+                        raw_target_name = f"STUDENT {log.details.get('target_lrn') or log.details.get('lrn')}"
+
+                if raw_target_name:
+                    clean_name = re.sub(r'\s*\[.*?\]$', '', str(raw_target_name)).strip()
+                    if '@' in clean_name:
+                        clean_name = clean_name.split('@')[0].replace('.', ' ').replace('_', ' ').strip().upper()
+                    if clean_name.startswith('student-'):
+                        clean_name = '—'
+                    target = clean_name or '—'
+
+            # Sanitize username so placeholder student emails are not exposed
+            clean_username = log.username or (str(log.user) if log.user else 'Anonymous')
+            if clean_username.endswith('@aralert.local') or clean_username.startswith('student-'):
+                clean_username = lrn if lrn != '—' else (log.user.lrn if (log.user and log.user.lrn) else 'Student')
+
             results.append({
                 'id': str(log.id),
                 'timestamp': localtime(log.timestamp).strftime('%Y-%m-%d %I:%M:%S %p PHT'),
                 'action': log.action,
+                'target': target,
                 'name': name,
                 'role': role,
                 'email': email,
                 'lrn': lrn,
-                'username': log.username or (str(log.user) if log.user else 'Anonymous'),
+                'username': clean_username,
                 'ip_address': log.ip_address or '—',
                 'user_agent': log.user_agent or '—',
                 'details': log.details or {},
@@ -804,4 +1159,50 @@ class StudentEditRequestReviewView(APIView):
                 'detail': f'Edit request for {edit_req.student.get_full_name()} was rejected.',
                 'request': StudentEditRequestSerializer(edit_req).data
             })
+
+
+# ---------------------------------------------------------------------------
+# TEMPORARY TESTING UTILITY: WIPE STUDENTS (To be removed after user testing)
+# ---------------------------------------------------------------------------
+class WipeStudentsView(APIView):
+    """
+    POST /api/users/wipe-students/
+    Restricted strictly to SuperAdmin.
+    Safely deletes all student accounts (role='student') and associated records for testing batch enrollment.
+    """
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        if not (request.user.is_superuser or getattr(request.user, 'role', None) == 'superadmin'):
+            return Response(
+                {'detail': 'Only SuperAdmin can perform this operation.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if not request.data.get('confirm'):
+            return Response(
+                {'detail': 'Confirmation required. Pass {"confirm": true}.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command('wipe_students', confirm=True, stdout=out)
+
+        log_audit_event(
+            'STUDENTS_WIPED_TEST_UTILITY',
+            user=request.user,
+            request=request,
+            details={
+                'performed_by': request.user.get_full_name() or request.user.email,
+                'output': out.getvalue(),
+            }
+        )
+
+        return Response({
+            'detail': 'All student records were successfully wiped from the database.',
+            'output': out.getvalue(),
+        }, status=status.HTTP_200_OK)
+
 

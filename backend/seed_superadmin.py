@@ -5,67 +5,101 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
-from apps.accounts.models import User, AuditLog, EmailOTP, TrustedDevice, AllowedEmail
-from apps.academics.models import (
-    SuperAdminProfile, AdminProfile, PrincipalProfile, TutorProfile, FacultyProfile, Student,
-    AralEnrollment, TutorAttendance, FacultyAttendance, StudentAttendance, MosyGrade, EosyGrade,
-    AssessmentScore, AssessScoreSummary, StudentAttSummary, Report, Prediction, TutorAlert,
-    PrincipalAlert, StudentAlert, UserActivityLog
-)
+from apps.accounts.models import User, AllowedEmail
+from apps.academics.models import SuperAdminProfile
 
-print("Deleting all existing data for a fresh start...")
-
-# Clear all academic records & activity logs
-UserActivityLog.objects.all().delete()
-StudentAlert.objects.all().delete()
-PrincipalAlert.objects.all().delete()
-TutorAlert.objects.all().delete()
-Prediction.objects.all().delete()
-Report.objects.all().delete()
-StudentAttSummary.objects.all().delete()
-AssessScoreSummary.objects.all().delete()
-AssessmentScore.objects.all().delete()
-EosyGrade.objects.all().delete()
-MosyGrade.objects.all().delete()
-StudentAttendance.objects.all().delete()
-FacultyAttendance.objects.all().delete()
-TutorAttendance.objects.all().delete()
-AralEnrollment.objects.all().delete()
-
-# Delete role profiles
-Student.objects.all().delete()
-FacultyProfile.objects.all().delete()
-TutorProfile.objects.all().delete()
-PrincipalProfile.objects.all().delete()
-AdminProfile.objects.all().delete()
-SuperAdminProfile.objects.all().delete()
-
-# Delete user accounts and logs
-AuditLog.objects.all().delete()
-EmailOTP.objects.all().delete()
-TrustedDevice.objects.all().delete()
-User.objects.all().delete()
-
-print("All user accounts deleted successfully.")
-
-# Seed SuperAdmin Accounts
-superadmin_emails = [
-    ("lro2023-4992-68567@bicol-u.edu.ph", "SUPER", "ADMIN"),
+# Seed / Ensure SuperAdmin Accounts exist idempotently WITHOUT deleting existing users
+superadmin_accounts = [
+    {
+        "first_name": "Leinardt",
+        "middle_name": "Recoso",
+        "last_name": "Omadto",
+        "email": "lro2023-4992-68567@bicol-u.edu.ph",
+    },
+    {
+        "first_name": "Nyan Jean",
+        "middle_name": "Quening",
+        "last_name": "Alcovindas",
+        "email": "njqa2023-6375-60972@bicol-u.edu.ph",
+    },
+    {
+        "first_name": "Jorge Benidict",
+        "middle_name": "Carandang",
+        "last_name": "Licup",
+        "email": "jbcl2023-2689-70869@bicol-u.edu.ph",
+    },
 ]
 
-for email, fn, ln in superadmin_emails:
-    superadmin_user = User.objects.create_superuser(
-        email=email,
-        first_name=fn,
-        last_name=ln,
-    )
-    SuperAdminProfile.objects.create(
+for admin in superadmin_accounts:
+    email = admin["email"]
+    fn = admin["first_name"]
+    mn = admin["middle_name"]
+    ln = admin["last_name"]
+
+    superadmin_user = User.objects.filter(email__iexact=email).first()
+    if not superadmin_user:
+        superadmin_user = User.objects.create_superuser(
+            email=email,
+            first_name=fn,
+            middle_name=mn,
+            last_name=ln,
+        )
+        print(f"SuperAdmin account created: {fn} {ln} ({email})")
+    else:
+        updated = False
+        if not superadmin_user.is_superuser:
+            superadmin_user.is_superuser = True
+            updated = True
+        if not superadmin_user.is_staff:
+            superadmin_user.is_staff = True
+            updated = True
+        if not superadmin_user.is_active:
+            superadmin_user.is_active = True
+            updated = True
+        if superadmin_user.first_name != fn:
+            superadmin_user.first_name = fn
+            updated = True
+        if superadmin_user.middle_name != mn:
+            superadmin_user.middle_name = mn
+            updated = True
+        if superadmin_user.last_name != ln:
+            superadmin_user.last_name = ln
+            updated = True
+        if updated:
+            superadmin_user.save()
+            print(f"SuperAdmin account permissions and details updated: {fn} {ln} ({email})")
+        else:
+            print(f"SuperAdmin account already exists and is active: {fn} {ln} ({email})")
+
+    SuperAdminProfile.objects.get_or_create(
         user=superadmin_user,
-        account_status="ACTIVE",
+        defaults={"account_status": "ACTIVE"}
     )
     AllowedEmail.objects.get_or_create(
         email=email,
-        defaults={"note": "SuperAdmin Account"}
+        defaults={"note": f"SuperAdmin Account - {fn} {ln}"}
     )
-    print(f"SuperAdmin account seeded successfully: {email}")
+
+from django.db import connection
+
+# Ensure unmanaged api_* tables exist in PostgreSQL (e.g. fresh Supabase instance)
+if connection.vendor == 'postgresql':
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT to_regclass('public.api_attendance')")
+            res = cursor.fetchone()
+            if not res or not res[0]:
+                sql_path = os.path.join(os.path.dirname(__file__), 'sql', 'supabase_api_tables.sql')
+                if os.path.exists(sql_path):
+                    with open(sql_path, 'r', encoding='utf-8') as f:
+                        sql_content = f.read()
+                    ddl_block = sql_content.split('COMMIT;')[0] + 'COMMIT;'
+                    cursor.execute(ddl_block)
+                    print("Unmanaged api_* tables created successfully in PostgreSQL.")
+            else:
+                print("Unmanaged api_* tables already exist in PostgreSQL.")
+    except Exception as e:
+        print(f"Notice on unmanaged api_* tables: {e}")
+
+print("SuperAdmin seeding completed successfully without modifying other accounts.")
 

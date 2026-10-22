@@ -14,6 +14,7 @@ import { exportScoresToPdf } from '../utils/scorePdfExportService';
 import { DEPED_LOGO_SRC, PNAHS_LOGO_SRC } from '../assets/template_logos/logosBase64';
 import { formatStudentName } from '../utils/studentFormatters';
 import { getScoreDescription, getTutorAssignedMilestone } from '../utils/sessionDescriptionHelpers';
+import { trashbinService } from '../utils/trashbinService';
 
 export interface ExportScoreModalProps {
   isOpen: boolean;
@@ -25,6 +26,9 @@ export interface ExportScoreModalProps {
   initialTargetKey?: string;
   /** Optional: 'MOSY' | 'EOSY' | 'ARAL Summer Assessment' — used as the filename prefix */
   assessmentType?: string;
+  selectedCohort?: string;
+  selectedAralLevel?: string;
+  selectedSubject?: string;
 }
 
 const formatStudentNameDepEd = formatStudentName;
@@ -67,21 +71,19 @@ export const getScoreWeeksForMonth = (
   const startOfMonth = new Date(year, month, 1);
   const endOfMonth = new Date(year, month + 1, 0);
   const monthRangeLabel = `${formatNumericDate(startOfMonth)} - ${formatNumericDate(endOfMonth)}`;
-  const dayNames = ['M', 'T', 'W', 'TH', 'F'];
+  const dayNames = ['SU', 'M', 'T', 'W', 'TH', 'F', 'SA'];
   const days: Array<{ dateKey: string; dayNum: string; dayName?: string }> = [];
 
   for (let d = 1; d <= endOfMonth.getDate(); d++) {
     const cur = new Date(year, month, d);
     const dayOfWeek = cur.getDay(); // 0: Sun, 1: Mon, ..., 5: Fri, 6: Sat
-    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-      const mStr = String(month + 1).padStart(2, '0');
-      const dStr = String(d).padStart(2, '0');
-      days.push({
-        dateKey: `${year}-${mStr}-${dStr}`,
-        dayNum: String(d),
-        dayName: dayNames[dayOfWeek - 1],
-      });
-    }
+    const mStr = String(month + 1).padStart(2, '0');
+    const dStr = String(d).padStart(2, '0');
+    days.push({
+      dateKey: `${year}-${mStr}-${dStr}`,
+      dayNum: String(d),
+      dayName: dayNames[dayOfWeek],
+    });
   }
 
   return [
@@ -350,16 +352,35 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
   initialMode = 'weekly',
   initialTargetKey = '',
   assessmentType,
+  selectedCohort = '',
+  selectedAralLevel = '',
+  selectedSubject = '',
 }) => {
   const [division, setDivision] = useState('DIVISION OF MASBATE');
   const [district, setDistrict] = useState('PALANAS NORTH DISTRICT');
   const [schoolName, setSchoolName] = useState('PALANAS NATIONAL AGRICULTURE HIGH SCHOOL');
   const [schoolAddress, setSchoolAddress] = useState('Sta. Cruz, Palanas, Masbate');
 
-  const [subjectTitle, setSubjectTitle] = useState('ARAL PROGRAM WEEKLY TASK SCORE SHEET');
-  const [gradeSection, setGradeSection] = useState('MIXED (GRADES 7-10)');
+  const [subjectTitle, setSubjectTitle] = useState(() => {
+    if (selectedSubject) {
+      const levelStr = selectedAralLevel ? ` (${selectedAralLevel.toUpperCase()})` : '';
+      return `ARAL PROGRAM WEEKLY TASK SCORE SHEET - ${selectedSubject.toUpperCase()}${levelStr}`;
+    }
+    return 'ARAL PROGRAM WEEKLY TASK SCORE SHEET';
+  });
+  const [gradeSection, setGradeSection] = useState(() => selectedCohort || 'MIXED (GRADES 7-12)');
   const [taskTitle, setTaskTitle] = useState('WEEKLY TASK');
   const [dateStr, setDateStr] = useState(() => formatNumericDate(new Date()));
+
+  useEffect(() => {
+    if (selectedCohort) {
+      setGradeSection(selectedCohort);
+    }
+    if (selectedSubject) {
+      const levelStr = selectedAralLevel ? ` (${selectedAralLevel.toUpperCase()})` : '';
+      setSubjectTitle(`ARAL PROGRAM WEEKLY TASK SCORE SHEET - ${selectedSubject.toUpperCase()}${levelStr}`);
+    }
+  }, [selectedCohort, selectedSubject, selectedAralLevel]);
 
   const [tutorName, setTutorName] = useState('');
   const [tutorTitle, setTutorTitle] = useState('ARAL Tutor');
@@ -613,19 +634,29 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
       ];
     }
 
-    // Monthly mode
+    // Monthly mode: only include dates in the selected month that have a session
     const [yr, mo] = (selectedMonthKey || new Date().toISOString().slice(0, 7))
       .split('-')
       .map(Number);
     const computed = getScoreWeeksForMonth(yr, mo - 1);
+    const studentIdSet = new Set(students.map((s) => String(s.id)));
     return computed.map((w, idx) => {
-      const activeDatesInWeek = w.days.filter((day) =>
-        assessmentGrades.some((g) => {
+      const activeDatesInWeek = w.days.filter((day) => {
+        if (trashbinService.isDateTrashed('score', day.dateKey, currentUser?.id)) {
+          return false;
+        }
+        return assessmentGrades.some((g) => {
+          const sid =
+            typeof g.student === 'object' && g.student !== null
+              ? String((g.student as any).id ?? (g.student as any).pk ?? '')
+              : String(g.student ?? (g as any).student_id ?? '');
+          if (studentIdSet.size > 0 && !studentIdSet.has(sid)) return false;
           const gKey = g.date_logged?.length >= 10 ? g.date_logged.slice(0, 10) : new Date(g.date_logged).toISOString().slice(0, 10);
           return gKey === day.dateKey;
-        })
-      );
-      const effectiveDays = activeDatesInWeek.length > 0 ? activeDatesInWeek : [w.days[0]];
+        });
+      });
+      const fallbackDay = w.days.find((d) => d.dayName !== 'SU' && d.dayName !== 'SA') || w.days[0];
+      const effectiveDays = activeDatesInWeek.length > 0 ? activeDatesInWeek : (fallbackDay ? [fallbackDay] : []);
       return {
         ...w,
         label: customWeekLabels[idx] || w.label,
@@ -640,7 +671,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
         })),
       };
     });
-  }, [exportMode, selectedDateKey, selectedWeekKey, selectedMonthKey, customWeekLabels, getSessionNumberForDate, assessmentGrades]);
+  }, [exportMode, selectedDateKey, selectedWeekKey, selectedMonthKey, customWeekLabels, getSessionNumberForDate, assessmentGrades, students, currentUser?.id]);
 
   const allEntryCols = useMemo(() => {
     return weeks.flatMap((w) =>
@@ -707,6 +738,24 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
     const nameB = formatStudentNameDepEd(b);
     return nameA.localeCompare(nameB);
   });
+
+  // Adaptive 1-page preview metrics based on student count and paper size
+  const paperHeightPx = paperSize === 'folio' ? 1248 : paperSize === 'a4' ? 1123 : 1056;
+  const totalStudentsCount = Math.max(sortedStudents.length, 1);
+  const rawRowBudgetPx = (paperHeightPx - (taskTitle ? 380 : 360)) / totalStudentsCount;
+  const isPreviewDense = rawRowBudgetPx < 18;
+  const isPreviewCompact = rawRowBudgetPx >= 18 && rawRowBudgetPx < 24;
+  const previewRowFontPx =
+    rawRowBudgetPx >= 24 ? (allEntryCols.length > 5 ? 10 : 10.5) :
+    rawRowBudgetPx >= 20 ? 9.5 :
+    rawRowBudgetPx >= 17 ? 9 :
+    rawRowBudgetPx >= 14.5 ? 8.5 : 8;
+  const previewRowPadYPx =
+    rawRowBudgetPx >= 26 ? 4 :
+    rawRowBudgetPx >= 22 ? 2.5 :
+    rawRowBudgetPx >= 18 ? 1.5 :
+    rawRowBudgetPx >= 15 ? 1 : 0.5;
+  const previewTutorName = tutorName || (currentUser?.full_name || 'TUTOR NAME');
 
   const studentExportRows = sortedStudents.map((student) => {
     const scoresByDate: Record<string, number | string> = {};
@@ -1201,10 +1250,11 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                     ['--slate-800' as any]: '#1E293B',
                     ['--slate-900' as any]: '#0F172A',
                   }}
-                  className={`export-paper-sheet bg-white shadow-xl border border-slate-300 ${exportMode === 'monthly'
-                    ? 'pt-20 pb-20 px-8 sm:px-10'
-                    : 'pt-20 pb-20 px-12 sm:px-16'
-                    } text-slate-900 font-serif transition-all duration-200 flex-shrink-0`}
+                  className={`export-paper-sheet bg-white shadow-xl border border-slate-300 ${
+                    isPreviewDense ? 'pt-8 pb-8' : isPreviewCompact ? 'pt-12 pb-12' : 'pt-20 pb-20'
+                  } ${
+                    exportMode === 'monthly' ? 'px-8 sm:px-10' : 'px-12 sm:px-16'
+                  } text-slate-900 font-serif transition-all duration-200 flex-shrink-0`}
                 >
                   {/* Header Section with Official Logos (Strictly Equidistant & Never Wrapping) */}
                   <div className="flex flex-nowrap items-center justify-center gap-5 sm:gap-7 pb-2 mx-auto w-full max-w-3xl">
@@ -1235,7 +1285,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="text-center pt-2.5 pb-3.5 sm:pb-4">
+                  <div className={`text-center ${isPreviewDense ? 'pt-1.5 pb-2' : 'pt-2.5 pb-3.5 sm:pb-4'}`}>
                     <h3 className="text-sm font-bold uppercase tracking-wide text-slate-900">{subjectTitle}</h3>
                     <p className="text-xs font-semibold text-slate-700">{gradeSection}</p>
                     {taskTitle && (
@@ -1244,7 +1294,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                   </div>
 
                   {/* Period Meta Row with WEEK: on the left and DATE: on the right */}
-                  <div className="flex justify-between items-center text-xs font-bold mt-6 sm:mt-7 mb-3 px-1 text-slate-900">
+                  <div className={`flex justify-between items-center text-xs font-bold ${isPreviewDense ? 'mt-2.5 mb-2' : isPreviewCompact ? 'mt-4 mb-2.5' : 'mt-6 sm:mt-7 mb-3'} px-1 text-slate-900`}>
                     <div className="inline-flex items-center gap-1.5">
                       <span>WEEK:</span>
                       <div className="inline-flex flex-col items-center min-w-[50px]">
@@ -1266,7 +1316,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                     <colgroup>
                       <col style={{ width: colWidths.index }} />
                       <col style={{ width: colWidths.name }} />
-                      {allEntryCols.map((col, cIdx) => (
+                      {allEntryCols.map((_, cIdx) => (
                         <col key={`col-entry-${cIdx}`} style={{ width: colWidths.day }} />
                       ))}
                       <col style={{ width: colWidths.total }} />
@@ -1274,13 +1324,13 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                     <thead>
                       <tr className="bg-slate-50 text-slate-900">
                         <th
-                          className="border border-slate-800 px-0.5 py-2.5 text-center font-bold text-[10px] bg-slate-50 uppercase whitespace-nowrap align-middle"
+                          className={`border border-slate-800 px-0.5 ${isPreviewDense ? 'py-1' : isPreviewCompact ? 'py-1.5' : 'py-2.5'} text-center font-bold text-[10px] bg-slate-50 uppercase whitespace-nowrap align-middle`}
                           style={{ width: colWidths.index }}
                         >
                           #
                         </th>
                         <th
-                          className="border border-slate-800 px-2 py-2.5 text-center font-bold text-[10.5px] bg-slate-50 uppercase tracking-wide whitespace-nowrap align-middle"
+                          className={`border border-slate-800 px-2 ${isPreviewDense ? 'py-1' : isPreviewCompact ? 'py-1.5' : 'py-2.5'} text-center font-bold text-[10.5px] bg-slate-50 uppercase tracking-wide whitespace-nowrap align-middle`}
                           style={{ width: colWidths.name }}
                         >
                           NAME OF THE STUDENTS
@@ -1288,7 +1338,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                         {allEntryCols.map((col, cIdx) => (
                           <th
                             key={`session-date-head-${cIdx}`}
-                            className={`border border-slate-800 px-0.5 py-2.5 text-center font-bold bg-slate-50 text-slate-900 whitespace-nowrap align-middle ${
+                            className={`border border-slate-800 px-0.5 ${isPreviewDense ? 'py-1' : isPreviewCompact ? 'py-1.5' : 'py-2.5'} text-center font-bold bg-slate-50 text-slate-900 whitespace-nowrap align-middle ${
                               allEntryCols.length > 8 ? 'text-[9px]' : allEntryCols.length > 5 ? 'text-[9.5px]' : 'text-[10px]'
                             }`}
                             style={{ width: colWidths.day }}
@@ -1298,7 +1348,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                           </th>
                         ))}
                         <th
-                          className="border border-slate-800 px-1 py-2.5 text-center font-bold text-[10px] bg-slate-50 uppercase whitespace-nowrap align-middle"
+                          className={`border border-slate-800 px-1 ${isPreviewDense ? 'py-1' : isPreviewCompact ? 'py-1.5' : 'py-2.5'} text-center font-bold text-[10px] bg-slate-50 uppercase whitespace-nowrap align-middle`}
                           style={{ width: colWidths.total }}
                         >
                           TOTAL SCORE
@@ -1322,16 +1372,26 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                           return (
                             <tr key={student.id} className="hover:bg-slate-50">
                               <td
-                                className={`border border-slate-800 px-0.5 text-center font-medium text-[10.5px] whitespace-nowrap ${sortedStudents.length > 20 ? 'py-0.5' : 'py-1'}`}
-                                style={{ width: colWidths.index }}
+                                className="border border-slate-800 px-0.5 text-center font-medium whitespace-nowrap"
+                                style={{
+                                  width: colWidths.index,
+                                  fontSize: `${previewRowFontPx}px`,
+                                  paddingTop: `${previewRowPadYPx}px`,
+                                  paddingBottom: `${previewRowPadYPx}px`,
+                                  lineHeight: isPreviewDense ? 1.15 : 1.3,
+                                }}
                               >
                                 {idx + 1}
                               </td>
                               <td
-                                className={`border border-slate-800 px-1.5 font-semibold uppercase text-slate-900 whitespace-nowrap overflow-hidden text-ellipsis ${
-                                  sortedStudents.length > 20 ? 'py-0.5' : 'py-1'
-                                } ${allEntryCols.length > 5 ? 'text-[10px]' : 'text-[10.5px]'}`}
-                                style={{ width: colWidths.name }}
+                                className="border border-slate-800 px-1.5 font-semibold uppercase text-slate-900 whitespace-nowrap overflow-hidden text-ellipsis"
+                                style={{
+                                  width: colWidths.name,
+                                  fontSize: `${previewRowFontPx}px`,
+                                  paddingTop: `${previewRowPadYPx}px`,
+                                  paddingBottom: `${previewRowPadYPx}px`,
+                                  lineHeight: isPreviewDense ? 1.15 : 1.3,
+                                }}
                               >
                                 {studentName}
                               </td>
@@ -1340,16 +1400,24 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                                 return (
                                   <td
                                     key={`score-${student.id}-${col.dateKey}-${col.entryIndex}`}
-                                    className="border border-slate-800 p-0 text-center font-bold whitespace-nowrap text-[11px]"
-                                    style={{ width: colWidths.day }}
+                                    className="border border-slate-800 p-0 text-center font-bold whitespace-nowrap"
+                                    style={{
+                                      width: colWidths.day,
+                                      fontSize: `${previewRowFontPx}px`,
+                                      lineHeight: isPreviewDense ? 1.15 : 1.3,
+                                    }}
                                   >
                                     {val !== undefined && val !== '' ? val : ''}
                                   </td>
                                 );
                               })}
                               <td
-                                className="border border-slate-800 p-0 text-center font-bold whitespace-nowrap text-[11px]"
-                                style={{ width: colWidths.total }}
+                                className="border border-slate-800 p-0 text-center font-bold whitespace-nowrap"
+                                style={{
+                                  width: colWidths.total,
+                                  fontSize: `${previewRowFontPx}px`,
+                                  lineHeight: isPreviewDense ? 1.15 : 1.3,
+                                }}
                               >
                                 {row?.totalScore !== undefined && row?.totalScore !== '' ? row.totalScore : ''}
                               </td>
@@ -1360,42 +1428,51 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                     </tbody>
                   </table>
 
-                  {/* Footer Signatures matching formal academic spacing */}
-                  <div className={`text-xs text-slate-900 ${sortedStudents.length > 20 ? 'mt-8 space-y-5' : 'mt-10 space-y-7'}`}>
+                  {/* Footer Signatures (Order: 1. Line for signature, 2. Fullname below line, 3. Role below fullname) */}
+                  <div className={`text-xs text-slate-900 ${isPreviewDense ? 'mt-4 space-y-3' : isPreviewCompact ? 'mt-6 space-y-4' : 'mt-10 space-y-7'}`}>
                     <div className="flex justify-end">
                       <div className="text-center w-64">
-                        <p className={`italic text-left ${sortedStudents.length > 20 ? 'mb-8' : 'mb-10'}`}>Prepared by:</p>
-                        <div className="inline-flex flex-col items-center min-w-[190px] max-w-[240px]">
-                          <span className="font-bold uppercase tracking-wide text-slate-900 pb-1 text-center">
-                            {tutorName || (currentUser?.full_name || 'TUTOR NAME')}
+                        <p className={`italic text-left ${isPreviewDense ? 'mb-5' : isPreviewCompact ? 'mb-7' : 'mb-10'}`}>Prepared by:</p>
+                        <div className="flex flex-col items-center w-full">
+                          <div className="w-full h-[1.5px] bg-slate-900 mb-1" />
+                          <span
+                            className="font-bold uppercase tracking-wide text-slate-900 text-center leading-tight break-words w-full"
+                            style={{ fontSize: previewTutorName.length > 26 ? '10px' : '11.5px' }}
+                          >
+                            {previewTutorName}
                           </span>
-                          <div className="w-full h-[2px] bg-slate-900" />
+                          <p className="text-[11px] text-slate-600 mt-0.5 leading-tight">{tutorTitle}</p>
                         </div>
-                        <p className="text-[11px] text-slate-600 mt-1">{tutorTitle}</p>
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-start pt-5 sm:pt-6">
+                    <div className={`flex justify-between items-start ${isPreviewDense ? 'pt-2' : isPreviewCompact ? 'pt-3.5' : 'pt-5 sm:pt-6'}`}>
                       <div className="text-center w-60">
-                        <p className={`italic text-left ${sortedStudents.length > 20 ? 'mb-8' : 'mb-10'}`}>Checked:</p>
-                        <div className="inline-flex flex-col items-center min-w-[190px] max-w-[240px]">
-                          <span className="font-bold uppercase tracking-wide text-slate-900 pb-1 text-center">
+                        <p className={`italic text-left ${isPreviewDense ? 'mb-5' : isPreviewCompact ? 'mb-7' : 'mb-10'}`}>Checked:</p>
+                        <div className="flex flex-col items-center w-full">
+                          <div className="w-full h-[1.5px] bg-slate-900 mb-1" />
+                          <span
+                            className="font-bold uppercase tracking-wide text-slate-900 text-center leading-tight break-words w-full"
+                            style={{ fontSize: (checkedName || '').length > 26 ? '10px' : '11.5px' }}
+                          >
                             {checkedName}
                           </span>
-                          <div className="w-full h-[2px] bg-slate-900" />
+                          <p className="text-[11px] text-slate-600 mt-0.5 leading-tight">{checkedTitle}</p>
                         </div>
-                        <p className="text-[11px] text-slate-600 mt-1">{checkedTitle}</p>
                       </div>
 
                       <div className="text-center w-60">
-                        <p className={`italic text-left ${sortedStudents.length > 20 ? 'mb-8' : 'mb-10'}`}>Noted:</p>
-                        <div className="inline-flex flex-col items-center min-w-[190px] max-w-[240px]">
-                          <span className="font-bold uppercase tracking-wide text-slate-900 pb-1 text-center">
+                        <p className={`italic text-left ${isPreviewDense ? 'mb-5' : isPreviewCompact ? 'mb-7' : 'mb-10'}`}>Noted:</p>
+                        <div className="flex flex-col items-center w-full">
+                          <div className="w-full h-[1.5px] bg-slate-900 mb-1" />
+                          <span
+                            className="font-bold uppercase tracking-wide text-slate-900 text-center leading-tight break-words w-full"
+                            style={{ fontSize: (notedName || '').length > 26 ? '10px' : '11.5px' }}
+                          >
                             {notedName}
                           </span>
-                          <div className="w-full h-[2px] bg-slate-900" />
+                          <p className="text-[11px] text-slate-600 mt-0.5 leading-tight">{notedTitle}</p>
                         </div>
-                        <p className="text-[11px] text-slate-600 mt-1">{notedTitle}</p>
                       </div>
                     </div>
                   </div>

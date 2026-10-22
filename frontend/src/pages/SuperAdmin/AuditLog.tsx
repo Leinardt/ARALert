@@ -2,12 +2,15 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Search, AlertTriangle, Download, Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import api from '../../api/axios';
 import { TablePagination } from '../../components/TablePagination';
+import { useAuth } from '../../hooks/useAuth';
+import { ExportAuditLogModal } from '../../components/ExportAuditLogModal';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface AuditEntry {
   id: string;
   timestamp: string;
   action: string;
+  target?: string;
   name: string;
   role: string;
   email: string;
@@ -17,6 +20,36 @@ interface AuditEntry {
   user_agent?: string;
   details?: Record<string, any>;
 }
+
+const getTargetDisplay = (log: AuditEntry): string => {
+  let target = log.target || '';
+  if (!target || target === '—') {
+    const d = log.details;
+    if (d) {
+      const targetName = d.target_name || d.student_name || d.user_name || d.name;
+      if (targetName) {
+        target = String(targetName);
+      } else if (d.target_username) {
+        target = String(d.target_username);
+      } else if (d.target_lrn || d.lrn) {
+        target = `STUDENT ${d.target_lrn || d.lrn}`;
+      }
+    }
+  }
+  if (!target || target === '—') return '—';
+
+  // Remove [role] if present to save space (e.g. "JUAN DELA CRUZ [STUDENT]" -> "JUAN DELA CRUZ")
+  target = target.replace(/\s*\[.*?\]$/, '').trim();
+
+  // If target is an email address, display clean name portion rather than dropping to '—'
+  if (target.includes('@')) {
+    target = target.split('@')[0].replace(/[._]/g, ' ').trim().toUpperCase();
+  }
+
+  if (target.startsWith('student-')) return '—';
+
+  return target || '—';
+};
 
 interface AuditResponse {
   count: number;
@@ -159,6 +192,7 @@ const CustomCalendarDropdown: React.FC<{
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export const AuditLog: React.FC = () => {
+  const { user } = useAuth();
   const [data, setData] = useState<AuditResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -168,6 +202,7 @@ export const AuditLog: React.FC = () => {
   const [showCalendarPopover, setShowCalendarPopover] = useState<boolean>(false);
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [searchInput, setSearchInput] = useState<string>('');
+  const [showExportModal, setShowExportModal] = useState<boolean>(false);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -202,28 +237,6 @@ export const AuditLog: React.FC = () => {
     setSearchInput('');
     setSearchFilter('');
     setPage(1);
-  };
-
-  const handleExportCsv = () => {
-    if (!data || !data.results || data.results.length === 0) return;
-    const headers = ['Timestamp (PHT)', 'Action', 'Actor Name', 'Role', 'Email', 'LRN'];
-    const rows = data.results.map((r) => [
-      `"${r.timestamp}"`,
-      `"${r.action}"`,
-      `"${(r.name || 'System').replace(/"/g, '""')}"`,
-      `"${r.role || '—'}"`,
-      `"${r.email || '—'}"`,
-      `"${r.lrn || '—'}"`,
-    ]);
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    const dateSuffix = dateFilter ? `_${dateFilter}` : `_${new Date().toISOString().slice(0, 10)}`;
-    link.setAttribute('download', `ARALert_Audit_Log_Page_${page}${dateSuffix}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   return (
@@ -388,12 +401,6 @@ export const AuditLog: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          <button
-            type="submit"
-            className="h-9 px-4 rounded-md text-xs font-bold text-white bg-[#0052B7] hover:bg-[#004194] border border-[#0052B7] transition shadow-none cursor-pointer flex items-center gap-1.5"
-          >
-            <Search className="w-3.5 h-3.5" /> Search
-          </button>
           {(eventFilter || dateFilter || searchFilter || searchInput) && (
             <button
               type="button"
@@ -403,16 +410,15 @@ export const AuditLog: React.FC = () => {
               Clear
             </button>
           )}
-          {data && data.results && data.results.length > 0 && (
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              title="Export Current Page to CSV"
-              className="h-9 px-3.5 rounded-md text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 border border-emerald-300 dark:border-emerald-800 transition cursor-pointer flex items-center gap-1.5"
-            >
-              <Download className="w-3.5 h-3.5" /> CSV Export
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowExportModal(true)}
+            title="Export Audit Logs"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-3 sm:px-3.5 py-2 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap shadow-xs"
+          >
+            <Download className="w-3.5 h-3.5 text-white" />
+            <span>Export Audit Log</span>
+          </button>
         </div>
       </form>
 
@@ -505,6 +511,9 @@ export const AuditLog: React.FC = () => {
                   <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                     EVENT
                   </th>
+                  <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap max-w-[150px]">
+                    TARGET
+                  </th>
                   <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                     NAME
                   </th>
@@ -536,6 +545,19 @@ export const AuditLog: React.FC = () => {
                         {log.action.replace(/_/g, ' ')}
                       </td>
 
+                      {/* TARGET */}
+                      <td className="px-3 py-3 whitespace-nowrap text-xs max-w-[150px] truncate" title={getTargetDisplay(log) !== '—' ? getTargetDisplay(log) : undefined}>
+                        {(() => {
+                          const target = getTargetDisplay(log);
+                          if (target === '—') return <span className="text-gray-400 dark:text-slate-500">—</span>;
+                          return (
+                            <span className="font-semibold text-gray-900 dark:text-slate-100">
+                              {target}
+                            </span>
+                          );
+                        })()}
+                      </td>
+
                       {/* NAME */}
                       <td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 whitespace-nowrap">
                         {log.name || 'System'}
@@ -548,7 +570,9 @@ export const AuditLog: React.FC = () => {
 
                       {/* EMAIL */}
                       <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-300 whitespace-nowrap">
-                        {log.email || '—'}
+                        {log.role?.toLowerCase() === 'student' || log.email?.includes('@aralert.local') || log.email?.startsWith('student-')
+                          ? '—'
+                          : (log.email || '—')}
                       </td>
 
                       {/* LRN */}
@@ -580,6 +604,18 @@ export const AuditLog: React.FC = () => {
           />
         )}
       </div>
+
+      {showExportModal && (
+        <ExportAuditLogModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          currentUser={user}
+          initialDateFrom={dateFilter}
+          initialDateTo={dateFilter}
+          initialAction={eventFilter}
+          initialSearch={searchFilter || searchInput}
+        />
+      )}
     </div>
   );
 };

@@ -35,8 +35,15 @@ def log_audit_event(
 
         resolved_username = username
         if not resolved_username and user:
-            # Prefer email for Google OAuth accounts; fall back to username attribute
-            resolved_username = getattr(user, 'email', '') or getattr(user, 'username', '') or str(user)
+            # If user is a student or has an LRN, use their LRN as the identifier instead of placeholder email
+            if getattr(user, 'role', '') == 'student' or getattr(user, 'lrn', ''):
+                resolved_username = getattr(user, 'lrn', '') or getattr(user, 'username', '') or str(user)
+            else:
+                email = getattr(user, 'email', '')
+                if email and not email.endswith('@aralert.local') and not email.startswith('student-'):
+                    resolved_username = email
+                else:
+                    resolved_username = getattr(user, 'lrn', '') or getattr(user, 'username', '') or str(user)
 
         AuditLog.objects.create(
             user=user if (user and getattr(user, 'pk', None)) else None,

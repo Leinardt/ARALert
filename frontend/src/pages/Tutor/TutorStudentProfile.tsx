@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
-import type { StudentAcademicProfile, Grade, Attendance, StudentEditRequest } from '../../types';
+import type { StudentAcademicProfile, Grade, Attendance, StudentEditRequest, User as UserType } from '../../types';
 import {
   ArrowLeft,
   GraduationCap,
@@ -26,9 +26,18 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
-  History,
+  QrCode,
+  Download,
+  FileText,
+  Image,
 } from 'lucide-react';
-import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
+import {
+  exportStudentQrToJpeg,
+  exportStudentQrToPdf,
+  exportStudentQrToDocx,
+  generateStudentQrDataUrl,
+} from '../../utils/studentQrExportService';
+import { ExportStudentQrModal } from '../../components/ExportStudentQrModal';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 import { getStudentAvatarColor as avatarColor } from '../../utils/studentFormatters';
@@ -74,9 +83,9 @@ const formatTimeString = (value: string | null | undefined): string => {
 };
 
 const getAralBadge = (level?: string | null) => {
-  const formatted = level ? level.charAt(0).toUpperCase() + level.slice(1).toLowerCase() : 'Basic';
+  const formatted = level ? level.toUpperCase() : 'BASIC';
   return (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 dark:bg-[#1A1A1A] dark:text-slate-300 dark:border-[#262626]">
+    <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase">
       {formatted}
     </span>
   );
@@ -98,10 +107,45 @@ export const TutorStudentProfile: React.FC = () => {
   const backPath = isFromDashboard ? '/tutor' : '/tutor/students';
   const backLabel = isFromDashboard ? 'Back to Home Dashboard' : 'Back to Assigned Students';
   const [profile, setProfile] = useState<StudentAcademicProfile | null>(null);
+  const [studentUser, setStudentUser] = useState<UserType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overall' | 'attendance' | 'score'>('overall');
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
+
+  const studentCohortInfo = useMemo(() => {
+    const rawAral = (studentUser?.aral_level || profile?.student?.aral_level || 'basic').toUpperCase();
+    const aralLevel = rawAral.includes('PLUS') ? 'PLUS' : rawAral.includes('SUMMER') ? 'SUMMER' : 'BASIC';
+
+    let subject = (studentUser?.subject || '').toUpperCase().trim();
+    if (!subject) {
+      subject = aralLevel === 'BASIC' ? 'FILIPINO' : 'ENGLISH';
+    }
+
+    const rawGrade = (studentUser?.grade_level || '').toUpperCase().trim();
+    let gradeLevel = 'GRADE 7';
+    let section = (studentUser?.section || '').toUpperCase().trim();
+
+    if (rawGrade.includes(' - ')) {
+      const parts = rawGrade.split(' - ').map((p) => p.trim());
+      gradeLevel = parts[0].startsWith('GRADE') ? parts[0] : `GRADE ${parts[0]}`;
+      if (!section) {
+        section = parts.slice(1).join(' - ').trim();
+      }
+    } else if (rawGrade) {
+      gradeLevel = rawGrade.startsWith('GRADE') ? rawGrade : `GRADE ${rawGrade}`;
+    }
+
+    if (!section || section === '—') {
+      section = 'HYACINTH';
+    }
+
+    return {
+      aralLevel,
+      subject,
+      gradeLevel,
+      section,
+    };
+  }, [studentUser, profile]);
 
   const { attendanceRate, scoreAvg, compositeScore, riskTier } = useMemo(() => {
     if (!profile) return { attendanceRate: 100, scoreAvg: 100, compositeScore: 100, riskTier: 'Low' };
@@ -251,6 +295,10 @@ export const TutorStudentProfile: React.FC = () => {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showRiskModal, setShowRiskModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [showExportQrModal, setShowExportQrModal] = useState(false);
+  const [qrPreviewUrl, setQrPreviewUrl] = useState<string | null>(null);
+  const [isExportingQr, setIsExportingQr] = useState(false);
 
   const [activityForm, setActivityForm] = useState({
     title: '',
@@ -309,17 +357,19 @@ export const TutorStudentProfile: React.FC = () => {
   const fetchProfile = async () => {
     if (!id) return;
     try {
-      const [data, gradesData, editReqData] = await Promise.all([
+      const [data, gradesData, editReqData, userData] = await Promise.all([
         academicService.getStudentProfile(id),
         academicService.getGrades({ student_id: id }).catch(() => [] as Grade[]),
         userService.getStudentEditRequests({ student_id: id, status: 'pending' }).catch(() => ({ results: [] })),
+        userService.getUser(id).catch(() => null as UserType | null),
       ]);
       setProfile(data);
+      setStudentUser(userData);
       setStudentGrades(gradesData);
       setPendingEditRequest(editReqData.results && editReqData.results.length > 0 ? editReqData.results[0] : null);
       setStudentForm({
         first_name: data.student.first_name || '',
-        middle_name: '',
+        middle_name: data.student.middle_name || userData?.middle_name || '',
         last_name: data.student.last_name || '',
         username: data.student.username || '',
         email: data.student.email || '',
@@ -433,27 +483,31 @@ export const TutorStudentProfile: React.FC = () => {
     }
   };
 
-  const handleSubmitStudentEditRequest = async (e: React.FormEvent) => {
+  const handleSubmitStudentEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
     setIsSavingStudent(true);
     setStudentEditError(null);
 
     try {
-      await userService.createStudentEditRequest({
-        student: profile.student.id,
-        proposed_first_name: studentForm.first_name.trim().toUpperCase(),
-        proposed_middle_name: studentForm.middle_name.trim().toUpperCase(),
-        proposed_last_name: studentForm.last_name.trim().toUpperCase(),
-        proposed_lrn: studentForm.lrn.trim() || null,
-        proposed_aral_level: studentForm.aral_level,
-        reason: studentForm.reason.trim(),
+      await userService.updateUser(profile.student.id, {
+        first_name: studentForm.first_name.trim().toUpperCase(),
+        middle_name: studentForm.middle_name.trim().toUpperCase(),
+        last_name: studentForm.last_name.trim().toUpperCase(),
+        lrn: studentForm.lrn.trim() || null,
+        aral_level: studentForm.aral_level,
       });
       setIsEditingStudent(false);
       await fetchProfile();
     } catch (err: any) {
       const errData = err?.response?.data;
-      const msg = errData?.detail || errData?.reason?.[0] || errData?.proposed_lrn?.[0] || errData?.student?.[0] || 'Failed to submit student edit request.';
+      const msg =
+        errData?.detail ||
+        errData?.lrn?.[0] ||
+        errData?.first_name?.[0] ||
+        errData?.last_name?.[0] ||
+        errData?.aral_level?.[0] ||
+        'Failed to save student details.';
       setStudentEditError(msg);
     } finally {
       setIsSavingStudent(false);
@@ -553,6 +607,13 @@ export const TutorStudentProfile: React.FC = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{profile.student.name}</h1>
+              <div className="flex flex-wrap items-center gap-1.5 mt-1 text-xs font-semibold uppercase text-gray-500 dark:text-slate-400">
+                <span className="font-bold text-gray-500 dark:text-slate-400">{studentCohortInfo.aralLevel}</span>
+                <span className="text-gray-300 dark:text-zinc-600">•</span>
+                <span>{studentCohortInfo.subject}</span>
+                <span className="text-gray-300 dark:text-zinc-600">•</span>
+                <span>{studentCohortInfo.gradeLevel} - {studentCohortInfo.section}</span>
+              </div>
               <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mt-1">
                 LRN: <span className="font-mono font-bold text-gray-700 dark:text-slate-300">{profile.student.lrn || 'N/A'}</span>
               </p>
@@ -575,26 +636,36 @@ export const TutorStudentProfile: React.FC = () => {
             <button
               type="button"
               onClick={() => {
-                if (pendingEditRequest) {
-                  setShowPendingModal(true);
-                } else {
-                  setIsEditingStudent(true);
-                  setStudentEditError(null);
+                if (profile?.student) {
+                  setStudentForm({
+                    first_name: profile.student.first_name || '',
+                    middle_name: profile.student.middle_name || studentUser?.middle_name || '',
+                    last_name: profile.student.last_name || '',
+                    username: profile.student.username || '',
+                    email: profile.student.email || '',
+                    lrn: profile.student.lrn || '',
+                    aral_level: profile.student.aral_level || 'basic',
+                    reason: '',
+                  });
                 }
+                setIsEditingStudent(true);
+                setStudentEditError(null);
               }}
               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold border border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:bg-[var(--brand-light)] dark:hover:bg-[#161616] text-gray-700 dark:text-slate-300 hover:text-[var(--brand-dark)] transition cursor-pointer"
             >
               <Edit3 className="w-3.5 h-3.5" />
-              <span>{pendingEditRequest ? 'View Pending Request' : 'Edit Student Details'}</span>
+              <span>Edit Student Details</span>
             </button>
 
             <button
               type="button"
-              onClick={() => setShowHistoryModal(true)}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold border border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:bg-[var(--brand-light)] dark:hover:bg-[#161616] text-gray-700 dark:text-slate-300 hover:text-[var(--brand-dark)] transition cursor-pointer"
+              disabled={!profile}
+              onClick={() => setShowExportQrModal(true)}
+              className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap shadow-xs disabled:opacity-60"
+              title="Export Student Attendance QR Code"
             >
-              <History className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Academic History</span>
+              <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
+              <span>Export QR Code</span>
             </button>
           </div>
         </div>
@@ -639,31 +710,14 @@ export const TutorStudentProfile: React.FC = () => {
           <div className="space-y-6">
             {/* KPI Containers */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-md bg-indigo-100 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shrink-0">
-                  <Layers className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">ARAL LEVEL</p>
-                  <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5 capitalize">
-                    {profile.student.aral_level || 'Basic'}
-                  </p>
-                </div>
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center md:col-span-1">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-black dark:text-white">COMPOSITE SCORE</p>
+                <p className={`text-2xl font-extrabold mt-0.5 ${riskTier === 'High' ? 'text-risk-high' : riskTier === 'Medium' ? 'text-risk-medium' : 'text-risk-low'}`}>
+                  {smartPct(compositeScore)}%
+                </p>
               </div>
 
-              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-md bg-emerald-100 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0">
-                  <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">COMPOSITE SCORE</p>
-                  <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">
-                    {smartPct(compositeScore)}%
-                  </p>
-                </div>
-              </div>
-
-              <div className={`rounded-md border p-5 flex flex-col justify-center ${riskTier === 'High'
+              <div className={`rounded-md border p-5 flex flex-col justify-center md:col-span-2 ${riskTier === 'High'
                 ? 'risk-card-high'
                 : riskTier === 'Medium'
                   ? 'risk-card-medium'
@@ -835,7 +889,7 @@ export const TutorStudentProfile: React.FC = () => {
               <input
                 type="text"
                 required
-                placeholder="e.g. Remedial Reading Practice"
+                placeholder="e.g. Remedial Learning Practice"
                 value={activityForm.title}
                 onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)]"
@@ -1018,25 +1072,17 @@ export const TutorStudentProfile: React.FC = () => {
         </div>
       )}
 
-      {/* ── STUDENT EDIT REQUEST MODAL ─────────────────────────────── */}
+      {/* ── STUDENT EDIT MODAL ─────────────────────────────── */}
       {isEditingStudent && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <form onSubmit={handleSubmitStudentEditRequest} className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8">
+          <form onSubmit={handleSubmitStudentEdit} className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-white text-base">Edit Student Details</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white text-base uppercase">EDIT STUDENT DETAILS</h3>
               </div>
               <button type="button" onClick={() => setIsEditingStudent(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
-            </div>
-
-            {/* Integrity Notice Banner */}
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3.5 flex items-start gap-3">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-                <span className="font-bold">Official Record Protection:</span> Changes to student identity or program levels require approval from a School Admin or Super Admin before taking effect to prevent unauthorized edits.
-              </div>
             </div>
 
             {studentEditError && (
@@ -1048,7 +1094,7 @@ export const TutorStudentProfile: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed First Name *</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">First Name *</label>
                 <input
                   type="text"
                   required
@@ -1060,7 +1106,7 @@ export const TutorStudentProfile: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed Middle Name</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Middle Name</label>
                 <input
                   type="text"
                   value={studentForm.middle_name}
@@ -1073,7 +1119,7 @@ export const TutorStudentProfile: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed Last Name *</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Last Name *</label>
                 <input
                   type="text"
                   required
@@ -1085,7 +1131,7 @@ export const TutorStudentProfile: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed LRN (12 digits)</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">LRN (12 digits)</label>
                 <input
                   type="text"
                   maxLength={12}
@@ -1098,7 +1144,7 @@ export const TutorStudentProfile: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed ARAL Program Level *</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">ARAL Program Level *</label>
               <select
                 value={studentForm.aral_level}
                 onChange={(e) => setStudentForm({ ...studentForm, aral_level: e.target.value as any })}
@@ -1106,21 +1152,8 @@ export const TutorStudentProfile: React.FC = () => {
               >
                 <option value="basic">Basic</option>
                 <option value="plus">Plus</option>
-                <option value="summer">Summer</option>
                 <option value="graduated">Graduated</option>
               </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Reason for Edit Request *</label>
-              <textarea
-                required
-                rows={3}
-                value={studentForm.reason}
-                onChange={(e) => setStudentForm({ ...studentForm, reason: e.target.value })}
-                placeholder="Explain why this student detail change is necessary (e.g., PSA birth certificate name spelling correction, LRN typo correction, or program reclassification)..."
-                className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] resize-none"
-              />
             </div>
 
             <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
@@ -1136,7 +1169,7 @@ export const TutorStudentProfile: React.FC = () => {
                 disabled={isSavingStudent}
                 className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-md text-xs font-bold cursor-pointer transition-colors disabled:opacity-50 inline-flex items-center gap-2"
               >
-                {isSavingStudent ? 'Submitting Request...' : 'Submit Request for Approval'}
+                {isSavingStudent ? 'Saving Changes...' : 'Save Changes'}
               </button>
             </div>
           </form>
@@ -1213,12 +1246,12 @@ export const TutorStudentProfile: React.FC = () => {
         </div>
       )}
 
-      {/* ── Complete Academic History Modal ─────────────────── */}
-      <StudentProfileHistoryModal
-        isOpen={showHistoryModal}
-        onClose={() => setShowHistoryModal(false)}
-        studentId={id || null}
-        studentName={profile?.student?.name}
+      {/* ── Student Permanent QR Export Modal ─────────────────── */}
+      {/* ── Student Permanent QR Export Modal ─────────────────── */}
+      <ExportStudentQrModal
+        isOpen={showExportQrModal}
+        onClose={() => setShowExportQrModal(false)}
+        student={profile ? profile.student : null}
       />
     </div>
   );
@@ -1678,19 +1711,19 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
-        <div>
-          <h3 className="font-bold text-gray-900 dark:text-white text-sm">SCORES HISTORY</h3>
-          <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-gray-400">
+      <div className="flex items-center justify-between gap-2 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+        <div className="min-w-0 flex-1 truncate">
+          <h3 className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm uppercase truncate">SCORES HISTORY</h3>
+          <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-gray-400 truncate">
             {jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length} Record
             {(jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length) !== 1 ? 's' : ''}
           </p>
         </div>
 
         {/* Filter controls */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
           {/* View mode toggle styled like QR Attendance */}
-          <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5">
+          <div className="flex bg-gray-100 dark:bg-[#111111] rounded-lg sm:rounded-xl p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
             {(['day', 'week', 'month'] as const).map((mode) => (
               <button
                 key={mode}
@@ -1700,7 +1733,7 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
                   setViewMode(mode);
                   setJumpDate(null);
                 }}
-                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
+                className={`rounded-md sm:rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${viewMode === mode && !jumpDate
                   ? 'bg-[var(--brand)] text-white shadow-sm'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                   }`}
@@ -1711,19 +1744,19 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
           </div>
 
           {/* Custom Calendar Dropdown Button in Poppins */}
-          <div className="relative inline-flex items-center">
+          <div className="relative inline-flex items-center shrink-0">
             <button
               type="button"
               id="student-score-calendar-btn"
               onClick={() => setShowCalendarPopover((prev) => !prev)}
-              className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${jumpDate
+              className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all flex items-center justify-center cursor-pointer ${jumpDate
                 ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
                 : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
                 }`}
               title="Select a specific date from calendar"
               aria-label="Open Calendar"
             >
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             {showCalendarPopover && (
@@ -2084,19 +2117,19 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
-        <div>
-          <h3 className="font-bold text-gray-900 dark:text-white text-sm">STUDENT ATTENDANCE HISTORY</h3>
-          <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-gray-400">
+      <div className="flex items-center justify-between gap-2 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+        <div className="min-w-0 flex-1 truncate">
+          <h3 className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm uppercase truncate">STUDENT ATTENDANCE HISTORY</h3>
+          <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-gray-400 truncate">
             {jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length} Record
             {(jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length) !== 1 ? 's' : ''}
           </p>
         </div>
 
         {/* Filter controls */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
           {/* View mode toggle styled like QR Attendance */}
-          <div className="flex bg-gray-100 dark:bg-[#111111] rounded-xl p-0.5 gap-0.5">
+          <div className="flex bg-gray-100 dark:bg-[#111111] rounded-lg sm:rounded-xl p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
             {(['day', 'week', 'month'] as const).map((mode) => (
               <button
                 key={mode}
@@ -2106,7 +2139,7 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
                   setViewMode(mode);
                   setJumpDate(null);
                 }}
-                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
+                className={`rounded-md sm:rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${viewMode === mode && !jumpDate
                   ? 'bg-[var(--brand)] text-white shadow-sm'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                   }`}
@@ -2117,19 +2150,19 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
           </div>
 
           {/* Custom Calendar Dropdown Button in Poppins */}
-          <div className="relative inline-flex items-center">
+          <div className="relative inline-flex items-center shrink-0">
             <button
               type="button"
               id="student-attendance-calendar-btn"
               onClick={() => setShowCalendarPopover((prev) => !prev)}
-              className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${jumpDate
+              className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all flex items-center justify-center cursor-pointer ${jumpDate
                 ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-sm'
                 : 'border-[var(--brand-border)] bg-[var(--brand-light)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white hover:border-[var(--brand)] shadow-xs'
                 }`}
               title="Select a specific date from calendar"
               aria-label="Open Calendar"
             >
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             {showCalendarPopover && (

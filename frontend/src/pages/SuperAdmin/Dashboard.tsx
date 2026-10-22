@@ -84,7 +84,10 @@ export const Dashboard: React.FC = () => {
     setError(null);
     try {
       const [statsData, usersRes, auditRes] = await Promise.all([
-        userService.getStats(),
+        userService.getStats().catch((err) => {
+          console.warn('Could not load user stats for SuperAdmin dashboard:', err);
+          return null;
+        }),
         userService.getUsers({ page: 1 }).catch(() => ({ results: [] })),
         api.get('/audit-logs/?page_size=5').catch(() => ({ data: { results: [] } })),
       ]);

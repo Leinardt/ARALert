@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  Search, ChevronUp, ChevronDown, ChevronRight, ArrowUpDown, Users, AlertCircle
+  Search, ChevronUp, ChevronDown, ChevronRight, ArrowUpDown, Users, AlertCircle, Edit, GraduationCap, CheckCircle2
 } from 'lucide-react';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
 import { SchoolYear, User, Grade, Attendance } from '../../types';
 import { TableSkeleton } from '../../components/SkeletonLoader';
+import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
+import { useAuth } from '../../hooks/useAuth';
+import { isAssessmentWindowOpen } from '../../utils/sessionDescriptionHelpers';
 
 /* ─── Helper: Normalize ARAL Level ─────────────────────────────────── */
 const normalizeAralLevel = (val?: string | null): 'BASIC' | 'PLUS' | 'SUMMER' => {
@@ -44,7 +48,8 @@ interface StudentArchiveMetric {
   avgScore: number;
   assessmentScoreStr: string;
   compositeScore: number;
-  status: 'PASSED' | 'RETAINED' | 'PENDING';
+  status: 'MOVED_UP' | 'GRADUATED' | 'RETAINED' | 'PENDING';
+  rawStudent?: User;
 }
 
 interface TutorArchiveRow {
@@ -55,13 +60,265 @@ interface TutorArchiveRow {
   subject: string;
   aralLevel: 'BASIC' | 'PLUS' | 'SUMMER';
   totalStudents: number;
-  passedCount: number;
+  movedUpCount: number;
+  graduatedCount: number;
   retainedCount: number;
   pendingCount: number;
   students: StudentArchiveMetric[];
+  tutorUser?: User;
 }
 
+type ArchiveStudentSortField =
+  | 'name'
+  | 'lrn'
+  | 'attendanceRate'
+  | 'avgScore'
+  | 'compositeScore'
+  | 'assessmentScore'
+  | 'status';
+
+interface ArchiveClassSectionTableProps {
+  cls: {
+    key: string;
+    label: string;
+    students: StudentArchiveMetric[];
+  };
+  activeTab: 'mosy' | 'eosy' | 'summer';
+  isSuperAdmin: boolean;
+  isWindowOpen: boolean;
+}
+
+const ArchiveClassSectionTable: React.FC<ArchiveClassSectionTableProps> = ({
+  cls,
+  activeTab,
+  isSuperAdmin,
+  isWindowOpen,
+}) => {
+  const [sortField, setSortField] = useState<ArchiveStudentSortField>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (field: ArchiveStudentSortField) => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const sortedStudents = useMemo(() => {
+    const list = [...cls.students];
+    list.sort((a, b) => {
+      if (sortField === 'name') {
+        const cmp = (a.name || '').localeCompare(b.name || '');
+        return sortOrder === 'asc' ? cmp : -cmp;
+      }
+      if (sortField === 'lrn') {
+        const cmp = (a.lrn || '').localeCompare(b.lrn || '', undefined, { numeric: true });
+        return sortOrder === 'asc' ? cmp : -cmp;
+      }
+      if (sortField === 'attendanceRate') {
+        const diff = (a.attendanceRate ?? 0) - (b.attendanceRate ?? 0);
+        if (diff !== 0) return sortOrder === 'asc' ? diff : -diff;
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      if (sortField === 'avgScore') {
+        const diff = (a.avgScore ?? 0) - (b.avgScore ?? 0);
+        if (diff !== 0) return sortOrder === 'asc' ? diff : -diff;
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      if (sortField === 'compositeScore') {
+        const diff = (a.compositeScore ?? 0) - (b.compositeScore ?? 0);
+        if (diff !== 0) return sortOrder === 'asc' ? diff : -diff;
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      if (sortField === 'assessmentScore') {
+        const parseScore = (str: string) => {
+          if (!str || str === '—' || str.toLowerCase().includes('not') || str.toLowerCase().includes('pending')) {
+            return -1;
+          }
+          if (str.toLowerCase() === 'passed') return 100;
+          const num = parseFloat(str.replace('%', ''));
+          return isNaN(num) ? -1 : num;
+        };
+        const scoreA = parseScore(a.assessmentScoreStr);
+        const scoreB = parseScore(b.assessmentScoreStr);
+        if (scoreA !== scoreB) {
+          return sortOrder === 'asc' ? scoreA - scoreB : scoreB - scoreA;
+        }
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      if (sortField === 'status') {
+        const getStatusRank = (st: string) => {
+          const s = (st || '').toUpperCase();
+          if (s === 'GRADUATED') return 4;
+          if (s === 'MOVED_UP') return 3;
+          if (s === 'RETAINED') return 2;
+          return 1;
+        };
+        const rankA = getStatusRank(a.status);
+        const rankB = getStatusRank(b.status);
+        if (rankA !== rankB) {
+          return sortOrder === 'asc' ? rankA - rankB : rankB - rankA;
+        }
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      return 0;
+    });
+    return list;
+  }, [cls.students, sortField, sortOrder]);
+
+  const SortableSubHeader: React.FC<{
+    label: string;
+    field: ArchiveStudentSortField;
+    align?: 'left' | 'center' | 'right';
+  }> = ({ label, field, align = 'left' }) => {
+    const isActive = sortField === field;
+
+    return (
+      <button
+        type="button"
+        onClick={() => handleSort(field)}
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap ${
+          align === 'center'
+            ? 'justify-center text-center'
+            : align === 'right'
+            ? 'justify-end text-right'
+            : 'justify-start text-left'
+        } transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
+          isActive ? 'text-gray-700 dark:text-slate-200' : 'text-gray-400 dark:text-slate-400'
+        } cursor-pointer`}
+        aria-label={`Sort by ${label}`}
+      >
+        <span>{label}</span>
+        {isActive ? (
+          sortOrder === 'asc' ? (
+            <ChevronUp className="w-3.5 h-3.5 shrink-0" />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+          )
+        ) : (
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-40 shrink-0" />
+        )}
+      </button>
+    );
+  };
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wide">
+          {cls.label} ({cls.students.length} Students)
+        </span>
+      </div>
+
+      {cls.students.length === 0 ? (
+        <div className="p-4 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A] rounded-xl border border-slate-200 dark:border-zinc-800">
+          No students assigned to this class for this semester.
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
+          <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+            <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
+              <tr>
+                <th className="w-10 px-3 py-2 text-center whitespace-nowrap">#</th>
+                <th className="px-3 py-2 text-left whitespace-nowrap">
+                  <SortableSubHeader label="STUDENT NAME" field="name" align="left" />
+                </th>
+                <th className="px-3 py-2 text-left whitespace-nowrap">
+                  <SortableSubHeader label="LRN" field="lrn" align="left" />
+                </th>
+                <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <SortableSubHeader label="FINAL AVG ATTENDANCE RATE" field="attendanceRate" align="center" />
+                </th>
+                <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <SortableSubHeader label="FINAL AVG SCORE" field="avgScore" align="center" />
+                </th>
+                <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <SortableSubHeader label="FINAL AVG COMPOSITE" field="compositeScore" align="center" />
+                </th>
+                <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <SortableSubHeader
+                    label={activeTab === 'mosy' ? 'MOSY ASSESSMENT' : activeTab === 'eosy' ? 'EOSY ASSESSMENT' : 'SUMMER ASSESSMENT'}
+                    field="assessmentScore"
+                    align="center"
+                  />
+                </th>
+                <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <SortableSubHeader label="STATUS" field="status" align="center" />
+                </th>
+                <th className="px-3 py-2 text-center whitespace-nowrap">ACTION</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+              {sortedStudents.map((st, idx) => (
+                <tr
+                  key={st.id}
+                  className="divide-x divide-gray-100 dark:divide-[#1A1A1A] hover:bg-gray-50/70 dark:hover:bg-white/[0.02] transition-colors"
+                >
+                  <td className="px-3 py-2.5 text-center text-slate-400 font-medium whitespace-nowrap">{idx + 1}</td>
+                  <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                    {st.name}
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                    {st.lrn}
+                  </td>
+                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                    {st.attendanceRate.toFixed(1)}%
+                  </td>
+                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                    {st.avgScore.toFixed(1)}%
+                  </td>
+                  <td className="px-3 py-2.5 text-center font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                    {st.compositeScore.toFixed(1)}%
+                  </td>
+                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                    {st.assessmentScoreStr}
+                  </td>
+                  <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                    {st.status === 'GRADUATED' ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-[var(--brand-light)] text-[var(--brand)] border-[var(--brand-border)] dark:bg-[var(--brand)]/15 dark:text-blue-300 dark:border-[var(--brand)]/50">
+                        <GraduationCap className="w-3.5 h-3.5" />
+                        Graduated
+                      </span>
+                    ) : st.status === 'MOVED_UP' ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60">
+                        Moved Up ARAL Level
+                      </span>
+                    ) : st.status === 'RETAINED' ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60">
+                        Retained ARAL Level
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
+                        {isWindowOpen ? 'Pending Evaluation' : 'Closed'}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                    <Link
+                      to={`${isSuperAdmin ? '/superadmin' : '/admin'}/students/edit/${st.id}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-200 hover:text-[var(--brand)] hover:border-[var(--brand)] transition shadow-2xs"
+                      title="Edit / Revert Level"
+                    >
+                      <Edit className="w-3 h-3" />
+                      <span>Edit</span>
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const AssessmentsArchive: React.FC = () => {
+  const { user: currentUser } = useAuth();
+  const isSuperAdmin = Boolean(currentUser?.is_superuser);
+
   const [archivedYears, setArchivedYears] = useState<SchoolYear[]>([]);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('2026-2027');
   const [activeTab, setActiveTab] = useState<'mosy' | 'eosy' | 'summer'>('mosy');
@@ -78,6 +335,29 @@ export const AssessmentsArchive: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [windowState, setWindowState] = useState<boolean>(() => isAssessmentWindowOpen());
+
+  useEffect(() => {
+    const handleWindowChange = (e: any) => {
+      if (typeof e?.detail?.isOpen === 'boolean') {
+        setWindowState(e.detail.isOpen);
+      } else {
+        setWindowState(isAssessmentWindowOpen());
+      }
+    };
+    window.addEventListener('assessment_window_changed', handleWindowChange);
+    return () => window.removeEventListener('assessment_window_changed', handleWindowChange);
+  }, []);
+
+  const isWindowOpen = useMemo(() => {
+    const activeYearObj = archivedYears.find((y) => y.school_year === selectedSchoolYear);
+    if (archivedYears.length > 0 && activeYearObj && !activeYearObj.is_active) {
+      return false;
+    }
+    const sem = activeTab === 'mosy' ? '1st' : activeTab === 'eosy' ? '2nd' : 'summer';
+    return isAssessmentWindowOpen(sem);
+  }, [archivedYears, selectedSchoolYear, activeTab, windowState]);
 
   // 1. Initial Load of Available School Years
   useEffect(() => {
@@ -113,7 +393,7 @@ export const AssessmentsArchive: React.FC = () => {
     try {
       const [tutorsList, studentsList, gradesList, attendanceList] = await Promise.all([
         userService.getAllUsers({ role: 'tutor' }).catch(() => [] as User[]),
-        userService.getAllUsers({ role: 'student' }).catch(() => [] as User[]),
+        userService.getAllUsers({ role: 'student', include_graduated: true }).catch(() => [] as User[]),
         academicService.getGrades().catch(() => [] as Grade[]),
         academicService.getAttendanceHistory().catch(() => [] as Attendance[]),
       ]);
@@ -164,20 +444,22 @@ export const AssessmentsArchive: React.FC = () => {
       <button
         type="button"
         onClick={() => handleSort(field)}
-        className={`inline-flex items-center gap-1.5 text-${align} transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap ${
+          align === 'center' ? 'justify-center text-center' : align === 'right' ? 'justify-end text-right' : 'justify-start text-left'
+        } transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
           isActive ? 'text-gray-700 dark:text-slate-200' : 'text-gray-400 dark:text-slate-400'
         } cursor-pointer`}
         aria-label={`Sort by ${label}`}
       >
-        <span>{label}</span>
+        <span className="whitespace-nowrap">{label}</span>
         {isActive ? (
           sortOrder === 'asc' ? (
-            <ChevronUp className="w-3.5 h-3.5" />
+            <ChevronUp className="w-3.5 h-3.5 shrink-0" />
           ) : (
-            <ChevronDown className="w-3.5 h-3.5" />
+            <ChevronDown className="w-3.5 h-3.5 shrink-0" />
           )
         ) : (
-          <ArrowUpDown className="w-3.5 h-3.5 opacity-40" />
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-40 shrink-0" />
         )}
       </button>
     );
@@ -186,10 +468,19 @@ export const AssessmentsArchive: React.FC = () => {
   // 5. Aggregate Tutors & Students metrics for selected period
   const tutorArchiveRows = useMemo<TutorArchiveRow[]>(() => {
     return tutors.map((tutor) => {
-      const tutorStudents = students.filter((s) => String(s.assigned_tutor) === String(tutor.id));
+      const tutorStudents = students.filter((s) => {
+        if (String(s.assigned_tutor) === String(tutor.id)) return true;
+        // Fallback: Check if student has a logged grade matching this tutor
+        return grades.some((g) => {
+          const sid = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
+          const tid = typeof g.tutor === 'object' && g.tutor !== null ? (g.tutor as any).id : (g as any).tutor_id || (g as any).tutor;
+          return String(sid) === String(s.id) && String(tid) === String(tutor.id);
+        });
+      });
       const { grade, section } = getGradeAndSection(tutor.grade_level, tutor.section);
 
-      let passedCount = 0;
+      let movedUpCount = 0;
+      let graduatedCount = 0;
       let retainedCount = 0;
       let pendingCount = 0;
 
@@ -227,28 +518,60 @@ export const AssessmentsArchive: React.FC = () => {
         // Compute Composite Score (40% Attendance + 60% Academic Performance)
         const compositeScore = Math.round(((attendanceRate * 0.4) + (avgScore * 0.6)) * 10) / 10;
 
-        // Determine Status & Assessment Score: PASSED, RETAINED, or PENDING
+        // Determine Status & Assessment Score
         // Check if student has explicit evaluation record
         const evalGrade = sGrades.find((g) => {
           const subj = (g.subject || '').toUpperCase();
-          if (activeTab === 'mosy') return subj.includes('MOSY');
-          if (activeTab === 'eosy') return subj.includes('EOSY');
-          return subj.includes('SUMMER');
+          const rem = (g.remarks || '').toUpperCase();
+          if (activeTab === 'mosy') return subj.includes('MOSY') || rem.includes('MOSY');
+          if (activeTab === 'eosy') return subj.includes('EOSY') || rem.includes('EOSY');
+          return subj.includes('SUMMER') || rem.includes('SUMMER');
         });
 
         let assessmentScoreStr = '—';
-        let status: 'PASSED' | 'RETAINED' | 'PENDING' = 'PENDING';
+        let status: 'MOVED_UP' | 'GRADUATED' | 'RETAINED' | 'PENDING' = 'PENDING';
+
+        const rawLevel = (st.aral_level || '').toLowerCase();
+        const tutorLevel = (tutor.tutor_type || tutor.aral_level || '').toLowerCase();
+        const isPlusCohort = rawLevel === 'plus' || rawLevel === 'graduated' || tutorLevel === 'plus';
 
         if (evalGrade && evalGrade.remarks?.toLowerCase() !== 'not taken') {
           const ts = Number(evalGrade.total_score) || 40;
           const sc = Number(evalGrade.score) || 0;
           const pct = Math.round((sc / ts) * 1000) / 10;
           assessmentScoreStr = `${pct.toFixed(1)}%`;
-          const passedEval = ts === 40 ? sc >= 28 : (sc / ts) >= 0.7;
-          status = passedEval ? 'PASSED' : 'RETAINED';
+          const isPassed = ts === 40 ? sc >= 28 : (sc / ts) >= 0.7;
+
+          if (activeTab === 'mosy') {
+            // In MOSY (Q1 & Q2): Passed students move up an ARAL level (Basic -> Plus).
+            // Retained students remain in their ARAL level (they failed but we don't call it fail).
+            status = isPassed ? 'MOVED_UP' : 'RETAINED';
+          } else if (activeTab === 'eosy') {
+            // In EOSY (Q3 & Q4): Plus students who pass graduate!
+            // Basic students who pass move up an ARAL level (Basic -> Plus).
+            // Retained students keep their ARAL level.
+            if (isPassed || rawLevel === 'graduated') {
+              status = isPlusCohort ? 'GRADUATED' : 'MOVED_UP';
+            } else {
+              status = 'RETAINED';
+            }
+          } else {
+            // In SUMMER (Midyear):
+            // Students who pass graduate!
+            // Retained students keep their ARAL level.
+            if (isPassed || rawLevel === 'graduated') {
+              status = 'GRADUATED';
+            } else {
+              status = 'RETAINED';
+            }
+          }
+        } else if (rawLevel === 'graduated' && (activeTab === 'eosy' || activeTab === 'summer')) {
+          status = 'GRADUATED';
+          assessmentScoreStr = 'Passed';
         }
 
-        if (status === 'PASSED') passedCount++;
+        if (status === 'GRADUATED') graduatedCount++;
+        else if (status === 'MOVED_UP') movedUpCount++;
         else if (status === 'RETAINED') retainedCount++;
         else pendingCount++;
 
@@ -262,6 +585,7 @@ export const AssessmentsArchive: React.FC = () => {
           assessmentScoreStr,
           compositeScore,
           status,
+          rawStudent: st,
         };
       });
 
@@ -270,13 +594,15 @@ export const AssessmentsArchive: React.FC = () => {
         tutorName: tutor.full_name || `${tutor.first_name} ${tutor.last_name}`,
         gradeLevel: grade,
         section,
-        subject: tutor.subject || 'Reading',
+        subject: tutor.subject === 'Reading' ? 'Filipino' : (tutor.subject || 'Filipino'),
         aralLevel: normalizeAralLevel(tutor.tutor_type || tutor.aral_level),
         totalStudents: tutorStudents.length,
-        passedCount,
+        movedUpCount,
+        graduatedCount,
         retainedCount,
         pendingCount,
         students: studentMetrics,
+        tutorUser: tutor,
       };
     });
   }, [tutors, students, grades, attendance, activeTab]);
@@ -293,20 +619,58 @@ export const AssessmentsArchive: React.FC = () => {
           r.gradeLevel.toLowerCase().includes(q) ||
           r.subject.toLowerCase().includes(q) ||
           r.aralLevel.toLowerCase().includes(q) ||
+          (q.includes('no student') && r.totalStudents === 0) ||
+          (q.includes('pending') && r.pendingCount > 0 && isWindowOpen) ||
+          (q.includes('closed') && r.pendingCount > 0 && !isWindowOpen) ||
           r.students.some(
             (st) =>
               st.name.toLowerCase().includes(q) ||
               st.lrn.toLowerCase().includes(q) ||
-              st.status.toLowerCase().includes(q)
+              st.status.toLowerCase().includes(q) ||
+              (q === 'graduated' && st.status === 'GRADUATED') ||
+              (q.includes('move') && st.status === 'MOVED_UP') ||
+              (q.includes('retain') && st.status === 'RETAINED')
           )
       );
     }
 
     list.sort((a, b) => {
-      let aVal = (a as any)[sortField] || '';
-      let bVal = (b as any)[sortField] || '';
-      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      if (sortField === 'totalStudents' || sortField === 'assignedCount') {
+        const countA = Number((a as any)[sortField]) || 0;
+        const countB = Number((b as any)[sortField]) || 0;
+        if (countA !== countB) {
+          return sortOrder === 'asc' ? countA - countB : countB - countA;
+        }
+        return sortOrder === 'asc'
+          ? a.tutorName.localeCompare(b.tutorName)
+          : b.tutorName.localeCompare(a.tutorName);
+      }
+      if (sortField === 'tutorName') {
+        const nameA = (a.tutorName || '').toUpperCase();
+        const nameB = (b.tutorName || '').toUpperCase();
+        return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+      }
+      if (sortField === 'outcomeSummary') {
+        const getOutcomeRank = (r: TutorArchiveRow) => {
+          if (r.totalStudents === 0) return -1;
+          return (
+            r.graduatedCount * 1_000_000 +
+            r.movedUpCount * 10_000 +
+            r.retainedCount * 100 +
+            r.pendingCount * 1
+          );
+        };
+        const rankA = getOutcomeRank(a);
+        const rankB = getOutcomeRank(b);
+        if (rankA !== rankB) {
+          return sortOrder === 'asc' ? rankA - rankB : rankB - rankA;
+        }
+        return sortOrder === 'asc'
+          ? a.tutorName.localeCompare(b.tutorName)
+          : b.tutorName.localeCompare(a.tutorName);
+      }
+      let aVal = String((a as any)[sortField] ?? '').toLowerCase();
+      let bVal = String((b as any)[sortField] ?? '').toLowerCase();
 
       if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
@@ -315,6 +679,25 @@ export const AssessmentsArchive: React.FC = () => {
 
     return list;
   }, [tutorArchiveRows, search, sortField, sortOrder]);
+
+  // Cohort totals across all tutors for the current phase
+  const cohortTotals = useMemo(() => {
+    let totalStudents = 0;
+    let movedUpCount = 0;
+    let graduatedCount = 0;
+    let retainedCount = 0;
+    let pendingCount = 0;
+
+    for (const r of sortedAndFilteredRows) {
+      totalStudents += r.totalStudents;
+      movedUpCount += r.movedUpCount;
+      graduatedCount += r.graduatedCount;
+      retainedCount += r.retainedCount;
+      pendingCount += r.pendingCount;
+    }
+
+    return { totalStudents, movedUpCount, graduatedCount, retainedCount, pendingCount };
+  }, [sortedAndFilteredRows]);
 
   return (
     <div className="flex flex-col gap-5 p-4 sm:p-6 max-w-7xl mx-auto w-full" style={{ fontFamily: 'var(--font-body)' }}>
@@ -379,6 +762,7 @@ export const AssessmentsArchive: React.FC = () => {
             >
               <span>SUMMER (Midyear)</span>
             </button>
+
           </div>
         </div>
       </div>
@@ -400,8 +784,32 @@ export const AssessmentsArchive: React.FC = () => {
         <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs overflow-hidden">
           {/* Table Header / Search Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
-              ARCHIVED TUTOR EVALUATION ROSTER ({sortedAndFilteredRows.length})
+            <div className="space-y-1">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
+                ARCHIVED TUTOR EVALUATION ROSTER ({sortedAndFilteredRows.length})
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-xs pt-0.5">
+                <span className="text-slate-500 dark:text-zinc-400 font-medium">
+                  {cohortTotals.totalStudents} Total Students
+                </span>
+                {cohortTotals.graduatedCount > 0 && (
+                  <span className="inline-flex items-center gap-1 font-semibold text-[var(--brand)]">
+                    <GraduationCap className="w-3.5 h-3.5" />
+                    {cohortTotals.graduatedCount} Graduated
+                  </span>
+                )}
+                {cohortTotals.movedUpCount > 0 && (
+                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {cohortTotals.movedUpCount} Moved Up ARAL Level
+                  </span>
+                )}
+                {cohortTotals.retainedCount > 0 && (
+                  <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
+                    {cohortTotals.retainedCount} Retained ARAL Level
+                  </span>
+                )}
+              </div>
             </div>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
@@ -424,28 +832,14 @@ export const AssessmentsArchive: React.FC = () => {
               <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
                 <thead>
                   <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-                    <th className="px-4 py-2.5 text-left">
+                    <th className="px-4 py-2.5 text-left whitespace-nowrap">
                       <SortableHeader label="TUTOR NAME" field="tutorName" />
                     </th>
-                    <th className="px-4 py-2.5 text-left">
-                      <SortableHeader label="GRADE LEVEL HANDLED" field="gradeLevel" />
-                    </th>
-                    <th className="px-4 py-2.5 text-left">
-                      <SortableHeader label="SECTION HANDLED" field="section" />
-                    </th>
-                    <th className="px-4 py-2.5 text-left">
-                      <SortableHeader label="SUBJECT HANDLED" field="subject" />
-                    </th>
-                    <th className="px-4 py-2.5 text-left">
-                      <SortableHeader label="ARAL LEVEL" field="aralLevel" />
-                    </th>
-                    <th className="px-4 py-2.5 text-center">
+                    <th className="px-4 py-2.5 text-center whitespace-nowrap">
                       <SortableHeader label="TOTAL STUDENTS" field="totalStudents" align="center" />
                     </th>
-                    <th className="px-4 py-2.5 text-center">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
-                        OUTCOME SUMMARY
-                      </span>
+                    <th className="px-4 py-2.5 text-center whitespace-nowrap">
+                      <SortableHeader label="OUTCOME SUMMARY" field="outcomeSummary" align="center" />
                     </th>
                   </tr>
                 </thead>
@@ -474,26 +868,20 @@ export const AssessmentsArchive: React.FC = () => {
                               <span>{row.tutorName}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
-                            {row.gradeLevel}
-                          </td>
-                          <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium uppercase">
-                            {row.section}
-                          </td>
-                          <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
-                            {row.subject}
-                          </td>
-                          <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium uppercase">
-                            {row.aralLevel}
-                          </td>
                           <td className="px-4 py-3 text-center text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
                             {row.totalStudents} Students
                           </td>
                           <td className="px-4 py-3 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1.5">
-                              {row.passedCount > 0 && (
+                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                              {row.graduatedCount > 0 && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-[var(--brand-light)] text-[var(--brand)] border-[var(--brand-border)] dark:bg-[var(--brand)]/15 dark:text-blue-300 dark:border-[var(--brand)]/50">
+                                  <GraduationCap className="w-3 h-3" />
+                                  {row.graduatedCount} Graduated
+                                </span>
+                              )}
+                              {row.movedUpCount > 0 && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60">
-                                  {row.passedCount} Passed
+                                  {row.movedUpCount} Moved Up
                                 </span>
                               )}
                               {row.retainedCount > 0 && (
@@ -501,9 +889,14 @@ export const AssessmentsArchive: React.FC = () => {
                                   {row.retainedCount} Retained
                                 </span>
                               )}
-                              {row.passedCount === 0 && row.retainedCount === 0 && row.totalStudents > 0 && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60">
-                                  Pending Evaluation
+                              {row.pendingCount > 0 && row.graduatedCount === 0 && row.movedUpCount === 0 && row.retainedCount === 0 && (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
+                                  {isWindowOpen ? 'Pending Evaluation' : 'Closed'}
+                                </span>
+                              )}
+                              {row.pendingCount > 0 && (row.graduatedCount > 0 || row.movedUpCount > 0 || row.retainedCount > 0) && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
+                                  {row.pendingCount} {isWindowOpen ? 'Pending' : 'Closed'}
                                 </span>
                               )}
                               {row.totalStudents === 0 && (
@@ -513,85 +906,31 @@ export const AssessmentsArchive: React.FC = () => {
                           </td>
                         </tr>
 
-                        {/* Expandable Sub-Table: Students Handled by this Tutor */}
+                        {/* Expandable Sub-Table: Classes and Students Handled by this Tutor */}
                         {isExpanded && (
                           <tr className="bg-slate-50/40 dark:bg-zinc-950/40">
-                            <td colSpan={7} className="p-0">
-                              <div className="p-4 sm:p-5 border-y border-slate-200 dark:border-zinc-800 space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wide">
-                                    Students Handled by {row.tutorName} &bull; {row.section} ({row.students.length} Students)
-                                  </span>
-                                </div>
-
+                            <td colSpan={3} className="p-0">
+                              <div className="p-4 sm:p-5 border-y border-slate-200 dark:border-zinc-800 space-y-5">
                                 {row.students.length === 0 ? (
-                                  <div className="p-6 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A] rounded-xl border border-slate-200 dark:border-zinc-800">
-                                    No students assigned to this tutor for this semester.
+                                  <div className="p-4 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A] rounded-xl border border-slate-200 dark:border-zinc-800">
+                                    No students assigned to this tutor for this school year.
                                   </div>
                                 ) : (
-                                  <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
-                                    <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
-                                      <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
-                                        <tr>
-                                          <th className="w-10 px-3 py-2 text-center">#</th>
-                                          <th className="px-3 py-2 text-left">STUDENT NAME</th>
-                                          <th className="px-3 py-2 text-left">LRN</th>
-                                          <th className="px-3 py-2 text-left">ARAL LEVEL</th>
-                                          <th className="px-3 py-2 text-center">FINAL AVG ATTENDANCE RATE</th>
-                                          <th className="px-3 py-2 text-center">FINAL AVG SCORE</th>
-                                          <th className="px-3 py-2 text-center">FINAL AVG COMPOSITE</th>
-                                          <th className="px-3 py-2 text-center">
-                                            {activeTab === 'mosy' ? 'MOSY ASSESSMENT' : activeTab === 'eosy' ? 'EOSY ASSESSMENT' : 'SUMMER ASSESSMENT'}
-                                          </th>
-                                          <th className="px-3 py-2 text-center">STATUS</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
-                                        {row.students.map((st, idx) => (
-                                          <tr
-                                            key={st.id}
-                                            className="divide-x divide-gray-100 dark:divide-[#1A1A1A] hover:bg-gray-50/70 dark:hover:bg-white/[0.02] transition-colors"
-                                          >
-                                            <td className="px-3 py-2.5 text-center text-slate-400 font-medium">{idx + 1}</td>
-                                            <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
-                                              {st.name}
-                                            </td>
-                                            <td className="px-3 py-2.5 font-mono text-slate-600 dark:text-slate-300">
-                                              {st.lrn}
-                                            </td>
-                                            <td className="px-3 py-2.5 font-medium uppercase text-slate-700 dark:text-slate-300">
-                                              {st.aralLevel}
-                                            </td>
-                                            <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
-                                              {st.attendanceRate.toFixed(1)}%
-                                            </td>
-                                            <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
-                                              {st.avgScore.toFixed(1)}%
-                                            </td>
-                                            <td className="px-3 py-2.5 text-center font-bold text-slate-900 dark:text-white">
-                                              {st.compositeScore.toFixed(1)}%
-                                            </td>
-                                            <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
-                                              {st.assessmentScoreStr}
-                                            </td>
-                                            <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                                              <span
-                                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                                                  st.status === 'PASSED'
-                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
-                                                    : st.status === 'RETAINED'
-                                                    ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60'
-                                                    : 'bg-amber-50/70 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/40'
-                                                }`}
-                                              >
-                                                {st.status}
-                                              </span>
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
+                                  (() => {
+                                    const allSections = buildTutorClassSections(row.tutorUser, row.students);
+                                    const activeSections = allSections.filter((cls) => cls.students.length > 0);
+                                    const displaySections = activeSections.length > 0 ? activeSections : allSections;
+
+                                      return displaySections.map((cls) => (
+                                        <ArchiveClassSectionTable
+                                          key={cls.key}
+                                          cls={cls}
+                                          activeTab={activeTab}
+                                          isSuperAdmin={isSuperAdmin}
+                                          isWindowOpen={isWindowOpen}
+                                        />
+                                      ));
+                                  })()
                                 )}
                               </div>
                             </td>

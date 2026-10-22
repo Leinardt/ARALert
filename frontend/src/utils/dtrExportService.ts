@@ -78,9 +78,9 @@ export const exportDtrToExcel = async ({
   const daysInMonth = new Date(year, monthNum, 0).getDate();
   const monthLabel = getMonthLabel(targetMonth);
 
-  // Filter records strictly to tutor, faculty, and principal only
+  // Filter records strictly to tutor, faculty, principal, and admin only
   const validRecords = records.filter((r) =>
-    ['tutor', 'faculty', 'principal'].includes((r.role || '').toLowerCase())
+    ['tutor', 'faculty', 'principal', 'admin'].includes((r.role || '').toLowerCase())
   );
 
   // Group records by staff

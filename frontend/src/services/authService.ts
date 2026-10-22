@@ -35,18 +35,20 @@ export const authService = {
   },
 
   logout: async (refreshToken: string | null): Promise<void> => {
-    if (refreshToken) {
-      try {
-        await api.post('/auth/logout/', { refresh: refreshToken });
-      } catch {
-        // Ignore logout network errors
-      }
-    }
+    // 1. Immediately wipe local auth credentials and activity
     clearActivity();
     sessionStorage.clear();
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
+
+    // 2. Asynchronously notify backend to blacklist refresh token and record audit event
+    // Non-blocking so the user experiences an instant, zero-delay logout
+    if (refreshToken) {
+      api.post('/auth/logout/', { refresh: refreshToken }).catch((err) => {
+        console.warn('Background logout notification completed with error:', err);
+      });
+    }
   },
 
   getProfile: async (): Promise<User> => {

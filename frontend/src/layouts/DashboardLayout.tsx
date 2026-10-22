@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState, useMemo, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -12,11 +12,14 @@ import {
 import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../utils/analyticsHelpers';
+import { parseTutorRoleDetailsFromUser, isStudentInCohort, buildTutorClassSections } from '../utils/tutorCohortHelpers';
 
 import type { AcademicRisk, StudentEditRequest } from '../types';
-import { TutorGreetingIntro } from '../components/TutorGreetingIntro';
+import { TutorGreetingIntro, checkGreetingEligibility } from '../components/TutorGreetingIntro';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { StudentEditRequestsModal } from '../components/StudentEditRequestsModal';
+import { PageFallback } from '../components/PageFallback';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import dashboardDarkDefault from '../assets/icons/dashboard_dark.png';
 import dashboardDarkActive from '../assets/icons/dashboard_dark_active.png';
 import dashboardLightDefault from '../assets/icons/dashboard_light.png';
@@ -274,6 +277,10 @@ export const DashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const hasGreetingPending = useMemo(() => {
+    return checkGreetingEligibility(user).show;
+  }, [user]);
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem('aralert_sidebar_collapsed') === 'true';
@@ -343,7 +350,15 @@ export const DashboardLayout: React.FC = () => {
     if (p.includes('/audit-logs')) return 'Audit Log';
     if (p.includes('/archive')) return 'Archive';
     if (p.includes('/evaluations')) return 'Assessment';
-    if (p.includes('/superadmin/users')) return 'User Management';
+    if (
+      p.includes('/superadmin/users') ||
+      p.includes('/superadmin/students') ||
+      p.includes('/superadmin/tutors') ||
+      p.includes('/superadmin/faculty') ||
+      p.includes('/superadmin/principals') ||
+      p.includes('/superadmin/admins') ||
+      p.includes('/superadmin/superadmins')
+    ) return 'User Management';
     if (p.includes('/admin/students') || p.includes('/admin/tutors') || p.includes('/admin/faculty') || p.includes('/admin/principals') || p.includes('/admin/users')) return 'User Management';
     if (p.includes('/tutor/students')) return 'Assigned Students';
     if (p.includes('/student/attendance')) return 'QR Attendance';
@@ -361,11 +376,11 @@ export const DashboardLayout: React.FC = () => {
   const highRiskCount = highRiskStudents.length;
   const [moderateRiskStudents, setModerateRiskStudents] = useState<StudentRiskRow[]>([]);
   const [showRiskList, setShowRiskList] = useState(false);
+  const [selectedAlertClass, setSelectedAlertClass] = useState<string>('all');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [acknowledgedAlerts, setAcknowledgedAlerts] = useState<Record<string, boolean>>({});
-  const [acknowledgedNotes, setAcknowledgedNotes] = useState<Record<string, string>>({});
   const [acknowledgedRiskIds, setAcknowledgedRiskIds] = useState<Record<string, number>>({});
-  const [studentNotes, setStudentNotes] = useState<AcademicRisk[]>([]);
+  const [studentRiskAlerts, setStudentRiskAlerts] = useState<AcademicRisk[]>([]);
   const [showStudentEditRequests, setShowStudentEditRequests] = useState(false);
   const [showStudentHighRisk, setShowStudentHighRisk] = useState(false);
   const [pendingEditRequestsCount, setPendingEditRequestsCount] = useState<number>(0);
@@ -395,7 +410,7 @@ export const DashboardLayout: React.FC = () => {
   const navLinkClass = (active: boolean, collapsed: boolean = isSidebarCollapsed) =>
     `sidebar-item ${active ? 'active' : ''} ${collapsed ? 'justify-center !p-0 w-10 h-10 mx-auto' : ''}`;
 
-  const studentNoteStyle = (riskLevel: AcademicRisk['risk_level']) => {
+  const studentAlertStyle = (riskLevel: AcademicRisk['risk_level']) => {
     if (riskLevel === 'high') {
       return {
         background: 'var(--risk-high-bg)',
@@ -456,14 +471,18 @@ export const DashboardLayout: React.FC = () => {
       setHighRiskStudents(highRiskRows);
       setModerateRiskStudents([]);
       // The alert badge and High Risk section both represent every student
-      // currently classified as High risk, regardless of acknowledgement notes.
+      // currently classified as High risk.
       setAcknowledgedAlerts(Object.fromEntries(Object.keys(latestResolvedRiskByStudent).map((id) => [id, true])));
-      setAcknowledgedNotes(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.details])));
       setAcknowledgedRiskIds(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.id])));
     } catch (error) {
       console.error('Failed to load tutor alerts', error);
     }
   };
+
+  const tutorClassSections = useMemo(() => {
+    if (!user || user.role !== 'tutor') return [];
+    return buildTutorClassSections(user, highRiskStudents);
+  }, [user, highRiskStudents]);
 
   const handleAcknowledgeAlert = async (row: StudentRiskRow) => {
     const existingRiskId = acknowledgedRiskIds[row.student.id];
@@ -471,45 +490,44 @@ export const DashboardLayout: React.FC = () => {
       row.riskTier === 'High' ? 'high'
         : row.riskTier === 'Medium' ? 'medium'
           : 'low';
-    const noteText = `Alert addressed by Tutor. Target: +${row.neededPresentAttendance} more present records, +${row.neededPassedScores} more passed records.`;
     try {
       if (existingRiskId) {
-        await academicService.updateAcademicRisk(existingRiskId, { details: noteText, resolved: true });
+        await academicService.updateAcademicRisk(existingRiskId, { resolved: true });
       } else {
         const newRisk = await academicService.createAcademicRisk({
           student: row.student.id,
           risk_level: studentRiskLevel,
-          details: noteText,
+          details: '',
           resolved: true,
         });
         setAcknowledgedRiskIds((prev) => ({ ...prev, [row.student.id]: newRisk.id }));
       }
       setAcknowledgedAlerts((prev) => ({ ...prev, [row.student.id]: true }));
-      setAcknowledgedNotes((prev) => ({ ...prev, [row.student.id]: noteText }));
     } catch (error) {
       console.error('Failed to acknowledge risk alert', error);
     }
   };
 
-  const fetchStudentNotes = async () => {
+  const fetchStudentRiskAlerts = async () => {
     if (user?.role !== 'student') return;
     try {
       const risks = await academicService.getAcademicRisks();
-      // Only show resolved intervention notes that have a details message from the tutor
-      setStudentNotes(risks.filter((risk) => risk.resolved && Boolean(risk.details)).sort(
-        (a, b) => new Date(b.date_created).getTime() - new Date(a.date_created).getTime()
-      ));
+      setStudentRiskAlerts(
+        risks
+          .filter((risk) => risk.resolved || risk.risk_level === 'high')
+          .sort((a, b) => new Date(b.date_created).getTime() - new Date(a.date_created).getTime())
+      );
     } catch (error) {
-      console.error('Failed to load student tutor notes', error);
+      console.error('Failed to load student risk alerts', error);
     }
   };
 
-  const acknowledgeStudentNote = async (riskId: number) => {
+  const acknowledgeStudentAlert = async (riskId: number) => {
     try {
       await academicService.updateAcademicRisk(riskId, { student_acknowledged: true });
-      await fetchStudentNotes();
+      await fetchStudentRiskAlerts();
     } catch (error) {
-      console.error('Failed to acknowledge tutor note', error);
+      console.error('Failed to acknowledge risk alert', error);
     }
   };
 
@@ -536,14 +554,14 @@ export const DashboardLayout: React.FC = () => {
 
   useEffect(() => { fetchRiskStudents(); }, [user, location.pathname]);
   useEffect(() => { if (!showRiskList) return; fetchRiskStudents(); }, [showRiskList]);
-  useEffect(() => { fetchStudentNotes(); }, [user]);
+  useEffect(() => { fetchStudentRiskAlerts(); }, [user]);
   useEffect(() => { fetchEditRequests(); }, [user, location.pathname]);
   useEffect(() => {
     if (showTutorNotifications || showStudentEditRequests || showEditRequestsModal) {
       fetchEditRequests();
     }
     if (showStudentHighRisk) {
-      fetchStudentNotes();
+      fetchStudentRiskAlerts();
     }
   }, [showTutorNotifications, showStudentEditRequests, showStudentHighRisk, showEditRequestsModal]);
   useEffect(() => {
@@ -589,7 +607,16 @@ export const DashboardLayout: React.FC = () => {
             <Link
               to="/superadmin/users"
               onClick={onItemClick}
-              className={navLinkClass(isActivePrefix('/superadmin/users') || isActivePrefix('/superadmin/students') || isActivePrefix('/superadmin/tutors') || isActivePrefix('/superadmin/faculty') || isActivePrefix('/superadmin/principals') || isActivePrefix('/superadmin/admins'), collapsed)}
+              className={navLinkClass(
+                isActivePrefix('/superadmin/users') ||
+                isActivePrefix('/superadmin/students') ||
+                isActivePrefix('/superadmin/tutors') ||
+                isActivePrefix('/superadmin/faculty') ||
+                isActivePrefix('/superadmin/principals') ||
+                isActivePrefix('/superadmin/admins') ||
+                isActivePrefix('/superadmin/superadmins'),
+                collapsed
+              )}
               title="User Management"
             >
               <AssetSidebarIcon
@@ -597,7 +624,15 @@ export const DashboardLayout: React.FC = () => {
                 darkActiveSrc={studentsDarkActive}
                 lightSrc={studentsLightDefault}
                 lightActiveSrc={studentsLightActive}
-                active={isActivePrefix('/superadmin/users') || isActivePrefix('/superadmin/students') || isActivePrefix('/superadmin/tutors') || isActivePrefix('/superadmin/faculty') || isActivePrefix('/superadmin/principals') || isActivePrefix('/superadmin/admins')}
+                active={
+                  isActivePrefix('/superadmin/users') ||
+                  isActivePrefix('/superadmin/students') ||
+                  isActivePrefix('/superadmin/tutors') ||
+                  isActivePrefix('/superadmin/faculty') ||
+                  isActivePrefix('/superadmin/principals') ||
+                  isActivePrefix('/superadmin/admins') ||
+                  isActivePrefix('/superadmin/superadmins')
+                }
                 alt="User Management"
                 size={18}
                 theme={theme}
@@ -607,10 +642,10 @@ export const DashboardLayout: React.FC = () => {
             <Link
               to="/superadmin/evaluations"
               onClick={onItemClick}
-              className={navLinkClass(isActivePrefix('/superadmin/evaluations'), collapsed)}
+              className={navLinkClass(isActivePrefix('/superadmin/evaluations') || isActivePrefix('/admin/evaluations'), collapsed)}
               title="Assessment"
             >
-              <AssessmentNavIcon active={isActivePrefix('/superadmin/evaluations')} theme={theme} />
+              <AssessmentNavIcon active={isActivePrefix('/superadmin/evaluations') || isActivePrefix('/admin/evaluations')} theme={theme} />
               {!collapsed && <span className="truncate">Assessment</span>}
             </Link>
             <Link
@@ -671,10 +706,10 @@ export const DashboardLayout: React.FC = () => {
             <Link
               to="/admin/evaluations"
               onClick={onItemClick}
-              className={navLinkClass(isActivePrefix('/admin/evaluations'), collapsed)}
+              className={navLinkClass(isActivePrefix('/admin/evaluations') || isActivePrefix('/superadmin/evaluations'), collapsed)}
               title="Assessment"
             >
-              <AssessmentNavIcon active={isActivePrefix('/admin/evaluations')} theme={theme} />
+              <AssessmentNavIcon active={isActivePrefix('/admin/evaluations') || isActivePrefix('/superadmin/evaluations')} theme={theme} />
               {!collapsed && <span className="truncate">Assessment</span>}
             </Link>
             <Link
@@ -840,6 +875,22 @@ export const DashboardLayout: React.FC = () => {
               />
               {!collapsed && <span className="truncate">Data Analytics</span>}
             </Link>
+
+            <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0' }} />
+
+            <Link to="/staff/scan" onClick={onItemClick} className={navLinkClass(isActive('/staff/scan'), collapsed)} title="DTR Log">
+              <AssetSidebarIcon
+                darkSrc={clockDarkDefault}
+                darkActiveSrc={clockDarkActive}
+                lightSrc={clockLightDefault}
+                lightActiveSrc={clockLightActive}
+                active={isActive('/staff/scan')}
+                alt="DTR Log"
+                size={18}
+                theme={theme}
+              />
+              {!collapsed && <span className="truncate">DTR Log</span>}
+            </Link>
           </>
         )}
 
@@ -946,10 +997,9 @@ export const DashboardLayout: React.FC = () => {
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--surface-bg)', overflow: 'hidden', fontFamily: 'var(--font-body)' }}>
 
-      {/* ── Tutor / Student Greeting Intro (Chat Bubble + Flying Mascot) ───── */}
+      {/* ── System Greeting Intro (Chat Bubble + Flying Mascot) ───── */}
       <TutorGreetingIntro
         user={user}
-        isTutor={user?.role === 'tutor' || user?.role === 'student'}
         sidebarLogoId="sidebar-brand-logo"
         sidebarTextId="sidebar-brand-text"
       />
@@ -1012,54 +1062,55 @@ export const DashboardLayout: React.FC = () => {
               </button>
             </div>
           ) : (
-            /* Expanded State: Show only the word ARALert (no logo); collapse button on the right in its original position, smoothly revealed on hover */
+            /* Expanded State: Show ARALert logo + brand text; collapse button on the right in its original position, smoothly revealed on hover */
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
               <Link
                 to={user?.is_superuser ? '/superadmin' : user?.role ? `/${user.role}` : '/'}
                 className="group/brand flex items-center gap-1.5 no-underline min-w-0"
                 title={`ARALert / ${getRoleLabel()}`}
               >
-                <span
+                <div
+                  id="sidebar-brand-logo"
+                  style={{
+                    opacity: hasGreetingPending ? 0 : 1,
+                    transition: 'opacity 0.25s ease-in-out',
+                  }}
+                  className="w-7 h-7 flex items-center justify-center shrink-0 select-none group-hover/brand:scale-105 will-change-transform"
+                >
+                  <img
+                    src={aralertLogo}
+                    alt="ARALert"
+                    className="w-full h-full object-contain block"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                  />
+                </div>
+                <div
                   id="sidebar-brand-text"
+                  className="flex items-center gap-1 min-w-0 select-none whitespace-nowrap will-change-transform"
                   style={{
                     fontFamily: 'var(--font-heading)',
                     fontWeight: 700,
-                    fontSize: '0.925rem',
+                    fontSize: '0.825rem',
                     letterSpacing: '-0.02em',
                     lineHeight: 1.2,
+                    transform: hasGreetingPending ? 'translateX(-34px)' : 'none',
+                    transformOrigin: 'left center',
                   }}
-                  className="text-black dark:text-white select-none whitespace-nowrap shrink-0"
                 >
-                  ARALert
-                </span>
-                {getRoleLabel() && (
-                  <span className="flex items-center gap-1.5 min-w-0 select-none whitespace-nowrap">
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-heading)',
-                        fontWeight: 700,
-                        fontSize: '0.925rem',
-                        letterSpacing: '-0.02em',
-                        lineHeight: 1.2,
-                      }}
-                      className="text-black dark:text-white opacity-40 shrink-0"
-                    >
-                      /
-                    </span>
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-heading)',
-                        fontWeight: 700,
-                        fontSize: '0.925rem',
-                        letterSpacing: '-0.02em',
-                        lineHeight: 1.2,
-                      }}
-                      className="text-black dark:text-white whitespace-nowrap truncate"
-                    >
-                      {getRoleLabel()}
-                    </span>
+                  <span className="text-black dark:text-white shrink-0">
+                    ARALert
                   </span>
-                )}
+                  {getRoleLabel() && (
+                    <span className="flex items-center gap-1 min-w-0 select-none whitespace-nowrap">
+                      <span className="text-black dark:text-white opacity-40 shrink-0">
+                        /
+                      </span>
+                      <span className="text-black dark:text-white whitespace-nowrap">
+                        {getRoleLabel()}
+                      </span>
+                    </span>
+                  )}
+                </div>
               </Link>
 
               {/* Collapse button in original right-side position; smoothly appears on hover without layout shift */}
@@ -1206,7 +1257,7 @@ export const DashboardLayout: React.FC = () => {
             <div className="flex items-center gap-1.5 min-w-0 whitespace-nowrap">
               <span
                 style={{
-                  fontSize: '0.925rem',
+                  fontSize: '0.825rem',
                   fontWeight: 700,
                   letterSpacing: '-0.02em',
                   fontFamily: 'var(--font-heading)',
@@ -1217,10 +1268,10 @@ export const DashboardLayout: React.FC = () => {
                 ARALert
               </span>
               {getRoleLabel() && (
-                <span className="flex items-center gap-1.5 min-w-0 select-none whitespace-nowrap">
+                <span className="flex items-center gap-1 min-w-0 select-none whitespace-nowrap">
                   <span
                     style={{
-                      fontSize: '0.925rem',
+                      fontSize: '0.825rem',
                       fontWeight: 700,
                       letterSpacing: '-0.02em',
                       fontFamily: 'var(--font-heading)',
@@ -1232,13 +1283,13 @@ export const DashboardLayout: React.FC = () => {
                   </span>
                   <span
                     style={{
-                      fontSize: '0.925rem',
+                      fontSize: '0.825rem',
                       fontWeight: 700,
                       letterSpacing: '-0.02em',
                       fontFamily: 'var(--font-heading)',
                       lineHeight: 1.2,
                     }}
-                    className="text-black dark:text-white whitespace-nowrap truncate"
+                    className="text-black dark:text-white whitespace-nowrap"
                   >
                     {getRoleLabel()}
                   </span>
@@ -1350,6 +1401,7 @@ export const DashboardLayout: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setShowRiskList((prev) => !prev);
+                    setSelectedAlertClass('all');
                     setShowTutorNotifications(false);
                     setShowStudentEditRequests(false);
                     setShowStudentHighRisk(false);
@@ -1489,6 +1541,37 @@ export const DashboardLayout: React.FC = () => {
                         </button>
                       </div>
 
+                      {/* Class filter dropdown */}
+                      {tutorClassSections.length > 1 && (
+                        <div style={{ padding: '0.625rem 1rem 0', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-200)' }}>
+                          <select
+                            value={selectedAlertClass}
+                            onChange={(e) => setSelectedAlertClass(e.target.value)}
+                            aria-label="Filter by class"
+                            style={{
+                              width: '100%',
+                              padding: '0.4rem 0.75rem',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              borderRadius: '8px',
+                              border: '1px solid var(--slate-200)',
+                              background: 'var(--surface-card)',
+                              color: 'var(--text-primary)',
+                              marginBottom: '0.625rem',
+                              cursor: 'pointer',
+                              outline: 'none',
+                            }}
+                          >
+                            <option value="all">All Classes ({tutorClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)</option>
+                            {tutorClassSections.map((cls) => (
+                              <option key={cls.key} value={cls.key}>
+                                {cls.label} ({cls.students.length})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
                       {/* Risk list body */}
                       <div
                         style={{
@@ -1501,95 +1584,106 @@ export const DashboardLayout: React.FC = () => {
                           gap: '0.75rem',
                         }}
                       >
-                        {/* Section header */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.125rem' }}>
-                          <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 800, color: 'var(--risk-high-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                            High Risk
-                          </p>
-                          <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.72rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid var(--risk-high-border)' }}>
-                            {highRiskStudents.length}
-                          </span>
-                        </div>
-
-                        {highRiskStudents.length === 0 ? (
-                          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>
-                              No high-risk students detected.
-                            </p>
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                            {highRiskStudents.map((row) => (
-                              <div
-                                key={`high-${row.student.id}`}
-                                className="rounded-xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#0A0A0A] p-3.5 space-y-2.5 shadow-2xs"
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <Link
-                                    to={`/tutor/students/${row.student.id}`}
-                                    state={{ from: 'dashboard' }}
-                                    onClick={() => setShowRiskList(false)}
-                                    className="group min-w-0 flex-1 no-underline"
-                                  >
-                                    <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-[var(--brand)] transition-colors truncate m-0">
-                                      {row.student.full_name}
-                                    </p>
-                                    <p className="text-[11px] text-slate-400 font-mono m-0 mt-0.5">
-                                      LRN: {row.student.lrn || 'N/A'}
-                                    </p>
-                                  </Link>
-                                  <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
-                                    HIGH RISK
+                        {(() => {
+                          const visibleSections = selectedAlertClass === 'all'
+                            ? tutorClassSections
+                            : tutorClassSections.filter((cls) => cls.key === selectedAlertClass);
+                          return visibleSections.map((cls) => (
+                            <div key={cls.key} className="flex flex-col gap-2">
+                              {/* Class label shown only in "all" view or when more than one section exists */}
+                              {(selectedAlertClass === 'all' && tutorClassSections.length > 1) && (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.125rem' }}>
+                                  <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: 'var(--risk-high-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                    {cls.label}
+                                  </p>
+                                  <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.72rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid var(--risk-high-border)' }}>
+                                    {cls.students.length}
                                   </span>
                                 </div>
+                              )}
 
-                                {/* Composite score */}
-                                <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
-                                  <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Composite Score:</span>
-                                  <span className="font-extrabold text-rose-600 dark:text-rose-400">{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
+                              {cls.students.length === 0 ? (
+                                <div style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                                  <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>
+                                    No high-risk students detected.
+                                  </p>
                                 </div>
-
-                                {/* Recovery targets: matching text format */}
-                                <div className="flex flex-col gap-1.5 pt-0.5">
-                                  {row.neededPresentAttendance > 0 && (
-                                    <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50">
-                                      Need +{row.neededPresentAttendance} more Present records to improve risk level
-                                    </span>
-                                  )}
-                                  {row.neededPassedScores > 0 && (
-                                    <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
-                                      Need +{row.neededPassedScores} more Passed records to improve risk level
-                                    </span>
-                                  )}
-                                  {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
-                                    <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
-                                      Need +1 more Passed record to improve risk level
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* Direct Acknowledge Alert button */}
-                                <div className="pt-2 border-t border-slate-100 dark:border-neutral-800">
-                                  {acknowledgedAlerts[row.student.id] ? (
-                                    <div className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-lg">
-                                      <Check size={14} className="stroke-[3]" />
-                                      <span>Alert Addressed</span>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleAcknowledgeAlert(row)}
-                                      className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                                  {cls.students.map((row) => (
+                                    <div
+                                      key={`high-${cls.key}-${row.student.id}`}
+                                      className="rounded-xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#0A0A0A] p-3.5 space-y-2.5 shadow-2xs"
                                     >
-                                      <CheckCircle2 size={14} />
-                                      <span>Acknowledge Alert</span>
-                                    </button>
-                                  )}
+                                      <div className="flex items-start justify-between gap-2">
+                                        <Link
+                                          to={`/tutor/students/${row.student.id}`}
+                                          state={{ from: 'dashboard' }}
+                                          onClick={() => setShowRiskList(false)}
+                                          className="group min-w-0 flex-1 no-underline"
+                                        >
+                                          <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-[var(--brand)] transition-colors truncate m-0">
+                                            {row.student.full_name}
+                                          </p>
+                                          <p className="text-[11px] text-slate-400 font-mono m-0 mt-0.5">
+                                            LRN: {row.student.lrn || 'N/A'}
+                                          </p>
+                                        </Link>
+                                        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
+                                          HIGH RISK
+                                        </span>
+                                      </div>
+
+                                      {/* Composite score */}
+                                      <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
+                                        <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Composite Score:</span>
+                                        <span className="font-extrabold text-rose-600 dark:text-rose-400">{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
+                                      </div>
+
+                                      {/* Recovery targets */}
+                                      <div className="flex flex-col gap-1.5 pt-0.5">
+                                        {row.neededPresentAttendance > 0 && (
+                                          <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50">
+                                            Need +{row.neededPresentAttendance} more Present records to improve risk level
+                                          </span>
+                                        )}
+                                        {row.neededPassedScores > 0 && (
+                                          <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
+                                            Need +{row.neededPassedScores} more Passed records to improve risk level
+                                          </span>
+                                        )}
+                                        {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
+                                          <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
+                                            Need +1 more Passed record to improve risk level
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* Direct Acknowledge Alert button */}
+                                      <div className="pt-2 border-t border-slate-100 dark:border-neutral-800">
+                                        {acknowledgedAlerts[row.student.id] ? (
+                                          <div className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-lg">
+                                            <Check size={14} className="stroke-[3]" />
+                                            <span>Alert Addressed</span>
+                                          </div>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleAcknowledgeAlert(row)}
+                                            className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                                          >
+                                            <CheckCircle2 size={14} />
+                                            <span>Acknowledge Alert</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                              )}
+                            </div>
+                          ));
+                        })()}
                       </div>
                     </div>
                   </>
@@ -2301,8 +2395,8 @@ export const DashboardLayout: React.FC = () => {
                     }}
                     aria-label="High Risk Alerts"
                     title={
-                      studentNotes.filter((note) => !note.student_acknowledged).length > 0
-                        ? `${studentNotes.filter((note) => !note.student_acknowledged).length} High Risk Alert(s)`
+                      studentRiskAlerts.filter((alert) => !alert.student_acknowledged).length > 0
+                        ? `${studentRiskAlerts.filter((alert) => !alert.student_acknowledged).length} High Risk Alert(s)`
                         : 'High Risk Alert'
                     }
                     style={{
@@ -2350,7 +2444,7 @@ export const DashboardLayout: React.FC = () => {
                     >
                       <AlertTriangle size={17} />
                     </span>
-                    {studentNotes.filter((note) => !note.student_acknowledged).length > 0 && (
+                    {studentRiskAlerts.filter((alert) => !alert.student_acknowledged).length > 0 && (
                       <span
                         className="animate-badge-pulse"
                         style={{
@@ -2372,7 +2466,7 @@ export const DashboardLayout: React.FC = () => {
                           boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)',
                         }}
                       >
-                        {studentNotes.filter((note) => !note.student_acknowledged).length}
+                        {studentRiskAlerts.filter((alert) => !alert.student_acknowledged).length}
                       </span>
                     )}
                   </button>
@@ -2430,37 +2524,41 @@ export const DashboardLayout: React.FC = () => {
                           </button>
                         </div>
 
-                        {/* Tutor Intervention Notes Body */}
+                        {/* High Risk Alerts Body */}
                         <div style={{ maxHeight: 'min(460px, calc(100vh - 140px))', overflowY: 'auto', padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                               <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Tutor Intervention Notes
+                                Academic Risk Alerts
                               </span>
                               <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--slate-200)', color: 'var(--text-secondary)', borderRadius: '99px', padding: '1px 7px' }}>
-                                {studentNotes.length}
+                                {studentRiskAlerts.length}
                               </span>
                             </div>
-                            {studentNotes.length === 0 ? (
+                            {studentRiskAlerts.length === 0 ? (
                               <div style={{ background: 'var(--surface-muted)', border: '1px dashed var(--slate-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
-                                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>No current tutor notes or risk alerts.</p>
+                                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>No high risk alerts.</p>
                               </div>
                             ) : (
-                              studentNotes.map((note) => {
-                                const colors = studentNoteStyle(note.risk_level);
+                              studentRiskAlerts.map((alert) => {
+                                const colors = studentAlertStyle(alert.risk_level);
                                 return (
-                                  <div key={note.id} style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: '10px', padding: '0.75rem 0.85rem', marginBottom: '0.5rem' }}>
+                                  <div key={alert.id} style={{ background: colors.background, border: `1px solid ${colors.border}`, borderRadius: '10px', padding: '0.75rem 0.85rem', marginBottom: '0.5rem' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-                                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: colors.label, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{note.risk_level_display || note.risk_level} risk</span>
-                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{new Date(note.date_created).toLocaleDateString()}</span>
+                                      <span style={{ fontSize: '0.72rem', fontWeight: 800, color: colors.label, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{alert.risk_level_display || alert.risk_level} risk</span>
+                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{new Date(alert.date_created).toLocaleDateString()}</span>
                                     </div>
-                                    <p style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: colors.text, lineHeight: 1.45, wordBreak: 'break-word' }}>{note.details}</p>
-                                    {note.student_acknowledged ? (
+                                    <p style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: colors.text, lineHeight: 1.45, wordBreak: 'break-word' }}>
+                                      {alert.resolved
+                                        ? 'Alert acknowledged by tutor. Continue attending sessions and completing activities to improve your academic performance.'
+                                        : 'Academic risk status flagged for tutor intervention. Please coordinate with your assigned tutor.'}
+                                    </p>
+                                    {alert.student_acknowledged ? (
                                       <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', fontWeight: 700, color: colors.acknowledged }}>✓ Acknowledged</p>
                                     ) : (
                                       <button
                                         type="button"
-                                        onClick={() => acknowledgeStudentNote(note.id)}
+                                        onClick={() => acknowledgeStudentAlert(alert.id)}
                                         style={{
                                           marginTop: '0.55rem',
                                           border: 'none',
@@ -2475,7 +2573,7 @@ export const DashboardLayout: React.FC = () => {
                                           minHeight: '36px',
                                         }}
                                       >
-                                        Acknowledge Note
+                                        Acknowledge Alert
                                       </button>
                                     )}
                                   </div>
@@ -2498,7 +2596,14 @@ export const DashboardLayout: React.FC = () => {
 
         {/* ── Content body ── */}
         <main className="flex-1 w-full min-w-0 max-w-full overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 md:p-6 lg:p-8">
-          <Outlet />
+          <ErrorBoundary
+            fallbackTitle="Dashboard View Error"
+            fallbackMessage="An issue occurred while rendering this dashboard view. You can reload or navigate to another page using the sidebar."
+          >
+            <Suspense fallback={<PageFallback />}>
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
 

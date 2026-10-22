@@ -19,10 +19,10 @@ def validate_tutor_compatibility(tutor: User, student_program: str) -> None:
     """
     Validate that tutor can teach the student's program level.
     Rules:
-    - A tutor can only have ONE ARAL level handled (cannot handle both basic and plus).
-    - Basic Tutor: can only teach Basic students.
-    - Plus Tutor: can only teach Plus students.
-    - Summer Tutor: can only teach Summer students.
+    - Basic Tutor: can teach Basic students.
+    - Plus Tutor: can teach Plus students.
+    - Summer Tutor: can teach Summer students.
+    - Tutors handling both Basic and Plus can teach Basic students AND Plus students.
     Invalid assignments raise ValidationError.
     """
     if not tutor:
@@ -32,13 +32,24 @@ def validate_tutor_compatibility(tutor: User, student_program: str) -> None:
     if tutor.role != 'tutor':
         raise ValidationError({'tutor': 'Assigned user is not a tutor.'})
 
-    t_type = getattr(tutor, 'tutor_type', None) or getattr(tutor, 'aral_level', 'basic')
-    t_type = str(t_type).lower().strip()
+    combined = f"{getattr(tutor, 'tutor_type', '') or ''} {getattr(tutor, 'aral_level', '') or ''}".lower().strip()
     s_prog = str(student_program).lower().strip() if student_program else 'basic'
 
-    if t_type != s_prog:
+    handles_basic = 'basic' in combined or not combined
+    handles_plus = 'plus' in combined
+    handles_summer = 'summer' in combined
+
+    if s_prog == 'basic' and not handles_basic:
         raise ValidationError({
-            'tutor': f'This tutor cannot be assigned to this student because the tutor handles the {t_type.capitalize()} level only, while the student is in {s_prog.capitalize()}. Tutors can only handle one ARAL level.'
+            'tutor': 'This tutor cannot be assigned to this student because the tutor does not handle the Basic level.'
+        })
+    elif s_prog == 'plus' and not handles_plus:
+        raise ValidationError({
+            'tutor': 'This tutor cannot be assigned to this student because the tutor does not handle the Plus level.'
+        })
+    elif s_prog == 'summer' and not handles_summer:
+        raise ValidationError({
+            'tutor': 'This tutor cannot be assigned to this student because the tutor does not handle the Summer level.'
         })
 
 
@@ -62,7 +73,7 @@ def assign_tutor_to_student(
                 defaults={'status': 'ACTIVE', 'is_active': True}
             )
 
-    student_prog = student.aral_level or 'basic'
+    student_prog = (student.aral_level or 'basic').lower().strip()
 
     if tutor:
         validate_tutor_compatibility(tutor, student_prog)
@@ -128,7 +139,11 @@ def get_available_tutors_data(program: str | None = None) -> list[dict]:
 
     if program:
         prog = program.lower().strip()
-        tutors_qs = tutors_qs.filter(tutor_type=prog)
+        from django.db.models import Q
+        tutors_qs = tutors_qs.filter(
+            Q(tutor_type=prog) | Q(tutor_type__icontains=prog) |
+            Q(aral_level=prog) | Q(aral_level__icontains=prog)
+        )
 
     results = []
     for tutor in tutors_qs:
@@ -136,8 +151,12 @@ def get_available_tutors_data(program: str | None = None) -> list[dict]:
         available_slots = max(0, MAX_COHORT - assigned_count)
         t_type = tutor.tutor_type or tutor.aral_level or 'basic'
 
+        comb = f"{tutor.tutor_type or ''} {tutor.aral_level or ''}".lower()
+        is_basic_plus = ('basic' in comb and 'plus' in comb) or 'basic_plus' in comb
+
         type_display = (
-            'Basic Tutor' if t_type == 'basic'
+            'Basic & Plus Tutor' if is_basic_plus
+            else 'Basic Tutor' if t_type == 'basic'
             else 'Plus Tutor' if t_type == 'plus'
             else 'Summer Tutor' if t_type == 'summer'
             else f'{t_type.capitalize()} Tutor'
@@ -202,8 +221,13 @@ def assign_students_to_tutor_bulk(
     assigned = []
     skipped = []
 
+    students_map = {
+        str(s.id): s
+        for s in User.objects.filter(id__in=student_ids, role='student', is_active=True)
+    }
+
     for sid in student_ids:
-        student = User.objects.filter(id=sid, role='student', is_active=True).first()
+        student = students_map.get(str(sid))
         if not student:
             skipped.append({'student_id': sid, 'reason': 'Not found or inactive.'})
             continue
@@ -289,12 +313,20 @@ def get_tutor_cohort_history(tutor_id, school_year_str=None):
 
     # Historical assignments
     past_records = []
+    student_ids = [h.student_id for h in histories_qs]
+    latest_grades = {}
+    if student_ids:
+        all_grades = ApiGrade.objects.filter(
+            student_id__in=student_ids,
+            tutor=tutor,
+        ).order_by('student_id', '-date_logged')
+        for g in all_grades:
+            if g.student_id not in latest_grades:
+                latest_grades[g.student_id] = g
+
     for h in histories_qs:
         st = h.student
-        grade_obj = ApiGrade.objects.filter(
-            student=st,
-            tutor=tutor,
-        ).order_by('-date_logged').first()
+        grade_obj = latest_grades.get(st.id)
 
         score_display = None
         if grade_obj and grade_obj.total_score:

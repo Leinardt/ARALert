@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ArrowRight, Menu, X, School, Mail } from 'lucide-react';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { PageFallback } from '../components/PageFallback';
 
 import aralertLogo from '../assets/ARALert_Logo_LIGHT.png';
 
@@ -58,16 +59,14 @@ export const PublicLayout: React.FC = () => {
     >
       {/* ── Dynamic Navbar ── */}
       <div
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 pointer-events-none ${
-          isScrolled ? 'pt-3 sm:pt-4 px-3 sm:px-6' : 'pt-0 px-4 sm:px-8 lg:px-12'
-        }`}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 pointer-events-none ${isScrolled ? 'pt-3 sm:pt-4 px-3 sm:px-6' : 'pt-0 px-4 sm:px-8 lg:px-12'
+          }`}
       >
         <header
-          className={`pointer-events-auto mx-auto transition-all duration-300 flex justify-between ${
-            isScrolled
-              ? 'w-full max-w-5xl bg-white/65 dark:bg-neutral-900/45 backdrop-blur-2xl backdrop-saturate-[190%] border border-white/80 dark:border-white/15 rounded-2xl px-4 sm:px-6 h-14 items-center shadow-[0_16px_40px_-6px_rgba(15,23,42,0.12),0_4px_12px_rgba(15,23,42,0.04),inset_0_1px_1px_0_rgba(255,255,255,0.95),inset_0_-1px_1px_0_rgba(0,0,0,0.03)] dark:shadow-[0_20px_50px_-8px_rgba(0,0,0,0.7),inset_0_1px_1px_0_rgba(255,255,255,0.22),inset_0_0_20px_0_rgba(255,255,255,0.02)] text-slate-800 dark:text-white'
-              : 'w-full max-w-6xl px-0 h-[70px] items-end pb-0 bg-transparent border-transparent shadow-none text-slate-900 dark:text-white'
-          }`}
+          className={`pointer-events-auto mx-auto transition-all duration-300 flex justify-between ${isScrolled
+            ? 'w-full max-w-5xl bg-white/65 dark:bg-neutral-900/45 backdrop-blur-2xl backdrop-saturate-[190%] border border-white/80 dark:border-white/15 rounded-2xl px-4 sm:px-6 h-14 items-center shadow-[0_16px_40px_-6px_rgba(15,23,42,0.12),0_4px_12px_rgba(15,23,42,0.04),inset_0_1px_1px_0_rgba(255,255,255,0.95),inset_0_-1px_1px_0_rgba(0,0,0,0.03)] dark:shadow-[0_20px_50px_-8px_rgba(0,0,0,0.7),inset_0_1px_1px_0_rgba(255,255,255,0.22),inset_0_0_20px_0_rgba(255,255,255,0.02)] text-slate-800 dark:text-white'
+            : 'w-full max-w-6xl px-0 h-[70px] items-end pb-0 bg-transparent border-transparent shadow-none text-slate-900 dark:text-white'
+            }`}
         >
           {/* Left: Logo & Brand + Navigation links */}
           <div className={`flex gap-4 sm:gap-6 ${isScrolled ? 'items-center' : 'items-end pb-0'}`}>
@@ -182,7 +181,9 @@ export const PublicLayout: React.FC = () => {
 
       {/* ── Main Content Area ── */}
       <main className="flex-1 flex flex-col w-full">
-        <Outlet />
+        <Suspense fallback={<PageFallback />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       {/* ── Compact Restored Sticky Footer ── */}
@@ -205,12 +206,8 @@ export const PublicLayout: React.FC = () => {
                 <span className="font-extrabold text-sm tracking-tight">ARALert</span>
               </Link>
               <p className="leading-relaxed text-slate-500 dark:text-slate-400">
-                Student Performance Monitoring & Early Academic Risk Detection platform for the Academic Recovery and Accessible Learning (ARAL) initiative.
+                Student Performance Monitoring & Early Academic Risk Detection platform for the Academic Recovery and Accessible Learning (ARAL) program of Palanas National Agriculture High School.
               </p>
-              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-medium pt-0.5">
-                <School className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
-                <span>Palanas National Agriculture High School</span>
-              </div>
             </div>
 
             {/* Col 2: Quick Navigation */}
@@ -288,7 +285,7 @@ export const PublicLayout: React.FC = () => {
               </p>
               <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 mt-2">
                 <Mail className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
-                <a href="mailto:contact@aralert.ph" className="hover:underline hover:text-[var(--brand)]">contact@aralert.ph</a>
+                <a href="mailto:309904@deped.gov.ph" className="hover:underline hover:text-[var(--brand)]">309904@deped.gov.ph</a>
               </div>
             </div>
 
@@ -298,7 +295,7 @@ export const PublicLayout: React.FC = () => {
                 System Access
               </h4>
               <p className="leading-relaxed text-slate-500 dark:text-slate-400">
-                Authorized staff sign in via Google OAuth. Learners access their portal using their registered 12-digit LRN.
+                Authorized personnel sign in via authenticated Google accounts. Students access their portal using their registered 12-digit LRN.
               </p>
               {(!isLoginPage || isAuthenticated) && (
                 <div className="pt-1">

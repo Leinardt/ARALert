@@ -26,6 +26,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { useAuth } from '../../hooks/useAuth';
 import { ExportDtrModal } from '../../components/ExportDtrModal';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
+import { getStaffDtrStatus, getStaffUndertimeStr, type DtrStatus } from '../../utils/dtrSchedule';
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
@@ -51,26 +52,6 @@ const formatDateString = (value: string | null) => {
   const day = date.getDate();
   const year = date.getFullYear();
   return `${month} ${day}, ${year} | ${weekday}`;
-};
-
-// Tutor schedule: Time In = 4:30 PM (16:30), Time Out = 5:00 PM (17:00)
-const TUTOR_TIME_IN_MINS = 16 * 60 + 30;  // 4:30 PM
-const TUTOR_TIME_OUT_MINS = 17 * 60 + 0;  // 5:00 PM
-
-const getTutorStatus = (timeInMins: number | null, timeOutMins: number | null): 'Completed' | 'Late' | 'Early Out' | '—' => {
-  if (timeInMins === null && timeOutMins === null) return '—';
-  if (timeInMins !== null && timeInMins > TUTOR_TIME_IN_MINS) return 'Late';
-  if (timeOutMins !== null && timeOutMins < TUTOR_TIME_OUT_MINS) return 'Early Out';
-  if (timeInMins !== null || timeOutMins !== null) return 'Completed';
-  return '—';
-};
-
-const getUndertimeStr = (timeOutMins: number | null): string => {
-  if (timeOutMins === null || timeOutMins >= TUTOR_TIME_OUT_MINS) return '—';
-  const diff = TUTOR_TIME_OUT_MINS - timeOutMins;
-  const h = Math.floor(diff / 60);
-  const m = diff % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
 
 /* ─── Custom Calendar Dropdown ────────────────────────────────── */
@@ -181,7 +162,7 @@ const CustomCalendarDropdown: React.FC<{
 /* ─────────────────────────── component ─────────────────────────── */
 export const StaffAttendanceScanner: React.FC = () => {
   const { user } = useAuth();
-  const tutorFirstName = user?.first_name || user?.full_name?.trim().split(' ')[0] || 'TUTOR';
+  const staffFirstName = user?.first_name || user?.full_name?.trim().split(' ')[0] || (user?.role === 'principal' ? 'PRINCIPAL' : 'STAFF');
   const [scanMode, setScanMode] = useState<'none' | 'camera' | 'text'>('none');
   const [manualCode, setManualCode] = useState('');
   const [scanResult, setScanResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -195,7 +176,6 @@ export const StaffAttendanceScanner: React.FC = () => {
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const isPrincipalMonitor = user?.role === 'principal' || Boolean(user?.is_superuser);
   const todayStr = new Date().toLocaleDateString('en-CA');
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
@@ -296,16 +276,14 @@ export const StaffAttendanceScanner: React.FC = () => {
           result = (a.time_out || '').localeCompare(b.time_out || '');
           break;
         case 'undertime': {
-          const aMins = timeToMinutes(a.time_out);
-          const bMins = timeToMinutes(b.time_out);
-          const aDiff = aMins !== null && aMins < TUTOR_TIME_OUT_MINS ? TUTOR_TIME_OUT_MINS - aMins : 0;
-          const bDiff = bMins !== null && bMins < TUTOR_TIME_OUT_MINS ? TUTOR_TIME_OUT_MINS - bMins : 0;
-          result = aDiff - bDiff;
+          const utA = getStaffUndertimeStr(a.role || user?.role, a.time_out, a.departure_am, a.departure_pm);
+          const utB = getStaffUndertimeStr(b.role || user?.role, b.time_out, b.departure_am, b.departure_pm);
+          result = utA.localeCompare(utB);
           break;
         }
         case 'status': {
-          const stA = getTutorStatus(timeToMinutes(a.time_in), timeToMinutes(a.time_out));
-          const stB = getTutorStatus(timeToMinutes(b.time_in), timeToMinutes(b.time_out));
+          const stA = getStaffDtrStatus(a.role || user?.role, a.time_in, a.arrival_am, a.arrival_pm);
+          const stB = getStaffDtrStatus(b.role || user?.role, b.time_in, b.arrival_am, b.arrival_pm);
           result = stA.localeCompare(stB);
           break;
         }
@@ -375,13 +353,8 @@ export const StaffAttendanceScanner: React.FC = () => {
       const res = await academicService.scanQRCode(sessionId);
       setScanResult({ type: 'success', message: res.message });
       if (user) {
-        const logs = isPrincipalMonitor
-          ? await academicService.getAttendanceHistory()
-          : await academicService.getAttendanceHistory({ user_id: user.id });
-        const visibleLogs = isPrincipalMonitor
-          ? logs.filter((log) => ['tutor', 'faculty', 'principal'].includes(log.role))
-          : logs;
-        setAttendanceLogs(visibleLogs);
+        const logs = await academicService.getAttendanceHistory({ user_id: user.id });
+        setAttendanceLogs(logs);
       }
     } catch (err: any) {
       console.error(err);
@@ -395,28 +368,36 @@ export const StaffAttendanceScanner: React.FC = () => {
   };
 
   // ── Data fetching ──────────────────────────────────────────────
-  const fetchAttendanceLogs = useCallback(async () => {
+  const fetchAttendanceLogs = useCallback(async (silent = false) => {
     if (!user) return;
-    setLogsLoading(true);
-    setLogsError(null);
+    if (!silent) {
+      setLogsLoading(true);
+      setLogsError(null);
+    }
     try {
-      const logs = isPrincipalMonitor
-        ? await academicService.getAttendanceHistory()
-        : await academicService.getAttendanceHistory({ user_id: user.id });
-      const visibleLogs = isPrincipalMonitor
-        ? logs.filter((log) => ['tutor', 'faculty', 'principal'].includes(log.role))
-        : logs;
-      setAttendanceLogs(visibleLogs);
+      const logs = await academicService.getAttendanceHistory({ user_id: user.id });
+      setAttendanceLogs(logs);
     } catch (err: any) {
       console.error(err);
-      setLogsError('Failed to load DTR history.');
+      if (!silent) {
+        setLogsError('Failed to load DTR history.');
+      }
     } finally {
-      setLogsLoading(false);
+      if (!silent) {
+        setLogsLoading(false);
+      }
     }
-  }, [user, isPrincipalMonitor]);
+  }, [user]);
 
   useEffect(() => {
-    fetchAttendanceLogs();
+    fetchAttendanceLogs(false);
+
+    // Silent auto-refresh polling every 3.5s
+    const pollTimer = setInterval(() => {
+      fetchAttendanceLogs(true);
+    }, 3500);
+
+    return () => clearInterval(pollTimer);
   }, [fetchAttendanceLogs]);
 
   // ── Camera initialization ──────────────────────────────────────
@@ -517,11 +498,10 @@ export const StaffAttendanceScanner: React.FC = () => {
   };
 
   // ── Status badge helper ─────────────────────────────────────────
-  const statusBadge = (status: 'Completed' | 'Late' | 'Early Out' | '—') => {
-    if (status === 'Completed') return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200">Completed</span>;
-    if (status === 'Late') return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">Late</span>;
-    if (status === 'Early Out') return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold border bg-rose-50 text-rose-700 border-rose-200">Early Out</span>;
-    return <span className="text-gray-300">—</span>;
+  const statusBadge = (status: DtrStatus) => {
+    if (status === 'Present') return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60">Present</span>;
+    if (status === 'Late') return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60">Late</span>;
+    return <span className="text-gray-300 dark:text-zinc-600">—</span>;
   };
 
   /* ─────────────────────────── render ─────────────────────────── */
@@ -529,19 +509,17 @@ export const StaffAttendanceScanner: React.FC = () => {
     return (
       <div className="space-y-6 max-w-6xl mx-auto">
         {/* Status Strip Skeleton */}
-        {!isPrincipalMonitor && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="animate-pulse rounded-2xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
-                <div className="space-y-2 flex-1">
-                  <div className="h-2.5 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="animate-pulse rounded-2xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl bg-gray-200 dark:bg-gray-700 shrink-0" />
+              <div className="space-y-2 flex-1">
+                <div className="h-2.5 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          ))}
+        </div>
 
         {/* Main Grid Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -620,7 +598,7 @@ export const StaffAttendanceScanner: React.FC = () => {
         <h3 className="text-base font-bold text-gray-900 dark:text-white mb-1">Failed to Load DTR</h3>
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">{logsError}</p>
         <button
-          onClick={fetchAttendanceLogs}
+          onClick={() => fetchAttendanceLogs(false)}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--brand)] text-white text-xs font-semibold hover:bg-[var(--brand-dark)] transition-colors cursor-pointer"
         >
           Try Again
@@ -632,23 +610,8 @@ export const StaffAttendanceScanner: React.FC = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
-      {/* ── Export button (principal only) ───────────────────────── */}
-      {isPrincipalMonitor && (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => setShowDtrExportModal(true)}
-            className="inline-flex items-center gap-2 rounded-md bg-[var(--brand)] px-4 py-2 text-sm font-bold text-white transition hover:bg-[var(--brand-dark)] shrink-0 cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            Export DTR
-          </button>
-        </div>
-      )}
-
       {/* ── Status & Info Strip ────────────────────────────────────── */}
-      {!isPrincipalMonitor && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Current Date */}
           <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 flex items-center gap-4">
             <div className="w-10 h-10 rounded-md bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#222222] flex items-center justify-center shrink-0 text-slate-800 dark:text-slate-100">
@@ -688,15 +651,24 @@ export const StaffAttendanceScanner: React.FC = () => {
               <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 dark:text-slate-500 mb-0.5">
                 Today's DTR Status
               </p>
-              <p className="text-sm font-bold text-gray-900 dark:text-slate-100">
-                {todayLog
-                  ? `DTR logged at ${formatDtrTime(todayLog.time_in)}`
-                  : 'No DTR log yet today'}
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-bold text-gray-900 dark:text-slate-100">
+                  {todayLog
+                    ? `Logged at ${formatDtrTime(todayLog.time_in)}`
+                    : 'No DTR log yet today'}
+                </p>
+                {todayLog && (
+                  statusBadge(getStaffDtrStatus(user?.role, todayLog.time_in, todayLog.arrival_am, todayLog.arrival_pm))
+                )}
+              </div>
+              <p className="text-[10px] text-gray-400 dark:text-slate-400 mt-0.5">
+                {user?.role === 'tutor'
+                  ? 'Official Shift: 4:30 PM – 5:00 PM'
+                  : 'Official Shift: 8:00–11:30 AM & 1:00–4:30 PM'}
               </p>
             </div>
           </div>
         </div>
-      )}
 
       {/* ── Main Grid ────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -852,7 +824,7 @@ export const StaffAttendanceScanner: React.FC = () => {
             {/* Feed header */}
             <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">{tutorFirstName}'S RECENT SCANS</h3>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">{staffFirstName}'S RECENT SCANS</h3>
               </div>
               <div>
                 <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
@@ -869,15 +841,22 @@ export const StaffAttendanceScanner: React.FC = () => {
                     <UserCheck className="w-7 h-7 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
                   </div>
                   <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center whitespace-nowrap">
-                    Your recent QR scans will appear here
+                    Your recent QR scans will appear here in real-time
                   </p>
                 </div>
               ) : (
                 recentScans.map((log) => {
-                  const timeInMins = timeToMinutes(log.time_in);
-                  const timeOutMins = timeToMinutes(log.time_out);
-                  const st = getTutorStatus(timeInMins, timeOutMins);
-                  const timeDisplay = log.time_out ? formatDtrTime(log.time_out) : log.time_in ? formatDtrTime(log.time_in) : 'Logged';
+                  const role = log.role || user?.role;
+                  const st = getStaffDtrStatus(role, log.time_in, log.arrival_am, log.arrival_pm);
+                  const timeDisplay = log.time_out
+                    ? formatDtrTime(log.time_out)
+                    : log.time_in
+                    ? formatDtrTime(log.time_in)
+                    : log.arrival_pm
+                    ? formatDtrTime(log.arrival_pm)
+                    : log.arrival_am
+                    ? formatDtrTime(log.arrival_am)
+                    : 'Logged';
                   return (
                     <div
                       key={log.id}
@@ -885,18 +864,19 @@ export const StaffAttendanceScanner: React.FC = () => {
                     >
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold text-gray-800 dark:text-slate-200 leading-tight truncate">
-                          {log.user_name || user?.full_name || tutorFirstName}
+                          {log.user_name || user?.full_name || staffFirstName}
                         </p>
                       </div>
                       <div className="text-right shrink-0 space-y-0.5">
-                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
-                          st === 'Completed' ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800' :
-                          st === 'Late' ? 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-amber-100 dark:border-amber-800' :
-                          st === 'Early Out' ? 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-100 dark:border-rose-800' :
-                          'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800'
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
+                          st === 'Late'
+                            ? 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'
+                            : st === 'Present'
+                            ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
+                            : 'text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
                         }`}>
                           <CheckCircle2 className="w-3 h-3" />
-                          {log.date ? `${formatDateString(log.date)} | ` : ''}{timeDisplay}
+                          {st !== '—' && <span className="font-bold">{st}:</span>} {timeDisplay}
                         </span>
                       </div>
                     </div>
@@ -912,29 +892,25 @@ export const StaffAttendanceScanner: React.FC = () => {
       <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
         {/* Section header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
-          <div>
-            <div className="flex items-center gap-3">
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">{tutorFirstName}'S DTR HISTORY</h3>
-                <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">
-                  {filteredDtrRows.length} Record{filteredDtrRows.length !== 1 ? 's' : ''}
-                </p>
-              </div>
-            </div>
+        <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-2.5 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+          <div className="min-w-0 flex-1 truncate">
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase truncate">{staffFirstName}'S DTR HISTORY</h3>
+            <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">
+              {filteredDtrRows.length} Record{filteredDtrRows.length !== 1 ? 's' : ''}
+            </p>
           </div>
 
           {/* Controls */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
             {/* View mode toggle */}
-            <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5">
+            <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
               {(['day', 'week', 'month'] as const).map((mode) => (
                 <button
                   key={mode}
                   id={`dtr-view-${mode}`}
                   type="button"
                   onClick={() => { setViewMode(mode); setJumpDate(null); }}
-                  className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                  className={`rounded-sm px-2 sm:px-3 py-1 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                     viewMode === mode && !jumpDate
                       ? 'bg-[var(--brand)] text-white'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
@@ -946,12 +922,12 @@ export const StaffAttendanceScanner: React.FC = () => {
             </div>
 
             {/* Calendar picker */}
-            <div className="relative inline-flex items-center">
+            <div className="relative inline-flex items-center shrink-0">
               <button
                 type="button"
                 id="dtr-calendar-btn"
                 onClick={() => setShowCalendarPopover((prev) => !prev)}
-                className={`p-2 rounded-md border transition-all flex items-center justify-center cursor-pointer ${
+                className={`p-1.5 sm:p-2 rounded-md border transition-all flex items-center justify-center cursor-pointer ${
                   jumpDate
                     ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
                     : 'border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#222222]'
@@ -959,7 +935,7 @@ export const StaffAttendanceScanner: React.FC = () => {
                 title="Select a specific date from calendar"
                 aria-label="Open Calendar"
               >
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
               {showCalendarPopover && (
                 <CustomCalendarDropdown
@@ -990,6 +966,18 @@ export const StaffAttendanceScanner: React.FC = () => {
           </div>
         )}
 
+        {/* Official Schedule & Auto-refresh banner */}
+        <div className="px-4 sm:px-6 py-2.5 bg-slate-50 dark:bg-[#151515] border-b border-gray-100 dark:border-[#1A1A1A] flex flex-wrap items-center justify-between gap-2.5 text-[11px]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">Official Schedule:</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded bg-white dark:bg-[#1f1f1f] border border-gray-200 dark:border-[#2a2a2a] text-slate-700 dark:text-slate-300 font-medium">
+              {user?.role === 'tutor'
+                ? 'Tutor: 4:30 PM – 5:00 PM'
+                : 'Faculty / Principal / Admin: 8:00–11:30 AM & 1:00–4:30 PM'}
+            </span>
+          </div>
+        </div>
+
         {/* Table content */}
         <div className="p-4 sm:p-6">
           {logsLoading ? (
@@ -1014,11 +1002,6 @@ export const StaffAttendanceScanner: React.FC = () => {
               <table className="min-w-[600px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-[#151515]">
-                    {isPrincipalMonitor && (
-                      <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                        <SortableHeader label="TUTOR" sortKey="tutor" />
-                      </th>
-                    )}
                     <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
                       <SortableHeader label="DATE" sortKey="date" />
                     </th>
@@ -1038,26 +1021,14 @@ export const StaffAttendanceScanner: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
                   {paginatedDtrRows.map((log) => {
-                    // Derive effective time in / out for tutors
-                    // Use time_in / time_out directly (tutor DTR uses these fields)
-                    const legacyIn = timeToMinutes(log.time_in);
-                    const legacyOut = timeToMinutes(log.time_out);
-                    // Prefer PM punch (4:30–5:00 window); fall back to any logged time
-                    const effectiveIn = log.time_in;
-                    const effectiveOut = log.time_out;
-                    const timeInMins = timeToMinutes(effectiveIn);
-                    const timeOutMins = timeToMinutes(effectiveOut);
-                    const st = getTutorStatus(timeInMins, timeOutMins);
-                    const undertime = getUndertimeStr(timeOutMins);
-                    void legacyIn; void legacyOut;
+                    const role = log.role || user?.role;
+                    const effectiveIn = log.time_in || log.arrival_am || log.arrival_pm;
+                    const effectiveOut = log.time_out || log.departure_pm || log.departure_am;
+                    const st = getStaffDtrStatus(role, log.time_in, log.arrival_am, log.arrival_pm);
+                    const undertime = getStaffUndertimeStr(role, log.time_out, log.departure_am, log.departure_pm);
 
                     return (
                       <tr key={`${log.user}-${log.date}`} className="hover:bg-gray-50/80 dark:hover:bg-[#151515] transition-colors">
-                        {isPrincipalMonitor && (
-                          <td className="px-4 py-2.5 text-left font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap">
-                            {log.user_name || 'Unknown Tutor'}
-                          </td>
-                        )}
                         <td className="px-4 py-2.5 text-left text-slate-600 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
                           {formatDateString(log.date)}
                         </td>
@@ -1084,7 +1055,7 @@ export const StaffAttendanceScanner: React.FC = () => {
       </div>
 
       {/* Export DTR Modal */}
-      {isPrincipalMonitor && (
+      {showDtrExportModal && (
         <ExportDtrModal
           isOpen={showDtrExportModal}
           onClose={() => setShowDtrExportModal(false)}

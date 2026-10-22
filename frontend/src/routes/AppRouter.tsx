@@ -8,84 +8,76 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 // Route guard
 import { ProtectedRoute } from './ProtectedRoute';
 
+import { lazyWithRetry } from '../utils/lazyWithRetry';
+
 // Dynamic / Lazy-loaded Public pages
-const Landing = React.lazy(() => import('../pages/Landing/Landing').then(m => ({ default: m.Landing })));
-const Login = React.lazy(() => import('../pages/Login/Login').then(m => ({ default: m.Login })));
-const TermsOfService = React.lazy(() => import('../pages/Legal/TermsOfService').then(m => ({ default: m.TermsOfService })));
-const PrivacyPolicy = React.lazy(() => import('../pages/Legal/PrivacyPolicy').then(m => ({ default: m.PrivacyPolicy })));
-const ActivateAccount = React.lazy(() => import('../pages/Auth/ActivateAccount').then(m => ({ default: m.ActivateAccount })));
-const ForgotPassword = React.lazy(() => import('../pages/Auth/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
-const ResetPassword = React.lazy(() => import('../pages/Auth/ResetPassword').then(m => ({ default: m.ResetPassword })));
-const InvalidLink = React.lazy(() => import('../pages/Auth/InvalidLink').then(m => ({ default: m.InvalidLink })));
-const SuccessPage = React.lazy(() => import('../pages/Auth/SuccessPage').then(m => ({ default: m.SuccessPage })));
-const MFA = React.lazy(() => import('../pages/Auth/MFA').then(m => ({ default: m.MFA })));
+const Landing = lazyWithRetry(() => import('../pages/Landing/Landing').then(m => ({ default: m.Landing })));
+const Login = lazyWithRetry(() => import('../pages/Login/Login').then(m => ({ default: m.Login })));
+const TermsOfService = lazyWithRetry(() => import('../pages/Legal/TermsOfService').then(m => ({ default: m.TermsOfService })));
+const PrivacyPolicy = lazyWithRetry(() => import('../pages/Legal/PrivacyPolicy').then(m => ({ default: m.PrivacyPolicy })));
+const ActivateAccount = lazyWithRetry(() => import('../pages/Auth/ActivateAccount').then(m => ({ default: m.ActivateAccount })));
+const ForgotPassword = lazyWithRetry(() => import('../pages/Auth/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
+const ResetPassword = lazyWithRetry(() => import('../pages/Auth/ResetPassword').then(m => ({ default: m.ResetPassword })));
+const InvalidLink = lazyWithRetry(() => import('../pages/Auth/InvalidLink').then(m => ({ default: m.InvalidLink })));
+const SuccessPage = lazyWithRetry(() => import('../pages/Auth/SuccessPage').then(m => ({ default: m.SuccessPage })));
+const MFA = lazyWithRetry(() => import('../pages/Auth/MFA').then(m => ({ default: m.MFA })));
 
 // SuperAdmin / Admin pages
-const UserList = React.lazy(() => import('../pages/SuperAdmin/UserList').then(m => ({ default: m.UserList })));
-const CreateUser = React.lazy(() => import('../pages/SuperAdmin/CreateUser').then(m => ({ default: m.CreateUser })));
-const EditUser = React.lazy(() => import('../pages/SuperAdmin/EditUser').then(m => ({ default: m.EditUser })));
-const Profile = React.lazy(() => import('../pages/SuperAdmin/Profile').then(m => ({ default: m.Profile })));
-const Settings = React.lazy(() => import('../pages/SuperAdmin/Settings').then(m => ({ default: m.Settings })));
-const AuditLog = React.lazy(() => import('../pages/SuperAdmin/AuditLog').then(m => ({ default: m.AuditLog })));
+const UserList = lazyWithRetry(() => import('../pages/SuperAdmin/UserList').then(m => ({ default: m.UserList })));
+const CreateUser = lazyWithRetry(() => import('../pages/SuperAdmin/CreateUser').then(m => ({ default: m.CreateUser })));
+const EditUser = lazyWithRetry(() => import('../pages/SuperAdmin/EditUser').then(m => ({ default: m.EditUser })));
+const Profile = lazyWithRetry(() => import('../pages/SuperAdmin/Profile').then(m => ({ default: m.Profile })));
+const Settings = lazyWithRetry(() => import('../pages/SuperAdmin/Settings').then(m => ({ default: m.Settings })));
+const AuditLog = lazyWithRetry(() => import('../pages/SuperAdmin/AuditLog').then(m => ({ default: m.AuditLog })));
 
 // Role pages
-const AdminHome = React.lazy(() => import('../pages/Admin/AdminHome').then(m => ({ default: m.AdminHome })));
-const AdminAttendanceQR = React.lazy(() => import('../pages/Admin/AdminAttendanceQR').then(m => ({ default: m.AdminAttendanceQR })));
-const AdminEvaluationHub = React.lazy(() => import('../pages/Admin/AdminEvaluationHub').then(m => ({ default: m.AdminEvaluationHub })));
-const AssessmentsArchive = React.lazy(() => import('../pages/Admin/AssessmentsArchive').then(m => ({ default: m.AssessmentsArchive })));
-const PrincipalHome = React.lazy(() => import('../pages/Principal/PrincipalHome').then(m => ({ default: m.PrincipalHome })));
-const PrincipalAnalytics = React.lazy(() => import('../pages/Principal/PrincipalAnalytics').then(m => ({ default: m.PrincipalAnalytics })));
-const FacultyHome = React.lazy(() => import('../pages/Faculty/FacultyHome').then(m => ({ default: m.FacultyHome })));
-const TutorHome = React.lazy(() => import('../pages/Tutor/TutorHome').then(m => ({ default: m.TutorHome })));
-const TutorQRGenerator = React.lazy(() => import('../pages/Tutor/TutorQRGenerator').then(m => ({ default: m.TutorQRGenerator })));
-const TutorStudentDirectory = React.lazy(() => import('../pages/Tutor/TutorStudentDirectory').then(m => ({ default: m.TutorStudentDirectory })));
-const TutorStudentProfile = React.lazy(() => import('../pages/Tutor/TutorStudentProfile').then(m => ({ default: m.TutorStudentProfile })));
-const TutorAnalytics = React.lazy(() => import('../pages/Tutor/TutorAnalytics').then(m => ({ default: m.TutorAnalytics })));
-const StaffAttendanceScanner = React.lazy(() => import('../pages/Tutor/StaffAttendanceScanner').then(m => ({ default: m.StaffAttendanceScanner })));
-const TutorScores = React.lazy(() => import('../pages/Tutor/TutorScores'));
-const StudentHome = React.lazy(() => import('../pages/Student/StudentHome').then(m => ({ default: m.StudentHome })));
-const StudentQRAttendance = React.lazy(() => import('../pages/Student/StudentQRAttendance').then(m => ({ default: m.StudentQRAttendance })));
-const StudentScores = React.lazy(() => import('../pages/Student/StudentScores').then(m => ({ default: m.StudentScores })));
-const StudentAnalytics = React.lazy(() => import('../pages/Student/StudentAnalytics').then(m => ({ default: m.StudentAnalytics })));
+const AdminHome = lazyWithRetry(() => import('../pages/Admin/AdminHome').then(m => ({ default: m.AdminHome })));
+const AdminAttendanceQR = lazyWithRetry(() => import('../pages/Admin/AdminAttendanceQR').then(m => ({ default: m.AdminAttendanceQR })));
+const AdminEvaluationHub = lazyWithRetry(() => import('../pages/Admin/AdminEvaluationHub').then(m => ({ default: m.AdminEvaluationHub })));
+const AssessmentsArchive = lazyWithRetry(() => import('../pages/Admin/AssessmentsArchive').then(m => ({ default: m.AssessmentsArchive })));
+const PrincipalHome = lazyWithRetry(() => import('../pages/Principal/PrincipalHome').then(m => ({ default: m.PrincipalHome })));
+const PrincipalAnalytics = lazyWithRetry(() => import('../pages/Principal/PrincipalAnalytics').then(m => ({ default: m.PrincipalAnalytics })));
+const FacultyHome = lazyWithRetry(() => import('../pages/Faculty/FacultyHome').then(m => ({ default: m.FacultyHome })));
+const TutorHome = lazyWithRetry(() => import('../pages/Tutor/TutorHome').then(m => ({ default: m.TutorHome })));
+const TutorQRGenerator = lazyWithRetry(() => import('../pages/Tutor/TutorQRGenerator').then(m => ({ default: m.TutorQRGenerator })));
+const TutorStudentDirectory = lazyWithRetry(() => import('../pages/Tutor/TutorStudentDirectory').then(m => ({ default: m.TutorStudentDirectory })));
+const TutorStudentProfile = lazyWithRetry(() => import('../pages/Tutor/TutorStudentProfile').then(m => ({ default: m.TutorStudentProfile })));
+const TutorAnalytics = lazyWithRetry(() => import('../pages/Tutor/TutorAnalytics').then(m => ({ default: m.TutorAnalytics })));
+const StaffAttendanceScanner = lazyWithRetry(() => import('../pages/Tutor/StaffAttendanceScanner').then(m => ({ default: m.StaffAttendanceScanner })));
+const TutorScores = lazyWithRetry(() => import('../pages/Tutor/TutorScores'));
+const StudentHome = lazyWithRetry(() => import('../pages/Student/StudentHome').then(m => ({ default: m.StudentHome })));
+const StudentQRAttendance = lazyWithRetry(() => import('../pages/Student/StudentQRAttendance').then(m => ({ default: m.StudentQRAttendance })));
+const StudentScores = lazyWithRetry(() => import('../pages/Student/StudentScores').then(m => ({ default: m.StudentScores })));
+const StudentAnalytics = lazyWithRetry(() => import('../pages/Student/StudentAnalytics').then(m => ({ default: m.StudentAnalytics })));
 
 // Error pages
-const Forbidden403 = React.lazy(() => import('../pages/errors/Forbidden403').then(m => ({ default: m.Forbidden403 })));
-const NotFound404 = React.lazy(() => import('../pages/errors/NotFound404').then(m => ({ default: m.NotFound404 })));
-const ServerError500 = React.lazy(() => import('../pages/errors/ServerError500').then(m => ({ default: m.ServerError500 })));
+const Forbidden403 = lazyWithRetry(() => import('../pages/errors/Forbidden403').then(m => ({ default: m.Forbidden403 })));
+const NotFound404 = lazyWithRetry(() => import('../pages/errors/NotFound404').then(m => ({ default: m.NotFound404 })));
+const ServerError500 = lazyWithRetry(() => import('../pages/errors/ServerError500').then(m => ({ default: m.ServerError500 })));
 
-const PageFallback: React.FC = () => (
-  <div className="flex-1 min-h-[50vh] flex items-center justify-center p-8 bg-transparent">
-    <div className="flex flex-col items-center gap-3">
-      <div className="w-8 h-8 rounded-full border-2 border-[#0052B7] dark:border-blue-400 border-t-transparent animate-spin" />
-      <span className="text-xs font-medium text-slate-400 dark:text-neutral-500 tracking-wide">
-        Loading...
-      </span>
-    </div>
-  </div>
-);
+import { PageFallback } from '../components/PageFallback';
 
 export const AppRouter: React.FC = () => {
   return (
     <BrowserRouter>
-      <Suspense fallback={<PageFallback />}>
-        <Routes>
-          {/* ── Public routes (Landing, Login, Legal) ── */}
-          <Route element={<PublicLayout />}>
-            <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/terms" element={<TermsOfService />} />
-            <Route path="/terms-of-service" element={<TermsOfService />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          </Route>
+      <Routes>
+        {/* ── Public routes (Landing, Login, Legal) ── */}
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        </Route>
 
-          {/* ── Auth routes ───────────────────────────── */}
-          <Route path="/activate" element={<ActivateAccount />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/mfa" element={<MFA />} />
-          <Route path="/invalid-link" element={<InvalidLink />} />
-          <Route path="/success" element={<SuccessPage />} />
+        {/* ── Auth routes (without skeleton loading) ── */}
+        <Route path="/activate" element={<Suspense fallback={<PageFallback />}><ActivateAccount /></Suspense>} />
+        <Route path="/forgot-password" element={<Suspense fallback={<PageFallback />}><ForgotPassword /></Suspense>} />
+        <Route path="/reset-password" element={<Suspense fallback={<PageFallback />}><ResetPassword /></Suspense>} />
+        <Route path="/mfa" element={<Suspense fallback={<PageFallback />}><MFA /></Suspense>} />
+        <Route path="/invalid-link" element={<Suspense fallback={<PageFallback />}><InvalidLink /></Suspense>} />
+        <Route path="/success" element={<Suspense fallback={<PageFallback />}><SuccessPage /></Suspense>} />
 
         {/* ── SuperAdmin routes ─────────────────────── */}
         <Route
@@ -114,6 +106,9 @@ export const AppRouter: React.FC = () => {
           <Route path="/superadmin/admins" element={<UserList />} />
           <Route path="/superadmin/admins/create" element={<CreateUser />} />
           <Route path="/superadmin/admins/edit/:id" element={<EditUser />} />
+          <Route path="/superadmin/superadmins" element={<UserList />} />
+          <Route path="/superadmin/superadmins/create" element={<CreateUser />} />
+          <Route path="/superadmin/superadmins/edit/:id" element={<EditUser />} />
           <Route path="/superadmin/attendance" element={<AdminAttendanceQR />} />
           <Route path="/superadmin/evaluations" element={<AdminEvaluationHub />} />
           <Route path="/superadmin/archive" element={<AssessmentsArchive />} />
@@ -197,7 +192,7 @@ export const AppRouter: React.FC = () => {
         {/* ── Shared Staff routes ──────────────────── */}
         <Route
           element={
-            <ProtectedRoute allowedRoles={['admin', 'tutor', 'faculty', 'student']}>
+            <ProtectedRoute allowedRoles={['admin', 'tutor', 'faculty', 'student', 'principal']}>
               <DashboardLayout />
             </ProtectedRoute>
           }
@@ -230,16 +225,15 @@ export const AppRouter: React.FC = () => {
           <Route path="/student/analytics" element={<StudentAnalytics />} />
         </Route>
 
-        {/* ── Error routes ──────────────────────────── */}
-        <Route path="/403" element={<Forbidden403 />} />
-        <Route path="/404" element={<NotFound404 />} />
-        <Route path="/500" element={<ServerError500 />} />
+        {/* ── Error routes (without skeleton loading) ── */}
+        <Route path="/403" element={<Suspense fallback={<PageFallback />}><Forbidden403 /></Suspense>} />
+        <Route path="/404" element={<Suspense fallback={<PageFallback />}><NotFound404 /></Suspense>} />
+        <Route path="/500" element={<Suspense fallback={<PageFallback />}><ServerError500 /></Suspense>} />
 
         {/* ── Catch-all ─────────────────────────────── */}
-        <Route path="*" element={<NotFound404 />} />
+        <Route path="*" element={<Suspense fallback={<PageFallback />}><NotFound404 /></Suspense>} />
       </Routes>
-    </Suspense>
-  </BrowserRouter>
+    </BrowserRouter>
 );
 };
 

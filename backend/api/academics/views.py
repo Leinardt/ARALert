@@ -189,6 +189,12 @@ def evaluate_student_aral_progression(student):
     }
 
 
+def _is_milestone_grade(subject: str | None, remarks: str | None = None) -> bool:
+    """Return True only if the grade belongs to a milestone assessment (MOSY, EOSY, Summer, EndLine, BOSY)."""
+    text = f"{subject or ''} {remarks or ''}".lower()
+    return any(token in text for token in ('mosy', 'eosy', 'summer', 'endline', 'bosy'))
+
+
 # ---------------------------------------------------------------------------
 # Grades
 # ---------------------------------------------------------------------------
@@ -197,7 +203,7 @@ def evaluate_student_aral_progression(student):
 class GradeListCreateView(generics.ListCreateAPIView):
     """
     GET  /api/academics/grades/         — list grades (role-filtered)
-    POST /api/academics/grades/         — create a grade (tutor only)
+    POST /api/academics/grades/         — create single or bulk grades (tutor only)
     """
     serializer_class   = GradeSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -226,6 +232,170 @@ class GradeListCreateView(generics.ListCreateAPIView):
             return qs.filter(student=user)
         return qs.none()
 
+    def create(self, request, *args, **kwargs):
+        if not isinstance(request.data, list):
+            return super().create(request, *args, **kwargs)
+
+        user = request.user
+        if user.role != 'tutor' and not user.is_superuser:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Only tutors can log grades.')
+
+        if not request.data:
+            return Response([], status=status.HTTP_201_CREATED)
+
+        now = timezone.now()
+        today = timezone.localdate()
+
+        create_payloads = []
+        update_payloads = []
+        for item in request.data:
+            if isinstance(item, dict) and item.get('id'):
+                update_payloads.append(item)
+            else:
+                create_payloads.append(item)
+
+        saved_grades = []
+        audit_logs_data = []
+
+        # 1. Bulk create new grades in a single query
+        if create_payloads:
+            serializer = self.get_serializer(data=create_payloads, many=True)
+            serializer.is_valid(raise_exception=True)
+
+            objs_to_create = []
+            for validated in serializer.validated_data:
+                objs_to_create.append(
+                    ApiGrade(
+                        student=validated.get('student'),
+                        tutor=user,
+                        subject=validated.get('subject', ''),
+                        quarter=validated.get('quarter', 1),
+                        score=validated.get('score', 0),
+                        total_score=validated.get('total_score', 40),
+                        component_type=validated.get('component_type', 'assessment'),
+                        remarks=validated.get('remarks', ''),
+                        date_logged=validated.get('date_logged') or today,
+                        batch_id=validated.get('batch_id', str(uuid.uuid4())),
+                        created_at=validated.get('created_at') or now,
+                    )
+                )
+
+            created_objs = ApiGrade.objects.bulk_create(objs_to_create)
+            if created_objs and getattr(created_objs[0], 'id', None) is None:
+                batch_ids = {g.batch_id for g in objs_to_create if g.batch_id}
+                if batch_ids:
+                    created_objs = list(
+                        ApiGrade.objects.select_related('student', 'tutor')
+                        .filter(batch_id__in=batch_ids, tutor=user)
+                        .order_by('id')
+                    )
+
+            for grade in created_objs:
+                saved_grades.append(grade)
+                if grade.student:
+                    if _is_milestone_grade(grade.subject, grade.remarks):
+                        evaluate_student_aral_progression(grade.student)
+                    audit_logs_data.append((
+                        'GRADE_RECORDED',
+                        {
+                            'student_id': str(grade.student.id),
+                            'student_name': grade.student.get_full_name(),
+                            'lrn': grade.student.lrn,
+                            'subject': grade.subject,
+                            'score': float(grade.score) if grade.score is not None else 0,
+                            'total_score': float(grade.total_score) if grade.total_score else 40,
+                            'quarter': grade.quarter,
+                        },
+                    ))
+
+        # 2. Bulk update existing grades (e.g. re-saving MOSY/EOSY/Summer milestone scores)
+        if update_payloads:
+            update_ids = [int(item['id']) for item in update_payloads if item.get('id')]
+            existing_map = {
+                g.id: g
+                for g in ApiGrade.objects.select_related('student', 'tutor').filter(id__in=update_ids)
+            }
+            objs_to_update = []
+            for item in update_payloads:
+                gid = int(item['id'])
+                instance = existing_map.get(gid)
+                if not instance:
+                    continue
+                old_score = float(instance.score) if instance.score is not None else 0
+                old_total = float(instance.total_score) if instance.total_score else 40
+
+                if 'score' in item:
+                    instance.score = item['score']
+                if 'total_score' in item:
+                    instance.total_score = item['total_score']
+                if 'remarks' in item:
+                    instance.remarks = item['remarks']
+                if 'date_logged' in item and item['date_logged']:
+                    instance.date_logged = item['date_logged']
+                if 'subject' in item and item['subject']:
+                    instance.subject = item['subject']
+
+                objs_to_update.append(instance)
+                saved_grades.append(instance)
+
+                if instance.student:
+                    audit_logs_data.append((
+                        'GRADE_UPDATED',
+                        {
+                            'student_id': str(instance.student.id),
+                            'student_name': instance.student.get_full_name(),
+                            'lrn': instance.student.lrn,
+                            'subject': instance.subject,
+                            'previous_score': old_score,
+                            'new_score': float(instance.score) if instance.score is not None else 0,
+                            'previous_total': old_total,
+                            'total_score': float(instance.total_score) if instance.total_score else 40,
+                        },
+                    ))
+
+            if objs_to_update:
+                ApiGrade.objects.bulk_update(
+                    objs_to_update,
+                    ['score', 'total_score', 'remarks', 'date_logged', 'subject'],
+                )
+                for instance in objs_to_update:
+                    if instance.student and _is_milestone_grade(instance.subject, instance.remarks):
+                        evaluate_student_aral_progression(instance.student)
+
+        # 3. Bulk insert all audit log entries in a single query
+        if audit_logs_data:
+            try:
+                from apps.accounts.models import AuditLog
+                from utilities.audit import _get_client_ip
+
+                ip_address = _get_client_ip(request) if request else None
+                user_agent = request.META.get('HTTP_USER_AGENT', '')[:500] if request else ''
+                email = getattr(user, 'email', '')
+                if email and not email.endswith('@aralert.local') and not email.startswith('student-'):
+                    resolved_username = email
+                else:
+                    resolved_username = getattr(user, 'lrn', '') or getattr(user, 'username', '') or str(user)
+
+                AuditLog.objects.bulk_create([
+                    AuditLog(
+                        user=user if getattr(user, 'pk', None) else None,
+                        username=resolved_username,
+                        action=action,
+                        ip_address=ip_address,
+                        user_agent=user_agent,
+                        details=details,
+                    )
+                    for action, details in audit_logs_data
+                ])
+            except Exception:
+                pass
+
+        return Response(
+            GradeSerializer(saved_grades, many=True).data,
+            status=status.HTTP_201_CREATED,
+        )
+
     def perform_create(self, serializer):
         user = self.request.user
         if user.role != 'tutor' and not user.is_superuser:
@@ -233,7 +403,8 @@ class GradeListCreateView(generics.ListCreateAPIView):
             raise PermissionDenied('Only tutors can log grades.')
         grade = serializer.save(tutor=user, created_at=timezone.now())
         if grade.student:
-            evaluate_student_aral_progression(grade.student)
+            if _is_milestone_grade(grade.subject, grade.remarks):
+                evaluate_student_aral_progression(grade.student)
             log_audit_event(
                 'GRADE_RECORDED',
                 user=user,
@@ -267,7 +438,8 @@ class GradeDetailView(generics.RetrieveUpdateDestroyAPIView):
         old_total = float(instance.total_score) if instance.total_score else 40
         grade = serializer.save()
         if grade.student:
-            evaluate_student_aral_progression(grade.student)
+            if _is_milestone_grade(grade.subject, grade.remarks):
+                evaluate_student_aral_progression(grade.student)
             log_audit_event(
                 'GRADE_UPDATED',
                 user=self.request.user,
@@ -467,6 +639,17 @@ class AttendanceSessionCreateView(APIView):
         ).order_by('-expires_at').first()
 
         if not session:
+            # Check if active sessions have expired; if so, close them and finalize attendance
+            expired_sessions = ApiAttendanceSession.objects.filter(
+                creator=user,
+                session_type=session_type,
+                is_active=True,
+                expires_at__lte=timezone.now(),
+            )
+            for exp in expired_sessions:
+                exp.is_active = False
+                exp.save(update_fields=['is_active'])
+                finalize_session_attendance(exp)
             return Response({'session': None}, status=status.HTTP_200_OK)
 
         return Response({
@@ -500,12 +683,16 @@ class AttendanceSessionCreateView(APIView):
         else:
             return Response({'error': 'Invalid session_type.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Deactivate any previous active sessions for this user and session_type
-        ApiAttendanceSession.objects.filter(
+        # Deactivate any previous active sessions for this user and session_type and finalize attendance
+        prev_sessions = ApiAttendanceSession.objects.filter(
             creator=user,
             session_type=session_type,
             is_active=True
-        ).update(is_active=False)
+        )
+        for prev in prev_sessions:
+            prev.is_active = False
+            prev.save(update_fields=['is_active'])
+            finalize_session_attendance(prev)
 
         aral_activity = None
         if aral_activity_id:
@@ -537,6 +724,118 @@ class AttendanceSessionCreateView(APIView):
         return Response(AttendanceSessionSerializer(session).data, status=status.HTTP_201_CREATED)
 
 
+def finalize_session_attendance(session, target_student_ids=None):
+    """
+    Finalizes attendance for a student session:
+    - If at least 1 student has recorded attendance (present) in this session:
+      Mark all remaining students of THIS session's class/cohort as 'absent'.
+    - If target_student_ids is explicitly provided:
+      Mark only those targeted assigned students who have not recorded attendance today as 'absent'.
+    - If NO students recorded attendance (count == 0) and no target_student_ids provided:
+      Do NOT label any students as absent (session was a test or abandoned).
+    """
+    if not session or session.session_type != 'student':
+        return
+
+    today = timezone.localdate()
+    tutor = session.creator
+
+    # Check which students recorded attendance (present) strictly in THIS session
+    scanned_attendances = list(
+        ApiAttendance.objects.filter(
+            session=session,
+            role='student',
+            status='present'
+        ).select_related('user')
+    )
+
+    if not scanned_attendances:
+        # At least 1 student must have recorded attendance (present) in this session
+        # to make that session valid for auto-marking unscanned students as absent.
+        # If 0 students attended (session was abandoned, test, or closed without attendance),
+        # do NOT mark anyone as absent. Remove any stray absent records for this invalid session.
+        ApiAttendance.objects.filter(session=session, status='absent').delete()
+        return
+
+    # Find candidate assigned students strictly belonging to this session's class
+    if target_student_ids is not None:
+        target_ids_set = {str(sid).lower() for sid in target_student_ids}
+        if not target_ids_set:
+            # Explicit empty target roster provided (e.g., frontend signaled 0 scans for this cohort)
+            ApiAttendance.objects.filter(session=session, status='absent').delete()
+            return
+
+        # Crucial check: verify that AT LEAST ONE student from target_student_ids actually scanned present in this session!
+        scanned_target_students = [
+            att for att in scanned_attendances
+            if str(att.user_id).lower() in target_ids_set
+        ]
+        if not scanned_target_students:
+            # Not a single student from this target class roster scanned present in this session.
+            # (e.g., 0 students from this class attended, or session was started for a different class).
+            # Under NO circumstances should students of this class be marked absent!
+            ApiAttendance.objects.filter(session=session, status='absent').delete()
+            return
+
+        assigned_students = User.objects.filter(
+            id__in=target_student_ids,
+            role='student',
+            assigned_tutor=tutor,
+            is_active=True
+        )
+    else:
+        # Identify the cohort/section of the students who scanned into this session
+        scanned_grades = {
+            att.user.grade_level.strip().upper()
+            for att in scanned_attendances
+            if att.user and att.user.grade_level
+        }
+        if not scanned_grades:
+            # Cannot safely determine cohort; do NOT mark anyone absent!
+            return
+
+        scanned_arals = {
+            att.user.aral_level.strip().lower()
+            for att in scanned_attendances
+            if att.user and att.user.aral_level
+        }
+
+        qs = User.objects.filter(
+            role='student',
+            assigned_tutor=tutor,
+            grade_level__in=scanned_grades,
+            is_active=True
+        )
+        if scanned_arals:
+            qs = qs.filter(aral_level__in=scanned_arals)
+        assigned_students = qs
+
+    # Find which students already have an attendance record for today (present or absent)
+    existing_student_ids = set(
+        ApiAttendance.objects.filter(date=today, role='student')
+        .values_list('user_id', flat=True)
+    )
+
+    absent_records = []
+    for student in assigned_students:
+        if student.id not in existing_student_ids:
+            absent_records.append(
+                ApiAttendance(
+                    user=student,
+                    tutor=tutor,
+                    session=session,
+                    role='student',
+                    date=today,
+                    status='absent',
+                    time_in=None,
+                    time_out=None,
+                )
+            )
+
+    if absent_records:
+        ApiAttendance.objects.bulk_create(absent_records, ignore_conflicts=True)
+
+
 class AttendanceSessionCloseView(APIView):
     """
     POST /api/academics/attendance/session/<uuid:session_id>/close/
@@ -553,8 +852,11 @@ class AttendanceSessionCloseView(APIView):
         if session.creator != request.user and not request.user.is_superuser:
             return Response({'error': 'You do not have permission to close this session.'}, status=status.HTTP_403_FORBIDDEN)
 
+        target_student_ids = request.data.get('student_ids')
+
         session.is_active = False
         session.save(update_fields=['is_active'])
+        finalize_session_attendance(session, target_student_ids=target_student_ids)
 
         log_audit_event(
             'ATTENDANCE_SESSION_CLOSED',
@@ -585,14 +887,151 @@ class AttendanceScanView(APIView):
 
     def post(self, request):
         user       = request.user
-        raw_session_id = request.data.get('session_id')
+        raw_input = request.data.get('session_id') or request.data.get('student_id') or request.data.get('qr_code')
 
-        if not raw_session_id:
-            return Response({'error': 'session_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not raw_input:
+            return Response({'error': 'QR code data is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        clean_code = str(raw_session_id).strip()
+        clean_code = str(raw_input).strip()
         norm_code = clean_code.lower().replace('-', '').replace(' ', '')
+        today = timezone.localdate()
+        current_time = timezone.localtime().time()
 
+        # ─── FLOW A: Tutor / Staff Scanning a Student's Permanent QR Code ───
+        if user.role in ('tutor', 'admin', 'principal') or user.is_superuser:
+            # Check if clean_code represents a student (e.g. UUID, LRN, or ARALERT:STUDENT:<uuid>)
+            student_candidate = None
+            extracted_token = clean_code
+            if clean_code.upper().startswith('ARALERT:STUDENT:'):
+                extracted_token = clean_code.split(':', 2)[2].strip()
+
+            try:
+                cand_uuid = uuid.UUID(extracted_token)
+                student_candidate = User.objects.filter(id=cand_uuid, role='student').first()
+            except (ValueError, TypeError):
+                pass
+
+            if not student_candidate:
+                student_candidate = User.objects.filter(lrn=clean_code, role='student').first()
+
+            if not student_candidate and len(norm_code) >= 6:
+                student_qs = User.objects.filter(role='student')
+                matching_students = [
+                    s for s in student_qs
+                    if str(s.id).lower().replace('-', '').startswith(norm_code)
+                    or (s.lrn and s.lrn.endswith(norm_code))
+                ]
+                if user.role == 'tutor':
+                    assigned_matches = [s for s in matching_students if s.assigned_tutor_id == user.id]
+                    if len(assigned_matches) == 1:
+                        student_candidate = assigned_matches[0]
+                    elif len(assigned_matches) > 1:
+                        return Response({
+                            'error': 'Multiple assigned students match this 6-digit code. Please enter the full LRN.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
+                if not student_candidate:
+                    if len(matching_students) == 1:
+                        student_candidate = matching_students[0]
+                    elif len(matching_students) > 1:
+                        return Response({
+                            'error': 'Multiple students match this 6-digit code. Please enter the full LRN.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
+            if clean_code.upper().startswith('ARALERT:STUDENT:') and not student_candidate:
+                return Response({
+                    'error': 'Student QR pass is invalid or student not found.'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            if student_candidate:
+                if user.role == 'tutor' and student_candidate.assigned_tutor_id and student_candidate.assigned_tutor_id != user.id:
+                    return Response({
+                        'error': f"{student_candidate.get_full_name()} is assigned to another tutor."
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Find an active, unexpired student attendance session created by this tutor/staff for today
+                now = timezone.now()
+                active_session = ApiAttendanceSession.objects.filter(
+                    creator=user,
+                    session_type='student',
+                    is_active=True,
+                    expires_at__gt=now
+                ).order_by('-expires_at').first()
+
+                if not active_session:
+                    # Also check for any active session if superuser/admin
+                    if user.is_superuser or user.role in ('admin', 'principal'):
+                        active_session = ApiAttendanceSession.objects.filter(
+                            session_type='student',
+                            is_active=True,
+                            expires_at__gt=now
+                        ).order_by('-expires_at').first()
+
+                if not active_session:
+                    return Response({
+                        'error': 'No active attendance session found. Please start a session before scanning students.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Check if student is already marked present for this session
+                existing_att = ApiAttendance.objects.filter(user=student_candidate, session=active_session).first()
+                if not existing_att:
+                    existing_att = ApiAttendance.objects.filter(
+                        user=student_candidate,
+                        date=today,
+                        tutor=active_session.creator,
+                        session__isnull=True
+                    ).first()
+
+                if existing_att:
+                    return Response({
+                        'error': f"{student_candidate.get_full_name()} is already marked {existing_att.status.upper()} for this session.",
+                        'student': {
+                            'id': str(student_candidate.id),
+                            'name': student_candidate.get_full_name(),
+                            'lrn': student_candidate.lrn,
+                        },
+                        'attendance': AttendanceSerializer(existing_att).data,
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                attendance = ApiAttendance.objects.create(
+                    user          = student_candidate,
+                    role          = 'student',
+                    date          = today,
+                    time_in       = current_time,
+                    status        = 'present',
+                    tutor         = active_session.creator,
+                    aral_activity = active_session.aral_activity,
+                    session       = active_session,
+                )
+
+                log_audit_event(
+                    'ATTENDANCE_STUDENT_SCANNED_BY_TUTOR',
+                    user=user,
+                    request=request,
+                    details={
+                        'student_id': str(student_candidate.id),
+                        'student_name': student_candidate.get_full_name(),
+                        'lrn': student_candidate.lrn,
+                        'tutor_id': str(user.id),
+                        'tutor_name': user.get_full_name(),
+                        'session_id': str(active_session.id),
+                        'date': str(today),
+                        'time_in': str(attendance.time_in),
+                        'status': 'present',
+                    }
+                )
+
+                return Response({
+                    'message': f"Successfully recorded attendance for {student_candidate.get_full_name()}!",
+                    'student': {
+                        'id': str(student_candidate.id),
+                        'name': student_candidate.get_full_name(),
+                        'lrn': student_candidate.lrn,
+                    },
+                    'attendance': AttendanceSerializer(attendance).data,
+                }, status=status.HTTP_200_OK)
+
+        # ─── FLOW B: Student Scanning Tutor QR or Staff Scanning DTR Session ───
         session = None
         # 1. Try exact UUID lookup first (QR scanner or full UUID entry)
         try:
@@ -647,19 +1086,20 @@ class AttendanceScanView(APIView):
             return Response({'error': 'QR code has expired.'}, status=status.HTTP_400_BAD_REQUEST)
 
         today = timezone.localdate()
+        current_time = timezone.localtime().time()
 
         if session.session_type == 'student':
             if user.role != 'student':
                 return Response({'error': 'This QR code is for students only.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            if ApiAttendance.objects.filter(user=user, date=today).exists():
-                return Response({'error': 'Attendance already recorded for today.'}, status=status.HTTP_400_BAD_REQUEST)
+            if ApiAttendance.objects.filter(user=user, session=session).exists():
+                return Response({'error': f"{user.get_full_name()} is already marked PRESENT for this session."}, status=status.HTTP_400_BAD_REQUEST)
 
             attendance = ApiAttendance.objects.create(
                 user          = user,
                 role          = 'student',
                 date          = today,
-                time_in       = timezone.now().time(),
+                time_in       = current_time,
                 status        = 'present',
                 tutor         = session.creator,
                 aral_activity = session.aral_activity,
@@ -692,7 +1132,15 @@ class AttendanceScanView(APIView):
             if user.role not in ('tutor', 'faculty', 'admin', 'principal') and not user.is_superuser:
                 return Response({'error': 'Only staff can scan this QR code.'}, status=status.HTTP_403_FORBIDDEN)
 
-            action = session.action or 'time_in'
+            action = session.action
+            if not action:
+                existing = ApiAttendance.objects.filter(user=user, date=today).first()
+                if not existing:
+                    action = 'time_in'
+                elif not existing.time_out:
+                    action = 'time_out'
+                else:
+                    return Response({'error': 'Already completed DTR (Clock In and Clock Out) for today.'}, status=status.HTTP_400_BAD_REQUEST)
 
             if action == 'time_in':
                 if ApiAttendance.objects.filter(user=user, date=today).exists():
@@ -701,7 +1149,7 @@ class AttendanceScanView(APIView):
                     user    = user,
                     role    = user.role,
                     date    = today,
-                    time_in = timezone.now().time(),
+                    time_in = current_time,
                     status  = 'present',
                     session = session,
                 )
@@ -734,7 +1182,7 @@ class AttendanceScanView(APIView):
                 if attendance.time_out:
                     return Response({'error': 'Already clocked out today.'}, status=status.HTTP_400_BAD_REQUEST)
 
-                attendance.time_out = timezone.now().time()
+                attendance.time_out = current_time
                 attendance.save(update_fields=['time_out'])
 
                 log_audit_event(
@@ -809,7 +1257,7 @@ class AttendanceManualLogView(APIView):
             date = log_date,
             defaults={
                 'role':          'student',
-                'time_in':       timezone.now().time(),
+                'time_in':       timezone.localtime().time(),
                 'status':        status_val,
                 'tutor':         user,
                 'aral_activity': aral_activity,
@@ -875,10 +1323,96 @@ class AttendanceHistoryView(generics.ListAPIView):
             return qs.filter(user=user)
         if user.role == 'tutor':
             assigned_ids = user.assigned_students.values_list('id', flat=True)
-            return qs.filter(Q(user=user) | Q(tutor=user) | Q(session__creator=user) | Q(user_id__in=assigned_ids))
+            return qs.filter(Q(role='student') | Q(user=user) | Q(tutor=user) | Q(session__creator=user) | Q(user_id__in=assigned_ids))
         if user.role == 'faculty':
             return qs.filter(user=user)
         return qs.none()
+
+    def delete(self, request):
+        user = request.user
+        if user.role != 'tutor' and not user.is_superuser and user.role not in ('admin', 'principal'):
+            return Response({'error': 'Only tutors or admins can delete attendance records.'}, status=status.HTTP_403_FORBIDDEN)
+
+        date_param = request.query_params.get('date') or request.data.get('date')
+        all_param = request.query_params.get('all') or request.data.get('all')
+        student_ids = request.data.get('student_ids')
+
+        qs = self.get_queryset().filter(role='student')
+        if user.role == 'tutor':
+            assigned_ids = user.assigned_students.values_list('id', flat=True)
+            qs = qs.filter(Q(tutor=user) | Q(session__creator=user) | Q(user_id__in=assigned_ids))
+
+        if student_ids and isinstance(student_ids, list):
+            qs = qs.filter(user_id__in=student_ids)
+
+        if date_param and not all_param:
+            qs = qs.filter(date=date_param)
+
+        count = qs.count()
+        qs.delete()
+
+        log_audit_event(
+            'ATTENDANCE_RECORDS_DELETED',
+            user=user,
+            request=request,
+            details={
+                'deleted_count': count,
+                'date': date_param or 'all',
+            }
+        )
+
+        return Response({
+            'message': f'Successfully cleared {count} attendance records.',
+            'count': count
+        }, status=status.HTTP_200_OK)
+
+
+class AttendanceDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET, PATCH, PUT, DELETE /api/academics/attendance/<int:id>/
+    Allows tutors, admins, and principals to view and update student attendance records anytime
+    without requiring any approval.
+    """
+    serializer_class   = AttendanceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field       = 'id'
+
+    def get_queryset(self):
+        user = self.request.user
+        qs   = ApiAttendance.objects.select_related('user', 'tutor', 'aral_activity', 'session').all()
+        if user.is_superuser or user.role in ('principal', 'admin'):
+            return qs
+        if user.role == 'tutor':
+            assigned_ids = user.assigned_students.values_list('id', flat=True)
+            return qs.filter(
+                Q(role__iexact='student') |
+                Q(user__role='student') |
+                Q(tutor=user) |
+                Q(session__creator=user) |
+                Q(user_id__in=assigned_ids)
+            )
+        if user.role == 'faculty':
+            return qs.filter(user=user)
+        return qs.none()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        old_status = instance.status
+        old_date = instance.date
+        attendance = serializer.save()
+        log_audit_event(
+            'ATTENDANCE_RECORD_UPDATED',
+            user=self.request.user,
+            request=self.request,
+            details={
+                'attendance_id': attendance.id,
+                'student_id': str(attendance.user_id) if attendance.user_id else '',
+                'student_name': attendance.user.get_full_name() if attendance.user else '',
+                'date': str(attendance.date),
+                'status': attendance.status,
+                'previous_status': old_status,
+            }
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -918,33 +1452,40 @@ class StudentAcademicProfileView(APIView):
         w_tasks   = tutor.weekly_tasks_weight if tutor else 30
         w_attend  = tutor.attendance_weight   if tutor else 20
 
-        # Grades
-        grades   = ApiGrade.objects.filter(student=student)
-        subjects = grades.values_list('subject', flat=True).distinct()
+        # Grades (optimized from 64 queries to 1 query)
+        grades = ApiGrade.objects.filter(student=student)
+        grade_stats = (
+            grades.values('subject', 'quarter')
+            .annotate(
+                avg_assess=Avg('score', filter=Q(component_type='assessment')),
+                avg_task=Avg('score', filter=Q(component_type='weekly_task')),
+                avg_attend=Avg('score', filter=Q(component_type='attendance')),
+            )
+            .order_by('subject', 'quarter')
+        )
         grade_summary  = []
         overall_scores = []
 
-        for subject in subjects:
-            for quarter in [1, 2, 3, 4]:
-                sq = grades.filter(subject=subject, quarter=quarter)
-                if sq.exists():
-                    avg_assess = sq.filter(component_type='assessment').aggregate(Avg('score'))['score__avg'] or 0
-                    avg_task   = sq.filter(component_type='weekly_task').aggregate(Avg('score'))['score__avg'] or 0
-                    avg_attend = sq.filter(component_type='attendance').aggregate(Avg('score'))['score__avg'] or 0
-                    final = (
-                        float(avg_assess) * w_assess / 100
-                        + float(avg_task)  * w_tasks  / 100
-                        + float(avg_attend) * w_attend / 100
-                    )
-                    grade_summary.append({
-                        'subject':         subject,
-                        'quarter':         quarter,
-                        'assessment_avg':  round(float(avg_assess), 2),
-                        'weekly_task_avg': round(float(avg_task), 2),
-                        'attendance_avg':  round(float(avg_attend), 2),
-                        'final_grade':     round(final, 2),
-                    })
-                    overall_scores.append(final)
+        for row in grade_stats:
+            subject    = row['subject']
+            quarter    = row['quarter']
+            avg_assess = row['avg_assess'] or 0
+            avg_task   = row['avg_task'] or 0
+            avg_attend = row['avg_attend'] or 0
+            final = (
+                float(avg_assess) * w_assess / 100
+                + float(avg_task)  * w_tasks  / 100
+                + float(avg_attend) * w_attend / 100
+            )
+            grade_summary.append({
+                'subject':         subject,
+                'quarter':         quarter,
+                'assessment_avg':  round(float(avg_assess), 2),
+                'weekly_task_avg': round(float(avg_task), 2),
+                'attendance_avg':  round(float(avg_attend), 2),
+                'final_grade':     round(final, 2),
+            })
+            overall_scores.append(final)
 
         gpa = round(sum(overall_scores) / len(overall_scores), 2) if overall_scores else None
 
@@ -964,14 +1505,15 @@ class StudentAcademicProfileView(APIView):
 
         data = {
             'student': {
-                'id':         str(student.id),
-                'name':       student.get_full_name(),
-                'first_name': student.first_name,
-                'last_name':  student.last_name,
-                'username':   student.username,
-                'lrn':        student.lrn,
-                'email':      student.email,
-                'aral_level': student.aral_level,
+                'id':          str(student.id),
+                'name':        student.get_full_name(),
+                'first_name':  student.first_name,
+                'middle_name': student.middle_name or '',
+                'last_name':   student.last_name,
+                'username':    student.username,
+                'lrn':         student.lrn,
+                'email':       student.email,
+                'aral_level':  student.aral_level,
             },
             'assigned_tutor': {
                 'id':                  str(tutor.id),
@@ -1022,26 +1564,44 @@ class PrincipalDashboardView(APIView):
         faculty  = User.objects.filter(role='faculty', is_active=True)
         students = User.objects.filter(role='student', is_active=True)
 
-        # Risk summary
-        risks = ApiAcademicRisk.objects.filter(resolved=False)
+        # Risk summary (1 query)
+        risk_counts = ApiAcademicRisk.objects.filter(resolved=False).values('risk_level').annotate(count=Count('id'))
+        risk_map = {row['risk_level']: row['count'] for row in risk_counts}
         risk_summary = {
-            'low':    risks.filter(risk_level='low').count(),
-            'medium': risks.filter(risk_level='medium').count(),
-            'high':   risks.filter(risk_level='high').count(),
+            'low':    risk_map.get('low', 0),
+            'medium': risk_map.get('medium', 0),
+            'high':   risk_map.get('high', 0),
         }
 
         # Class performance trend (daily avg score + attendance rate over last N days)
+        # Optimized into 2 queries instead of 3 * N queries
         from datetime import date, timedelta as td
         today = date.today()
+        trend_start = today - td(days=days - 1)
+
+        class_grades_qs = (
+            ApiGrade.objects.filter(date_logged__gte=trend_start, date_logged__lte=today)
+            .values('date_logged')
+            .annotate(avg_score=Avg('score'))
+        )
+        class_grade_map = {row['date_logged']: row['avg_score'] for row in class_grades_qs}
+
+        class_att_qs = (
+            ApiAttendance.objects.filter(date__gte=trend_start, date__lte=today, role='student')
+            .values('date')
+            .annotate(
+                total=Count('id'),
+                present=Count('id', filter=Q(status='present'))
+            )
+        )
+        class_att_map = {row['date']: (row['total'], row['present']) for row in class_att_qs}
+
         trend = []
         for i in range(days - 1, -1, -1):
             day = today - td(days=i)
-            day_grades = ApiGrade.objects.filter(date_logged=day)
-            avg_score  = day_grades.aggregate(Avg('score'))['score__avg'] or 0
-            day_att    = ApiAttendance.objects.filter(date=day, role='student')
-            total      = day_att.count()
-            present    = day_att.filter(status='present').count()
-            att_rate   = round(present / total * 100, 2) if total else 0
+            avg_score = class_grade_map.get(day, 0) or 0
+            total, present = class_att_map.get(day, (0, 0))
+            att_rate = round(present / total * 100, 2) if total else 0
             if avg_score or att_rate:
                 trend.append({
                     'date':            str(day),
@@ -1050,18 +1610,37 @@ class PrincipalDashboardView(APIView):
                 })
 
         # Per-tutor performance
+        # Optimized into 2 bulk queries instead of 3 * 10 * 7 queries
+        top_tutors = list(tutors[:10])
+        top_tutor_ids = [t.id for t in top_tutors]
+        tutor_days = min(days, 7)
+        tutor_start = today - td(days=tutor_days - 1)
+
+        tg_qs = (
+            ApiGrade.objects.filter(tutor_id__in=top_tutor_ids, date_logged__gte=tutor_start, date_logged__lte=today)
+            .values('tutor_id', 'date_logged')
+            .annotate(avg_score=Avg('score'))
+        )
+        tutor_grade_map = {(row['tutor_id'], row['date_logged']): row['avg_score'] for row in tg_qs}
+
+        ta_qs = (
+            ApiAttendance.objects.filter(tutor_id__in=top_tutor_ids, date__gte=tutor_start, date__lte=today)
+            .values('tutor_id', 'date')
+            .annotate(
+                total=Count('id'),
+                present=Count('id', filter=Q(status='present'))
+            )
+        )
+        tutor_att_map = {(row['tutor_id'], row['date']): (row['total'], row['present']) for row in ta_qs}
+
         per_tutor = []
-        for tutor in tutors[:10]:  # cap at 10 for performance
-            tutor_students = tutor.assigned_students.all()
-            tutor_trend    = []
-            for i in range(min(days, 7) - 1, -1, -1):
+        for tutor in top_tutors:
+            tutor_trend = []
+            for i in range(tutor_days - 1, -1, -1):
                 day = today - td(days=i)
-                tg  = ApiGrade.objects.filter(tutor=tutor, date_logged=day)
-                avg = tg.aggregate(Avg('score'))['score__avg'] or 0
-                ta  = ApiAttendance.objects.filter(tutor=tutor, date=day)
-                tot = ta.count()
-                pre = ta.filter(status='present').count()
-                ar  = round(pre / tot * 100, 2) if tot else 0
+                avg = tutor_grade_map.get((tutor.id, day), 0) or 0
+                tot, pre = tutor_att_map.get((tutor.id, day), (0, 0))
+                ar = round(pre / tot * 100, 2) if tot else 0
                 tutor_trend.append({
                     'date':            str(day),
                     'attendance_rate': ar,
@@ -1074,26 +1653,47 @@ class PrincipalDashboardView(APIView):
             })
 
         # Staff attendance trend
+        # Optimized into 1 bulk query instead of 4 * 14 queries
+        staff_days = min(days, 14)
+        staff_start = today - td(days=staff_days - 1)
+        staff_qs = (
+            ApiAttendance.objects.filter(
+                date__gte=staff_start,
+                date__lte=today,
+                role__in=('tutor', 'faculty')
+            )
+            .values('date', 'role')
+            .annotate(
+                total=Count('id'),
+                present=Count('id', filter=Q(status='present'))
+            )
+        )
+        staff_att_map = {(row['date'], row['role']): (row['total'], row['present']) for row in staff_qs}
+
         staff_trend = []
-        for i in range(min(days, 14) - 1, -1, -1):
-            day       = today - td(days=i)
-            t_att     = ApiAttendance.objects.filter(date=day, role='tutor')
-            t_tot     = t_att.count()
-            t_pre     = t_att.filter(status='present').count()
-            f_att     = ApiAttendance.objects.filter(date=day, role='faculty')
-            f_tot     = f_att.count()
-            f_pre     = f_att.filter(status='present').count()
+        for i in range(staff_days - 1, -1, -1):
+            day = today - td(days=i)
+            t_tot, t_pre = staff_att_map.get((day, 'tutor'), (0, 0))
+            f_tot, f_pre = staff_att_map.get((day, 'faculty'), (0, 0))
             staff_trend.append({
                 'date':                    str(day),
                 'tutor_attendance_rate':   round(t_pre / t_tot * 100, 2) if t_tot else 0,
                 'faculty_attendance_rate': round(f_pre / f_tot * 100, 2) if f_tot else 0,
             })
 
+        # Program summary (1 query)
+        user_counts = (
+            User.objects.filter(role__in=('tutor', 'faculty', 'student'), is_active=True)
+            .values('role')
+            .annotate(count=Count('id'))
+        )
+        user_count_map = {row['role']: row['count'] for row in user_counts}
+
         return Response({
             'program_summary': {
-                'total_tutors':   tutors.count(),
-                'total_faculty':  faculty.count(),
-                'total_students': students.count(),
+                'total_tutors':   user_count_map.get('tutor', 0),
+                'total_faculty':  user_count_map.get('faculty', 0),
+                'total_students': user_count_map.get('student', 0),
             },
             'risk_summary':            risk_summary,
             'class_performance_trend': trend,

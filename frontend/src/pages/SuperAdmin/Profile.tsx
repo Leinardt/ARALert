@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import type { User, StudentEditRequest } from '../../types';
 import { userService } from '../../services/userService';
+import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
 import {
   User as UserIcon,
   Mail,
@@ -103,6 +104,25 @@ const SecurityHelpButton: React.FC<{ label: string; description: string }> = ({ 
 export const Profile: React.FC = () => {
   const { user, updateProfile } = useAuth();
   const [localUser, setLocalUser] = useState<User | null>(user);
+
+  const [assignedStudents, setAssignedStudents] = useState<User[]>([]);
+
+  useEffect(() => {
+    if (localUser?.role === 'tutor' && localUser.id) {
+      userService
+        .getAllUsers({ role: 'student', assigned_tutor: localUser.id })
+        .then((res) => {
+          if (Array.isArray(res)) setAssignedStudents(res);
+        })
+        .catch(() => {});
+    }
+  }, [localUser?.id, localUser?.role]);
+
+  // Compute tutor assigned classes / role details handled
+  const tutorAssignedClasses = useMemo(() => {
+    if (localUser?.role !== 'tutor') return [];
+    return buildTutorClassSections(localUser, assignedStudents);
+  }, [localUser, assignedStudents]);
 
   // Staff direct editing state
   const [isEditing, setIsEditing] = useState(false);
@@ -264,10 +284,12 @@ export const Profile: React.FC = () => {
   }
 
   const readonlyStyle: React.CSSProperties = {
+    width: '100%',
     padding: '0.65rem 0.85rem',
     borderRadius: 'var(--radius-md)',
     border: '1px solid var(--slate-200)',
     background: 'var(--surface-muted)',
+    backgroundColor: 'var(--surface-muted)',
     fontSize: '0.875rem',
     color: 'var(--text-muted)',
     cursor: 'not-allowed',
@@ -324,19 +346,14 @@ export const Profile: React.FC = () => {
                 <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--brand-light)', color: 'var(--brand-dark)', border: '1px solid var(--brand-border)' }}>
                   {localUser.is_superuser ? 'SuperAdmin' : localUser.role?.toUpperCase() || 'USER'}
                 </span>
-                {(localUser.role === 'student' || localUser.role === 'tutor') && (
+                {localUser.role === 'student' && (
                   <>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/80">
-                      ARAL {formatAralLevel(localUser.aral_level).toUpperCase()}
+                    <span className="text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
+                      {formatAralLevel(localUser.aral_level).toUpperCase()}
                     </span>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider border ${
-                      (localUser.subject || 'Reading') === 'Reading'
-                        ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/80'
-                        : (localUser.subject || 'Reading') === 'Science'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/80'
-                        : 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800/80'
-                    }`}>
-                      {localUser.subject || 'Reading'}
+                    <span className="text-xs text-gray-300 dark:text-slate-600">•</span>
+                    <span className="text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
+                      {localUser.subject === 'Reading' ? 'Filipino' : (localUser.subject || 'Filipino')}
                     </span>
                   </>
                 )}
@@ -572,13 +589,30 @@ export const Profile: React.FC = () => {
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                 {localUser.role === 'student' ? 'Learner Reference Number (LRN)' : 'Email Address'}
               </label>
-              <input
-                type={localUser.role === 'student' ? 'text' : 'email'}
-                value={localUser.role === 'student' ? (localUser.lrn || '—') : localUser.email}
-                readOnly
-                disabled
-                style={readonlyStyle}
-              />
+              <div
+                className="relative group cursor-not-allowed w-full"
+                title={localUser.role !== 'student' ? 'Contact admin to change email' : undefined}
+              >
+                <input
+                  type="text"
+                  name="profile_email_readonly"
+                  autoComplete="off"
+                  value={localUser.role === 'student' ? (localUser.lrn || '—') : localUser.email}
+                  readOnly
+                  disabled
+                  tabIndex={-1}
+                  style={readonlyStyle}
+                  className="w-full pointer-events-none select-none"
+                />
+
+                {localUser.role !== 'student' && (
+                  <div className="pointer-events-none absolute bottom-full left-3 mb-2 hidden group-hover:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/95 dark:bg-zinc-800 text-white text-xs font-semibold shadow-xl border border-slate-700/60 dark:border-zinc-700 whitespace-nowrap z-30 transition-all animate-in fade-in duration-150">
+                    <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                    <span>Contact admin to change email</span>
+                    <div className="absolute top-full left-6 -mt-1 border-4 border-transparent border-t-slate-900/95 dark:border-t-zinc-800" />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -594,31 +628,79 @@ export const Profile: React.FC = () => {
             </div>
           </div>
 
-          {/* Tutor Academic Assignment */}
+          {/* Tutor Role Details & Handled Classes */}
           {localUser.role === 'tutor' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  ARAL Level Assigned
-                </label>
-                <input
-                  value={formatAralLevel(localUser.aral_level)}
-                  readOnly
-                  disabled
-                  style={readonlyStyle}
-                />
+            <div className="mt-2 pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                    ASSIGNED CLASSES
+                  </h3>
+                  <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
+                    Official ARAL program classes, subjects, and grade sections handled
+                  </p>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  ARAL Subject Assigned
-                </label>
-                <input
-                  value={localUser.subject || 'Reading'}
-                  readOnly
-                  disabled
-                  style={readonlyStyle}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {tutorAssignedClasses.map((cls, idx) => {
+                  const isPlus = cls.aralLevel === 'plus';
+
+                  return (
+                    <div
+                      key={cls.key || idx}
+                      className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 p-4 space-y-3 shadow-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                          Role Detail #{idx + 1}
+                        </span>
+                        <span
+                          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${
+                            isPlus
+                              ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                              : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                          }`}
+                        >
+                          {cls.aralLevel.toUpperCase()}
+                        </span>
+                      </div>
+
+                      <div className="text-xs font-bold text-gray-900 dark:text-white pb-2.5 border-b border-slate-200/60 dark:border-zinc-800/80">
+                        {cls.label}
+                      </div>
+
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
+                            Subject
+                          </span>
+                          <span className="font-semibold text-gray-800 dark:text-slate-200 text-right">
+                            {cls.subject}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
+                            Grade & Section
+                          </span>
+                          <span className="font-semibold text-gray-800 dark:text-slate-200 text-right">
+                            {cls.cohort}
+                          </span>
+                        </div>
+                        {cls.students && cls.students.length > 0 && (
+                          <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-200/50 dark:border-zinc-800/60 text-[11px]">
+                            <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
+                              Assigned Students
+                            </span>
+                            <span className="font-bold text-gray-800 dark:text-slate-200">
+                              {cls.students.length}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -643,7 +725,7 @@ export const Profile: React.FC = () => {
                   Subject
                 </label>
                 <input
-                  value={localUser.subject || 'Reading'}
+                  value={localUser.subject === 'Reading' ? 'Filipino' : (localUser.subject || 'Filipino')}
                   readOnly
                   disabled
                   style={readonlyStyle}
@@ -700,7 +782,7 @@ export const Profile: React.FC = () => {
             <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-3.5 flex items-start gap-3">
               <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-                <span className="font-bold">Official Record Verification:</span> Updates to your student profile (name, LRN, or ARAL program level) require verification and confirmation by a School Admin or Super Admin before taking effect.
+                <span className="font-bold">Official Record Verification:</span> Updates to your student profile (name or LRN) require verification and confirmation by a School Admin or Super Admin before taking effect.
               </div>
             </div>
 
@@ -762,19 +844,7 @@ export const Profile: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed ARAL Program Level *</label>
-              <select
-                value={studentForm.aral_level}
-                onChange={(e) => setStudentForm({ ...studentForm, aral_level: e.target.value as any })}
-                className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] font-semibold cursor-pointer"
-              >
-                <option value="basic">Basic</option>
-                <option value="plus">Plus</option>
-                <option value="summer">Summer</option>
-                <option value="graduated">Graduated</option>
-              </select>
-            </div>
+
 
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Reason for Edit Request *</label>

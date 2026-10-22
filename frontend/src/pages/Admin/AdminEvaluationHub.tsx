@@ -28,6 +28,7 @@ import {
   isAssessmentWindowOpen,
   setAssessmentWindowOpen,
 } from '../../utils/sessionDescriptionHelpers';
+import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
 
 /* ─── Normalize ARAL Level to strictly BASIC / PLUS / SUMMER ──────── */
 const normalizeAralLevel = (val?: string | null): 'BASIC' | 'PLUS' | 'SUMMER' => {
@@ -49,6 +50,7 @@ interface StudentMetric {
   assessmentScoreStr: string;
   compositeScore: number;
   status: 'PASSED' | 'RETAINED' | 'PENDING';
+  rawStudent?: User;
 }
 
 interface TutorEvaluationRow {
@@ -60,9 +62,238 @@ interface TutorEvaluationRow {
   aralLevel: 'BASIC' | 'PLUS' | 'SUMMER';
   assignedCount: number;
   evaluatedCount: number;
-  status: 'Pending' | 'Completed';
+  status: 'Pending' | 'Completed' | 'Closed' | 'No Students';
   students: StudentMetric[];
+  tutorUser?: User;
 }
+
+type StudentSortField =
+  | 'name'
+  | 'lrn'
+  | 'attendanceRate'
+  | 'avgScore'
+  | 'compositeScore'
+  | 'assessmentScore'
+  | 'status';
+
+interface TutorClassSectionTableProps {
+  cls: {
+    key: string;
+    label: string;
+    students: StudentMetric[];
+  };
+  activeTab: 'mosy' | 'eosy' | 'summer';
+  isWindowOpen: boolean;
+}
+
+const TutorClassSectionTable: React.FC<TutorClassSectionTableProps> = ({
+  cls,
+  activeTab,
+  isWindowOpen,
+}) => {
+  const [sortField, setSortField] = useState<StudentSortField>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (field: StudentSortField) => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const sortedStudents = useMemo(() => {
+    const list = [...cls.students];
+    list.sort((a, b) => {
+      if (sortField === 'name') {
+        const cmp = (a.name || '').localeCompare(b.name || '');
+        return sortOrder === 'asc' ? cmp : -cmp;
+      }
+      if (sortField === 'lrn') {
+        const cmp = (a.lrn || '').localeCompare(b.lrn || '', undefined, { numeric: true });
+        return sortOrder === 'asc' ? cmp : -cmp;
+      }
+      if (sortField === 'attendanceRate') {
+        const diff = (a.attendanceRate ?? 0) - (b.attendanceRate ?? 0);
+        if (diff !== 0) return sortOrder === 'asc' ? diff : -diff;
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      if (sortField === 'avgScore') {
+        const diff = (a.avgScore ?? 0) - (b.avgScore ?? 0);
+        if (diff !== 0) return sortOrder === 'asc' ? diff : -diff;
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      if (sortField === 'compositeScore') {
+        const diff = (a.compositeScore ?? 0) - (b.compositeScore ?? 0);
+        if (diff !== 0) return sortOrder === 'asc' ? diff : -diff;
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      if (sortField === 'assessmentScore') {
+        const parseScore = (str: string) => {
+          if (!str || str === '—' || str.toLowerCase().includes('not') || str.toLowerCase().includes('pending')) {
+            return -1;
+          }
+          if (str.toLowerCase() === 'passed') return 100;
+          const num = parseFloat(str.replace('%', ''));
+          return isNaN(num) ? -1 : num;
+        };
+        const scoreA = parseScore(a.assessmentScoreStr);
+        const scoreB = parseScore(b.assessmentScoreStr);
+        if (scoreA !== scoreB) {
+          return sortOrder === 'asc' ? scoreA - scoreB : scoreB - scoreA;
+        }
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      if (sortField === 'status') {
+        const getStatusRank = (st: string) => {
+          const s = (st || '').toUpperCase();
+          if (s === 'PASSED' || s === 'GRADUATED' || s === 'MOVED_UP') return 3;
+          if (s === 'RETAINED') return 2;
+          return 1;
+        };
+        const rankA = getStatusRank(a.status);
+        const rankB = getStatusRank(b.status);
+        if (rankA !== rankB) {
+          return sortOrder === 'asc' ? rankA - rankB : rankB - rankA;
+        }
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      return 0;
+    });
+    return list;
+  }, [cls.students, sortField, sortOrder]);
+
+  const SortableSubHeader: React.FC<{
+    label: string;
+    field: StudentSortField;
+    align?: 'left' | 'center' | 'right';
+  }> = ({ label, field, align = 'left' }) => {
+    const isActive = sortField === field;
+
+    return (
+      <button
+        type="button"
+        onClick={() => handleSort(field)}
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap ${
+          align === 'center'
+            ? 'justify-center text-center'
+            : align === 'right'
+            ? 'justify-end text-right'
+            : 'justify-start text-left'
+        } transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
+          isActive ? 'text-gray-700 dark:text-slate-200' : 'text-gray-400 dark:text-slate-400'
+        } cursor-pointer`}
+        aria-label={`Sort by ${label}`}
+      >
+        <span>{label}</span>
+        {isActive ? (
+          sortOrder === 'asc' ? (
+            <ChevronUp className="w-3.5 h-3.5 shrink-0" />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+          )
+        ) : (
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-40 shrink-0" />
+        )}
+      </button>
+    );
+  };
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wide">
+          {cls.label} ({cls.students.length} Students)
+        </span>
+      </div>
+
+      {cls.students.length === 0 ? (
+        <div className="p-4 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A] rounded-xl border border-slate-200 dark:border-zinc-800">
+          No students assigned to this class for this semester.
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
+          <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+            <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
+              <tr>
+                <th className="w-10 px-3 py-2 text-center whitespace-nowrap">#</th>
+                <th className="px-3 py-2 text-left whitespace-nowrap">
+                  <SortableSubHeader label="STUDENT NAME" field="name" align="left" />
+                </th>
+                <th className="px-3 py-2 text-left whitespace-nowrap">
+                  <SortableSubHeader label="LRN" field="lrn" align="left" />
+                </th>
+                <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <SortableSubHeader label="FINAL AVG ATTENDANCE RATE" field="attendanceRate" align="center" />
+                </th>
+                <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <SortableSubHeader label="FINAL AVG SCORE" field="avgScore" align="center" />
+                </th>
+                <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <SortableSubHeader label="FINAL AVG COMPOSITE" field="compositeScore" align="center" />
+                </th>
+                <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <SortableSubHeader
+                    label={activeTab === 'mosy' ? 'MOSY ASSESSMENT' : activeTab === 'eosy' ? 'EOSY ASSESSMENT' : 'SUMMER ASSESSMENT'}
+                    field="assessmentScore"
+                    align="center"
+                  />
+                </th>
+                <th className="px-3 py-2 text-center whitespace-nowrap">
+                  <SortableSubHeader label="STATUS" field="status" align="center" />
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+              {sortedStudents.map((st, idx) => (
+                <tr
+                  key={st.id}
+                  className="divide-x divide-gray-100 dark:divide-[#1A1A1A] hover:bg-gray-50/70 dark:hover:bg-white/[0.02] transition-colors"
+                >
+                  <td className="px-3 py-2.5 text-center text-slate-400 font-medium whitespace-nowrap">{idx + 1}</td>
+                  <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                    {st.name}
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                    {st.lrn}
+                  </td>
+                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                    {st.attendanceRate.toFixed(1)}%
+                  </td>
+                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                    {st.avgScore.toFixed(1)}%
+                  </td>
+                  <td className="px-3 py-2.5 text-center font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                    {st.compositeScore.toFixed(1)}%
+                  </td>
+                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                    {st.assessmentScoreStr}
+                  </td>
+                  <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                        st.status === 'PASSED'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
+                          : st.status === 'RETAINED'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60'
+                          : !isWindowOpen
+                          ? 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
+                          : 'bg-amber-50/70 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/40'
+                      }`}
+                    >
+                      {!isWindowOpen && st.status === 'PENDING' ? 'CLOSED' : st.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const AdminEvaluationHub: React.FC = () => {
   const getInitialTab = (): 'mosy' | 'eosy' | 'summer' => {
@@ -244,20 +475,20 @@ export const AdminEvaluationHub: React.FC = () => {
       <button
         type="button"
         onClick={() => handleSort(field)}
-        className={`inline-flex items-center gap-1.5 text-${align} transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap text-${align} transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
           isActive ? 'text-gray-700 dark:text-slate-200' : 'text-gray-400 dark:text-slate-400'
         } cursor-pointer`}
         aria-label={`Sort by ${label}`}
       >
-        <span>{label}</span>
+        <span className="whitespace-nowrap">{label}</span>
         {isActive ? (
           sortOrder === 'asc' ? (
-            <ChevronUp className="w-3.5 h-3.5" />
+            <ChevronUp className="w-3.5 h-3.5 shrink-0" />
           ) : (
-            <ChevronDown className="w-3.5 h-3.5" />
+            <ChevronDown className="w-3.5 h-3.5 shrink-0" />
           )
         ) : (
-          <ArrowUpDown className="w-3.5 h-3.5 opacity-40" />
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-40 shrink-0" />
         )}
       </button>
     );
@@ -334,15 +565,15 @@ export const AdminEvaluationHub: React.FC = () => {
       const assignedCount = tutorStudents.length;
 
       let evaluatedCount = 0;
-      let status: 'Pending' | 'Completed' = 'Pending';
+      let isCompleted = false;
 
       if (activeTab === 'mosy') {
         const p = mosyData?.tutors_progress?.find((tp) => tp.tutor_id === String(tutor.id));
         if (p) {
           evaluatedCount = p.evaluated_count;
-          status = p.status === 'Completed' || p.remaining_count === 0 ? 'Completed' : 'Pending';
+          isCompleted = assignedCount > 0 && (p.status === 'Completed' || p.remaining_count === 0);
         } else if (assignedCount === 0) {
-          status = 'Completed';
+          isCompleted = false;
         } else {
           const evaluatedStudents = tutorStudents.filter((s) => {
             return grades.some((g) => {
@@ -351,15 +582,15 @@ export const AdminEvaluationHub: React.FC = () => {
             });
           });
           evaluatedCount = evaluatedStudents.length;
-          status = evaluatedCount >= assignedCount ? 'Completed' : 'Pending';
+          isCompleted = assignedCount > 0 && evaluatedCount >= assignedCount;
         }
       } else if (activeTab === 'eosy') {
         const p = eosyData?.tutors_progress?.find((tp) => tp.tutor_id === String(tutor.id));
         if (p) {
           evaluatedCount = p.evaluated_count;
-          status = p.status === 'Completed' || p.remaining_count === 0 ? 'Completed' : 'Pending';
+          isCompleted = assignedCount > 0 && (p.status === 'Completed' || p.remaining_count === 0);
         } else if (assignedCount === 0) {
-          status = 'Completed';
+          isCompleted = false;
         } else {
           const evaluatedStudents = tutorStudents.filter((s) => {
             return grades.some((g) => {
@@ -368,26 +599,37 @@ export const AdminEvaluationHub: React.FC = () => {
             });
           });
           evaluatedCount = evaluatedStudents.length;
-          status = evaluatedCount >= assignedCount ? 'Completed' : 'Pending';
+          isCompleted = assignedCount > 0 && evaluatedCount >= assignedCount;
         }
       } else {
         // Summer
         if (currentActiveSemester !== 'summer') {
           evaluatedCount = 0;
-          status = 'Pending';
+          isCompleted = false;
         } else {
           const tutorSummerRecords = summerRecords.filter((sr) => {
             const st = students.find((s) => s.id === sr.student || s.lrn === sr.student_lrn);
             return st && String(st.assigned_tutor) === String(tutor.id);
           });
           if (tutorSummerRecords.length === 0) {
-            status = 'Completed';
+            isCompleted = false;
           } else {
             const comp = tutorSummerRecords.filter((sr) => sr.summer_status === 'summer_completed' || sr.summer_result).length;
             evaluatedCount = comp;
-            status = comp >= tutorSummerRecords.length ? 'Completed' : 'Pending';
+            isCompleted = tutorSummerRecords.length > 0 && comp >= tutorSummerRecords.length;
           }
         }
+      }
+
+      let status: 'Pending' | 'Completed' | 'Closed' | 'No Students';
+      if (isCompleted) {
+        status = 'Completed';
+      } else if (assignedCount === 0) {
+        status = 'No Students';
+      } else if (!isWindowOpen) {
+        status = 'Closed';
+      } else {
+        status = 'Pending';
       }
 
       const studentMetrics: StudentMetric[] = tutorStudents.map((st) => {
@@ -467,6 +709,7 @@ export const AdminEvaluationHub: React.FC = () => {
           assessmentScoreStr,
           compositeScore,
           status: studentStatus,
+          rawStudent: st,
         };
       });
 
@@ -477,20 +720,21 @@ export const AdminEvaluationHub: React.FC = () => {
         tutorName: tutor.full_name || `${tutor.first_name} ${tutor.last_name}`,
         gradeLevel: grade,
         section: section,
-        subject: tutor.subject || 'Reading',
+        subject: tutor.subject === 'Reading' ? 'Filipino' : (tutor.subject || 'Filipino'),
         aralLevel: normalizeAralLevel(tutor.tutor_type || tutor.aral_level),
         assignedCount,
         evaluatedCount,
         status,
         students: studentMetrics,
+        tutorUser: tutor,
       };
     });
-  }, [tutors, students, grades, attendance, mosyData, eosyData, summerRecords, activeTab, currentActiveSemester]);
+  }, [tutors, students, grades, attendance, mosyData, eosyData, summerRecords, activeTab, currentActiveSemester, isWindowOpen]);
 
   const totalTutorsCount = tutorRows.length;
   const completedTutorsCount = tutorRows.filter((r) => r.status === 'Completed').length;
-  const pendingTutorsCount = Math.max(0, totalTutorsCount - completedTutorsCount);
-  const isAllTutorsComplete = totalTutorsCount > 0 && completedTutorsCount === totalTutorsCount;
+  const pendingTutorsCount = tutorRows.filter((r) => r.status === 'Pending').length;
+  const isAllTutorsComplete = totalTutorsCount > 0 && tutorRows.filter((r) => r.assignedCount > 0).length > 0 && tutorRows.filter((r) => r.assignedCount > 0).every((r) => r.status === 'Completed');
 
   const sortedAndFilteredTutorRows = useMemo(() => {
     let list = [...tutorRows];
@@ -514,10 +758,18 @@ export const AdminEvaluationHub: React.FC = () => {
     }
 
     list.sort((a, b) => {
-      let aVal = (a as any)[sortField] || '';
-      let bVal = (b as any)[sortField] || '';
-      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      if (sortField === 'assignedCount') {
+        const countA = Number(a.assignedCount) || 0;
+        const countB = Number(b.assignedCount) || 0;
+        return sortOrder === 'asc' ? countA - countB : countB - countA;
+      }
+      if (sortField === 'tutorName') {
+        const nameA = (a.tutorName || '').toUpperCase();
+        const nameB = (b.tutorName || '').toUpperCase();
+        return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+      }
+      let aVal = String((a as any)[sortField] ?? '').toLowerCase();
+      let bVal = String((b as any)[sortField] ?? '').toLowerCase();
 
       if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
@@ -842,25 +1094,13 @@ export const AdminEvaluationHub: React.FC = () => {
                 <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
                   <thead>
                     <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-                      <th className="px-4 py-2.5 text-left">
+                      <th className="px-4 py-2.5 text-left whitespace-nowrap">
                         <SortableHeader label="TUTOR NAME" field="tutorName" />
                       </th>
-                      <th className="px-4 py-2.5 text-left">
-                        <SortableHeader label="GRADE LEVEL HANDLED" field="gradeLevel" />
-                      </th>
-                      <th className="px-4 py-2.5 text-left">
-                        <SortableHeader label="SECTION HANDLED" field="section" />
-                      </th>
-                      <th className="px-4 py-2.5 text-left">
-                        <SortableHeader label="SUBJECT HANDLED" field="subject" />
-                      </th>
-                      <th className="px-4 py-2.5 text-left">
-                        <SortableHeader label="ARAL LEVEL" field="aralLevel" />
-                      </th>
-                      <th className="px-4 py-2.5 text-center">
+                      <th className="px-4 py-2.5 text-center whitespace-nowrap">
                         <SortableHeader label="TOTAL STUDENTS" field="assignedCount" align="center" />
                       </th>
-                      <th className="px-4 py-2.5 text-center">
+                      <th className="px-4 py-2.5 text-center whitespace-nowrap">
                         <SortableHeader label="STATUS" field="status" align="center" />
                       </th>
                     </tr>
@@ -890,18 +1130,6 @@ export const AdminEvaluationHub: React.FC = () => {
                                 <span>{row.tutorName}</span>
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
-                              {row.gradeLevel}
-                            </td>
-                            <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium uppercase">
-                              {row.section}
-                            </td>
-                            <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
-                              {row.subject}
-                            </td>
-                            <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium uppercase">
-                              {row.aralLevel}
-                            </td>
                             <td className="px-4 py-3 text-center text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
                               {row.assignedCount} Students
                             </td>
@@ -910,7 +1138,9 @@ export const AdminEvaluationHub: React.FC = () => {
                                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
                                   row.status === 'Completed'
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
-                                    : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60'
+                                    : row.status === 'Pending'
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60'
+                                    : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
                                 }`}
                               >
                                 {row.status}
@@ -918,87 +1148,32 @@ export const AdminEvaluationHub: React.FC = () => {
                             </td>
                           </tr>
 
-                          {/* Expandable Sub-Table: Students Handled by this Tutor */}
+                          {/* Expandable Sub-Table: Classes and Students Handled by this Tutor */}
                           {isExpanded && (
                             <tr className="bg-slate-50/40 dark:bg-zinc-950/40">
-                              <td colSpan={7} className="p-0">
-                                <div className="p-4 sm:p-5 border-y border-slate-200 dark:border-zinc-800 space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wide">
-                                      Students Handled by {row.tutorName} &bull; {row.section} ({row.students.length} Students)
-                                    </span>
-                                  </div>
-
+                              <td colSpan={3} className="p-0">
+                                <div className="p-4 sm:p-5 border-y border-slate-200 dark:border-zinc-800 space-y-5">
                                   {row.students.length === 0 ? (
-                                    <div className="p-6 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A] rounded-xl border border-slate-200 dark:border-zinc-800">
+                                    <div className="p-4 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A] rounded-xl border border-slate-200 dark:border-zinc-800">
                                       No students assigned to this tutor for this semester.
                                     </div>
                                   ) : (
-                                    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
-                                      <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
-                                        <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
-                                          <tr>
-                                            <th className="w-10 px-3 py-2 text-center">#</th>
-                                            <th className="px-3 py-2 text-left">STUDENT NAME</th>
-                                            <th className="px-3 py-2 text-left">LRN</th>
-                                            <th className="px-3 py-2 text-left">ARAL LEVEL</th>
-                                            <th className="px-3 py-2 text-center">FINAL AVG ATTENDANCE RATE</th>
-                                            <th className="px-3 py-2 text-center">FINAL AVG SCORE</th>
-                                            <th className="px-3 py-2 text-center">FINAL AVG COMPOSITE</th>
-                                            <th className="px-3 py-2 text-center">
-                                              {activeTab === 'mosy' ? 'MOSY ASSESSMENT' : activeTab === 'eosy' ? 'EOSY ASSESSMENT' : 'SUMMER ASSESSMENT'}
-                                            </th>
-                                            <th className="px-3 py-2 text-center">STATUS</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
-                                          {row.students.map((st, idx) => (
-                                            <tr
-                                              key={st.id}
-                                              className="divide-x divide-gray-100 dark:divide-[#1A1A1A] hover:bg-gray-50/70 dark:hover:bg-white/[0.02] transition-colors"
-                                            >
-                                              <td className="px-3 py-2.5 text-center text-slate-400 font-medium">{idx + 1}</td>
-                                              <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
-                                                {st.name}
-                                              </td>
-                                              <td className="px-3 py-2.5 font-mono text-slate-600 dark:text-slate-300">
-                                                {st.lrn}
-                                              </td>
-                                              <td className="px-3 py-2.5 font-medium uppercase text-slate-700 dark:text-slate-300">
-                                                {st.aralLevel}
-                                              </td>
-                                              <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
-                                                {st.attendanceRate.toFixed(1)}%
-                                              </td>
-                                              <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
-                                                {st.avgScore.toFixed(1)}%
-                                              </td>
-                                              <td className="px-3 py-2.5 text-center font-bold text-slate-900 dark:text-white">
-                                                {st.compositeScore.toFixed(1)}%
-                                              </td>
-                                              <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200">
-                                                {st.assessmentScoreStr}
-                                              </td>
-                                              <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                                                <span
-                                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                                                    st.status === 'PASSED'
-                                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
-                                                      : st.status === 'RETAINED'
-                                                      ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60'
-                                                      : 'bg-amber-50/70 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/40'
-                                                  }`}
-                                                >
-                                                  {st.status}
-                                                </span>
-                                              </td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  )}
-                                </div>
+                                    (() => {
+                                      const allSections = buildTutorClassSections(row.tutorUser, row.students);
+                                      const activeSections = allSections.filter((cls) => cls.students.length > 0);
+                                      const displaySections = activeSections.length > 0 ? activeSections : allSections;
+
+                                      return displaySections.map((cls) => (
+                                        <TutorClassSectionTable
+                                          key={cls.key}
+                                          cls={cls}
+                                          activeTab={activeTab}
+                                          isWindowOpen={isWindowOpen}
+                                        />
+                                      ));
+                                })()
+                              )}
+                            </div>
                               </td>
                             </tr>
                           )}

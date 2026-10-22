@@ -105,7 +105,7 @@ export const buildScoreFilename = (
     .replace(/\s*-\s*/g, '-')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
-    .replace(/[^A-Z0-9_\-]/g, '');
+    .replace(/[^A-Z0-9_-]/g, '');
 
   // Normalise date/date-range:
   //   "09/15/2026"                   → "09_15_2026"
@@ -126,21 +126,27 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Student Score Sheet');
 
-  // Page setup with calibrated margins and 1-page fit
+  // Page setup with calibrated margins and strict 1-page fit
+  const totalStudents = Math.max(data.students.length, 1);
   const paperCode: any = data.paperSize === 'letter' ? 1 : data.paperSize === 'folio' ? 14 : 9;
+  const pageHeightPt = data.paperSize === 'folio' ? 936 : data.paperSize === 'a4' ? 842 : 792;
+  const rawRowBudget = (pageHeightPt - (data.taskTitle ? 275 : 260)) / totalStudents;
+  const isDense = rawRowBudget < 13.5;
+  const isCompact = rawRowBudget >= 13.5 && rawRowBudget < 17;
+
   worksheet.pageSetup = {
     orientation: 'portrait',
     paperSize: paperCode,
     fitToPage: true,
     fitToWidth: 1,
-    fitToHeight: data.students.length > 25 ? 0 : 1,
+    fitToHeight: 1,
     margins: {
       left: 0.4,
       right: 0.4,
-      top: 0.5,
-      bottom: 0.4,
-      header: 0.2,
-      footer: 0.2,
+      top: isDense ? 0.3 : isCompact ? 0.35 : 0.45,
+      bottom: isDense ? 0.25 : isCompact ? 0.3 : 0.35,
+      header: 0.15,
+      footer: 0.15,
     },
   };
 
@@ -167,7 +173,7 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
     { key: 'colB', width: totalDayCols <= 1 ? 36 : totalDayCols <= 5 ? 30 : 26 }, // NAME OF THE STUDENTS
   ];
 
-  allEntryCols.forEach((col, idx) => {
+  allEntryCols.forEach((_, idx) => {
     columnsDef.push({
       key: `day_entry_${idx}`,
       width: totalDayCols <= 1 ? 16 : totalDayCols <= 5 ? 13 : 11.5,
@@ -209,15 +215,9 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
     fgColor: colorHeaderBg,
   };
 
-  const whiteFill: ExcelJS.Fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FFFFFFFF' },
-  };
-
   // Row 1: Formal Top Margin Spacing
   const row1 = worksheet.getRow(1);
-  row1.height = 24;
+  row1.height = isDense ? 14 : 24;
 
   // Header rows heights matching official DepEd letterhead standard
   worksheet.getRow(2).height = 18;
@@ -371,7 +371,7 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
 
   // Row 10: Blank spacing below Grade & Section / Task
   const row10 = worksheet.getRow(10);
-  row10.height = 14;
+  row10.height = isDense ? 8 : 14;
 
   // 11. Week # and Date Row
   const row11 = worksheet.getRow(11);
@@ -413,7 +413,7 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
 
   // Row 13: Single Header Row with Dates
   const row13 = worksheet.getRow(13);
-  row13.height = 20;
+  row13.height = isDense ? 17 : 20;
 
   const cellA13 = worksheet.getCell('A13');
   cellA13.value = '#';
@@ -448,8 +448,14 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
 
   let currentRow = 14;
 
-  // Data rows
-  const totalStudents = Math.max(data.students.length, 1);
+  // Data rows (dynamically scaled row height & font size based on student count and paper size)
+  const studentRowHeight = Math.min(18.5, Math.max(11.5, Math.round(rawRowBudget * 10) / 10));
+  const studentFontSize =
+    studentRowHeight >= 17 ? 9.5 :
+    studentRowHeight >= 15 ? 9 :
+    studentRowHeight >= 13.5 ? 8.5 :
+    studentRowHeight >= 12 ? 8 : 7.5;
+
   data.students.forEach((student, index) => {
     const sRow = worksheet.getRow(currentRow);
     const rowValues: any[] = [index + 1, student.name.toUpperCase()];
@@ -462,12 +468,12 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
     rowValues.push(student.totalScore !== undefined && student.totalScore !== '' ? student.totalScore : '');
 
     sRow.values = rowValues;
-    sRow.height = totalStudents > 22 ? 17 : 18.5;
+    sRow.height = studentRowHeight;
 
     sRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
       cell.font = {
         name: fontMain,
-        size: totalStudents > 22 ? 8.5 : 9.5,
+        size: studentFontSize,
         bold: colNumber === 2 || colNumber === totalCols,
         color: colorSlate900,
       };
@@ -475,15 +481,16 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
       if (colNumber === 1 || colNumber >= 3) {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       } else {
-        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+        cell.alignment = { horizontal: 'left', vertical: 'middle', shrinkToFit: true, wrapText: false };
       }
     });
 
     currentRow++;
   });
 
-  // Footer Signatures
-  currentRow += 2; // Spacing below table
+  // Footer Signatures (Order: 1. Line for signature, 2. Fullname below line, 3. Role below fullname)
+  worksheet.getRow(currentRow).height = isDense ? 8 : isCompact ? 12 : 16;
+  currentRow++;
 
   // Calculate right signature column bounds (target width >= 34 units for generous readable clearance)
   let rightSigWidth = 0;
@@ -497,6 +504,7 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
     }
   }
   const rightSigStartLetter = getExcelColumnLetter(rightSigStartCol);
+  const sigNameFontSize = isDense ? 9.5 : 10;
 
   // Prepared by (Tutor) - merged across rightSigStartLetter to lastColLetter
   worksheet.mergeCells(`${rightSigStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
@@ -504,39 +512,39 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
   preparedByLabel.value = 'Prepared by:';
   preparedByLabel.font = { name: fontMain, size: 9.5, italic: true, color: colorSlate900 };
   preparedByLabel.alignment = { horizontal: 'left', vertical: 'middle' };
-  worksheet.getRow(currentRow).height = 18;
+  worksheet.getRow(currentRow).height = isDense ? 14 : 16;
 
-  // 3 blank rows for physical pen signing clearance
-  worksheet.getRow(currentRow + 1).height = 14;
-  worksheet.getRow(currentRow + 2).height = 16;
-  worksheet.getRow(currentRow + 3).height = 16;
-  currentRow += 4;
-
-  worksheet.mergeCells(`${rightSigStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
-  const tutorCell = worksheet.getCell(`${rightSigStartLetter}${currentRow}`);
-  tutorCell.value = data.tutorName.toUpperCase();
-  tutorCell.font = { name: fontMain, size: 10.5, bold: true, color: colorSlate900 };
-  tutorCell.alignment = { horizontal: 'center', vertical: 'middle', shrinkToFit: true, wrapText: false };
-  worksheet.getRow(currentRow).height = 22;
-
+  // 1. Blank rows for physical pen signing clearance + Signature Line at the bottom of signing space
+  worksheet.getRow(currentRow + 1).height = isDense ? 10 : isCompact ? 12 : 14;
+  worksheet.getRow(currentRow + 2).height = isDense ? 12 : isCompact ? 14 : 16;
   for (let c = rightSigStartCol; c <= totalCols; c++) {
-    worksheet.getCell(`${getExcelColumnLetter(c)}${currentRow}`).border = {
+    worksheet.getCell(`${getExcelColumnLetter(c)}${currentRow + 2}`).border = {
       bottom: { style: 'medium', color: colorSlate900 },
     };
   }
+  currentRow += 3;
 
+  // 2. Tutor Fullname below the signature line
+  worksheet.mergeCells(`${rightSigStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
+  const tutorCell = worksheet.getCell(`${rightSigStartLetter}${currentRow}`);
+  tutorCell.value = data.tutorName.toUpperCase();
+  tutorCell.font = { name: fontMain, size: sigNameFontSize, bold: true, color: colorSlate900 };
+  tutorCell.alignment = { horizontal: 'center', vertical: 'middle', shrinkToFit: true, wrapText: false };
+  worksheet.getRow(currentRow).height = isDense ? 16 : 19;
+
+  // 3. Tutor Role below the fullname
   currentRow++;
   worksheet.mergeCells(`${rightSigStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
   const tutorTitleCell = worksheet.getCell(`${rightSigStartLetter}${currentRow}`);
-  tutorTitleCell.value = data.tutorTitle;
+  tutorTitleCell.value = data.tutorTitle || 'ARAL Tutor';
   tutorTitleCell.font = { name: fontMain, size: 9, color: colorSlate600 };
   tutorTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  worksheet.getRow(currentRow).height = 16;
+  worksheet.getRow(currentRow).height = 15;
 
   // Spacing between Tutor block and Checked/Noted block
-  worksheet.getRow(currentRow + 1).height = 14;
-  worksheet.getRow(currentRow + 2).height = 16;
-  currentRow += 3;
+  currentRow++;
+  worksheet.getRow(currentRow).height = isDense ? 10 : isCompact ? 12 : 16;
+  currentRow++;
 
   // Checked (Column A:B merged for ~35 unit width) and Noted (Right columns, width >= 34)
   worksheet.mergeCells(`A${currentRow}:B${currentRow}`);
@@ -550,56 +558,52 @@ export const exportScoresToExcel = async (data: ScoreExportData) => {
   notedLabel.value = 'Noted:';
   notedLabel.font = { name: fontMain, size: 9.5, italic: true, color: colorSlate900 };
   notedLabel.alignment = { horizontal: 'left', vertical: 'middle' };
-  worksheet.getRow(currentRow).height = 18;
+  worksheet.getRow(currentRow).height = isDense ? 14 : 16;
 
-  // 3 blank rows for physical pen signing clearance
-  worksheet.getRow(currentRow + 1).height = 14;
-  worksheet.getRow(currentRow + 2).height = 16;
-  worksheet.getRow(currentRow + 3).height = 16;
-  currentRow += 4;
-
-  // Checked Name (in Columns A:B merged for ~35 unit width)
-  worksheet.mergeCells(`A${currentRow}:B${currentRow}`);
-  const checkedCell = worksheet.getCell(`A${currentRow}`);
-  checkedCell.value = data.checkedName.toUpperCase();
-  checkedCell.font = { name: fontMain, size: 10.5, bold: true, color: colorSlate900 };
-  checkedCell.alignment = { horizontal: 'center', vertical: 'middle', shrinkToFit: true, wrapText: false };
-  worksheet.getRow(currentRow).height = 22;
-  worksheet.getCell(`A${currentRow}`).border = { bottom: { style: 'medium', color: colorSlate900 } };
-  worksheet.getCell(`B${currentRow}`).border = { bottom: { style: 'medium', color: colorSlate900 } };
-
-  // Noted Name (in right columns merged for width >= 34 units)
-  worksheet.mergeCells(`${rightSigStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
-  const notedCell = worksheet.getCell(`${rightSigStartLetter}${currentRow}`);
-  notedCell.value = data.notedName.toUpperCase();
-  notedCell.font = { name: fontMain, size: 10.5, bold: true, color: colorSlate900 };
-  notedCell.alignment = { horizontal: 'center', vertical: 'middle', shrinkToFit: true, wrapText: false };
-  worksheet.getRow(currentRow).height = 22;
+  // 1. Blank rows for physical pen signing clearance + Signature Lines at the bottom of signing space
+  worksheet.getRow(currentRow + 1).height = isDense ? 10 : isCompact ? 12 : 14;
+  worksheet.getRow(currentRow + 2).height = isDense ? 12 : isCompact ? 14 : 16;
+  worksheet.getCell(`A${currentRow + 2}`).border = { bottom: { style: 'medium', color: colorSlate900 } };
+  worksheet.getCell(`B${currentRow + 2}`).border = { bottom: { style: 'medium', color: colorSlate900 } };
   for (let c = rightSigStartCol; c <= totalCols; c++) {
-    worksheet.getCell(`${getExcelColumnLetter(c)}${currentRow}`).border = {
+    worksheet.getCell(`${getExcelColumnLetter(c)}${currentRow + 2}`).border = {
       bottom: { style: 'medium', color: colorSlate900 },
     };
   }
+  currentRow += 3;
 
+  // 2. Checked & Noted Fullnames below the signature lines
+  worksheet.mergeCells(`A${currentRow}:B${currentRow}`);
+  const checkedCell = worksheet.getCell(`A${currentRow}`);
+  checkedCell.value = data.checkedName.toUpperCase();
+  checkedCell.font = { name: fontMain, size: sigNameFontSize, bold: true, color: colorSlate900 };
+  checkedCell.alignment = { horizontal: 'center', vertical: 'middle', shrinkToFit: true, wrapText: false };
+
+  worksheet.mergeCells(`${rightSigStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
+  const notedCell = worksheet.getCell(`${rightSigStartLetter}${currentRow}`);
+  notedCell.value = data.notedName.toUpperCase();
+  notedCell.font = { name: fontMain, size: sigNameFontSize, bold: true, color: colorSlate900 };
+  notedCell.alignment = { horizontal: 'center', vertical: 'middle', shrinkToFit: true, wrapText: false };
+  worksheet.getRow(currentRow).height = isDense ? 16 : 19;
+
+  // 3. Checked & Noted Roles below the fullnames
   currentRow++;
-  // Checked Title (Columns A:B merged)
   worksheet.mergeCells(`A${currentRow}:B${currentRow}`);
   const checkedTitleCell = worksheet.getCell(`A${currentRow}`);
   checkedTitleCell.value = data.checkedTitle;
   checkedTitleCell.font = { name: fontMain, size: 9, color: colorSlate600 };
   checkedTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
-  // Noted Title (Right columns merged)
   worksheet.mergeCells(`${rightSigStartLetter}${currentRow}:${lastColLetter}${currentRow}`);
   const notedTitleCell = worksheet.getCell(`${rightSigStartLetter}${currentRow}`);
   notedTitleCell.value = data.notedTitle;
   notedTitleCell.font = { name: fontMain, size: 9, color: colorSlate600 };
   notedTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  worksheet.getRow(currentRow).height = 16;
+  worksheet.getRow(currentRow).height = 15;
 
   // Bottom margin spacing row
   currentRow++;
-  worksheet.getRow(currentRow).height = 24;
+  worksheet.getRow(currentRow).height = isDense ? 8 : 16;
 
   // Generate buffer & trigger download
   const buffer = await workbook.xlsx.writeBuffer();

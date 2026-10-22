@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+﻿import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
@@ -20,6 +20,8 @@ import {
   getActiveSystemSemester,
   setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
+import { TutorCohortFilter } from '../../components/TutorCohortFilter';
+import { useTutorCohortFilter, isStudentInCohort, getTutorClassViewLabel, getCachedTutorStudents } from '../../utils/tutorCohortHelpers';
 
 interface TutorChartPoint {
   label: string;
@@ -392,11 +394,10 @@ import { getStudentAvatarColor as avatarColor } from '../../utils/studentFormatt
 export const TutorHome: React.FC = () => {
   const { user } = useAuth();
 
-
-  const [students, setStudents] = useState<User[]>([]);
+  const [students, setStudents] = useState<User[]>(() => getCachedTutorStudents(user?.id));
   const [grades, setGrades] = useState<Grade[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => getCachedTutorStudents(user?.id).length === 0);
   const [error, setError] = useState<string | null>(null);
   const [trendFilter, setTrendFilter] = useState<TrendFilter>('week');
 
@@ -424,8 +425,31 @@ export const TutorHome: React.FC = () => {
     load();
   }, [user]);
 
-  const studentStats = useMemo(() => computeStudentStats(students, grades, attendance), [students, grades, attendance]);
-  const totalStudents = students.length;
+  const {
+    selectedAralLevel,
+    setSelectedAralLevel,
+    selectedSubject,
+    setSelectedSubject,
+    selectedCohort,
+    setSelectedCohort,
+    setSelectedCohortFilter,
+  } = useTutorCohortFilter(user, { allowAll: true, defaultToAll: true });
+
+  const filteredStudents = useMemo(() => {
+    return students.filter((s) =>
+      isStudentInCohort(s, {
+        aral_level: selectedAralLevel,
+        subject: selectedSubject,
+        cohort: selectedCohort,
+      })
+    );
+  }, [students, selectedAralLevel, selectedSubject, selectedCohort]);
+
+  const studentStats = useMemo(
+    () => computeStudentStats(filteredStudents, grades, attendance),
+    [filteredStudents, grades, attendance]
+  );
+  const totalStudents = filteredStudents.length;
 
   const avgAttendance = useMemo(() => {
     if (studentStats.length === 0) return 0;
@@ -438,7 +462,22 @@ export const TutorHome: React.FC = () => {
     return Math.round((withScores.reduce((acc, s) => acc + s.scoreAvg, 0) / withScores.length) * 10) / 10;
   }, [studentStats]);
 
-  const hasScoreData = grades.some((grade) => grade.remarks?.trim().toLowerCase() !== 'not taken');
+  const filteredStudentIds = useMemo(() => new Set(filteredStudents.map((s) => String(s.id))), [filteredStudents]);
+
+  const hasScoreData = useMemo(() => {
+    return grades.some(
+      (grade) =>
+        filteredStudentIds.has(String(grade.student)) &&
+        grade.remarks?.trim().toLowerCase() !== 'not taken'
+    );
+  }, [grades, filteredStudentIds]);
+
+  const hasAttendanceData = useMemo(() => {
+    return attendance.some((att) => {
+      const uid = String((att as any).user?.id || (att as any).user || (att as any).student?.id || (att as any).student || '');
+      return filteredStudentIds.has(uid);
+    });
+  }, [attendance, filteredStudentIds]);
 
   const atRiskStudents = useMemo(
     () => studentStats
@@ -486,10 +525,36 @@ export const TutorHome: React.FC = () => {
     return getActiveSystemMilestone();
   }, [activeSystemSem]);
 
+  const classViewLabel = useMemo(() => {
+    return getTutorClassViewLabel({
+      user,
+      selectedAralLevel,
+      selectedSubject,
+      selectedCohort,
+    });
+  }, [user, selectedAralLevel, selectedSubject, selectedCohort]);
+
+  const performanceTrendTitle = useMemo(() => {
+    if (!classViewLabel) {
+      return 'STUDENTS PERFORMANCE TREND';
+    }
+    return `${classViewLabel}'S PERFORMANCE TREND`;
+  }, [classViewLabel]);
+
+  const topAtRiskTitle = useMemo(() => {
+    if (!classViewLabel) {
+      return 'ALL TOP AT-RISK STUDENTS';
+    }
+    return `${classViewLabel}'S TOP AT-RISK`;
+  }, [classViewLabel]);
+
   const last4WeeksData = useMemo(() => {
-    if (students.length === 0 || grades.length === 0) return [];
-    const studentIds = new Set(students.map((s) => String(s.id)));
-    const assessmentGrades = grades.filter((g) => studentIds.has(String(g.student)) && g.component_type === 'assessment');
+    if (filteredStudents.length === 0 || grades.length === 0) return [];
+    const studentIds = new Set(filteredStudents.map((s) => String(s.id)));
+    const assessmentGrades = grades.filter((g) => {
+      if (!studentIds.has(String(g.student)) || g.component_type !== 'assessment') return false;
+      return true;
+    });
     if (assessmentGrades.length === 0) return [];
 
     const now = new Date();
@@ -639,7 +704,7 @@ export const TutorHome: React.FC = () => {
         assessmentLabels: p.assessmentLabels,
       };
     });
-  }, [students, grades, attendance, trendFilter]);
+  }, [filteredStudents, grades, attendance, trendFilter]);
 
   const highestScore = useMemo(() => last4WeeksData.length === 0 ? 0 : Math.max(...last4WeeksData.map((d) => d.value)), [last4WeeksData]);
   const lowestScore = useMemo(() => last4WeeksData.length === 0 ? 0 : Math.min(...last4WeeksData.map((d) => d.value)), [last4WeeksData]);
@@ -659,9 +724,9 @@ export const TutorHome: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:h-[calc(100vh-8.5rem)] lg:min-h-[32rem] skeleton-container w-full min-w-0 max-w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-4 lg:items-start gap-3 skeleton-container w-full min-w-0 max-w-full">
         {/* Left Section skeleton: 3 top cards + Chart below */}
-        <div className="lg:col-span-3 flex flex-col gap-3 h-full min-h-0 w-full min-w-0 max-w-full">
+        <div className="lg:col-span-3 flex flex-col gap-3 w-full min-w-0 max-w-full">
           {/* 3 KPI Cards skeleton */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 skeleton-row-1">
             <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3.5 h-[116px] sm:h-[120px] animate-pulse flex flex-col justify-between">
@@ -690,26 +755,26 @@ export const TutorHome: React.FC = () => {
           </div>
 
           {/* Chart card skeleton */}
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-5 flex flex-col flex-1 min-h-0 animate-pulse">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0 pb-3.5 sm:pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
-              <div>
-                <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800 mt-0.5" />
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-3.5 sm:px-5 flex flex-col h-[372px] sm:h-[388px] overflow-hidden animate-pulse">
+            <div className="flex items-center justify-between gap-2 shrink-0 pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+              <div className="min-w-0 flex-1">
+                <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0 flex-nowrap">
                 <div className="h-4 w-28 rounded bg-gray-100 dark:bg-gray-800 hidden sm:block" />
                 <div className="h-4 w-20 rounded bg-gray-100 dark:bg-gray-800 hidden sm:block" />
-                <div className="h-7 w-28 rounded-md bg-gray-100 dark:bg-gray-800" />
+                <div className="h-7 w-24 rounded-md bg-gray-100 dark:bg-gray-800" />
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3.5 sm:mt-4">
+            <div className="flex-1 flex flex-col min-h-0 gap-2.5 mt-3">
               <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-sm" />
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1 shrink-0">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 shrink-0">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1 skeleton-row-3">
                   {[1, 2, 3, 4].map((j) => (
-                    <div key={j} className="bg-gray-50 dark:bg-[#111111] p-2 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
+                    <div key={j} className="bg-gray-50 dark:bg-[#111111] px-2 py-1.5 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
                       <div className="h-2.5 w-12 rounded bg-gray-200 dark:bg-gray-800 mx-auto" />
-                      <div className="h-5 w-14 rounded bg-gray-200 dark:bg-gray-800 mx-auto mt-1" />
+                      <div className="h-4 w-14 rounded bg-gray-200 dark:bg-gray-800 mx-auto mt-1" />
                     </div>
                   ))}
                 </div>
@@ -718,8 +783,8 @@ export const TutorHome: React.FC = () => {
           </div>
         </div>
 
-        {/* At-Risk panel skeleton (spans from top to bottom) */}
-        <div className="lg:col-span-1 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md flex flex-col h-full min-h-0 overflow-hidden animate-pulse">
+        {/* At-Risk panel skeleton */}
+        <div className="lg:col-span-1 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md flex flex-col h-[420px] lg:h-[520px] overflow-hidden animate-pulse">
           <div className="px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] flex items-center justify-between shrink-0">
             <div className="h-4 w-36 rounded bg-gray-200 dark:bg-gray-800" />
             <div className="h-5 w-7 rounded-full bg-rose-100 dark:bg-rose-950/40" />
@@ -759,9 +824,28 @@ export const TutorHome: React.FC = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:h-[calc(100vh-8.5rem)] lg:min-h-[32rem] data-loaded-content w-full min-w-0 max-w-full">
+    <div className="space-y-3 w-full min-w-0 max-w-full data-loaded-content">
+      {/* ── Tutor Multi-Cohort Filter (ARAL Level, Subject, Grade - Section) ── */}
+      <TutorCohortFilter
+        user={user}
+        students={students}
+        isLoading={isLoading}
+        selectedAralLevel={selectedAralLevel}
+        onSelectAralLevel={setSelectedAralLevel}
+        selectedSubject={selectedSubject}
+        onSelectSubject={setSelectedSubject}
+        selectedCohort={selectedCohort}
+        onSelectCohort={setSelectedCohort}
+        onSelectClass={(level, subject, cohort) =>
+          setSelectedCohortFilter({ aral_level: level, subject, cohort })
+        }
+        allowAll={true}
+        title="CURRENT CLASS FOR VIEW"
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 lg:items-start gap-3 w-full min-w-0 max-w-full">
       {/* ── Left 3-Column Section: 3 Top Summary Cards + Chart Below ──── */}
-      <div className="lg:col-span-3 flex flex-col gap-3 h-full min-h-0 w-full min-w-0 max-w-full">
+      <div className="lg:col-span-3 flex flex-col gap-3 w-full min-w-0 max-w-full">
         {/* Row 1: My Students | Avg Attendance & Scores | High/Medium/Low Risk */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 w-full min-w-0 max-w-full">
           {/* 1. My Students */}
@@ -783,8 +867,8 @@ export const TutorHome: React.FC = () => {
               className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
             >
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">AVERAGE ATTENDANCE</p>
-              <p className={`text-base sm:text-lg font-extrabold shrink-0 ${attendance.length === 0 ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
-                {attendance.length === 0 ? '—' : `${avgAttendance}%`}
+              <p className={`text-base sm:text-lg font-extrabold shrink-0 ${!hasAttendanceData ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                {!hasAttendanceData ? '—' : `${avgAttendance}%`}
               </p>
             </Link>
             <Link
@@ -825,30 +909,30 @@ export const TutorHome: React.FC = () => {
         </div>
 
         {/* Row 2: Performance Trend Chart */}
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3.5 sm:px-5 flex flex-col flex-1 min-h-0 w-full min-w-0 max-w-full">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 shrink-0 pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-            <div className="min-w-0">
-              <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight truncate">Students Performance Trend</h3>
+        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3 sm:px-5 sm:py-3.5 flex flex-col h-[372px] sm:h-[388px] overflow-hidden w-full min-w-0 max-w-full">
+          <div className="flex items-center justify-between gap-2 shrink-0 pb-2 sm:pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight truncate">{performanceTrendTitle}</h3>
             </div>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-between sm:justify-end min-w-0">
-              <div className="flex items-center gap-2 xs:gap-3 shrink-0">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300">
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
+              <div className="hidden xs:flex items-center gap-2 sm:gap-3 shrink-0 whitespace-nowrap">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 whitespace-nowrap">
                   <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
-                  <span className="hidden xs:inline">Composite rating</span>
-                  <span className="xs:hidden">Composite</span>
+                  <span className="hidden sm:inline whitespace-nowrap">Composite rating</span>
+                  <span className="sm:hidden whitespace-nowrap">Composite</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400 whitespace-nowrap">
                   <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block shrink-0" />
-                  <span className="truncate max-w-[120px] xs:max-w-none">{tutorMilestone}</span>
+                  <span className="truncate max-w-[100px] sm:max-w-none whitespace-nowrap">{tutorMilestone}</span>
                 </div>
               </div>
-              <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0">
+              <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
                 {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                   <button
                     key={filter}
                     type="button"
                     onClick={() => setTrendFilter(filter)}
-                    className={`rounded-sm px-2.5 sm:px-3 py-1.5 text-[10px] font-bold uppercase transition-all cursor-pointer ${trendFilter === filter ? 'bg-[var(--brand)] text-white shadow-xs' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                    className={`rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${trendFilter === filter ? 'bg-[var(--brand)] text-white shadow-xs' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                       }`}
                   >
                     {filter}
@@ -858,8 +942,8 @@ export const TutorHome: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3 sm:mt-4">
-            <div className="relative flex-1 min-h-[180px] xs:min-h-[200px] sm:min-h-[220px] w-full min-w-0 max-w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-5 sm:py-2.5 overflow-hidden">
+          <div className="flex-1 flex flex-col justify-between min-h-0 gap-2 sm:gap-2.5 mt-2.5 sm:mt-3">
+            <div className="relative flex-1 min-h-0 w-full min-w-0 max-w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-5 sm:py-2.5 overflow-hidden">
               {last4WeeksData.length > 0 ? (
                 <InteractiveTutorChart data={last4WeeksData} trendFilter={trendFilter} />
               ) : (
@@ -875,7 +959,7 @@ export const TutorHome: React.FC = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
               {[
                 {
                   label: 'Highest',
@@ -888,28 +972,28 @@ export const TutorHome: React.FC = () => {
                   color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : lowestScore >= 81 ? 'text-risk-low' : lowestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
                 },
               ].map((stat) => (
-                <div key={stat.label} className="bg-gray-50/80 dark:bg-[#111111] p-2.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">{stat.label}</p>
-                  <p className={`text-base sm:text-lg font-extrabold mt-0.5 ${stat.color}`}>{stat.value}</p>
+                <div key={stat.label} className="bg-gray-50/80 dark:bg-[#111111] px-2.5 py-1.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
+                  <p className="text-[9.5px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide leading-tight">{stat.label}</p>
+                  <p className={`text-sm sm:text-base font-extrabold mt-0.5 leading-tight ${stat.color}`}>{stat.value}</p>
                 </div>
               ))}
-              <div className="bg-gray-50/80 dark:bg-[#111111] p-2.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
-                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">Trend</p>
-                <div className="mt-0.5">
+              <div className="bg-gray-50/80 dark:bg-[#111111] px-2.5 py-1.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
+                <p className="text-[9.5px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide leading-tight">Trend</p>
+                <div className="mt-0.5 leading-tight">
                   {last4WeeksData.length === 0 ? (
-                    <span className="text-base sm:text-lg font-extrabold text-gray-400 dark:text-slate-500">—</span>
+                    <span className="text-sm sm:text-base font-extrabold text-gray-400 dark:text-slate-500">—</span>
                   ) : tutorTrendDir === 'up' ? (
-                    <span className="text-base sm:text-lg font-extrabold text-risk-low">Improving</span>
+                    <span className="text-sm sm:text-base font-extrabold text-risk-low">Improving</span>
                   ) : tutorTrendDir === 'down' ? (
-                    <span className="text-base sm:text-lg font-extrabold text-risk-high">Declining</span>
+                    <span className="text-sm sm:text-base font-extrabold text-risk-high">Declining</span>
                   ) : (
-                    <span className="text-base sm:text-lg font-extrabold text-gray-500 dark:text-slate-400">Stable</span>
+                    <span className="text-sm sm:text-base font-extrabold text-gray-500 dark:text-slate-400">Stable</span>
                   )}
                 </div>
               </div>
               <Link
                 to="/tutor/analytics"
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-4 py-2.5 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300"
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-3 py-1.5 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300"
               >
                 <span>See More</span>
                 <span className="font-bold" aria-hidden="true">&gt;</span>
@@ -919,14 +1003,17 @@ export const TutorHome: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Right 1-Column Section: Top At-Risk Panel Spanning Full Height ──── */}
-      <div className="lg:col-span-1 h-full min-h-0">
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-full flex flex-col max-h-[420px] lg:max-h-none shadow-2xs">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
-            <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase tracking-wider">
-              Top At-Risk
+      {/* ── Right 1-Column Section: Top At-Risk Panel (Fixed Height) ──── */}
+      <div className="lg:col-span-1 min-h-0">
+        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-[420px] lg:h-[520px] flex flex-col shadow-2xs">
+          <div className="flex items-center justify-between gap-1.5 px-3 sm:px-3.5 py-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
+            <h3
+              className="text-[9.5px] sm:text-[10px] xl:text-[9.5px] 2xl:text-[11px] font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate min-w-0"
+              title={topAtRiskTitle}
+            >
+              {topAtRiskTitle}
             </h3>
-            <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
+            <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
               {atRiskStudents.length}
             </span>
           </div>
@@ -939,7 +1026,7 @@ export const TutorHome: React.FC = () => {
                 <p className="text-xs text-gray-400 dark:text-slate-500">No high or medium risk students.</p>
               </div>
             ) : (
-              atRiskStudents.slice(0, 20).map((s) => (
+              atRiskStudents.map((s) => (
                 <Link
                   key={s.student.id}
                   to={`/tutor/students/${s.student.id}`}
@@ -974,6 +1061,7 @@ export const TutorHome: React.FC = () => {
         </div>
       </div>
     </div>
+  </div>
   );
 };
 

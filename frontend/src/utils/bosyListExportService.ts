@@ -195,7 +195,7 @@ export const exportBosyListToExcel = async (data: BosyExportData): Promise<void>
     '',
     '',
     '',
-    `TUTOR: ${(data.tutorName || 'RIZA J. GADIA').toUpperCase()}`,
+    `TUTOR: ${(data.tutorName || 'JUAN D. CRUZ').toUpperCase()}`,
     '',
     '',
     '',
@@ -269,7 +269,7 @@ export const exportBosyListToExcel = async (data: BosyExportData): Promise<void>
     (data.adviserName || 'HAROLD M. BALBUENA').toUpperCase(),
     '',
     '',
-    (data.tutorName || 'RIZA J. GADIA').toUpperCase(),
+    (data.tutorName || 'JUAN D. CRUZ').toUpperCase(),
     '',
     '',
   ]);
@@ -541,7 +541,7 @@ export const exportBosyListToDocx = async (data: BosyExportData): Promise<void> 
         font: 'Bookman Old Style',
       }),
       new TextRun({
-        text: `\t\t\t\tTUTOR: ${(data.tutorName || 'RIZA J. GADIA').toUpperCase()}`,
+        text: `\t\t\t\tTUTOR: ${(data.tutorName || 'JUAN D. CRUZ').toUpperCase()}`,
         size: 22, // 11pt
         bold: true,
         font: 'Bookman Old Style',
@@ -702,7 +702,7 @@ export const exportBosyListToDocx = async (data: BosyExportData): Promise<void> 
                 alignment: AlignmentType.CENTER,
                 children: [
                   new TextRun({
-                    text: (data.tutorName || 'RIZA J. GADIA').toUpperCase(),
+                    text: (data.tutorName || 'JUAN D. CRUZ').toUpperCase(),
                     size: 22,
                     bold: true,
                     underline: {},
@@ -892,7 +892,7 @@ export const exportBosyListToPdf = async (data: BosyExportData): Promise<void> =
   pdf.setFont('times', 'bold');
   pdf.setFontSize(11);
   pdf.text(`GRADE LEVEL: ${(data.gradeLevel || '7- HYACINTH').toUpperCase()}`, marginX, metaY);
-  pdf.text(`TUTOR: ${(data.tutorName || 'RIZA J. GADIA').toUpperCase()}`, pageWidth - marginX, metaY, { align: 'right' });
+  pdf.text(`TUTOR: ${(data.tutorName || 'JUAN D. CRUZ').toUpperCase()}`, pageWidth - marginX, metaY, { align: 'right' });
 
   // 8 Table Columns Widths
   const colWidths = [
@@ -1011,7 +1011,7 @@ export const exportBosyListToPdf = async (data: BosyExportData): Promise<void> =
   pdf.setFont('times', 'bold');
   pdf.setFontSize(11);
   pdf.text((data.adviserName || 'HAROLD M. BALBUENA').toUpperCase(), marginX + 60, sigY, { align: 'center' });
-  pdf.text((data.tutorName || 'RIZA J. GADIA').toUpperCase(), marginX + (availWidth / 2) + 90, sigY, { align: 'center' });
+  pdf.text((data.tutorName || 'JUAN D. CRUZ').toUpperCase(), marginX + (availWidth / 2) + 90, sigY, { align: 'center' });
 
   pdf.setFont('times', 'normal');
   pdf.setFontSize(11);
@@ -1090,7 +1090,7 @@ export const exportBosyListToCsv = (data: BosyExportData): void => {
     `"${data.title || 'BOSY LIST OF ARAL TUTEES'}"`,
     `"${data.schoolYear || '2026-2027'}"`,
     `"GRADE LEVEL: ${(data.gradeLevel || '7- HYACINTH')}"`,
-    `"TUTOR: ${(data.tutorName || 'RIZA J. GADIA')}"`,
+    `"TUTOR: ${(data.tutorName || 'JUAN D. CRUZ')}"`,
     '',
   ].join('\n');
 

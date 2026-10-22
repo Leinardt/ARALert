@@ -108,6 +108,31 @@ export const academicService = {
     return response.data;
   },
 
+  saveGradesBulk: async (
+    entriesToCreate: Partial<Grade>[],
+    entriesToUpdate: { id: number; data: Partial<Grade> }[] = []
+  ): Promise<Grade[]> => {
+    const payload = [
+      ...entriesToCreate,
+      ...entriesToUpdate.map(({ id, data }) => ({ id, ...data })),
+    ];
+    if (payload.length === 0) return [];
+
+    try {
+      const response = await api.post<Grade[]>('/academics/grades/', payload);
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (err: any) {
+      // Safe fallback if backend hasn't deployed bulk list support yet
+      if (err?.response?.status === 400 && err?.response?.data?.non_field_errors) {
+        return Promise.all([
+          ...entriesToCreate.map((entry) => academicService.createGrade(entry)),
+          ...entriesToUpdate.map(({ id, data }) => academicService.updateGrade(id, data)),
+        ]);
+      }
+      throw err;
+    }
+  },
+
   updateGrade: async (id: number, data: Partial<Grade>): Promise<Grade> => {
     const response = await api.patch<Grade>(`/academics/grades/${id}/`, data);
     return response.data;
@@ -181,8 +206,8 @@ export const academicService = {
     }
   },
 
-  closeAttendanceSession: async (sessionId: string): Promise<{ message: string; session: AttendanceSession }> => {
-    const response = await api.post<{ message: string; session: AttendanceSession }>(`/academics/attendance/session/${sessionId}/close/`);
+  closeAttendanceSession: async (sessionId: string, data?: { student_ids?: string[] }): Promise<{ message: string; session: AttendanceSession }> => {
+    const response = await api.post<{ message: string; session: AttendanceSession }>(`/academics/attendance/session/${sessionId}/close/`, data || {});
     return response.data;
   },
 
@@ -228,9 +253,21 @@ export const academicService = {
     return records;
   },
 
-  updateAttendance: async (id: number, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>): Promise<Attendance> => {
+  clearAttendanceHistory: async (params?: { date?: string; all?: boolean; student_ids?: string[] }): Promise<{ message: string; count: number }> => {
+    const response = await api.delete<{ message: string; count: number }>('/academics/attendance/history/', {
+      params: { date: params?.date, all: params?.all ? 'true' : undefined },
+      data: { student_ids: params?.student_ids },
+    });
+    return response.data;
+  },
+
+  updateAttendance: async (id: number | string, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>): Promise<Attendance> => {
     const response = await api.patch<Attendance>(`/academics/attendance/${id}/`, data);
     return response.data;
+  },
+
+  deleteAttendance: async (id: number | string): Promise<void> => {
+    await api.delete(`/academics/attendance/${id}/`);
   },
 
   getPrincipalDashboard: async (params: GetPrincipalDashboardParams = {}): Promise<PrincipalDashboardResponse> => {

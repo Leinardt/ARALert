@@ -106,17 +106,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
 
     class Subject(models.TextChoices):
-        READING = 'Reading', 'Reading'
-        SCIENCE = 'Science', 'Science'
-        MATH    = 'Math',    'Math'
-        ENGLISH = 'English', 'English'
+        FILIPINO = 'Filipino', 'Filipino'
+        SCIENCE  = 'Science',  'Science'
+        MATH     = 'Math',     'Math'
+        ENGLISH  = 'English',  'English'
 
     class TutorType(models.TextChoices):
         BASIC  = 'basic',  'Basic Tutor'
         PLUS   = 'plus',   'Plus Tutor'
         SUMMER = 'summer', 'Summer Tutor'
 
-    # Subject handled by the tutor or student subject focus (Reading, Science, Math, English)
+    # Subject handled by the tutor or student subject focus (Filipino, Science, Math, English)
     subject = models.CharField(
         max_length=20,
         choices=Subject.choices,
@@ -236,15 +236,20 @@ class User(AbstractBaseUser, PermissionsMixin):
     def clean(self):
         super().clean()
         if self.role == 'tutor':
-            # A tutor can only have ONE ARAL level handled (basic, plus, or summer)
-            level = (self.tutor_type or self.aral_level or 'basic').lower()
-            if level not in ('basic', 'plus', 'summer'):
+            combined = f"{self.tutor_type or ''} {self.aral_level or ''}".lower()
+            if ('basic' in combined and 'plus' in combined) or 'basic_plus' in combined or 'basic,plus' in combined:
+                level = 'basic,plus'
+            elif 'plus' in combined:
+                level = 'plus'
+            elif 'summer' in combined:
+                level = 'summer'
+            else:
                 level = 'basic'
             self.aral_level = level
             self.tutor_type = level
 
     def save(self, *args, **kwargs):
-        """Normalise name fields to uppercase; auto-generate username from email; enforce single tutor level."""
+        """Normalise name fields to uppercase; auto-generate username from email; enforce valid tutor level."""
         if self.first_name:
             self.first_name = self.first_name.upper().strip()
         if self.middle_name:
@@ -252,10 +257,19 @@ class User(AbstractBaseUser, PermissionsMixin):
         if self.last_name:
             self.last_name = self.last_name.upper().strip()
         if self.role == 'tutor':
-            level = (self.tutor_type or self.aral_level or 'basic').lower()
-            if level in ('basic', 'plus', 'summer'):
-                self.aral_level = level
-                self.tutor_type = level
+            combined = f"{self.tutor_type or ''} {self.aral_level or ''}".lower()
+            if ('basic' in combined and 'plus' in combined) or 'basic_plus' in combined or 'basic,plus' in combined:
+                level = 'basic,plus'
+            elif 'plus' in combined:
+                level = 'plus'
+            elif 'summer' in combined:
+                level = 'summer'
+            else:
+                level = 'basic'
+            self.aral_level = level
+            self.tutor_type = level
+        if self.subject and self.subject.strip().lower() == 'reading':
+            self.subject = 'Filipino'
         # Auto-generate username from email for Django internal compatibility
         if not self.username:
             self.username = self.email

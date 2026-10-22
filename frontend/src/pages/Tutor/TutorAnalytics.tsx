@@ -28,6 +28,14 @@ import {
   setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
+import { TutorCohortFilter } from '../../components/TutorCohortFilter';
+import {
+  useTutorCohortFilter,
+  isStudentInCohort,
+  getTutorClassViewLabel,
+  buildTutorClassSections,
+  getCachedTutorStudents,
+} from '../../utils/tutorCohortHelpers';
 
 interface ExtendedRiskRow extends StudentRiskRow {
   absentCount: number;
@@ -75,7 +83,7 @@ const getLogUserId = (log: Attendance | any): string => {
   if (typeof log.student === 'object' && log.student !== null) {
     return String(log.student.id ?? log.student.pk ?? log.student.user_id ?? '');
   }
-  return String(log.user ?? log.student ?? log.user_id ?? '');
+  return String(log.user ?? log.student ?? log.user_id ?? log.student_id ?? '');
 };
 
 const getGradeStudentId = (grade: Grade | any): string => {
@@ -83,7 +91,7 @@ const getGradeStudentId = (grade: Grade | any): string => {
   if (typeof grade.student === 'object' && grade.student !== null) {
     return String(grade.student.id ?? grade.student.pk ?? grade.student.user_id ?? '');
   }
-  return String(grade.student ?? grade.student_id ?? '');
+  return String(grade.student ?? grade.student_id ?? grade.user ?? grade.user_id ?? '');
 };
 
 const getRecordDate = (rec: any): Date | null => {
@@ -108,6 +116,84 @@ const isAbsentStatus = (status?: string | null): boolean => {
   return s === 'absent' || s === 'a';
 };
 
+const buildStudentIdSet = (students: User[]): Set<string> => {
+  const ids = new Set<string>();
+  students.forEach((s) => {
+    if (s.id) ids.add(String(s.id));
+    if (s.lrn) ids.add(String(s.lrn));
+    if ((s as any).user_id) ids.add(String((s as any).user_id));
+    if ((s as any).student_id) ids.add(String((s as any).student_id));
+  });
+  return ids;
+};
+
+const isNotTakenGrade = (grade: Grade | any): boolean => {
+  return String(grade?.remarks || '').trim().toLowerCase() === 'not taken';
+};
+
+const buildTrendPeriods = (
+  filter: TrendFilter,
+  anchorDate: Date,
+  recordedDates: Date[] = []
+): { start: Date; end: Date; label: string; dateKey: string }[] => {
+  const startOfAnchor = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), anchorDate.getDate(), 0, 0, 0, 0);
+  const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+  if (filter === 'day') {
+    const schoolDays = getRecentSchoolWeekdays(10, startOfAnchor);
+    const basePeriods = schoolDays.map((d) => {
+      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0);
+      return { start, end, label: formatDate(start), dateKey: toLocalDateKey(start) };
+    });
+    if (recordedDates.length === 0) return basePeriods;
+
+    const minStart = basePeriods.length > 0 ? basePeriods[0].start : startOfAnchor;
+    const maxEnd = basePeriods.length > 0 ? basePeriods[basePeriods.length - 1].end : new Date(startOfAnchor.getFullYear(), startOfAnchor.getMonth(), startOfAnchor.getDate() + 1, 0, 0, 0, 0);
+    const existingKeys = new Set(basePeriods.map((p) => p.dateKey));
+    const extraPeriods: { start: Date; end: Date; label: string; dateKey: string }[] = [];
+
+    recordedDates.forEach((rd) => {
+      if (rd >= minStart && rd < maxEnd) {
+        const start = new Date(rd.getFullYear(), rd.getMonth(), rd.getDate(), 0, 0, 0, 0);
+        const dateKey = toLocalDateKey(start);
+        if (!existingKeys.has(dateKey)) {
+          existingKeys.add(dateKey);
+          const end = new Date(rd.getFullYear(), rd.getMonth(), rd.getDate() + 1, 0, 0, 0, 0);
+          extraPeriods.push({ start, end, label: formatDate(start), dateKey });
+        }
+      }
+    });
+
+    if (extraPeriods.length > 0) {
+      return [...basePeriods, ...extraPeriods].sort((a, b) => a.start.getTime() - b.start.getTime()).slice(-10);
+    }
+    return basePeriods;
+  }
+
+  const periodCount = 6;
+  return Array.from({ length: periodCount }, (_, index) => {
+    const offset = periodCount - 1 - index;
+    let start: Date;
+    let end: Date;
+    let label: string;
+    if (filter === 'month') {
+      start = new Date(startOfAnchor.getFullYear(), startOfAnchor.getMonth() - offset, 1, 0, 0, 0, 0);
+      end = new Date(startOfAnchor.getFullYear(), startOfAnchor.getMonth() - offset + 1, 1, 0, 0, 0, 0);
+      label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+    } else {
+      const dayOfWeek = startOfAnchor.getDay();
+      const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const currentWeekMon = new Date(startOfAnchor.getFullYear(), startOfAnchor.getMonth(), startOfAnchor.getDate() + diffToMon, 0, 0, 0, 0);
+      start = new Date(currentWeekMon.getFullYear(), currentWeekMon.getMonth(), currentWeekMon.getDate() - offset * 7, 0, 0, 0, 0);
+      const fri = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 4, 0, 0, 0, 0);
+      end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7, 0, 0, 0, 0);
+      label = `${formatDate(start)} – ${formatDate(fri)}`;
+    }
+    return { start, end, label, dateKey: toLocalDateKey(start) };
+  });
+};
+
 const buildTrendPoints = (
   students: User[],
   grades: Grade[],
@@ -115,81 +201,74 @@ const buildTrendPoints = (
   metric: 'attendance' | 'score',
   filter: TrendFilter
 ): TrendPoint[] => {
-  const studentIds = new Set(students.map((student) => String(student.id)));
+  const studentIds = buildStudentIdSet(students);
+  if (studentIds.size === 0) return [];
+
+  const relevantAttendance = metric === 'attendance'
+    ? attendanceLogs.filter((log) => studentIds.has(getLogUserId(log)) && getRecordDate(log) !== null)
+    : [];
+  const relevantGrades = metric === 'score'
+    ? grades.filter((grade) => (
+        studentIds.has(getGradeStudentId(grade)) &&
+        grade.component_type !== 'attendance' &&
+        !isNotTakenGrade(grade) &&
+        Number(grade.total_score) > 0 &&
+        getRecordDate(grade) !== null
+      ))
+    : [];
+
+  if (metric === 'attendance' && relevantAttendance.length === 0) return [];
+  if (metric === 'score' && relevantGrades.length === 0) return [];
+
+  const recordedDates = (metric === 'attendance' ? relevantAttendance : relevantGrades)
+    .map((rec) => getRecordDate(rec))
+    .filter((d): d is Date => d !== null)
+    .sort((a, b) => a.getTime() - b.getTime());
+
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  let periods = buildTrendPeriods(filter, now, recordedDates);
 
-  let periods: { start: Date; end: Date; label: string; dateKey: string }[];
-  if (filter === 'day') {
-    const schoolDays = getRecentSchoolWeekdays(10, now);
-    periods = schoolDays.map((d) => {
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0);
-      return { start, end, label: formatDate(start), dateKey: toLocalDateKey(start) };
-    });
-  } else {
-    const periodCount = 6;
-    periods = Array.from({ length: periodCount }, (_, index) => {
-      const offset = periodCount - 1 - index;
-      let start: Date;
-      let end: Date;
-      let label: string;
-      if (filter === 'month') {
-        start = new Date(now.getFullYear(), now.getMonth() - offset, 1, 0, 0, 0, 0);
-        end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1, 0, 0, 0, 0);
-        label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
-      } else {
-        const dayOfWeek = now.getDay();
-        const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-        const currentWeekMon = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + diffToMon, 0, 0, 0, 0);
-        start = new Date(currentWeekMon.getFullYear(), currentWeekMon.getMonth(), currentWeekMon.getDate() - offset * 7, 0, 0, 0, 0);
-        const fri = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 4, 0, 0, 0, 0);
-        end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7, 0, 0, 0, 0);
-        label = `${formatDate(start)} – ${formatDate(fri)}`;
+  const evaluatePeriods = (periodList: { start: Date; end: Date; label: string; dateKey: string }[]) =>
+    periodList.map((period) => {
+      if (metric === 'attendance') {
+        const records = relevantAttendance.filter((log) => {
+          const d = getRecordDate(log);
+          return d ? d >= period.start && d < period.end : false;
+        });
+        if (records.length === 0) return { period, point: null };
+        const attended = records.filter((log) => isAttendedStatus(log.status)).length;
+        const point: TrendPoint = {
+          dateKey: period.dateKey,
+          label: period.label,
+          value: Math.round((attended / records.length) * 100),
+        };
+        return { period, point };
       }
-      return { start, end, label, dateKey: toLocalDateKey(start) };
-    });
-  }
 
-  const points = periods.map((period) => {
-    if (metric === 'attendance') {
-      const records = attendanceLogs.filter((log) => {
-        const uid = getLogUserId(log);
-        if (!studentIds.has(uid)) return false;
-        const d = getRecordDate(log);
-        if (!d) return false;
-        return d >= period.start && d < period.end;
+      const scoreRecords = relevantGrades.filter((grade) => {
+        const d = getRecordDate(grade);
+        return d ? d >= period.start && d < period.end : false;
       });
-      if (records.length === 0) return { period, point: null };
-      const attended = records.filter((log) => isAttendedStatus(log.status)).length;
+      if (scoreRecords.length === 0) return { period, point: null };
+      const average = scoreRecords.reduce((total, grade) => {
+        const totalScore = Number(grade.total_score) > 0 ? Number(grade.total_score) : 100;
+        return total + (Number(grade.score) / totalScore) * 100;
+      }, 0) / scoreRecords.length;
       const point: TrendPoint = {
         dateKey: period.dateKey,
         label: period.label,
-        value: Math.round((attended / records.length) * 100),
+        value: Math.round(Math.min(Math.max(average, 0), 100)),
       };
       return { period, point };
-    }
-
-    const scoreRecords = grades.filter((grade) => {
-      const sid = getGradeStudentId(grade);
-      if (!studentIds.has(sid) || grade.component_type === 'attendance' || grade.remarks === 'Not Taken') return false;
-      const d = getRecordDate(grade);
-      if (!d) return false;
-      return d >= period.start && d < period.end;
     });
-    if (scoreRecords.length === 0) return { period, point: null };
-    const average = scoreRecords.reduce((total, grade) => {
-      const totalScore = Number(grade.total_score) > 0 ? Number(grade.total_score) : 100;
-      return total + (Number(grade.score) / totalScore) * 100;
-    }, 0) / scoreRecords.length;
-    const point: TrendPoint = {
-      dateKey: period.dateKey,
-      label: period.label,
-      value: Math.round(Math.min(Math.max(average, 0), 100)),
-    };
-    return { period, point };
-  });
+
+  let points = evaluatePeriods(periods);
+
+  if (points.every(({ point }) => point === null) && recordedDates.length > 0) {
+    const latestRecordedDate = recordedDates[recordedDates.length - 1];
+    periods = buildTrendPeriods(filter, latestRecordedDate, recordedDates);
+    points = evaluatePeriods(periods);
+  }
 
   if (points.every(({ point }) => point === null)) return [];
 
@@ -210,57 +289,40 @@ const buildRiskTrendPoints = (
   attendanceLogs: Attendance[],
   filter: TrendFilter
 ): RiskTrendPoint[] => {
-  const studentIds = new Set(students.map((student) => String(student.id)));
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const studentIds = buildStudentIdSet(students);
+  if (studentIds.size === 0) return [];
 
-  let periods: { start: Date; end: Date; label: string; dateKey: string }[];
-  if (filter === 'day') {
-    const schoolDays = getRecentSchoolWeekdays(10, now);
-    periods = schoolDays.map((d) => {
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0);
-      return { start, end, label: formatDate(start), dateKey: toLocalDateKey(start) };
-    });
-  } else {
-    const periodCount = 6;
-    periods = Array.from({ length: periodCount }, (_, index) => {
-      const offset = periodCount - 1 - index;
-      let start: Date;
-      let end: Date;
-      let label: string;
-      if (filter === 'month') {
-        start = new Date(now.getFullYear(), now.getMonth() - offset, 1, 0, 0, 0, 0);
-        end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1, 0, 0, 0, 0);
-        label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
-      } else {
-        const dayOfWeek = now.getDay();
-        const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-        const currentWeekMon = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + diffToMon, 0, 0, 0, 0);
-        start = new Date(currentWeekMon.getFullYear(), currentWeekMon.getMonth(), currentWeekMon.getDate() - offset * 7, 0, 0, 0, 0);
-        const fri = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 4, 0, 0, 0, 0);
-        end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7, 0, 0, 0, 0);
-        label = `${formatDate(start)} – ${formatDate(fri)}`;
-      }
-      return { start, end, label, dateKey: toLocalDateKey(start) };
-    });
-  }
+  const relevantGrades = grades.filter((grade) => (
+    studentIds.has(getGradeStudentId(grade)) &&
+    grade.component_type !== 'attendance' &&
+    !isNotTakenGrade(grade) &&
+    getRecordDate(grade) !== null
+  ));
+  const relevantAttendance = attendanceLogs.filter((log) => (
+    studentIds.has(getLogUserId(log)) &&
+    getRecordDate(log) !== null
+  ));
+
+  if (relevantGrades.length === 0 && relevantAttendance.length === 0) return [];
+
+  const recordedDates = [
+    ...relevantGrades.map((g) => getRecordDate(g)),
+    ...relevantAttendance.map((a) => getRecordDate(a)),
+  ]
+    .filter((d): d is Date => d !== null)
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  const now = new Date();
+  const periods = buildTrendPeriods(filter, now, recordedDates);
 
   const points = periods.map((period) => {
-    const periodGrades = grades.filter((grade) => {
-      const sid = getGradeStudentId(grade);
-      if (!studentIds.has(sid)) return false;
+    const periodGrades = relevantGrades.filter((grade) => {
       const d = getRecordDate(grade);
-      if (!d) return false;
-      return d < period.end;
+      return d ? d < period.end : false;
     });
-    const periodAttendance = attendanceLogs.filter((log) => {
-      const uid = getLogUserId(log);
-      if (!studentIds.has(uid)) return false;
+    const periodAttendance = relevantAttendance.filter((log) => {
       const d = getRecordDate(log);
-      if (!d) return false;
-      return d < period.end;
+      return d ? d < period.end : false;
     });
     if (periodGrades.length === 0 && periodAttendance.length === 0) return { period, point: null };
     const snapshot = computeStudentRiskRows(students, periodGrades, periodAttendance);
@@ -345,7 +407,7 @@ const TrendChart: React.FC<{
 
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [data.length]);
 
   const { width, height } = dimensions;
   const isMobile = width < 520;
@@ -402,7 +464,7 @@ const TrendChart: React.FC<{
 
   if (data.length === 0) {
     return (
-      <div className="flex h-full w-full items-center justify-center text-xs font-medium text-gray-400 dark:text-slate-500">
+      <div ref={containerRef} className="flex h-full w-full items-center justify-center text-xs font-medium text-gray-400 dark:text-slate-500">
         {emptyLabel}
       </div>
     );
@@ -445,7 +507,7 @@ const TrendChart: React.FC<{
             <stop offset="0%" stopColor={color} stopOpacity="0.22" />
             <stop offset="100%" stopColor={color} stopOpacity="0.01" />
           </linearGradient>
-          <filter id={filterId} x="-20%" y="-30%" width="140%" height="160%">
+          <filter id={filterId} filterUnits="userSpaceOnUse" x={-20} y={-20} width={width + 40} height={height + 40}>
             <feGaussianBlur stdDeviation="3" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
@@ -468,11 +530,12 @@ const TrendChart: React.FC<{
         {points.map((point, idx) => {
           if (!visibleIndices.has(idx)) return null;
           const formattedLabel = getFormattedLabel(point.label);
+          const textAnchor = idx === 0 && points.length > 1 ? 'start' : idx === points.length - 1 && points.length > 1 ? 'end' : 'middle';
           return (
             <g key={point.dateKey || `pt-${idx}`}>
               <title>{`${point.label}: ${point.value}%`}</title>
               <circle cx={point.x} cy={point.y} r="4" fill={color} stroke="#FFFFFF" strokeWidth="2" />
-              <text x={point.x} y={height - 8} textAnchor="middle" className="fill-slate-500 dark:fill-slate-400 font-bold text-[9px] xs:text-[10px]">{formattedLabel}</text>
+              <text x={point.x} y={height - 8} textAnchor={textAnchor} className="fill-slate-500 dark:fill-slate-400 font-bold text-[9px] xs:text-[10px]">{formattedLabel}</text>
             </g>
           );
         })}
@@ -1136,9 +1199,9 @@ const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; o
 };
 
 const getAralBadge = (level?: string | null) => {
-  const formatted = level ? level.charAt(0).toUpperCase() + level.slice(1).toLowerCase() : 'Basic';
+  const formatted = level ? level.toUpperCase() : 'BASIC';
   return (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 dark:bg-[#1A1A1A] dark:text-slate-300 dark:border-[#262626]">
+    <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase">
       {formatted}
     </span>
   );
@@ -1147,10 +1210,6 @@ const getAralBadge = (level?: string | null) => {
 export const TutorAnalytics: React.FC = () => {
   const { user } = useAuth();
 
-  const [rows, setRows] = useState<ExtendedRiskRow[]>([]);
-  const [grades, setGrades] = useState<Grade[]>([]);
-  const [attendanceLogs, setAttendanceLogs] = useState<Attendance[]>([]);
-  const [riskCounts, setRiskCounts] = useState({ high: 0, moderate: 0, low: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -1200,39 +1259,133 @@ export const TutorAnalytics: React.FC = () => {
 
 
 
+  const [allStudents, setAllStudents] = useState<User[]>(() => getCachedTutorStudents(user?.id));
+  const [rawGrades, setRawGrades] = useState<Grade[]>([]);
+  const [rawAttendanceLogs, setRawAttendanceLogs] = useState<Attendance[]>([]);
+
+  const {
+    selectedAralLevel,
+    setSelectedAralLevel,
+    selectedSubject,
+    setSelectedSubject,
+    selectedCohort,
+    setSelectedCohort,
+    setSelectedCohortFilter,
+  } = useTutorCohortFilter(user, { allowAll: true, defaultToAll: true });
+
+  const classSections = useMemo(() => {
+    return buildTutorClassSections(user, allStudents);
+  }, [user, allStudents]);
+
+  const matchedClass = useMemo(() => {
+    const isAllAral = !selectedAralLevel || selectedAralLevel.toLowerCase() === 'all';
+    const isAllSubject = !selectedSubject || selectedSubject.toLowerCase() === 'all';
+    const isAllCohort =
+      !selectedCohort ||
+      selectedCohort.toLowerCase() === 'all' ||
+      selectedCohort.toUpperCase() === 'ALL - ALL';
+
+    if (isAllAral && isAllSubject && isAllCohort) {
+      return null;
+    }
+
+    const directMatch = classSections.find((c) => {
+      const matchAral = isAllAral || c.aralLevel.toLowerCase() === selectedAralLevel.toLowerCase();
+      const matchSubj = isAllSubject || c.subject.toLowerCase() === selectedSubject.toLowerCase();
+      const matchCohort = isAllCohort || c.cohort.toUpperCase() === selectedCohort.toUpperCase();
+      return matchAral && matchSubj && matchCohort;
+    });
+    if (directMatch) return directMatch;
+
+    if (!isAllCohort) {
+      return classSections.find((c) => c.cohort.toUpperCase() === selectedCohort.toUpperCase()) || null;
+    }
+
+    return null;
+  }, [classSections, selectedAralLevel, selectedSubject, selectedCohort]);
+
+  const filteredStudents = useMemo(() => {
+    const isAllAral = !selectedAralLevel || selectedAralLevel.toLowerCase() === 'all';
+    const isAllSubject = !selectedSubject || selectedSubject.toLowerCase() === 'all';
+    const isAllCohort =
+      !selectedCohort ||
+      selectedCohort.toLowerCase() === 'all' ||
+      selectedCohort.toUpperCase() === 'ALL - ALL';
+
+    if (isAllAral && isAllSubject && isAllCohort) {
+      return allStudents;
+    }
+
+    if (matchedClass && allStudents.length > 0) {
+      return matchedClass.students;
+    }
+
+    return allStudents.filter((s) =>
+      isStudentInCohort(s, {
+        aral_level: selectedAralLevel,
+        subject: selectedSubject,
+        cohort: selectedCohort,
+      })
+    );
+  }, [allStudents, matchedClass, selectedAralLevel, selectedSubject, selectedCohort]);
+
+  const studentIds = useMemo(() => {
+    return buildStudentIdSet(filteredStudents);
+  }, [filteredStudents]);
+
+  const attendanceLogs = useMemo(() => {
+    return rawAttendanceLogs.filter((a: Attendance) => {
+      const uid = String(getLogUserId(a));
+      return studentIds.has(uid);
+    });
+  }, [rawAttendanceLogs, studentIds]);
+
+  const grades = useMemo(() => {
+    return rawGrades.filter((g: Grade) => {
+      const sid = getGradeStudentId(g);
+      return studentIds.has(sid);
+    });
+  }, [rawGrades, studentIds]);
+
+  const rows = useMemo<ExtendedRiskRow[]>(() => {
+    const scoredGrades = grades.filter((g) => g.component_type !== 'attendance' && !isNotTakenGrade(g));
+    const baseRows = computeStudentRiskRows(filteredStudents, scoredGrades, attendanceLogs);
+    return baseRows.map((row) => {
+      const rowStudentIds = buildStudentIdSet([row.student]);
+      const studentAtt = attendanceLogs.filter((a: Attendance) => rowStudentIds.has(getLogUserId(a)));
+      return { ...row, absentCount: studentAtt.filter((a: Attendance) => isAbsentStatus(a.status)).length };
+    });
+  }, [filteredStudents, grades, attendanceLogs]);
+
+  const riskCounts = useMemo(() => {
+    return rows.reduce(
+      (acc, row) => {
+        if (row.riskTier === 'High') acc.high += 1;
+        else if (row.riskTier === 'Medium') acc.moderate += 1;
+        else acc.low += 1;
+        return acc;
+      },
+      { high: 0, moderate: 0, low: 0 }
+    );
+  }, [rows]);
+
   const fetchAnalytics = async () => {
     if (!user) return;
     setIsLoading(true);
     setError(null);
     try {
-      const [studentsResponse, grades, attendanceLogs] = await Promise.all([
+      const [studentsResponse, gradesData, attendanceLogsData] = await Promise.all([
         userService.getAllUsers({ role: 'student', assigned_tutor: user.id }),
         academicService.getGrades(),
-        academicService.getAttendanceHistory(),
+        academicService.getAttendanceHistory({ role: 'student' }),
       ]);
       const students = Array.isArray(studentsResponse) ? studentsResponse : [];
-      const safeAttendance = Array.isArray(attendanceLogs) ? attendanceLogs : [];
-      const baseRows = computeStudentRiskRows(students, grades, safeAttendance);
+      const safeAttendance = Array.isArray(attendanceLogsData) ? attendanceLogsData : [];
+      const safeGrades = Array.isArray(gradesData) ? gradesData : [];
 
-      setGrades(Array.isArray(grades) ? grades : []);
-      setAttendanceLogs(safeAttendance);
-      const extendedRows: ExtendedRiskRow[] = baseRows.map((row) => {
-        const studentAtt = safeAttendance.filter((a: Attendance) => getLogUserId(a) === String(row.student.id));
-        return { ...row, absentCount: studentAtt.filter((a: Attendance) => isAbsentStatus(a.status)).length };
-      });
-
-      const counts = extendedRows.reduce(
-        (acc, row) => {
-          if (row.riskTier === 'High') acc.high += 1;
-          else if (row.riskTier === 'Medium') acc.moderate += 1;
-          else acc.low += 1;
-          return acc;
-        },
-        { high: 0, moderate: 0, low: 0 }
-      );
-
-      setRiskCounts(counts);
-      setRows(extendedRows);
+      setAllStudents(students);
+      setRawGrades(safeGrades);
+      setRawAttendanceLogs(safeAttendance);
     } catch (err: any) {
       console.error(err);
       setError(err?.response?.data?.detail || 'Failed to load analytics data.');
@@ -1240,6 +1393,24 @@ export const TutorAnalytics: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    setRiskScope('all');
+    setAttendanceScope('all');
+    setScoreScope('all');
+  }, [selectedAralLevel, selectedSubject, selectedCohort]);
+
+  useEffect(() => {
+    if (riskScope !== 'all' && !filteredStudents.some((s) => String(s.id) === riskScope)) {
+      setRiskScope('all');
+    }
+    if (attendanceScope !== 'all' && !filteredStudents.some((s) => String(s.id) === attendanceScope)) {
+      setAttendanceScope('all');
+    }
+    if (scoreScope !== 'all' && !filteredStudents.some((s) => String(s.id) === scoreScope)) {
+      setScoreScope('all');
+    }
+  }, [filteredStudents, riskScope, attendanceScope, scoreScope]);
 
   useEffect(() => { fetchAnalytics(); }, [user]);
 
@@ -1315,6 +1486,39 @@ export const TutorAnalytics: React.FC = () => {
   const selectedScoreStudent = useMemo(() => (
     scoreScope === 'all' ? null : rows.find((row) => String(row.student.id) === scoreScope)?.student || null
   ), [rows, scoreScope]);
+
+  const classViewLabel = useMemo(() => {
+    if (matchedClass) {
+      return matchedClass.label;
+    }
+    return getTutorClassViewLabel({
+      user,
+      selectedAralLevel,
+      selectedSubject,
+      selectedCohort,
+    });
+  }, [matchedClass, user, selectedAralLevel, selectedSubject, selectedCohort]);
+
+  const riskLevelTrendTitle = useMemo(() => {
+    if (!classViewLabel) {
+      return 'RISK LEVEL TREND CHART';
+    }
+    return `${classViewLabel}'S RISK LEVEL TREND CHART`;
+  }, [classViewLabel]);
+
+  const attendanceTrendTitle = useMemo(() => {
+    if (!classViewLabel) {
+      return 'STUDENTS ATTENDANCE RATE TREND CHART';
+    }
+    return `${classViewLabel}'S ATTENDANCE RATE TREND CHART`;
+  }, [classViewLabel]);
+
+  const scoreTrendTitle = useMemo(() => {
+    if (!classViewLabel) {
+      return 'STUDENTS AVERAGE SCORE TREND CHART';
+    }
+    return `${classViewLabel}'S AVERAGE SCORE TREND CHART`;
+  }, [classViewLabel]);
   const riskTrend = useMemo(() => buildRiskTrendPoints(
     riskScopedRows.map((row) => row.student),
     grades,
@@ -1341,7 +1545,7 @@ export const TutorAnalytics: React.FC = () => {
   const scoreSummary = useMemo(() => {
     const todayStr = toLocalDateKey(new Date());
     const scoreRecords = grades.filter((grade) => {
-      if (grade.component_type === 'attendance' || grade.remarks === 'Not Taken') return false;
+      if (grade.component_type === 'attendance' || isNotTakenGrade(grade)) return false;
       const d = getRecordDate(grade);
       return d ? toLocalDateKey(d) === todayStr : false;
     });
@@ -1364,7 +1568,8 @@ export const TutorAnalytics: React.FC = () => {
     })[] = [];
 
     rows.forEach((row) => {
-      const allStudentLogs = attendanceLogs.filter((log) => getLogUserId(log) === String(row.student.id));
+      const rowStudentIds = buildStudentIdSet([row.student]);
+      const allStudentLogs = attendanceLogs.filter((log) => rowStudentIds.has(getLogUserId(log)));
 
       const typesToGenerate: EntryDescriptionType[] = attendanceDescFilter === 'all'
         ? ['Intervention Activity', assignedMilestone]
@@ -1436,8 +1641,9 @@ export const TutorAnalytics: React.FC = () => {
     })[] = [];
 
     rows.forEach((row) => {
+      const rowStudentIds = buildStudentIdSet([row.student]);
       const allStudentGrades = grades.filter(
-        (grade) => getGradeStudentId(grade) === String(row.student.id) && grade.component_type !== 'attendance' && grade.remarks !== 'Not Taken'
+        (grade) => rowStudentIds.has(getGradeStudentId(grade)) && grade.component_type !== 'attendance' && !isNotTakenGrade(grade)
       );
 
       const typesToGenerate: EntryDescriptionType[] = scoreDescFilter === 'all'
@@ -1507,10 +1713,10 @@ export const TutorAnalytics: React.FC = () => {
     if (currentField === field) setAscending(!ascending);
     else { setField(field); setAscending(true); }
   };
-  const SortHeader: React.FC<{ field: string; children: React.ReactNode; align?: string; activeField?: string | null; ascending?: boolean; onSort?: (field: string) => void }> = ({ field, children, align = 'left', activeField = sortField, ascending = sortAsc, onSort = (value) => handleSort(value as OverallSortField) }) => (
+  const SortHeader: React.FC<{ field: string; children: React.ReactNode; align?: string; className?: string; activeField?: string | null; ascending?: boolean; onSort?: (field: string) => void }> = ({ field, children, align = 'left', className = '', activeField = sortField, ascending = sortAsc, onSort = (value) => handleSort(value as OverallSortField) }) => (
     <th
       onClick={() => onSort(field)}
-      className={`px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 cursor-pointer hover:text-gray-600 transition-colors select-none text-${align}`}
+      className={`px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 cursor-pointer hover:text-gray-600 transition-colors select-none text-${align} ${className}`.trim()}
     >
       <span className="inline-flex items-center gap-1">
         {children}
@@ -1632,6 +1838,24 @@ export const TutorAnalytics: React.FC = () => {
 
   return (
     <div className="space-y-4 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      {/* ── Tutor Multi-Cohort Filter (ARAL Level, Subject, Grade - Section) ── */}
+      <TutorCohortFilter
+        user={user}
+        students={allStudents}
+        isLoading={isLoading}
+        selectedAralLevel={selectedAralLevel}
+        onSelectAralLevel={setSelectedAralLevel}
+        selectedSubject={selectedSubject}
+        onSelectSubject={setSelectedSubject}
+        selectedCohort={selectedCohort}
+        onSelectCohort={setSelectedCohort}
+        onSelectClass={(level, subject, cohort) =>
+          setSelectedCohortFilter({ aral_level: level, subject, cohort })
+        }
+        allowAll={true}
+        title="CURRENT CLASS FOR VIEW"
+      />
+
       {/* ── View Tab Switcher ── */}
       <div
         className="flex w-full rounded-md bg-gray-100 p-0.5 gap-0.5 dark:bg-[#111111]"
@@ -1708,7 +1932,7 @@ export const TutorAnalytics: React.FC = () => {
               <section className="rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]" aria-labelledby="risk-overview-heading">
                 <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
-                    <h3 id="risk-overview-heading" className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">RISK LEVEL TREND CHART</h3>
+                    <h3 id="risk-overview-heading" className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">{riskLevelTrendTitle}</h3>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
@@ -1747,24 +1971,20 @@ export const TutorAnalytics: React.FC = () => {
                   <RiskCalculationInfo />
                 </div>
                 <div className="bg-white rounded-md border border-gray-200 overflow-hidden dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT PERFORMANCE DETAILS</h3>
-                        <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{filteredAndSortedRows.length} Students</p>
-                      </div>
+                  <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+                    <div className="min-w-0 flex-1 truncate">
+                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase truncate">STUDENT PERFORMANCE DETAILS</h3>
+                      <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">{filteredAndSortedRows.length} Students</p>
                     </div>
-                    <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                          type="search"
-                          placeholder="Search Student Name"
-                          value={search}
-                          onChange={(e) => setSearch(e.target.value)}
-                          className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200"
-                        />
-                      </div>
+                    <div className="relative w-28 xs:w-36 sm:w-56 shrink-0">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input
+                        type="search"
+                        placeholder="Search student..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="h-7.5 sm:h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-[11px] sm:text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200"
+                      />
                     </div>
                   </div>
 
@@ -1779,7 +1999,7 @@ export const TutorAnalytics: React.FC = () => {
                       <table className="min-w-[900px] divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal w-full" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                         <thead>
                           <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-                            <SortHeader field="student">Student</SortHeader>
+                            <SortHeader field="student" className="w-[24%] min-w-[220px]">Student</SortHeader>
                             {hasMultipleOverallAralLevels ? (
                               <SortHeader field="aralLevel">ARAL Level</SortHeader>
                             ) : (
@@ -1797,8 +2017,8 @@ export const TutorAnalytics: React.FC = () => {
                             <tr key={row.student.id} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5">
                               <td className="px-4 py-3 align-middle">
                                 <div>
-                                  <div className="font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</div>
-                                  <div className="text-[11px] text-gray-400 dark:text-slate-500 font-mono">LRN: {row.student.lrn || 'N/A'}</div>
+                                  <div className="font-bold text-gray-900 dark:text-slate-100 text-sm whitespace-nowrap">{row.student.full_name}</div>
+
                                 </div>
                               </td>
                               <td className="px-4 py-3 align-middle">{getAralBadge(row.student.aral_level)}</td>
@@ -1912,7 +2132,7 @@ export const TutorAnalytics: React.FC = () => {
               <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
                 <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
-                    <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS ATTENDANCE RATE TREND CHART</h3>
+                    <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">{attendanceTrendTitle}</h3>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
@@ -1944,14 +2164,14 @@ export const TutorAnalytics: React.FC = () => {
               {/* Student Attendance Details Table */}
               <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
                 <div className="overflow-hidden">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT ATTENDANCE DETAILS</h3>
-                      <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{attendanceDetails.length} Students</p>
+                  <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+                    <div className="min-w-0 flex-1 truncate">
+                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase truncate">STUDENT ATTENDANCE DETAILS</h3>
+                      <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">{attendanceDetails.length} Students</p>
                     </div>
-                    <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
+                    <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
                       {/* Description Filter */}
-                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0">
+                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
                         {([
                           ['all', 'All'],
                           ['Intervention Activity', 'Intervention'],
@@ -1961,7 +2181,7 @@ export const TutorAnalytics: React.FC = () => {
                             key={val}
                             type="button"
                             onClick={() => setAttendanceDescFilter(val)}
-                            className={`rounded-sm px-2.5 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                            className={`rounded-sm px-2 sm:px-2.5 py-1 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                               attendanceDescFilter === val
                                 ? 'bg-[var(--brand)] text-white'
                                 : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
@@ -1971,9 +2191,9 @@ export const TutorAnalytics: React.FC = () => {
                           </button>
                         ))}
                       </div>
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input type="search" aria-label="Search attendance students" placeholder="Search Student Name" value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
+                      <div className="relative w-28 xs:w-36 sm:w-48 shrink-0">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                        <input type="search" aria-label="Search attendance students" placeholder="Search student..." value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} className="h-7.5 sm:h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-[11px] sm:text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
                       </div>
                     </div>
                   </div>
@@ -1993,7 +2213,7 @@ export const TutorAnalytics: React.FC = () => {
                           <SortHeader field="attendanceAverage" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Average Attendance Rate</SortHeader>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{attendanceDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : attendanceDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 text-left"><span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${row.description !== 'Intervention Activity' ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300' : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{row.description}</span></td><td className="px-4 py-3 font-normal text-emerald-600 text-xs">{row.present}</td><td className="px-4 py-3 font-normal text-rose-600 text-xs">{row.absent}</td><td className="px-4 py-3 font-normal"><span className={`text-xs font-medium ${getAttendanceRateCls(row.attendanceAverage)}`}>{smartPct(row.attendanceAverage)}%</span></td></tr>)}</tbody>
+                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{attendanceDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : attendanceDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 text-left"><span className="text-xs font-semibold text-gray-700 dark:text-slate-300">{row.description}</span></td><td className="px-4 py-3 font-normal text-emerald-600 text-xs">{row.present}</td><td className="px-4 py-3 font-normal text-rose-600 text-xs">{row.absent}</td><td className="px-4 py-3 font-normal"><span className={`text-xs font-medium ${getAttendanceRateCls(row.attendanceAverage)}`}>{smartPct(row.attendanceAverage)}%</span></td></tr>)}</tbody>
                     </table>
                   </div>
                 </div>
@@ -2037,7 +2257,7 @@ export const TutorAnalytics: React.FC = () => {
               <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
                 <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
-                    <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">STUDENTS AVERAGE SCORE TREND CHART</h3>
+                    <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">{scoreTrendTitle}</h3>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
@@ -2069,14 +2289,14 @@ export const TutorAnalytics: React.FC = () => {
               {/* Student Score Details Table */}
               <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
                 <div className="overflow-hidden">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT SCORE DETAILS</h3>
-                      <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{scoreDetails.length} Students</p>
+                  <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+                    <div className="min-w-0 flex-1 truncate">
+                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase truncate">STUDENT SCORE DETAILS</h3>
+                      <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">{scoreDetails.length} Students</p>
                     </div>
-                    <div className="flex items-center gap-3 flex-1 sm:flex-none sm:max-w-lg">
+                    <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
                       {/* Description Filter */}
-                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0">
+                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
                         {([
                           ['all', 'All'],
                           ['Intervention Activity', 'Intervention'],
@@ -2086,7 +2306,7 @@ export const TutorAnalytics: React.FC = () => {
                             key={val}
                             type="button"
                             onClick={() => setScoreDescFilter(val)}
-                            className={`rounded-sm px-2.5 py-1 text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                            className={`rounded-sm px-2 sm:px-2.5 py-1 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                               scoreDescFilter === val
                                 ? 'bg-[var(--brand)] text-white'
                                 : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
@@ -2096,9 +2316,9 @@ export const TutorAnalytics: React.FC = () => {
                           </button>
                         ))}
                       </div>
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input type="search" aria-label="Search score students" placeholder="Search Student Name" value={scoreSearch} onChange={(event) => setScoreSearch(event.target.value)} className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
+                      <div className="relative w-28 xs:w-36 sm:w-48 shrink-0">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                        <input type="search" aria-label="Search score students" placeholder="Search student..." value={scoreSearch} onChange={(event) => setScoreSearch(event.target.value)} className="h-7.5 sm:h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-[11px] sm:text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
                       </div>
                     </div>
                   </div>
@@ -2118,7 +2338,7 @@ export const TutorAnalytics: React.FC = () => {
                           <SortHeader field="scoreAverage" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Average Score</SortHeader>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{scoreDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : scoreDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 text-left"><span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${row.description !== 'Intervention Activity' ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300' : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{row.description}</span></td><td className="px-4 py-3 font-normal text-emerald-600 text-xs">{row.passed}</td><td className="px-4 py-3 font-normal text-rose-600 text-xs">{row.failed}</td><td className="px-4 py-3 font-normal"><span className={`text-xs font-medium ${getScoreAvgCls(row.scoreAverage)}`}>{smartPct(row.scoreAverage)}%</span></td></tr>)}</tbody>
+                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{scoreDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : scoreDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 text-left"><span className="text-xs font-semibold text-gray-700 dark:text-slate-300">{row.description}</span></td><td className="px-4 py-3 font-normal text-emerald-600 text-xs">{row.passed}</td><td className="px-4 py-3 font-normal text-rose-600 text-xs">{row.failed}</td><td className="px-4 py-3 font-normal"><span className={`text-xs font-medium ${getScoreAvgCls(row.scoreAverage)}`}>{smartPct(row.scoreAverage)}%</span></td></tr>)}</tbody>
                     </table>
                   </div>
                 </div>
