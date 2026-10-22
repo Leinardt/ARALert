@@ -192,9 +192,24 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({'lrn': 'LRN must be exactly 12 digits (numbers only).'})
             if User.objects.filter(lrn=lrn, role='student').exists():
                 raise serializers.ValidationError({'lrn': 'A student with this LRN already exists.'})
-        else:
+        elif role == 'tutor':
             data['lrn'] = None
             data['assigned_tutor'] = None
+            data['parent_guardian_name'] = ''
+            data['contact_number'] = ''
+            if not data.get('email'):
+                raise serializers.ValidationError({'email': 'Email is required for staff accounts.'})
+        else:
+            # Faculty, Principal, Admin, SuperAdmin:
+            # Strictly no LRN, tutor assignment, subject, section/grade, or aral level
+            data['lrn'] = None
+            data['assigned_tutor'] = None
+            data['parent_guardian_name'] = ''
+            data['contact_number'] = ''
+            data['subject'] = None
+            data['grade_level'] = None
+            data['aral_level'] = None
+            data['tutor_type'] = None
             if not data.get('email'):
                 raise serializers.ValidationError({'email': 'Email is required for staff accounts.'})
 
@@ -368,13 +383,22 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             if User.objects.filter(lrn=lrn).exclude(pk=self.instance.pk).exists():
                 raise serializers.ValidationError({'lrn': 'A student with this LRN already exists.'})
             data['lrn'] = lrn
-        else:
-            # For non-students (tutor, faculty, principal, admin, superadmin):
-            # LRN must always be None to prevent uniqueness collisions and empty-string storage.
+        elif target_role == 'tutor':
             data['lrn'] = None
             data['assigned_tutor'] = None
             data['parent_guardian_name'] = ''
             data['contact_number'] = ''
+        else:
+            # For non-students and non-tutors (faculty, principal, admin, superadmin):
+            # Strictly no LRN, tutor assignment, subject, section/grade, or aral level
+            data['lrn'] = None
+            data['assigned_tutor'] = None
+            data['parent_guardian_name'] = ''
+            data['contact_number'] = ''
+            data['subject'] = None
+            data['grade_level'] = None
+            data['aral_level'] = None
+            data['tutor_type'] = None
         return data
 
     def update(self, instance, validated_data):

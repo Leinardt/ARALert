@@ -342,9 +342,9 @@ export const EditUser: React.FC = () => {
       }
 
       let combinedGradeLevel = '';
-      let tutorAralLevel = data.aral_level || 'basic';
-      let tutorTutorType = data.aral_level || 'basic';
-      let tutorSubject = data.subject || 'Filipino';
+      let tutorAralLevel = '';
+      let tutorTutorType = '';
+      let tutorSubject = '';
 
       if (data.role === 'tutor') {
         const computed = buildTutorPayloadFromRoleDetails(tutorRoleDetails);
@@ -356,6 +356,8 @@ export const EditUser: React.FC = () => {
         const sectionStr = data.grade_level_section ? data.grade_level_section.toUpperCase().trim() : '';
         const gradeStr = data.grade_level_grade ? data.grade_level_grade.toUpperCase().trim() : 'GRADE 7';
         combinedGradeLevel = sectionStr ? `${gradeStr} - ${sectionStr}` : gradeStr;
+        tutorAralLevel = data.aral_level || 'basic';
+        tutorSubject = data.subject || 'Filipino';
       }
 
       const payload: any = {
@@ -365,16 +367,16 @@ export const EditUser: React.FC = () => {
         last_name: data.last_name.toUpperCase().trim(),
         parent_guardian_name: data.role === 'student' && data.parent_guardian_name ? data.parent_guardian_name.toUpperCase().trim() : '',
         contact_number: data.role === 'student' && data.contact_number ? data.contact_number.trim() : '',
-        grade_level: combinedGradeLevel,
+        grade_level: data.role === 'student' || data.role === 'tutor' ? combinedGradeLevel : null,
         has_bosy: !!data.has_bosy,
         has_mosy: !!data.has_mosy,
         has_eosy: !!data.has_eosy,
         has_summer: !!data.has_summer,
         assigned_tutor: data.role === 'student' && data.assigned_tutor ? data.assigned_tutor : null,
         lrn: data.role === 'student' && data.lrn ? data.lrn.trim() : null,
-        subject: tutorSubject,
-        aral_level: tutorAralLevel,
-        tutor_type: tutorTutorType,
+        subject: data.role === 'student' || data.role === 'tutor' ? tutorSubject : null,
+        aral_level: data.role === 'student' || data.role === 'tutor' ? tutorAralLevel : null,
+        tutor_type: data.role === 'tutor' ? tutorTutorType : null,
       };
 
       if (data.role !== 'student') {
@@ -382,6 +384,12 @@ export const EditUser: React.FC = () => {
         payload.assigned_tutor = null;
         payload.parent_guardian_name = '';
         payload.contact_number = '';
+      }
+      if (data.role !== 'tutor' && data.role !== 'student') {
+        payload.subject = null;
+        payload.grade_level = null;
+        payload.aral_level = null;
+        payload.tutor_type = null;
       }
       delete payload.grade_level_grade;
       delete payload.grade_level_section;

@@ -1157,8 +1157,7 @@ export const AdminAttendanceQR: React.FC = () => {
                     <th className="px-4 py-2.5 text-left">
                       <SortableHeader label="NAME" sortKey="staff" />
                     </th>
-                    <th className="px-4 py-2.5 text-left">ROLE / SUBJECT</th>
-                    <th className="px-4 py-2.5 text-left">GRADE & SECTION</th>
+                    <th className="px-4 py-2.5 text-left">ROLE</th>
                     <th className="px-4 py-2.5 text-center">
                       <SortableHeader label="TIME IN" sortKey="time_in" align="center" />
                     </th>
@@ -1192,8 +1191,6 @@ export const AdminAttendanceQR: React.FC = () => {
                     }
 
                     const roleText = staff?.role === 'faculty' ? 'Faculty' : staff?.role === 'tutor' ? 'Tutor' : staff?.role === 'principal' ? 'Principal' : staff?.role === 'admin' ? 'Admin' : (log.role ? log.role.charAt(0).toUpperCase() + log.role.slice(1) : 'Staff');
-                    const subject = staff?.subject ? `${roleText} • ${staff.subject}` : roleText;
-                    const grade_level = staff?.grade_level || (['principal', 'admin'].includes((staff?.role || log.role || '').toLowerCase()) ? '—' : 'Grade 7 - HYACINTH');
 
                     return (
                       <tr
@@ -1207,10 +1204,7 @@ export const AdminAttendanceQR: React.FC = () => {
                           {log.user_name || staff?.full_name || 'Staff Member'}
                         </td>
                         <td className="px-4 py-2.5 text-left text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap font-medium">
-                          {subject}
-                        </td>
-                        <td className="px-4 py-2.5 text-left text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap font-medium">
-                          {grade_level}
+                          {roleText}
                         </td>
                         <td className="px-4 py-2.5 text-center font-mono text-xs text-slate-700 dark:text-slate-200 whitespace-nowrap">
                           {formatDtrTime(log.time_in)}

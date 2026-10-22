@@ -323,9 +323,9 @@ export const CreateUser: React.FC = () => {
       }
 
       let combinedGradeLevel = '';
-      let tutorAralLevel = data.aral_level || 'basic';
-      let tutorTutorType = data.aral_level || 'basic';
-      let tutorSubject = data.subject || 'Filipino';
+      let tutorAralLevel = '';
+      let tutorTutorType = '';
+      let tutorSubject = '';
 
       if (selectedRole === 'tutor') {
         const computed = buildTutorPayloadFromRoleDetails(tutorRoleDetails);
@@ -337,6 +337,8 @@ export const CreateUser: React.FC = () => {
         const sectionStr = data.grade_level_section ? data.grade_level_section.toUpperCase().trim() : '';
         const gradeStr = data.grade_level_grade ? data.grade_level_grade.toUpperCase().trim() : 'GRADE 7';
         combinedGradeLevel = sectionStr ? `${gradeStr} - ${sectionStr}` : gradeStr;
+        tutorAralLevel = data.aral_level || 'basic';
+        tutorSubject = data.subject || 'Filipino';
       }
 
       const payload: any = {
@@ -347,15 +349,15 @@ export const CreateUser: React.FC = () => {
         last_name: data.last_name.toUpperCase().trim(),
         parent_guardian_name: data.parent_guardian_name ? data.parent_guardian_name.toUpperCase().trim() : '',
         contact_number: data.contact_number ? data.contact_number.trim() : '',
-        grade_level: combinedGradeLevel,
+        grade_level: (selectedRole === 'student' || selectedRole === 'tutor') ? combinedGradeLevel : null,
         has_bosy: !!data.has_bosy,
         has_mosy: !!data.has_mosy,
         has_eosy: !!data.has_eosy,
         has_summer: !!data.has_summer,
         assigned_tutor: selectedRole === 'student' && data.assigned_tutor ? data.assigned_tutor : null,
-        subject: tutorSubject,
-        aral_level: tutorAralLevel,
-        tutor_type: tutorTutorType,
+        subject: (selectedRole === 'student' || selectedRole === 'tutor') ? tutorSubject : null,
+        aral_level: (selectedRole === 'student' || selectedRole === 'tutor') ? tutorAralLevel : null,
+        tutor_type: selectedRole === 'tutor' ? tutorTutorType : null,
       };
 
       try {
