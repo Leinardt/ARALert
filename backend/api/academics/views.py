@@ -1505,14 +1505,15 @@ class StudentAcademicProfileView(APIView):
 
         data = {
             'student': {
-                'id':         str(student.id),
-                'name':       student.get_full_name(),
-                'first_name': student.first_name,
-                'last_name':  student.last_name,
-                'username':   student.username,
-                'lrn':        student.lrn,
-                'email':      student.email,
-                'aral_level': student.aral_level,
+                'id':          str(student.id),
+                'name':        student.get_full_name(),
+                'first_name':  student.first_name,
+                'middle_name': student.middle_name or '',
+                'last_name':   student.last_name,
+                'username':    student.username,
+                'lrn':         student.lrn,
+                'email':       student.email,
+                'aral_level':  student.aral_level,
             },
             'assigned_tutor': {
                 'id':                  str(tutor.id),

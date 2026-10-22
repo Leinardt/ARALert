@@ -221,6 +221,7 @@ export interface StudentAcademicProfile {
     id: string;
     name: string;
     first_name: string;
+    middle_name: string;
     last_name: string;
     username: string;
     lrn: string | null;

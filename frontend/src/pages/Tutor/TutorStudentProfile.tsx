@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
@@ -369,7 +369,7 @@ export const TutorStudentProfile: React.FC = () => {
       setPendingEditRequest(editReqData.results && editReqData.results.length > 0 ? editReqData.results[0] : null);
       setStudentForm({
         first_name: data.student.first_name || '',
-        middle_name: '',
+        middle_name: data.student.middle_name || userData?.middle_name || '',
         last_name: data.student.last_name || '',
         username: data.student.username || '',
         email: data.student.email || '',
@@ -636,6 +636,18 @@ export const TutorStudentProfile: React.FC = () => {
             <button
               type="button"
               onClick={() => {
+                if (profile?.student) {
+                  setStudentForm({
+                    first_name: profile.student.first_name || '',
+                    middle_name: profile.student.middle_name || studentUser?.middle_name || '',
+                    last_name: profile.student.last_name || '',
+                    username: profile.student.username || '',
+                    email: profile.student.email || '',
+                    lrn: profile.student.lrn || '',
+                    aral_level: profile.student.aral_level || 'basic',
+                    reason: '',
+                  });
+                }
                 setIsEditingStudent(true);
                 setStudentEditError(null);
               }}

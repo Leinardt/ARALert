@@ -1153,7 +1153,9 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
         {
           id: 'rd-plus-2',
           aralLevel: 'plus',
-          subjects: subjectsList.includes('English') ? ['English'] : ['Filipino'],
+          subjects: subjectsList.includes('English')
+            ? ['English']
+            : (subjectsList.includes('Math') ? ['Math'] : (subjectsList.includes('Science') ? ['Science'] : ['English'])),
           gradeLevel: 'GRADE 7',
           sections: [rawSection || 'HYACINTH'],
         },
@@ -1175,7 +1177,7 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
 
   commaChunks.forEach((chunk) => {
     if (chunk.includes(' - ')) {
-      const parts = chunk.split(' - ').map((p) => p.trim());
+      const parts = chunk.split(' - ').map((p) => p.trim()).filter(Boolean);
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i].toUpperCase();
         const gradeMatch = part.match(/GRADE\s*(\d+)/i);
@@ -1186,7 +1188,7 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
             sLabel = parts[i + 1].trim().toUpperCase();
             i++;
           }
-          parsedCohorts.push({ grade: gLabel, section: sLabel });
+          parsedCohorts.push({ grade: gLabel, section: sLabel || rawSection || 'HYACINTH' });
         } else if (part) {
           parsedCohorts.push({ grade: 'GRADE 7', section: part });
         }
@@ -1195,7 +1197,7 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
       const part = chunk.toUpperCase();
       const gradeMatch = part.match(/GRADE\s*(\d+)/i);
       if (gradeMatch) {
-        parsedCohorts.push({ grade: `GRADE ${gradeMatch[1]}`, section: '' });
+        parsedCohorts.push({ grade: `GRADE ${gradeMatch[1]}`, section: rawSection || 'HYACINTH' });
       } else if (part) {
         parsedCohorts.push({ grade: 'GRADE 7', section: part });
       }
@@ -1224,21 +1226,23 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
     const cohort = parsedCohorts[0];
     const sec = cohort.section || rawSection || 'HYACINTH';
     const subjBasic = subjectsList.includes('Filipino') ? 'Filipino' : (subjectsList[0] || 'Filipino');
-    const subjPlus = subjectsList.includes('English') ? 'English' : (subjectsList[0] || 'Filipino');
+    const subjPlus = subjectsList.includes('English')
+      ? 'English'
+      : (subjectsList.includes('Math') ? 'Math' : (subjectsList.includes('Science') ? 'Science' : 'English'));
 
     return [
       {
         id: 'rd-basic-1',
         aralLevel: 'basic',
         subjects: [subjBasic],
-        gradeLevel: cohort.grade || 'GRADE 7',
+        gradeLevel: (cohort.grade || 'GRADE 7').replace(/\s*-\s*$/, ''),
         sections: [sec],
       },
       {
         id: 'rd-plus-2',
         aralLevel: 'plus',
         subjects: [subjPlus],
-        gradeLevel: cohort.grade || 'GRADE 7',
+        gradeLevel: (cohort.grade || 'GRADE 7').replace(/\s*-\s*$/, ''),
         sections: [sec],
       },
     ];
@@ -1254,7 +1258,11 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
 
     const itemSubjects = groupLevel === 'basic'
       ? (subjectsList.includes('Filipino') ? ['Filipino'] : [subjectsList[0] || 'Filipino'])
-      : (subjectsList.includes('English') ? ['English'] : [subjectsList[0] || 'English']);
+      : (subjectsList.includes('English')
+          ? ['English']
+          : (subjectsList.includes('Math')
+              ? ['Math']
+              : (subjectsList.includes('Science') ? ['Science'] : ['English'])));
 
     if (subjectsList.includes('Science') && !itemSubjects.includes('Science')) itemSubjects.push('Science');
     if (subjectsList.includes('Math') && !itemSubjects.includes('Math')) itemSubjects.push('Math');
@@ -1263,7 +1271,7 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
       id: Math.random().toString(36).substring(2, 9),
       aralLevel: groupLevel,
       subjects: itemSubjects,
-      gradeLevel: cohort.grade || 'GRADE 7',
+      gradeLevel: (cohort.grade || 'GRADE 7').replace(/\s*-\s*$/, ''),
       sections: cohort.section ? [cohort.section] : (rawSection ? [rawSection] : ['HYACINTH']),
     };
   });
