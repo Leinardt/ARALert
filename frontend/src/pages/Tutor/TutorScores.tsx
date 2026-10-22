@@ -2350,7 +2350,7 @@ export const TutorScores: React.FC = () => {
                   <div>
                     <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">Student Score List</h3>
                     <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">
-                      Enter scores for the {cohortStudents.length} assigned {cohortStudents.length === 1 ? 'student' : 'students'} of {selectedCohort}
+                      Enter scores for the {cohortStudents.length} assigned {cohortStudents.length === 1 ? 'student' : 'students'} of {`${selectedAralLevel.toUpperCase()} • ${selectedSubject.toUpperCase()} • ${selectedCohort}`}
                     </p>
                   </div>
                   <label className="relative flex w-full sm:w-auto sm:min-w-56 items-center">
