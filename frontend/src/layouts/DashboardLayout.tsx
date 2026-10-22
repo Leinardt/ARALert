@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, Suspense } from 'react';
+﻿import React, { useEffect, useState, useMemo, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -376,6 +376,7 @@ export const DashboardLayout: React.FC = () => {
   const highRiskCount = highRiskStudents.length;
   const [moderateRiskStudents, setModerateRiskStudents] = useState<StudentRiskRow[]>([]);
   const [showRiskList, setShowRiskList] = useState(false);
+  const [selectedAlertClass, setSelectedAlertClass] = useState<string>('all');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [acknowledgedAlerts, setAcknowledgedAlerts] = useState<Record<string, boolean>>({});
   const [acknowledgedRiskIds, setAcknowledgedRiskIds] = useState<Record<string, number>>({});
@@ -1400,6 +1401,7 @@ export const DashboardLayout: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setShowRiskList((prev) => !prev);
+                    setSelectedAlertClass('all');
                     setShowTutorNotifications(false);
                     setShowStudentEditRequests(false);
                     setShowStudentHighRisk(false);
@@ -1539,6 +1541,37 @@ export const DashboardLayout: React.FC = () => {
                         </button>
                       </div>
 
+                      {/* Class filter dropdown */}
+                      {tutorClassSections.length > 1 && (
+                        <div style={{ padding: '0.625rem 1rem 0', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-200)' }}>
+                          <select
+                            value={selectedAlertClass}
+                            onChange={(e) => setSelectedAlertClass(e.target.value)}
+                            aria-label="Filter by class"
+                            style={{
+                              width: '100%',
+                              padding: '0.4rem 0.75rem',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              borderRadius: '8px',
+                              border: '1px solid var(--slate-200)',
+                              background: 'var(--surface-card)',
+                              color: 'var(--text-primary)',
+                              marginBottom: '0.625rem',
+                              cursor: 'pointer',
+                              outline: 'none',
+                            }}
+                          >
+                            <option value="all">All Classes ({tutorClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)</option>
+                            {tutorClassSections.map((cls) => (
+                              <option key={cls.key} value={cls.key}>
+                                {cls.label} ({cls.students.length})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
                       {/* Risk list body */}
                       <div
                         style={{
@@ -1551,99 +1584,106 @@ export const DashboardLayout: React.FC = () => {
                           gap: '0.75rem',
                         }}
                       >
-                        {tutorClassSections.map((cls) => (
-                          <div key={cls.key} className="flex flex-col gap-2">
-                            {/* Class division header */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.125rem' }}>
-                              <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: 'var(--risk-high-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                {cls.label}
-                              </p>
-                              <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.72rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid var(--risk-high-border)' }}>
-                                {cls.students.length}
-                              </span>
-                            </div>
+                        {(() => {
+                          const visibleSections = selectedAlertClass === 'all'
+                            ? tutorClassSections
+                            : tutorClassSections.filter((cls) => cls.key === selectedAlertClass);
+                          return visibleSections.map((cls) => (
+                            <div key={cls.key} className="flex flex-col gap-2">
+                              {/* Class label shown only in "all" view or when more than one section exists */}
+                              {(selectedAlertClass === 'all' && tutorClassSections.length > 1) && (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.125rem' }}>
+                                  <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: 'var(--risk-high-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                    {cls.label}
+                                  </p>
+                                  <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.72rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid var(--risk-high-border)' }}>
+                                    {cls.students.length}
+                                  </span>
+                                </div>
+                              )}
 
-                            {cls.students.length === 0 ? (
-                              <div style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
-                                <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>
-                                  No high-risk students detected.
-                                </p>
-                              </div>
-                            ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                                {cls.students.map((row) => (
-                                  <div
-                                    key={`high-${cls.key}-${row.student.id}`}
-                                    className="rounded-xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#0A0A0A] p-3.5 space-y-2.5 shadow-2xs"
-                                  >
-                                    <div className="flex items-start justify-between gap-2">
-                                      <Link
-                                        to={`/tutor/students/${row.student.id}`}
-                                        state={{ from: 'dashboard' }}
-                                        onClick={() => setShowRiskList(false)}
-                                        className="group min-w-0 flex-1 no-underline"
-                                      >
-                                        <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-[var(--brand)] transition-colors truncate m-0">
-                                          {row.student.full_name}
-                                        </p>
-                                        <p className="text-[11px] text-slate-400 font-mono m-0 mt-0.5">
-                                          LRN: {row.student.lrn || 'N/A'}
-                                        </p>
-                                      </Link>
-                                      <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
-                                        HIGH RISK
-                                      </span>
-                                    </div>
-
-                                    {/* Composite score */}
-                                    <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
-                                      <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Composite Score:</span>
-                                      <span className="font-extrabold text-rose-600 dark:text-rose-400">{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
-                                    </div>
-
-                                    {/* Recovery targets: matching text format */}
-                                    <div className="flex flex-col gap-1.5 pt-0.5">
-                                      {row.neededPresentAttendance > 0 && (
-                                        <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50">
-                                          Need +{row.neededPresentAttendance} more Present records to improve risk level
-                                        </span>
-                                      )}
-                                      {row.neededPassedScores > 0 && (
-                                        <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
-                                          Need +{row.neededPassedScores} more Passed records to improve risk level
-                                        </span>
-                                      )}
-                                      {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
-                                        <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
-                                          Need +1 more Passed record to improve risk level
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    {/* Direct Acknowledge Alert button */}
-                                    <div className="pt-2 border-t border-slate-100 dark:border-neutral-800">
-                                      {acknowledgedAlerts[row.student.id] ? (
-                                        <div className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-lg">
-                                          <Check size={14} className="stroke-[3]" />
-                                          <span>Alert Addressed</span>
-                                        </div>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleAcknowledgeAlert(row)}
-                                          className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                              {cls.students.length === 0 ? (
+                                <div style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                                  <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>
+                                    No high-risk students detected.
+                                  </p>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                                  {cls.students.map((row) => (
+                                    <div
+                                      key={`high-${cls.key}-${row.student.id}`}
+                                      className="rounded-xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#0A0A0A] p-3.5 space-y-2.5 shadow-2xs"
+                                    >
+                                      <div className="flex items-start justify-between gap-2">
+                                        <Link
+                                          to={`/tutor/students/${row.student.id}`}
+                                          state={{ from: 'dashboard' }}
+                                          onClick={() => setShowRiskList(false)}
+                                          className="group min-w-0 flex-1 no-underline"
                                         >
-                                          <CheckCircle2 size={14} />
-                                          <span>Acknowledge Alert</span>
-                                        </button>
-                                      )}
+                                          <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-[var(--brand)] transition-colors truncate m-0">
+                                            {row.student.full_name}
+                                          </p>
+                                          <p className="text-[11px] text-slate-400 font-mono m-0 mt-0.5">
+                                            LRN: {row.student.lrn || 'N/A'}
+                                          </p>
+                                        </Link>
+                                        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
+                                          HIGH RISK
+                                        </span>
+                                      </div>
+
+                                      {/* Composite score */}
+                                      <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
+                                        <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Composite Score:</span>
+                                        <span className="font-extrabold text-rose-600 dark:text-rose-400">{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
+                                      </div>
+
+                                      {/* Recovery targets */}
+                                      <div className="flex flex-col gap-1.5 pt-0.5">
+                                        {row.neededPresentAttendance > 0 && (
+                                          <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50">
+                                            Need +{row.neededPresentAttendance} more Present records to improve risk level
+                                          </span>
+                                        )}
+                                        {row.neededPassedScores > 0 && (
+                                          <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
+                                            Need +{row.neededPassedScores} more Passed records to improve risk level
+                                          </span>
+                                        )}
+                                        {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
+                                          <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
+                                            Need +1 more Passed record to improve risk level
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* Direct Acknowledge Alert button */}
+                                      <div className="pt-2 border-t border-slate-100 dark:border-neutral-800">
+                                        {acknowledgedAlerts[row.student.id] ? (
+                                          <div className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-lg">
+                                            <Check size={14} className="stroke-[3]" />
+                                            <span>Alert Addressed</span>
+                                          </div>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleAcknowledgeAlert(row)}
+                                            className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                                          >
+                                            <CheckCircle2 size={14} />
+                                            <span>Acknowledge Alert</span>
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ));
+                        })()}
                       </div>
                     </div>
                   </>
