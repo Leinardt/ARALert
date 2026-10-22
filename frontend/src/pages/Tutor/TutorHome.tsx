@@ -732,9 +732,9 @@ export const TutorHome: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:h-[calc(100vh-8.5rem)] lg:min-h-[32rem] skeleton-container w-full min-w-0 max-w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-4 lg:items-start gap-3 skeleton-container w-full min-w-0 max-w-full">
         {/* Left Section skeleton: 3 top cards + Chart below */}
-        <div className="lg:col-span-3 flex flex-col gap-3 h-full min-h-0 w-full min-w-0 max-w-full">
+        <div className="lg:col-span-3 flex flex-col gap-3 w-full min-w-0 max-w-full">
           {/* 3 KPI Cards skeleton */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 skeleton-row-1">
             <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3.5 h-[116px] sm:h-[120px] animate-pulse flex flex-col justify-between">
@@ -763,7 +763,7 @@ export const TutorHome: React.FC = () => {
           </div>
 
           {/* Chart card skeleton */}
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-5 flex flex-col flex-1 min-h-0 animate-pulse">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-5 flex flex-col h-[372px] sm:h-[388px] animate-pulse">
             <div className="flex items-center justify-between gap-2 shrink-0 pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
               <div className="min-w-0 flex-1">
                 <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
@@ -776,7 +776,7 @@ export const TutorHome: React.FC = () => {
             </div>
 
             <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3.5 sm:mt-4">
-              <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-sm" />
+              <div className="relative h-[220px] sm:h-[235px] shrink-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-sm" />
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1 shrink-0">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1 skeleton-row-3">
                   {[1, 2, 3, 4].map((j) => (
@@ -791,8 +791,8 @@ export const TutorHome: React.FC = () => {
           </div>
         </div>
 
-        {/* At-Risk panel skeleton (spans from top to bottom) */}
-        <div className="lg:col-span-1 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md flex flex-col h-full min-h-0 overflow-hidden animate-pulse">
+        {/* At-Risk panel skeleton */}
+        <div className="lg:col-span-1 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md flex flex-col h-[420px] lg:h-[520px] overflow-hidden animate-pulse">
           <div className="px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] flex items-center justify-between shrink-0">
             <div className="h-4 w-36 rounded bg-gray-200 dark:bg-gray-800" />
             <div className="h-5 w-7 rounded-full bg-rose-100 dark:bg-rose-950/40" />
@@ -851,9 +851,9 @@ export const TutorHome: React.FC = () => {
         title="CURRENT CLASS FOR VIEW"
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:min-h-[30rem] w-full min-w-0 max-w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-4 lg:items-start gap-3 w-full min-w-0 max-w-full">
       {/* ── Left 3-Column Section: 3 Top Summary Cards + Chart Below ──── */}
-      <div className="lg:col-span-3 flex flex-col gap-3 h-full min-h-0 w-full min-w-0 max-w-full">
+      <div className="lg:col-span-3 flex flex-col gap-3 w-full min-w-0 max-w-full">
         {/* Row 1: My Students | Avg Attendance & Scores | High/Medium/Low Risk */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 w-full min-w-0 max-w-full">
           {/* 1. My Students */}
@@ -917,7 +917,7 @@ export const TutorHome: React.FC = () => {
         </div>
 
         {/* Row 2: Performance Trend Chart */}
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3.5 sm:px-5 flex flex-col flex-1 min-h-0 w-full min-w-0 max-w-full">
+        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3.5 sm:px-5 flex flex-col h-[372px] sm:h-[388px] w-full min-w-0 max-w-full">
           <div className="flex items-center justify-between gap-2 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
             <div className="min-w-0 flex-1">
               <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight truncate">{performanceTrendTitle}</h3>
@@ -950,8 +950,8 @@ export const TutorHome: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3 sm:mt-4">
-            <div className="relative flex-1 min-h-[180px] xs:min-h-[200px] sm:min-h-[220px] w-full min-w-0 max-w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-5 sm:py-2.5 overflow-hidden">
+          <div className="flex-1 flex flex-col justify-between min-h-0 gap-3 mt-3 sm:mt-3.5">
+            <div className="relative h-[220px] sm:h-[235px] shrink-0 w-full min-w-0 max-w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-5 sm:py-2.5 overflow-hidden">
               {last4WeeksData.length > 0 ? (
                 <InteractiveTutorChart data={last4WeeksData} trendFilter={trendFilter} />
               ) : (
@@ -1011,9 +1011,9 @@ export const TutorHome: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Right 1-Column Section: Top At-Risk Panel Spanning Full Height ──── */}
-      <div className="lg:col-span-1 h-full min-h-0">
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-full flex flex-col max-h-[420px] lg:max-h-none shadow-2xs">
+      {/* ── Right 1-Column Section: Top At-Risk Panel (Fixed Height) ──── */}
+      <div className="lg:col-span-1 min-h-0">
+        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-[420px] lg:h-[520px] flex flex-col shadow-2xs">
           <div className="flex items-center justify-between gap-1.5 px-3 sm:px-3.5 py-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
             <h3
               className="text-[9.5px] sm:text-[10px] xl:text-[9.5px] 2xl:text-[11px] font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate min-w-0"

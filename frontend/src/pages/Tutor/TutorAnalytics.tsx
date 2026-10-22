@@ -116,6 +116,84 @@ const isAbsentStatus = (status?: string | null): boolean => {
   return s === 'absent' || s === 'a';
 };
 
+const buildStudentIdSet = (students: User[]): Set<string> => {
+  const ids = new Set<string>();
+  students.forEach((s) => {
+    if (s.id) ids.add(String(s.id));
+    if (s.lrn) ids.add(String(s.lrn));
+    if ((s as any).user_id) ids.add(String((s as any).user_id));
+    if ((s as any).student_id) ids.add(String((s as any).student_id));
+  });
+  return ids;
+};
+
+const isNotTakenGrade = (grade: Grade | any): boolean => {
+  return String(grade?.remarks || '').trim().toLowerCase() === 'not taken';
+};
+
+const buildTrendPeriods = (
+  filter: TrendFilter,
+  anchorDate: Date,
+  recordedDates: Date[] = []
+): { start: Date; end: Date; label: string; dateKey: string }[] => {
+  const startOfAnchor = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), anchorDate.getDate(), 0, 0, 0, 0);
+  const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+  if (filter === 'day') {
+    const schoolDays = getRecentSchoolWeekdays(10, startOfAnchor);
+    const basePeriods = schoolDays.map((d) => {
+      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0);
+      return { start, end, label: formatDate(start), dateKey: toLocalDateKey(start) };
+    });
+    if (recordedDates.length === 0) return basePeriods;
+
+    const minStart = basePeriods.length > 0 ? basePeriods[0].start : startOfAnchor;
+    const maxEnd = basePeriods.length > 0 ? basePeriods[basePeriods.length - 1].end : new Date(startOfAnchor.getFullYear(), startOfAnchor.getMonth(), startOfAnchor.getDate() + 1, 0, 0, 0, 0);
+    const existingKeys = new Set(basePeriods.map((p) => p.dateKey));
+    const extraPeriods: { start: Date; end: Date; label: string; dateKey: string }[] = [];
+
+    recordedDates.forEach((rd) => {
+      if (rd >= minStart && rd < maxEnd) {
+        const start = new Date(rd.getFullYear(), rd.getMonth(), rd.getDate(), 0, 0, 0, 0);
+        const dateKey = toLocalDateKey(start);
+        if (!existingKeys.has(dateKey)) {
+          existingKeys.add(dateKey);
+          const end = new Date(rd.getFullYear(), rd.getMonth(), rd.getDate() + 1, 0, 0, 0, 0);
+          extraPeriods.push({ start, end, label: formatDate(start), dateKey });
+        }
+      }
+    });
+
+    if (extraPeriods.length > 0) {
+      return [...basePeriods, ...extraPeriods].sort((a, b) => a.start.getTime() - b.start.getTime()).slice(-10);
+    }
+    return basePeriods;
+  }
+
+  const periodCount = 6;
+  return Array.from({ length: periodCount }, (_, index) => {
+    const offset = periodCount - 1 - index;
+    let start: Date;
+    let end: Date;
+    let label: string;
+    if (filter === 'month') {
+      start = new Date(startOfAnchor.getFullYear(), startOfAnchor.getMonth() - offset, 1, 0, 0, 0, 0);
+      end = new Date(startOfAnchor.getFullYear(), startOfAnchor.getMonth() - offset + 1, 1, 0, 0, 0, 0);
+      label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+    } else {
+      const dayOfWeek = startOfAnchor.getDay();
+      const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const currentWeekMon = new Date(startOfAnchor.getFullYear(), startOfAnchor.getMonth(), startOfAnchor.getDate() + diffToMon, 0, 0, 0, 0);
+      start = new Date(currentWeekMon.getFullYear(), currentWeekMon.getMonth(), currentWeekMon.getDate() - offset * 7, 0, 0, 0, 0);
+      const fri = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 4, 0, 0, 0, 0);
+      end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7, 0, 0, 0, 0);
+      label = `${formatDate(start)} – ${formatDate(fri)}`;
+    }
+    return { start, end, label, dateKey: toLocalDateKey(start) };
+  });
+};
+
 const buildTrendPoints = (
   students: User[],
   grades: Grade[],
@@ -123,81 +201,74 @@ const buildTrendPoints = (
   metric: 'attendance' | 'score',
   filter: TrendFilter
 ): TrendPoint[] => {
-  const studentIds = new Set(students.map((student) => String(student.id)));
+  const studentIds = buildStudentIdSet(students);
+  if (studentIds.size === 0) return [];
+
+  const relevantAttendance = metric === 'attendance'
+    ? attendanceLogs.filter((log) => studentIds.has(getLogUserId(log)) && getRecordDate(log) !== null)
+    : [];
+  const relevantGrades = metric === 'score'
+    ? grades.filter((grade) => (
+        studentIds.has(getGradeStudentId(grade)) &&
+        grade.component_type !== 'attendance' &&
+        !isNotTakenGrade(grade) &&
+        Number(grade.total_score) > 0 &&
+        getRecordDate(grade) !== null
+      ))
+    : [];
+
+  if (metric === 'attendance' && relevantAttendance.length === 0) return [];
+  if (metric === 'score' && relevantGrades.length === 0) return [];
+
+  const recordedDates = (metric === 'attendance' ? relevantAttendance : relevantGrades)
+    .map((rec) => getRecordDate(rec))
+    .filter((d): d is Date => d !== null)
+    .sort((a, b) => a.getTime() - b.getTime());
+
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  let periods = buildTrendPeriods(filter, now, recordedDates);
 
-  let periods: { start: Date; end: Date; label: string; dateKey: string }[];
-  if (filter === 'day') {
-    const schoolDays = getRecentSchoolWeekdays(10, now);
-    periods = schoolDays.map((d) => {
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0);
-      return { start, end, label: formatDate(start), dateKey: toLocalDateKey(start) };
-    });
-  } else {
-    const periodCount = 6;
-    periods = Array.from({ length: periodCount }, (_, index) => {
-      const offset = periodCount - 1 - index;
-      let start: Date;
-      let end: Date;
-      let label: string;
-      if (filter === 'month') {
-        start = new Date(now.getFullYear(), now.getMonth() - offset, 1, 0, 0, 0, 0);
-        end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1, 0, 0, 0, 0);
-        label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
-      } else {
-        const dayOfWeek = now.getDay();
-        const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-        const currentWeekMon = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + diffToMon, 0, 0, 0, 0);
-        start = new Date(currentWeekMon.getFullYear(), currentWeekMon.getMonth(), currentWeekMon.getDate() - offset * 7, 0, 0, 0, 0);
-        const fri = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 4, 0, 0, 0, 0);
-        end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7, 0, 0, 0, 0);
-        label = `${formatDate(start)} – ${formatDate(fri)}`;
+  const evaluatePeriods = (periodList: { start: Date; end: Date; label: string; dateKey: string }[]) =>
+    periodList.map((period) => {
+      if (metric === 'attendance') {
+        const records = relevantAttendance.filter((log) => {
+          const d = getRecordDate(log);
+          return d ? d >= period.start && d < period.end : false;
+        });
+        if (records.length === 0) return { period, point: null };
+        const attended = records.filter((log) => isAttendedStatus(log.status)).length;
+        const point: TrendPoint = {
+          dateKey: period.dateKey,
+          label: period.label,
+          value: Math.round((attended / records.length) * 100),
+        };
+        return { period, point };
       }
-      return { start, end, label, dateKey: toLocalDateKey(start) };
-    });
-  }
 
-  const points = periods.map((period) => {
-    if (metric === 'attendance') {
-      const records = attendanceLogs.filter((log) => {
-        const uid = getLogUserId(log);
-        if (!studentIds.has(uid)) return false;
-        const d = getRecordDate(log);
-        if (!d) return false;
-        return d >= period.start && d < period.end;
+      const scoreRecords = relevantGrades.filter((grade) => {
+        const d = getRecordDate(grade);
+        return d ? d >= period.start && d < period.end : false;
       });
-      if (records.length === 0) return { period, point: null };
-      const attended = records.filter((log) => isAttendedStatus(log.status)).length;
+      if (scoreRecords.length === 0) return { period, point: null };
+      const average = scoreRecords.reduce((total, grade) => {
+        const totalScore = Number(grade.total_score) > 0 ? Number(grade.total_score) : 100;
+        return total + (Number(grade.score) / totalScore) * 100;
+      }, 0) / scoreRecords.length;
       const point: TrendPoint = {
         dateKey: period.dateKey,
         label: period.label,
-        value: Math.round((attended / records.length) * 100),
+        value: Math.round(Math.min(Math.max(average, 0), 100)),
       };
       return { period, point };
-    }
-
-    const scoreRecords = grades.filter((grade) => {
-      const sid = getGradeStudentId(grade);
-      if (!studentIds.has(sid) || grade.component_type === 'attendance' || grade.remarks === 'Not Taken') return false;
-      const d = getRecordDate(grade);
-      if (!d) return false;
-      return d >= period.start && d < period.end;
     });
-    if (scoreRecords.length === 0) return { period, point: null };
-    const average = scoreRecords.reduce((total, grade) => {
-      const totalScore = Number(grade.total_score) > 0 ? Number(grade.total_score) : 100;
-      return total + (Number(grade.score) / totalScore) * 100;
-    }, 0) / scoreRecords.length;
-    const point: TrendPoint = {
-      dateKey: period.dateKey,
-      label: period.label,
-      value: Math.round(Math.min(Math.max(average, 0), 100)),
-    };
-    return { period, point };
-  });
+
+  let points = evaluatePeriods(periods);
+
+  if (points.every(({ point }) => point === null) && recordedDates.length > 0) {
+    const latestRecordedDate = recordedDates[recordedDates.length - 1];
+    periods = buildTrendPeriods(filter, latestRecordedDate, recordedDates);
+    points = evaluatePeriods(periods);
+  }
 
   if (points.every(({ point }) => point === null)) return [];
 
@@ -218,57 +289,40 @@ const buildRiskTrendPoints = (
   attendanceLogs: Attendance[],
   filter: TrendFilter
 ): RiskTrendPoint[] => {
-  const studentIds = new Set(students.map((student) => String(student.id)));
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const studentIds = buildStudentIdSet(students);
+  if (studentIds.size === 0) return [];
 
-  let periods: { start: Date; end: Date; label: string; dateKey: string }[];
-  if (filter === 'day') {
-    const schoolDays = getRecentSchoolWeekdays(10, now);
-    periods = schoolDays.map((d) => {
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0);
-      return { start, end, label: formatDate(start), dateKey: toLocalDateKey(start) };
-    });
-  } else {
-    const periodCount = 6;
-    periods = Array.from({ length: periodCount }, (_, index) => {
-      const offset = periodCount - 1 - index;
-      let start: Date;
-      let end: Date;
-      let label: string;
-      if (filter === 'month') {
-        start = new Date(now.getFullYear(), now.getMonth() - offset, 1, 0, 0, 0, 0);
-        end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1, 0, 0, 0, 0);
-        label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
-      } else {
-        const dayOfWeek = now.getDay();
-        const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-        const currentWeekMon = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + diffToMon, 0, 0, 0, 0);
-        start = new Date(currentWeekMon.getFullYear(), currentWeekMon.getMonth(), currentWeekMon.getDate() - offset * 7, 0, 0, 0, 0);
-        const fri = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 4, 0, 0, 0, 0);
-        end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7, 0, 0, 0, 0);
-        label = `${formatDate(start)} – ${formatDate(fri)}`;
-      }
-      return { start, end, label, dateKey: toLocalDateKey(start) };
-    });
-  }
+  const relevantGrades = grades.filter((grade) => (
+    studentIds.has(getGradeStudentId(grade)) &&
+    grade.component_type !== 'attendance' &&
+    !isNotTakenGrade(grade) &&
+    getRecordDate(grade) !== null
+  ));
+  const relevantAttendance = attendanceLogs.filter((log) => (
+    studentIds.has(getLogUserId(log)) &&
+    getRecordDate(log) !== null
+  ));
+
+  if (relevantGrades.length === 0 && relevantAttendance.length === 0) return [];
+
+  const recordedDates = [
+    ...relevantGrades.map((g) => getRecordDate(g)),
+    ...relevantAttendance.map((a) => getRecordDate(a)),
+  ]
+    .filter((d): d is Date => d !== null)
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  const now = new Date();
+  const periods = buildTrendPeriods(filter, now, recordedDates);
 
   const points = periods.map((period) => {
-    const periodGrades = grades.filter((grade) => {
-      const sid = getGradeStudentId(grade);
-      if (!studentIds.has(sid)) return false;
+    const periodGrades = relevantGrades.filter((grade) => {
       const d = getRecordDate(grade);
-      if (!d) return false;
-      return d < period.end;
+      return d ? d < period.end : false;
     });
-    const periodAttendance = attendanceLogs.filter((log) => {
-      const uid = getLogUserId(log);
-      if (!studentIds.has(uid)) return false;
+    const periodAttendance = relevantAttendance.filter((log) => {
       const d = getRecordDate(log);
-      if (!d) return false;
-      return d < period.end;
+      return d ? d < period.end : false;
     });
     if (periodGrades.length === 0 && periodAttendance.length === 0) return { period, point: null };
     const snapshot = computeStudentRiskRows(students, periodGrades, periodAttendance);
@@ -353,7 +407,7 @@ const TrendChart: React.FC<{
 
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [data.length]);
 
   const { width, height } = dimensions;
   const isMobile = width < 520;
@@ -410,7 +464,7 @@ const TrendChart: React.FC<{
 
   if (data.length === 0) {
     return (
-      <div className="flex h-full w-full items-center justify-center text-xs font-medium text-gray-400 dark:text-slate-500">
+      <div ref={containerRef} className="flex h-full w-full items-center justify-center text-xs font-medium text-gray-400 dark:text-slate-500">
         {emptyLabel}
       </div>
     );
@@ -453,7 +507,7 @@ const TrendChart: React.FC<{
             <stop offset="0%" stopColor={color} stopOpacity="0.22" />
             <stop offset="100%" stopColor={color} stopOpacity="0.01" />
           </linearGradient>
-          <filter id={filterId} x="-20%" y="-30%" width="140%" height="160%">
+          <filter id={filterId} filterUnits="userSpaceOnUse" x={-20} y={-20} width={width + 40} height={height + 40}>
             <feGaussianBlur stdDeviation="3" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
@@ -476,11 +530,12 @@ const TrendChart: React.FC<{
         {points.map((point, idx) => {
           if (!visibleIndices.has(idx)) return null;
           const formattedLabel = getFormattedLabel(point.label);
+          const textAnchor = idx === 0 && points.length > 1 ? 'start' : idx === points.length - 1 && points.length > 1 ? 'end' : 'middle';
           return (
             <g key={point.dateKey || `pt-${idx}`}>
               <title>{`${point.label}: ${point.value}%`}</title>
               <circle cx={point.x} cy={point.y} r="4" fill={color} stroke="#FFFFFF" strokeWidth="2" />
-              <text x={point.x} y={height - 8} textAnchor="middle" className="fill-slate-500 dark:fill-slate-400 font-bold text-[9px] xs:text-[10px]">{formattedLabel}</text>
+              <text x={point.x} y={height - 8} textAnchor={textAnchor} className="fill-slate-500 dark:fill-slate-400 font-bold text-[9px] xs:text-[10px]">{formattedLabel}</text>
             </g>
           );
         })}
@@ -1155,7 +1210,7 @@ const getAralBadge = (level?: string | null) => {
 export const TutorAnalytics: React.FC = () => {
   const { user } = useAuth();
 
-  const [isLoading, setIsLoading] = useState(() => getCachedTutorStudents(user?.id).length === 0);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [activeAnalyticsTab, setActiveAnalyticsTab] = useState<AnalyticsTab>(() => {
@@ -1222,6 +1277,33 @@ export const TutorAnalytics: React.FC = () => {
     return buildTutorClassSections(user, allStudents);
   }, [user, allStudents]);
 
+  const matchedClass = useMemo(() => {
+    const isAllAral = !selectedAralLevel || selectedAralLevel.toLowerCase() === 'all';
+    const isAllSubject = !selectedSubject || selectedSubject.toLowerCase() === 'all';
+    const isAllCohort =
+      !selectedCohort ||
+      selectedCohort.toLowerCase() === 'all' ||
+      selectedCohort.toUpperCase() === 'ALL - ALL';
+
+    if (isAllAral && isAllSubject && isAllCohort) {
+      return null;
+    }
+
+    const directMatch = classSections.find((c) => {
+      const matchAral = isAllAral || c.aralLevel.toLowerCase() === selectedAralLevel.toLowerCase();
+      const matchSubj = isAllSubject || c.subject.toLowerCase() === selectedSubject.toLowerCase();
+      const matchCohort = isAllCohort || c.cohort.toUpperCase() === selectedCohort.toUpperCase();
+      return matchAral && matchSubj && matchCohort;
+    });
+    if (directMatch) return directMatch;
+
+    if (!isAllCohort) {
+      return classSections.find((c) => c.cohort.toUpperCase() === selectedCohort.toUpperCase()) || null;
+    }
+
+    return null;
+  }, [classSections, selectedAralLevel, selectedSubject, selectedCohort]);
+
   const filteredStudents = useMemo(() => {
     const isAllAral = !selectedAralLevel || selectedAralLevel.toLowerCase() === 'all';
     const isAllSubject = !selectedSubject || selectedSubject.toLowerCase() === 'all';
@@ -1234,14 +1316,7 @@ export const TutorAnalytics: React.FC = () => {
       return allStudents;
     }
 
-    const matchedClass = classSections.find((c) => {
-      const matchAral = isAllAral || c.aralLevel.toLowerCase() === selectedAralLevel.toLowerCase();
-      const matchSubj = isAllSubject || c.subject.toLowerCase() === selectedSubject.toLowerCase();
-      const matchCohort = isAllCohort || c.cohort.toUpperCase() === selectedCohort.toUpperCase();
-      return matchAral && matchSubj && matchCohort;
-    });
-
-    if (matchedClass && matchedClass.students.length > 0) {
+    if (matchedClass && allStudents.length > 0) {
       return matchedClass.students;
     }
 
@@ -1252,17 +1327,10 @@ export const TutorAnalytics: React.FC = () => {
         cohort: selectedCohort,
       })
     );
-  }, [allStudents, classSections, selectedAralLevel, selectedSubject, selectedCohort]);
+  }, [allStudents, matchedClass, selectedAralLevel, selectedSubject, selectedCohort]);
 
   const studentIds = useMemo(() => {
-    const ids = new Set<string>();
-    filteredStudents.forEach((s) => {
-      if (s.id) ids.add(String(s.id));
-      if (s.lrn) ids.add(String(s.lrn));
-      if ((s as any).user_id) ids.add(String((s as any).user_id));
-      if ((s as any).student_id) ids.add(String((s as any).student_id));
-    });
-    return ids;
+    return buildStudentIdSet(filteredStudents);
   }, [filteredStudents]);
 
   const attendanceLogs = useMemo(() => {
@@ -1275,23 +1343,16 @@ export const TutorAnalytics: React.FC = () => {
   const grades = useMemo(() => {
     return rawGrades.filter((g: Grade) => {
       const sid = getGradeStudentId(g);
-      if (!studentIds.has(sid)) return false;
-      if (selectedSubject && selectedSubject.toLowerCase() !== 'all') {
-        const gradeSub = (g.subject || '').toLowerCase().trim();
-        const selSub = selectedSubject.toLowerCase().trim();
-        if (selSub === 'filipino' && !(gradeSub.includes('filipino') || gradeSub.includes('reading') || gradeSub.includes('tagalog'))) return false;
-        if (selSub === 'english' && !(gradeSub.includes('english') || gradeSub.includes('reading') || gradeSub.includes('literacy'))) return false;
-        if (selSub === 'science' && !gradeSub.includes('science')) return false;
-        if (selSub === 'math' && !(gradeSub.includes('math') || gradeSub.includes('numeracy'))) return false;
-      }
-      return true;
+      return studentIds.has(sid);
     });
-  }, [rawGrades, studentIds, selectedSubject]);
+  }, [rawGrades, studentIds]);
 
   const rows = useMemo<ExtendedRiskRow[]>(() => {
-    const baseRows = computeStudentRiskRows(filteredStudents, grades, attendanceLogs);
+    const scoredGrades = grades.filter((g) => g.component_type !== 'attendance' && !isNotTakenGrade(g));
+    const baseRows = computeStudentRiskRows(filteredStudents, scoredGrades, attendanceLogs);
     return baseRows.map((row) => {
-      const studentAtt = attendanceLogs.filter((a: Attendance) => getLogUserId(a) === String(row.student.id));
+      const rowStudentIds = buildStudentIdSet([row.student]);
+      const studentAtt = attendanceLogs.filter((a: Attendance) => rowStudentIds.has(getLogUserId(a)));
       return { ...row, absentCount: studentAtt.filter((a: Attendance) => isAbsentStatus(a.status)).length };
     });
   }, [filteredStudents, grades, attendanceLogs]);
@@ -1316,7 +1377,7 @@ export const TutorAnalytics: React.FC = () => {
       const [studentsResponse, gradesData, attendanceLogsData] = await Promise.all([
         userService.getAllUsers({ role: 'student', assigned_tutor: user.id }),
         academicService.getGrades(),
-        academicService.getAttendanceHistory(),
+        academicService.getAttendanceHistory({ role: 'student' }),
       ]);
       const students = Array.isArray(studentsResponse) ? studentsResponse : [];
       const safeAttendance = Array.isArray(attendanceLogsData) ? attendanceLogsData : [];
@@ -1332,6 +1393,12 @@ export const TutorAnalytics: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    setRiskScope('all');
+    setAttendanceScope('all');
+    setScoreScope('all');
+  }, [selectedAralLevel, selectedSubject, selectedCohort]);
 
   useEffect(() => {
     if (riskScope !== 'all' && !filteredStudents.some((s) => String(s.id) === riskScope)) {
@@ -1421,13 +1488,16 @@ export const TutorAnalytics: React.FC = () => {
   ), [rows, scoreScope]);
 
   const classViewLabel = useMemo(() => {
+    if (matchedClass) {
+      return matchedClass.label;
+    }
     return getTutorClassViewLabel({
       user,
       selectedAralLevel,
       selectedSubject,
       selectedCohort,
     });
-  }, [user, selectedAralLevel, selectedSubject, selectedCohort]);
+  }, [matchedClass, user, selectedAralLevel, selectedSubject, selectedCohort]);
 
   const riskLevelTrendTitle = useMemo(() => {
     if (!classViewLabel) {
@@ -1475,7 +1545,7 @@ export const TutorAnalytics: React.FC = () => {
   const scoreSummary = useMemo(() => {
     const todayStr = toLocalDateKey(new Date());
     const scoreRecords = grades.filter((grade) => {
-      if (grade.component_type === 'attendance' || grade.remarks === 'Not Taken') return false;
+      if (grade.component_type === 'attendance' || isNotTakenGrade(grade)) return false;
       const d = getRecordDate(grade);
       return d ? toLocalDateKey(d) === todayStr : false;
     });
@@ -1498,7 +1568,8 @@ export const TutorAnalytics: React.FC = () => {
     })[] = [];
 
     rows.forEach((row) => {
-      const allStudentLogs = attendanceLogs.filter((log) => getLogUserId(log) === String(row.student.id));
+      const rowStudentIds = buildStudentIdSet([row.student]);
+      const allStudentLogs = attendanceLogs.filter((log) => rowStudentIds.has(getLogUserId(log)));
 
       const typesToGenerate: EntryDescriptionType[] = attendanceDescFilter === 'all'
         ? ['Intervention Activity', assignedMilestone]
@@ -1570,8 +1641,9 @@ export const TutorAnalytics: React.FC = () => {
     })[] = [];
 
     rows.forEach((row) => {
+      const rowStudentIds = buildStudentIdSet([row.student]);
       const allStudentGrades = grades.filter(
-        (grade) => getGradeStudentId(grade) === String(row.student.id) && grade.component_type !== 'attendance' && grade.remarks !== 'Not Taken'
+        (grade) => rowStudentIds.has(getGradeStudentId(grade)) && grade.component_type !== 'attendance' && !isNotTakenGrade(grade)
       );
 
       const typesToGenerate: EntryDescriptionType[] = scoreDescFilter === 'all'
@@ -1641,10 +1713,10 @@ export const TutorAnalytics: React.FC = () => {
     if (currentField === field) setAscending(!ascending);
     else { setField(field); setAscending(true); }
   };
-  const SortHeader: React.FC<{ field: string; children: React.ReactNode; align?: string; activeField?: string | null; ascending?: boolean; onSort?: (field: string) => void }> = ({ field, children, align = 'left', activeField = sortField, ascending = sortAsc, onSort = (value) => handleSort(value as OverallSortField) }) => (
+  const SortHeader: React.FC<{ field: string; children: React.ReactNode; align?: string; className?: string; activeField?: string | null; ascending?: boolean; onSort?: (field: string) => void }> = ({ field, children, align = 'left', className = '', activeField = sortField, ascending = sortAsc, onSort = (value) => handleSort(value as OverallSortField) }) => (
     <th
       onClick={() => onSort(field)}
-      className={`px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 cursor-pointer hover:text-gray-600 transition-colors select-none text-${align}`}
+      className={`px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 cursor-pointer hover:text-gray-600 transition-colors select-none text-${align} ${className}`.trim()}
     >
       <span className="inline-flex items-center gap-1">
         {children}
@@ -1927,7 +1999,7 @@ export const TutorAnalytics: React.FC = () => {
                       <table className="min-w-[900px] divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal w-full" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                         <thead>
                           <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-                            <SortHeader field="student">Student</SortHeader>
+                            <SortHeader field="student" className="w-[24%] min-w-[220px]">Student</SortHeader>
                             {hasMultipleOverallAralLevels ? (
                               <SortHeader field="aralLevel">ARAL Level</SortHeader>
                             ) : (
@@ -1945,8 +2017,8 @@ export const TutorAnalytics: React.FC = () => {
                             <tr key={row.student.id} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5">
                               <td className="px-4 py-3 align-middle">
                                 <div>
-                                  <div className="font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</div>
-                                  <div className="text-[11px] text-gray-400 dark:text-slate-500 font-mono">LRN: {row.student.lrn || 'N/A'}</div>
+                                  <div className="font-bold text-gray-900 dark:text-slate-100 text-sm whitespace-nowrap">{row.student.full_name}</div>
+
                                 </div>
                               </td>
                               <td className="px-4 py-3 align-middle">{getAralBadge(row.student.aral_level)}</td>
