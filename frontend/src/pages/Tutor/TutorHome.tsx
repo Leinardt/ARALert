@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+﻿import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/userService';
@@ -553,14 +553,6 @@ export const TutorHome: React.FC = () => {
     const studentIds = new Set(filteredStudents.map((s) => String(s.id)));
     const assessmentGrades = grades.filter((g) => {
       if (!studentIds.has(String(g.student)) || g.component_type !== 'assessment') return false;
-      if (selectedSubject && selectedSubject.toLowerCase() !== 'all') {
-        const gradeSub = (g.subject || '').toLowerCase();
-        const selSub = selectedSubject.toLowerCase();
-        if (selSub === 'filipino' && !(gradeSub.includes('filipino') || gradeSub.includes('reading'))) return false;
-        if (selSub === 'english' && !gradeSub.includes('english')) return false;
-        if (selSub === 'science' && !gradeSub.includes('science')) return false;
-        if (selSub === 'math' && !gradeSub.includes('math')) return false;
-      }
       return true;
     });
     if (assessmentGrades.length === 0) return [];
@@ -712,7 +704,7 @@ export const TutorHome: React.FC = () => {
         assessmentLabels: p.assessmentLabels,
       };
     });
-  }, [students, grades, attendance, trendFilter]);
+  }, [filteredStudents, grades, attendance, trendFilter]);
 
   const highestScore = useMemo(() => last4WeeksData.length === 0 ? 0 : Math.max(...last4WeeksData.map((d) => d.value)), [last4WeeksData]);
   const lowestScore = useMemo(() => last4WeeksData.length === 0 ? 0 : Math.min(...last4WeeksData.map((d) => d.value)), [last4WeeksData]);
@@ -1034,7 +1026,7 @@ export const TutorHome: React.FC = () => {
                 <p className="text-xs text-gray-400 dark:text-slate-500">No high or medium risk students.</p>
               </div>
             ) : (
-              atRiskStudents.slice(0, 20).map((s) => (
+              atRiskStudents.map((s) => (
                 <Link
                   key={s.student.id}
                   to={`/tutor/students/${s.student.id}`}
