@@ -1,4 +1,4 @@
-"""
+﻿"""
 Users API Views.
 SuperAdmin and Admin endpoints for user management with audit logging, bulk tutor assignment,
 and user login/logout activity history.
@@ -384,11 +384,13 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         return UserListSerializer
 
     def perform_update(self, serializer):
-        if self.request.user.role == 'tutor':
-            from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied(
-                'Student profile edits require administrative approval. Please submit a Student Edit Request.'
-            )
+        if getattr(self.request.user, 'role', None) == 'tutor':
+            # Tutors can update identity and academic details of their assigned students.
+            # Disallow changing sensitive security, administrative, or reassignment fields.
+            for restricted_field in ['role', 'is_superuser', 'is_staff', 'is_active', 'assigned_tutor']:
+                if restricted_field in serializer.validated_data:
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied(f'Tutors are not permitted to modify {restricted_field}.')
 
         target_user = serializer.instance
 

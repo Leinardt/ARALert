@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+﻿import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import type { User, StudentEditRequest } from '../../types';
 import { userService } from '../../services/userService';
@@ -777,7 +777,7 @@ export const Profile: React.FC = () => {
             <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-3.5 flex items-start gap-3">
               <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-                <span className="font-bold">Official Record Verification:</span> Updates to your student profile (name, LRN, or ARAL program level) require verification and confirmation by a School Admin or Super Admin before taking effect.
+                <span className="font-bold">Official Record Verification:</span> Updates to your student profile (name or LRN) require verification and confirmation by a School Admin or Super Admin before taking effect.
               </div>
             </div>
 
@@ -839,18 +839,7 @@ export const Profile: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed ARAL Program Level *</label>
-              <select
-                value={studentForm.aral_level}
-                onChange={(e) => setStudentForm({ ...studentForm, aral_level: e.target.value as any })}
-                className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] font-semibold cursor-pointer"
-              >
-                <option value="basic">Basic</option>
-                <option value="plus">Plus</option>
-                <option value="graduated">Graduated</option>
-              </select>
-            </div>
+
 
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Reason for Edit Request *</label>

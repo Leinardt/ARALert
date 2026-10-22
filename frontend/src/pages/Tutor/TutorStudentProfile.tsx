@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+﻿import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
@@ -483,27 +483,31 @@ export const TutorStudentProfile: React.FC = () => {
     }
   };
 
-  const handleSubmitStudentEditRequest = async (e: React.FormEvent) => {
+  const handleSubmitStudentEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
     setIsSavingStudent(true);
     setStudentEditError(null);
 
     try {
-      await userService.createStudentEditRequest({
-        student: profile.student.id,
-        proposed_first_name: studentForm.first_name.trim().toUpperCase(),
-        proposed_middle_name: studentForm.middle_name.trim().toUpperCase(),
-        proposed_last_name: studentForm.last_name.trim().toUpperCase(),
-        proposed_lrn: studentForm.lrn.trim() || null,
-        proposed_aral_level: studentForm.aral_level,
-        reason: studentForm.reason.trim(),
+      await userService.updateUser(profile.student.id, {
+        first_name: studentForm.first_name.trim().toUpperCase(),
+        middle_name: studentForm.middle_name.trim().toUpperCase(),
+        last_name: studentForm.last_name.trim().toUpperCase(),
+        lrn: studentForm.lrn.trim() || null,
+        aral_level: studentForm.aral_level,
       });
       setIsEditingStudent(false);
       await fetchProfile();
     } catch (err: any) {
       const errData = err?.response?.data;
-      const msg = errData?.detail || errData?.reason?.[0] || errData?.proposed_lrn?.[0] || errData?.student?.[0] || 'Failed to submit student edit request.';
+      const msg =
+        errData?.detail ||
+        errData?.lrn?.[0] ||
+        errData?.first_name?.[0] ||
+        errData?.last_name?.[0] ||
+        errData?.aral_level?.[0] ||
+        'Failed to save student details.';
       setStudentEditError(msg);
     } finally {
       setIsSavingStudent(false);
@@ -603,8 +607,8 @@ export const TutorStudentProfile: React.FC = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{profile.student.name}</h1>
-              <div className="flex flex-wrap items-center gap-1.5 mt-1 text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">
-                <span className="font-bold text-[var(--brand)]">{studentCohortInfo.aralLevel}</span>
+              <div className="flex flex-wrap items-center gap-1.5 mt-1 text-xs font-semibold uppercase text-gray-500 dark:text-slate-400">
+                <span className="font-bold text-gray-500 dark:text-slate-400">{studentCohortInfo.aralLevel}</span>
                 <span className="text-gray-300 dark:text-zinc-600">•</span>
                 <span>{studentCohortInfo.subject}</span>
                 <span className="text-gray-300 dark:text-zinc-600">•</span>
@@ -632,17 +636,13 @@ export const TutorStudentProfile: React.FC = () => {
             <button
               type="button"
               onClick={() => {
-                if (pendingEditRequest) {
-                  setShowPendingModal(true);
-                } else {
-                  setIsEditingStudent(true);
-                  setStudentEditError(null);
-                }
+                setIsEditingStudent(true);
+                setStudentEditError(null);
               }}
               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold border border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:bg-[var(--brand-light)] dark:hover:bg-[#161616] text-gray-700 dark:text-slate-300 hover:text-[var(--brand-dark)] transition cursor-pointer"
             >
               <Edit3 className="w-3.5 h-3.5" />
-              <span>{pendingEditRequest ? 'View Pending Request' : 'Edit Student Details'}</span>
+              <span>Edit Student Details</span>
             </button>
 
             <button
@@ -698,16 +698,11 @@ export const TutorStudentProfile: React.FC = () => {
           <div className="space-y-6">
             {/* KPI Containers */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex items-center gap-4 md:col-span-1">
-                <div className="w-10 h-10 rounded-md bg-emerald-100 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0">
-                  <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">COMPOSITE SCORE</p>
-                  <p className="text-2xl font-extrabold text-gray-900 dark:text-slate-100 mt-0.5">
-                    {smartPct(compositeScore)}%
-                  </p>
-                </div>
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center md:col-span-1">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-black dark:text-white">COMPOSITE SCORE</p>
+                <p className={`text-2xl font-extrabold mt-0.5 ${riskTier === 'High' ? 'text-risk-high' : riskTier === 'Medium' ? 'text-risk-medium' : 'text-risk-low'}`}>
+                  {smartPct(compositeScore)}%
+                </p>
               </div>
 
               <div className={`rounded-md border p-5 flex flex-col justify-center md:col-span-2 ${riskTier === 'High'
@@ -1065,25 +1060,17 @@ export const TutorStudentProfile: React.FC = () => {
         </div>
       )}
 
-      {/* ── STUDENT EDIT REQUEST MODAL ─────────────────────────────── */}
+      {/* ── STUDENT EDIT MODAL ─────────────────────────────── */}
       {isEditingStudent && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <form onSubmit={handleSubmitStudentEditRequest} className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8">
+          <form onSubmit={handleSubmitStudentEdit} className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-white text-base">Edit Student Details</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white text-base uppercase">EDIT STUDENT DETAILS</h3>
               </div>
               <button type="button" onClick={() => setIsEditingStudent(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
-            </div>
-
-            {/* Integrity Notice Banner */}
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-md p-3.5 flex items-start gap-3">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-                <span className="font-bold">Official Record Protection:</span> Changes to student identity or program levels require approval from a School Admin or Super Admin before taking effect to prevent unauthorized edits.
-              </div>
             </div>
 
             {studentEditError && (
@@ -1095,7 +1082,7 @@ export const TutorStudentProfile: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed First Name *</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">First Name *</label>
                 <input
                   type="text"
                   required
@@ -1107,7 +1094,7 @@ export const TutorStudentProfile: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed Middle Name</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Middle Name</label>
                 <input
                   type="text"
                   value={studentForm.middle_name}
@@ -1120,7 +1107,7 @@ export const TutorStudentProfile: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed Last Name *</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Last Name *</label>
                 <input
                   type="text"
                   required
@@ -1132,7 +1119,7 @@ export const TutorStudentProfile: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed LRN (12 digits)</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">LRN (12 digits)</label>
                 <input
                   type="text"
                   maxLength={12}
@@ -1145,7 +1132,7 @@ export const TutorStudentProfile: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Proposed ARAL Program Level *</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">ARAL Program Level *</label>
               <select
                 value={studentForm.aral_level}
                 onChange={(e) => setStudentForm({ ...studentForm, aral_level: e.target.value as any })}
@@ -1155,18 +1142,6 @@ export const TutorStudentProfile: React.FC = () => {
                 <option value="plus">Plus</option>
                 <option value="graduated">Graduated</option>
               </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Reason for Edit Request *</label>
-              <textarea
-                required
-                rows={3}
-                value={studentForm.reason}
-                onChange={(e) => setStudentForm({ ...studentForm, reason: e.target.value })}
-                placeholder="Explain why this student detail change is necessary (e.g., PSA birth certificate name spelling correction, LRN typo correction, or program reclassification)..."
-                className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] resize-none"
-              />
             </div>
 
             <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
@@ -1182,7 +1157,7 @@ export const TutorStudentProfile: React.FC = () => {
                 disabled={isSavingStudent}
                 className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-md text-xs font-bold cursor-pointer transition-colors disabled:opacity-50 inline-flex items-center gap-2"
               >
-                {isSavingStudent ? 'Submitting Request...' : 'Submit Request for Approval'}
+                {isSavingStudent ? 'Saving Changes...' : 'Save Changes'}
               </button>
             </div>
           </form>
