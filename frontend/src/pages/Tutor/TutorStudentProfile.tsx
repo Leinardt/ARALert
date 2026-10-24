@@ -1086,8 +1086,13 @@ export const TutorStudentProfile: React.FC = () => {
 
       {/* ── STUDENT EDIT MODAL ─────────────────────────────── */}
       {isEditingStudent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <form onSubmit={handlePromptSaveStudent} className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
+          <form
+            onSubmit={handlePromptSaveStudent}
+            autoComplete="off"
+            data-form-type="other"
+            className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8 animate-fade-in-scale"
+          >
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white text-base uppercase">EDIT STUDENT DETAILS</h3>
@@ -1109,6 +1114,9 @@ export const TutorStudentProfile: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">First Name *</label>
                 <input
                   type="text"
+                  name="aralert_student_first_name"
+                  autoComplete="off"
+                  data-lpignore="true"
                   required
                   value={studentForm.first_name}
                   onChange={(e) => setStudentForm({ ...studentForm, first_name: e.target.value })}
@@ -1121,6 +1129,9 @@ export const TutorStudentProfile: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Middle Name</label>
                 <input
                   type="text"
+                  name="aralert_student_middle_name"
+                  autoComplete="off"
+                  data-lpignore="true"
                   value={studentForm.middle_name}
                   onChange={(e) => setStudentForm({ ...studentForm, middle_name: e.target.value })}
                   placeholder="e.g. PROTACIO"
@@ -1134,6 +1145,9 @@ export const TutorStudentProfile: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Last Name *</label>
                 <input
                   type="text"
+                  name="aralert_student_last_name"
+                  autoComplete="off"
+                  data-lpignore="true"
                   required
                   value={studentForm.last_name}
                   onChange={(e) => setStudentForm({ ...studentForm, last_name: e.target.value })}
@@ -1146,6 +1160,9 @@ export const TutorStudentProfile: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">LRN (12 digits)</label>
                 <input
                   type="text"
+                  name="aralert_student_lrn"
+                  autoComplete="off"
+                  data-lpignore="true"
                   maxLength={12}
                   value={studentForm.lrn}
                   onChange={(e) => setStudentForm({ ...studentForm, lrn: e.target.value.replace(/\D/g, '') })}
@@ -1158,6 +1175,8 @@ export const TutorStudentProfile: React.FC = () => {
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">ARAL Program Level *</label>
               <select
+                name="aralert_student_level"
+                autoComplete="off"
                 value={studentForm.aral_level}
                 onChange={(e) => setStudentForm({ ...studentForm, aral_level: e.target.value as any })}
                 className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)] font-semibold"
@@ -1193,9 +1212,9 @@ export const TutorStudentProfile: React.FC = () => {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-fade-in"
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
         >
-          <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#222222] rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-up">
+          <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#222222] rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-fade-in-scale">
             <div className="flex items-center gap-3 text-[var(--brand)]">
               <div className="p-2.5 rounded-full bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900/40">
                 <AlertCircle className="w-6 h-6 text-[var(--brand)]" />
@@ -1255,6 +1274,7 @@ export const TutorStudentProfile: React.FC = () => {
           </div>
         </div>
       )}
+
 
       {/* ── PENDING REQUEST DETAILS MODAL ──────────────────────────── */}
       {showPendingModal && pendingEditRequest && (
