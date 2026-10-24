@@ -256,20 +256,23 @@ export interface StudentAcademicProfile {
 
 export interface StudentEditRequest {
   id: string;
-  student: string;
-  student_name: string;
+  student?: string | null;
+  student_name?: string;
+  request_type?: 'student' | 'staff';
+  required_reviewer_role?: 'admin' | 'superadmin';
   current_first_name: string;
   current_middle_name: string;
   current_last_name: string;
   current_lrn: string | null;
-  current_aral_level: string;
+  current_aral_level?: string;
   requested_by: string;
   requested_by_name: string;
+  requested_by_role?: string;
   proposed_first_name: string;
   proposed_middle_name: string;
   proposed_last_name: string;
   proposed_lrn: string | null;
-  proposed_aral_level: 'basic' | 'plus' | 'summer' | 'graduated' | string;
+  proposed_aral_level?: 'basic' | 'plus' | 'summer' | 'graduated' | string;
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
   reviewed_by: string | null;
@@ -280,12 +283,14 @@ export interface StudentEditRequest {
 }
 
 export interface CreateStudentEditRequestPayload {
-  student: string;
+  student?: string;
+  request_type?: 'student' | 'staff';
+  required_reviewer_role?: 'admin' | 'superadmin';
   proposed_first_name: string;
   proposed_middle_name?: string;
   proposed_last_name: string;
   proposed_lrn?: string | null;
-  proposed_aral_level: string;
+  proposed_aral_level?: string;
   reason: string;
 }
 

@@ -82,7 +82,10 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
   }, [filteredRequests, currentPage]);
 
   const handleApprove = async (request: StudentEditRequest) => {
-    if (!window.confirm(`Are you sure you want to approve changes for ${request.student_name}? This will immediately update the official student records.`)) {
+    const targetLabel = request.request_type === 'staff'
+      ? `staff profile for ${request.requested_by_name}`
+      : `student records for ${request.student_name || 'student'}`;
+    if (!window.confirm(`Are you sure you want to approve changes for ${targetLabel}? This will immediately update the profile.`)) {
       return;
     }
 
@@ -91,7 +94,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
     setActionSuccess(null);
     try {
       const res = await userService.reviewStudentEditRequest(request.id, 'approve');
-      setActionSuccess(res.detail || `Successfully approved changes for ${request.student_name}.`);
+      setActionSuccess(res.detail || `Successfully approved changes for ${targetLabel}.`);
       await fetchRequests(false);
       onRequestReviewed?.();
     } catch (err: any) {
@@ -149,11 +152,11 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
         <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/60 flex-shrink-0">
           <div className="flex items-center gap-2">
             <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wide">
-              Edit Request Notifications
+              NOTIFICATIONS
             </h3>
             {pendingCount > 0 && (
               <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-[#0052B7] text-white shadow-xs">
-                {pendingCount} Pending
+                {pendingCount} Pending Approval
               </span>
             )}
           </div>
@@ -282,15 +285,32 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2.5 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                          {req.student_name}
-                        </span>
-                        <span className="text-[11px] font-mono text-slate-400">
-                          {req.current_lrn ? `LRN: ${req.current_lrn}` : 'No LRN'}
-                        </span>
+                        {req.request_type === 'staff' ? (
+                          <>
+                            <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                              {req.requested_by_name}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 uppercase tracking-wide">
+                              {req.requested_by_role || 'Staff'} Profile Edit
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                              {req.student_name}
+                            </span>
+                            <span className="text-[11px] font-mono text-slate-400">
+                              {req.current_lrn ? `LRN: ${req.current_lrn}` : 'No LRN'}
+                            </span>
+                          </>
+                        )}
                       </div>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Requested by <strong className="text-slate-700 dark:text-slate-300 font-semibold">{req.requested_by_name}</strong> •{' '}
+                        {req.request_type === 'staff' ? (
+                          <>Submitted for approval • </>
+                        ) : (
+                          <>Requested by <strong className="text-slate-700 dark:text-slate-300 font-semibold">{req.requested_by_name}</strong> • </>
+                        )}
                         {new Date(req.created_at).toLocaleDateString(undefined, {
                           month: 'short',
                           day: 'numeric',
@@ -323,11 +343,11 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                     </div>
                   </div>
 
-                  {/* Tutor's Reason */}
+                  {/* Stated Reason */}
                   {req.reason && (
                     <div className="mt-2.5 p-2 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/40 text-[11px]">
                       <span className="font-bold text-amber-900 dark:text-amber-300 block mb-0.5 text-[10px] uppercase tracking-wider">
-                        Tutor's Stated Reason:
+                        {req.request_type === 'staff' ? "Requester's Stated Reason:" : "Tutor's Stated Reason:"}
                       </span>
                       <p className="text-slate-700 dark:text-slate-300 italic">
                         "{req.reason}"
@@ -407,45 +427,49 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                           </td>
                         </tr>
 
-                        {/* LRN */}
-                        <tr className={hasLrnChanged ? 'bg-emerald-50/40 dark:bg-emerald-950/20 font-medium' : ''}>
-                          <td className="py-1.5 px-2 font-semibold text-slate-600 dark:text-slate-400">LRN (12 digits)</td>
-                          <td className="py-1.5 px-2 font-mono text-slate-700 dark:text-slate-300">{req.current_lrn || '—'}</td>
-                          <td className="py-1.5 px-2 font-mono">
-                            {hasLrnChanged ? (
-                              <span className="font-bold text-emerald-700 dark:text-emerald-400">{req.proposed_lrn || '(Cleared)'}</span>
-                            ) : (
-                              <span className="text-slate-400">{req.proposed_lrn || '—'}</span>
-                            )}
-                          </td>
-                          <td className="py-1.5 px-2 text-center">
-                            {hasLrnChanged ? (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Changed</span>
-                            ) : (
-                              <span className="text-slate-400 text-[9px]">Same</span>
-                            )}
-                          </td>
-                        </tr>
+                        {/* LRN (Student Only) */}
+                        {req.request_type !== 'staff' && (
+                          <tr className={hasLrnChanged ? 'bg-emerald-50/40 dark:bg-emerald-950/20 font-medium' : ''}>
+                            <td className="py-1.5 px-2 font-semibold text-slate-600 dark:text-slate-400">LRN (12 digits)</td>
+                            <td className="py-1.5 px-2 font-mono text-slate-700 dark:text-slate-300">{req.current_lrn || '—'}</td>
+                            <td className="py-1.5 px-2 font-mono">
+                              {hasLrnChanged ? (
+                                <span className="font-bold text-emerald-700 dark:text-emerald-400">{req.proposed_lrn || '(Cleared)'}</span>
+                              ) : (
+                                <span className="text-slate-400">{req.proposed_lrn || '—'}</span>
+                              )}
+                            </td>
+                            <td className="py-1.5 px-2 text-center">
+                              {hasLrnChanged ? (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Changed</span>
+                              ) : (
+                                <span className="text-slate-400 text-[9px]">Same</span>
+                              )}
+                            </td>
+                          </tr>
+                        )}
 
-                        {/* ARAL Level */}
-                        <tr className={hasLevelChanged ? 'bg-emerald-50/40 dark:bg-emerald-950/20 font-medium' : ''}>
-                          <td className="py-1.5 px-2 font-semibold text-slate-600 dark:text-slate-400">ARAL Level</td>
-                          <td className="py-1.5 px-2 capitalize text-slate-700 dark:text-slate-300">{req.current_aral_level || '—'}</td>
-                          <td className="py-1.5 px-2 capitalize">
-                            {hasLevelChanged ? (
-                              <span className="font-bold text-indigo-600 dark:text-indigo-400">{req.proposed_aral_level}</span>
-                            ) : (
-                              <span className="text-slate-400">{req.proposed_aral_level}</span>
-                            )}
-                          </td>
-                          <td className="py-1.5 px-2 text-center">
-                            {hasLevelChanged ? (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Changed</span>
-                            ) : (
-                              <span className="text-slate-400 text-[9px]">Same</span>
-                            )}
-                          </td>
-                        </tr>
+                        {/* ARAL Level (Student Only) */}
+                        {req.request_type !== 'staff' && (
+                          <tr className={hasLevelChanged ? 'bg-emerald-50/40 dark:bg-emerald-950/20 font-medium' : ''}>
+                            <td className="py-1.5 px-2 font-semibold text-slate-600 dark:text-slate-400">ARAL Level</td>
+                            <td className="py-1.5 px-2 capitalize text-slate-700 dark:text-slate-300">{req.current_aral_level || '—'}</td>
+                            <td className="py-1.5 px-2 capitalize">
+                              {hasLevelChanged ? (
+                                <span className="font-bold text-indigo-600 dark:text-indigo-400">{req.proposed_aral_level}</span>
+                              ) : (
+                                <span className="text-slate-400">{req.proposed_aral_level}</span>
+                              )}
+                            </td>
+                            <td className="py-1.5 px-2 text-center">
+                              {hasLevelChanged ? (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Changed</span>
+                              ) : (
+                                <span className="text-slate-400 text-[9px]">Same</span>
+                              )}
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>

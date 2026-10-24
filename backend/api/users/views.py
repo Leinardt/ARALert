@@ -971,8 +971,8 @@ class AuditLogListView(APIView):
 
 class StudentEditRequestListCreateView(APIView):
     """
-    GET  /api/users/student-edit-requests/ — List student edit requests.
-    POST /api/users/student-edit-requests/ — Submit an edit request (tutors).
+    GET  /api/users/student-edit-requests/ — List profile/student edit requests.
+    POST /api/users/student-edit-requests/ — Submit an edit request.
     """
 
     def get_permissions(self):
@@ -983,17 +983,16 @@ class StudentEditRequestListCreateView(APIView):
         user = request.user
         queryset = StudentEditRequest.objects.select_related('student', 'requested_by', 'reviewed_by').all()
 
-        if not user.is_superuser:
-            role = getattr(user, 'role', None)
-            if role == 'tutor':
-                queryset = queryset.filter(requested_by=user)
-            elif role == 'student':
-                queryset = queryset.filter(student=user)
-            elif role == 'admin':
-                # School Admin sees all requests in their school
-                pass
-            else:
-                return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
+        if user.is_superuser:
+            # Super Admin sees all requests
+            pass
+        elif getattr(user, 'role', None) == 'admin':
+            # School Admin sees requests destined for admin review (not admin profile requests)
+            queryset = queryset.filter(required_reviewer_role='admin')
+        else:
+            # All other users (tutor, faculty, principal, student) see only requests submitted by them or for them
+            from django.db.models import Q
+            queryset = queryset.filter(Q(requested_by=user) | Q(student=user))
 
         status_param = request.query_params.get('status', '').strip()
         if status_param:
@@ -1005,7 +1004,13 @@ class StudentEditRequestListCreateView(APIView):
 
         serializer = StudentEditRequestSerializer(queryset, many=True)
         is_admin_or_super = user.is_superuser or getattr(user, 'role', None) == 'admin'
-        pending_count = StudentEditRequest.objects.filter(status='pending').count() if is_admin_or_super else queryset.filter(status='pending').count()
+        
+        if user.is_superuser:
+            pending_count = StudentEditRequest.objects.filter(status='pending').count()
+        elif getattr(user, 'role', None) == 'admin':
+            pending_count = StudentEditRequest.objects.filter(status='pending', required_reviewer_role='admin').count()
+        else:
+            pending_count = queryset.filter(status='pending').count()
 
         return Response({
             'count': queryset.count(),
@@ -1016,37 +1021,50 @@ class StudentEditRequestListCreateView(APIView):
     def post(self, request):
         user = request.user
         role = getattr(user, 'role', None)
-        if role not in ('tutor', 'student') and not user.is_superuser:
-            return Response(
-                {'detail': 'Only tutors and students can submit student edit requests.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
 
         serializer = StudentEditRequestCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        student = serializer.validated_data['student']
-        if role == 'tutor' and student.assigned_tutor != user:
-            return Response(
-                {'detail': 'You can only submit edit requests for students assigned to you.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        if user.role == 'student' and student != user:
-            return Response(
-                {'detail': 'You can only submit edit requests for your own profile.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        student = serializer.validated_data.get('student')
+        request_type = serializer.validated_data.get('request_type', 'student')
 
-        edit_request = serializer.save(requested_by=user)
+        # Determine reviewer role:
+        # If an admin is editing their profile -> strictly SuperAdmin
+        # If student/tutor/faculty/principal -> School Admin
+        if role == 'admin':
+            required_reviewer_role = 'superadmin'
+            request_type = 'staff'
+        else:
+            required_reviewer_role = 'admin'
 
+        if student:
+            if role == 'tutor' and student.assigned_tutor != user:
+                return Response(
+                    {'detail': 'You can only submit edit requests for students assigned to you.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            if role == 'student' and student != user:
+                return Response(
+                    {'detail': 'You can only submit edit requests for your own profile.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        edit_request = serializer.save(
+            requested_by=user,
+            request_type=request_type,
+            required_reviewer_role=required_reviewer_role,
+        )
+
+        target_name = student.get_full_name() if student else user.get_full_name()
         log_audit_event(
-            'STUDENT_EDIT_REQUEST_SUBMITTED',
+            'PROFILE_EDIT_REQUEST_SUBMITTED',
             user=user,
             request=request,
             details={
                 'request_id': str(edit_request.id),
-                'student_id': str(student.id),
-                'student_name': student.get_full_name(),
+                'target_name': target_name,
+                'request_type': request_type,
+                'required_reviewer_role': required_reviewer_role,
                 'proposed_name': f"{edit_request.proposed_last_name}, {edit_request.proposed_first_name}",
                 'proposed_lrn': edit_request.proposed_lrn,
                 'proposed_aral_level': edit_request.proposed_aral_level,
@@ -1063,7 +1081,8 @@ class StudentEditRequestListCreateView(APIView):
 class StudentEditRequestReviewView(APIView):
     """
     PATCH /api/users/student-edit-requests/{id}/review/ — Approve or reject an edit request.
-    Restricted to School Admin and Super Admin.
+    - School Admin can approve staff & student requests.
+    - Super Admin can approve all requests, and is REQUIRED for Admin profile requests.
     """
 
     permission_classes = [IsAdmin]
@@ -1077,6 +1096,13 @@ class StudentEditRequestReviewView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Permission check: If request requires SuperAdmin approval, enforce is_superuser
+        if edit_req.required_reviewer_role == 'superadmin' and not request.user.is_superuser:
+            return Response(
+                {'detail': 'School Admin profile edit requests can only be approved by the Super Admin.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         serializer = StudentEditRequestReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -1086,30 +1112,33 @@ class StudentEditRequestReviewView(APIView):
         from django.utils import timezone
 
         if action == 'approve':
-            student = edit_req.student
-            # Update User record
-            student.first_name = edit_req.proposed_first_name
-            student.middle_name = edit_req.proposed_middle_name
-            student.last_name = edit_req.proposed_last_name
-            if edit_req.proposed_lrn:
-                student.lrn = edit_req.proposed_lrn
-            student.aral_level = edit_req.proposed_aral_level
-            student.save()
+            # Target is student if student is set, otherwise the requesting user themselves (staff/admin profile)
+            target_user = edit_req.student if edit_req.student else edit_req.requested_by
+            target_user.first_name = edit_req.proposed_first_name
+            target_user.middle_name = edit_req.proposed_middle_name
+            target_user.last_name = edit_req.proposed_last_name
+            if edit_req.proposed_lrn and target_user.role == 'student':
+                target_user.lrn = edit_req.proposed_lrn
+            if edit_req.proposed_aral_level and target_user.role == 'student':
+                target_user.aral_level = edit_req.proposed_aral_level
+            target_user.save()
 
-            # Synchronize linked academic Student record if one exists
-            try:
-                from apps.academics.models import Student as AcademicStudent
-                academic_student = AcademicStudent.objects.filter(user=student).first()
-                if academic_student:
-                    academic_student.stu_fname = edit_req.proposed_first_name
-                    academic_student.stu_mname = edit_req.proposed_middle_name
-                    academic_student.stu_lname = edit_req.proposed_last_name
-                    if edit_req.proposed_lrn:
-                        academic_student.lrn = edit_req.proposed_lrn
-                    academic_student.aral_level = edit_req.proposed_aral_level
-                    academic_student.save()
-            except Exception:
-                pass
+            # Synchronize linked academic Student record if target is a student
+            if target_user.role == 'student':
+                try:
+                    from apps.academics.models import Student as AcademicStudent
+                    academic_student = AcademicStudent.objects.filter(user=target_user).first()
+                    if academic_student:
+                        academic_student.stu_fname = edit_req.proposed_first_name
+                        academic_student.stu_mname = edit_req.proposed_middle_name
+                        academic_student.stu_lname = edit_req.proposed_last_name
+                        if edit_req.proposed_lrn:
+                            academic_student.lrn = edit_req.proposed_lrn
+                        if edit_req.proposed_aral_level:
+                            academic_student.aral_level = edit_req.proposed_aral_level
+                        academic_student.save()
+                except Exception:
+                    pass
 
             edit_req.status = 'approved'
             edit_req.reviewed_by = request.user
@@ -1117,20 +1146,20 @@ class StudentEditRequestReviewView(APIView):
             edit_req.save()
 
             log_audit_event(
-                'STUDENT_EDIT_REQUEST_APPROVED',
+                'PROFILE_EDIT_REQUEST_APPROVED',
                 user=request.user,
                 request=request,
                 details={
                     'request_id': str(edit_req.id),
-                    'student_id': str(student.id),
-                    'student_name': student.get_full_name(),
+                    'target_user_id': str(target_user.id),
+                    'target_user_name': target_user.get_full_name(),
                     'requested_by': edit_req.requested_by.get_full_name(),
                     'approved_by': request.user.get_full_name(),
                 }
             )
 
             return Response({
-                'detail': f'Edit request for {student.get_full_name()} has been approved.',
+                'detail': f'Edit request for {target_user.get_full_name()} has been approved.',
                 'request': StudentEditRequestSerializer(edit_req).data
             })
 
@@ -1141,14 +1170,14 @@ class StudentEditRequestReviewView(APIView):
             edit_req.reviewed_at = timezone.now()
             edit_req.save()
 
+            target_name = edit_req.student.get_full_name() if edit_req.student else edit_req.requested_by.get_full_name()
             log_audit_event(
-                'STUDENT_EDIT_REQUEST_REJECTED',
+                'PROFILE_EDIT_REQUEST_REJECTED',
                 user=request.user,
                 request=request,
                 details={
                     'request_id': str(edit_req.id),
-                    'student_id': str(edit_req.student.id),
-                    'student_name': edit_req.student.get_full_name(),
+                    'target_name': target_name,
                     'requested_by': edit_req.requested_by.get_full_name(),
                     'rejected_by': request.user.get_full_name(),
                     'rejection_reason': rejection_reason,
@@ -1156,7 +1185,7 @@ class StudentEditRequestReviewView(APIView):
             )
 
             return Response({
-                'detail': f'Edit request for {edit_req.student.get_full_name()} was rejected.',
+                'detail': f'Edit request for {target_name} was rejected.',
                 'request': StudentEditRequestSerializer(edit_req).data
             })
 

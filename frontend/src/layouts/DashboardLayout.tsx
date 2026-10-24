@@ -539,7 +539,7 @@ export const DashboardLayout: React.FC = () => {
         const data = await userService.getStudentEditRequests({ status: 'pending' });
         setPendingEditRequestsCount(data.pending_count ?? data.results.length);
         setMyEditRequests(data.results || []);
-      } else if (user.role === 'tutor' || user.role === 'student') {
+      } else {
         const data = await userService.getStudentEditRequests();
         const results = data.results || [];
         setMyEditRequests(results);
@@ -1722,7 +1722,7 @@ export const DashboardLayout: React.FC = () => {
               </div>
             )}
 
-            {/* Notification Bell (School Admin & Super Admin) */}
+            {/* Universal Notification Bell (School Admin & Super Admin) */}
             {(user?.role === 'admin' || user?.is_superuser) && (
               <div style={{ position: 'relative' }}>
                 <button
@@ -1734,11 +1734,11 @@ export const DashboardLayout: React.FC = () => {
                     setIsEditBellRinging(true);
                     setEditBellRingKey((prev) => prev + 1);
                   }}
-                  aria-label="Edit Request Notifications"
+                  aria-label="NOTIFICATIONS"
                   title={
                     pendingEditRequestsCount > 0
-                      ? `${pendingEditRequestsCount} Edit Request Notification(s) Pending Review`
-                      : 'Edit Request Notifications'
+                      ? `${pendingEditRequestsCount} Notification(s) Pending Review`
+                      : 'NOTIFICATIONS'
                   }
                   style={{
                     position: 'relative',
@@ -1823,8 +1823,8 @@ export const DashboardLayout: React.FC = () => {
               </div>
             )}
 
-            {/* Notification Bell (Tutor role) */}
-            {user?.role === 'tutor' && (
+            {/* Universal Notification Bell (Tutor, Faculty, Principal) */}
+            {(user?.role === 'tutor' || user?.role === 'faculty' || user?.role === 'principal') && (
               <div style={{ position: 'relative' }}>
                 <button
                   type="button"
@@ -1837,11 +1837,11 @@ export const DashboardLayout: React.FC = () => {
                     setIsBellRinging(true);
                     setBellRingKey((prev) => prev + 1);
                   }}
-                  aria-label="Edit Request Notifications"
+                  aria-label="NOTIFICATIONS"
                   title={
                     pendingEditRequestsCount > 0
-                      ? `${pendingEditRequestsCount} Edit Request Notification(s)`
-                      : 'Edit Request Notifications'
+                      ? `${pendingEditRequestsCount} Notification(s)`
+                      : 'NOTIFICATIONS'
                   }
                   style={{
                     position: 'relative',
@@ -1915,7 +1915,7 @@ export const DashboardLayout: React.FC = () => {
                   )}
                 </button>
 
-                {/* Tutor Notifications Dropdown */}
+                {/* Notifications Dropdown */}
                 {showTutorNotifications && (
                   <>
                     {/* Mobile Backdrop */}
@@ -1927,7 +1927,7 @@ export const DashboardLayout: React.FC = () => {
 
                     {/* Notification Panel */}
                     <div
-                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[410px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 overflow-hidden"
+                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[420px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 overflow-hidden"
                     >
                       <div
                         style={{
@@ -1942,7 +1942,7 @@ export const DashboardLayout: React.FC = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <Bell size={15} className="text-slate-600 dark:text-slate-300" />
                           <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                            EDIT REQUEST NOTIFICATION
+                            NOTIFICATIONS
                           </p>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -1993,13 +1993,34 @@ export const DashboardLayout: React.FC = () => {
                       </div>
 
                       {/* Notifications List Body */}
-                      <div style={{ maxHeight: 'min(460px, calc(100vh - 140px))', overflowY: 'auto', padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <div style={{ maxHeight: 'min(480px, calc(100vh - 140px))', overflowY: 'auto', padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
                         
-                        {/* Section: Student Edit Requests Status */}
+                        {/* Section 1: System & Maintenance Updates */}
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                             <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                              Student Edit Requests
+                              System & Maintenance
+                            </span>
+                            <span style={{ fontSize: '0.68rem', fontWeight: 700, background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', borderRadius: '99px', padding: '1px 7px' }}>
+                              Operational
+                            </span>
+                          </div>
+                          <div style={{ background: 'var(--surface-muted)', border: '1px solid var(--slate-200)', borderRadius: '8px', padding: '0.65rem 0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+                              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22C55E' }}></span>
+                              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>ARALert Platform v1.2</span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                              All system services and academic modules are running normally. Scheduled maintenance windows and system releases are announced here.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Section 2: Profile Edit Requests */}
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Profile Edit Requests
                             </span>
                             <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--slate-200)', color: 'var(--text-secondary)', borderRadius: '99px', padding: '1px 7px' }}>
                               {myEditRequests.length}
@@ -2009,7 +2030,7 @@ export const DashboardLayout: React.FC = () => {
                           {myEditRequests.length === 0 ? (
                             <div style={{ background: 'var(--surface-muted)', border: '1px dashed var(--slate-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
                               <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                                No student edit requests submitted.
+                                No profile edit requests submitted.
                               </p>
                             </div>
                           ) : (
@@ -2031,6 +2052,10 @@ export const DashboardLayout: React.FC = () => {
                                   ? 'rgba(34, 197, 94, 0.3)'
                                   : 'rgba(239, 68, 68, 0.3)';
 
+                                const displayName = req.request_type === 'staff'
+                                  ? 'Personal Profile Update'
+                                  : (req.student_name ? `${req.student_name} (Student)` : 'Profile Details Update');
+
                                 return (
                                   <div
                                     key={req.id}
@@ -2044,10 +2069,10 @@ export const DashboardLayout: React.FC = () => {
                                       gap: '0.35rem',
                                     }}
                                   >
-                                    {/* Header with Student Name and Status Badge */}
+                                    {/* Header with Title and Status Badge */}
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                      <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                        {req.student_name}
+                                      <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                        {displayName}
                                       </p>
                                       {isPending && (
                                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', fontSize: '0.68rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
@@ -2072,18 +2097,22 @@ export const DashboardLayout: React.FC = () => {
                                         <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Proposed Name: </span>
                                         <span>{req.proposed_last_name}, {req.proposed_first_name} {req.proposed_middle_name || ''}</span>
                                       </div>
-                                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2px' }}>
-                                        <span>
-                                          <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Level: </span>
-                                          <span style={{ fontWeight: 700 }}>{formatAralLevel(req.proposed_aral_level)}</span>
-                                        </span>
-                                        {req.proposed_lrn && (
-                                          <span>
-                                            <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>LRN: </span>
-                                            <span>{req.proposed_lrn}</span>
-                                          </span>
-                                        )}
-                                      </div>
+                                      {req.request_type !== 'staff' && (req.proposed_aral_level || req.proposed_lrn) && (
+                                        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2px' }}>
+                                          {req.proposed_aral_level && (
+                                            <span>
+                                              <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Level: </span>
+                                              <span style={{ fontWeight: 700 }}>{formatAralLevel(req.proposed_aral_level)}</span>
+                                            </span>
+                                          )}
+                                          {req.proposed_lrn && (
+                                            <span>
+                                              <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>LRN: </span>
+                                              <span>{req.proposed_lrn}</span>
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
                                       {req.reason && (
                                         <p style={{ margin: '3px 0 0', fontStyle: 'italic', color: 'var(--text-muted)' }}>
                                           "{req.reason}"
@@ -2094,7 +2123,7 @@ export const DashboardLayout: React.FC = () => {
                                     {/* Review outcome notes */}
                                     {isApproved && (
                                       <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(34, 197, 94, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#15803D', fontWeight: 600 }}>
-                                        ✓ Changes approved and applied to official record{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}.
+                                        ✓ Profile update approved and applied{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}.
                                       </div>
                                     )}
                                     {isRejected && (
@@ -2134,11 +2163,11 @@ export const DashboardLayout: React.FC = () => {
                       setIsBellRinging(true);
                       setBellRingKey((prev) => prev + 1);
                     }}
-                    aria-label="Edit Request Notifications"
+                    aria-label="NOTIFICATIONS"
                     title={
                       pendingEditRequestsCount > 0
-                        ? `${pendingEditRequestsCount} Edit Request Notification(s) Pending Review`
-                        : 'Edit Request Notifications'
+                        ? `${pendingEditRequestsCount} Notification(s) Pending Review`
+                        : 'NOTIFICATIONS'
                     }
                     style={{
                       position: 'relative',
@@ -2212,7 +2241,7 @@ export const DashboardLayout: React.FC = () => {
                     )}
                   </button>
 
-                  {/* Student Edit Request Notifications Dropdown */}
+                  {/* Student Notifications Dropdown */}
                   {showStudentEditRequests && (
                     <>
                       {/* Mobile Backdrop */}
@@ -2239,7 +2268,7 @@ export const DashboardLayout: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Bell size={15} className="text-slate-600 dark:text-slate-300" />
                             <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                              EDIT REQUEST NOTIFICATION
+                              NOTIFICATIONS
                             </p>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -2289,8 +2318,31 @@ export const DashboardLayout: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Edit Requests List Body */}
-                        <div style={{ maxHeight: 'min(460px, calc(100vh - 140px))', overflowY: 'auto', padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {/* Notifications List Body */}
+                        <div style={{ maxHeight: 'min(480px, calc(100vh - 140px))', overflowY: 'auto', padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                          
+                          {/* System & Maintenance Notice */}
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                System Status
+                              </span>
+                              <span style={{ fontSize: '0.68rem', fontWeight: 700, background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', borderRadius: '99px', padding: '1px 7px' }}>
+                                Operational
+                              </span>
+                            </div>
+                            <div style={{ background: 'var(--surface-muted)', border: '1px solid var(--slate-200)', borderRadius: '8px', padding: '0.65rem 0.75rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+                                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22C55E' }}></span>
+                                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>ARALert v1.2 Release</span>
+                              </div>
+                              <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                                System services are running smoothly. System announcements and maintenance notifications appear here.
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Profile Edit Requests */}
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                               <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>

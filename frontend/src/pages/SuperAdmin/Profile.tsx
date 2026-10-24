@@ -133,7 +133,7 @@ export const Profile: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Student Edit Request States
+  // Profile Edit Request States
   const [pendingEditRequest, setPendingEditRequest] = useState<StudentEditRequest | null>(null);
   const [isEditingStudent, setIsEditingStudent] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -150,10 +150,9 @@ export const Profile: React.FC = () => {
   });
 
   const fetchPendingRequest = useCallback(async () => {
-    if (!user || user.role !== 'student') return;
+    if (!user || user.is_superuser) return;
     try {
       const data = await userService.getStudentEditRequests({
-        student_id: user.id,
         status: 'pending',
       });
       if (data.results && data.results.length > 0) {
@@ -162,44 +161,44 @@ export const Profile: React.FC = () => {
         setPendingEditRequest(null);
       }
     } catch (err) {
-      console.error('Failed to check pending student edit requests', err);
+      console.error('Failed to check pending profile edit requests', err);
     }
   }, [user]);
 
   useEffect(() => {
     setLocalUser(user);
-    if (user?.role === 'student') {
+    if (user && !user.is_superuser) {
       fetchPendingRequest();
     }
   }, [user, fetchPendingRequest]);
 
-  // Non-student direct edit handlers
+  // Edit handler: SuperAdmin edits directly; all other roles open the Profile Edit Request modal
   const handleEditOpen = () => {
     if (!localUser) return;
-    if (localUser.role === 'student') {
-      if (pendingEditRequest) {
-        setShowPendingModal(true);
-        return;
-      }
-      setStudentForm({
-        first_name: localUser.first_name || '',
-        middle_name: localUser.middle_name || '',
-        last_name: localUser.last_name || '',
-        lrn: localUser.lrn || '',
-        aral_level: (localUser.aral_level as any) || 'basic',
-        reason: '',
-      });
-      setStudentEditError(null);
-      setIsEditingStudent(true);
+    if (localUser.is_superuser) {
+      setEditFirst(toTitleCase(localUser.first_name));
+      setEditMiddle(toTitleCase(localUser.middle_name));
+      setEditLast(toTitleCase(localUser.last_name));
+      setMessage(null);
+      setError(null);
+      setIsEditing(true);
       return;
     }
 
-    setEditFirst(toTitleCase(localUser.first_name));
-    setEditMiddle(toTitleCase(localUser.middle_name));
-    setEditLast(toTitleCase(localUser.last_name));
-    setMessage(null);
-    setError(null);
-    setIsEditing(true);
+    if (pendingEditRequest) {
+      setShowPendingModal(true);
+      return;
+    }
+    setStudentForm({
+      first_name: localUser.first_name || '',
+      middle_name: localUser.middle_name || '',
+      last_name: localUser.last_name || '',
+      lrn: localUser.lrn || '',
+      aral_level: (localUser.aral_level as any) || 'basic',
+      reason: '',
+    });
+    setStudentEditError(null);
+    setIsEditingStudent(true);
   };
 
   const handleCancel = () => {
@@ -207,6 +206,7 @@ export const Profile: React.FC = () => {
     setError(null);
   };
 
+  // Direct profile update (SuperAdmin only)
   const handleSave = async () => {
     if (!localUser) return;
     setIsSaving(true);
@@ -228,7 +228,7 @@ export const Profile: React.FC = () => {
     }
   };
 
-  // Student request submit (opens confirmation)
+  // Submit profile edit request (School Admin, Tutor, Faculty, Principal, Student)
   const handleStudentFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!studentForm.reason.trim()) {
@@ -239,26 +239,32 @@ export const Profile: React.FC = () => {
     setShowConfirmModal(true);
   };
 
-  // Confirm and create student edit request
+  // Confirm and create profile edit request
   const handleConfirmSubmitRequest = async () => {
     if (!localUser) return;
     setIsSavingStudent(true);
     setStudentEditError(null);
 
+    const isStudentRole = localUser.role === 'student';
+    const isSchoolAdmin = localUser.role === 'admin';
+
     try {
       await userService.createStudentEditRequest({
-        student: localUser.id,
+        student: isStudentRole ? localUser.id : undefined,
+        request_type: isStudentRole ? 'student' : 'staff',
+        required_reviewer_role: isSchoolAdmin ? 'superadmin' : 'admin',
         proposed_first_name: studentForm.first_name.trim().toUpperCase(),
         proposed_middle_name: studentForm.middle_name.trim().toUpperCase(),
         proposed_last_name: studentForm.last_name.trim().toUpperCase(),
-        proposed_lrn: studentForm.lrn.trim() || null,
-        proposed_aral_level: studentForm.aral_level,
+        proposed_lrn: isStudentRole ? (studentForm.lrn.trim() || null) : null,
+        proposed_aral_level: isStudentRole ? studentForm.aral_level : undefined,
         reason: studentForm.reason.trim(),
       });
 
       setShowConfirmModal(false);
       setIsEditingStudent(false);
-      setMessage('Your profile edit request has been submitted for School Admin and Super Admin review.');
+      const targetReviewer = isSchoolAdmin ? 'Super Admin' : 'School Admin';
+      setMessage(`Your profile edit request has been submitted for ${targetReviewer} review.`);
       await fetchPendingRequest();
     } catch (err: any) {
       setShowConfirmModal(false);
@@ -363,8 +369,8 @@ export const Profile: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Student Pending Edit Request Notification Banner ── */}
-      {localUser.role === 'student' && pendingEditRequest && (
+      {/* ── Pending Edit Request Notification Banner (All non-superadmin roles) ── */}
+      {!localUser.is_superuser && pendingEditRequest && (
         <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-3xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
             <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-900/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center shrink-0">
@@ -383,7 +389,7 @@ export const Profile: React.FC = () => {
                     year: 'numeric',
                   })}
                 </span>
-                . Your request has been forwarded to the School Admin and Super Admin for confirmation.
+                . Your request has been forwarded to the {localUser.role === 'admin' ? 'Super Admin' : 'School Admin'} for review and approval.
               </p>
             </div>
           </div>
@@ -408,7 +414,7 @@ export const Profile: React.FC = () => {
             PROFILE INFORMATION
           </h2>
 
-          {localUser.role === 'student' ? (
+          {!localUser.is_superuser ? (
             pendingEditRequest ? (
               <button
                 type="button"
@@ -782,7 +788,7 @@ export const Profile: React.FC = () => {
             <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-3.5 flex items-start gap-3">
               <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-                <span className="font-bold">Official Record Verification:</span> Updates to your student profile (name or LRN) require verification and confirmation by a School Admin or Super Admin before taking effect.
+                <span className="font-bold">Official Record Verification:</span> Updates to your profile details require formal confirmation and approval by the {localUser.role === 'admin' ? 'Super Admin' : 'School Admin'} before taking effect.
               </div>
             </div>
 
@@ -818,7 +824,7 @@ export const Profile: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className={`grid grid-cols-1 ${localUser.role === 'student' ? 'sm:grid-cols-2' : ''} gap-3.5`}>
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed Last Name *</label>
                 <input
@@ -831,17 +837,19 @@ export const Profile: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed LRN (12 digits)</label>
-                <input
-                  type="text"
-                  maxLength={12}
-                  value={studentForm.lrn}
-                  onChange={(e) => setStudentForm({ ...studentForm, lrn: e.target.value.replace(/\D/g, '') })}
-                  placeholder="12-digit number"
-                  className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] font-mono font-bold"
-                />
-              </div>
+              {localUser.role === 'student' && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Proposed LRN (12 digits)</label>
+                  <input
+                    type="text"
+                    maxLength={12}
+                    value={studentForm.lrn}
+                    onChange={(e) => setStudentForm({ ...studentForm, lrn: e.target.value.replace(/\D/g, '') })}
+                    placeholder="12-digit number"
+                    className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] font-mono font-bold"
+                  />
+                </div>
+              )}
             </div>
 
 

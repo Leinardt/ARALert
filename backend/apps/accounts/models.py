@@ -373,9 +373,10 @@ class AuditLog(models.Model):
 
 class StudentEditRequest(models.Model):
     """
-    Formal change request for student identity and program level information.
-    Submitted by tutors and approved/rejected by School Admin or Super Admin.
-    Prevents unauthorized or fraudulent alterations of student records.
+    Formal change request for student or staff identity details.
+    - If student profile: submitted by student or tutor, reviewed by School Admin or Super Admin.
+    - If staff profile (tutor, faculty, principal): reviewed by School Admin or Super Admin.
+    - If admin profile: reviewed strictly by Super Admin.
     """
 
     class Status(models.TextChoices):
@@ -383,10 +384,27 @@ class StudentEditRequest(models.Model):
         APPROVED = 'approved', 'Approved'
         REJECTED = 'rejected', 'Rejected'
 
+    class RequestType(models.TextChoices):
+        STUDENT = 'student', 'Student Profile'
+        STAFF   = 'staff',   'Staff Profile'
+
+    class ReviewerRole(models.TextChoices):
+        ADMIN      = 'admin',      'School Admin'
+        SUPERADMIN = 'superadmin', 'Super Admin'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    request_type = models.CharField(
+        max_length=20,
+        choices=RequestType.choices,
+        default=RequestType.STUDENT,
+        db_index=True,
+        verbose_name='Request Type',
+    )
     student = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name='edit_requests',
         limit_choices_to={'role': 'student'},
         verbose_name='Student',
@@ -395,7 +413,14 @@ class StudentEditRequest(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='requested_student_edits',
-        verbose_name='Requested By (Tutor)',
+        verbose_name='Requested By',
+    )
+    required_reviewer_role = models.CharField(
+        max_length=20,
+        choices=ReviewerRole.choices,
+        default=ReviewerRole.ADMIN,
+        db_index=True,
+        verbose_name='Required Reviewer Role',
     )
     proposed_first_name = models.CharField(max_length=100, verbose_name='Proposed First Name')
     proposed_middle_name = models.CharField(max_length=100, blank=True, default='', verbose_name='Proposed Middle Name')
@@ -405,6 +430,7 @@ class StudentEditRequest(models.Model):
         max_length=15,
         choices=User.AralLevel.choices,
         default=User.AralLevel.BASIC,
+        blank=True,
         verbose_name='Proposed ARAL Level',
     )
     reason = models.TextField(blank=True, default='', verbose_name='Reason for Edit Request')
@@ -430,9 +456,10 @@ class StudentEditRequest(models.Model):
     class Meta:
         db_table = 'student_edit_requests'
         ordering = ['-created_at']
-        verbose_name = 'Student Edit Request'
-        verbose_name_plural = 'Student Edit Requests'
+        verbose_name = 'Profile Edit Request'
+        verbose_name_plural = 'Profile Edit Requests'
 
     def __str__(self):
-        return f'Edit Request for {self.student.get_full_name()} ({self.status}) by {self.requested_by.get_full_name()}'
+        target = self.student.get_full_name() if self.student else self.requested_by.get_full_name()
+        return f'Edit Request for {target} ({self.status}) by {self.requested_by.get_full_name()}'
 

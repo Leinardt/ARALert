@@ -433,22 +433,25 @@ class BulkAssignTutorSerializer(serializers.Serializer):
 
 
 class StudentEditRequestSerializer(serializers.ModelSerializer):
-    """Full detail and list serializer for student edit requests."""
+    """Full detail and list serializer for student and staff profile edit requests."""
 
     student_name = serializers.SerializerMethodField()
     requested_by_name = serializers.SerializerMethodField()
+    requested_by_role = serializers.SerializerMethodField()
     reviewed_by_name = serializers.SerializerMethodField()
 
-    current_first_name = serializers.CharField(source='student.first_name', read_only=True)
-    current_middle_name = serializers.CharField(source='student.middle_name', read_only=True)
-    current_last_name = serializers.CharField(source='student.last_name', read_only=True)
-    current_lrn = serializers.CharField(source='student.lrn', read_only=True)
-    current_aral_level = serializers.CharField(source='student.aral_level', read_only=True)
+    current_first_name = serializers.SerializerMethodField()
+    current_middle_name = serializers.SerializerMethodField()
+    current_last_name = serializers.SerializerMethodField()
+    current_lrn = serializers.SerializerMethodField()
+    current_aral_level = serializers.SerializerMethodField()
 
     class Meta:
         model = StudentEditRequest
         fields = [
             'id',
+            'request_type',
+            'required_reviewer_role',
             'student',
             'student_name',
             'current_first_name',
@@ -458,6 +461,7 @@ class StudentEditRequestSerializer(serializers.ModelSerializer):
             'current_aral_level',
             'requested_by',
             'requested_by_name',
+            'requested_by_role',
             'proposed_first_name',
             'proposed_middle_name',
             'proposed_last_name',
@@ -473,22 +477,49 @@ class StudentEditRequestSerializer(serializers.ModelSerializer):
         ]
 
     def get_student_name(self, obj):
-        return obj.student.get_full_name() if obj.student else ''
+        if obj.student:
+            return obj.student.get_full_name()
+        return obj.requested_by.get_full_name() if obj.requested_by else ''
 
     def get_requested_by_name(self, obj):
         return obj.requested_by.get_full_name() if obj.requested_by else ''
 
+    def get_requested_by_role(self, obj):
+        return getattr(obj.requested_by, 'role', 'admin') if obj.requested_by else ''
+
     def get_reviewed_by_name(self, obj):
         return obj.reviewed_by.get_full_name() if obj.reviewed_by else None
 
+    def get_current_first_name(self, obj):
+        target = obj.student or obj.requested_by
+        return getattr(target, 'first_name', '') if target else ''
+
+    def get_current_middle_name(self, obj):
+        target = obj.student or obj.requested_by
+        return getattr(target, 'middle_name', '') if target else ''
+
+    def get_current_last_name(self, obj):
+        target = obj.student or obj.requested_by
+        return getattr(target, 'last_name', '') if target else ''
+
+    def get_current_lrn(self, obj):
+        target = obj.student or obj.requested_by
+        return getattr(target, 'lrn', '') if target else ''
+
+    def get_current_aral_level(self, obj):
+        target = obj.student or obj.requested_by
+        return getattr(target, 'aral_level', '') if target else ''
+
 
 class StudentEditRequestCreateSerializer(serializers.ModelSerializer):
-    """Serializer for tutor submission of student edit request."""
+    """Serializer for submitting student and staff profile edit requests."""
 
     class Meta:
         model = StudentEditRequest
         fields = [
             'student',
+            'request_type',
+            'required_reviewer_role',
             'proposed_first_name',
             'proposed_middle_name',
             'proposed_last_name',
@@ -496,6 +527,12 @@ class StudentEditRequestCreateSerializer(serializers.ModelSerializer):
             'proposed_aral_level',
             'reason',
         ]
+        extra_kwargs = {
+            'student': {'required': False, 'allow_null': True},
+            'request_type': {'required': False},
+            'required_reviewer_role': {'required': False},
+            'proposed_aral_level': {'required': False},
+        }
 
     def validate_proposed_first_name(self, value):
         v = value.strip().upper()
@@ -528,19 +565,22 @@ class StudentEditRequestCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         student = data.get('student')
-        if student.role != 'student':
-            raise serializers.ValidationError({'student': 'Target user must be a student.'})
+        request_type = data.get('request_type', 'student')
 
-        # Check for existing pending request
-        if StudentEditRequest.objects.filter(student=student, status='pending').exists():
-            raise serializers.ValidationError({
-                'student': f'There is already an active pending edit request for {student.get_full_name()}.'
-            })
+        if request_type == 'student' and student:
+            if student.role != 'student':
+                raise serializers.ValidationError({'student': 'Target user must be a student.'})
 
-        proposed_lrn = data.get('proposed_lrn')
-        if proposed_lrn and proposed_lrn != student.lrn:
-            if User.objects.filter(lrn=proposed_lrn, role='student').exclude(id=student.id).exists():
-                raise serializers.ValidationError({'proposed_lrn': 'A student with this LRN already exists.'})
+            # Check for existing pending request
+            if StudentEditRequest.objects.filter(student=student, status='pending').exists():
+                raise serializers.ValidationError({
+                    'student': f'There is already an active pending edit request for {student.get_full_name()}.'
+                })
+
+            proposed_lrn = data.get('proposed_lrn')
+            if proposed_lrn and proposed_lrn != student.lrn:
+                if User.objects.filter(lrn=proposed_lrn, role='student').exclude(id=student.id).exists():
+                    raise serializers.ValidationError({'proposed_lrn': 'A student with this LRN already exists.'})
 
         return data
 
