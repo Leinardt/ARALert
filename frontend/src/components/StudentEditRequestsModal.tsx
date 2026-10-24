@@ -339,13 +339,15 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                           </>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        {req.request_type === 'staff' ? (
-                          <>Submitted for approval</>
-                        ) : (
-                          <>Requested by <strong className="text-slate-700 dark:text-slate-300 font-semibold">{req.requested_by_name}</strong></>
-                        )}
-                      </p>
+                      {req.request_type !== 'staff' &&
+                      req.requested_by_name &&
+                      req.student_name &&
+                      req.requested_by_name.trim().toLowerCase() !== req.student_name.trim().toLowerCase() && (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Requested by <strong className="text-slate-700 dark:text-slate-300 font-semibold">{req.requested_by_name}</strong>
+                          {req.requested_by_role && <span className="text-slate-400"> ({req.requested_by_role})</span>}
+                        </p>
+                      )}
                     </div>
 
                     {/* Upper Right: Date/Time & Status */}
