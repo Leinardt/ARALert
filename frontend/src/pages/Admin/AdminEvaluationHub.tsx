@@ -207,9 +207,6 @@ const TutorClassSectionTable: React.FC<TutorClassSectionTableProps> = ({
         <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wide">
           {cls.label} ({cls.students.length} Students)
         </span>
-        <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500 select-none">
-          Scroll horizontally to view Status
-        </span>
       </div>
 
       {cls.students.length === 0 ? (
