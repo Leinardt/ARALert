@@ -393,13 +393,12 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
 
                   {/* Comparison Table */}
                   <div className="mt-2.5 overflow-x-auto mobile-scroll-table">
-                    <table className="w-full min-w-[380px] text-[11px] border-collapse">
+                    <table className="w-full min-w-[340px] text-[11px] border-collapse">
                       <thead>
                         <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider text-[9px]">
-                          <th className="py-1.5 px-2 text-left w-1/4">Field</th>
-                          <th className="py-1.5 px-2 text-left w-1/3">Current</th>
-                          <th className="py-1.5 px-2 text-left w-1/3">Proposed</th>
-                          <th className="py-1.5 px-2 text-center w-16">Status</th>
+                          <th className="py-1.5 px-2 text-left w-[28%]">Field</th>
+                          <th className="py-1.5 px-2 text-left w-[36%]">Before</th>
+                          <th className="py-1.5 px-2 text-left w-[36%]">After</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -412,13 +411,6 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                               <span className="font-bold text-emerald-700 dark:text-emerald-400">{req.proposed_first_name}</span>
                             ) : (
                               <span className="text-slate-400">{req.proposed_first_name}</span>
-                            )}
-                          </td>
-                          <td className="py-1.5 px-2 text-center">
-                            {hasFirstNameChanged ? (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Changed</span>
-                            ) : (
-                              <span className="text-slate-400 text-[9px]">Same</span>
                             )}
                           </td>
                         </tr>
@@ -434,13 +426,6 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                               <span className="text-slate-400">{req.proposed_middle_name || '—'}</span>
                             )}
                           </td>
-                          <td className="py-1.5 px-2 text-center">
-                            {hasMiddleNameChanged ? (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Changed</span>
-                            ) : (
-                              <span className="text-slate-400 text-[9px]">Same</span>
-                            )}
-                          </td>
                         </tr>
 
                         {/* Last Name */}
@@ -452,13 +437,6 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                               <span className="font-bold text-emerald-700 dark:text-emerald-400">{req.proposed_last_name}</span>
                             ) : (
                               <span className="text-slate-400">{req.proposed_last_name}</span>
-                            )}
-                          </td>
-                          <td className="py-1.5 px-2 text-center">
-                            {hasLastNameChanged ? (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Changed</span>
-                            ) : (
-                              <span className="text-slate-400 text-[9px]">Same</span>
                             )}
                           </td>
                         </tr>
@@ -475,13 +453,6 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                                 <span className="text-slate-400">{req.proposed_lrn || '—'}</span>
                               )}
                             </td>
-                            <td className="py-1.5 px-2 text-center">
-                              {hasLrnChanged ? (
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Changed</span>
-                              ) : (
-                                <span className="text-slate-400 text-[9px]">Same</span>
-                              )}
-                            </td>
                           </tr>
                         )}
 
@@ -495,13 +466,6 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                                 <span className="font-bold text-indigo-600 dark:text-indigo-400">{req.proposed_aral_level}</span>
                               ) : (
                                 <span className="text-slate-400">{req.proposed_aral_level}</span>
-                              )}
-                            </td>
-                            <td className="py-1.5 px-2 text-center">
-                              {hasLevelChanged ? (
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Changed</span>
-                              ) : (
-                                <span className="text-slate-400 text-[9px]">Same</span>
                               )}
                             </td>
                           </tr>
