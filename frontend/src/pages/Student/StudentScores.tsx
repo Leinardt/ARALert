@@ -481,7 +481,7 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
                       ? isSelected
                         ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
                         : hasMilestone
-                        ? 'bg-orange-50 text-orange-700 border border-orange-300 hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800/60 cursor-pointer font-semibold'
+                        ? 'bg-sky-50 text-sky-700 border border-sky-300 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60 cursor-pointer font-semibold'
                         : 'bg-blue-50/80 text-[var(--brand)] border border-blue-200/80 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-900/50 cursor-pointer font-semibold'
                       : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-[#222222] cursor-not-allowed opacity-50'
                   }`}
@@ -495,7 +495,7 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
                   aria-label={label}
                 >
                   {hasMilestone && (
-                    <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-orange-300' : 'bg-orange-500'}`} />
+                    <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-[#38BDF8]' : 'bg-[#0284C7] dark:bg-[#38BDF8]'}`} />
                   )}
                   {label}
                 </button>
