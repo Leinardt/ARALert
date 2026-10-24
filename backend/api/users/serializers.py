@@ -84,8 +84,10 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     username = serializers.CharField(write_only=True, required=False, allow_blank=True)
     email = serializers.EmailField(required=False, allow_blank=True)
-    aral_level = serializers.CharField(required=False, allow_blank=True)
-    tutor_type = serializers.CharField(required=False, allow_blank=True)
+    aral_level = serializers.CharField(required=False, allow_null=True, allow_blank=True, default='basic')
+    tutor_type = serializers.CharField(required=False, allow_null=True, allow_blank=True, default='basic')
+    grade_level = serializers.CharField(required=False, allow_null=True, allow_blank=True, default='')
+    subject = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
     assigned_tutor = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(role='tutor', is_superuser=False),
         required=False,
@@ -222,9 +224,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
             data['parent_guardian_name'] = ''
             data['contact_number'] = ''
             data['subject'] = None
-            data['grade_level'] = None
-            data['aral_level'] = None
-            data['tutor_type'] = None
+            data['grade_level'] = ''
+            data['aral_level'] = 'basic'
+            data['tutor_type'] = 'basic'
             if not data.get('email'):
                 raise serializers.ValidationError({'email': 'Email is required for staff accounts.'})
 
@@ -261,8 +263,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
 class UserUpdateSerializer(serializers.ModelSerializer):
     """Serializer for editing a user profile or assigning a tutor."""
 
-    aral_level = serializers.CharField(required=False, allow_blank=True)
-    tutor_type = serializers.CharField(required=False, allow_blank=True)
+    aral_level = serializers.CharField(required=False, allow_null=True, allow_blank=True, default='basic')
+    tutor_type = serializers.CharField(required=False, allow_null=True, allow_blank=True, default='basic')
+    grade_level = serializers.CharField(required=False, allow_null=True, allow_blank=True, default='')
     lrn = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
     subject = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 

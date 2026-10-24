@@ -349,15 +349,15 @@ export const CreateUser: React.FC = () => {
         last_name: data.last_name.toUpperCase().trim(),
         parent_guardian_name: data.parent_guardian_name ? data.parent_guardian_name.toUpperCase().trim() : '',
         contact_number: data.contact_number ? data.contact_number.trim() : '',
-        grade_level: (selectedRole === 'student' || selectedRole === 'tutor') ? combinedGradeLevel : null,
+        grade_level: (selectedRole === 'student' || selectedRole === 'tutor') ? combinedGradeLevel : '',
         has_bosy: !!data.has_bosy,
         has_mosy: !!data.has_mosy,
         has_eosy: !!data.has_eosy,
         has_summer: !!data.has_summer,
         assigned_tutor: selectedRole === 'student' && data.assigned_tutor ? data.assigned_tutor : null,
         subject: (selectedRole === 'student' || selectedRole === 'tutor') ? tutorSubject : null,
-        aral_level: (selectedRole === 'student' || selectedRole === 'tutor') ? tutorAralLevel : null,
-        tutor_type: selectedRole === 'tutor' ? tutorTutorType : null,
+        aral_level: (selectedRole === 'student' || selectedRole === 'tutor') ? tutorAralLevel : 'basic',
+        tutor_type: selectedRole === 'tutor' ? tutorTutorType : 'basic',
       };
 
       try {
@@ -423,9 +423,12 @@ export const CreateUser: React.FC = () => {
         setServerErrors(errorsPayload);
         const firstKey = Object.keys(errorsPayload)[0];
         const firstVal = Array.isArray(errorsPayload[firstKey]) ? errorsPayload[firstKey][0] : errorsPayload[firstKey];
+        const formattedKey = firstKey && firstKey !== 'detail' && firstKey !== 'non_field_errors'
+          ? `${firstKey.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}: `
+          : '';
         setErrorToast({
           title: 'Registration Failed',
-          message: typeof firstVal === 'string' ? firstVal : 'Please check the highlighted errors in the form.',
+          message: typeof firstVal === 'string' ? `${formattedKey}${firstVal}` : 'Please check the highlighted errors in the form.',
         });
       } else {
         setErrorToast({
