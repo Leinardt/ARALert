@@ -223,6 +223,11 @@ export const userService = {
     );
     return response.data;
   },
+
+  cancelStudentEditRequest: async (id: string): Promise<{ detail: string }> => {
+    const response = await api.delete<{ detail: string }>(`/users/student-edit-requests/${id}/`);
+    return response.data;
+  },
 };
 
 

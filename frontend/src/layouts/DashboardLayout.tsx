@@ -1796,7 +1796,7 @@ export const DashboardLayout: React.FC = () => {
                         height: '18px',
                         padding: '0 4px',
                         borderRadius: '99px',
-                        background: '#F59E0B',
+                        background: '#EF4444',
                         color: '#fff',
                         fontSize: '10px',
                         fontWeight: 800,
@@ -1804,7 +1804,7 @@ export const DashboardLayout: React.FC = () => {
                         alignItems: 'center',
                         justifyContent: 'center',
                         border: '2px solid #fff',
-                        boxShadow: '0 0 10px rgba(245, 158, 11, 0.5)',
+                        boxShadow: '0 0 10px rgba(239, 68, 68, 0.5)',
                       }}
                     >
                       {pendingEditRequestsCount}
@@ -1899,7 +1899,7 @@ export const DashboardLayout: React.FC = () => {
                         height: '18px',
                         padding: '0 4px',
                         borderRadius: '99px',
-                        background: '#F59E0B',
+                        background: '#EF4444',
                         color: '#fff',
                         fontSize: '10px',
                         fontWeight: 800,
@@ -1907,7 +1907,7 @@ export const DashboardLayout: React.FC = () => {
                         alignItems: 'center',
                         justifyContent: 'center',
                         border: '2px solid #fff',
-                        boxShadow: '0 0 8px rgba(245, 158, 11, 0.5)',
+                        boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)',
                       }}
                     >
                       {pendingEditRequestsCount}
@@ -2256,7 +2256,7 @@ export const DashboardLayout: React.FC = () => {
                           height: '18px',
                           padding: '0 4px',
                           borderRadius: '99px',
-                          background: '#F59E0B',
+                          background: '#EF4444',
                           color: '#fff',
                           fontSize: '10px',
                           fontWeight: 800,
@@ -2264,7 +2264,7 @@ export const DashboardLayout: React.FC = () => {
                           alignItems: 'center',
                           justifyContent: 'center',
                           border: '2px solid #fff',
-                          boxShadow: '0 0 8px rgba(245, 158, 11, 0.5)',
+                          boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)',
                         }}
                       >
                         {pendingEditRequestsCount}

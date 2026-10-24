@@ -1071,7 +1071,6 @@ class StudentEditRequestListCreateView(APIView):
                 'proposed_name': f"{edit_request.proposed_last_name}, {edit_request.proposed_first_name}",
                 'proposed_lrn': edit_request.proposed_lrn,
                 'proposed_aral_level': edit_request.proposed_aral_level,
-                'reason': edit_request.reason,
             }
         )
 
@@ -1193,4 +1192,49 @@ class StudentEditRequestReviewView(APIView):
             })
 
 
+class StudentEditRequestDetailView(APIView):
+    """
+    DELETE /api/users/student-edit-requests/{id}/ — Cancel/withdraw a pending edit request.
+    - Requester can withdraw their own pending request.
+    - School Admin or Super Admin can cancel any pending request.
+    """
 
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, id):
+        edit_req = get_object_or_404(StudentEditRequest, id=id)
+
+        is_owner = (edit_req.requested_by == request.user)
+        is_admin = (getattr(request.user, 'role', None) == 'admin' or request.user.is_superuser)
+
+        if not (is_owner or is_admin):
+            return Response(
+                {'detail': 'You do not have permission to cancel this edit request.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if edit_req.status != 'pending':
+            return Response(
+                {'detail': f'Cannot cancel a request that has already been {edit_req.status}.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        target_name = edit_req.student.get_full_name() if edit_req.student else edit_req.requested_by.get_full_name()
+        req_id = str(edit_req.id)
+        edit_req.delete()
+
+        log_audit_event(
+            'PROFILE_EDIT_REQUEST_CANCELLED',
+            user=request.user,
+            request=request,
+            details={
+                'request_id': req_id,
+                'target_name': target_name,
+                'cancelled_by': request.user.get_full_name(),
+            }
+        )
+
+        return Response(
+            {'detail': 'Edit request has been successfully cancelled.'},
+            status=status.HTTP_200_OK
+        )

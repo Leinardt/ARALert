@@ -16,6 +16,7 @@ import {
   Clock,
   Send,
   Eye,
+  XCircle,
 } from 'lucide-react';
 
 /**
@@ -138,6 +139,7 @@ export const Profile: React.FC = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [isSavingStudent, setIsSavingStudent] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [studentEditError, setStudentEditError] = useState<string | null>(null);
   const [studentForm, setStudentForm] = useState({
     first_name: '',
@@ -145,7 +147,6 @@ export const Profile: React.FC = () => {
     last_name: '',
     lrn: '',
     aral_level: 'basic' as 'basic' | 'plus' | 'summer' | 'graduated',
-    reason: '',
   });
 
   const fetchPendingRequest = useCallback(async () => {
@@ -194,7 +195,6 @@ export const Profile: React.FC = () => {
       last_name: localUser.last_name || '',
       lrn: localUser.lrn || '',
       aral_level: (localUser.aral_level as any) || 'basic',
-      reason: '',
     });
     setStudentEditError(null);
     setIsEditingStudent(true);
@@ -253,7 +253,6 @@ export const Profile: React.FC = () => {
         proposed_last_name: studentForm.last_name.trim().toUpperCase(),
         proposed_lrn: isStudentRole ? (studentForm.lrn.trim() || null) : null,
         proposed_aral_level: isStudentRole ? studentForm.aral_level : undefined,
-        reason: (studentForm.reason || '').trim(),
       });
 
       setShowConfirmModal(false);
@@ -281,6 +280,28 @@ export const Profile: React.FC = () => {
       setStudentEditError(msg);
     } finally {
       setIsSavingStudent(false);
+    }
+  };
+
+  // Cancel / Withdraw pending edit request
+  const handleCancelRequest = async () => {
+    if (!pendingEditRequest) return;
+    const confirmed = window.confirm('Are you sure you want to withdraw this profile edit request?');
+    if (!confirmed) return;
+
+    setIsCancelling(true);
+    try {
+      await userService.cancelStudentEditRequest(pendingEditRequest.id);
+      setPendingEditRequest(null);
+      setShowPendingModal(false);
+      setMessage('Your profile edit request has been successfully withdrawn.');
+      setTimeout(() => setMessage(null), 5000);
+    } catch (err: any) {
+      const errDetail = err?.response?.data?.detail || 'Failed to cancel profile edit request.';
+      setError(errDetail);
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -397,14 +418,26 @@ export const Profile: React.FC = () => {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowPendingModal(true)}
-            className="self-start sm:self-center shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition cursor-pointer"
-          >
-            <Eye className="w-3.5 h-3.5" />
-            View Request Details
-          </button>
+          <div className="flex items-center gap-2.5 self-start sm:self-center shrink-0">
+            <button
+              type="button"
+              onClick={handleCancelRequest}
+              disabled={isCancelling}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-rose-300 dark:border-rose-800/80 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-bold text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+              {isCancelling ? 'Cancelling...' : 'Cancel Request'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowPendingModal(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              View Request Details
+            </button>
+          </div>
         </div>
       )}
 
@@ -418,16 +451,7 @@ export const Profile: React.FC = () => {
           </h2>
 
           {!localUser.is_superuser ? (
-            pendingEditRequest ? (
-              <button
-                type="button"
-                onClick={() => setShowPendingModal(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-bold cursor-pointer transition hover:bg-amber-200"
-              >
-                <Clock className="w-3.5 h-3.5" />
-                Edit Pending Approval
-              </button>
-            ) : (
+            pendingEditRequest ? null : (
               <button
                 type="button"
                 onClick={handleEditOpen}
@@ -909,8 +933,7 @@ export const Profile: React.FC = () => {
                   <Clock className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">Edit Request Pending</h3>
-                  <p className="text-[11px] text-gray-500 dark:text-slate-400">Awaiting Admin or Super Admin review</p>
+                  <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">EDIT REQUEST PENDING</h3>
                 </div>
               </div>
               <button
@@ -955,16 +978,18 @@ export const Profile: React.FC = () => {
                   </p>
                 </div>
               </div>
-
-              <div className="space-y-1">
-                <h4 className="font-bold text-gray-700 dark:text-slate-300 text-xs">Reason:</h4>
-                <p className="text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-[#111111] p-2.5 rounded-xl border border-gray-100 dark:border-[#1A1A1A] text-xs leading-relaxed italic">
-                  "{pendingEditRequest.reason}"
-                </p>
-              </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
+              <button
+                type="button"
+                onClick={handleCancelRequest}
+                disabled={isCancelling}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-300 dark:border-rose-800/80 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition cursor-pointer disabled:opacity-50"
+              >
+                <XCircle className="w-3.5 h-3.5" />
+                {isCancelling ? 'Cancelling...' : 'Cancel Request'}
+              </button>
               <button
                 type="button"
                 onClick={() => setShowPendingModal(false)}

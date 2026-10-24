@@ -198,8 +198,33 @@ class StudentEditRequestWorkflowTests(TestCase):
             'proposed_first_name': 'Pedro',
             'proposed_middle_name': '',
             'proposed_last_name': 'Hacked',
-            'reason': 'Unauthorized request'
         }
         response = self.client.post('/api/users/student-edit-requests/', payload, format='json')
         self.assertEqual(response.status_code, 403)
+
+    def test_user_can_cancel_own_pending_request(self):
+        """User can withdraw their own pending edit request"""
+        req = StudentEditRequest.objects.create(
+            student=self.student_user,
+            requested_by=self.student_user,
+            proposed_first_name='JUANITO',
+            proposed_last_name='CRUZ',
+        )
+        self.client.force_authenticate(user=self.student_user)
+        response = self.client.delete(f'/api/users/student-edit-requests/{req.id}/')
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(StudentEditRequest.objects.filter(id=req.id).exists())
+
+    def test_user_cannot_cancel_other_user_request(self):
+        """Non-admin user cannot cancel another user's edit request"""
+        req = StudentEditRequest.objects.create(
+            student=self.student_user,
+            requested_by=self.tutor,
+            proposed_first_name='JUANITO',
+            proposed_last_name='CRUZ',
+        )
+        self.client.force_authenticate(user=self.student_user)
+        response = self.client.delete(f'/api/users/student-edit-requests/{req.id}/')
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(StudentEditRequest.objects.filter(id=req.id).exists())
 

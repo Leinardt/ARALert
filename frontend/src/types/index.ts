@@ -273,7 +273,6 @@ export interface StudentEditRequest {
   proposed_last_name: string;
   proposed_lrn: string | null;
   proposed_aral_level?: 'basic' | 'plus' | 'summer' | 'graduated' | string;
-  reason: string;
   status: 'pending' | 'approved' | 'rejected';
   reviewed_by: string | null;
   reviewed_by_name: string | null;
@@ -291,7 +290,6 @@ export interface CreateStudentEditRequestPayload {
   proposed_last_name: string;
   proposed_lrn?: string | null;
   proposed_aral_level?: string;
-  reason?: string;
 }
 
 export interface SchoolYear {

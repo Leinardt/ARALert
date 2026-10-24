@@ -467,7 +467,6 @@ class StudentEditRequestSerializer(serializers.ModelSerializer):
             'proposed_last_name',
             'proposed_lrn',
             'proposed_aral_level',
-            'reason',
             'status',
             'reviewed_by',
             'reviewed_by_name',
@@ -532,14 +531,12 @@ class StudentEditRequestCreateSerializer(serializers.ModelSerializer):
             'proposed_last_name',
             'proposed_lrn',
             'proposed_aral_level',
-            'reason',
         ]
         extra_kwargs = {
             'student': {'required': False, 'allow_null': True},
             'request_type': {'required': False},
             'required_reviewer_role': {'required': False},
             'proposed_aral_level': {'required': False},
-            'reason': {'required': False, 'allow_blank': True},
         }
 
     def validate_proposed_first_name(self, value):
@@ -564,9 +561,6 @@ class StudentEditRequestCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError('Proposed LRN must be exactly 12 digits.')
             return v
         return None
-
-    def validate_reason(self, value):
-        return (value or '').strip()
 
     def validate(self, data):
         student = data.get('student')

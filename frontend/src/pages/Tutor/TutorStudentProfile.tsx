@@ -329,7 +329,6 @@ export const TutorStudentProfile: React.FC = () => {
     email: '',
     lrn: '',
     aral_level: 'basic',
-    reason: '',
   });
   const [isEvaluatingLevel, setIsEvaluatingLevel] = useState(false);
   const [levelEvalMessage, setLevelEvalMessage] = useState<string | null>(null);
@@ -376,7 +375,6 @@ export const TutorStudentProfile: React.FC = () => {
         email: data.student.email || '',
         lrn: data.student.lrn || '',
         aral_level: data.student.aral_level || 'basic',
-        reason: '',
       });
     } catch (err) {
       console.error(err);
@@ -526,6 +524,25 @@ export const TutorStudentProfile: React.FC = () => {
     }
   };
 
+  const [isCancellingStudentEdit, setIsCancellingStudentEdit] = useState(false);
+
+  const handleCancelStudentEditRequest = async () => {
+    if (!pendingEditRequest) return;
+    const confirmed = window.confirm('Are you sure you want to withdraw this edit request?');
+    if (!confirmed) return;
+
+    setIsCancellingStudentEdit(true);
+    try {
+      await userService.cancelStudentEditRequest(pendingEditRequest.id);
+      setPendingEditRequest(null);
+      setShowPendingModal(false);
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'Failed to cancel the edit request.');
+    } finally {
+      setIsCancellingStudentEdit(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6 max-w-6xl mx-auto skeleton-container animate-pulse" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
@@ -657,7 +674,6 @@ export const TutorStudentProfile: React.FC = () => {
                     email: profile.student.email || '',
                     lrn: profile.student.lrn || '',
                     aral_level: profile.student.aral_level || 'basic',
-                    reason: '',
                   });
                 }
                 setIsEditingStudent(true);
@@ -1286,8 +1302,7 @@ export const TutorStudentProfile: React.FC = () => {
                   <Clock className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900 dark:text-white text-sm">Edit Request Pending</h3>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Awaiting Admin or Super Admin review</p>
+                  <h3 className="font-bold text-gray-900 dark:text-white text-sm uppercase">EDIT REQUEST PENDING</h3>
                 </div>
               </div>
               <button type="button" onClick={() => setShowPendingModal(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors cursor-pointer">
@@ -1326,14 +1341,17 @@ export const TutorStudentProfile: React.FC = () => {
                   </div>
                 </div>
               </div>
-
-              <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-800/30 rounded-md p-3 space-y-1">
-                <span className="text-[10px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider">Tutor Reason:</span>
-                <p className="text-gray-700 dark:text-gray-300 italic text-xs">"{pendingEditRequest.reason}"</p>
-              </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
+              <button
+                type="button"
+                onClick={handleCancelStudentEditRequest}
+                disabled={isCancellingStudentEdit}
+                className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-400 hover:bg-rose-100 px-3 py-1.5 rounded-md text-xs font-bold transition cursor-pointer disabled:opacity-50"
+              >
+                {isCancellingStudentEdit ? 'Cancelling...' : 'Cancel Request'}
+              </button>
               <button
                 type="button"
                 onClick={() => setShowPendingModal(false)}

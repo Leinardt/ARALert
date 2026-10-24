@@ -18,8 +18,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
   onRequestReviewed,
 }) => {
   const [requests, setRequests] = useState<StudentEditRequest[]>([]);
-  const [pendingCount, setPendingCount] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
+  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'history'>('all');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -37,7 +36,6 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
     try {
       const data = await userService.getStudentEditRequests();
       setRequests(data.results || []);
-      setPendingCount(data.pending_count ?? data.results.filter((r) => r.status === 'pending').length);
     } catch (err: any) {
       console.error('Failed to load student edit requests:', err);
       setActionError(err.response?.data?.detail || 'Failed to fetch student edit requests.');
@@ -70,9 +68,22 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
     setCurrentPage(1);
   }, [activeTab, isOpen]);
 
+  const pendingCount = useMemo(() => {
+    return requests.filter((r) => r.status === 'pending').length;
+  }, [requests]);
+
+  const historyCount = useMemo(() => {
+    return requests.filter((r) => r.status !== 'pending').length;
+  }, [requests]);
+
+  const allCount = requests.length;
+
   const filteredRequests = useMemo(() => {
     if (activeTab === 'pending') {
       return requests.filter((r) => r.status === 'pending');
+    }
+    if (activeTab === 'history') {
+      return requests.filter((r) => r.status !== 'pending');
     }
     return requests;
   }, [requests, activeTab]);
@@ -155,11 +166,6 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
             <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wide">
               NOTIFICATIONS
             </h3>
-            {pendingCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-[#0052B7] text-white shadow-xs">
-                {pendingCount} Pending Approval
-              </span>
-            )}
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
@@ -175,31 +181,40 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
         </div>
 
         {/* Tab Selection */}
-        <div className="px-4 sm:px-5 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-2 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveTab('pending')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeTab === 'pending'
-                  ? 'bg-[#0052B7] text-white shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-            >
-              Pending ({pendingCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeTab === 'all'
-                  ? 'bg-[#0052B7] text-white shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-            >
-              History ({requests.length})
-            </button>
-          </div>
+        <div className="px-4 sm:px-5 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2 flex-shrink-0 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+              activeTab === 'all'
+                ? 'bg-[#0052B7] text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            ALL ({allCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('pending')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+              activeTab === 'pending'
+                ? 'bg-[#0052B7] text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            EDIT REQUESTS ({pendingCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+              activeTab === 'history'
+                ? 'bg-[#0052B7] text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            REQUESTS HISTORY ({historyCount})
+          </button>
         </div>
 
         {/* Action Alerts */}
@@ -240,11 +255,17 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                {activeTab === 'pending' ? 'No pending edit requests' : 'No edit history found'}
+                {activeTab === 'pending'
+                  ? 'No pending edit requests'
+                  : activeTab === 'history'
+                  ? 'No requests history found'
+                  : 'No edit requests found'}
               </p>
               <p className="text-xs text-slate-400 max-w-xs">
                 {activeTab === 'pending'
-                  ? 'All student profiles are up to date. Future edit requests submitted by tutors will appear here for review.'
+                  ? 'All profiles are up to date. Future edit requests will appear here for review.'
+                  : activeTab === 'history'
+                  ? 'No completed edit requests in history.'
                   : 'No edit requests have been submitted yet.'}
               </p>
             </div>
@@ -274,11 +295,12 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
               const isApproved = req.status === 'approved';
               const isRejected = req.status === 'rejected';
 
-              const hasFirstNameChanged = req.current_first_name !== req.proposed_first_name;
-              const hasMiddleNameChanged = (req.current_middle_name || '') !== (req.proposed_middle_name || '');
-              const hasLastNameChanged = req.current_last_name !== req.proposed_last_name;
-              const hasLrnChanged = (req.current_lrn || '') !== (req.proposed_lrn || '');
-              const hasLevelChanged = req.current_aral_level?.toLowerCase() !== req.proposed_aral_level?.toLowerCase();
+              const isStaff = req.request_type === 'staff';
+              const hasFirstNameChanged = (req.current_first_name || '').trim().toUpperCase() !== (req.proposed_first_name || '').trim().toUpperCase();
+              const hasMiddleNameChanged = (req.current_middle_name || '').trim().toUpperCase() !== (req.proposed_middle_name || '').trim().toUpperCase();
+              const hasLastNameChanged = (req.current_last_name || '').trim().toUpperCase() !== (req.proposed_last_name || '').trim().toUpperCase();
+              const hasLrnChanged = !isStaff && (req.current_lrn || '').trim() !== (req.proposed_lrn || '').trim();
+              const hasLevelChanged = !isStaff && !!req.proposed_aral_level && (req.current_aral_level || '').toLowerCase() !== (req.proposed_aral_level || '').toLowerCase();
 
               const changesCount = [
                 hasFirstNameChanged,
@@ -296,7 +318,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                   key={req.id}
                   className={`rounded-xl border transition-all p-3.5 sm:p-4 ${
                     isPending
-                      ? 'bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-900/60 ring-1 ring-amber-400/20'
+                      ? 'bg-white dark:bg-slate-900 border-black dark:border-slate-700'
                       : isApproved
                       ? 'bg-slate-50/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800'
                       : 'bg-slate-50/40 dark:bg-slate-800/30 border-slate-200 dark:border-slate-800 opacity-80'
@@ -311,7 +333,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                             <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
                               {req.requested_by_name}
                             </span>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 uppercase tracking-wide">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 uppercase tracking-wide">
                               {req.requested_by_role || 'Staff'} Profile Edit
                             </span>
                           </>
