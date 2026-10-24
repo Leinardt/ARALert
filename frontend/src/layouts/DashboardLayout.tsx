@@ -2407,12 +2407,12 @@ export const DashboardLayout: React.FC = () => {
       {profileMenuOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm animate-fade-in cursor-pointer"
+            className="fixed inset-0 z-40 bg-black/10 dark:bg-black/25 lg:bg-transparent"
             onClick={() => setProfileMenuOpen(false)}
             aria-hidden="true"
           />
           <div
-            className="fixed z-50 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-neutral-800 shadow-2xl overflow-hidden text-slate-700 dark:text-slate-200 animate-fade-in-scale"
+            className="fixed z-50 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-neutral-800 shadow-xl dark:shadow-2xl overflow-hidden text-slate-700 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-150"
             style={{
               bottom: isSidebarCollapsed && !isMobileDrawerOpen ? '12px' : '64px',
               left: isMobileDrawerOpen ? '12px' : isSidebarCollapsed ? '76px' : '12px',
