@@ -4,6 +4,7 @@ SuperAdmin and Admin endpoints for user management with audit logging, bulk tuto
 and user login/logout activity history.
 """
 
+import json
 import re
 import uuid
 from django.db.models import Avg, Case, Count, IntegerField, Q, Value, When
@@ -1053,10 +1054,20 @@ class StudentEditRequestListCreateView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
+        target = student if student else user
+        snapshot = {
+            'first_name': getattr(target, 'first_name', '') or '',
+            'middle_name': getattr(target, 'middle_name', '') or '',
+            'last_name': getattr(target, 'last_name', '') or '',
+            'lrn': getattr(target, 'lrn', '') or '',
+            'aral_level': getattr(target, 'aral_level', '') or '',
+        }
+
         edit_request = serializer.save(
             requested_by=user,
             request_type=request_type,
             required_reviewer_role=required_reviewer_role,
+            reason=json.dumps({'before': snapshot, 'reason': request.data.get('reason', '') or ''}),
         )
 
         target_name = student.get_full_name() if student else user.get_full_name()
@@ -1072,6 +1083,7 @@ class StudentEditRequestListCreateView(APIView):
                 'proposed_name': f"{edit_request.proposed_last_name}, {edit_request.proposed_first_name}",
                 'proposed_lrn': edit_request.proposed_lrn,
                 'proposed_aral_level': edit_request.proposed_aral_level,
+                'before': snapshot,
             }
         )
 
@@ -1117,6 +1129,27 @@ class StudentEditRequestReviewView(APIView):
         if action == 'approve':
             # Target is student if student is set, otherwise the requesting user themselves (staff/admin profile)
             target_user = edit_req.student if edit_req.student else edit_req.requested_by
+
+            # Freeze the pre-modification snapshot into edit_req.reason BEFORE target_user attributes are modified
+            has_snapshot = False
+            if edit_req.reason and edit_req.reason.strip().startswith('{'):
+                try:
+                    d = json.loads(edit_req.reason)
+                    if isinstance(d, dict) and 'before' in d:
+                        has_snapshot = True
+                except Exception:
+                    pass
+
+            if not has_snapshot:
+                snapshot = {
+                    'first_name': getattr(target_user, 'first_name', '') or '',
+                    'middle_name': getattr(target_user, 'middle_name', '') or '',
+                    'last_name': getattr(target_user, 'last_name', '') or '',
+                    'lrn': getattr(target_user, 'lrn', '') or '',
+                    'aral_level': getattr(target_user, 'aral_level', '') or '',
+                }
+                edit_req.reason = json.dumps({'before': snapshot, 'reason': edit_req.reason or ''})
+
             target_user.first_name = edit_req.proposed_first_name
             target_user.middle_name = edit_req.proposed_middle_name
             target_user.last_name = edit_req.proposed_last_name
@@ -1167,6 +1200,27 @@ class StudentEditRequestReviewView(APIView):
             })
 
         else:
+            # Also freeze snapshot on rejection if not already frozen
+            has_snapshot = False
+            if edit_req.reason and edit_req.reason.strip().startswith('{'):
+                try:
+                    d = json.loads(edit_req.reason)
+                    if isinstance(d, dict) and 'before' in d:
+                        has_snapshot = True
+                except Exception:
+                    pass
+
+            if not has_snapshot:
+                target_user = edit_req.student if edit_req.student else edit_req.requested_by
+                snapshot = {
+                    'first_name': getattr(target_user, 'first_name', '') or '',
+                    'middle_name': getattr(target_user, 'middle_name', '') or '',
+                    'last_name': getattr(target_user, 'last_name', '') or '',
+                    'lrn': getattr(target_user, 'lrn', '') or '',
+                    'aral_level': getattr(target_user, 'aral_level', '') or '',
+                }
+                edit_req.reason = json.dumps({'before': snapshot, 'reason': edit_req.reason or ''})
+
             edit_req.status = 'rejected'
             edit_req.rejection_reason = rejection_reason
             edit_req.reviewed_by = request.user

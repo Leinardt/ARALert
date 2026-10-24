@@ -504,25 +504,109 @@ class StudentEditRequestSerializer(serializers.ModelSerializer):
     def get_reviewed_by_name(self, obj):
         return obj.reviewed_by.get_full_name() if obj.reviewed_by else None
 
+    def _get_before_snapshot(self, obj):
+        if hasattr(obj, '_cached_before_snapshot'):
+            return obj._cached_before_snapshot
+
+        snapshot = None
+        if obj.reason and obj.reason.strip().startswith('{'):
+            try:
+                import json
+                data = json.loads(obj.reason)
+                if isinstance(data, dict) and 'before' in data:
+                    snapshot = data['before']
+            except Exception:
+                pass
+
+        if not snapshot:
+            target = obj.student or obj.requested_by
+            if obj.status == 'pending':
+                snapshot = {
+                    'first_name': getattr(target, 'first_name', '') or '',
+                    'middle_name': getattr(target, 'middle_name', '') or '',
+                    'last_name': getattr(target, 'last_name', '') or '',
+                    'lrn': getattr(target, 'lrn', '') or '',
+                    'aral_level': getattr(target, 'aral_level', '') or '',
+                }
+            else:
+                # For approved/rejected requests without a frozen snapshot, check the creation audit log
+                try:
+                    from apps.accounts.models import AuditLog
+                    sub_log = AuditLog.objects.filter(
+                        action='PROFILE_EDIT_REQUEST_SUBMITTED',
+                        details__request_id=str(obj.id),
+                    ).first()
+                    if sub_log:
+                        target_name = sub_log.details.get('target_name', '')
+                        if obj.request_type == 'student' and ',' in target_name:
+                            parts = target_name.split(',', 1)
+                            ln = parts[0].strip()
+                            given = parts[1].strip().split()
+                            fn = given[0] if given else ''
+                            mi = given[1].rstrip('.') if len(given) > 1 else ''
+                            snapshot = {
+                                'first_name': fn or getattr(target, 'first_name', '') or '',
+                                'middle_name': mi or getattr(target, 'middle_name', '') or '',
+                                'last_name': ln or getattr(target, 'last_name', '') or '',
+                                'lrn': getattr(target, 'lrn', '') or '',
+                                'aral_level': getattr(target, 'aral_level', '') or '',
+                            }
+                        elif target_name:
+                            parts = target_name.strip().split()
+                            if len(parts) >= 2:
+                                fn = parts[0]
+                                ln = parts[-1]
+                                mn = ' '.join(parts[1:-1]).rstrip('.')
+                                snapshot = {
+                                    'first_name': fn,
+                                    'middle_name': mn,
+                                    'last_name': ln,
+                                    'lrn': getattr(target, 'lrn', '') or '',
+                                    'aral_level': getattr(target, 'aral_level', '') or '',
+                                }
+                except Exception:
+                    pass
+
+                if not snapshot:
+                    snapshot = {
+                        'first_name': getattr(target, 'first_name', '') or '',
+                        'middle_name': getattr(target, 'middle_name', '') or '',
+                        'last_name': getattr(target, 'last_name', '') or '',
+                        'lrn': getattr(target, 'lrn', '') or '',
+                        'aral_level': getattr(target, 'aral_level', '') or '',
+                    }
+
+                # Cache into obj.reason permanently if it was missing
+                if snapshot and not (obj.reason and obj.reason.strip().startswith('{')):
+                    try:
+                        import json
+                        obj.reason = json.dumps({'before': snapshot, 'reason': obj.reason or ''})
+                        obj.save(update_fields=['reason'])
+                    except Exception:
+                        pass
+
+        obj._cached_before_snapshot = snapshot
+        return snapshot
+
     def get_current_first_name(self, obj):
-        target = obj.student or obj.requested_by
-        return getattr(target, 'first_name', '') if target else ''
+        snap = self._get_before_snapshot(obj)
+        return snap.get('first_name', '') if snap else ''
 
     def get_current_middle_name(self, obj):
-        target = obj.student or obj.requested_by
-        return getattr(target, 'middle_name', '') if target else ''
+        snap = self._get_before_snapshot(obj)
+        return snap.get('middle_name', '') if snap else ''
 
     def get_current_last_name(self, obj):
-        target = obj.student or obj.requested_by
-        return getattr(target, 'last_name', '') if target else ''
+        snap = self._get_before_snapshot(obj)
+        return snap.get('last_name', '') if snap else ''
 
     def get_current_lrn(self, obj):
-        target = obj.student or obj.requested_by
-        return getattr(target, 'lrn', '') if target else ''
+        snap = self._get_before_snapshot(obj)
+        return snap.get('lrn', '') if snap else ''
 
     def get_current_aral_level(self, obj):
-        target = obj.student or obj.requested_by
-        return getattr(target, 'aral_level', '') if target else ''
+        snap = self._get_before_snapshot(obj)
+        return snap.get('aral_level', '') if snap else ''
 
 
 class StudentEditRequestCreateSerializer(serializers.ModelSerializer):
