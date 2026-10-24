@@ -320,6 +320,7 @@ export const TutorStudentProfile: React.FC = () => {
 
   const [pendingEditRequest, setPendingEditRequest] = useState<StudentEditRequest | null>(null);
   const [showPendingModal, setShowPendingModal] = useState(false);
+  const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
   const [isEditingStudent, setIsEditingStudent] = useState(false);
   const [studentForm, setStudentForm] = useState({
     first_name: '',
@@ -526,18 +527,18 @@ export const TutorStudentProfile: React.FC = () => {
 
   const [isCancellingStudentEdit, setIsCancellingStudentEdit] = useState(false);
 
-  const handleCancelStudentEditRequest = async () => {
+  const handleExecuteCancelStudentEditRequest = async () => {
     if (!pendingEditRequest) return;
-    const confirmed = window.confirm('Are you sure you want to withdraw this edit request?');
-    if (!confirmed) return;
 
     setIsCancellingStudentEdit(true);
     try {
       await userService.cancelStudentEditRequest(pendingEditRequest.id);
       setPendingEditRequest(null);
       setShowPendingModal(false);
+      setShowCancelConfirmModal(false);
     } catch (err: any) {
       alert(err?.response?.data?.detail || 'Failed to cancel the edit request.');
+      setShowCancelConfirmModal(false);
     } finally {
       setIsCancellingStudentEdit(false);
     }
@@ -1343,21 +1344,54 @@ export const TutorStudentProfile: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
+            <div className="flex items-center justify-end pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
               <button
                 type="button"
-                onClick={handleCancelStudentEditRequest}
+                onClick={() => setShowCancelConfirmModal(true)}
                 disabled={isCancellingStudentEdit}
                 className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-400 hover:bg-rose-100 px-3 py-1.5 rounded-md text-xs font-bold transition cursor-pointer disabled:opacity-50"
               >
                 {isCancellingStudentEdit ? 'Cancelling...' : 'Cancel Request'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CONFIRMATION MODAL BEFORE WITHDRAWING EDIT REQUEST ── */}
+      {showCancelConfirmModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-60 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-[#111111] rounded-2xl p-6 max-w-sm w-full border border-gray-200 dark:border-[#222222] shadow-2xl space-y-4 animate-fade-in-scale">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  Withdraw Edit Request?
+                </h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-gray-600 dark:text-slate-300">
+                  Are you sure you want to withdraw this edit request? The pending request will be cancelled immediately.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
               <button
                 type="button"
-                onClick={() => setShowPendingModal(false)}
-                className="bg-gray-100 dark:bg-[#1A1A1A] hover:bg-gray-200 dark:hover:bg-[#222222] text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md text-xs font-bold transition cursor-pointer"
+                disabled={isCancellingStudentEdit}
+                onClick={() => setShowCancelConfirmModal(false)}
+                className="rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-4 py-2 text-xs font-bold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer"
               >
-                Close
+                No, Keep Request
+              </button>
+              <button
+                type="button"
+                disabled={isCancellingStudentEdit}
+                onClick={handleExecuteCancelStudentEditRequest}
+                className="rounded-lg bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 text-xs font-bold shadow-sm transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+              >
+                {isCancellingStudentEdit ? 'Withdrawing...' : 'Yes, Withdraw'}
               </button>
             </div>
           </div>

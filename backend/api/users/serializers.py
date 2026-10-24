@@ -57,6 +57,21 @@ class UserListSerializer(serializers.ModelSerializer):
         if obj.role == 'student':
             if obj.assigned_tutor:
                 return obj.assigned_tutor.get_full_name()
+            try:
+                from apps.academics.models import StudentEnrollment, TutorAssignmentHistory
+                hist = TutorAssignmentHistory.objects.filter(
+                    student=obj, is_active=True
+                ).order_by('-start_date', '-id').first()
+                if hist and hist.tutor:
+                    return hist.tutor.get_full_name()
+
+                enr = StudentEnrollment.objects.filter(
+                    student=obj, assigned_tutor__isnull=False
+                ).order_by('-school_year__start_date', '-id').first()
+                if enr and enr.assigned_tutor:
+                    return enr.assigned_tutor.get_full_name()
+            except Exception:
+                pass
             return 'TBA'
         return None
 

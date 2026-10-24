@@ -555,12 +555,19 @@ class StudentCompleteHistoryView(APIView):
                 'completion_date': str(sr.completion_date) if sr.completion_date else None,
             })
 
+        current_tutor_name = student.assigned_tutor.get_full_name() if student.assigned_tutor else None
+        if not current_tutor_name:
+            if tutor_history_list and len(tutor_history_list) > 0:
+                current_tutor_name = tutor_history_list[0].get('tutor_name')
+            elif enrollment_history and len(enrollment_history) > 0:
+                current_tutor_name = enrollment_history[0].get('tutor_name') or enrollment_history[0].get('assigned_tutor')
+
         return Response({
             'student_id': str(student.id),
             'full_name': student.get_full_name(),
             'lrn': student.lrn,
             'current_level': (student.aral_level or 'basic').capitalize(),
-            'current_tutor': student.assigned_tutor.get_full_name() if student.assigned_tutor else 'Unassigned',
+            'current_tutor': current_tutor_name or 'Unassigned',
             'enrollment_history': enrollment_history,
             'tutor_history': tutor_history_list,
             'summer_history': summer_list,

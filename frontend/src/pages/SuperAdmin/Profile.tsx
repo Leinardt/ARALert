@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import type { User, StudentEditRequest } from '../../types';
 import { userService } from '../../services/userService';
+import { academicService } from '../../services/academicService';
 import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
 import {
   User as UserIcon,
@@ -24,6 +25,40 @@ import {
 const formatAralLevel = (level: string | null | undefined): string => {
   if (!level) return 'Basic';
   return level.charAt(0).toUpperCase() + level.slice(1).toLowerCase();
+};
+
+/**
+ * Parse and format Grade Level and Section cleanly.
+ * Handles cases where grade_level is stored as 'GRADE 9 - MOLAVE' or '9 - MOLAVE'
+ * while section might be blank or empty.
+ */
+const formatStudentGradeAndSection = (rawGrade?: string | null, rawSection?: string | null) => {
+  let g = (rawGrade || '').trim();
+  let s = (rawSection || '').trim();
+
+  if (g.includes(' - ')) {
+    const parts = g.split(' - ').map((p) => p.trim());
+    g = parts[0];
+    if (!s) {
+      s = parts.slice(1).join(' - ').trim();
+    }
+  }
+
+  // Format Grade Level (e.g. 'GRADE 9' or '9' -> 'Grade 9')
+  let displayGrade = '—';
+  if (g) {
+    const numMatch = g.match(/\d+/);
+    if (numMatch) {
+      displayGrade = `Grade ${numMatch[0]}`;
+    } else {
+      displayGrade = toTitleCase(g);
+    }
+  }
+
+  // Format Section (e.g. 'MOLAVE' -> 'Molave')
+  let displaySection = s ? toTitleCase(s) : '—';
+
+  return { displayGrade, displaySection };
 };
 
 /**
@@ -103,6 +138,7 @@ const SecurityHelpButton: React.FC<{ label: string; description: string }> = ({ 
 export const Profile: React.FC = () => {
   const { user, updateProfile } = useAuth();
   const [localUser, setLocalUser] = useState<User | null>(user);
+  const [resolvedTutorName, setResolvedTutorName] = useState<string | null>(null);
 
   const [assignedStudents, setAssignedStudents] = useState<User[]>([]);
 
@@ -114,14 +150,62 @@ export const Profile: React.FC = () => {
           if (Array.isArray(res)) setAssignedStudents(res);
         })
         .catch(() => { });
+    } else if (localUser?.role === 'student' && localUser.id) {
+      if (localUser.assigned_tutor_name && localUser.assigned_tutor_name !== 'TBA' && localUser.assigned_tutor_name !== 'Unassigned') {
+        setResolvedTutorName(localUser.assigned_tutor_name);
+      }
+
+      // Fetch fresh academic profile to resolve latest assigned tutor or updated cohort
+      academicService
+        .getMyProfile()
+        .then((prof) => {
+          if (prof?.assigned_tutor?.name) {
+            setResolvedTutorName(prof.assigned_tutor.name);
+          }
+          if (prof?.student) {
+            setLocalUser((prev) => (prev ? { ...prev, ...prof.student } : prev));
+          }
+        })
+        .catch(() => {});
+
+      // Fallback check in complete student history
+      academicService
+        .getStudentCompleteHistory(String(localUser.id))
+        .then((hist) => {
+          if (hist?.current_tutor && hist.current_tutor !== 'Unassigned' && hist.current_tutor !== 'TBA') {
+            setResolvedTutorName(hist.current_tutor);
+          } else if (hist?.tutor_history && hist.tutor_history.length > 0) {
+            const active = hist.tutor_history.find((t: any) => t.is_active || !t.end_date);
+            if (active?.tutor_name) {
+              setResolvedTutorName(active.tutor_name);
+            }
+          }
+        })
+        .catch(() => {});
     }
-  }, [localUser?.id, localUser?.role]);
+  }, [localUser?.id, localUser?.role, localUser?.assigned_tutor_name]);
 
   // Compute tutor assigned classes / role details handled
   const tutorAssignedClasses = useMemo(() => {
     if (localUser?.role !== 'tutor') return [];
     return buildTutorClassSections(localUser, assignedStudents);
   }, [localUser, assignedStudents]);
+
+  // Compute student cohort display (grade, section, tutor)
+  const studentCohort = useMemo(() => {
+    if (localUser?.role !== 'student') return { grade: '—', section: '—', tutor: 'No assigned tutor' };
+    const { displayGrade, displaySection } = formatStudentGradeAndSection(
+      localUser.grade_level,
+      localUser.section
+    );
+    const tutor =
+      resolvedTutorName && resolvedTutorName !== 'TBA' && resolvedTutorName !== 'Unassigned'
+        ? toTitleCase(resolvedTutorName)
+        : localUser.assigned_tutor_name && localUser.assigned_tutor_name !== 'TBA' && localUser.assigned_tutor_name !== 'Unassigned'
+        ? toTitleCase(localUser.assigned_tutor_name)
+        : 'No assigned tutor';
+    return { grade: displayGrade, section: displaySection, tutor };
+  }, [localUser, resolvedTutorName]);
 
   // Staff direct editing state
   const [isEditing, setIsEditing] = useState(false);
@@ -751,11 +835,7 @@ export const Profile: React.FC = () => {
                   Current Tutor
                 </label>
                 <input
-                  value={
-                    localUser.assigned_tutor_name && localUser.assigned_tutor_name !== 'TBA'
-                      ? toTitleCase(localUser.assigned_tutor_name)
-                      : 'No assigned tutor'
-                  }
+                  value={studentCohort.tutor}
                   readOnly
                   disabled
                   style={readonlyStyle}
@@ -794,13 +874,7 @@ export const Profile: React.FC = () => {
                   Grade Level
                 </label>
                 <input
-                  value={
-                    localUser.grade_level
-                      ? (String(localUser.grade_level).toLowerCase().includes('grade')
-                          ? String(localUser.grade_level)
-                          : `Grade ${localUser.grade_level}`)
-                      : '—'
-                  }
+                  value={studentCohort.grade}
                   readOnly
                   disabled
                   style={readonlyStyle}
@@ -812,7 +886,7 @@ export const Profile: React.FC = () => {
                   Section
                 </label>
                 <input
-                  value={localUser.section || '—'}
+                  value={studentCohort.section}
                   readOnly
                   disabled
                   style={readonlyStyle}

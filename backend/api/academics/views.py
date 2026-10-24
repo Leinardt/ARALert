@@ -1448,6 +1448,23 @@ class StudentAcademicProfileView(APIView):
         evaluate_student_aral_progression(student)
 
         tutor = student.assigned_tutor
+        if not tutor:
+            try:
+                from apps.academics.models import StudentEnrollment, TutorAssignmentHistory
+                hist = TutorAssignmentHistory.objects.filter(
+                    student=student, is_active=True
+                ).order_by('-start_date', '-id').first()
+                if hist and hist.tutor:
+                    tutor = hist.tutor
+                else:
+                    enr = StudentEnrollment.objects.filter(
+                        student=student, assigned_tutor__isnull=False
+                    ).order_by('-school_year__start_date', '-id').first()
+                    if enr and enr.assigned_tutor:
+                        tutor = enr.assigned_tutor
+            except Exception:
+                pass
+
         w_assess  = tutor.assessment_weight   if tutor else 50
         w_tasks   = tutor.weekly_tasks_weight if tutor else 30
         w_attend  = tutor.attendance_weight   if tutor else 20
@@ -1514,6 +1531,9 @@ class StudentAcademicProfileView(APIView):
                 'lrn':         student.lrn,
                 'email':       student.email,
                 'aral_level':  student.aral_level,
+                'subject':     student.subject,
+                'grade_level': student.grade_level,
+                'section':     student.section,
             },
             'assigned_tutor': {
                 'id':                  str(tutor.id),
