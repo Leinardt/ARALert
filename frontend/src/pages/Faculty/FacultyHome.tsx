@@ -596,7 +596,7 @@ export const FacultyHome: React.FC = () => {
         {/* Row 1: Solo Average Attendance Rate Container + Two-Layer Present/Absent Container */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0 w-full min-w-0 max-w-full">
           {/* 1. Solo Container: Average Attendance Rate */}
-          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3 sm:p-3.5 transition-colors flex flex-col justify-between h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3 sm:p-3.5 transition-colors flex flex-col justify-center h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">
                 AVERAGE ATTENDANCE RATE
@@ -615,11 +615,6 @@ export const FacultyHome: React.FC = () => {
                 {totalSessions === 0 ? '—' : `${avgAttendance}%`}
               </p>
             </div>
-            <p className="text-[11px] font-normal text-gray-400 dark:text-slate-500">
-              {totalSessions === 0
-                ? 'No attendance records logged'
-                : `${presentCount} of ${totalSessions} sessions attended`}
-            </p>
           </div>
 
           {/* 2. Two-Layer Container: Present & Absent Status for Today */}
