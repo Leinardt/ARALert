@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X, Check, Clock, CheckCircle2,
   XCircle, AlertCircle, RefreshCw
 } from 'lucide-react';
 import type { StudentEditRequest } from '../types';
 import { userService } from '../services/userService';
+import { SystemUpdateNotification, SYSTEM_UPDATES } from './SystemUpdateNotification';
 
 interface StudentEditRequestsModalProps {
   isOpen: boolean;
@@ -24,9 +26,11 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  // Reject state tracking
-  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  // Confirmation modal states
+  const [confirmApproveRequest, setConfirmApproveRequest] = useState<StudentEditRequest | null>(null);
+  const [confirmRejectRequest, setConfirmRejectRequest] = useState<StudentEditRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string>('');
+  const [rejectionError, setRejectionError] = useState<string | null>(null);
 
   const fetchRequests = async (showLoadingSpinner = true) => {
     if (showLoadingSpinner) {
@@ -49,8 +53,10 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
   useEffect(() => {
     if (isOpen) {
       fetchRequests(true);
-      setRejectingId(null);
+      setConfirmApproveRequest(null);
+      setConfirmRejectRequest(null);
       setRejectionReason('');
+      setRejectionError(null);
       setActionSuccess(null);
       setActionError(null);
 
@@ -92,13 +98,12 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
     return filteredRequests.slice((currentPage - 1) * 30, currentPage * 30);
   }, [filteredRequests, currentPage]);
 
-  const handleApprove = async (request: StudentEditRequest) => {
+  const handleExecuteApprove = async () => {
+    if (!confirmApproveRequest) return;
+    const request = confirmApproveRequest;
     const targetLabel = request.request_type === 'staff'
       ? `staff profile for ${request.requested_by_name}`
       : `student records for ${request.student_name || 'student'}`;
-    if (!window.confirm(`Are you sure you want to approve changes for ${targetLabel}? This will immediately update the profile.`)) {
-      return;
-    }
 
     setProcessingId(request.id);
     setActionError(null);
@@ -106,6 +111,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
     try {
       const res = await userService.reviewStudentEditRequest(request.id, 'approve');
       setActionSuccess(res.detail || `Successfully approved changes for ${targetLabel}.`);
+      setConfirmApproveRequest(null);
       await fetchRequests(false);
       onRequestReviewed?.();
     } catch (err: any) {
@@ -116,25 +122,28 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
     }
   };
 
-  const handleRejectSubmit = async (requestId: string) => {
+  const handleExecuteReject = async () => {
+    if (!confirmRejectRequest) return;
     if (!rejectionReason.trim()) {
-      setActionError('Please provide a reason for rejecting this edit request.');
+      setRejectionError('Please provide a reason for rejecting this edit request.');
       return;
     }
 
-    setProcessingId(requestId);
+    const request = confirmRejectRequest;
+    setProcessingId(request.id);
     setActionError(null);
     setActionSuccess(null);
+    setRejectionError(null);
     try {
-      const res = await userService.reviewStudentEditRequest(requestId, 'reject', rejectionReason.trim());
+      const res = await userService.reviewStudentEditRequest(request.id, 'reject', rejectionReason.trim());
       setActionSuccess(res.detail || 'Edit request rejected successfully.');
-      setRejectingId(null);
+      setConfirmRejectRequest(null);
       setRejectionReason('');
       await fetchRequests(false);
       onRequestReviewed?.();
     } catch (err: any) {
       console.error('Rejection failed:', err);
-      setActionError(err.response?.data?.detail || 'Failed to reject the request.');
+      setRejectionError(err.response?.data?.detail || 'Failed to reject the request.');
     } finally {
       setProcessingId(null);
     }
@@ -271,25 +280,8 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
             </div>
           ) : (
             <>
-              {activeTab === 'all' && (
-                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-3.5 sm:p-4">
-                  <div className="flex items-start justify-between gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-                      <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">ARALert Platform v1.2</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 uppercase tracking-wide">
-                        System Update
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-semibold text-slate-400 shrink-0">
-                      Oct 24, 2026 • 08:00 AM
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-                    All system services and academic modules are running normally. Scheduled maintenance windows and system releases are announced here.
-                  </p>
-                </div>
-              )}
+              {activeTab === 'all' &&
+                SYSTEM_UPDATES.map((u) => <SystemUpdateNotification key={u.id} update={u} />)}
               {paginatedRequests.map((req) => {
               const isPending = req.status === 'pending';
               const isApproved = req.status === 'approved';
@@ -311,7 +303,6 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
               ].filter(Boolean).length;
 
               const isItemProcessing = processingId === req.id;
-              const isItemRejecting = rejectingId === req.id;
 
               return (
                 <div
@@ -528,81 +519,33 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
 
                   {/* Admin Review Action Bar (Pending only) */}
                   {isPending && (
-                    <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800">
-                      {isItemRejecting ? (
-                        <div className="space-y-2 bg-rose-50/50 dark:bg-rose-950/20 p-2.5 rounded-xl border border-rose-200 dark:border-rose-900/50 animate-fade-in">
-                          <label className="block text-[11px] font-bold text-rose-900 dark:text-rose-300">
-                            Reason for Rejecting Edit Request *
-                          </label>
-                          <textarea
-                            rows={2}
-                            value={rejectionReason}
-                            onChange={(e) => setRejectionReason(e.target.value)}
-                            placeholder="State reason for rejection..."
-                            className="w-full px-2.5 py-1.5 text-xs border border-rose-200 dark:border-rose-800 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500/20 resize-none"
-                            autoFocus
-                          />
-                          <div className="flex justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setRejectingId(null);
-                                setRejectionReason('');
-                              }}
-                              disabled={isItemProcessing}
-                              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 cursor-pointer"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRejectSubmit(req.id)}
-                              disabled={isItemProcessing || !rejectionReason.trim()}
-                              className="px-3 py-1 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
-                            >
-                              {isItemProcessing ? (
-                                <>
-                                  <RefreshCw className="w-3 h-3 animate-spin" /> Rejecting...
-                                </>
-                              ) : (
-                                <>
-                                  <X className="w-3 h-3" /> Confirm Rejection
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRejectingId(req.id);
-                              setRejectionReason('');
-                            }}
-                            disabled={isItemProcessing}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer inline-flex items-center gap-1.5"
-                          >
-                            <X className="w-3.5 h-3.5" /> Reject Request
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleApprove(req)}
-                            disabled={isItemProcessing}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-50"
-                          >
-                            {isItemProcessing ? (
-                              <>
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Approving...
-                              </>
-                            ) : (
-                              <>
-                                <Check className="w-3.5 h-3.5" /> Approve & Update
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      )}
+                    <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConfirmRejectRequest(req);
+                          setRejectionReason('');
+                          setRejectionError(null);
+                        }}
+                        disabled={isItemProcessing}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        Reject Request
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmApproveRequest(req)}
+                        disabled={isItemProcessing}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {isItemProcessing ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Approving...
+                          </>
+                        ) : (
+                          'Approve & Update'
+                        )}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -612,6 +555,133 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
           )}
         </div>
       </div>
+
+      {/* ── APPROVE CONFIRMATION MODAL ── */}
+      {confirmApproveRequest &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+            onClick={() => !processingId && setConfirmApproveRequest(null)}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              className="w-full max-w-sm rounded-3xl p-6 border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-2xl space-y-4 animate-fade-in-scale"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 leading-tight">
+                  Approve Edit Request?
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-slate-300">
+                  Are you sure you want to approve changes for{' '}
+                  <strong className="text-gray-900 dark:text-slate-100 font-bold">
+                    {confirmApproveRequest.request_type === 'staff'
+                      ? `staff profile for ${confirmApproveRequest.requested_by_name}`
+                      : `student records for ${confirmApproveRequest.student_name || 'student'}`}
+                  </strong>
+                  ? This will immediately update the profile.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
+                <button
+                  type="button"
+                  disabled={Boolean(processingId)}
+                  onClick={() => setConfirmApproveRequest(null)}
+                  className="rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-4 py-2 text-xs font-bold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={Boolean(processingId)}
+                  onClick={handleExecuteApprove}
+                  className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-xs font-bold shadow-sm transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                >
+                  {processingId === confirmApproveRequest.id ? 'Approving...' : 'Yes, Approve & Update'}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* ── REJECT CONFIRMATION MODAL ── */}
+      {confirmRejectRequest &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+            onClick={() => !processingId && setConfirmRejectRequest(null)}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              className="w-full max-w-sm rounded-3xl p-6 border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-2xl space-y-4 animate-fade-in-scale"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 leading-tight">
+                  Reject Edit Request?
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-slate-300">
+                  Are you sure you want to reject the edit request for{' '}
+                  <strong className="text-gray-900 dark:text-slate-100 font-bold">
+                    {confirmRejectRequest.request_type === 'staff'
+                      ? `staff profile for ${confirmRejectRequest.requested_by_name}`
+                      : `student records for ${confirmRejectRequest.student_name || 'student'}`}
+                  </strong>
+                  ? Please provide a reason for the rejection.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-300 mb-1.5">
+                  Reason for Rejection *
+                </label>
+                <textarea
+                  rows={3}
+                  value={rejectionReason}
+                  onChange={(e) => {
+                    setRejectionReason(e.target.value);
+                    if (rejectionError) setRejectionError(null);
+                  }}
+                  placeholder="State reason for rejection..."
+                  className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-[#1A1A1A] rounded-xl bg-gray-50/50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 resize-none"
+                  autoFocus
+                />
+                {rejectionError && (
+                  <p className="mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                    {rejectionError}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
+                <button
+                  type="button"
+                  disabled={Boolean(processingId)}
+                  onClick={() => {
+                    setConfirmRejectRequest(null);
+                    setRejectionError(null);
+                  }}
+                  className="rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-4 py-2 text-xs font-bold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={Boolean(processingId) || !rejectionReason.trim()}
+                  onClick={handleExecuteReject}
+                  className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 text-xs font-bold shadow-sm transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                >
+                  {processingId === confirmRejectRequest.id ? 'Rejecting...' : 'Yes, Reject Request'}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </>
   );
 };

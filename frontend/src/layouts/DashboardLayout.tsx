@@ -18,6 +18,7 @@ import type { AcademicRisk, StudentEditRequest } from '../types';
 import { TutorGreetingIntro, checkGreetingEligibility } from '../components/TutorGreetingIntro';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { StudentEditRequestsModal } from '../components/StudentEditRequestsModal';
+import { SystemUpdateNotification, SYSTEM_UPDATES } from '../components/SystemUpdateNotification';
 import { PageFallback } from '../components/PageFallback';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import dashboardDarkDefault from '../assets/icons/dashboard_dark.png';
@@ -294,7 +295,7 @@ export const DashboardLayout: React.FC = () => {
       const next = !prev;
       try {
         localStorage.setItem('aralert_sidebar_collapsed', String(next));
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -1111,11 +1112,10 @@ export const DashboardLayout: React.FC = () => {
               aria-expanded={profileMenuOpen}
               aria-haspopup="menu"
               aria-label="Profile and account menu"
-              className={`w-10 h-10 mx-auto rounded-xl flex items-center justify-center border transition-all duration-150 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
-                profileMenuOpen
+              className={`w-10 h-10 mx-auto rounded-xl flex items-center justify-center border transition-all duration-150 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${profileMenuOpen
                   ? 'border-slate-300 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 shadow-xs'
                   : 'border-transparent hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-slate-300'
-              }`}
+                }`}
             >
               {user?.avatar ? (
                 <img
@@ -1137,11 +1137,10 @@ export const DashboardLayout: React.FC = () => {
               aria-expanded={profileMenuOpen}
               aria-haspopup="menu"
               aria-label="Profile and account menu"
-              className={`w-full flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
-                profileMenuOpen
+              className={`w-full flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${profileMenuOpen
                   ? 'border-slate-300 dark:border-zinc-700 bg-slate-100/90 dark:bg-zinc-800/80 shadow-xs'
                   : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
-              }`}
+                }`}
             >
               {user?.avatar ? (
                 <img
@@ -1173,9 +1172,8 @@ export const DashboardLayout: React.FC = () => {
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] flex flex-col lg:hidden transition-transform duration-300 ease-in-out shadow-2xl ${
-          isMobileDrawerOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] flex flex-col lg:hidden transition-transform duration-300 ease-in-out shadow-2xl ${isMobileDrawerOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
+          }`}
         style={{
           background: 'var(--sidebar-bg)',
           borderRight: '1px solid var(--slate-200)',
@@ -1290,11 +1288,10 @@ export const DashboardLayout: React.FC = () => {
             aria-expanded={profileMenuOpen}
             aria-haspopup="menu"
             aria-label="Profile and account menu"
-            className={`w-full flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${
-              profileMenuOpen
+            className={`w-full flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${profileMenuOpen
                 ? 'border-slate-300 dark:border-zinc-700 bg-slate-100/90 dark:bg-zinc-800/80 shadow-xs'
                 : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
-            }`}
+              }`}
           >
             {user?.avatar ? (
               <img
@@ -1520,7 +1517,7 @@ export const DashboardLayout: React.FC = () => {
                               outline: 'none',
                             }}
                           >
-                            <option value="all">All Classes ({tutorClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)</option>
+                            <option value="all">ALL CLASSES ({tutorClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)</option>
                             {tutorClassSections.map((cls) => (
                               <option key={cls.key} value={cls.key}>
                                 {cls.label} ({cls.students.length})
@@ -1931,58 +1928,22 @@ export const DashboardLayout: React.FC = () => {
                         }}
                       >
                         {(() => {
-                          const systemUpdate = {
-                            id: 'system-status-operational',
-                            isSystem: true as const,
-                            title: 'ARALert Platform v1.2',
-                            description: 'All system services and academic modules are running normally. Scheduled maintenance windows and system releases are announced here.',
-                            created_at: '2026-10-24T08:00:00.000Z',
-                          };
-
                           const compiledInbox = [
-                            systemUpdate,
+                            ...SYSTEM_UPDATES.map((u) => ({ ...u, isSystem: true as const })),
                             ...myEditRequests.map((req) => ({ ...req, isSystem: false as const })),
                           ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
+                          if (compiledInbox.length === 0) {
+                            return (
+                              <p style={{ margin: 'auto', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                                No notifications yet.
+                              </p>
+                            );
+                          }
+
                           return compiledInbox.map((item) => {
                             if (item.isSystem) {
-                              return (
-                                <div
-                                  key={item.id}
-                                  style={{
-                                    background: 'var(--surface-muted)',
-                                    border: '1px solid var(--slate-200)',
-                                    borderRadius: '10px',
-                                    padding: '0.75rem 0.85rem',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '0.35rem',
-                                  }}
-                                >
-                                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22C55E', flexShrink: 0 }}></span>
-                                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>{item.title}</span>
-                                      <span style={{ fontSize: '0.65rem', fontWeight: 700, background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', borderRadius: '99px', padding: '1px 6px' }}>
-                                        System
-                                      </span>
-                                    </div>
-                                    <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                                      {new Date(item.created_at).toLocaleDateString(undefined, {
-                                        month: 'short',
-                                        day: 'numeric',
-                                        year: 'numeric',
-                                      })} • {new Date(item.created_at).toLocaleTimeString(undefined, {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                      })}
-                                    </span>
-                                  </div>
-                                  <p style={{ margin: 0, fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                                    {item.description}
-                                  </p>
-                                </div>
-                              );
+                              return <SystemUpdateNotification key={item.id} update={item} />;
                             }
 
                             const req = item;
@@ -1993,14 +1954,14 @@ export const DashboardLayout: React.FC = () => {
                             const cardBg = isPending
                               ? 'rgba(245, 158, 11, 0.05)'
                               : isApproved
-                              ? 'rgba(34, 197, 94, 0.05)'
-                              : 'rgba(239, 68, 68, 0.05)';
+                                ? 'rgba(34, 197, 94, 0.05)'
+                                : 'rgba(239, 68, 68, 0.05)';
 
                             const cardBorder = isPending
                               ? 'rgba(245, 158, 11, 0.3)'
                               : isApproved
-                              ? 'rgba(34, 197, 94, 0.3)'
-                              : 'rgba(239, 68, 68, 0.3)';
+                                ? 'rgba(34, 197, 94, 0.3)'
+                                : 'rgba(239, 68, 68, 0.3)';
 
                             const displayName = req.request_type === 'staff'
                               ? 'Personal Profile Update'
@@ -2117,343 +2078,307 @@ export const DashboardLayout: React.FC = () => {
                     setIsBellRinging(true);
                     setBellRingKey((prev) => prev + 1);
                   }}
-                    aria-label="NOTIFICATIONS"
-                    title={
-                      pendingEditRequestsCount > 0
-                        ? `${pendingEditRequestsCount} Notification(s) Pending Review`
-                        : 'NOTIFICATIONS'
-                    }
+                  aria-label="NOTIFICATIONS"
+                  title={
+                    pendingEditRequestsCount > 0
+                      ? `${pendingEditRequestsCount} Notification(s) Pending Review`
+                      : 'NOTIFICATIONS'
+                  }
+                  style={{
+                    position: 'relative',
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: 'var(--surface-muted)',
+                    border: '1px solid var(--slate-200)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary)',
+                    transition: 'var(--transition-fast)',
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.transform = 'scale(0.93)';
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--brand-light)';
+                    e.currentTarget.style.color = 'var(--brand-dark)';
+                    e.currentTarget.style.borderColor = 'var(--brand-border)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.background = 'var(--surface-muted)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.borderColor = 'var(--slate-200)';
+                  }}
+                >
+                  <span
+                    key={bellRingKey}
+                    className={isBellRinging ? 'animate-bell-shake' : ''}
+                    onAnimationEnd={() => setIsBellRinging(false)}
                     style={{
-                      position: 'relative',
-                      width: '38px',
-                      height: '38px',
-                      borderRadius: '10px',
-                      background: 'var(--surface-muted)',
-                      border: '1px solid var(--slate-200)',
-                      display: 'flex',
+                      display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      cursor: 'pointer',
-                      color: 'var(--text-secondary)',
-                      transition: 'var(--transition-fast)',
-                    }}
-                    onMouseDown={(e) => {
-                      e.currentTarget.style.transform = 'scale(0.93)';
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.transform = 'scale(1)';
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--brand-light)';
-                      e.currentTarget.style.color = 'var(--brand-dark)';
-                      e.currentTarget.style.borderColor = 'var(--brand-border)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'scale(1)';
-                      e.currentTarget.style.background = 'var(--surface-muted)';
-                      e.currentTarget.style.color = 'var(--text-secondary)';
-                      e.currentTarget.style.borderColor = 'var(--slate-200)';
+                      transformOrigin: 'top center',
                     }}
                   >
+                    <Bell size={17} />
+                  </span>
+                  {pendingEditRequestsCount > 0 && (
                     <span
-                      key={bellRingKey}
-                      className={isBellRinging ? 'animate-bell-shake' : ''}
-                      onAnimationEnd={() => setIsBellRinging(false)}
+                      className="animate-badge-pulse"
                       style={{
-                        display: 'inline-flex',
+                        position: 'absolute',
+                        top: '-4px',
+                        right: '-4px',
+                        minWidth: '18px',
+                        height: '18px',
+                        padding: '0 4px',
+                        borderRadius: '99px',
+                        background: '#EF4444',
+                        color: '#fff',
+                        fontSize: '10px',
+                        fontWeight: 800,
+                        display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        transformOrigin: 'top center',
+                        border: '2px solid #fff',
+                        boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)',
                       }}
                     >
-                      <Bell size={17} />
+                      {pendingEditRequestsCount}
                     </span>
-                    {pendingEditRequestsCount > 0 && (
-                      <span
-                        className="animate-badge-pulse"
+                  )}
+                </button>
+
+                {/* Student Notifications Dropdown */}
+                {showStudentEditRequests && (
+                  <>
+                    {/* Mobile Backdrop */}
+                    <div
+                      className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
+                      onClick={() => setShowStudentEditRequests(false)}
+                      aria-hidden="true"
+                    />
+
+                    {/* Notification Panel */}
+                    <div
+                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[410px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 overflow-hidden"
+                    >
+                      <div
                         style={{
-                          position: 'absolute',
-                          top: '-4px',
-                          right: '-4px',
-                          minWidth: '18px',
-                          height: '18px',
-                          padding: '0 4px',
-                          borderRadius: '99px',
-                          background: '#EF4444',
-                          color: '#fff',
-                          fontSize: '10px',
-                          fontWeight: 800,
+                          padding: '0.875rem 1.25rem',
+                          background: 'var(--surface-muted)',
+                          borderBottom: '1px solid var(--slate-200)',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          border: '2px solid #fff',
-                          boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)',
+                          justifyContent: 'space-between',
                         }}
                       >
-                        {pendingEditRequestsCount}
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Student Notifications Dropdown */}
-                  {showStudentEditRequests && (
-                    <>
-                      {/* Mobile Backdrop */}
-                      <div
-                        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
-                        onClick={() => setShowStudentEditRequests(false)}
-                        aria-hidden="true"
-                      />
-
-                      {/* Notification Panel */}
-                      <div
-                        className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[410px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 overflow-hidden"
-                      >
-                        <div
-                          style={{
-                            padding: '0.875rem 1.25rem',
-                            background: 'var(--surface-muted)',
-                            borderBottom: '1px solid var(--slate-200)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Bell size={15} className="text-slate-600 dark:text-slate-300" />
-                            <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                              NOTIFICATIONS
-                            </p>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                            <button
-                              type="button"
-                              onClick={fetchEditRequests}
-                              title="Refresh status"
-                              aria-label="Refresh status"
-                              style={{
-                                width: '30px',
-                                height: '30px',
-                                borderRadius: '8px',
-                                border: 'none',
-                                background: 'transparent',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                color: 'var(--text-muted)',
-                              }}
-                              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                            >
-                              <RefreshCw size={14} className={isLoadingEditRequests ? 'animate-spin' : ''} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setShowStudentEditRequests(false)}
-                              aria-label="Close notifications"
-                              style={{
-                                width: '30px',
-                                height: '30px',
-                                borderRadius: '8px',
-                                border: 'none',
-                                background: 'transparent',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                color: 'var(--text-muted)',
-                              }}
-                              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                            >
-                              <X size={16} />
-                            </button>
-                          </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Bell size={15} className="text-slate-600 dark:text-slate-300" />
+                          <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                            NOTIFICATIONS
+                          </p>
                         </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <button
+                            type="button"
+                            onClick={fetchEditRequests}
+                            title="Refresh status"
+                            aria-label="Refresh status"
+                            style={{
+                              width: '30px',
+                              height: '30px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              color: 'var(--text-muted)',
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <RefreshCw size={14} className={isLoadingEditRequests ? 'animate-spin' : ''} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowStudentEditRequests(false)}
+                            aria-label="Close notifications"
+                            style={{
+                              width: '30px',
+                              height: '30px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              color: 'var(--text-muted)',
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </div>
 
-                        {/* Notifications List Body - Unified Inbox */}
-                        <div
-                          style={{
-                            height: '420px',
-                            maxHeight: 'calc(100vh - 140px)',
-                            overflowY: 'auto',
-                            padding: '0.875rem 1rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0.65rem',
-                          }}
-                        >
-                          {(() => {
-                            const systemUpdate = {
-                              id: 'system-status-operational-student',
-                              isSystem: true as const,
-                              title: 'ARALert Platform v1.2',
-                              description: 'System services are running smoothly. System announcements and maintenance notifications appear here.',
-                              created_at: '2026-10-24T08:00:00.000Z',
-                            };
+                      {/* Notifications List Body - Unified Inbox */}
+                      <div
+                        style={{
+                          height: '420px',
+                          maxHeight: 'calc(100vh - 140px)',
+                          overflowY: 'auto',
+                          padding: '0.875rem 1rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.65rem',
+                        }}
+                      >
+                        {(() => {
+                          const compiledInbox = [
+                            ...SYSTEM_UPDATES.map((u) => ({ ...u, isSystem: true as const })),
+                            ...myEditRequests.map((req) => ({ ...req, isSystem: false as const })),
+                          ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-                            const compiledInbox = [
-                              systemUpdate,
-                              ...myEditRequests.map((req) => ({ ...req, isSystem: false as const })),
-                            ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                          if (compiledInbox.length === 0) {
+                            return (
+                              <p style={{ margin: 'auto', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                                No notifications yet.
+                              </p>
+                            );
+                          }
 
-                            return compiledInbox.map((item) => {
-                              if (item.isSystem) {
-                                return (
-                                  <div
-                                    key={item.id}
-                                    style={{
-                                      background: 'var(--surface-muted)',
-                                      border: '1px solid var(--slate-200)',
-                                      borderRadius: '10px',
-                                      padding: '0.75rem 0.85rem',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      gap: '0.35rem',
-                                    }}
-                                  >
-                                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22C55E', flexShrink: 0 }}></span>
-                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>{item.title}</span>
-                                        <span style={{ fontSize: '0.65rem', fontWeight: 700, background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', borderRadius: '99px', padding: '1px 6px' }}>
-                                          System
-                                        </span>
-                                      </div>
-                                      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                                        {new Date(item.created_at).toLocaleDateString(undefined, {
-                                          month: 'short',
-                                          day: 'numeric',
-                                          year: 'numeric',
-                                        })} • {new Date(item.created_at).toLocaleTimeString(undefined, {
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                        })}
-                                      </span>
-                                    </div>
-                                    <p style={{ margin: 0, fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                                      {item.description}
-                                    </p>
-                                  </div>
-                                );
-                              }
+                          return compiledInbox.map((item) => {
+                            if (item.isSystem) {
+                              return <SystemUpdateNotification key={item.id} update={item} />;
+                            }
 
-                              const req = item;
-                              const isPending = req.status === 'pending';
-                              const isApproved = req.status === 'approved';
-                              const isRejected = req.status === 'rejected';
+                            const req = item;
+                            const isPending = req.status === 'pending';
+                            const isApproved = req.status === 'approved';
+                            const isRejected = req.status === 'rejected';
 
-                              const cardBg = isPending
-                                ? 'rgba(245, 158, 11, 0.05)'
-                                : isApproved
+                            const cardBg = isPending
+                              ? 'rgba(245, 158, 11, 0.05)'
+                              : isApproved
                                 ? 'rgba(34, 197, 94, 0.05)'
                                 : 'rgba(239, 68, 68, 0.05)';
 
-                              const cardBorder = isPending
-                                ? 'rgba(245, 158, 11, 0.3)'
-                                : isApproved
-                              ? 'rgba(34, 197, 94, 0.3)'
-                              : 'rgba(239, 68, 68, 0.3)';
+                            const cardBorder = isPending
+                              ? 'rgba(245, 158, 11, 0.3)'
+                              : isApproved
+                                ? 'rgba(34, 197, 94, 0.3)'
+                                : 'rgba(239, 68, 68, 0.3)';
 
-                              return (
-                                <div
-                                  key={req.id}
-                                  style={{
-                                    background: cardBg,
-                                    border: `1px solid ${cardBorder}`,
-                                    borderRadius: '10px',
-                                    padding: '0.75rem 0.85rem',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '0.35rem',
-                                  }}
-                                >
-                                  {/* Header with Title, Status Badge, and Upper Right Date/Time */}
-                                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                    <div>
-                                      <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                        Profile Details Update
-                                      </p>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
-                                        {isPending && (
-                                          <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
-                                            Pending
-                                          </span>
-                                        )}
-                                        {isApproved && (
-                                          <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
-                                            Approved
-                                          </span>
-                                        )}
-                                        {isRejected && (
-                                          <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(239, 68, 68, 0.15)', color: '#DC2626', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
-                                            Rejected
-                                          </span>
-                                        )}
-                                      </div>
+                            return (
+                              <div
+                                key={req.id}
+                                style={{
+                                  background: cardBg,
+                                  border: `1px solid ${cardBorder}`,
+                                  borderRadius: '10px',
+                                  padding: '0.75rem 0.85rem',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '0.35rem',
+                                }}
+                              >
+                                {/* Header with Title, Status Badge, and Upper Right Date/Time */}
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                  <div>
+                                    <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                      Profile Details Update
+                                    </p>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
+                                      {isPending && (
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                                          Pending
+                                        </span>
+                                      )}
+                                      {isApproved && (
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                                          Approved
+                                        </span>
+                                      )}
+                                      {isRejected && (
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(239, 68, 68, 0.15)', color: '#DC2626', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                                          Rejected
+                                        </span>
+                                      )}
                                     </div>
-                                    <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                                      {new Date(req.created_at).toLocaleDateString(undefined, {
-                                        month: 'short',
-                                        day: 'numeric',
-                                        year: 'numeric',
-                                      })} • {new Date(req.created_at).toLocaleTimeString(undefined, {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                      })}
-                                    </span>
                                   </div>
+                                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                    {new Date(req.created_at).toLocaleDateString(undefined, {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                    })} • {new Date(req.created_at).toLocaleTimeString(undefined, {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </span>
+                                </div>
 
-                                  {/* Proposed details */}
-                                  <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                    <div>
-                                      <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Proposed Name: </span>
-                                      <span>{req.proposed_last_name}, {req.proposed_first_name} {req.proposed_middle_name || ''}</span>
-                                    </div>
-                                    {(req.proposed_aral_level || req.proposed_lrn) && (
-                                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2px' }}>
-                                        {req.proposed_aral_level && (
-                                          <span>
-                                            <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Level: </span>
-                                            <span style={{ fontWeight: 700 }}>{formatAralLevel(req.proposed_aral_level)}</span>
-                                          </span>
-                                        )}
-                                        {req.proposed_lrn && (
-                                          <span>
-                                            <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>LRN: </span>
-                                            <span>{req.proposed_lrn}</span>
-                                          </span>
-                                        )}
-                                      </div>
-                                    )}
+                                {/* Proposed details */}
+                                <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                                  <div>
+                                    <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Proposed Name: </span>
+                                    <span>{req.proposed_last_name}, {req.proposed_first_name} {req.proposed_middle_name || ''}</span>
                                   </div>
-
-                                  {/* Review outcome notes */}
-                                  {isApproved && (
-                                    <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(34, 197, 94, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#15803D', fontWeight: 600 }}>
-                                      ✓ Profile update approved and applied.
-                                    </div>
-                                  )}
-                                  {isRejected && (
-                                    <div className="mt-0.5 px-1.5 py-1 rounded bg-rose-50 dark:bg-rose-950/40 text-[0.72rem] text-rose-700 dark:text-rose-300 font-semibold border border-rose-100 dark:border-rose-900/50">
-                                      ✕ Rejected{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}: {req.rejection_reason || 'No specific reason provided.'}
-                                    </div>
-                                  )}
-                                  {isPending && (
-                                    <div className="mt-0.5 text-[0.7rem] font-medium text-amber-700 dark:text-amber-400">
-                                      Waiting for administrator approval.
+                                  {(req.proposed_aral_level || req.proposed_lrn) && (
+                                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2px' }}>
+                                      {req.proposed_aral_level && (
+                                        <span>
+                                          <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Level: </span>
+                                          <span style={{ fontWeight: 700 }}>{formatAralLevel(req.proposed_aral_level)}</span>
+                                        </span>
+                                      )}
+                                      {req.proposed_lrn && (
+                                        <span>
+                                          <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>LRN: </span>
+                                          <span>{req.proposed_lrn}</span>
+                                        </span>
+                                      )}
                                     </div>
                                   )}
                                 </div>
-                              );
-                            });
-                          })()}
-                        </div>
+
+                                {/* Review outcome notes */}
+                                {isApproved && (
+                                  <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(34, 197, 94, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#15803D', fontWeight: 600 }}>
+                                    ✓ Profile update approved and applied.
+                                  </div>
+                                )}
+                                {isRejected && (
+                                  <div className="mt-0.5 px-1.5 py-1 rounded bg-rose-50 dark:bg-rose-950/40 text-[0.72rem] text-rose-700 dark:text-rose-300 font-semibold border border-rose-100 dark:border-rose-900/50">
+                                    ✕ Rejected{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}: {req.rejection_reason || 'No specific reason provided.'}
+                                  </div>
+                                )}
+                                {isPending && (
+                                  <div className="mt-0.5 text-[0.7rem] font-medium text-amber-700 dark:text-amber-400">
+                                    Waiting for administrator approval.
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          });
+                        })()}
                       </div>
-                    </>
-                  )}
-                </div>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
 
             {/* Change Theme Toggle */}
