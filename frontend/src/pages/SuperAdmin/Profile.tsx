@@ -292,20 +292,34 @@ export const Profile: React.FC = () => {
   // Direct profile update (SuperAdmin only)
   const handleSave = async () => {
     if (!localUser) return;
+    if (!editFirst.trim()) {
+      setError('First name cannot be blank.');
+      return;
+    }
+    if (!editLast.trim()) {
+      setError('Last name cannot be blank.');
+      return;
+    }
     setIsSaving(true);
     setMessage(null);
     setError(null);
     try {
       const formData = new FormData();
-      formData.append('first_name', toTitleCase(editFirst));
-      formData.append('middle_name', toTitleCase(editMiddle));
-      formData.append('last_name', toTitleCase(editLast));
+      formData.append('first_name', editFirst.trim());
+      formData.append('middle_name', editMiddle.trim());
+      formData.append('last_name', editLast.trim());
       const updated = await updateProfile(formData);
       setLocalUser(updated);
       setMessage('Profile updated successfully.');
       setIsEditing(false);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Unable to save profile.');
+    } catch (err: any) {
+      const serverMsg =
+        err?.response?.data?.first_name?.[0] ||
+        err?.response?.data?.last_name?.[0] ||
+        err?.response?.data?.detail ||
+        err?.response?.data?.error ||
+        (err instanceof Error ? err.message : 'Unable to save profile.');
+      setError(serverMsg);
     } finally {
       setIsSaving(false);
     }

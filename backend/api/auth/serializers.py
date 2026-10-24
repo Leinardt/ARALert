@@ -247,9 +247,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 class ProfileUpdateSerializer(serializers.Serializer):
-    """Allow avatar update from the user-facing profile endpoint."""
+    """Allow profile updates (avatar and name for SuperAdmin) from the user-facing profile endpoint."""
 
     avatar = serializers.FileField(required=False, allow_null=True)
+    first_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    middle_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
 
     def validate_avatar(self, value):
         if value is None:
@@ -262,8 +265,41 @@ class ProfileUpdateSerializer(serializers.Serializer):
             raise serializers.ValidationError('Avatar images must be 2 MB or smaller.')
         return value
 
+    def validate(self, attrs):
+        user = self.context.get('user')
+        name_fields = {'first_name', 'middle_name', 'last_name'}
+        has_name_change = any(f in attrs for f in name_fields)
+
+        if has_name_change:
+            if not user or not user.is_superuser:
+                raise serializers.ValidationError(
+                    'Direct profile edits are only permitted for Super Administrators. Other roles must submit an Edit Request.'
+                )
+            if 'first_name' in attrs and not attrs['first_name'].strip():
+                raise serializers.ValidationError({'first_name': 'First name cannot be blank.'})
+            if 'last_name' in attrs and not attrs['last_name'].strip():
+                raise serializers.ValidationError({'last_name': 'Last name cannot be blank.'})
+
+        return attrs
+
     def update(self, instance, validated_data):
-        # No-op for now (avatar field removed from model)
+        user = self.context.get('user') or instance
+        updated = False
+
+        if getattr(user, 'is_superuser', False):
+            if 'first_name' in validated_data:
+                instance.first_name = validated_data['first_name'].strip()
+                updated = True
+            if 'middle_name' in validated_data:
+                instance.middle_name = validated_data['middle_name'].strip()
+                updated = True
+            if 'last_name' in validated_data:
+                instance.last_name = validated_data['last_name'].strip()
+                updated = True
+
+            if updated:
+                instance.save()
+
         return instance
 
 
