@@ -16,7 +16,6 @@ import {
   Clock,
   Send,
   Eye,
-  XCircle,
 } from 'lucide-react';
 
 /**
@@ -114,7 +113,7 @@ export const Profile: React.FC = () => {
         .then((res) => {
           if (Array.isArray(res)) setAssignedStudents(res);
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [localUser?.id, localUser?.role]);
 
@@ -138,6 +137,7 @@ export const Profile: React.FC = () => {
   const [isEditingStudent, setIsEditingStudent] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showPendingModal, setShowPendingModal] = useState(false);
+  const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
   const [isSavingStudent, setIsSavingStudent] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [studentEditError, setStudentEditError] = useState<string | null>(null);
@@ -284,22 +284,22 @@ export const Profile: React.FC = () => {
   };
 
   // Cancel / Withdraw pending edit request
-  const handleCancelRequest = async () => {
+  const handleExecuteCancelRequest = async () => {
     if (!pendingEditRequest) return;
-    const confirmed = window.confirm('Are you sure you want to withdraw this profile edit request?');
-    if (!confirmed) return;
 
     setIsCancelling(true);
     try {
       await userService.cancelStudentEditRequest(pendingEditRequest.id);
       setPendingEditRequest(null);
       setShowPendingModal(false);
+      setShowCancelConfirmModal(false);
       setMessage('Your profile edit request has been successfully withdrawn.');
       setTimeout(() => setMessage(null), 5000);
     } catch (err: any) {
       const errDetail = err?.response?.data?.detail || 'Failed to cancel profile edit request.';
       setError(errDetail);
       setTimeout(() => setError(null), 5000);
+      setShowCancelConfirmModal(false);
     } finally {
       setIsCancelling(false);
     }
@@ -373,20 +373,18 @@ export const Profile: React.FC = () => {
                 </p>
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--brand-light)', color: 'var(--brand-dark)', border: '1px solid var(--brand-border)' }}>
+                <span
+                  className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-zinc-700"
+                  style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    padding: '3px 10px',
+                    borderRadius: 'var(--radius-pill)',
+                  }}
+                >
                   {localUser.is_superuser ? 'SuperAdmin' : localUser.role?.toUpperCase() || 'USER'}
                 </span>
-                {localUser.role === 'student' && (
-                  <>
-                    <span className="text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                      {formatAralLevel(localUser.aral_level).toUpperCase()}
-                    </span>
-                    <span className="text-xs text-gray-300 dark:text-slate-600">•</span>
-                    <span className="text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase">
-                      {localUser.subject === 'Reading' ? 'Filipino' : (localUser.subject || 'Filipino')}
-                    </span>
-                  </>
-                )}
               </div>
             </div>
           </div>
@@ -395,18 +393,18 @@ export const Profile: React.FC = () => {
 
       {/* ── Pending Edit Request Notification Banner (All non-superadmin roles) ── */}
       {!localUser.is_superuser && pendingEditRequest && (
-        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-3xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-amber-50/80 dark:bg-amber-950/20 border-2 border-amber-500 dark:border-amber-500 rounded-3xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-900/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center shrink-0">
-              <Clock className="w-5 h-5 text-amber-700 dark:text-amber-400" />
+            <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-500/40 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200">
+              <h3 className="text-sm font-bold text-amber-700 dark:text-amber-400">
                 PROFILE EDIT REQUEST PENDING REVIEW
               </h3>
-              <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-0.5 leading-relaxed">
+              <p className="text-xs text-slate-600 dark:text-slate-200 mt-1 leading-relaxed">
                 You have submitted profile changes on{' '}
-                <span className="font-semibold">
+                <span className="font-semibold text-slate-900 dark:text-white">
                   {new Date(pendingEditRequest.created_at).toLocaleDateString(undefined, {
                     month: 'short',
                     day: 'numeric',
@@ -421,21 +419,20 @@ export const Profile: React.FC = () => {
           <div className="flex items-center gap-2.5 self-start sm:self-center shrink-0">
             <button
               type="button"
-              onClick={handleCancelRequest}
+              onClick={() => setShowCancelConfirmModal(true)}
               disabled={isCancelling}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-rose-300 dark:border-rose-800/80 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-bold text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center px-4 py-2 rounded-xl bg-white dark:bg-rose-950/20 border border-rose-300 dark:border-rose-800/80 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-bold text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
             >
-              <XCircle className="w-3.5 h-3.5" />
               {isCancelling ? 'Cancelling...' : 'Cancel Request'}
             </button>
 
             <button
               type="button"
               onClick={() => setShowPendingModal(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border border-amber-400 dark:border-amber-500 hover:border-amber-500 text-amber-700 dark:text-amber-400 font-bold text-xs shadow-xs transition cursor-pointer"
             >
-              <Eye className="w-3.5 h-3.5" />
-              View Request Details
+              <Eye className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <span>View Request Details</span>
             </button>
           </div>
         </div>
@@ -669,9 +666,6 @@ export const Profile: React.FC = () => {
                   <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
                     ASSIGNED CLASSES
                   </h3>
-                  <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-0.5">
-                    Official ARAL program classes, subjects, and grade sections handled
-                  </p>
                 </div>
               </div>
 
@@ -689,11 +683,10 @@ export const Profile: React.FC = () => {
                           Role Detail #{idx + 1}
                         </span>
                         <span
-                          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${
-                            isPlus
+                          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${isPlus
                               ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
                               : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                          }`}
+                            }`}
                         >
                           {cls.aralLevel.toUpperCase()}
                         </span>
@@ -738,9 +731,37 @@ export const Profile: React.FC = () => {
             </div>
           )}
 
-          {/* Student Academic Information */}
-          {localUser.role === 'student' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
+        </div>
+      </div>
+
+      {/* ── ARAL PROGRAM DETAILS (Student Profile) ── */}
+      {localUser.role === 'student' && (
+        <div className="p-4 sm:p-6 md:p-8" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              ARAL PROGRAM DETAILS
+            </h2>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {/* Current Tutor / ARAL Level / Subject */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  Current Tutor
+                </label>
+                <input
+                  value={
+                    localUser.assigned_tutor_name && localUser.assigned_tutor_name !== 'TBA'
+                      ? toTitleCase(localUser.assigned_tutor_name)
+                      : 'No assigned tutor'
+                  }
+                  readOnly
+                  disabled
+                  style={readonlyStyle}
+                />
+              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                   ARAL Level
@@ -765,9 +786,42 @@ export const Profile: React.FC = () => {
                 />
               </div>
             </div>
-          )}
+
+            {/* Grade Level / Section */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  Grade Level
+                </label>
+                <input
+                  value={
+                    localUser.grade_level
+                      ? (String(localUser.grade_level).toLowerCase().includes('grade')
+                          ? String(localUser.grade_level)
+                          : `Grade ${localUser.grade_level}`)
+                      : '—'
+                  }
+                  readOnly
+                  disabled
+                  style={readonlyStyle}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  Section
+                </label>
+                <input
+                  value={localUser.section || '—'}
+                  readOnly
+                  disabled
+                  style={readonlyStyle}
+                />
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {localUser.role !== 'student' && (
         <section style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '2rem', boxShadow: 'var(--shadow-xs)' }}>
@@ -964,38 +1018,70 @@ export const Profile: React.FC = () => {
               <div className="space-y-2">
                 <h4 className="font-bold text-gray-700 dark:text-slate-300 text-xs">Proposed Changes:</h4>
                 <div className="bg-gray-50 dark:bg-[#111111] p-3 rounded-2xl border border-gray-100 dark:border-[#1A1A1A] space-y-1.5 font-mono text-[11px]">
-                  <p className="text-gray-700 dark:text-slate-300">
-                    <span className="text-gray-400 dark:text-slate-500 font-sans">Name: </span>
-                    {pendingEditRequest.proposed_last_name}, {pendingEditRequest.proposed_first_name} {pendingEditRequest.proposed_middle_name || ''}
+                  <p className="text-gray-700 dark:text-slate-200">
+                    <span className="text-gray-400 dark:text-slate-400 font-sans">Name: </span>
+                    <span className="font-semibold text-gray-900 dark:text-slate-100">{pendingEditRequest.proposed_last_name}, {pendingEditRequest.proposed_first_name} {pendingEditRequest.proposed_middle_name || ''}</span>
                   </p>
-                  <p className="text-gray-700 dark:text-slate-300">
-                    <span className="text-gray-400 dark:text-slate-500 font-sans">LRN: </span>
-                    {pendingEditRequest.proposed_lrn || 'Unchanged'}
+                  <p className="text-gray-700 dark:text-slate-200">
+                    <span className="text-gray-400 dark:text-slate-400 font-sans">LRN: </span>
+                    <span className="font-semibold text-gray-900 dark:text-slate-100">{pendingEditRequest.proposed_lrn || 'Unchanged'}</span>
                   </p>
-                  <p className="text-gray-700 dark:text-slate-300">
-                    <span className="text-gray-400 dark:text-slate-500 font-sans">ARAL Level: </span>
-                    {pendingEditRequest.proposed_aral_level ? formatAralLevel(pendingEditRequest.proposed_aral_level) : 'Unchanged'}
+                  <p className="text-gray-700 dark:text-slate-200">
+                    <span className="text-gray-400 dark:text-slate-400 font-sans">ARAL Level: </span>
+                    <span className="font-semibold text-gray-900 dark:text-slate-100">{pendingEditRequest.proposed_aral_level ? formatAralLevel(pendingEditRequest.proposed_aral_level) : 'Unchanged'}</span>
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
+            <div className="flex items-center justify-end pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
               <button
                 type="button"
-                onClick={handleCancelRequest}
+                onClick={() => setShowCancelConfirmModal(true)}
                 disabled={isCancelling}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-300 dark:border-rose-800/80 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center px-3.5 py-2 rounded-xl border border-rose-300 dark:border-rose-800/80 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition cursor-pointer disabled:opacity-50"
               >
-                <XCircle className="w-3.5 h-3.5" />
                 {isCancelling ? 'Cancelling...' : 'Cancel Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CONFIRMATION MODAL BEFORE WITHDRAWING EDIT REQUEST ── */}
+      {showCancelConfirmModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-60 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-6 max-w-sm w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 animate-fade-in-scale">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
+                  Withdraw Edit Request?
+                </h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-gray-600 dark:text-slate-300">
+                  Are you sure you want to withdraw this profile edit request? This will cancel the pending review and allow you to make a new request whenever needed.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
+              <button
+                type="button"
+                disabled={isCancelling}
+                onClick={() => setShowCancelConfirmModal(false)}
+                className="rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-4 py-2 text-xs font-bold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer"
+              >
+                No, Keep Request
               </button>
               <button
                 type="button"
-                onClick={() => setShowPendingModal(false)}
-                className="bg-gray-100 dark:bg-[#141414] hover:bg-gray-200 dark:hover:bg-[#1f1f1f] text-gray-700 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                disabled={isCancelling}
+                onClick={handleExecuteCancelRequest}
+                className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 text-xs font-bold shadow-sm transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
               >
-                Close
+                {isCancelling ? 'Withdrawing...' : 'Yes, Withdraw'}
               </button>
             </div>
           </div>
