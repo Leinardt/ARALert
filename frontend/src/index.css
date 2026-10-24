@@ -30,6 +30,39 @@ html, body, #root {
   width: 100%;
 }
 
+/* ── Visible Horizontal Table Scrollbar ── */
+.table-scroll-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  max-width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
+}
+.table-scroll-container::-webkit-scrollbar {
+  height: 8px;
+}
+.table-scroll-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 99px;
+}
+.dark .table-scroll-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+}
+.table-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.6);
+  border-radius: 99px;
+}
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.9);
+}
+.dark .table-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(161, 161, 170, 0.5);
+}
+.dark .table-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 212, 216, 0.8);
+}
+
 /* ── Mobile Touch & Momentum Scrolling ── */
 .overflow-x-auto,
 .overflow-y-auto,

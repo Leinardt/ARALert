@@ -909,8 +909,8 @@ export const AssessmentsArchive: React.FC = () => {
                         {/* Expandable Sub-Table: Classes and Students Handled by this Tutor */}
                         {isExpanded && (
                           <tr className="bg-slate-50/40 dark:bg-zinc-950/40">
-                            <td colSpan={3} className="p-0">
-                              <div className="p-4 sm:p-5 border-y border-slate-200 dark:border-zinc-800 space-y-5">
+                            <td colSpan={3} className="p-0 max-w-0">
+                              <div className="p-4 sm:p-5 border-y border-slate-200 dark:border-zinc-800 space-y-5 w-full min-w-0 overflow-hidden">
                                 {row.students.length === 0 ? (
                                   <div className="p-4 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A] rounded-xl border border-slate-200 dark:border-zinc-800">
                                     No students assigned to this tutor for this school year.
