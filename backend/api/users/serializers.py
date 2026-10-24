@@ -532,6 +532,7 @@ class StudentEditRequestCreateSerializer(serializers.ModelSerializer):
             'request_type': {'required': False},
             'required_reviewer_role': {'required': False},
             'proposed_aral_level': {'required': False},
+            'reason': {'required': False, 'allow_blank': True},
         }
 
     def validate_proposed_first_name(self, value):
@@ -558,10 +559,7 @@ class StudentEditRequestCreateSerializer(serializers.ModelSerializer):
         return None
 
     def validate_reason(self, value):
-        v = value.strip()
-        if not v:
-            raise serializers.ValidationError('A reason for the edit request is required.')
-        return v
+        return (value or '').strip()
 
     def validate(self, data):
         student = data.get('student')

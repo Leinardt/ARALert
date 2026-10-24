@@ -144,6 +144,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
       <div
         className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[520px] md:w-[560px] max-w-[calc(100vw-20px)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col"
         style={{
+          height: 'min(580px, calc(100vh - 90px))',
           maxHeight: 'min(620px, calc(100vh - 90px))',
           fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif"
         }}
@@ -248,7 +249,27 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
               </p>
             </div>
           ) : (
-            paginatedRequests.map((req) => {
+            <>
+              {activeTab === 'all' && (
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-3.5 sm:p-4">
+                  <div className="flex items-start justify-between gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                      <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">ARALert Platform v1.2</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 uppercase tracking-wide">
+                        System Update
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-slate-400 shrink-0">
+                      Oct 24, 2026 • 08:00 AM
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                    All system services and academic modules are running normally. Scheduled maintenance windows and system releases are announced here.
+                  </p>
+                </div>
+              )}
+              {paginatedRequests.map((req) => {
               const isPending = req.status === 'pending';
               const isApproved = req.status === 'approved';
               const isRejected = req.status === 'rejected';
@@ -282,7 +303,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                   }`}
                 >
                   {/* Card Top Details */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         {req.request_type === 'staff' ? (
@@ -307,53 +328,47 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                       </div>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                         {req.request_type === 'staff' ? (
-                          <>Submitted for approval • </>
+                          <>Submitted for approval</>
                         ) : (
-                          <>Requested by <strong className="text-slate-700 dark:text-slate-300 font-semibold">{req.requested_by_name}</strong> • </>
+                          <>Requested by <strong className="text-slate-700 dark:text-slate-300 font-semibold">{req.requested_by_name}</strong></>
                         )}
+                      </p>
+                    </div>
+
+                    {/* Upper Right: Date/Time & Status */}
+                    <div className="flex flex-col sm:items-end gap-1 shrink-0">
+                      <span className="text-[10px] font-semibold text-slate-400">
                         {new Date(req.created_at).toLocaleDateString(undefined, {
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric',
+                        })} • {new Date(req.created_at).toLocaleTimeString(undefined, {
                           hour: '2-digit',
                           minute: '2-digit',
                         })}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 mt-1 sm:mt-0">
-                      <span className="text-[10px] font-semibold text-slate-400">
-                        {changesCount} field{changesCount !== 1 ? 's' : ''} modified
                       </span>
-                      {isPending && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                          <Clock className="w-3 h-3" /> Pending
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold text-slate-400">
+                          {changesCount} field{changesCount !== 1 ? 's' : ''} modified
                         </span>
-                      )}
-                      {isApproved && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                          <CheckCircle2 className="w-3 h-3" /> Approved
-                        </span>
-                      )}
-                      {isRejected && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
-                          <XCircle className="w-3 h-3" /> Rejected
-                        </span>
-                      )}
+                        {isPending && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                            <Clock className="w-3 h-3" /> Pending
+                          </span>
+                        )}
+                        {isApproved && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                            <CheckCircle2 className="w-3 h-3" /> Approved
+                          </span>
+                        )}
+                        {isRejected && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+                            <XCircle className="w-3 h-3" /> Rejected
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-
-                  {/* Stated Reason */}
-                  {req.reason && (
-                    <div className="mt-2.5 p-2 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/40 text-[11px]">
-                      <span className="font-bold text-amber-900 dark:text-amber-300 block mb-0.5 text-[10px] uppercase tracking-wider">
-                        {req.request_type === 'staff' ? "Requester's Stated Reason:" : "Tutor's Stated Reason:"}
-                      </span>
-                      <p className="text-slate-700 dark:text-slate-300 italic">
-                        "{req.reason}"
-                      </p>
-                    </div>
-                  )}
 
                   {/* Comparison Table */}
                   <div className="mt-2.5 overflow-x-auto mobile-scroll-table">
@@ -570,7 +585,8 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                   )}
                 </div>
               );
-            })
+            })}
+            </>
           )}
         </div>
       </div>

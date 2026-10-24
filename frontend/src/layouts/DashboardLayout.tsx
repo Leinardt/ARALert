@@ -1992,156 +1992,187 @@ export const DashboardLayout: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Notifications List Body */}
-                      <div style={{ maxHeight: 'min(480px, calc(100vh - 140px))', overflowY: 'auto', padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-                        
-                        {/* Section 1: System & Maintenance Updates */}
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                              System & Maintenance
-                            </span>
-                            <span style={{ fontSize: '0.68rem', fontWeight: 700, background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', borderRadius: '99px', padding: '1px 7px' }}>
-                              Operational
-                            </span>
-                          </div>
-                          <div style={{ background: 'var(--surface-muted)', border: '1px solid var(--slate-200)', borderRadius: '8px', padding: '0.65rem 0.75rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-                              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22C55E' }}></span>
-                              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>ARALert Platform v1.2</span>
-                            </div>
-                            <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                              All system services and academic modules are running normally. Scheduled maintenance windows and system releases are announced here.
-                            </p>
-                          </div>
-                        </div>
+                      {/* Notifications List Body - Unified Inbox */}
+                      <div
+                        style={{
+                          height: '420px',
+                          maxHeight: 'calc(100vh - 140px)',
+                          overflowY: 'auto',
+                          padding: '0.875rem 1rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.65rem',
+                        }}
+                      >
+                        {(() => {
+                          const systemUpdate = {
+                            id: 'system-status-operational',
+                            isSystem: true as const,
+                            title: 'ARALert Platform v1.2',
+                            description: 'All system services and academic modules are running normally. Scheduled maintenance windows and system releases are announced here.',
+                            created_at: '2026-10-24T08:00:00.000Z',
+                          };
 
-                        {/* Section 2: Profile Edit Requests */}
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                              Profile Edit Requests
-                            </span>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--slate-200)', color: 'var(--text-secondary)', borderRadius: '99px', padding: '1px 7px' }}>
-                              {myEditRequests.length}
-                            </span>
-                          </div>
+                          const compiledInbox = [
+                            systemUpdate,
+                            ...myEditRequests.map((req) => ({ ...req, isSystem: false as const })),
+                          ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-                          {myEditRequests.length === 0 ? (
-                            <div style={{ background: 'var(--surface-muted)', border: '1px dashed var(--slate-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
-                              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                                No profile edit requests submitted.
-                              </p>
-                            </div>
-                          ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                              {myEditRequests.map((req) => {
-                                const isPending = req.status === 'pending';
-                                const isApproved = req.status === 'approved';
-                                const isRejected = req.status === 'rejected';
+                          return compiledInbox.map((item) => {
+                            if (item.isSystem) {
+                              return (
+                                <div
+                                  key={item.id}
+                                  style={{
+                                    background: 'var(--surface-muted)',
+                                    border: '1px solid var(--slate-200)',
+                                    borderRadius: '10px',
+                                    padding: '0.75rem 0.85rem',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.35rem',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22C55E', flexShrink: 0 }}></span>
+                                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>{item.title}</span>
+                                      <span style={{ fontSize: '0.65rem', fontWeight: 700, background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', borderRadius: '99px', padding: '1px 6px' }}>
+                                        System
+                                      </span>
+                                    </div>
+                                    <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                      {new Date(item.created_at).toLocaleDateString(undefined, {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric',
+                                      })} • {new Date(item.created_at).toLocaleTimeString(undefined, {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </span>
+                                  </div>
+                                  <p style={{ margin: 0, fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                                    {item.description}
+                                  </p>
+                                </div>
+                              );
+                            }
 
-                                const cardBg = isPending
-                                  ? 'rgba(245, 158, 11, 0.05)'
-                                  : isApproved
-                                  ? 'rgba(34, 197, 94, 0.05)'
-                                  : 'rgba(239, 68, 68, 0.05)';
+                            const req = item;
+                            const isPending = req.status === 'pending';
+                            const isApproved = req.status === 'approved';
+                            const isRejected = req.status === 'rejected';
 
-                                const cardBorder = isPending
-                                  ? 'rgba(245, 158, 11, 0.3)'
-                                  : isApproved
-                                  ? 'rgba(34, 197, 94, 0.3)'
-                                  : 'rgba(239, 68, 68, 0.3)';
+                            const cardBg = isPending
+                              ? 'rgba(245, 158, 11, 0.05)'
+                              : isApproved
+                              ? 'rgba(34, 197, 94, 0.05)'
+                              : 'rgba(239, 68, 68, 0.05)';
 
-                                const displayName = req.request_type === 'staff'
-                                  ? 'Personal Profile Update'
-                                  : (req.student_name ? `${req.student_name} (Student)` : 'Profile Details Update');
+                            const cardBorder = isPending
+                              ? 'rgba(245, 158, 11, 0.3)'
+                              : isApproved
+                              ? 'rgba(34, 197, 94, 0.3)'
+                              : 'rgba(239, 68, 68, 0.3)';
 
-                                return (
-                                  <div
-                                    key={req.id}
-                                    style={{
-                                      background: cardBg,
-                                      border: `1px solid ${cardBorder}`,
-                                      borderRadius: '8px',
-                                      padding: '0.65rem 0.75rem',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      gap: '0.35rem',
-                                    }}
-                                  >
-                                    {/* Header with Title and Status Badge */}
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                      <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                        {displayName}
-                                      </p>
+                            const displayName = req.request_type === 'staff'
+                              ? 'Personal Profile Update'
+                              : (req.student_name ? `${req.student_name} (Student)` : 'Profile Details Update');
+
+                            return (
+                              <div
+                                key={req.id}
+                                style={{
+                                  background: cardBg,
+                                  border: `1px solid ${cardBorder}`,
+                                  borderRadius: '10px',
+                                  padding: '0.75rem 0.85rem',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '0.35rem',
+                                }}
+                              >
+                                {/* Header with Title, Status Badge, and Upper Right Date/Time */}
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                  <div>
+                                    <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                      {displayName}
+                                    </p>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
                                       {isPending && (
-                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', fontSize: '0.68rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
                                           <Clock size={10} /> Pending
                                         </span>
                                       )}
                                       {isApproved && (
-                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', fontSize: '0.68rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
                                           <CheckCircle2 size={10} /> Approved
                                         </span>
                                       )}
                                       {isRejected && (
-                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(239, 68, 68, 0.15)', color: '#DC2626', fontSize: '0.68rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(239, 68, 68, 0.15)', color: '#DC2626', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
                                           <XCircle size={10} /> Rejected
                                         </span>
                                       )}
                                     </div>
+                                  </div>
+                                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                    {new Date(req.created_at).toLocaleDateString(undefined, {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                    })} • {new Date(req.created_at).toLocaleTimeString(undefined, {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </span>
+                                </div>
 
-                                    {/* Proposed details */}
-                                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                      <div>
-                                        <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Proposed Name: </span>
-                                        <span>{req.proposed_last_name}, {req.proposed_first_name} {req.proposed_middle_name || ''}</span>
-                                      </div>
-                                      {req.request_type !== 'staff' && (req.proposed_aral_level || req.proposed_lrn) && (
-                                        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2px' }}>
-                                          {req.proposed_aral_level && (
-                                            <span>
-                                              <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Level: </span>
-                                              <span style={{ fontWeight: 700 }}>{formatAralLevel(req.proposed_aral_level)}</span>
-                                            </span>
-                                          )}
-                                          {req.proposed_lrn && (
-                                            <span>
-                                              <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>LRN: </span>
-                                              <span>{req.proposed_lrn}</span>
-                                            </span>
-                                          )}
-                                        </div>
+                                {/* Proposed details */}
+                                <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                                  <div>
+                                    <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Proposed Name: </span>
+                                    <span>{req.proposed_last_name}, {req.proposed_first_name} {req.proposed_middle_name || ''}</span>
+                                  </div>
+                                  {req.request_type !== 'staff' && (req.proposed_aral_level || req.proposed_lrn) && (
+                                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2px' }}>
+                                      {req.proposed_aral_level && (
+                                        <span>
+                                          <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Level: </span>
+                                          <span style={{ fontWeight: 700 }}>{formatAralLevel(req.proposed_aral_level)}</span>
+                                        </span>
                                       )}
-                                      {req.reason && (
-                                        <p style={{ margin: '3px 0 0', fontStyle: 'italic', color: 'var(--text-muted)' }}>
-                                          "{req.reason}"
-                                        </p>
+                                      {req.proposed_lrn && (
+                                        <span>
+                                          <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>LRN: </span>
+                                          <span>{req.proposed_lrn}</span>
+                                        </span>
                                       )}
                                     </div>
+                                  )}
+                                </div>
 
-                                    {/* Review outcome notes */}
-                                    {isApproved && (
-                                      <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(34, 197, 94, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#15803D', fontWeight: 600 }}>
-                                        ✓ Profile update approved and applied{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}.
-                                      </div>
-                                    )}
-                                    {isRejected && (
-                                      <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(239, 68, 68, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#B91C1C', fontWeight: 600 }}>
-                                        ✕ Rejected{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}: {req.rejection_reason || 'No specific reason provided.'}
-                                      </div>
-                                    )}
-                                    {isPending && (
-                                      <div style={{ marginTop: '2px', fontSize: '0.7rem', color: '#D97706' }}>
-                                        Submitted on {new Date(req.created_at).toLocaleDateString()}. Waiting for administrator approval.
-                                      </div>
-                                    )}
+                                {/* Review outcome notes */}
+                                {isApproved && (
+                                  <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(34, 197, 94, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#15803D', fontWeight: 600 }}>
+                                    ✓ Profile update approved and applied{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}.
                                   </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
+                                )}
+                                {isRejected && (
+                                  <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(239, 68, 68, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#B91C1C', fontWeight: 600 }}>
+                                    ✕ Rejected{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}: {req.rejection_reason || 'No specific reason provided.'}
+                                  </div>
+                                )}
+                                {isPending && (
+                                  <div style={{ marginTop: '2px', fontSize: '0.7rem', color: '#D97706' }}>
+                                    Waiting for administrator approval.
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          });
+                        })()}
                       </div>
                     </div>
                   </>
@@ -2318,147 +2349,183 @@ export const DashboardLayout: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Notifications List Body */}
-                        <div style={{ maxHeight: 'min(480px, calc(100vh - 140px))', overflowY: 'auto', padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-                          
-                          {/* System & Maintenance Notice */}
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                System Status
-                              </span>
-                              <span style={{ fontSize: '0.68rem', fontWeight: 700, background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', borderRadius: '99px', padding: '1px 7px' }}>
-                                Operational
-                              </span>
-                            </div>
-                            <div style={{ background: 'var(--surface-muted)', border: '1px solid var(--slate-200)', borderRadius: '8px', padding: '0.65rem 0.75rem' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-                                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22C55E' }}></span>
-                                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>ARALert v1.2 Release</span>
-                              </div>
-                              <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                                System services are running smoothly. System announcements and maintenance notifications appear here.
-                              </p>
-                            </div>
-                          </div>
+                        {/* Notifications List Body - Unified Inbox */}
+                        <div
+                          style={{
+                            height: '420px',
+                            maxHeight: 'calc(100vh - 140px)',
+                            overflowY: 'auto',
+                            padding: '0.875rem 1rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.65rem',
+                          }}
+                        >
+                          {(() => {
+                            const systemUpdate = {
+                              id: 'system-status-operational-student',
+                              isSystem: true as const,
+                              title: 'ARALert Platform v1.2',
+                              description: 'System services are running smoothly. System announcements and maintenance notifications appear here.',
+                              created_at: '2026-10-24T08:00:00.000Z',
+                            };
 
-                          {/* Profile Edit Requests */}
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Profile Edit Requests
-                              </span>
-                              <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--slate-200)', color: 'var(--text-secondary)', borderRadius: '99px', padding: '1px 7px' }}>
-                                {myEditRequests.length}
-                              </span>
-                            </div>
+                            const compiledInbox = [
+                              systemUpdate,
+                              ...myEditRequests.map((req) => ({ ...req, isSystem: false as const })),
+                            ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-                            {myEditRequests.length === 0 ? (
-                              <div style={{ background: 'var(--surface-muted)', border: '1px dashed var(--slate-200)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
-                                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                                  No edit requests submitted.
-                                </p>
-                              </div>
-                            ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                {myEditRequests.map((req) => {
-                                  const isPending = req.status === 'pending';
-                                  const isApproved = req.status === 'approved';
-                                  const isRejected = req.status === 'rejected';
+                            return compiledInbox.map((item) => {
+                              if (item.isSystem) {
+                                return (
+                                  <div
+                                    key={item.id}
+                                    style={{
+                                      background: 'var(--surface-muted)',
+                                      border: '1px solid var(--slate-200)',
+                                      borderRadius: '10px',
+                                      padding: '0.75rem 0.85rem',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: '0.35rem',
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22C55E', flexShrink: 0 }}></span>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>{item.title}</span>
+                                        <span style={{ fontSize: '0.65rem', fontWeight: 700, background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', borderRadius: '99px', padding: '1px 6px' }}>
+                                          System
+                                        </span>
+                                      </div>
+                                      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                        {new Date(item.created_at).toLocaleDateString(undefined, {
+                                          month: 'short',
+                                          day: 'numeric',
+                                          year: 'numeric',
+                                        })} • {new Date(item.created_at).toLocaleTimeString(undefined, {
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        })}
+                                      </span>
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                                      {item.description}
+                                    </p>
+                                  </div>
+                                );
+                              }
 
-                                  const cardBg = isPending
-                                    ? 'rgba(245, 158, 11, 0.05)'
-                                    : isApproved
-                                    ? 'rgba(34, 197, 94, 0.05)'
-                                    : 'rgba(239, 68, 68, 0.05)';
+                              const req = item;
+                              const isPending = req.status === 'pending';
+                              const isApproved = req.status === 'approved';
+                              const isRejected = req.status === 'rejected';
 
-                                  const cardBorder = isPending
-                                    ? 'rgba(245, 158, 11, 0.3)'
-                                    : isApproved
-                                    ? 'rgba(34, 197, 94, 0.3)'
-                                    : 'rgba(239, 68, 68, 0.3)';
+                              const cardBg = isPending
+                                ? 'rgba(245, 158, 11, 0.05)'
+                                : isApproved
+                                ? 'rgba(34, 197, 94, 0.05)'
+                                : 'rgba(239, 68, 68, 0.05)';
 
-                                  return (
-                                    <div
-                                      key={req.id}
-                                      style={{
-                                        background: cardBg,
-                                        border: `1px solid ${cardBorder}`,
-                                        borderRadius: '8px',
-                                        padding: '0.65rem 0.75rem',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '0.35rem',
-                                      }}
-                                    >
-                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                        <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                          Profile Details Update
-                                        </p>
+                              const cardBorder = isPending
+                                ? 'rgba(245, 158, 11, 0.3)'
+                                : isApproved
+                              ? 'rgba(34, 197, 94, 0.3)'
+                              : 'rgba(239, 68, 68, 0.3)';
+
+                              return (
+                                <div
+                                  key={req.id}
+                                  style={{
+                                    background: cardBg,
+                                    border: `1px solid ${cardBorder}`,
+                                    borderRadius: '10px',
+                                    padding: '0.75rem 0.85rem',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.35rem',
+                                  }}
+                                >
+                                  {/* Header with Title, Status Badge, and Upper Right Date/Time */}
+                                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                    <div>
+                                      <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                        Profile Details Update
+                                      </p>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
                                         {isPending && (
-                                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', fontSize: '0.68rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
                                             <Clock size={10} /> Pending
                                           </span>
                                         )}
                                         {isApproved && (
-                                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', fontSize: '0.68rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
                                             <CheckCircle2 size={10} /> Approved
                                           </span>
                                         )}
                                         {isRejected && (
-                                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(239, 68, 68, 0.15)', color: '#DC2626', fontSize: '0.68rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(239, 68, 68, 0.15)', color: '#DC2626', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
                                             <XCircle size={10} /> Rejected
                                           </span>
                                         )}
                                       </div>
-                                      <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                        <div>
-                                          <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Proposed Name: </span>
-                                          <span>{req.proposed_last_name}, {req.proposed_first_name} {req.proposed_middle_name || ''}</span>
-                                        </div>
-                                        {(req.proposed_aral_level || req.proposed_lrn) && (
-                                          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2px' }}>
-                                            {req.proposed_aral_level && (
-                                              <span>
-                                                <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Level: </span>
-                                                <span style={{ fontWeight: 700 }}>{formatAralLevel(req.proposed_aral_level)}</span>
-                                              </span>
-                                            )}
-                                            {req.proposed_lrn && (
-                                              <span>
-                                                <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>LRN: </span>
-                                                <span>{req.proposed_lrn}</span>
-                                              </span>
-                                            )}
-                                          </div>
+                                    </div>
+                                    <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                      {new Date(req.created_at).toLocaleDateString(undefined, {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric',
+                                      })} • {new Date(req.created_at).toLocaleTimeString(undefined, {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </span>
+                                  </div>
+
+                                  {/* Proposed details */}
+                                  <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                                    <div>
+                                      <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Proposed Name: </span>
+                                      <span>{req.proposed_last_name}, {req.proposed_first_name} {req.proposed_middle_name || ''}</span>
+                                    </div>
+                                    {(req.proposed_aral_level || req.proposed_lrn) && (
+                                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2px' }}>
+                                        {req.proposed_aral_level && (
+                                          <span>
+                                            <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Level: </span>
+                                            <span style={{ fontWeight: 700 }}>{formatAralLevel(req.proposed_aral_level)}</span>
+                                          </span>
                                         )}
-                                        {req.reason && (
-                                          <p style={{ margin: '3px 0 0', fontStyle: 'italic', color: 'var(--text-muted)' }}>
-                                            "{req.reason}"
-                                          </p>
+                                        {req.proposed_lrn && (
+                                          <span>
+                                            <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>LRN: </span>
+                                            <span>{req.proposed_lrn}</span>
+                                          </span>
                                         )}
                                       </div>
-                                      {isApproved && (
-                                        <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(34, 197, 94, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#15803D', fontWeight: 600 }}>
-                                          ✓ Profile update approved and applied.
-                                        </div>
-                                      )}
-                                      {isRejected && (
-                                        <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(239, 68, 68, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#B91C1C', fontWeight: 600 }}>
-                                          ✕ Rejected{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}: {req.rejection_reason || 'No specific reason provided.'}
-                                        </div>
-                                      )}
-                                      {isPending && (
-                                        <div style={{ marginTop: '2px', fontSize: '0.7rem', color: '#D97706' }}>
-                                          Submitted on {new Date(req.created_at).toLocaleDateString()}. Waiting for administrator approval.
-                                        </div>
-                                      )}
+                                    )}
+                                  </div>
+
+                                  {/* Review outcome notes */}
+                                  {isApproved && (
+                                    <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(34, 197, 94, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#15803D', fontWeight: 600 }}>
+                                      ✓ Profile update approved and applied.
                                     </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
+                                  )}
+                                  {isRejected && (
+                                    <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(239, 68, 68, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#B91C1C', fontWeight: 600 }}>
+                                      ✕ Rejected{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}: {req.rejection_reason || 'No specific reason provided.'}
+                                    </div>
+                                  )}
+                                  {isPending && (
+                                    <div style={{ marginTop: '2px', fontSize: '0.7rem', color: '#D97706' }}>
+                                      Waiting for administrator approval.
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            });
+                          })()}
                         </div>
                       </div>
                     </>

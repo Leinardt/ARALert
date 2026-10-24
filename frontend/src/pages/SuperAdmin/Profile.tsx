@@ -14,7 +14,6 @@ import {
   Save,
   Info,
   Clock,
-  AlertTriangle,
   Send,
   Eye,
 } from 'lucide-react';
@@ -231,10 +230,6 @@ export const Profile: React.FC = () => {
   // Submit profile edit request (School Admin, Tutor, Faculty, Principal, Student)
   const handleStudentFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentForm.reason.trim()) {
-      setStudentEditError('A reason for the edit request is required.');
-      return;
-    }
     setStudentEditError(null);
     setShowConfirmModal(true);
   };
@@ -258,7 +253,7 @@ export const Profile: React.FC = () => {
         proposed_last_name: studentForm.last_name.trim().toUpperCase(),
         proposed_lrn: isStudentRole ? (studentForm.lrn.trim() || null) : null,
         proposed_aral_level: isStudentRole ? studentForm.aral_level : undefined,
-        reason: studentForm.reason.trim(),
+        reason: (studentForm.reason || '').trim(),
       });
 
       setShowConfirmModal(false);
@@ -269,12 +264,20 @@ export const Profile: React.FC = () => {
     } catch (err: any) {
       setShowConfirmModal(false);
       const errData = err?.response?.data;
-      const msg =
-        errData?.detail ||
-        errData?.reason?.[0] ||
-        errData?.proposed_lrn?.[0] ||
-        errData?.student?.[0] ||
-        'Failed to submit profile edit request.';
+      let msg = 'Failed to submit profile edit request.';
+      if (typeof errData === 'string') {
+        msg = errData;
+      } else if (errData?.detail) {
+        msg = errData.detail;
+      } else if (errData && typeof errData === 'object') {
+        const entries = Object.entries(errData);
+        if (entries.length > 0) {
+          const [field, errors] = entries[0];
+          const errText = Array.isArray(errors) ? errors[0] : String(errors);
+          const fieldLabel = field.replace(/_/g, ' ');
+          msg = `${fieldLabel.charAt(0).toUpperCase() + fieldLabel.slice(1)}: ${errText}`;
+        }
+      }
       setStudentEditError(msg);
     } finally {
       setIsSavingStudent(false);
@@ -771,9 +774,6 @@ export const Profile: React.FC = () => {
                 <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg uppercase">
                   REQUEST PROFILE UPDATE
                 </h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  Proposed changes will be submitted to the Admin & Super Admin for review
-                </p>
               </div>
               <button
                 type="button"
@@ -782,14 +782,6 @@ export const Profile: React.FC = () => {
               >
                 <X className="w-5 h-5" />
               </button>
-            </div>
-
-            {/* Notice Banner */}
-            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-3.5 flex items-start gap-3">
-              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-                <span className="font-bold">Official Record Verification:</span> Updates to your profile details require formal confirmation and approval by the {localUser.role === 'admin' ? 'Super Admin' : 'School Admin'} before taking effect.
-              </div>
             </div>
 
             {studentEditError && (
@@ -852,20 +844,6 @@ export const Profile: React.FC = () => {
               )}
             </div>
 
-
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">Reason for Edit Request *</label>
-              <textarea
-                required
-                rows={3}
-                value={studentForm.reason}
-                onChange={(e) => setStudentForm({ ...studentForm, reason: e.target.value })}
-                placeholder="Explain why this profile change is necessary (e.g., PSA birth certificate name spelling correction, LRN typo, or program level change)..."
-                className="w-full px-3.5 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-xl text-sm bg-gray-50 dark:bg-[#111111] text-gray-900 dark:text-slate-100 focus:bg-white dark:focus:bg-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)] resize-none"
-              />
-            </div>
-
             <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
               <button
                 type="button"
@@ -895,7 +873,7 @@ export const Profile: React.FC = () => {
                 Confirm Edit Request Submission
               </h3>
               <p className="mt-2 text-xs leading-relaxed text-gray-500 dark:text-slate-400">
-                Are you sure you want to submit this profile change request? Your proposed details and reason will be sent to the <span className="font-bold text-gray-700 dark:text-slate-300">School Admin</span> and <span className="font-bold text-gray-700 dark:text-slate-300">Super Admin</span> for confirmation and review.
+                Are you sure you want to submit this profile change request? Your proposed details will be sent to the <span className="font-bold text-gray-700 dark:text-slate-300">School Admin</span> and <span className="font-bold text-gray-700 dark:text-slate-300">Super Admin</span> for confirmation and review.
               </p>
             </div>
 
