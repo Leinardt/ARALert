@@ -383,6 +383,7 @@ export const DashboardLayout: React.FC = () => {
   const [acknowledgedRiskIds, setAcknowledgedRiskIds] = useState<Record<string, number>>({});
   const [showStudentEditRequests, setShowStudentEditRequests] = useState(false);
   const [pendingEditRequestsCount, setPendingEditRequestsCount] = useState<number>(0);
+  const totalNotificationsCount = pendingEditRequestsCount + SYSTEM_UPDATES.length;
   const [myEditRequests, setMyEditRequests] = useState<StudentEditRequest[]>([]);
   const [isLoadingEditRequests, setIsLoadingEditRequests] = useState<boolean>(false);
   const [showEditRequestsModal, setShowEditRequestsModal] = useState<boolean>(false);
@@ -1660,8 +1661,8 @@ export const DashboardLayout: React.FC = () => {
                   }}
                   aria-label="NOTIFICATIONS"
                   title={
-                    pendingEditRequestsCount > 0
-                      ? `${pendingEditRequestsCount} Notification(s) Pending Review`
+                    totalNotificationsCount > 0
+                      ? `${totalNotificationsCount} Notification(s) Pending Review`
                       : 'NOTIFICATIONS'
                   }
                   style={{
@@ -1709,7 +1710,7 @@ export const DashboardLayout: React.FC = () => {
                   >
                     <Bell size={17} />
                   </span>
-                  {pendingEditRequestsCount > 0 && (
+                  {totalNotificationsCount > 0 && (
                     <span
                       className="animate-badge-pulse"
                       style={{
@@ -1731,7 +1732,7 @@ export const DashboardLayout: React.FC = () => {
                         boxShadow: '0 0 10px rgba(239, 68, 68, 0.5)',
                       }}
                     >
-                      {pendingEditRequestsCount}
+                      {totalNotificationsCount}
                     </span>
                   )}
                 </button>
@@ -1762,8 +1763,8 @@ export const DashboardLayout: React.FC = () => {
                   }}
                   aria-label="NOTIFICATIONS"
                   title={
-                    pendingEditRequestsCount > 0
-                      ? `${pendingEditRequestsCount} Notification(s)`
+                    totalNotificationsCount > 0
+                      ? `${totalNotificationsCount} Notification(s)`
                       : 'NOTIFICATIONS'
                   }
                   style={{
@@ -1811,7 +1812,7 @@ export const DashboardLayout: React.FC = () => {
                   >
                     <Bell size={17} />
                   </span>
-                  {pendingEditRequestsCount > 0 && (
+                  {totalNotificationsCount > 0 && (
                     <span
                       className="animate-badge-pulse"
                       style={{
@@ -1833,7 +1834,7 @@ export const DashboardLayout: React.FC = () => {
                         boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)',
                       }}
                     >
-                      {pendingEditRequestsCount}
+                      {totalNotificationsCount}
                     </span>
                   )}
                 </button>
@@ -2080,8 +2081,8 @@ export const DashboardLayout: React.FC = () => {
                   }}
                   aria-label="NOTIFICATIONS"
                   title={
-                    pendingEditRequestsCount > 0
-                      ? `${pendingEditRequestsCount} Notification(s) Pending Review`
+                    totalNotificationsCount > 0
+                      ? `${totalNotificationsCount} Notification(s) Pending Review`
                       : 'NOTIFICATIONS'
                   }
                   style={{
@@ -2129,7 +2130,7 @@ export const DashboardLayout: React.FC = () => {
                   >
                     <Bell size={17} />
                   </span>
-                  {pendingEditRequestsCount > 0 && (
+                  {totalNotificationsCount > 0 && (
                     <span
                       className="animate-badge-pulse"
                       style={{
@@ -2151,7 +2152,7 @@ export const DashboardLayout: React.FC = () => {
                         boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)',
                       }}
                     >
-                      {pendingEditRequestsCount}
+                      {totalNotificationsCount}
                     </span>
                   )}
                 </button>

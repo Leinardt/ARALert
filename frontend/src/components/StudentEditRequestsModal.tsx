@@ -82,17 +82,23 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
     return requests.filter((r) => r.status !== 'pending').length;
   }, [requests]);
 
-  const allCount = requests.length;
+  // ALL count represents all active notifications: active edit requests + active updates (maintenance/system updates), excluding history
+  const allCount = useMemo(() => {
+    return pendingCount + SYSTEM_UPDATES.length;
+  }, [pendingCount]);
 
   const filteredRequests = useMemo(() => {
-    if (activeTab === 'pending') {
+    if (activeTab === 'pending' || activeTab === 'all') {
       return requests.filter((r) => r.status === 'pending');
     }
     if (activeTab === 'history') {
       return requests.filter((r) => r.status !== 'pending');
     }
-    return requests;
+    return requests.filter((r) => r.status === 'pending');
   }, [requests, activeTab]);
+
+  const hasItemsToShow =
+    filteredRequests.length > 0 || (activeTab === 'all' && SYSTEM_UPDATES.length > 0);
 
   const paginatedRequests = useMemo(() => {
     return filteredRequests.slice((currentPage - 1) * 30, currentPage * 30);
@@ -258,7 +264,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
               <RefreshCw className="w-7 h-7 animate-spin text-slate-400 dark:text-slate-500" />
               <p className="text-xs font-semibold">Loading notifications...</p>
             </div>
-          ) : filteredRequests.length === 0 ? (
+          ) : !hasItemsToShow ? (
             <div className="py-14 flex flex-col items-center justify-center gap-2.5 text-center">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500">
                 <CheckCircle2 className="w-6 h-6" />
@@ -268,14 +274,14 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                   ? 'No pending edit requests'
                   : activeTab === 'history'
                   ? 'No requests history found'
-                  : 'No edit requests found'}
+                  : 'No active notifications'}
               </p>
               <p className="text-xs text-slate-400 max-w-xs">
                 {activeTab === 'pending'
                   ? 'All profiles are up to date. Future edit requests will appear here for review.'
                   : activeTab === 'history'
                   ? 'No completed edit requests in history.'
-                  : 'No edit requests have been submitted yet.'}
+                  : 'All profiles and systems are up to date. Future edit requests and updates will appear here.'}
               </p>
             </div>
           ) : (
