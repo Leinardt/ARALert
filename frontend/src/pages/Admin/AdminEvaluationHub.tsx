@@ -49,7 +49,7 @@ interface StudentMetric {
   avgScore: number;
   assessmentScoreStr: string;
   compositeScore: number;
-  status: 'PASSED' | 'RETAINED' | 'PENDING';
+  status: 'PASSED' | 'FAILED' | 'RETAINED' | 'PENDING';
   rawStudent?: User;
 }
 
@@ -149,6 +149,7 @@ const TutorClassSectionTable: React.FC<TutorClassSectionTableProps> = ({
         const getStatusRank = (st: string) => {
           const s = (st || '').toUpperCase();
           if (s === 'PASSED' || s === 'GRADUATED' || s === 'MOVED_UP') return 3;
+          if (s === 'FAILED') return 2;
           if (s === 'RETAINED') return 2;
           return 1;
         };
@@ -214,7 +215,7 @@ const TutorClassSectionTable: React.FC<TutorClassSectionTableProps> = ({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
-          <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+          <table className="min-w-[850px] w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
             <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
               <tr>
                 <th className="w-10 px-3 py-2 text-center whitespace-nowrap">#</th>
@@ -275,6 +276,8 @@ const TutorClassSectionTable: React.FC<TutorClassSectionTableProps> = ({
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
                         st.status === 'PASSED'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
+                          : st.status === 'FAILED'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/60'
                           : st.status === 'RETAINED'
                           ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60'
                           : !isWindowOpen
@@ -675,28 +678,28 @@ export const AdminEvaluationHub: React.FC = () => {
         });
 
         let assessmentScoreStr = '—';
-        let studentStatus: 'PASSED' | 'RETAINED' | 'PENDING' = 'PENDING';
+        let studentStatus: 'PASSED' | 'FAILED' | 'PENDING' = 'PENDING';
 
         if (activeTab === 'summer') {
           const sr = summerRecords.find((r) => String(r.student) === String(st.id) || r.student_lrn === st.lrn);
           if (sr?.summer_result) {
             assessmentScoreStr = sr.summer_result === 'passed' ? '100.0%' : '50.0%';
-            studentStatus = sr.summer_result === 'passed' ? 'PASSED' : 'RETAINED';
+            studentStatus = sr.summer_result === 'passed' ? 'PASSED' : 'FAILED';
           } else if (evalGrade && evalGrade.remarks?.toLowerCase() !== 'not taken') {
             const ts = Number(evalGrade.total_score) || 40;
             const sc = Number(evalGrade.score) || 0;
             const pct = Math.round((sc / ts) * 1000) / 10;
             assessmentScoreStr = `${pct.toFixed(1)}%`;
-            const passedEval = ts === 40 ? sc >= 28 : (sc / ts) >= 0.7;
-            studentStatus = passedEval ? 'PASSED' : 'RETAINED';
+            const passedEval = evalGrade.remarks?.toLowerCase() === 'passed' || (ts === 40 ? sc >= 28 : (sc / ts) >= 0.7);
+            studentStatus = passedEval ? 'PASSED' : 'FAILED';
           }
         } else if (evalGrade && evalGrade.remarks?.toLowerCase() !== 'not taken') {
           const ts = Number(evalGrade.total_score) || 40;
           const sc = Number(evalGrade.score) || 0;
           const pct = Math.round((sc / ts) * 1000) / 10;
           assessmentScoreStr = `${pct.toFixed(1)}%`;
-          const passedEval = ts === 40 ? sc >= 28 : (sc / ts) >= 0.7;
-          studentStatus = passedEval ? 'PASSED' : 'RETAINED';
+          const passedEval = evalGrade.remarks?.toLowerCase() === 'passed' || (ts === 40 ? sc >= 28 : (sc / ts) >= 0.7);
+          studentStatus = passedEval ? 'PASSED' : 'FAILED';
         }
 
         return {
