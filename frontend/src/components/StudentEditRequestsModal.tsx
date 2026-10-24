@@ -339,8 +339,8 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                             <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
                               {req.student_name}
                             </span>
-                            <span className="text-[11px] font-mono text-slate-400">
-                              {req.current_lrn ? `LRN: ${req.current_lrn}` : 'No LRN'}
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 uppercase tracking-wide">
+                              Student Profile Edit
                             </span>
                           </>
                         )}
