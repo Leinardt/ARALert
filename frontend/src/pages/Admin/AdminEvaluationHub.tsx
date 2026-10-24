@@ -653,7 +653,7 @@ export const AdminEvaluationHub: React.FC = () => {
         }
 
         // Compute Average Score
-        let avgScore = 85.0;
+        let avgScore = 100.0;
         if (sGrades.length > 0) {
           const totalPct = sGrades.reduce((acc, g) => {
             const ts = Number(g.total_score) || 100;
