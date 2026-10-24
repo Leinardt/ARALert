@@ -13,6 +13,7 @@ import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../utils/analyticsHelpers';
 import { parseTutorRoleDetailsFromUser, isStudentInCohort, buildTutorClassSections } from '../utils/tutorCohortHelpers';
+import { getReviewerLabel } from '../utils/studentFormatters';
 
 import type { AcademicRisk, StudentEditRequest } from '../types';
 import { TutorGreetingIntro, checkGreetingEligibility } from '../components/TutorGreetingIntro';
@@ -2044,12 +2045,12 @@ export const DashboardLayout: React.FC = () => {
                                 {/* Review outcome notes */}
                                 {isApproved && (
                                   <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(34, 197, 94, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#15803D', fontWeight: 600 }}>
-                                    ✓ Profile update approved and applied{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}.
+                                    Profile update approved and applied by {getReviewerLabel(req)}.
                                   </div>
                                 )}
                                 {isRejected && (
                                   <div className="mt-0.5 px-1.5 py-1 rounded bg-rose-50 dark:bg-rose-950/40 text-[0.72rem] text-rose-700 dark:text-rose-300 font-semibold border border-rose-100 dark:border-rose-900/50">
-                                    ✕ Rejected{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}: {req.rejection_reason || 'No specific reason provided.'}
+                                    Rejected by {getReviewerLabel(req)}: {req.rejection_reason || 'No specific reason provided.'}
                                   </div>
                                 )}
                                 {isPending && (
@@ -2358,12 +2359,12 @@ export const DashboardLayout: React.FC = () => {
                                 {/* Review outcome notes */}
                                 {isApproved && (
                                   <div style={{ marginTop: '2px', padding: '4px 6px', background: 'rgba(34, 197, 94, 0.12)', borderRadius: '4px', fontSize: '0.72rem', color: '#15803D', fontWeight: 600 }}>
-                                    ✓ Profile update approved and applied.
+                                    Profile update approved and applied by {getReviewerLabel(req)}.
                                   </div>
                                 )}
                                 {isRejected && (
                                   <div className="mt-0.5 px-1.5 py-1 rounded bg-rose-50 dark:bg-rose-950/40 text-[0.72rem] text-rose-700 dark:text-rose-300 font-semibold border border-rose-100 dark:border-rose-900/50">
-                                    ✕ Rejected{req.reviewed_by_name ? ` by ${req.reviewed_by_name}` : ''}: {req.rejection_reason || 'No specific reason provided.'}
+                                    Rejected by {getReviewerLabel(req)}: {req.rejection_reason || 'No specific reason provided.'}
                                   </div>
                                 )}
                                 {isPending && (

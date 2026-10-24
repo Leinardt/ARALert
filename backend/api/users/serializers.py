@@ -454,6 +454,8 @@ class StudentEditRequestSerializer(serializers.ModelSerializer):
     requested_by_name = serializers.SerializerMethodField()
     requested_by_role = serializers.SerializerMethodField()
     reviewed_by_name = serializers.SerializerMethodField()
+    reviewed_by_role = serializers.SerializerMethodField()
+    reviewed_by_first_name = serializers.SerializerMethodField()
 
     current_first_name = serializers.SerializerMethodField()
     current_middle_name = serializers.SerializerMethodField()
@@ -485,6 +487,8 @@ class StudentEditRequestSerializer(serializers.ModelSerializer):
             'status',
             'reviewed_by',
             'reviewed_by_name',
+            'reviewed_by_role',
+            'reviewed_by_first_name',
             'rejection_reason',
             'created_at',
             'reviewed_at',
@@ -503,6 +507,21 @@ class StudentEditRequestSerializer(serializers.ModelSerializer):
 
     def get_reviewed_by_name(self, obj):
         return obj.reviewed_by.get_full_name() if obj.reviewed_by else None
+
+    def get_reviewed_by_role(self, obj):
+        if not obj.reviewed_by:
+            return None
+        if obj.reviewed_by.is_superuser:
+            return 'Super Admin'
+        return 'Admin'
+
+    def get_reviewed_by_first_name(self, obj):
+        if not obj.reviewed_by:
+            return None
+        fn = (obj.reviewed_by.first_name or '').strip()
+        if not fn and obj.reviewed_by.get_full_name():
+            fn = obj.reviewed_by.get_full_name().split()[0]
+        return fn
 
     def _get_before_snapshot(self, obj):
         if hasattr(obj, '_cached_before_snapshot'):

@@ -343,3 +343,30 @@ export const compareNamesByLastName = (
   return parsedA.first.localeCompare(parsedB.first, undefined, { numeric: true, sensitivity: 'base' });
 };
 
+/**
+ * Format reviewer label for profile edit request feedback:
+ * e.g. "Super Admin LEINARDT" or "Admin JOHN"
+ */
+export const getReviewerLabel = (
+  req?: {
+    reviewed_by_role?: string | null;
+    required_reviewer_role?: 'admin' | 'superadmin' | string;
+    reviewed_by_first_name?: string | null;
+    reviewed_by_name?: string | null;
+  } | null
+): string => {
+  if (!req) return 'Admin';
+  const role = req.reviewed_by_role || (req.required_reviewer_role === 'superadmin' ? 'Super Admin' : 'Admin');
+  let firstName = (req.reviewed_by_first_name || '').trim();
+  if (!firstName && req.reviewed_by_name) {
+    const raw = req.reviewed_by_name.trim();
+    if (raw.includes(',')) {
+      const afterComma = raw.split(',')[1]?.trim() || '';
+      firstName = afterComma.split(/\s+/)[0] || '';
+    } else {
+      firstName = raw.split(/\s+/)[0] || '';
+    }
+  }
+  return firstName ? `${role} ${firstName}` : role;
+};
+

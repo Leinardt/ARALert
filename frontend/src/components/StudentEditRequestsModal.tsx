@@ -5,6 +5,7 @@ import {
   XCircle, AlertCircle, RefreshCw
 } from 'lucide-react';
 import type { StudentEditRequest } from '../types';
+import { getReviewerLabel } from '../utils/studentFormatters';
 import { userService } from '../services/userService';
 import { SystemUpdateNotification, SYSTEM_UPDATES } from './SystemUpdateNotification';
 
@@ -478,7 +479,7 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                   {!isPending && (
                     <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                       <div>
-                        Reviewed by <strong className="text-slate-700 dark:text-slate-300 font-semibold">{req.reviewed_by_name || 'Admin'}</strong>
+                        {isApproved ? 'Approved' : 'Rejected'} by <strong className="text-slate-700 dark:text-slate-300 font-semibold">{getReviewerLabel(req)}</strong>
                         {req.reviewed_at && ` on ${new Date(req.reviewed_at).toLocaleDateString()}`}
                       </div>
                       {isRejected && req.rejection_reason && (

@@ -276,6 +276,8 @@ export interface StudentEditRequest {
   status: 'pending' | 'approved' | 'rejected';
   reviewed_by: string | null;
   reviewed_by_name: string | null;
+  reviewed_by_role?: 'Super Admin' | 'Admin' | string | null;
+  reviewed_by_first_name?: string | null;
   rejection_reason: string;
   created_at: string;
   reviewed_at: string | null;
