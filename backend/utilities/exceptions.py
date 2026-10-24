@@ -18,8 +18,11 @@ def custom_exception_handler(exc, context):
     traceback.print_exc()
     print("========================================")
 
+    err_msg = str(exc)
+    detail_text = f"An unexpected error occurred: {err_msg}" if err_msg else "An unexpected error occurred."
+
     return Response(
-        {'detail': 'An unexpected error occurred.'},
+        {'detail': detail_text},
         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
 

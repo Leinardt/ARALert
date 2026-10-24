@@ -287,7 +287,25 @@ class UserListCreateView(generics.ListCreateAPIView):
         serializer = UserCreateSerializer(data=data)
         serializer.is_valid(raise_exception=True)
 
-        user = serializer.save()
+        try:
+            user = serializer.save()
+        except Exception as exc:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception("Failed to save user in UserListCreateView: %s", exc)
+            err_msg = str(exc)
+            if 'duplicate key' in err_msg.lower() or 'unique constraint' in err_msg.lower():
+                if 'email' in err_msg.lower():
+                    clean_msg = 'A user with this email already exists.'
+                elif 'username' in err_msg.lower():
+                    clean_msg = 'A user with this username already exists.'
+                elif 'lrn' in err_msg.lower():
+                    clean_msg = 'A student with this LRN already exists.'
+                else:
+                    clean_msg = 'A user with these unique credentials already exists.'
+                return Response({'detail': clean_msg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': f'Failed to create user: {err_msg}'}, status=status.HTTP_400_BAD_REQUEST)
+
         target_full_name = user.get_full_name().strip()
         if not target_full_name:
             if user.role == 'student' and user.lrn:
