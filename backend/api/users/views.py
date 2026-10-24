@@ -1034,6 +1034,9 @@ class StudentEditRequestListCreateView(APIView):
         if role == 'admin':
             required_reviewer_role = 'superadmin'
             request_type = 'staff'
+        elif role != 'student' and not student:
+            required_reviewer_role = 'admin'
+            request_type = 'staff'
         else:
             required_reviewer_role = 'admin'
 

@@ -283,7 +283,7 @@ export interface StudentEditRequest {
 }
 
 export interface CreateStudentEditRequestPayload {
-  student?: string;
+  student?: string | null;
   request_type?: 'student' | 'staff';
   required_reviewer_role?: 'admin' | 'superadmin';
   proposed_first_name: string;
@@ -291,7 +291,7 @@ export interface CreateStudentEditRequestPayload {
   proposed_last_name: string;
   proposed_lrn?: string | null;
   proposed_aral_level?: string;
-  reason: string;
+  reason?: string;
 }
 
 export interface SchoolYear {

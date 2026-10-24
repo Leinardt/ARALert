@@ -245,7 +245,7 @@ export const Profile: React.FC = () => {
 
     try {
       await userService.createStudentEditRequest({
-        student: isStudentRole ? localUser.id : undefined,
+        student: isStudentRole ? localUser.id : null,
         request_type: isStudentRole ? 'student' : 'staff',
         required_reviewer_role: isSchoolAdmin ? 'superadmin' : 'admin',
         proposed_first_name: studentForm.first_name.trim().toUpperCase(),

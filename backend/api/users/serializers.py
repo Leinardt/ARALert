@@ -514,6 +514,13 @@ class StudentEditRequestSerializer(serializers.ModelSerializer):
 class StudentEditRequestCreateSerializer(serializers.ModelSerializer):
     """Serializer for submitting student and staff profile edit requests."""
 
+    student = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        required=False,
+        allow_null=True,
+        default=None,
+    )
+
     class Meta:
         model = StudentEditRequest
         fields = [
