@@ -38,23 +38,6 @@ const PenRoughUnderline: React.FC<{ className?: string; variant?: 'single' | 'do
   </svg>
 );
 
-const TeacherCheckmark: React.FC<{ className?: string }> = ({ className = 'text-[#1A5DAD] dark:text-blue-400' }) => (
-  <svg
-    viewBox="0 0 20 20"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className={`w-4 h-4 inline-block shrink-0 ${className}`}
-    aria-hidden="true"
-  >
-    <path
-      d="M3 10.5L7.5 15L17 4.5"
-      stroke="currentColor"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
 
 const PenDoodleOval: React.FC<{ className?: string }> = ({
   className = 'text-[#0052B7] dark:text-blue-400',
@@ -155,7 +138,7 @@ const MIN_TOP_ROWS = 3;
 
 /* Shared section shell: same side padding as the navbar so edges line up */
 const SECTION_CLASS =
-  'landing-section-anchor relative min-h-screen w-full flex flex-col justify-center items-center px-4 sm:px-8 lg:px-12 pt-20 pb-20 box-border';
+  'landing-section-anchor relative z-[2] min-h-screen w-full flex flex-col justify-center items-center px-4 sm:px-8 lg:px-12 pt-20 pb-20 box-border';
 
 export const Landing: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
@@ -306,139 +289,118 @@ export const Landing: React.FC = () => {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════
-          2. ABOUT SECTION
+          2. ABOUT SECTION (Minimalist & Grid-Aligned)
           ═══════════════════════════════════════════════════════════════ */}
       <section id="about" className={SECTION_CLASS}>
-        <div className="notebook-page-container max-w-6xl mx-auto w-full">
-          <span className="notebook-gutter-label hidden sm:block top-0" aria-hidden="true">
-            PART I
-          </span>
+        <div className="notebook-page-container max-w-6xl mx-auto w-full relative">
+          {/* Dark Mode Glassmorphic Container (encapsulates text with zero position shift) */}
+          <div className="pointer-events-none absolute -inset-x-4 sm:-inset-x-8 -inset-y-6 sm:-inset-y-8 rounded-3xl opacity-0 dark:opacity-100 bg-neutral-900/60 backdrop-blur-xl backdrop-saturate-150 border border-white/10 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7),inset_0_1px_1px_0_rgba(255,255,255,0.08)] transition-opacity duration-300 overflow-hidden">
+            <div className="absolute -top-24 -left-24 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl" />
+            <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl" />
+          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-y-10 lg:gap-x-14 items-start text-left">
-            {/* Left Column (5 cols) */}
-            <div className="lg:col-span-5 scroll-reveal">
+          <div className="relative z-10">
+            {/* Section Header (locked to 40px grid) */}
+            <div className="max-w-4xl scroll-reveal text-left mb-10">
               <p className="notebook-snap-xs font-semibold tracking-wider uppercase text-[#0052B7] dark:text-blue-400">
                 About the Initiative
               </p>
               <h2 className="notebook-snap-h2 font-bold text-slate-900 dark:text-white tracking-tight">
                 Bridging learning gaps through purposeful academic monitoring.
               </h2>
-              <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
-                Designed for Palanas National Agriculture High School, ARALert provides educators and tutors with clear insight into student performance and attendance.
-              </p>
-              <p className="notebook-snap-xs mt-10 text-slate-500 dark:text-slate-500">
-                Aligned with{' '}
-                <span className="relative inline-block font-semibold text-slate-700 dark:text-slate-300">
-                  Republic Act No. 12028
-                  <PenRoughUnderline variant="single" className="text-amber-500/80 dark:text-amber-400/80" />
-                </span>{' '}
-                (Academic Recovery and Accessible Learning Program Act) to support educational recovery and equity.
+              <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal">
+                Designed for Palanas National Agriculture High School, ARALert provides educators, tutors, and administrators with clear real-time visibility into student performance and attendance.
               </p>
             </div>
 
-            {/* Right Column (7 cols): three items, each a heading row + body rows */}
-            <div className="lg:col-span-7 space-y-10 scroll-reveal scroll-delay-100">
+            {/* 3 Minimalist Pillars (each element locked to 40px rows) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 lg:gap-x-12 gap-y-10 scroll-reveal scroll-delay-100 text-left">
               <div>
-                <div className="flex items-center gap-2 h-10">
-                  <TeacherCheckmark />
-                  <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
-                    Core learning recovery
-                  </h3>
-                </div>
-                <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
-                  Focuses on essential competencies in English, Science, and Mathematics through structured, tutor-led sessions tailored to individual student needs.
+                <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
+                  Targeted Interventions
+                </h3>
+                <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal">
+                  Focuses on essential foundational competencies in English, Science, and Mathematics through structured, tutor-led remedial sessions tailored to learner needs.
                 </p>
               </div>
 
               <div>
-                <div className="flex items-center gap-2 h-10">
-                  <TeacherCheckmark />
-                  <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
-                    Early risk detection
-                  </h3>
-                </div>
-                <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
-                  Replaces end-of-term surprises with continuous monitoring. Performance dips and attendance patterns are identified early so teachers can adapt their support.
+                <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
+                  Early Risk Detection
+                </h3>
+                <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal">
+                  Eliminates end-of-term surprises by tracking assessments and attendance in real time, alerting teachers early to adapt learning interventions.
                 </p>
               </div>
 
               <div>
-                <div className="flex items-center gap-2 h-10">
-                  <TeacherCheckmark />
-                  <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
-                    Connected school community
-                  </h3>
-                </div>
-                <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
-                  Brings school administrators, subject teachers, tutors, and students together onto a unified, transparent record for shared accountability.
+                <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
+                  Unified Community
+                </h3>
+                <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal">
+                  Connects school heads, subject teachers, volunteer tutors, and students on a single transparent platform with role-based access and shared accountability.
                 </p>
               </div>
             </div>
+
+            <p className="notebook-snap-xs mt-10 text-slate-500 dark:text-slate-400 text-left scroll-reveal">
+              Aligned with <strong className="text-slate-700 dark:text-slate-300 font-semibold">Republic Act No. 12028</strong> (Academic Recovery and Accessible Learning Program Act) to advance learning equity.
+            </p>
           </div>
         </div>
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════
-          3. FEATURES SECTION
+          3. FEATURES SECTION (Minimalist & Grid-Aligned)
           ═══════════════════════════════════════════════════════════════ */}
       <section id="features" className={SECTION_CLASS}>
-        <div className="notebook-page-container max-w-6xl mx-auto w-full">
-          <span className="notebook-gutter-label hidden sm:block top-0" aria-hidden="true">
-            PART II
-          </span>
+        <div className="notebook-page-container max-w-6xl mx-auto w-full relative">
+          {/* Dark Mode Glassmorphic Container (encapsulates text with zero position shift) */}
+          <div className="pointer-events-none absolute -inset-x-4 sm:-inset-x-8 -inset-y-6 sm:-inset-y-8 rounded-3xl opacity-0 dark:opacity-100 bg-neutral-900/60 backdrop-blur-xl backdrop-saturate-150 border border-white/10 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7),inset_0_1px_1px_0_rgba(255,255,255,0.08)] transition-opacity duration-300 overflow-hidden">
+            <div className="absolute -top-24 -left-24 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl" />
+            <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl" />
+          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-y-10 lg:gap-x-14 items-start text-left">
-            {/* Left Column (5 cols) */}
-            <div className="lg:col-span-5 scroll-reveal">
+          <div className="relative z-10">
+            {/* Section Header (locked to 40px grid) */}
+            <div className="max-w-4xl scroll-reveal text-left mb-10">
               <p className="notebook-snap-xs font-semibold tracking-wider uppercase text-[#0052B7] dark:text-blue-400">
                 Platform Capabilities
               </p>
               <h2 className="notebook-snap-h2 font-bold text-slate-900 dark:text-white tracking-tight">
-                Practical tools designed for everyday classroom workflow.
+                Practical tools built for modern classroom workflows.
               </h2>
-              <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
-                Modules that simplify daily routines and help keep time focused on student monitoring.
-              </p>
-              <p className="notebook-snap-xs mt-10 text-slate-500 dark:text-slate-500">
-                Synchronized in real time across daily check-ins, assessment scoring, and official document formats.
+              <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal">
+                Purpose-built modules that eliminate paperwork, keeping educator attention focused on student guidance and measurable recovery.
               </p>
             </div>
 
-            {/* Right Column (7 cols) */}
-            <div className="lg:col-span-7 space-y-10 scroll-reveal scroll-delay-100">
+            {/* 3 Minimalist Capability Columns */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 lg:gap-x-12 gap-y-10 scroll-reveal scroll-delay-100 text-left">
               <div>
-                <div className="flex items-center gap-2 h-10">
-                  <TeacherCheckmark />
-                  <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
-                    Automated performance tracking
-                  </h3>
-                </div>
-                <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
-                  Consolidates formative assessments, weekly quizzes, and tasks into clear summaries with automatic weighted calculations, saving time for tutors.
+                <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
+                  Automated Grade Tracking
+                </h3>
+                <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal">
+                  Consolidates formative assessments, periodic quizzes, and task scores with automated weighted computations and clear visual trajectories.
                 </p>
               </div>
 
               <div>
-                <div className="flex items-center gap-2 h-10">
-                  <TeacherCheckmark />
-                  <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
-                    Academic risk alerts
-                  </h3>
-                </div>
-                <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
-                  Flags learners who fall below target passing thresholds or incur unexcused absences, prompting timely intervention before learning gaps widen.
+                <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
+                  Proactive Risk Alerts
+                </h3>
+                <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal">
+                  Instantly categorizes learners into Low, Moderate, or High Risk cohorts when scores dip below passing benchmarks or absences mount.
                 </p>
               </div>
 
               <div>
-                <div className="flex items-center gap-2 h-10">
-                  <TeacherCheckmark />
-                  <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
-                    Quick QR attendance
-                  </h3>
-                </div>
-                <p className="notebook-snap-p text-slate-600 dark:text-slate-400">
-                  Fast session check-in via QR codes or manual codes, keeping attendance records efficient and accurate.
+                <h3 className="notebook-snap-h3 font-semibold text-slate-900 dark:text-white tracking-tight">
+                  Dynamic QR Attendance
+                </h3>
+                <p className="notebook-snap-p text-slate-600 dark:text-slate-400 font-normal">
+                  Rapid session check-in via time-sensitive QR codes prevents proxy attendance and instantly syncs verified timestamps to student records.
                 </p>
               </div>
             </div>
@@ -447,143 +409,87 @@ export const Landing: React.FC = () => {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════
-          4. FAQ SECTION (Quiz-Style Assessment Paper with Reveal Interaction)
+          4. FAQ SECTION (Clean Container Accordion)
           ═══════════════════════════════════════════════════════════════ */}
       <section id="faq" className={SECTION_CLASS}>
-        <div className="notebook-page-container max-w-6xl mx-auto w-full">
-          <span className="notebook-gutter-label hidden sm:block top-0" aria-hidden="true">
-            PART III
-          </span>
+        <div className="max-w-4xl mx-auto w-full px-2 sm:px-0">
+          {/* Glassmorphic Dedicated Container */}
+          <div className="relative overflow-hidden bg-white/70 dark:bg-neutral-900/50 backdrop-blur-xl backdrop-saturate-150 border border-white/70 dark:border-white/10 rounded-3xl p-6 sm:p-10 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.06),inset_0_1px_1px_0_rgba(255,255,255,0.85)] dark:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7),inset_0_1px_1px_0_rgba(255,255,255,0.08)] scroll-reveal">
+            {/* Subtle glass reflection highlight */}
+            <div className="pointer-events-none absolute -top-20 -left-20 w-64 h-64 bg-blue-400/10 dark:bg-blue-500/10 rounded-full blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-20 -right-20 w-64 h-64 bg-indigo-400/10 dark:bg-indigo-500/10 rounded-full blur-3xl" />
 
-          {/* Classroom Exam Paper Header Block */}
-          <div className="border-b-2 border-slate-300 dark:border-neutral-700 pb-8 mb-8 text-xs font-mono text-slate-500 dark:text-slate-400 scroll-reveal text-left">
-            <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-dashed border-slate-200 dark:border-neutral-800">
-              <div>
-                <span className="font-bold text-slate-800 dark:text-slate-200">ASSESSMENT:</span> ARAL Program Knowledge Check
+            {/* Header */}
+            <div className="relative text-left mb-8">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase text-[#0052B7] dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/50 backdrop-blur-md border border-blue-200/50 dark:border-blue-800/40 mb-3">
+                Frequently Asked Questions
               </div>
-              <div>
-                <span className="font-bold text-slate-800 dark:text-slate-200">SUBJECT:</span> Academic Recovery &amp; Oversight
-              </div>
-              <div>
-                <span className="font-bold text-slate-800 dark:text-slate-200">SCORE:</span>{' '}
-                <span className="text-[#0052B7] dark:text-blue-400 font-bold underline decoration-blue-400">100% (A+)</span>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-4 text-[11px]">
-              <p className="text-slate-600 dark:text-slate-400">
-                <strong className="text-slate-800 dark:text-slate-200">DIRECTIONS:</strong> Click any question below to break the seal and reveal the verified answer key.
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                Everything you need to know.
+              </h2>
+              <p className="mt-2 text-sm sm:text-base text-slate-600 dark:text-slate-400">
+                Find clear answers regarding ARALert workflows, early risk detection, and attendance verification.
               </p>
-              <span className="text-[#0052B7] dark:text-blue-400 font-semibold uppercase tracking-wider text-[10px]">
-                [ Official Teacher's Key ]
-              </span>
             </div>
-          </div>
 
-          {/* Section Titles */}
-          <div className="mb-8 scroll-reveal text-left">
-            <span className="notebook-snap-xs font-bold tracking-widest uppercase text-[#0052B7] dark:text-blue-400 block mb-2 text-left">
-              Frequently Asked Questions
-            </span>
-            <h2 className="notebook-snap-h2 font-black text-slate-900 dark:text-white tracking-tight mb-4 text-left">
-              Comprehensive Platform Knowledge Check
-            </h2>
-            <p className="notebook-snap-p text-slate-600 dark:text-slate-400 text-left">
-              Everything personnel and students need to know regarding ARALert workflows, early risk detection, and attendance verification.
-            </p>
-          </div>
+            {/* Clean Glass Accordion Items */}
+            <div className="relative divide-y divide-slate-200/50 dark:divide-white/5 text-left">
+              {FAQ_DATA.map((faq) => {
+                const isOpen = openFAQ === faq.id;
 
-          {/* Quiz Test Paper Rows with Reveal Interaction */}
-          <div className="divide-y divide-slate-200/80 dark:divide-neutral-800 border-y border-slate-200/80 dark:border-neutral-800 scroll-reveal scroll-delay-100 text-left">
-            {FAQ_DATA.map((faq, index) => {
-              const isOpen = openFAQ === faq.id;
-
-              return (
-                <div
-                  key={faq.id}
-                  className={`transition-colors duration-200 relative ${isOpen
-                    ? 'bg-blue-50/20 dark:bg-neutral-900/40'
-                    : 'hover:bg-slate-50/30 dark:hover:bg-neutral-900/10'
-                    }`}
-                >
-                  {/* Left Margin Gutter Question Indicator */}
-                  <div
-                    className="absolute -left-8 sm:-left-10 lg:-left-12 top-5 font-mono font-bold text-xs sm:text-sm text-[#1A5DAD] dark:text-blue-400 select-none text-right w-8"
-                    aria-hidden="true"
-                  >
-                    {faq.questionNumber}
-                  </div>
-
-                  <button
-                    type="button"
-                    id={`quiz-question-${faq.id}`}
-                    aria-expanded={isOpen}
-                    aria-controls={`quiz-answer-${faq.id}`}
-                    onClick={() => toggleFAQ(faq.id)}
-                    className="w-full flex flex-wrap items-center justify-between gap-3 py-4 sm:py-5 text-left group cursor-pointer select-none transition-colors box-border min-h-16"
-                  >
-                    <div className="flex items-center gap-3 sm:gap-4 pr-2 min-w-0 flex-1">
-                      {/* Left vertical status indicator */}
+                return (
+                  <div key={faq.id} className="py-4 first:pt-0 last:pb-0 transition-colors">
+                    <button
+                      type="button"
+                      id={`faq-question-${faq.id}`}
+                      aria-expanded={isOpen}
+                      aria-controls={`faq-answer-${faq.id}`}
+                      onClick={() => toggleFAQ(faq.id)}
+                      className="w-full flex items-center justify-between gap-4 text-left cursor-pointer select-none group"
+                    >
                       <span
-                        className={`w-1.5 h-6 rounded-full transition-colors duration-200 shrink-0 ${isOpen ? 'bg-[#0052B7] dark:bg-blue-400' : 'bg-transparent'
-                          }`}
-                      />
-                      <div className="min-w-0">
-                        <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-0.5">
-                          {faq.topic}
-                        </span>
-                        <span
-                          className={`text-sm sm:text-base lg:text-lg tracking-tight transition-colors block ${isOpen
-                            ? 'text-[#0052B7] dark:text-blue-400 font-bold'
-                            : 'text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 font-semibold'
-                            }`}
-                        >
-                          Question {index + 1}: {faq.question}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Interactive Reveal Tag / Button */}
-                    <div className="flex items-center gap-2 shrink-0 pr-2">
-                      <span
-                        className={`px-3 py-1 rounded-md text-xs font-mono font-semibold transition-all duration-200 border ${isOpen
-                          ? 'bg-blue-100/70 dark:bg-blue-950/60 border-blue-300 dark:border-blue-700 text-[#0052B7] dark:text-blue-300'
-                          : 'bg-slate-100 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-600 dark:text-slate-400 group-hover:border-[#0052B7] group-hover:text-[#0052B7] dark:group-hover:text-blue-400'
-                          }`}
+                        className={`text-base sm:text-lg font-semibold tracking-tight transition-colors ${
+                          isOpen
+                            ? 'text-[#0052B7] dark:text-blue-400'
+                            : 'text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400'
+                        }`}
                       >
-                        {isOpen ? 'Answer Key: Revealed ✓' : 'Reveal Answer Key ▾'}
+                        {faq.question}
                       </span>
-                      <ChevronDown
-                        className={`w-4 h-4 shrink-0 transition-transform duration-300 ease-out ${isOpen
-                          ? 'rotate-180 text-[#0052B7] dark:text-blue-400'
-                          : 'text-slate-400 dark:text-slate-500 group-hover:text-[#0052B7] dark:group-hover:text-blue-400'
-                          }`}
-                      />
-                    </div>
-                  </button>
 
-                  {/* Revealed Teacher Answer Key Content */}
-                  <div
-                    id={`quiz-answer-${faq.id}`}
-                    role="region"
-                    aria-labelledby={`quiz-question-${faq.id}`}
-                    className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                      <div
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200 ${
+                          isOpen
+                            ? 'bg-blue-500/10 dark:bg-blue-400/15 text-[#0052B7] dark:text-blue-400'
+                            : 'text-slate-400 dark:text-slate-500 group-hover:text-[#0052B7] dark:group-hover:text-blue-400 group-hover:bg-slate-100/60 dark:group-hover:bg-white/5'
+                        }`}
+                      >
+                        <ChevronDown
+                          className={`w-4 h-4 transition-transform duration-200 ease-out ${
+                            isOpen ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </div>
+                    </button>
+
+                    <div
+                      id={`faq-answer-${faq.id}`}
+                      role="region"
+                      aria-labelledby={`faq-question-${faq.id}`}
+                      className={`grid transition-[grid-template-rows,opacity] duration-200 ease-in-out ${
+                        isOpen ? 'grid-rows-[1fr] opacity-100 mt-3' : 'grid-rows-[0fr] opacity-0 mt-0'
                       }`}
-                  >
-                    <div className="overflow-hidden">
-                      <div className="pb-6 pt-2 pl-4 sm:pl-7 pr-2 sm:pr-6 border-l-2 border-[#0052B7] dark:border-blue-400 ml-2 mb-4">
-                        <div className="text-xs font-bold font-mono text-[#0052B7] dark:text-blue-400 mb-2 flex items-center gap-1.5 h-6">
-                          <TeacherCheckmark />
-                          <span>OFFICIAL ANSWER KEY &amp; RATIONALE:</span>
-                        </div>
-                        <p className="notebook-snap-p text-slate-700 dark:text-slate-300 font-normal text-left">
+                    >
+                      <div className="overflow-hidden">
+                        <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed pl-1">
                           {faq.answer}
                         </p>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>

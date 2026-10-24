@@ -1159,22 +1159,6 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
                     )}
                     {label}
                   </button>
-
-                  {/* Edit icon on the right side of the active day matching action edit icon style */}
-                  {isSelected && hasRecord && !isTrashed && (
-                    <button
-                      type="button"
-                      onClick={() => onToggleEditDay(dateStr)}
-                      className={`h-7.5 w-7.5 rounded-md flex items-center justify-center transition-colors cursor-pointer ${isDayEditMode
-                          ? 'bg-gray-200 text-gray-700 dark:bg-[#222222] dark:text-slate-200'
-                          : 'text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-[#222222] dark:hover:text-slate-200'
-                        }`}
-                      title={isDayEditMode ? 'Exit edit mode for this day' : 'Edit entry for this day'}
-                      aria-label="Edit entry for this day"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
                 </div>
               );
             })}
@@ -1182,24 +1166,6 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
         </div>
         {isOpen && (
           <div className="flex items-center gap-2">
-            {/* Red trashbin icon on the top right of each table entry for that day */}
-            {editDayModeDate === selectedDate && !isCurrentDateTrashed && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (selectedDate) {
-                    const recordIds = displayRows.map((r) => r.id);
-                    onRequestTrash(selectedDate, recordIds);
-                  }
-                }}
-                className="h-7.5 px-2.5 rounded-md border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 hover:border-rose-300 dark:hover:bg-rose-900/50 text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
-                title="Delete this record entry"
-                aria-label="Delete this record entry"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                <span className="hidden xs:inline">Delete Entry</span>
-              </button>
-            )}
             <span className="text-[11px] font-semibold text-gray-400">
               {displayRows.length} Record{displayRows.length !== 1 ? 's' : ''}
             </span>
@@ -1734,6 +1700,7 @@ export const TutorScores: React.FC = () => {
       setSuccessModalTitle('Scores Saved Successfully');
       setSaveSuccessMsg(`${titleName} scores saved and highlighted below.`);
       setShowSuccessModal(true);
+      window.dispatchEvent(new CustomEvent('aralert:refresh-risk-alerts'));
       setTimeout(() => {
         if (lastRowRef.current) {
           lastRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1849,6 +1816,7 @@ export const TutorScores: React.FC = () => {
       setSuccessModalTitle('Score Record Updated');
       setSaveSuccessMsg('Score record updated successfully.');
       setShowSuccessModal(true);
+      window.dispatchEvent(new CustomEvent('aralert:refresh-risk-alerts'));
     } catch (err: any) {
       console.error(err);
       alert(err?.response?.data?.detail || err?.response?.data?.error || 'Failed to update score record.');

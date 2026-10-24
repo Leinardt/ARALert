@@ -1027,6 +1027,9 @@ export const StudentQRAttendance: React.FC = () => {
                 last_name: user.last_name,
                 middle_name: user.middle_name,
                 lrn: user.lrn,
+                gradeLevel: user.grade_level,
+                section: user.section,
+                assignedTutorName: user.assigned_tutor_name,
               }
             : null
         }

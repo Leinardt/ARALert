@@ -169,15 +169,77 @@
   background-position: 0 var(--nb-rule-offset), 0 0;
 }
 
+/* ── ✨ Dark Mode Luxury Starlight Roof (Tiny Blinking Fiber-Optic Dots) ── */
 .dark .notebook-paper {
   background-color: #000000;
-  background-image:
-    /* Defined soft horizontal notebook rule lines in dark mode (glare-free, 40px rhythm, 2px thickness) */
-    linear-gradient(to bottom, rgba(148, 163, 184, 0.20) 2px, transparent 2px),
-    /* Visible paper fiber & tactile grain on pitch black background (seamless, glare-free) */
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='paperGrainDark'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch' result='noise'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.72  0 0 0 0 0.78  0 0 0 0 0.86  0.024 0.024 0.024 0 0.010'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23paperGrainDark)'/%3E%3C/svg%3E");
-  background-size: 100% 40px, 240px 240px;
-  background-repeat: repeat, repeat;
+  position: relative;
+  /* Steady ambient constellation of tiny starlight pinpoints */
+  background-image: url('./assets/starlight-roof-base.svg') !important;
+  background-size: 700px 700px !important;
+  background-repeat: repeat !important;
+  background-position: 0 0 !important;
+}
+
+/* Blinking Tiny Starlight Dots - Group 1 */
+.dark .notebook-paper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image: url('./assets/starlight-roof-blink1.svg');
+  background-size: 800px 800px;
+  background-repeat: repeat;
+  animation: starlightBlinkPhaseA 9s ease-in-out infinite;
+}
+
+/* Blinking Tiny Starlight Dots - Group 2 (Offset Tempo & Phase) */
+.dark .notebook-paper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image: url('./assets/starlight-roof-blink2.svg');
+  background-size: 850px 850px;
+  background-repeat: repeat;
+  animation: starlightBlinkPhaseB 13s ease-in-out infinite;
+}
+
+@keyframes starlightBlinkPhaseA {
+  0%, 100% {
+    opacity: 0.08;
+  }
+  25% {
+    opacity: 0.95;
+  }
+  40% {
+    opacity: 0.3;
+  }
+  60% {
+    opacity: 0.85;
+  }
+  80% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes starlightBlinkPhaseB {
+  0%, 100% {
+    opacity: 0.85;
+  }
+  30% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.95;
+  }
+  75% {
+    opacity: 0.2;
+  }
+  90% {
+    opacity: 0.75;
+  }
 }
 
 /* ── 📐 Typographic Baseline Alignment & Notebook Grid Rhythm (40px Unit) ──── */
@@ -210,11 +272,7 @@
 .dark .notebook-paper .notebook-snap-h3,
 .dark .notebook-paper .notebook-snap-h2,
 .dark .notebook-paper .notebook-snap-h1 {
-  text-shadow: 
-    0 1px 1px #000000,
-    0 -1px 1px #000000,
-    1px 0 1px #000000,
-    -1px 0 1px #000000;
+  text-shadow: none !important;
 }
 
 /* Text rows locked to the 40px rhythm. Kept in the `components` layer so that

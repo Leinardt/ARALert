@@ -271,7 +271,8 @@ html, body, #root {
 }
 
 .pen-trigger:hover .pen-underline::after,
-.pen-trigger:focus-visible .pen-underline::after {
+.pen-trigger:focus-visible .pen-underline::after,
+.pen-trigger.is-active .pen-underline::after {
   clip-path: inset(0 0 0 0);
   transition: clip-path 0.5s cubic-bezier(0.65, 0.05, 0.36, 1);
 }
@@ -1923,26 +1924,44 @@ table.divide-y > tbody > tr:first-child > td {
 .dark .bg-slate-50 { background-color: var(--surface-muted) !important; }
 
 /* Text colors */
-.dark .text-gray-900  { color: var(--text-primary)   !important; }
-.dark .text-gray-800  { color: var(--text-primary)   !important; }
-.dark .text-gray-700  { color: var(--text-secondary) !important; }
-.dark .text-gray-600  { color: var(--text-secondary) !important; }
-.dark .text-gray-500  { color: var(--text-muted)     !important; }
-.dark .text-gray-400  { color: var(--text-muted)     !important; }
-.dark .text-slate-900 { color: var(--text-primary)   !important; }
-.dark .text-slate-800 { color: var(--text-primary)   !important; }
-.dark .text-slate-700 { color: var(--text-secondary) !important; }
-.dark .text-slate-600 { color: var(--text-secondary) !important; }
-.dark .text-slate-500 { color: var(--text-muted)     !important; }
-.dark .text-slate-400 { color: var(--text-muted)     !important; }
+.dark .text-gray-900,
+.dark .text-zinc-900,
+.dark .text-neutral-900 { color: var(--text-primary)   !important; }
+.dark .text-gray-800,
+.dark .text-zinc-800,
+.dark .text-neutral-800 { color: var(--text-primary)   !important; }
+.dark .text-gray-700,
+.dark .text-zinc-700,
+.dark .text-neutral-700 { color: var(--text-secondary) !important; }
+.dark .text-gray-600,
+.dark .text-zinc-600,
+.dark .text-neutral-600 { color: var(--text-secondary) !important; }
+.dark .text-gray-500,
+.dark .text-zinc-500,
+.dark .text-neutral-500 { color: var(--text-muted)     !important; }
+.dark .text-gray-400,
+.dark .text-zinc-400,
+.dark .text-neutral-400 { color: var(--text-muted)     !important; }
+.dark .text-slate-900   { color: var(--text-primary)   !important; }
+.dark .text-slate-800   { color: var(--text-primary)   !important; }
+.dark .text-slate-700   { color: var(--text-secondary) !important; }
+.dark .text-slate-600   { color: var(--text-secondary) !important; }
+.dark .text-slate-500   { color: var(--text-muted)     !important; }
+.dark .text-slate-400   { color: var(--text-muted)     !important; }
 
 /* Border colors - crisp contrast on pure black */
-.dark .border-gray-100 { border-color: var(--slate-200) !important; }
-.dark .border-gray-200 { border-color: var(--slate-200) !important; }
-.dark .border-gray-300 { border-color: var(--slate-300) !important; }
-.dark .border-slate-100 { border-color: var(--slate-200) !important; }
-.dark .border-slate-200 { border-color: var(--slate-200) !important; }
-.dark .border-slate-300 { border-color: var(--slate-300) !important; }
+.dark .border-gray-100,
+.dark .border-zinc-100,
+.dark .border-neutral-100 { border-color: var(--slate-200) !important; }
+.dark .border-gray-200,
+.dark .border-zinc-200,
+.dark .border-neutral-200 { border-color: var(--slate-200) !important; }
+.dark .border-gray-300,
+.dark .border-zinc-300,
+.dark .border-neutral-300 { border-color: var(--slate-300) !important; }
+.dark .border-slate-100   { border-color: var(--slate-200) !important; }
+.dark .border-slate-200   { border-color: var(--slate-200) !important; }
+.dark .border-slate-300   { border-color: var(--slate-300) !important; }
 
 /* Table and divide */
 .dark .divide-gray-100 > * + *,
@@ -2073,12 +2092,19 @@ table.divide-y > tbody > tr:first-child > td {
   color: #60a5fa !important;
 }
 
-/* Plain text inputs with border */
+/* Plain text inputs, textareas, and search fields with crisp dark border */
 .dark input[type="text"],
 .dark input[type="email"],
 .dark input[type="password"],
 .dark input[type="number"],
-.dark input[type="file"] {
+.dark input[type="search"],
+.dark input[type="tel"],
+.dark input[type="url"],
+.dark input[type="date"],
+.dark input[type="datetime-local"],
+.dark input[type="time"],
+.dark input[type="file"],
+.dark textarea {
   background-color: var(--surface-muted);
   color: var(--text-primary);
   border-color: var(--slate-200);
@@ -2086,9 +2112,53 @@ table.divide-y > tbody > tr:first-child > td {
 .dark input[type="text"]:focus,
 .dark input[type="email"]:focus,
 .dark input[type="password"]:focus,
-.dark input[type="number"]:focus {
+.dark input[type="number"]:focus,
+.dark input[type="search"]:focus,
+.dark input[type="tel"]:focus,
+.dark input[type="url"]:focus,
+.dark input[type="date"]:focus,
+.dark input[type="datetime-local"]:focus,
+.dark input[type="time"]:focus,
+.dark textarea:focus {
   background-color: var(--surface-card);
   border-color: var(--brand);
+}
+
+/* High-contrast placeholder styling in Dark Mode */
+.dark input::placeholder,
+.dark textarea::placeholder,
+.dark .form-input::placeholder,
+.dark .form-textarea::placeholder {
+  color: #71717A !important;
+}
+
+/* Invert WebKit calendar & time icons for high visibility on dark backgrounds */
+.dark ::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
+  cursor: pointer;
+}
+
+/* Native Checkbox and Radio styling in Dark Mode */
+.dark input[type="checkbox"],
+.dark input[type="radio"] {
+  color-scheme: dark;
+  accent-color: var(--brand);
+}
+
+/* Browser autofill override (Prevents Chrome/Edge from turning dark inputs bright yellow/white) */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark textarea:-webkit-autofill,
+.dark textarea:-webkit-autofill:hover,
+.dark textarea:-webkit-autofill:focus,
+.dark select:-webkit-autofill,
+.dark select:-webkit-autofill:hover,
+.dark select:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-primary) !important;
+  -webkit-box-shadow: 0 0 0px 1000px var(--surface-muted) inset !important;
+  box-shadow: 0 0 0px 1000px var(--surface-muted) inset !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 /* Fix hardcoded .form-input focus background */
@@ -2153,12 +2223,31 @@ table.divide-y > tbody > tr:first-child > td {
   border-color: var(--glass-border);
 }
 
-/* Modals & Dialogs */
+/* Modals, Dialogs, Dropdowns, Popovers & Menus */
 .dark [role="dialog"],
-.dark .modal-card {
+.dark .modal-card,
+.dark [role="menu"],
+.dark [role="listbox"],
+.dark .dropdown-menu,
+.dark .popover {
   background-color: var(--surface-card) !important;
   border-color: var(--slate-200) !important;
   color: var(--text-primary) !important;
+  box-shadow: 0 20px 48px -8px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Tooltips in Dark Mode */
+.dark [role="tooltip"] {
+  background-color: #18181B !important;
+  color: #F4F4F5 !important;
+  border: 1px solid var(--slate-200) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Text Selection in Dark Mode */
+.dark ::selection {
+  background-color: color-mix(in srgb, var(--brand) 40%, transparent);
+  color: #FFFFFF;
 }
 
 /* ── Dashboard solid accent colors in Dark Mode (Red, Orange/Amber, Green/Emerald) ── */
@@ -2577,6 +2666,54 @@ table.divide-y > tbody > tr:first-child > td {
 .export-paper-sheet .bg-slate-900,
 .dark .export-paper-sheet .bg-slate-900 {
   background-color: #0F172A !important;
+}
+
+.export-paper-sheet .text-black,
+.dark .export-paper-sheet .text-black,
+:root.dark .export-paper-sheet .text-black {
+  color: #000000 !important;
+}
+
+.export-paper-sheet .text-gray-900,
+.dark .export-paper-sheet .text-gray-900,
+:root.dark .export-paper-sheet .text-gray-900 {
+  color: #111827 !important;
+}
+
+.export-paper-sheet .text-gray-800,
+.dark .export-paper-sheet .text-gray-800,
+:root.dark .export-paper-sheet .text-gray-800 {
+  color: #1F2937 !important;
+}
+
+.export-paper-sheet .text-gray-700,
+.dark .export-paper-sheet .text-gray-700,
+:root.dark .export-paper-sheet .text-gray-700 {
+  color: #374151 !important;
+}
+
+.export-paper-sheet .text-gray-600,
+.dark .export-paper-sheet .text-gray-600,
+:root.dark .export-paper-sheet .text-gray-600 {
+  color: #4B5563 !important;
+}
+
+.export-paper-sheet .text-gray-500,
+.dark .export-paper-sheet .text-gray-500,
+:root.dark .export-paper-sheet .text-gray-500 {
+  color: #6B7280 !important;
+}
+
+.export-paper-sheet .border-black,
+.dark .export-paper-sheet .border-black,
+:root.dark .export-paper-sheet .border-black {
+  border-color: #000000 !important;
+}
+
+.export-paper-sheet .bg-slate-200,
+.dark .export-paper-sheet .bg-slate-200,
+:root.dark .export-paper-sheet .bg-slate-200 {
+  background-color: #E2E8F0 !important;
 }
 
 .export-paper-sheet .hover\:bg-slate-50:hover,

@@ -788,23 +788,6 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
                     )}
                     {label}
                   </button>
-
-                  {/* Edit icon on the right side of the active day matching action edit icon style */}
-                  {isSelected && hasRecord && !isTrashed && (
-                    <button
-                      type="button"
-                      onClick={() => onToggleEditDay(dateStr)}
-                      className={`h-7.5 w-7.5 rounded-md flex items-center justify-center transition-colors cursor-pointer ${
-                        isDayEditMode
-                          ? 'bg-gray-200 text-gray-700 dark:bg-[#222222] dark:text-slate-200'
-                          : 'text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-[#222222] dark:hover:text-slate-200'
-                      }`}
-                      title={isDayEditMode ? 'Exit edit mode for this day' : 'Edit entry for this day'}
-                      aria-label="Edit entry for this day"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
                 </div>
               );
             })}
@@ -812,24 +795,6 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
         </div>
         {isOpen && (
           <div className="flex items-center gap-2">
-            {/* Red trashbin icon on the top right of each table entry for that day */}
-            {editDayModeDate === selectedDate && !isCurrentDateTrashed && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (selectedDate) {
-                    const recordIds = displayRecords.map((r) => r.id);
-                    onRequestTrash(selectedDate, recordIds);
-                  }
-                }}
-                className="h-7.5 px-2.5 rounded-md border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 hover:border-rose-300 dark:hover:bg-rose-900/50 text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
-                title="Delete this record entry"
-                aria-label="Delete this record entry"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                <span className="hidden xs:inline">Delete Entry</span>
-              </button>
-            )}
             <span className="text-[11px] font-semibold text-gray-400">
               {displayRecords.length} Record{displayRecords.length !== 1 ? 's' : ''}
             </span>
@@ -1020,35 +985,6 @@ export const TutorQRGenerator: React.FC = () => {
           title: 'Records Deleted',
           message: 'The attendance records for this date have been cleared.',
         });
-      },
-    });
-  };
-
-  const handlePromptResetAttendance = () => {
-    setConfirmAction({
-      isOpen: true,
-      title: 'Reset Attendance Records',
-      message: 'Are you sure you want to clear attendance records? This will delete the attendance logs so you can test fresh without affecting other classes.',
-      confirmText: 'Yes, Clear Records',
-      confirmStyle: 'danger',
-      onConfirm: async () => {
-        setConfirmAction((prev) => ({ ...prev, isOpen: false }));
-        try {
-          await academicService.clearAttendanceHistory({ all: true });
-          if (user?.id) {
-            try {
-              localStorage.removeItem(`aralert_trash_attendance_${user.id}`);
-            } catch { }
-          }
-          await fetchAttendanceHistory();
-          setSuccessToast({
-            title: 'Attendance Reset',
-            message: 'All attendance records have been successfully cleared.',
-          });
-        } catch (err: any) {
-          console.error('Failed to reset attendance:', err);
-          setError(err?.response?.data?.error || 'Failed to clear attendance records.');
-        }
       },
     });
   };
@@ -1445,6 +1381,7 @@ export const TutorQRGenerator: React.FC = () => {
     const updatedAttendance = await academicService.updateAttendance(id, data);
     setAttendanceHistory((current) => current.map((log) => log.id === id ? updatedAttendance : log));
     setScannedStudents((current) => current.map((log) => log.id === id ? updatedAttendance : log));
+    window.dispatchEvent(new CustomEvent('aralert:refresh-risk-alerts'));
     return updatedAttendance;
   };
 
@@ -2341,19 +2278,6 @@ export const TutorQRGenerator: React.FC = () => {
                 />
               )}
             </div>
-
-            {/* Reset Attendance button */}
-            {activeHistoryRecords.length > 0 && (
-              <button
-                type="button"
-                onClick={handlePromptResetAttendance}
-                className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-red-600 dark:text-red-400 transition-all hover:bg-red-100 dark:hover:bg-red-900/40 cursor-pointer shrink-0 whitespace-nowrap"
-                title="Clear attendance records to test fresh"
-              >
-                <RotateCcw className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-600 dark:text-red-400" />
-                <span>Reset Records</span>
-              </button>
-            )}
 
             {/* Export Attendance Sheet button */}
             <button

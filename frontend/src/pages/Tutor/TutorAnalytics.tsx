@@ -1150,11 +1150,25 @@ const RiskCalculationInfo: React.FC = () => (
   </span>
 );
 
+const getStudentDisplayName = (student?: User | null): string => {
+  if (!student) return 'Student';
+  const composed = `${student.first_name || ''} ${student.last_name || ''}`.trim();
+  return student.full_name || composed || student.username || 'Student';
+};
+
 const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; onChange: (value: RiskScope) => void }> = ({ rows, value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
-  const selectedStudent = rows.find((row) => String(row.student.id) === value)?.student.full_name;
-  const selectedLabel = value === 'all' ? 'ALL STUDENTS' : selectedStudent || 'ALL STUDENTS';
+  const selectedRow = rows.find((row) => String(row.student.id) === value);
+  const selectedLabel = value === 'all' ? 'ALL STUDENTS' : (selectedRow ? getStudentDisplayName(selectedRow.student) : 'ALL STUDENTS');
+
+  const sortedRows = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      const nameA = getStudentDisplayName(a.student).toLowerCase();
+      const nameB = getStudentDisplayName(b.student).toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+  }, [rows]);
 
   useEffect(() => {
     const closeMenu = (event: MouseEvent) => {
@@ -1165,30 +1179,31 @@ const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; o
   }, []);
 
   return (
-    <div ref={filterRef} className="relative">
+    <div ref={filterRef} className="relative z-30">
       <button
         type="button"
-        aria-label="Filter risk chart by student"
+        aria-label="Filter chart by student"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((open) => !open)}
-        className="flex h-9 min-w-40 items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-semibold tracking-normal text-gray-700 transition hover:border-gray-300 hover:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
+        className="flex h-9 min-w-40 items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-semibold tracking-normal text-gray-700 transition hover:border-gray-300 hover:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shrink-0"
         style={{ fontFamily: 'var(--font-body)' }}
       >
         <span className="truncate">{selectedLabel}</span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       {isOpen && (
-        <div className="absolute left-0 top-full z-30 mt-2 max-h-60 min-w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl" role="listbox" aria-label="Students">
-          <button type="button" role="option" aria-selected={value === 'all'} onClick={() => { onChange('all'); setIsOpen(false); }} className={`block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-emerald-50 hover:text-emerald-700 ${value === 'all' ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700'}`} style={{ fontFamily: 'var(--font-body)' }}>
+        <div className="absolute right-0 sm:left-0 top-full z-50 mt-2 max-h-60 min-w-[200px] sm:min-w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl" role="listbox" aria-label="Students">
+          <button type="button" role="option" aria-selected={value === 'all'} onClick={() => { onChange('all'); setIsOpen(false); }} className={`block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer ${value === 'all' ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700'}`} style={{ fontFamily: 'var(--font-body)' }}>
             ALL STUDENTS
           </button>
-          {rows.map((row) => {
+          {sortedRows.map((row) => {
             const studentValue = String(row.student.id);
             const isSelected = value === studentValue;
+            const displayName = getStudentDisplayName(row.student);
             return (
-              <button key={studentValue} type="button" role="option" aria-selected={isSelected} onClick={() => { onChange(studentValue); setIsOpen(false); }} className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-emerald-50 hover:text-emerald-700 ${isSelected ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700'}`} style={{ fontFamily: 'var(--font-body)' }}>
-                {row.student.full_name}
+              <button key={studentValue} type="button" role="option" aria-selected={isSelected} onClick={() => { onChange(studentValue); setIsOpen(false); }} className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer ${isSelected ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700'}`} style={{ fontFamily: 'var(--font-body)' }}>
+                {displayName}
               </button>
             );
           })}
@@ -1940,9 +1955,9 @@ export const TutorAnalytics: React.FC = () => {
                       <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#F59E0B' }} />Medium Risk</span>
                       <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#22C55E' }} />Low Risk</span>
                     </div>
-                    <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
                       <StudentRiskFilter rows={rows} value={riskScope} onChange={setRiskScope} />
-                    </label>
+                    </div>
                     <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Filter risk chart by time period">
                       {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                         <button key={filter} type="button" onClick={() => setRiskTrendFilter(filter)} className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${riskTrendFilter === filter ? 'bg-[var(--brand)] text-white' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
@@ -2138,9 +2153,9 @@ export const TutorAnalytics: React.FC = () => {
                     <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
                       <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Attendance Rate</span>
                     </div>
-                    <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
                       <StudentRiskFilter rows={rows} value={attendanceScope} onChange={setAttendanceScope} />
-                    </label>
+                    </div>
                     <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Attendance trend period">
                       {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                         <button key={filter} type="button" onClick={() => setAttendanceFilter(filter)} className={`rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${attendanceFilter === filter ? 'bg-[var(--brand)] text-white' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
@@ -2263,9 +2278,9 @@ export const TutorAnalytics: React.FC = () => {
                     <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
                       <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Average Score</span>
                     </div>
-                    <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
                       <StudentRiskFilter rows={rows} value={scoreScope} onChange={setScoreScope} />
-                    </label>
+                    </div>
                     <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Score trend period">
                       {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                         <button key={filter} type="button" onClick={() => setScoreFilter(filter)} className={`rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${scoreFilter === filter ? 'bg-[var(--brand)] text-white' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ArrowRight, Menu, X, School, Mail } from 'lucide-react';
@@ -7,50 +7,111 @@ import { PageFallback } from '../components/PageFallback';
 
 import aralertLogo from '../assets/ARALert_Logo_LIGHT.png';
 
+const NAV_LINKS = [
+  { label: 'Home', id: 'home', to: '/#home' },
+  { label: 'About', id: 'about', to: '/#about' },
+  { label: 'Features', id: 'features', to: '/#features' },
+  { label: 'FAQ', id: 'faq', to: '/#faq' },
+] as const;
+
+const SECTION_IDS = ['home', 'about', 'features', 'faq'] as const;
+
 export const PublicLayout: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const location = useLocation();
 
   const [isScrolled, setIsScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isLoginPage = location.pathname === '/login';
 
+  // Smooth, high-performance scroll monitoring with requestAnimationFrame throttling
   useEffect(() => {
+    let rafId: number | null = null;
+
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 25);
+      if (rafId !== null) return;
+
+      rafId = window.requestAnimationFrame(() => {
+        const scrollY = window.scrollY;
+        const nextScrolled = scrollY > 25;
+        setIsScrolled((prev) => (prev !== nextScrolled ? nextScrolled : prev));
+
+        if (location.pathname === '/') {
+          const scrollPosition = scrollY + 160;
+          for (let i = SECTION_IDS.length - 1; i >= 0; i--) {
+            const el = document.getElementById(SECTION_IDS[i]);
+            if (el && scrollPosition >= el.offsetTop) {
+              const currentId = SECTION_IDS[i];
+              setActiveSection((prev) => (prev !== currentId ? currentId : prev));
+              break;
+            }
+          }
+        }
+        rafId = null;
+      });
     };
+
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
-  const getDashboardLink = () => {
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
+  }, [location.pathname]);
+
+  // Clean up mobile menu on viewport resize or Escape key press
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleResize, { passive: true });
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [mobileMenuOpen]);
+
+  const getDashboardLink = useCallback(() => {
     if (!user) return '/login';
     if (user.is_superuser) return '/superadmin';
     return `/${user.role}`;
-  };
+  }, [user]);
 
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
-    setMobileMenuOpen(false);
-    if (location.pathname === '/') {
-      e.preventDefault();
-      const el = document.getElementById(targetId);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth' });
-      } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+  const handleNavClick = useCallback(
+    (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
+      setMobileMenuOpen(false);
+      if (location.pathname === '/') {
+        e.preventDefault();
+        setActiveSection(targetId);
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       }
-    }
-  };
+    },
+    [location.pathname]
+  );
 
   const logoSrc = aralertLogo;
-
-  const navLinks = [
-    { label: 'Home', id: 'home', to: '/#home' },
-    { label: 'About', id: 'about', to: '/#about' },
-    { label: 'Features', id: 'features', to: '/#features' },
-    { label: 'FAQ', id: 'faq', to: '/#faq' },
-  ];
 
   return (
     <div
@@ -59,14 +120,16 @@ export const PublicLayout: React.FC = () => {
     >
       {/* ── Dynamic Navbar ── */}
       <div
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 pointer-events-none ${isScrolled ? 'pt-3 sm:pt-4 px-3 sm:px-6' : 'pt-0 px-4 sm:px-8 lg:px-12'
-          }`}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 pointer-events-none ${
+          isScrolled ? 'pt-3 sm:pt-4 px-3 sm:px-6' : 'pt-0 px-4 sm:px-8 lg:px-12'
+        }`}
       >
         <header
-          className={`pointer-events-auto mx-auto transition-all duration-300 flex justify-between ${isScrolled
-            ? 'w-full max-w-5xl bg-white/65 dark:bg-neutral-900/45 backdrop-blur-2xl backdrop-saturate-[190%] border border-white/80 dark:border-white/15 rounded-2xl px-4 sm:px-6 h-14 items-center shadow-[0_16px_40px_-6px_rgba(15,23,42,0.12),0_4px_12px_rgba(15,23,42,0.04),inset_0_1px_1px_0_rgba(255,255,255,0.95),inset_0_-1px_1px_0_rgba(0,0,0,0.03)] dark:shadow-[0_20px_50px_-8px_rgba(0,0,0,0.7),inset_0_1px_1px_0_rgba(255,255,255,0.22),inset_0_0_20px_0_rgba(255,255,255,0.02)] text-slate-800 dark:text-white'
-            : 'w-full max-w-6xl px-0 h-[70px] items-end pb-0 bg-transparent border-transparent shadow-none text-slate-900 dark:text-white'
-            }`}
+          className={`pointer-events-auto mx-auto transition-all duration-300 flex justify-between transform-gpu ${
+            isScrolled
+              ? 'w-full max-w-5xl bg-white/65 dark:bg-neutral-900/45 backdrop-blur-2xl backdrop-saturate-[190%] border border-white/80 dark:border-white/15 rounded-2xl px-4 sm:px-6 h-14 items-center shadow-[0_16px_40px_-6px_rgba(15,23,42,0.12),0_4px_12px_rgba(15,23,42,0.04),inset_0_1px_1px_0_rgba(255,255,255,0.95),inset_0_-1px_1px_0_rgba(0,0,0,0.03)] dark:shadow-[0_20px_50px_-8px_rgba(0,0,0,0.7),inset_0_1px_1px_0_rgba(255,255,255,0.22),inset_0_0_20px_0_rgba(255,255,255,0.02)] text-slate-800 dark:text-white'
+              : 'w-full max-w-6xl px-0 h-[70px] items-end pb-0 bg-transparent border-transparent shadow-none text-slate-900 dark:text-white'
+          }`}
         >
           {/* Left: Logo & Brand + Navigation links */}
           <div className={`flex gap-4 sm:gap-6 ${isScrolled ? 'items-center' : 'items-end pb-0'}`}>
@@ -74,10 +137,15 @@ export const PublicLayout: React.FC = () => {
               to="/"
               className={`landing-brand-link flex transition-all duration-200 ${isScrolled ? 'items-center py-1.5' : 'items-end pb-0'}`}
               onClick={(e) => handleNavClick(e, 'home')}
+              aria-label="ARALert Home"
             >
               <img
                 src={logoSrc}
                 alt="ARALert logo"
+                width={34}
+                height={34}
+                loading="eager"
+                decoding="async"
                 className="w-8 h-8 sm:w-8.5 sm:h-8.5 object-contain transition-transform duration-200 group-hover:scale-105"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).style.display = 'none';
@@ -86,17 +154,28 @@ export const PublicLayout: React.FC = () => {
             </Link>
 
             {/* Navigation links (Desktop & Tablet landscape) */}
-            <nav className={`hidden md:flex gap-6 ${isScrolled ? 'items-center pb-0' : 'items-end pb-[7px]'}`}>
-              {navLinks.map((item) => (
-                <a
-                  key={item.id}
-                  href={item.to}
-                  onClick={(e) => handleNavClick(e, item.id)}
-                  className="landing-nav-link pen-trigger text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-[#0052B7] dark:hover:text-blue-400 transition-colors duration-200 cursor-pointer"
-                >
-                  <span className="pen-underline">{item.label}</span>
-                </a>
-              ))}
+            <nav
+              aria-label="Main Navigation"
+              className={`hidden md:flex gap-6 ${isScrolled ? 'items-center pb-0' : 'items-end pb-[7px]'}`}
+            >
+              {NAV_LINKS.map((item) => {
+                const isActive = location.pathname === '/' && activeSection === item.id;
+                return (
+                  <a
+                    key={item.id}
+                    href={item.to}
+                    onClick={(e) => handleNavClick(e, item.id)}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`landing-nav-link pen-trigger text-sm font-semibold transition-colors duration-200 cursor-pointer ${
+                      isActive
+                        ? 'text-[#0052B7] dark:text-blue-400 is-active'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-[#0052B7] dark:hover:text-blue-400'
+                    }`}
+                  >
+                    <span className="pen-underline">{item.label}</span>
+                  </a>
+                );
+              })}
             </nav>
           </div>
 
@@ -122,8 +201,10 @@ export const PublicLayout: React.FC = () => {
             {/* Mobile Hamburger Toggle Button */}
             <button
               type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
               aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-nav-dropdown"
               className="md:hidden w-9 h-9 rounded-xl border border-slate-200 dark:border-white/10 flex items-center justify-center cursor-pointer touch-manipulation shrink-0 text-slate-700 dark:text-slate-200"
             >
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -139,19 +220,30 @@ export const PublicLayout: React.FC = () => {
               onClick={() => setMobileMenuOpen(false)}
               aria-hidden="true"
             />
-            <div className="pointer-events-auto relative z-50 mt-2 max-w-5xl mx-auto md:hidden animate-in fade-in slide-in-from-top-2 duration-200">
+            <div
+              id="mobile-nav-dropdown"
+              className="pointer-events-auto relative z-50 mt-2 max-w-5xl mx-auto md:hidden animate-in fade-in slide-in-from-top-2 duration-200"
+            >
               <div className="bg-white/70 dark:bg-neutral-900/60 backdrop-blur-2xl backdrop-saturate-[190%] border border-white/80 dark:border-white/15 rounded-2xl p-4 shadow-[0_24px_48px_-12px_rgba(15,23,42,0.18),inset_0_1px_1px_0_rgba(255,255,255,0.95)] dark:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.8),inset_0_1px_1px_0_rgba(255,255,255,0.22)] space-y-2">
-                <nav className="flex flex-col space-y-1">
-                  {navLinks.map((item) => (
-                    <a
-                      key={item.id}
-                      href={item.to}
-                      onClick={(e) => handleNavClick(e, item.id)}
-                      className="landing-nav-link pen-trigger min-h-[44px] flex items-center px-4 py-3 rounded-xl text-base font-semibold text-slate-700 dark:text-slate-200"
-                    >
-                      <span className="pen-underline">{item.label}</span>
-                    </a>
-                  ))}
+                <nav aria-label="Mobile Navigation" className="flex flex-col space-y-1">
+                  {NAV_LINKS.map((item) => {
+                    const isActive = location.pathname === '/' && activeSection === item.id;
+                    return (
+                      <a
+                        key={item.id}
+                        href={item.to}
+                        onClick={(e) => handleNavClick(e, item.id)}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={`landing-nav-link pen-trigger min-h-[44px] flex items-center px-4 py-3 rounded-xl text-base font-semibold transition-colors ${
+                          isActive
+                            ? 'text-[#0052B7] dark:text-blue-400 is-active'
+                            : 'text-slate-700 dark:text-slate-200 hover:text-[#0052B7] dark:hover:text-blue-400'
+                        }`}
+                      >
+                        <span className="pen-underline">{item.label}</span>
+                      </a>
+                    );
+                  })}
                 </nav>
 
                 {(!isLoginPage || isAuthenticated) && (

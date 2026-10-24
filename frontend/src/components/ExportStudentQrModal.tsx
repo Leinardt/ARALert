@@ -148,6 +148,17 @@ export const ExportStudentQrModal: React.FC<ExportStudentQrModalProps> = ({
                     </p>
                   </div>
 
+                  {student.lrn && (
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+                        LEARNER REFERENCE NUMBER (LRN)
+                      </label>
+                      <p className="font-semibold text-slate-700 dark:text-slate-300 text-xs mt-0.5 font-mono">
+                        {student.lrn}
+                      </p>
+                    </div>
+                  )}
+
                   {student.gradeLevel && (
                     <div>
                       <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
@@ -212,23 +223,26 @@ export const ExportStudentQrModal: React.FC<ExportStudentQrModalProps> = ({
                     width: QR_PAPER_CONFIG[paperSize].width,
                     minHeight: QR_PAPER_CONFIG[paperSize].minHeight,
                     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif",
+                    colorScheme: 'light',
+                    backgroundColor: '#FFFFFF',
+                    color: '#000000',
                   }}
-                  className="bg-white text-black shadow-lg border border-slate-300 rounded-none p-6 sm:p-8 select-none flex flex-col transition-all duration-200"
+                  className="export-paper-sheet bg-white text-black shadow-lg border border-slate-300 rounded-none p-6 sm:p-8 select-none flex flex-col transition-all duration-200"
                 >
                   {/* Top Header */}
                   <div className="text-center">
-                    <h1 className="text-2xl font-bold tracking-tight text-black">
+                    <h1 className="text-2xl font-bold tracking-tight text-black" style={{ color: '#000000' }}>
                       ARALert
                     </h1>
-                    <p className="text-xs font-semibold text-gray-800 mt-1">
+                    <p className="text-xs font-semibold text-gray-800 mt-1" style={{ color: '#1F2937' }}>
                       Palanas National Agricultural High School • ARAL Program
                     </p>
-                    <div className="w-full h-[1.5px] bg-slate-200 mt-3 mb-5" />
+                    <div className="w-full h-[1.5px] bg-slate-200 mt-3 mb-5" style={{ backgroundColor: '#E2E8F0' }} />
                   </div>
 
                   {/* QR Code Presentation */}
                   <div className="flex flex-col items-center justify-center">
-                    <div className="p-2 border border-black rounded-none bg-white">
+                    <div className="p-2 border border-black rounded-none bg-white" style={{ borderColor: '#000000', backgroundColor: '#FFFFFF' }}>
                       {qrDataUrl ? (
                         <img
                           src={qrDataUrl}
@@ -236,46 +250,46 @@ export const ExportStudentQrModal: React.FC<ExportStudentQrModalProps> = ({
                           className="w-48 h-48 object-contain block"
                         />
                       ) : (
-                        <div className="w-48 h-48 flex items-center justify-center bg-gray-50 text-gray-400 text-xs">
+                        <div className="w-48 h-48 flex items-center justify-center bg-gray-50 text-gray-400 text-xs" style={{ color: '#9CA3AF', backgroundColor: '#F9FAFB' }}>
                           Generating QR...
                         </div>
                       )}
                     </div>
 
                     {/* Student Name */}
-                    <h2 className="text-lg font-bold uppercase tracking-tight text-black mt-3.5 text-center">
+                    <h2 className="text-lg font-bold uppercase tracking-tight text-black mt-3.5 text-center" style={{ color: '#000000' }}>
                       {displayName}
                     </h2>
 
                     {/* Manual Attendance Code */}
                     <div className="mt-2.5 flex flex-col items-center">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-black">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-black" style={{ color: '#000000' }}>
                         MANUAL ATTENDANCE CODE:
                       </span>
-                      <div className="mt-1 px-4 py-1 border border-black rounded-none">
-                        <span className="font-mono text-xl font-bold tracking-widest text-black">
+                      <div className="mt-1 px-4 py-1 border border-black rounded-none bg-white" style={{ borderColor: '#000000', backgroundColor: '#FFFFFF' }}>
+                        <span className="font-mono text-xl font-bold tracking-widest text-black" style={{ color: '#000000' }}>
                           {manualCode}
                         </span>
                       </div>
-                      <p className="text-[10px] text-gray-600 mt-1.5 text-center max-w-[280px]">
+                      <p className="text-[10px] text-gray-600 mt-1.5 text-center max-w-[280px]" style={{ color: '#4B5563' }}>
                         Use this 6-digit code if there are problems scanning the QR code.
                       </p>
                     </div>
                   </div>
 
                   {/* Divider line before instructions */}
-                  <div className="w-full h-[1.5px] bg-slate-200 mt-5 mb-4" />
+                  <div className="w-full h-[1.5px] bg-slate-200 mt-5 mb-4" style={{ backgroundColor: '#E2E8F0' }} />
 
                   {/* Instructions & Guidelines */}
                   <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-black mb-2.5">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-black mb-2.5" style={{ color: '#000000' }}>
                       INSTRUCTIONS & GUIDELINES
                     </h3>
                     <div className="space-y-2 text-[10.5px] leading-relaxed">
                       {INSTRUCTION_GUIDES.map((guide, idx) => (
                         <div key={idx} className="space-y-0.5">
-                          <p className="font-bold text-black">{guide.en}</p>
-                          <p className="italic text-gray-700 pl-3">{guide.mb}</p>
+                          <p className="font-bold text-black" style={{ color: '#000000' }}>{guide.en}</p>
+                          <p className="italic text-gray-700 pl-3" style={{ color: '#374151' }}>{guide.mb}</p>
                         </div>
                       ))}
                     </div>

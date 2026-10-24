@@ -88,7 +88,7 @@ export const academicService = {
 
     let page = 1;
     let next = data?.next;
-    const MAX_PAGES = 5;
+    const MAX_PAGES = 50;
     while (next && page < MAX_PAGES) {
       page += 1;
       const nextResponse = await api.get<Grade[] | { results: Grade[]; next?: string | null }>('/academics/grades/', { params: { ...params, page } });
@@ -238,7 +238,7 @@ export const academicService = {
 
     let page = 1;
     let next = data?.next;
-    const MAX_PAGES = 5;
+    const MAX_PAGES = 50;
     while (next && page < MAX_PAGES) {
       page += 1;
       const nextRes = await api.get<Attendance[] | { results: Attendance[]; next?: string | null }>('/academics/attendance/history/', { params: { ...params, page } });

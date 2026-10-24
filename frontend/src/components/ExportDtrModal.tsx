@@ -1004,10 +1004,21 @@ export const ExportDtrModal: React.FC<ExportDtrModalProps> = ({
                   style={{
                     width: PAPER_CONFIG[paperSize].width,
                     minHeight: PAPER_CONFIG[paperSize].minHeight,
+                    colorScheme: 'light',
                     backgroundColor: '#ffffff',
                     color: '#0f172a',
+                    ['--slate-50' as any]: '#F8FAFC',
+                    ['--slate-100' as any]: '#F1F5F9',
+                    ['--slate-200' as any]: '#E2E8F0',
+                    ['--slate-300' as any]: '#CBD5E1',
+                    ['--slate-400' as any]: '#94A3B8',
+                    ['--slate-500' as any]: '#64748B',
+                    ['--slate-600' as any]: '#475569',
+                    ['--slate-700' as any]: '#334155',
+                    ['--slate-800' as any]: '#1E293B',
+                    ['--slate-900' as any]: '#0F172A',
                   }}
-                  className="bg-white shadow-xl border border-slate-300 p-4 sm:p-5 text-slate-900 transition-all duration-200 flex-shrink-0"
+                  className="export-paper-sheet bg-white shadow-xl border border-slate-300 p-4 sm:p-5 text-slate-900 transition-all duration-200 flex-shrink-0"
                 >
                   {/* Two CS Form 48 Copies Side-by-Side with Cut-line */}
                   <div className="flex flex-row items-stretch gap-4 h-full">

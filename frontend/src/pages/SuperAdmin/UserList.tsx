@@ -156,11 +156,6 @@ export const UserList: React.FC = () => {
   const [activityModalUser, setActivityModalUser] = useState<User | null>(null);
   const [userActivities, setUserActivities] = useState<UserActivityItem[]>([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState(false);
-
-  // TEMPORARY TESTING UTILITY: WIPE STUDENTS (To be removed after user testing)
-  const [isWipeModalOpen, setIsWipeModalOpen] = useState(false);
-  const [isWipingStudents, setIsWipingStudents] = useState(false);
-
   // Floating Toast Notification
   const [toastNotification, setToastNotification] = useState<{
     show: boolean;
@@ -438,34 +433,6 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
       setIsDeactivating(false);
     }
   };
-
-  // TEMPORARY TESTING UTILITY: WIPE STUDENTS (To be removed after user testing)
-  const handleWipeStudents = async () => {
-    setIsWipingStudents(true);
-    try {
-      const res = await userService.wipeStudents();
-      setToastNotification({
-        show: true,
-        type: 'success',
-        title: 'Students Wiped',
-        message: res.detail || 'All student accounts and related records were successfully wiped.',
-      });
-      setIsWipeModalOpen(false);
-      fetchUsers();
-    } catch (err: any) {
-      console.error(err);
-      const detailMsg = err?.response?.data?.detail || err?.message || 'Failed to wipe students.';
-      setToastNotification({
-        show: true,
-        type: 'error',
-        title: 'Wipe Failed',
-        message: detailMsg,
-      });
-    } finally {
-      setIsWipingStudents(false);
-    }
-  };
-
 
   const toggleUserStatus = async (id: string, currentlyActive: boolean) => {
     const targetUser = users.find((u) => u.id === id);
@@ -1180,17 +1147,6 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
               </div>
             ) : (
               <div className="flex items-center gap-1.5 w-full sm:w-auto">
-                {currentUser?.is_superuser && activeTab === 'student' && (
-                  <button
-                    type="button"
-                    onClick={() => setIsWipeModalOpen(true)}
-                    className="inline-flex items-center justify-center border border-rose-300 dark:border-rose-900/60 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 px-3 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer shrink-0 h-8 whitespace-nowrap gap-1.5 shadow-2xs"
-                    title="Temporary test reset: wipe all students to re-test batch import"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Wipe Students (Reset)
-                  </button>
-                )}
                 <Link
                   to={getCreateLink()}
                   className="inline-flex items-center justify-center bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-3 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer shrink-0 w-full sm:w-auto h-8 whitespace-nowrap"
@@ -1868,67 +1824,6 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
             </div>
           </div>
         </aside>
-      )}
-
-      {/* ── TEMPORARY TESTING UTILITY: Wipe Students Confirmation Modal ── */}
-      {isWipeModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
-        >
-          <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#222222] rounded-xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400 mb-4">
-              <div className="p-2.5 rounded-full bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/40">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 uppercase">
-                  Wipe All Students (Testing Reset)
-                </h3>
-                <p className="text-xs text-rose-600 dark:text-rose-400 font-semibold">
-                  Temporary utility for testing batch enrollment
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-gray-600 dark:text-slate-300 mb-3 leading-relaxed">
-              Are you sure you want to permanently delete all student accounts and their associated records (enrollments, attendance, assessment scores) from the database?
-            </p>
-            <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-[11px] text-emerald-800 dark:text-emerald-300 mb-5">
-              <strong>Staff Protection:</strong> All Tutors, Faculty, Principals, Admins, and SuperAdmins are completely protected and will remain untouched.
-            </div>
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                disabled={isWipingStudents}
-                onClick={() => setIsWipeModalOpen(false)}
-                className="px-4 py-2 rounded-md text-xs font-semibold text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isWipingStudents}
-                onClick={handleWipeStudents}
-                className="px-4 py-2 rounded-md text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 transition cursor-pointer flex items-center gap-2 shadow-xs"
-              >
-                {isWipingStudents ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    Wiping Students...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Confirm Wipe
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
     </div>

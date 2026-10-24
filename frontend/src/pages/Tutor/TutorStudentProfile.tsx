@@ -335,6 +335,7 @@ export const TutorStudentProfile: React.FC = () => {
   const [levelEvalMessage, setLevelEvalMessage] = useState<string | null>(null);
   const [studentEditError, setStudentEditError] = useState<string | null>(null);
   const [isSavingStudent, setIsSavingStudent] = useState(false);
+  const [showSaveConfirmModal, setShowSaveConfirmModal] = useState(false);
 
   const handleEvaluateLevelProgression = async () => {
     if (!id) return;
@@ -451,6 +452,7 @@ export const TutorStudentProfile: React.FC = () => {
       setShowRiskModal(false);
       setRiskForm({ risk_level: 'low', details: '' });
       fetchProfile();
+      window.dispatchEvent(new CustomEvent('aralert:refresh-risk-alerts'));
     } catch (err) {
       alert('Failed to log risk alert.');
     }
@@ -460,6 +462,7 @@ export const TutorStudentProfile: React.FC = () => {
     try {
       await academicService.updateAcademicRisk(riskId, { resolved: true });
       fetchProfile();
+      window.dispatchEvent(new CustomEvent('aralert:refresh-risk-alerts'));
     } catch (err) {
       alert('Failed to resolve risk alert.');
     }
@@ -478,14 +481,22 @@ export const TutorStudentProfile: React.FC = () => {
       setShowAttendanceModal(false);
       setAttendanceForm({ date: new Date().toLocaleDateString('en-CA'), status: 'present', aral_activity_id: '' });
       fetchProfile();
+      window.dispatchEvent(new CustomEvent('aralert:refresh-risk-alerts'));
     } catch (err) {
       alert('Failed to log attendance.');
     }
   };
 
-  const handleSubmitStudentEdit = async (e: React.FormEvent) => {
+  const handlePromptSaveStudent = (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
+    setStudentEditError(null);
+    setShowSaveConfirmModal(true);
+  };
+
+  const handleConfirmSaveStudent = async () => {
+    if (!profile) return;
+    setShowSaveConfirmModal(false);
     setIsSavingStudent(true);
     setStudentEditError(null);
 
@@ -499,6 +510,7 @@ export const TutorStudentProfile: React.FC = () => {
       });
       setIsEditingStudent(false);
       await fetchProfile();
+      window.dispatchEvent(new CustomEvent('aralert:refresh-risk-alerts'));
     } catch (err: any) {
       const errData = err?.response?.data;
       const msg =
@@ -1075,7 +1087,7 @@ export const TutorStudentProfile: React.FC = () => {
       {/* ── STUDENT EDIT MODAL ─────────────────────────────── */}
       {isEditingStudent && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <form onSubmit={handleSubmitStudentEdit} className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8">
+          <form onSubmit={handlePromptSaveStudent} className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white text-base uppercase">EDIT STUDENT DETAILS</h3>
@@ -1173,6 +1185,74 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ── SAVE STUDENT DETAILS CONFIRMATION MODAL ── */}
+      {showSaveConfirmModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-fade-in"
+        >
+          <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#222222] rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex items-center gap-3 text-[var(--brand)]">
+              <div className="p-2.5 rounded-full bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900/40">
+                <AlertCircle className="w-6 h-6 text-[var(--brand)]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 uppercase">
+                  Confirm Student Details Update
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold">
+                  Review before applying changes
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+              Are you sure you want to save the changes for this student? The updated information will be reflected across attendance and score records.
+            </p>
+
+            <div className="rounded-lg bg-gray-50 dark:bg-[#1A1A1A] p-3 text-xs space-y-1.5 border border-gray-200 dark:border-gray-800">
+              <div className="flex justify-between">
+                <span className="text-gray-500 dark:text-gray-400 font-medium">Student Name:</span>
+                <span className="font-bold text-gray-900 dark:text-white uppercase">
+                  {studentForm.first_name} {studentForm.middle_name ? `${studentForm.middle_name} ` : ''}{studentForm.last_name}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 dark:text-gray-400 font-medium">LRN:</span>
+                <span className="font-bold text-gray-900 dark:text-white font-mono">
+                  {studentForm.lrn || 'None'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 dark:text-gray-400 font-medium">ARAL Level:</span>
+                <span className="font-bold text-[var(--brand)] uppercase">
+                  {studentForm.aral_level}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-[#1A1A1A]">
+              <button
+                type="button"
+                onClick={() => setShowSaveConfirmModal(false)}
+                className="px-4 py-2 rounded-md text-xs font-semibold text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSaveStudent}
+                disabled={isSavingStudent}
+                className="px-5 py-2 rounded-md text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition cursor-pointer shadow-xs"
+              >
+                {isSavingStudent ? 'Saving...' : 'Yes, Save Details'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

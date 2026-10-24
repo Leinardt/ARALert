@@ -1,4 +1,4 @@
-﻿"""
+"""
 Users API Views.
 SuperAdmin and Admin endpoints for user management with audit logging, bulk tutor assignment,
 and user login/logout activity history.
@@ -1160,49 +1160,5 @@ class StudentEditRequestReviewView(APIView):
                 'request': StudentEditRequestSerializer(edit_req).data
             })
 
-
-# ---------------------------------------------------------------------------
-# TEMPORARY TESTING UTILITY: WIPE STUDENTS (To be removed after user testing)
-# ---------------------------------------------------------------------------
-class WipeStudentsView(APIView):
-    """
-    POST /api/users/wipe-students/
-    Restricted strictly to SuperAdmin.
-    Safely deletes all student accounts (role='student') and associated records for testing batch enrollment.
-    """
-    permission_classes = [IsAdmin]
-
-    def post(self, request):
-        if not (request.user.is_superuser or getattr(request.user, 'role', None) == 'superadmin'):
-            return Response(
-                {'detail': 'Only SuperAdmin can perform this operation.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        if not request.data.get('confirm'):
-            return Response(
-                {'detail': 'Confirmation required. Pass {"confirm": true}.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        from io import StringIO
-        from django.core.management import call_command
-        out = StringIO()
-        call_command('wipe_students', confirm=True, stdout=out)
-
-        log_audit_event(
-            'STUDENTS_WIPED_TEST_UTILITY',
-            user=request.user,
-            request=request,
-            details={
-                'performed_by': request.user.get_full_name() or request.user.email,
-                'output': out.getvalue(),
-            }
-        )
-
-        return Response({
-            'detail': 'All student records were successfully wiped from the database.',
-            'output': out.getvalue(),
-        }, status=status.HTTP_200_OK)
 
 

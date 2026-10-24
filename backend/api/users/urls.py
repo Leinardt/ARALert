@@ -17,12 +17,9 @@ from .views import (
     UserDetailView,
     UserListCreateView,
     UserStatsView,
-    WipeStudentsView,
 )
 
 urlpatterns = [
-    # TEMPORARY TESTING UTILITY: WIPE STUDENTS (To be removed after user testing)
-    path('wipe-students/', WipeStudentsView.as_view(), name='wipe-students'),
     path('check-lrns/', CheckExistingLrnsView.as_view(), name='check-lrns'),
     path('stats/', UserStatsView.as_view(), name='user-stats'),
     path('tutors/', TutorListView.as_view(), name='tutor-list'),

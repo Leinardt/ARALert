@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -552,9 +552,40 @@ export const DashboardLayout: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchRiskStudents(); }, [user, location.pathname]);
+  // Auto-refresh high risk student alerts so the blinking number updates automatically
+  useEffect(() => {
+    fetchRiskStudents();
+    if (user?.role === 'tutor') {
+      const interval = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          fetchRiskStudents();
+        }
+      }, 8000);
+      const handleCustomRefresh = () => {
+        fetchRiskStudents();
+      };
+      window.addEventListener('aralert:refresh-risk-alerts', handleCustomRefresh);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('aralert:refresh-risk-alerts', handleCustomRefresh);
+      };
+    }
+  }, [user, location.pathname]);
+
   useEffect(() => { if (!showRiskList) return; fetchRiskStudents(); }, [showRiskList]);
-  useEffect(() => { fetchStudentRiskAlerts(); }, [user]);
+
+  useEffect(() => {
+    fetchStudentRiskAlerts();
+    if (user?.role === 'student') {
+      const interval = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          fetchStudentRiskAlerts();
+        }
+      }, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
   useEffect(() => { fetchEditRequests(); }, [user, location.pathname]);
   useEffect(() => {
     if (showTutorNotifications || showStudentEditRequests || showEditRequestsModal) {
