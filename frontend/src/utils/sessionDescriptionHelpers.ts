@@ -315,10 +315,15 @@ export const getAttendanceSessionStartTime = (
 ): string => {
   if (!record && (!groupRecords || groupRecords.length === 0)) return '';
 
-  if (record?.session) {
-    const launchTimes = getStoredSessionLaunchTimes();
-    if (launchTimes[String(record.session)]) {
-      return formatSessionTime(launchTimes[String(record.session)]);
+  const launchTimes = getStoredSessionLaunchTimes();
+  if (record?.session && launchTimes[String(record.session)]) {
+    return formatSessionTime(launchTimes[String(record.session)]);
+  }
+  if (groupRecords) {
+    for (const item of groupRecords) {
+      if (item.session && launchTimes[String(item.session)]) {
+        return formatSessionTime(launchTimes[String(item.session)]);
+      }
     }
   }
 
@@ -337,5 +342,233 @@ export const getAttendanceSessionStartTime = (
   }
 
   return formatSessionTime(record?.time_in || record?.created_at || '');
+};
+
+export interface AttendanceSessionGroup<T> {
+  key: string;
+  sessionId?: string | null;
+  label: string;
+  time: string;
+  rows: T[];
+}
+
+export const timeStringToMinutes = (timeStr?: string | null): number => {
+  if (!timeStr) return 0;
+  try {
+    const trimmed = timeStr.trim();
+    if (trimmed.includes('AM') || trimmed.includes('PM')) {
+      const [timePart, modifier] = trimmed.split(' ');
+      let [hours, minutes] = timePart.split(':').map(Number);
+      if (modifier === 'PM' && hours < 12) hours += 12;
+      if (modifier === 'AM' && hours === 12) hours = 0;
+      return hours * 60 + (minutes || 0);
+    }
+    const [h, m] = trimmed.split(':').map(Number);
+    if (!isNaN(h)) return h * 60 + (m || 0);
+  } catch {
+    // fallback
+  }
+  return 0;
+};
+
+/**
+ * Robustly groups attendance records into cohesive session entries.
+ * Prevents editing a record or having absent students (time_in=null) from
+ * splintering students of the same session into separate isolated divisions.
+ */
+export const groupAttendanceBySession = <T extends Record<string, any>>(
+  records: T[],
+  options?: {
+    getDate?: (r: T) => string;
+    getSessionId?: (r: T) => string | null | undefined;
+    getTimeIn?: (r: T) => string | null | undefined;
+    getCreatedAt?: (r: T) => string | null | undefined;
+    getLabel?: (r: T) => string;
+  }
+): AttendanceSessionGroup<T>[] => {
+  if (!records || records.length === 0) return [];
+
+  const getDate = options?.getDate || ((r: any) => r.date?.slice(0, 10) || '');
+  const getSessionId = options?.getSessionId || ((r: any) => r.session || r.sessionId || null);
+  const getTimeIn = options?.getTimeIn || ((r: any) => r.time_in || r.timeIn || null);
+  const getCreatedAt = options?.getCreatedAt || ((r: any) => r.created_at || r.createdAt || null);
+  const getLabel = options?.getLabel || ((r: any) => formatSessionLabel(getAttendanceDescription(r)));
+
+  // 1. Group records by date and activity label
+  const dateAndLabelMap = new Map<string, T[]>();
+  records.forEach((r) => {
+    const d = getDate(r) || 'unknown';
+    const l = getLabel(r) || 'INTERVENTION ACTIVITY';
+    const key = `${d}|${l}`;
+    if (!dateAndLabelMap.has(key)) {
+      dateAndLabelMap.set(key, []);
+    }
+    dateAndLabelMap.get(key)!.push(r);
+  });
+
+  const finalGroups: AttendanceSessionGroup<T>[] = [];
+
+  dateAndLabelMap.forEach((dateLabelRecords, dlKey) => {
+    const [dateKey, label] = dlKey.split('|');
+
+    // Collect all unique non-empty session IDs in this date + label bucket
+    const explicitSessionIds = Array.from(
+      new Set(
+        dateLabelRecords
+          .map((r) => getSessionId(r))
+          .filter((sid): sid is string => Boolean(sid && String(sid).trim()))
+      )
+    );
+
+    if (explicitSessionIds.length <= 1) {
+      // 0 or 1 session ID: ALL records on this date for this activity belong to this unified session.
+      // (Even if records were edited or are absent, they remain part of this single session)
+      const primarySessionId = explicitSessionIds[0] || null;
+
+      // Group records by time clusters ONLY IF scan times span multiple distinct sessions (> 2.5 hours apart)
+      const validTimes = dateLabelRecords
+        .map((r) => getTimeIn(r) || getCreatedAt(r))
+        .filter((t): t is string => Boolean(t && t !== '—' && t !== '-'));
+
+      const minuteValues = Array.from(new Set(validTimes.map(timeStringToMinutes))).sort((a, b) => a - b);
+
+      let hasMultipleTimeWindows = false;
+      const splitThresholdMinutes = 150; // 2.5 hours
+      if (minuteValues.length > 1) {
+        for (let i = 1; i < minuteValues.length; i++) {
+          if (minuteValues[i] - minuteValues[i - 1] > splitThresholdMinutes) {
+            hasMultipleTimeWindows = true;
+            break;
+          }
+        }
+      }
+
+      if (hasMultipleTimeWindows && !primarySessionId) {
+        // Multi-session day without explicit session IDs: cluster by distinct time windows
+        const clusters: { clusterMinutes: number; rows: T[] }[] = [];
+        dateLabelRecords.forEach((r) => {
+          const t = getTimeIn(r) || getCreatedAt(r);
+          const m = timeStringToMinutes(t);
+          if (clusters.length === 0) {
+            clusters.push({ clusterMinutes: m, rows: [r] });
+          } else {
+            let matched = false;
+            for (const c of clusters) {
+              if (Math.abs(c.clusterMinutes - m) <= splitThresholdMinutes) {
+                c.rows.push(r);
+                matched = true;
+                break;
+              }
+            }
+            if (!matched) {
+              clusters.push({ clusterMinutes: m, rows: [r] });
+            }
+          }
+        });
+
+        clusters.forEach((cluster, idx) => {
+          const time = getAttendanceSessionStartTime(
+            { time_in: getTimeIn(cluster.rows[0]), created_at: getCreatedAt(cluster.rows[0]) },
+            cluster.rows.map((r) => ({
+              session: getSessionId(r),
+              time_in: getTimeIn(r),
+              created_at: getCreatedAt(r),
+            }))
+          );
+          finalGroups.push({
+            key: `${dateKey}_${label}_cluster_${idx}`,
+            label,
+            time,
+            rows: cluster.rows,
+          });
+        });
+      } else {
+        // Single session for the day / activity: all records belong together
+        const groupKey = primarySessionId ? `${dateKey}_session_${primarySessionId}` : `${dateKey}_${label}`;
+        const time = getAttendanceSessionStartTime(
+          { session: primarySessionId, time_in: getTimeIn(dateLabelRecords[0]), created_at: getCreatedAt(dateLabelRecords[0]) },
+          dateLabelRecords.map((r) => ({
+            session: getSessionId(r),
+            time_in: getTimeIn(r),
+            created_at: getCreatedAt(r),
+          }))
+        );
+
+        finalGroups.push({
+          key: groupKey,
+          sessionId: primarySessionId,
+          label,
+          time,
+          rows: dateLabelRecords,
+        });
+      }
+    } else {
+      // Multiple explicit session IDs exist on this date for this activity
+      const sessionBuckets = new Map<string, T[]>();
+      explicitSessionIds.forEach((sid) => sessionBuckets.set(sid, []));
+
+      const recordsWithoutSession: T[] = [];
+      dateLabelRecords.forEach((r) => {
+        const sid = getSessionId(r);
+        if (sid && sessionBuckets.has(sid)) {
+          sessionBuckets.get(sid)!.push(r);
+        } else {
+          recordsWithoutSession.push(r);
+        }
+      });
+
+      // Associate records without session IDs to the nearest session rather than creating an orphan division
+      recordsWithoutSession.forEach((r) => {
+        const rTime = getTimeIn(r) || getCreatedAt(r);
+        if (rTime && explicitSessionIds.length > 0) {
+          let closestSid = explicitSessionIds[0];
+          let minDiff = Infinity;
+          const rMinutes = timeStringToMinutes(rTime);
+          for (const sid of explicitSessionIds) {
+            const sRows = sessionBuckets.get(sid) || [];
+            const sTime = getAttendanceSessionStartTime({ session: sid }, sRows);
+            const sMinutes = timeStringToMinutes(sTime);
+            const diff = Math.abs(rMinutes - sMinutes);
+            if (diff < minDiff) {
+              minDiff = diff;
+              closestSid = sid;
+            }
+          }
+          sessionBuckets.get(closestSid)!.push(r);
+        } else {
+          sessionBuckets.get(explicitSessionIds[0])!.push(r);
+        }
+      });
+
+      explicitSessionIds.forEach((sid) => {
+        const rows = sessionBuckets.get(sid) || [];
+        if (rows.length === 0) return;
+        const groupKey = `${dateKey}_session_${sid}`;
+        const time = getAttendanceSessionStartTime(
+          { session: sid },
+          rows.map((r) => ({
+            session: getSessionId(r),
+            time_in: getTimeIn(r),
+            created_at: getCreatedAt(r),
+          }))
+        );
+
+        finalGroups.push({
+          key: groupKey,
+          sessionId: sid,
+          label,
+          time,
+          rows,
+        });
+      });
+    }
+  });
+
+  finalGroups.sort((a, b) => {
+    if (a.time && b.time) return a.time.localeCompare(b.time);
+    return a.label.localeCompare(b.label);
+  });
+
+  return finalGroups;
 };
 

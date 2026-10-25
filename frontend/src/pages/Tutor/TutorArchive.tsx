@@ -13,6 +13,7 @@ import {
   formatSessionLabel,
   formatSessionTime,
   getAttendanceSessionStartTime,
+  groupAttendanceBySession,
 } from '../../utils/sessionDescriptionHelpers';
 
 /* ─── Date & Week Helper Functions (Mirrors TutorScores layout) ─────── */
@@ -1191,28 +1192,19 @@ export const TutorArchive: React.FC = () => {
                       /* Table 3: QR Attendance Records grouped by entry session */
                       (() => {
                         const sorted = sortAttendanceRows(displayRows);
-                        const sessionMap = new Map<string, typeof sorted>();
-                        sorted.forEach((att) => {
-                          const label = formatSessionLabel(att.session);
-                          const key = att.sessionId
-                            ? `${att.date}|session_${att.sessionId}`
-                            : `${att.date}|${label}|${att.timeIn || 'default'}`;
-                          if (!sessionMap.has(key)) sessionMap.set(key, []);
-                          sessionMap.get(key)!.push(att);
+                        const groups = groupAttendanceBySession(sorted, {
+                          getDate: (r) => r.date,
+                          getSessionId: (r) => r.sessionId,
+                          getTimeIn: (r) => r.timeIn,
+                          getLabel: (r) => formatSessionLabel(r.session),
                         });
                         return (
                           <div className="space-y-4">
-                            {Array.from(sessionMap.entries()).map(([key, groupRows]) => {
-                              const label = formatSessionLabel(groupRows[0].session);
-                              const time = getAttendanceSessionStartTime(
-                                { session: groupRows[0].sessionId, time_in: groupRows[0].timeIn },
-                                groupRows.map((r) => ({ session: r.sessionId, time_in: r.timeIn }))
-                              );
-                              return (
-                                <div key={key} className="space-y-2">
-                                  <EntrySessionSeparator label={label} time={time} />
-                                  <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-zinc-800">
-                                    <table className="w-full text-left text-xs text-slate-600 dark:text-zinc-300">
+                            {groups.map((group) => (
+                              <div key={group.key} className="space-y-2">
+                                <EntrySessionSeparator label={group.label} time={group.time} />
+                                <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-zinc-800">
+                                  <table className="w-full text-left text-xs text-slate-600 dark:text-zinc-300">
                                       <thead className="bg-slate-50 dark:bg-zinc-900/70 border-b border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
                                         <tr>
                                           <th className="px-4 py-3 whitespace-nowrap">
@@ -1242,7 +1234,7 @@ export const TutorArchive: React.FC = () => {
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y divide-slate-100 dark:divide-zinc-900 bg-white dark:bg-zinc-950">
-                                        {groupRows.map((att) => (
+                                        {group.rows.map((att) => (
                                           <tr key={att.id} className="hover:bg-slate-50/70 dark:hover:bg-zinc-900/50 transition-colors">
                                             <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                                               {att.studentName}
@@ -1282,8 +1274,7 @@ export const TutorArchive: React.FC = () => {
                                     </table>
                                   </div>
                                 </div>
-                              );
-                            })}
+                            ))}
                           </div>
                         );
                       })()

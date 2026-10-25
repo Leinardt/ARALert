@@ -16,6 +16,7 @@ import {
   formatSessionLabel,
   formatSessionTime,
   getAttendanceSessionStartTime,
+  groupAttendanceBySession,
 } from '../utils/sessionDescriptionHelpers';
 import { trashbinService } from '../utils/trashbinService';
 
@@ -599,37 +600,15 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
       return lKey === targetDate;
     });
 
-    const map = new Map<string, { key: string; label: string; time: string; count: number; orderTime: string; rows: Attendance[] }>();
-
-    logsOnDate.forEach((l) => {
-      const rawDesc = getAttendanceDescription(l);
-      const label = formatSessionLabel(rawDesc);
-      const key = l.session ? `session_${l.session}` : `${label}_${l.time_in ? l.time_in.slice(0, 5) : 'default'}`;
-      if (!map.has(key)) {
-        map.set(key, { key, label, time: '', count: 0, orderTime: l.time_in || (l as any).created_at || '', rows: [] });
-      }
-      const entry = map.get(key)!;
-      entry.count += 1;
-      entry.rows.push(l);
-    });
-
-    const list = Array.from(map.values()).map((entry) => {
-      const time = getAttendanceSessionStartTime(entry.rows[0], entry.rows);
-      return {
-        key: entry.key,
-        label: entry.label,
-        time,
-        count: entry.count,
-        orderTime: entry.orderTime,
-      };
-    });
-
-    list.sort((a, b) => {
-      if (a.time && b.time) return a.time.localeCompare(b.time);
-      return a.label.localeCompare(b.label);
-    });
-
-    return list;
+    const groups = groupAttendanceBySession(logsOnDate);
+    return groups.map((g) => ({
+      key: g.key,
+      label: g.label,
+      time: g.time,
+      count: g.rows.length,
+      orderTime: g.time,
+      rows: g.rows,
+    }));
   }, [attendanceLogs, selectedDateKey, weeks]);
 
   useEffect(() => {
@@ -713,7 +692,10 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
         );
         let dayLog = studentLogsOnDate[0];
         if (selectedSessionKey && (exportMode === 'daily' || day.dateKey === selectedDateKey)) {
-          const matched = studentLogsOnDate.find((l) => getAttendanceSessionKey(l) === selectedSessionKey);
+          const selectedSession = availableSessions.find((s) => s.key === selectedSessionKey);
+          const matched = selectedSession
+            ? selectedSession.rows.find((l) => String(l.user) === String(student.id))
+            : studentLogsOnDate.find((l) => getAttendanceSessionKey(l) === selectedSessionKey);
           if (matched) dayLog = matched;
         }
         if (dayLog) {
@@ -1296,7 +1278,10 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                                 );
                                 let dayLog = studentLogsOnDate[0];
                                 if (selectedSessionKey && (exportMode === 'daily' || day.dateKey === selectedDateKey)) {
-                                  const matched = studentLogsOnDate.find((l) => getAttendanceSessionKey(l) === selectedSessionKey);
+                                  const selectedSession = availableSessions.find((s) => s.key === selectedSessionKey);
+                                  const matched = selectedSession
+                                    ? selectedSession.rows.find((l) => String(l.user) === String(student.id))
+                                    : studentLogsOnDate.find((l) => getAttendanceSessionKey(l) === selectedSessionKey);
                                   if (matched) dayLog = matched;
                                 }
                                 let mark = '';

@@ -51,6 +51,7 @@ import {
   formatSessionTime,
   getAttendanceDescription,
   getAttendanceSessionStartTime,
+  groupAttendanceBySession,
   storeSessionLaunchTime,
 } from '../../utils/sessionDescriptionHelpers';
 
@@ -735,29 +736,7 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
   }, [group.records, selectedDate, isOpen]);
 
   const attendanceSessions = useMemo(() => {
-    const map = new Map<string, Attendance[]>();
-    displayRecords.forEach((r) => {
-      const label = formatSessionLabel(getAttendanceDescription(r));
-      const groupKey = r.session ? `session_${r.session}` : `${label}_${r.time_in ? r.time_in.slice(0, 5) : 'default'}`;
-      if (!map.has(groupKey)) {
-        map.set(groupKey, []);
-      }
-      map.get(groupKey)!.push(r);
-    });
-
-    const groups: { key: string; label: string; time: string; rows: Attendance[] }[] = [];
-    map.forEach((rows, groupKey) => {
-      const label = formatSessionLabel(getAttendanceDescription(rows[0]));
-      const time = getAttendanceSessionStartTime(rows[0], rows);
-      groups.push({ key: groupKey, label, time, rows });
-    });
-
-    groups.sort((a, b) => {
-      if (a.time && b.time) return a.time.localeCompare(b.time);
-      return a.label.localeCompare(b.label);
-    });
-
-    return groups;
+    return groupAttendanceBySession(displayRecords);
   }, [displayRecords]);
 
   const isCurrentDateTrashed = useMemo(() => {
@@ -1431,8 +1410,30 @@ export const TutorQRGenerator: React.FC = () => {
 
   const handleUpdateAttendance = async (id: number, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>) => {
     const updatedAttendance = await academicService.updateAttendance(id, data);
-    setAttendanceHistory((current) => current.map((log) => log.id === id ? updatedAttendance : log));
-    setScannedStudents((current) => current.map((log) => log.id === id ? updatedAttendance : log));
+    setAttendanceHistory((current) => current.map((log) => {
+      if (log.id === id) {
+        return {
+          ...log,
+          ...updatedAttendance,
+          session: updatedAttendance.session ?? log.session ?? null,
+          aral_activity: updatedAttendance.aral_activity ?? log.aral_activity ?? null,
+          aral_activity_title: updatedAttendance.aral_activity_title ?? log.aral_activity_title ?? null,
+        };
+      }
+      return log;
+    }));
+    setScannedStudents((current) => current.map((log) => {
+      if (log.id === id) {
+        return {
+          ...log,
+          ...updatedAttendance,
+          session: updatedAttendance.session ?? log.session ?? null,
+          aral_activity: updatedAttendance.aral_activity ?? log.aral_activity ?? null,
+          aral_activity_title: updatedAttendance.aral_activity_title ?? log.aral_activity_title ?? null,
+        };
+      }
+      return log;
+    }));
     window.dispatchEvent(new CustomEvent('aralert:refresh-risk-alerts'));
     return updatedAttendance;
   };
