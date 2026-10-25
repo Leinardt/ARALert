@@ -13,7 +13,12 @@ import { exportScoresToDocx } from '../utils/scoreDocxExportService';
 import { exportScoresToPdf } from '../utils/scorePdfExportService';
 import { DEPED_LOGO_SRC, PNAHS_LOGO_SRC } from '../assets/template_logos/logosBase64';
 import { formatStudentName } from '../utils/studentFormatters';
-import { getScoreDescription, getTutorAssignedMilestone } from '../utils/sessionDescriptionHelpers';
+import {
+  getScoreDescription,
+  getTutorAssignedMilestone,
+  formatSessionLabel,
+  formatSessionTime,
+} from '../utils/sessionDescriptionHelpers';
 import { trashbinService } from '../utils/trashbinService';
 
 export interface ExportScoreModalProps {
@@ -201,32 +206,32 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
 
   return (
     <div
-      className="p-3 sm:p-3.5 text-xs select-none"
+      className="p-2 sm:p-2.5 text-xs select-none"
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
-      <div className="flex items-center justify-between pb-2.5 pt-0.5 border-b border-slate-100 dark:border-[#1A1A1A]">
-        <span className="font-bold text-slate-900 dark:text-slate-100 text-xs tracking-wide">{monthName}</span>
+      <div className="flex items-center justify-between pb-1.5 pt-0 border-b border-slate-100 dark:border-[#1A1A1A]">
+        <span className="font-bold text-slate-900 dark:text-slate-100 text-[11px] tracking-wide">{monthName}</span>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={prevMonth}
-            className="flex items-center justify-center w-6 h-6 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-bold transition cursor-pointer"
+            className="flex items-center justify-center w-5 h-5 rounded-md border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-bold transition cursor-pointer"
             aria-label="Previous Month"
           >
-            <ChevronLeft className="w-3.5 h-3.5" />
+            <ChevronLeft className="w-3 h-3" />
           </button>
           <button
             type="button"
             onClick={nextMonth}
-            className="flex items-center justify-center w-6 h-6 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-bold transition cursor-pointer"
+            className="flex items-center justify-center w-5 h-5 rounded-md border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-bold transition cursor-pointer"
             aria-label="Next Month"
           >
-            <ChevronRight className="w-3.5 h-3.5" />
+            <ChevronRight className="w-3 h-3" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 sm:gap-1.5 text-center font-bold text-slate-400 dark:text-slate-500 py-2 text-[10px] uppercase tracking-wider">
+      <div className="grid grid-cols-7 gap-1 text-center font-bold text-slate-400 dark:text-slate-500 py-1 text-[9px] uppercase tracking-wider">
         <span>Su</span>
         <span>Mo</span>
         <span>Tu</span>
@@ -236,7 +241,7 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
         <span>Sa</span>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+      <div className="grid grid-cols-7 gap-1">
         {calendarCells.map((cell) => {
           const entriesCount = loggedDatesCount[cell.cellDateKey] || 0;
           const hasLoggedData = entriesCount > 0;
@@ -253,8 +258,10 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
                 if (exportMode === 'daily') {
                   onSelectDate(cell.cellDateKey);
                 } else if (exportMode === 'weekly') {
+                  onSelectDate(cell.cellDateKey);
                   onSelectWeek(cell.cellWeekStartKey);
                 } else if (exportMode === 'monthly') {
+                  onSelectDate(cell.cellDateKey);
                   if (cell.isCurrentMonth) {
                     onSelectMonth(currentMonthKey);
                   } else {
@@ -267,7 +274,7 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
                 }
               }}
               title={cell.isCurrentMonth ? cell.cellDateKey : `${cell.cellDateKey} (Adjacent month)`}
-              className={`relative flex flex-col items-center justify-center h-8.5 sm:h-9 rounded-lg transition text-[11px] cursor-pointer ${isDaySelected
+              className={`relative flex flex-col items-center justify-center h-6 sm:h-6.5 rounded-md transition text-[10px] sm:text-[10.5px] cursor-pointer ${isDaySelected
                 ? 'bg-[var(--brand)] text-white font-bold shadow-xs border border-[var(--brand)]'
                 : isWeekSelected
                   ? cell.isCurrentMonth
@@ -284,12 +291,12 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
                         : 'text-slate-300 dark:text-slate-600 font-normal hover:text-slate-500 dark:hover:text-slate-400 hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
                 }`}
             >
-              <span className={`text-[11px] ${!cell.isCurrentMonth && !isDaySelected && !isWeekSelected && !isMonthSelected ? 'opacity-80' : ''}`}>
+              <span className={`text-[10px] sm:text-[10.5px] ${!cell.isCurrentMonth && !isDaySelected && !isWeekSelected && !isMonthSelected ? 'opacity-80' : ''}`}>
                 {cell.dayNum}
               </span>
               {hasLoggedData && (
                 <span
-                  className={`absolute bottom-1 h-1 w-1 rounded-full ${
+                  className={`absolute bottom-0.5 h-1 w-1 rounded-full ${
                     isDaySelected || (isWeekSelected && cell.isCurrentMonth)
                       ? 'bg-white'
                       : isWeekSelected && !cell.isCurrentMonth
@@ -307,12 +314,12 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
         })}
       </div>
 
-      <div className="mt-2.5 flex items-center justify-between text-[9.5px] text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-[#1A1A1A]">
+      <div className="mt-1.5 flex items-center justify-between text-[9px] text-slate-500 dark:text-slate-400 pt-1.5 border-t border-slate-100 dark:border-[#1A1A1A]">
         <div className="flex items-center gap-1 font-medium">
           <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] dark:bg-blue-400 inline-block" />
           <span>Has score record</span>
         </div>
-        <span className="text-[9px] text-slate-400 dark:text-slate-500 italic">
+        <span className="text-[8.5px] text-slate-400 dark:text-slate-500 italic">
           {exportMode === 'weekly' ? 'Mon – Fri week' : exportMode === 'monthly' ? 'Full month' : 'Daily view'}
         </span>
       </div>
@@ -394,6 +401,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
 
   const [exportMode, setExportMode] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   const [selectedDateKey, setSelectedDateKey] = useState<string>('');
+  const [selectedSessionKey, setSelectedSessionKey] = useState<string>('');
   const [selectedWeekKey, setSelectedWeekKey] = useState<string>('');
   const [selectedMonthKey, setSelectedMonthKey] = useState<string>(() => new Date().toISOString().slice(0, 7));
   const [weekNumber, setWeekNumber] = useState<string>('1');
@@ -688,6 +696,64 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
     );
   }, [weeks]);
 
+  // Group all recorded sessions for the selected date to let tutor choose which to export
+  const availableSessions = useMemo(() => {
+    const targetDate = selectedDateKey || (weeks[0]?.days[0]?.dateKey) || new Date().toISOString().slice(0, 10);
+    const gradesOnDate = assessmentGrades.filter((g) => {
+      const dKey = g.date_logged?.length >= 10 ? g.date_logged.slice(0, 10) : new Date(g.date_logged).toISOString().slice(0, 10);
+      return dKey === targetDate;
+    });
+
+    const map = new Map<string, { key: string; label: string; time: string; count: number; rawDesc: string; orderTime: string }>();
+
+    gradesOnDate.forEach((g) => {
+      const rawDesc = getScoreDescription(g);
+      const label = formatSessionLabel(rawDesc);
+      const rawTime = g.created_at || (g as any).time_logged || '';
+      const time = formatSessionTime(rawTime);
+      const key = g.batch_id ? `${g.batch_id}|${label}|${time}` : `${label}|${time}`;
+      if (!map.has(key)) {
+        map.set(key, { key, label, time, count: 0, rawDesc, orderTime: rawTime });
+      }
+      map.get(key)!.count += 1;
+    });
+
+    const list = Array.from(map.values());
+    list.sort((a, b) => {
+      if (a.orderTime && b.orderTime) return a.orderTime.localeCompare(b.orderTime);
+      return a.label.localeCompare(b.label);
+    });
+
+    return list;
+  }, [assessmentGrades, selectedDateKey, weeks]);
+
+  useEffect(() => {
+    if (availableSessions.length > 0) {
+      const exists = availableSessions.some((s) => s.key === selectedSessionKey);
+      if (!exists) {
+        setSelectedSessionKey(availableSessions[0].key);
+      }
+    } else {
+      setSelectedSessionKey('');
+    }
+  }, [availableSessions, selectedSessionKey]);
+
+  useEffect(() => {
+    if (!selectedSessionKey) return;
+    const currentSession = availableSessions.find((s) => s.key === selectedSessionKey);
+    if (!currentSession) return;
+
+    if (currentSession.label.includes('MOSY')) {
+      setSelectedAssessmentType('MOSY');
+    } else if (currentSession.label.includes('EOSY')) {
+      setSelectedAssessmentType('EOSY');
+    } else if (currentSession.label.includes('SUMMER')) {
+      setSelectedAssessmentType('ARAL Summer Assessment');
+    } else if (!assessmentType) {
+      setSelectedAssessmentType('');
+    }
+  }, [selectedSessionKey, availableSessions, assessmentType]);
+
   // Detect if active dates have milestone grades logged
   useEffect(() => {
     if (assessmentType !== undefined && assessmentType !== '') {
@@ -777,7 +843,21 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
         if (timeA && timeB && timeA !== timeB) return timeA.localeCompare(timeB);
         return a.id - b.id;
       });
-      matchedGrade = sortedStudentGrades[col.entryIndex] || sortedStudentGrades[0];
+
+      if (selectedSessionKey && (exportMode === 'daily' || col.dateKey === selectedDateKey)) {
+        matchedGrade = studentGradesOnDate.find((g) => {
+          const rawDesc = getScoreDescription(g);
+          const label = formatSessionLabel(rawDesc);
+          const rawTime = g.created_at || (g as any).time_logged || '';
+          const time = formatSessionTime(rawTime);
+          const key = g.batch_id ? `${g.batch_id}|${label}|${time}` : `${label}|${time}`;
+          return key === selectedSessionKey;
+        });
+      }
+
+      if (!matchedGrade) {
+        matchedGrade = sortedStudentGrades[col.entryIndex] || sortedStudentGrades[0];
+      }
 
       if (
         matchedGrade &&
@@ -1111,48 +1191,78 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
             {/* Left Column: Date Filter Bar, Calendar Picker & Paper Size (Hidden in Full Preview Confirmation Mode) */}
             {!confirmDownloadFormat && (
               <div className="lg:col-span-4 xl:col-span-3 2xl:col-span-3 space-y-2 lg:sticky lg:top-0">
-              {/* Connected Date Filter & Calendar Container */}
-              <div className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm overflow-hidden text-xs">
-                {/* Connected Filter Bar Header */}
-                <div className="bg-slate-50/80 dark:bg-[#0E0E0E] border-b border-slate-200 dark:border-[#1A1A1A] p-2.5 space-y-1.5">
+                {/* Session / Activity Entry Dropdown Container */}
+                <div className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-2 sm:p-2.5 shadow-sm text-xs space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">SELECT DATE</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      SESSION ENTRY / TIME
+                    </span>
+                    {availableSessions.length > 1 && (
+                      <span className="text-[9.5px] font-bold text-[var(--brand)] dark:text-blue-400">
+                        {availableSessions.length} SESSIONS
+                      </span>
+                    )}
                   </div>
-                  <div className="flex bg-white dark:bg-[#141414] border border-slate-200 dark:border-slate-800 rounded-xl p-0.5 gap-1 shadow-2xs">
-                    {(['daily', 'weekly', 'monthly'] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => {
-                          setExportMode(mode);
-                          const now = new Date();
-                          const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-                          const currentMonth = todayKey.slice(0, 7);
+                  <select
+                    value={selectedSessionKey}
+                    onChange={(e) => setSelectedSessionKey(e.target.value)}
+                    disabled={availableSessions.length === 0}
+                    className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#141414] px-2.5 py-1.5 font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-[11px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    {availableSessions.length === 0 ? (
+                      <option value="">No recorded sessions for this date</option>
+                    ) : (
+                      availableSessions.map((s) => (
+                        <option key={s.key} value={s.key}>
+                          {s.time ? `[${s.label}] [${s.time}]` : `[${s.label}]`}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
 
-                          if (mode === 'daily') {
-                            setSelectedDateKey(todayKey);
-                            setSelectedMonthKey(currentMonth);
-                          } else if (mode === 'weekly') {
-                            const targetWk = getWeekStartKey(now);
-                            setSelectedWeekKey(targetWk);
-                            setSelectedMonthKey(currentMonth);
-                            const [y, m, d] = targetWk.split('-').map(Number);
-                            setWeekNumber(String(computeWeekOfMonth(new Date(y, m - 1, d))));
-                          } else if (mode === 'monthly') {
-                            setSelectedMonthKey(currentMonth);
-                          }
-                        }}
-                        className={`flex-1 rounded-lg h-7 py-1 px-1.5 text-[11px] font-bold uppercase transition-all cursor-pointer text-center whitespace-nowrap flex items-center justify-center ${exportMode === mode
-                          ? 'bg-[var(--brand)] text-white shadow-sm'
-                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                          }`}
-                      >
-                        {mode === 'daily' ? 'Day' : mode === 'weekly' ? 'Week' : 'Month'}
-                      </button>
-                    ))}
-                  </div>
+                {/* Connected Date Filter & Calendar Container */}
+                <div className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm overflow-hidden text-xs">
+                  {/* Connected Filter Bar Header */}
+                  <div className="bg-slate-50/80 dark:bg-[#0E0E0E] border-b border-slate-200 dark:border-[#1A1A1A] p-2 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">SELECT DATE</span>
+                    </div>
+                    <div className="flex bg-white dark:bg-[#141414] border border-slate-200 dark:border-slate-800 rounded-xl p-0.5 gap-1 shadow-2xs">
+                      {(['daily', 'weekly', 'monthly'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => {
+                            setExportMode(mode);
+                            const now = new Date();
+                            const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                            const currentMonth = todayKey.slice(0, 7);
 
-                  <div className="flex items-center justify-between text-xs font-medium text-slate-600 px-1 pt-3">
+                            if (mode === 'daily') {
+                              setSelectedDateKey(todayKey);
+                              setSelectedMonthKey(currentMonth);
+                            } else if (mode === 'weekly') {
+                              const targetWk = getWeekStartKey(now);
+                              setSelectedWeekKey(targetWk);
+                              setSelectedMonthKey(currentMonth);
+                              const [y, m, d] = targetWk.split('-').map(Number);
+                              setWeekNumber(String(computeWeekOfMonth(new Date(y, m - 1, d))));
+                            } else if (mode === 'monthly') {
+                              setSelectedMonthKey(currentMonth);
+                            }
+                          }}
+                          className={`flex-1 rounded-lg h-6 py-0.5 px-1.5 text-[10.5px] font-bold uppercase transition-all cursor-pointer text-center whitespace-nowrap flex items-center justify-center ${exportMode === mode
+                            ? 'bg-[var(--brand)] text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                        >
+                          {mode === 'daily' ? 'Day' : mode === 'weekly' ? 'Week' : 'Month'}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-600 px-1 pt-1.5">
                     <div className="flex items-center gap-1 shrink-0">
                       <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">WEEK:</span>
                       <input
