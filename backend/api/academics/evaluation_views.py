@@ -9,7 +9,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.models import User
+from apps.accounts.models import User, AuditLog
 from utilities.audit import log_audit_event
 
 logger = logging.getLogger(__name__)
@@ -78,29 +78,31 @@ class CurrentSchoolYearView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        sy = SchoolYear.objects.filter(is_active=True).first()
+        sy = SchoolYear.objects.filter(school_year='2026-2027', is_active=True).first()
         if not sy:
             sy, _ = SchoolYear.objects.get_or_create(
                 school_year='2026-2027',
                 defaults={'status': 'ACTIVE', 'is_active': True}
             )
+            # Ensure 2026-2027 is the single active school year
+            SchoolYear.objects.filter(is_active=True).exclude(id=sy.id).update(is_active=False)
+            if not sy.is_active or sy.status != 'ACTIVE':
+                sy.is_active = True
+                sy.status = 'ACTIVE'
+                sy.save(update_fields=['is_active', 'status'])
+
         data = SchoolYearSerializer(sy).data
 
-        # Check if MOSY has been processed/completed on this school year
-        mosy_processed = StudentEnrollment.objects.filter(
-            school_year=sy,
-            enrollment_status='active',
-            program='plus'
-        ).exists() or TutorAssignmentHistory.objects.filter(
-            school_year=sy,
-            period='MOSY',
-            is_active=False
-        ).exists()
+        # Check if an explicit semester transition was logged, otherwise default to 2nd Semester (EOSY)
+        last_sem_log = AuditLog.objects.filter(action='SEMESTER_TRANSITION_SET').order_by('-timestamp').first()
+        if last_sem_log and last_sem_log.details and last_sem_log.details.get('semester') in ('1st', '2nd', 'summer'):
+            active_semester = last_sem_log.details.get('semester')
+        else:
+            active_semester = '2nd'
 
-        active_semester = '2nd' if mosy_processed else '1st'
         data['current_semester'] = active_semester
         data['current_period'] = active_semester
-        data['active_milestone'] = 'EOSY' if active_semester == '2nd' else 'MOSY'
+        data['active_milestone'] = 'EOSY' if active_semester == '2nd' else ('MOSY' if active_semester == '1st' else 'ARAL Summer Assessment')
         return Response(data, status=status.HTTP_200_OK)
 
     def post(self, request):

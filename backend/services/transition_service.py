@@ -21,26 +21,47 @@ from services.summer_service import (
 )
 
 
-def get_student_eosy_status(student: User, school_year: SchoolYear | None = None) -> tuple[str, str, float | None]:
+def parse_eosy_grade_status(grade: ApiGrade | None) -> tuple[str, str, float | None]:
+    if not grade:
+        return 'pending', 'pending', None
+
+    try:
+        ts = float(grade.total_score) if grade.total_score is not None else 40.0
+    except (ValueError, TypeError):
+        ts = 40.0
+    if ts <= 0:
+        ts = 40.0
+
+    try:
+        sc = float(grade.score) if grade.score is not None else 0.0
+    except (ValueError, TypeError):
+        sc = 0.0
+
+    pct = round((sc / ts) * 100.0, 1)
+    passed = sc >= 28.0 if ts == 40 else (sc / ts) >= 0.7
+    result = 'passed' if passed else 'failed'
+    return 'completed', result, pct
+
+
+def get_student_eosy_status(
+    student: User,
+    school_year: SchoolYear | None = None,
+    grade_obj: ApiGrade | None = None,
+) -> tuple[str, str, float | None]:
     """
     Check EOSY evaluation status and grade for a student.
     Returns (status: 'completed' | 'pending', result: 'passed' | 'failed' | 'pending', score_pct).
     Passing score: >= 28/40 (70%).
     """
+    if grade_obj is not None:
+        return parse_eosy_grade_status(grade_obj)
+
     grade = ApiGrade.objects.filter(
         student=student,
         subject__icontains='EOSY',
     ).order_by('-date_logged').first()
 
-    if not grade:
-        return 'pending', 'pending', None
-
-    ts = float(grade.total_score or 40)
-    sc = float(grade.score or 0)
-    pct = round((sc / ts) * 100.0, 1)
-    passed = sc >= 28.0 if ts == 40 else (sc / ts) >= 0.7
-    result = 'passed' if passed else 'failed'
-    return 'completed', result, pct
+    return parse_eosy_grade_status(grade)
 
 
 def get_next_school_year_string(current_sy_str: str) -> str:
@@ -63,7 +84,14 @@ def get_eosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
     if not school_year:
         school_year = SchoolYear.objects.filter(is_active=True).first()
 
-    tutors = User.objects.filter(role='tutor', is_active=True, is_superuser=False)
+    tutors = User.objects.filter(role='tutor', is_active=True, is_superuser=False).prefetch_related('assigned_students')
+
+    # Bulk preload latest EOSY grade for all students in 1 query
+    eosy_grades = ApiGrade.objects.filter(subject__icontains='EOSY').order_by('student_id', '-date_logged')
+    eosy_grade_by_student = {}
+    for g in eosy_grades:
+        if g.student_id not in eosy_grade_by_student:
+            eosy_grade_by_student[g.student_id] = g
 
     completed_tutors_count = 0
     in_progress_tutors_count = 0
@@ -77,8 +105,8 @@ def get_eosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
     incomplete_tutors_list = []
 
     for tutor in tutors:
-        assigned_students = tutor.assigned_students.filter(is_active=True)
-        assigned_count = assigned_students.count()
+        assigned_students = [s for s in tutor.assigned_students.all() if s.is_active]
+        assigned_count = len(assigned_students)
 
         if assigned_count == 0:
             tutor_data = {
@@ -103,7 +131,8 @@ def get_eosy_monitoring_data(school_year: SchoolYear | None = None) -> dict:
         incomplete_students = []
 
         for student in assigned_students:
-            status, result, pct = get_student_eosy_status(student, school_year)
+            grade = eosy_grade_by_student.get(student.id)
+            status, result, pct = get_student_eosy_status(student, school_year, grade_obj=grade)
             if status == 'completed':
                 evaluated_in_tutor += 1
                 total_students_evaluated += 1

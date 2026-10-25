@@ -806,7 +806,7 @@ export const AdminEvaluationHub: React.FC = () => {
   }, [tutorRows, tutorSearch, sortField, sortOrder]);
 
   const currentSchoolYearStr = useMemo(() => {
-    return currentSY?.school_year || '2025–2026';
+    return currentSY?.school_year || '2026–2027';
   }, [currentSY]);
 
   const nextSchoolYear = useMemo(() => {
