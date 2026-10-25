@@ -35,6 +35,7 @@ import {
   formatSessionLabel,
   formatSessionTime,
   getAttendanceDescription,
+  getAttendanceSessionStartTime,
 } from '../../utils/sessionDescriptionHelpers';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
@@ -382,8 +383,7 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
     const map = new Map<string, Attendance[]>();
     sortedRecords.forEach((r) => {
       const label = formatSessionLabel(getAttendanceDescription(r));
-      const time = formatSessionTime(r.time_in || (r as any).created_at);
-      const groupKey = `${label}|${time}`;
+      const groupKey = r.session ? `session_${r.session}` : `${label}_${r.time_in ? r.time_in.slice(0, 5) : 'default'}`;
       if (!map.has(groupKey)) {
         map.set(groupKey, []);
       }
@@ -392,9 +392,16 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
 
     const groups: { key: string; label: string; time: string; rows: Attendance[] }[] = [];
     map.forEach((rows, groupKey) => {
-      const [label, time] = groupKey.split('|');
+      const label = formatSessionLabel(getAttendanceDescription(rows[0]));
+      const time = getAttendanceSessionStartTime(rows[0], rows);
       groups.push({ key: groupKey, label, time, rows });
     });
+
+    groups.sort((a, b) => {
+      if (a.time && b.time) return a.time.localeCompare(b.time);
+      return a.label.localeCompare(b.label);
+    });
+
     return groups;
   }, [sortedRecords]);
 

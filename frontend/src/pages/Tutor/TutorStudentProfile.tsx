@@ -44,6 +44,7 @@ import {
   formatSessionTime,
   getScoreDescription,
   getAttendanceDescription,
+  getAttendanceSessionStartTime,
 } from '../../utils/sessionDescriptionHelpers';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
@@ -2153,17 +2154,19 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
     const source = paginatedRecords;
     const grouped = new Map<string, typeof sortedHistory>();
     for (const log of source) {
-      const key = `${log.date}|${formatTimeString(log.time_in)}`;
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key)!.push(log);
+      const groupKey = log.session
+        ? `${log.date}|session_${log.session}`
+        : `${log.date}|${formatSessionLabel(getAttendanceDescription(log))}|${formatTimeString(log.time_in)}`;
+      if (!grouped.has(groupKey)) grouped.set(groupKey, []);
+      grouped.get(groupKey)!.push(log);
     }
     return Array.from(grouped.entries()).map(([key, records]) => {
-      const [date, time] = key.split('|');
       const sessionLabel = formatSessionLabel(getAttendanceDescription(records[0]));
-      const sessionTime = formatSessionTime(records[0].time_in || (records[0] as any).created_at);
+      const sessionTime = getAttendanceSessionStartTime(records[0], records);
+      const displayDate = formatDateString(records[0].date);
       return {
         key,
-        label: `${formatDateString(date)} | ${time}`,
+        label: `${displayDate} | ${sessionTime || formatTimeString(records[0].time_in)}`,
         sessionLabel,
         sessionTime,
         records,

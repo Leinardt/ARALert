@@ -50,6 +50,8 @@ import {
   formatSessionLabel,
   formatSessionTime,
   getAttendanceDescription,
+  getAttendanceSessionStartTime,
+  storeSessionLaunchTime,
 } from '../../utils/sessionDescriptionHelpers';
 
 interface StoredSessionData {
@@ -736,8 +738,7 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
     const map = new Map<string, Attendance[]>();
     displayRecords.forEach((r) => {
       const label = formatSessionLabel(getAttendanceDescription(r));
-      const time = formatSessionTime(r.time_in || (r as any).created_at);
-      const groupKey = `${label}|${time}`;
+      const groupKey = r.session ? `session_${r.session}` : `${label}_${r.time_in ? r.time_in.slice(0, 5) : 'default'}`;
       if (!map.has(groupKey)) {
         map.set(groupKey, []);
       }
@@ -746,9 +747,16 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
 
     const groups: { key: string; label: string; time: string; rows: Attendance[] }[] = [];
     map.forEach((rows, groupKey) => {
-      const [label, time] = groupKey.split('|');
+      const label = formatSessionLabel(getAttendanceDescription(rows[0]));
+      const time = getAttendanceSessionStartTime(rows[0], rows);
       groups.push({ key: groupKey, label, time, rows });
     });
+
+    groups.sort((a, b) => {
+      if (a.time && b.time) return a.time.localeCompare(b.time);
+      return a.label.localeCompare(b.label);
+    });
+
     return groups;
   }, [displayRecords]);
 
@@ -1640,6 +1648,7 @@ export const TutorQRGenerator: React.FC = () => {
 
       const launchTime = formatTimeString(new Date().toTimeString().slice(0, 5));
       storeSessionTime(newSession.id, launchTime);
+      storeSessionLaunchTime(newSession.id, launchTime);
       setSessionLaunchTimes((prev) => ({ ...prev, [newSession.id]: launchTime }));
 
       const localExpiresAt = timeService.nowMs() + remaining * 1000;

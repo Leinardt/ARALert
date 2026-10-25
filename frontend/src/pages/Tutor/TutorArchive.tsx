@@ -9,7 +9,11 @@ import type { SchoolYear, Grade, Attendance, User, TutorCohortHistoryData } from
 import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
 import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
-import { formatSessionLabel, formatSessionTime } from '../../utils/sessionDescriptionHelpers';
+import {
+  formatSessionLabel,
+  formatSessionTime,
+  getAttendanceSessionStartTime,
+} from '../../utils/sessionDescriptionHelpers';
 
 /* ─── Date & Week Helper Functions (Mirrors TutorScores layout) ─────── */
 const computeWeekOfMonth = (dateObj: Date): number => {
@@ -586,6 +590,7 @@ export const TutorArchive: React.FC = () => {
         timeIn: timeInStr,
         timeOut: timeOutStr,
         session: sessionTitle,
+        sessionId: att.session ? String(att.session) : undefined,
         status: att.status,
         semester: sem,
       };
@@ -1189,15 +1194,20 @@ export const TutorArchive: React.FC = () => {
                         const sessionMap = new Map<string, typeof sorted>();
                         sorted.forEach((att) => {
                           const label = formatSessionLabel(att.session);
-                          const time = formatSessionTime(att.timeIn);
-                          const key = `${att.date}|${label}|${time}`;
+                          const key = att.sessionId
+                            ? `${att.date}|session_${att.sessionId}`
+                            : `${att.date}|${label}|${att.timeIn || 'default'}`;
                           if (!sessionMap.has(key)) sessionMap.set(key, []);
                           sessionMap.get(key)!.push(att);
                         });
                         return (
                           <div className="space-y-4">
                             {Array.from(sessionMap.entries()).map(([key, groupRows]) => {
-                              const [, label, time] = key.split('|');
+                              const label = formatSessionLabel(groupRows[0].session);
+                              const time = getAttendanceSessionStartTime(
+                                { session: groupRows[0].sessionId, time_in: groupRows[0].timeIn },
+                                groupRows.map((r) => ({ session: r.sessionId, time_in: r.timeIn }))
+                              );
                               return (
                                 <div key={key} className="space-y-2">
                                   <EntrySessionSeparator label={label} time={time} />

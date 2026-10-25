@@ -15,6 +15,7 @@ import {
   getAttendanceDescription,
   formatSessionLabel,
   formatSessionTime,
+  getAttendanceSessionStartTime,
 } from '../utils/sessionDescriptionHelpers';
 import { trashbinService } from '../utils/trashbinService';
 
@@ -598,23 +599,33 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
       return lKey === targetDate;
     });
 
-    const map = new Map<string, { key: string; label: string; time: string; count: number; orderTime: string }>();
+    const map = new Map<string, { key: string; label: string; time: string; count: number; orderTime: string; rows: Attendance[] }>();
 
     logsOnDate.forEach((l) => {
       const rawDesc = getAttendanceDescription(l);
       const label = formatSessionLabel(rawDesc);
-      const rawTime = l.time_in || (l as any).created_at || '';
-      const time = formatSessionTime(rawTime);
-      const key = `${label}|${time}`;
+      const key = l.session ? `session_${l.session}` : `${label}_${l.time_in ? l.time_in.slice(0, 5) : 'default'}`;
       if (!map.has(key)) {
-        map.set(key, { key, label, time, count: 0, orderTime: rawTime });
+        map.set(key, { key, label, time: '', count: 0, orderTime: l.time_in || (l as any).created_at || '', rows: [] });
       }
-      map.get(key)!.count += 1;
+      const entry = map.get(key)!;
+      entry.count += 1;
+      entry.rows.push(l);
     });
 
-    const list = Array.from(map.values());
+    const list = Array.from(map.values()).map((entry) => {
+      const time = getAttendanceSessionStartTime(entry.rows[0], entry.rows);
+      return {
+        key: entry.key,
+        label: entry.label,
+        time,
+        count: entry.count,
+        orderTime: entry.orderTime,
+      };
+    });
+
     list.sort((a, b) => {
-      if (a.orderTime && b.orderTime) return a.orderTime.localeCompare(b.orderTime);
+      if (a.time && b.time) return a.time.localeCompare(b.time);
       return a.label.localeCompare(b.label);
     });
 
@@ -635,9 +646,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
   const getAttendanceSessionKey = (l: Attendance): string => {
     const rawDesc = getAttendanceDescription(l);
     const label = formatSessionLabel(rawDesc);
-    const rawTime = l.time_in || (l as any).created_at || '';
-    const time = formatSessionTime(rawTime);
-    return `${label}|${time}`;
+    return l.session ? `session_${l.session}` : `${label}_${l.time_in ? l.time_in.slice(0, 5) : 'default'}`;
   };
 
   const colWidths = useMemo(() => {

@@ -274,3 +274,68 @@ export const formatSessionTime = (timeStr: string | null | undefined): string =>
   }
   return trimmed;
 };
+
+export const SESSION_LAUNCH_TIMES_STORAGE_KEY = 'aralert_session_launch_times';
+
+/**
+ * Retrieve stored session launch times (keyed by session UUID).
+ */
+export const getStoredSessionLaunchTimes = (): Record<string, string> => {
+  try {
+    const raw = localStorage.getItem(SESSION_LAUNCH_TIMES_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+/**
+ * Persist a session ID to its launch time (the time the session was started by the tutor).
+ */
+export const storeSessionLaunchTime = (sessionId: string, timeStr: string): void => {
+  try {
+    const current = getStoredSessionLaunchTimes();
+    current[sessionId] = timeStr;
+    localStorage.setItem(SESSION_LAUNCH_TIMES_STORAGE_KEY, JSON.stringify(current));
+  } catch {
+    // ignore localStorage errors
+  }
+};
+
+/**
+ * Resolves the time an attendance session was started by the tutor.
+ * Priority:
+ * 1. Stored session launch time for the linked session ID (record.session)
+ * 2. Earliest scan time_in / created_at among group records in that session
+ * 3. The record's own time_in or created_at
+ */
+export const getAttendanceSessionStartTime = (
+  record?: { session?: string | null; time_in?: string | null; created_at?: string | null } | null,
+  groupRecords?: { session?: string | null; time_in?: string | null; created_at?: string | null }[]
+): string => {
+  if (!record && (!groupRecords || groupRecords.length === 0)) return '';
+
+  if (record?.session) {
+    const launchTimes = getStoredSessionLaunchTimes();
+    if (launchTimes[String(record.session)]) {
+      return formatSessionTime(launchTimes[String(record.session)]);
+    }
+  }
+
+  const candidateTimes: string[] = [];
+  const recordsToScan = groupRecords && groupRecords.length > 0 ? groupRecords : (record ? [record] : []);
+
+  for (const item of recordsToScan) {
+    if (item.session && record?.session && String(item.session) !== String(record.session)) continue;
+    const t = item.time_in || item.created_at;
+    if (t && t !== '—' && t !== '-') candidateTimes.push(t);
+  }
+
+  if (candidateTimes.length > 0) {
+    candidateTimes.sort((a, b) => a.localeCompare(b));
+    return formatSessionTime(candidateTimes[0]);
+  }
+
+  return formatSessionTime(record?.time_in || record?.created_at || '');
+};
+
