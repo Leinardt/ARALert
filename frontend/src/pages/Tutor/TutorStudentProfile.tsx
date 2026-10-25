@@ -38,6 +38,13 @@ import {
   generateStudentQrDataUrl,
 } from '../../utils/studentQrExportService';
 import { ExportStudentQrModal } from '../../components/ExportStudentQrModal';
+import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
+import {
+  formatSessionLabel,
+  formatSessionTime,
+  getScoreDescription,
+  getAttendanceDescription,
+} from '../../utils/sessionDescriptionHelpers';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 import { getStudentAvatarColor as avatarColor } from '../../utils/studentFormatters';
@@ -1652,7 +1659,13 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
   };
 
   // Build grouped structure for weekly / monthly views
-  type Group = { key: string; label: string; records: typeof sortedHistory };
+  type Group = {
+    key: string;
+    label: string;
+    sessionLabel?: string;
+    sessionTime?: string;
+    records: typeof sortedHistory;
+  };
   const groupedHistory = useMemo((): Group[] => {
     if (jumpFiltered !== null) return [];
     const grouped = new Map<string, typeof sortedHistory>();
@@ -1681,9 +1694,13 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
     }
     return Array.from(grouped.entries()).map(([key, records]) => {
       const [date, time] = key.split('|');
+      const sessionLabel = formatSessionLabel(getScoreDescription(records[0]));
+      const sessionTime = formatSessionTime(records[0].created_at);
       return {
         key,
         label: time !== '—' ? `${formatDateString(date)} | ${time}` : formatDateString(date),
+        sessionLabel,
+        sessionTime,
         records,
       };
     });
@@ -1956,13 +1973,16 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
           </div>
         ) : (
           <div className="space-y-6">
-            {timeGroupedHistory.map((group) => (
-              <div key={group.key}>
-                <div className="mb-3 flex items-center gap-3">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            {timeGroupedHistory.map((group, idx) => (
+              <div key={group.key} className={idx > 0 ? 'mt-6' : ''}>
+                <EntrySessionSeparator
+                  label={group.sessionLabel || 'RECORD ENTRY'}
+                  time={group.sessionTime}
+                />
+                <div className="mb-3 flex items-center justify-between text-xs text-gray-500">
+                  <span className="font-semibold text-gray-600 dark:text-slate-300">
                     {group.label}
                   </span>
-                  <div className="h-px flex-1 bg-gray-100" />
                   <span className="text-[11px] font-semibold text-gray-400">
                     {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
                   </span>
@@ -1975,13 +1995,16 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
       ) : viewMode === 'day' ? (
         /* ── Day: grouped by date and time ── */
         <div className="space-y-6">
-          {timeGroupedHistory.map((group) => (
-            <div key={group.key}>
-              <div className="mb-3 flex items-center gap-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+          {timeGroupedHistory.map((group, idx) => (
+            <div key={group.key} className={idx > 0 ? 'mt-6' : ''}>
+              <EntrySessionSeparator
+                label={group.sessionLabel || 'RECORD ENTRY'}
+                time={group.sessionTime}
+              />
+              <div className="mb-3 flex items-center justify-between text-xs text-gray-500">
+                <span className="font-semibold text-gray-600 dark:text-slate-300">
                   {group.label}
                 </span>
-                <div className="h-px flex-1 bg-gray-100" />
                 <span className="text-[11px] font-semibold text-gray-400">
                   {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
                 </span>
@@ -2102,7 +2125,13 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
   };
 
   // Build grouped structure for weekly / monthly views
-  type Group = { key: string; label: string; records: typeof sortedHistory };
+  type Group = {
+    key: string;
+    label: string;
+    sessionLabel?: string;
+    sessionTime?: string;
+    records: typeof sortedHistory;
+  };
   const groupedHistory = useMemo((): Group[] => {
     if (jumpFiltered !== null) return [];
     const grouped = new Map<string, typeof sortedHistory>();
@@ -2130,9 +2159,13 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
     }
     return Array.from(grouped.entries()).map(([key, records]) => {
       const [date, time] = key.split('|');
+      const sessionLabel = formatSessionLabel(getAttendanceDescription(records[0]));
+      const sessionTime = formatSessionTime(records[0].time_in || (records[0] as any).created_at);
       return {
         key,
         label: `${formatDateString(date)} | ${time}`,
+        sessionLabel,
+        sessionTime,
         records,
       };
     });
@@ -2362,13 +2395,16 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
           </div>
         ) : (
           <div className="space-y-6">
-            {timeGroupedHistory.map((group) => (
-              <div key={group.key}>
-                <div className="mb-3 flex items-center gap-3">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            {timeGroupedHistory.map((group, idx) => (
+              <div key={group.key} className={idx > 0 ? 'mt-6' : ''}>
+                <EntrySessionSeparator
+                  label={group.sessionLabel || 'ATTENDANCE LOG'}
+                  time={group.sessionTime}
+                />
+                <div className="mb-3 flex items-center justify-between text-xs text-gray-500">
+                  <span className="font-semibold text-gray-600 dark:text-slate-300">
                     {group.label}
                   </span>
-                  <div className="h-px flex-1 bg-gray-100" />
                   <span className="text-[11px] font-semibold text-gray-400">
                     {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
                   </span>
@@ -2381,13 +2417,16 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
       ) : viewMode === 'day' ? (
         /* ── Day: grouped by date and time ── */
         <div className="space-y-6">
-          {timeGroupedHistory.map((group) => (
-            <div key={group.key}>
-              <div className="mb-3 flex items-center gap-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+          {timeGroupedHistory.map((group, idx) => (
+            <div key={group.key} className={idx > 0 ? 'mt-6' : ''}>
+              <EntrySessionSeparator
+                label={group.sessionLabel || 'ATTENDANCE LOG'}
+                time={group.sessionTime}
+              />
+              <div className="mb-3 flex items-center justify-between text-xs text-gray-500">
+                <span className="font-semibold text-gray-600 dark:text-slate-300">
                   {group.label}
                 </span>
-                <div className="h-px flex-1 bg-gray-100" />
                 <span className="text-[11px] font-semibold text-gray-400">
                   {group.records.length} Record{group.records.length !== 1 ? 's' : ''}
                 </span>

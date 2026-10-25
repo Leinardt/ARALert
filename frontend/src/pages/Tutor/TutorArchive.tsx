@@ -8,6 +8,8 @@ import { userService } from '../../services/userService';
 import type { SchoolYear, Grade, Attendance, User, TutorCohortHistoryData } from '../../types';
 import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
+import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
+import { formatSessionLabel, formatSessionTime } from '../../utils/sessionDescriptionHelpers';
 
 /* ─── Date & Week Helper Functions (Mirrors TutorScores layout) ─────── */
 const computeWeekOfMonth = (dateObj: Date): number => {
@@ -529,8 +531,9 @@ export const TutorArchive: React.FC = () => {
       const isPassed = (g.remarks || '').toLowerCase() === 'passed' || pct >= 70;
 
       let timeStr = '—';
-      if (g.date_logged && g.date_logged.includes('T')) {
-        timeStr = new Date(g.date_logged).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      const rawTime = g.created_at || (g.date_logged && g.date_logged.includes('T') ? g.date_logged : null);
+      if (rawTime) {
+        timeStr = formatSessionTime(rawTime);
       }
 
       let displaySubj = g.subject || 'Intervention Activity';
@@ -570,6 +573,9 @@ export const TutorArchive: React.FC = () => {
       const gLev = st?.grade_level ? (st.grade_level.includes('Grade') ? st.grade_level : `Grade ${st.grade_level}`) : 'Grade 7';
       const sec = st?.section || 'HYACINTH';
       const classSec = `${gLev} - ${sec}`;
+      const timeInStr = att.time_in ? formatSessionTime(att.time_in) : '—';
+      const timeOutStr = att.time_out ? formatSessionTime(att.time_out) : '—';
+      const sessionTitle = att.aral_activity_title || (att.session ? 'QR Scan Session' : 'Manual Entry');
 
       return {
         id: String(att.id),
@@ -577,9 +583,9 @@ export const TutorArchive: React.FC = () => {
         lrn: st?.lrn || '—',
         classSection: classSec,
         date: attDate,
-        timeIn: att.time_in || '—',
-        timeOut: att.time_out || '—',
-        session: att.session ? 'QR Scan Session' : 'Manual Entry',
+        timeIn: timeInStr,
+        timeOut: timeOutStr,
+        session: sessionTitle,
         status: att.status,
         semester: sem,
       };
@@ -1082,145 +1088,195 @@ export const TutorArchive: React.FC = () => {
                         </tbody>
                       </table>
                     ) : activeTab === 'scores' ? (
-                      /* Table 2: Score Records */
-                      <table className="w-full text-left text-xs text-slate-600 dark:text-zinc-300">
-                        <thead className="bg-slate-50 dark:bg-zinc-900/70 border-b border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
-                          <tr>
-                            <th className="px-4 py-3 whitespace-nowrap">
-                              <SortableHeader label="STUDENT" field="studentName" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
-                            </th>
-                            <th className="px-4 py-3 whitespace-nowrap">
-                              <SortableHeader label="LRN" field="lrn" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
-                            </th>
-                            <th className="px-4 py-3 whitespace-nowrap">
-                              <SortableHeader label="DESCRIPTION / ACTIVITY" field="subject" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
-                            </th>
-                            <th className="px-4 py-3 whitespace-nowrap">
-                              <SortableHeader label="PERIOD" field="quarter" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
-                            </th>
-                            <th className="px-4 py-3 text-center whitespace-nowrap">
-                              <SortableHeader label="SCORE" field="score" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} align="center" />
-                            </th>
-                            <th className="px-4 py-3 text-center whitespace-nowrap">
-                              <SortableHeader label="REMARK" field="remarks" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} align="center" />
-                            </th>
-                            <th className="px-4 py-3 whitespace-nowrap">
-                              <SortableHeader label="DATE" field="date" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
-                            </th>
-                            <th className="px-4 py-3 whitespace-nowrap">
-                              <SortableHeader label="TIME" field="time" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-zinc-900 bg-white dark:bg-zinc-950">
-                          {sortScoreRows(displayRows).map((grade) => (
-                            <tr key={grade.id} className="hover:bg-slate-50/70 dark:hover:bg-zinc-900/50 transition-colors">
-                              <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
-                                {grade.studentName}
-                              </td>
-                              <td className="px-4 py-3 font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
-                                {grade.lrn}
-                              </td>
-                              <td className="px-4 py-3 font-medium text-slate-700 dark:text-zinc-300 whitespace-nowrap">
-                                {grade.subject}
-                              </td>
-                              <td className="px-4 py-3 text-slate-500 dark:text-zinc-400 whitespace-nowrap">
-                                {grade.quarter}
-                              </td>
-                              <td className="px-4 py-3 text-center font-mono font-bold text-slate-800 dark:text-zinc-200 whitespace-nowrap">
-                                {grade.scoreDisplay}
-                              </td>
-                              <td className="px-4 py-3 text-center whitespace-nowrap">
-                                <span
-                                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${
-                                    grade.isPassed
-                                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                                      : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-                                  }`}
-                                >
-                                  {grade.remarks}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-[11px] font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
-                                {grade.date}
-                              </td>
-                              <td className="px-4 py-3 text-[11px] font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
-                                {grade.time}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      /* Table 2: Score Records grouped by entry session */
+                      (() => {
+                        const sorted = sortScoreRows(displayRows);
+                        const sessionMap = new Map<string, typeof sorted>();
+                        sorted.forEach((grade) => {
+                          const label = formatSessionLabel(grade.subject);
+                          const time = formatSessionTime(grade.time);
+                          const key = `${grade.date}|${label}|${time}`;
+                          if (!sessionMap.has(key)) sessionMap.set(key, []);
+                          sessionMap.get(key)!.push(grade);
+                        });
+                        return (
+                          <div className="space-y-4">
+                            {Array.from(sessionMap.entries()).map(([key, groupRows]) => {
+                              const [, label, time] = key.split('|');
+                              return (
+                                <div key={key} className="space-y-2">
+                                  <EntrySessionSeparator label={label} time={time} />
+                                  <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-zinc-800">
+                                    <table className="w-full text-left text-xs text-slate-600 dark:text-zinc-300">
+                                      <thead className="bg-slate-50 dark:bg-zinc-900/70 border-b border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                                        <tr>
+                                          <th className="px-4 py-3 whitespace-nowrap">
+                                            <SortableHeader label="STUDENT" field="studentName" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
+                                          </th>
+                                          <th className="px-4 py-3 whitespace-nowrap">
+                                            <SortableHeader label="LRN" field="lrn" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
+                                          </th>
+                                          <th className="px-4 py-3 whitespace-nowrap">
+                                            <SortableHeader label="DESCRIPTION / ACTIVITY" field="subject" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
+                                          </th>
+                                          <th className="px-4 py-3 whitespace-nowrap">
+                                            <SortableHeader label="PERIOD" field="quarter" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
+                                          </th>
+                                          <th className="px-4 py-3 text-center whitespace-nowrap">
+                                            <SortableHeader label="SCORE" field="score" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} align="center" />
+                                          </th>
+                                          <th className="px-4 py-3 text-center whitespace-nowrap">
+                                            <SortableHeader label="REMARK" field="remarks" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} align="center" />
+                                          </th>
+                                          <th className="px-4 py-3 whitespace-nowrap">
+                                            <SortableHeader label="DATE" field="date" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
+                                          </th>
+                                          <th className="px-4 py-3 whitespace-nowrap">
+                                            <SortableHeader label="TIME" field="time" currentField={scoreSortField} direction={scoreSortDir} onSort={handleToggleScoreSort} />
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100 dark:divide-zinc-900 bg-white dark:bg-zinc-950">
+                                        {groupRows.map((grade) => (
+                                          <tr key={grade.id} className="hover:bg-slate-50/70 dark:hover:bg-zinc-900/50 transition-colors">
+                                            <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                                              {grade.studentName}
+                                            </td>
+                                            <td className="px-4 py-3 font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                                              {grade.lrn}
+                                            </td>
+                                            <td className="px-4 py-3 font-medium text-slate-700 dark:text-zinc-300 whitespace-nowrap">
+                                              {grade.subject}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                                              {grade.quarter}
+                                            </td>
+                                            <td className="px-4 py-3 text-center font-mono font-bold text-slate-800 dark:text-zinc-200 whitespace-nowrap">
+                                              {grade.scoreDisplay}
+                                            </td>
+                                            <td className="px-4 py-3 text-center whitespace-nowrap">
+                                              <span
+                                                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${
+                                                  grade.isPassed
+                                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                                    : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                                                }`}
+                                              >
+                                                {grade.remarks}
+                                              </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-[11px] font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                                              {grade.date}
+                                            </td>
+                                            <td className="px-4 py-3 text-[11px] font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                                              {grade.time}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()
                     ) : (
-                      /* Table 3: QR Attendance Records */
-                      <table className="w-full text-left text-xs text-slate-600 dark:text-zinc-300">
-                        <thead className="bg-slate-50 dark:bg-zinc-900/70 border-b border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
-                          <tr>
-                            <th className="px-4 py-3 whitespace-nowrap">
-                              <SortableHeader label="STUDENT" field="studentName" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
-                            </th>
-                            <th className="px-4 py-3 whitespace-nowrap">
-                              <SortableHeader label="LRN" field="lrn" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
-                            </th>
-                            <th className="px-4 py-3 whitespace-nowrap">
-                              <SortableHeader label="CLASS & SECTION" field="classSection" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
-                            </th>
-                            <th className="px-4 py-3 whitespace-nowrap">
-                              <SortableHeader label="DATE" field="date" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
-                            </th>
-                            <th className="px-4 py-3 whitespace-nowrap">
-                              <SortableHeader label="TIME IN" field="timeIn" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
-                            </th>
-                            <th className="px-4 py-3 whitespace-nowrap">
-                              <SortableHeader label="TIME OUT" field="timeOut" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
-                            </th>
-                            <th className="px-4 py-3 whitespace-nowrap">
-                              <SortableHeader label="SESSION MODE" field="session" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
-                            </th>
-                            <th className="px-4 py-3 text-center whitespace-nowrap">
-                              <SortableHeader label="STATUS" field="status" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} align="center" />
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-zinc-900 bg-white dark:bg-zinc-950">
-                          {sortAttendanceRows(displayRows).map((att) => (
-                            <tr key={att.id} className="hover:bg-slate-50/70 dark:hover:bg-zinc-900/50 transition-colors">
-                              <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
-                                {att.studentName}
-                              </td>
-                              <td className="px-4 py-3 font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
-                                {att.lrn}
-                              </td>
-                              <td className="px-4 py-3 font-medium text-slate-700 dark:text-zinc-300 whitespace-nowrap">
-                                {att.classSection}
-                              </td>
-                              <td className="px-4 py-3 text-[11px] font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
-                                {att.date}
-                              </td>
-                              <td className="px-4 py-3 font-mono text-slate-600 dark:text-zinc-300 whitespace-nowrap">
-                                {att.timeIn}
-                              </td>
-                              <td className="px-4 py-3 font-mono text-slate-600 dark:text-zinc-300 whitespace-nowrap">
-                                {att.timeOut}
-                              </td>
-                              <td className="px-4 py-3 text-slate-500 dark:text-zinc-400 whitespace-nowrap">
-                                {att.session}
-                              </td>
-                              <td className="px-4 py-3 text-center whitespace-nowrap">
-                                <span
-                                  className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold border uppercase tracking-wider ${
-                                    att.status === 'present'
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-900'
-                                      : 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-900'
-                                  }`}
-                                >
-                                  {att.status}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      /* Table 3: QR Attendance Records grouped by entry session */
+                      (() => {
+                        const sorted = sortAttendanceRows(displayRows);
+                        const sessionMap = new Map<string, typeof sorted>();
+                        sorted.forEach((att) => {
+                          const label = formatSessionLabel(att.session);
+                          const time = formatSessionTime(att.timeIn);
+                          const key = `${att.date}|${label}|${time}`;
+                          if (!sessionMap.has(key)) sessionMap.set(key, []);
+                          sessionMap.get(key)!.push(att);
+                        });
+                        return (
+                          <div className="space-y-4">
+                            {Array.from(sessionMap.entries()).map(([key, groupRows]) => {
+                              const [, label, time] = key.split('|');
+                              return (
+                                <div key={key} className="space-y-2">
+                                  <EntrySessionSeparator label={label} time={time} />
+                                  <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-zinc-800">
+                                    <table className="w-full text-left text-xs text-slate-600 dark:text-zinc-300">
+                                      <thead className="bg-slate-50 dark:bg-zinc-900/70 border-b border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                                        <tr>
+                                          <th className="px-4 py-3 whitespace-nowrap">
+                                            <SortableHeader label="STUDENT" field="studentName" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
+                                          </th>
+                                          <th className="px-4 py-3 whitespace-nowrap">
+                                            <SortableHeader label="LRN" field="lrn" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
+                                          </th>
+                                          <th className="px-4 py-3 whitespace-nowrap">
+                                            <SortableHeader label="CLASS & SECTION" field="classSection" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
+                                          </th>
+                                          <th className="px-4 py-3 whitespace-nowrap">
+                                            <SortableHeader label="DATE" field="date" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
+                                          </th>
+                                          <th className="px-4 py-3 whitespace-nowrap">
+                                            <SortableHeader label="TIME IN" field="timeIn" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
+                                          </th>
+                                          <th className="px-4 py-3 whitespace-nowrap">
+                                            <SortableHeader label="TIME OUT" field="timeOut" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
+                                          </th>
+                                          <th className="px-4 py-3 whitespace-nowrap">
+                                            <SortableHeader label="SESSION MODE" field="session" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} />
+                                          </th>
+                                          <th className="px-4 py-3 text-center whitespace-nowrap">
+                                            <SortableHeader label="STATUS" field="status" currentField={attSortField} direction={attSortDir} onSort={handleToggleAttSort} align="center" />
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100 dark:divide-zinc-900 bg-white dark:bg-zinc-950">
+                                        {groupRows.map((att) => (
+                                          <tr key={att.id} className="hover:bg-slate-50/70 dark:hover:bg-zinc-900/50 transition-colors">
+                                            <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                                              {att.studentName}
+                                            </td>
+                                            <td className="px-4 py-3 font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                                              {att.lrn}
+                                            </td>
+                                            <td className="px-4 py-3 font-medium text-slate-700 dark:text-zinc-300 whitespace-nowrap">
+                                              {att.classSection}
+                                            </td>
+                                            <td className="px-4 py-3 text-[11px] font-mono text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                                              {att.date}
+                                            </td>
+                                            <td className="px-4 py-3 font-mono text-slate-600 dark:text-zinc-300 whitespace-nowrap">
+                                              {att.timeIn}
+                                            </td>
+                                            <td className="px-4 py-3 font-mono text-slate-600 dark:text-zinc-300 whitespace-nowrap">
+                                              {att.timeOut}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                                              {att.session}
+                                            </td>
+                                            <td className="px-4 py-3 text-center whitespace-nowrap">
+                                              <span
+                                                className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold border uppercase tracking-wider ${
+                                                  att.status === 'present'
+                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-900'
+                                                    : 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-900'
+                                                }`}
+                                              >
+                                                {att.status}
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()
                     )}
                   </div>
                 </div>

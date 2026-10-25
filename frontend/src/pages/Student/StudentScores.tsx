@@ -15,7 +15,13 @@ import {
   AlertCircle,
   BookOpen,
 } from 'lucide-react';
-import { getScoreDescription, getActiveSystemSemester } from '../../utils/sessionDescriptionHelpers';
+import {
+  getScoreDescription,
+  getActiveSystemSemester,
+  formatSessionLabel,
+  formatSessionTime,
+} from '../../utils/sessionDescriptionHelpers';
+import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
@@ -435,6 +441,28 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
     });
   }, [displayRows, sortConfig, studentHistory]);
 
+  const scoreSessions = useMemo(() => {
+    const map = new Map<string, Grade[]>();
+    sortedRows.forEach((r) => {
+      const label = formatSessionLabel(getScoreDescription(r));
+      const time = formatSessionTime(r.created_at);
+      const groupKey = r.batch_id ? `${r.batch_id}|${label}|${time}` : `${label}|${time}`;
+      if (!map.has(groupKey)) {
+        map.set(groupKey, []);
+      }
+      map.get(groupKey)!.push(r);
+    });
+
+    const groups: { key: string; label: string; time: string; rows: Grade[] }[] = [];
+    map.forEach((rows, groupKey) => {
+      const parts = groupKey.split('|');
+      const label = parts.length === 3 ? parts[1] : parts[0];
+      const time = parts.length === 3 ? parts[2] : parts[1];
+      groups.push({ key: groupKey, label, time, rows });
+    });
+    return groups;
+  }, [sortedRows]);
+
   const SortableScoreHeader: React.FC<{ label: string; sortKey: SortKey }> = ({ label, sortKey }) => {
     const isActive = sortConfig.key === sortKey;
     return (
@@ -511,9 +539,12 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
       </div>
 
       {isOpen && (
-        <>
-          {/* Desktop Table View (>= 768px) */}
-          <div className="hidden md:block overflow-x-auto mobile-scroll-table -mx-2 px-2">
+        <div className="space-y-6">
+          {scoreSessions.map((session, sIdx) => (
+            <div key={session.key} className={sIdx > 0 ? 'mt-6' : ''}>
+              <EntrySessionSeparator label={session.label} time={session.time} />
+              {/* Desktop Table View (>= 768px) */}
+              <div className="hidden md:block overflow-x-auto mobile-scroll-table -mx-2 px-2">
             <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
               <thead>
                 <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
@@ -541,7 +572,7 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
-                {sortedRows.map((grade) => {
+                {session.rows.map((grade) => {
                   const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
                   const totalScore = Number(grade.total_score) || 100;
                   const scorePct = (Number(grade.score) / totalScore) * 100;
@@ -606,7 +637,7 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
 
           {/* Mobile Card View (< 768px) */}
           <div className="md:hidden space-y-3">
-            {sortedRows.map((grade) => {
+            {session.rows.map((grade) => {
               const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
               const scoreNum = Number(grade.score);
               const totalNum = Number(grade.total_score);
@@ -702,7 +733,9 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
               );
             })}
           </div>
-        </>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

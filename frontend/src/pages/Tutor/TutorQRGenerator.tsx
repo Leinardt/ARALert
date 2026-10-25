@@ -45,6 +45,12 @@ import {
 } from '../../utils/tutorCohortHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
+import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
+import {
+  formatSessionLabel,
+  formatSessionTime,
+  getAttendanceDescription,
+} from '../../utils/sessionDescriptionHelpers';
 
 interface StoredSessionData {
   session: AttendanceSession;
@@ -726,6 +732,26 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
     return group.records.filter((r) => r.date?.slice(0, 10) === selectedDate);
   }, [group.records, selectedDate, isOpen]);
 
+  const attendanceSessions = useMemo(() => {
+    const map = new Map<string, Attendance[]>();
+    displayRecords.forEach((r) => {
+      const label = formatSessionLabel(getAttendanceDescription(r));
+      const time = formatSessionTime(r.time_in || (r as any).created_at);
+      const groupKey = `${label}|${time}`;
+      if (!map.has(groupKey)) {
+        map.set(groupKey, []);
+      }
+      map.get(groupKey)!.push(r);
+    });
+
+    const groups: { key: string; label: string; time: string; rows: Attendance[] }[] = [];
+    map.forEach((rows, groupKey) => {
+      const [label, time] = groupKey.split('|');
+      groups.push({ key: groupKey, label, time, rows });
+    });
+    return groups;
+  }, [displayRecords]);
+
   const isCurrentDateTrashed = useMemo(() => {
     if (!selectedDate) return false;
     return trashbinService.isDateTrashed('attendance', selectedDate, userId);
@@ -831,16 +857,34 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
 
           {/* The table entry: deactivated gray color if in trashbin */}
           <div className={isCurrentDateTrashed ? 'grayscale opacity-60 pointer-events-none select-none transition-all duration-200' : ''}>
-            <AttendanceTable
-              logs={displayRecords}
-              statusBadge={statusBadge}
-              avatarColor={avatarColor}
-              formatDateString={formatDateString}
-              formatTimeString={formatTimeString}
-              onUpdate={onUpdate}
-              onSuccess={onSuccess}
-              onError={onError}
-            />
+            {attendanceSessions.length === 0 ? (
+              <AttendanceTable
+                logs={[]}
+                statusBadge={statusBadge}
+                avatarColor={avatarColor}
+                formatDateString={formatDateString}
+                formatTimeString={formatTimeString}
+                onUpdate={onUpdate}
+                onSuccess={onSuccess}
+                onError={onError}
+              />
+            ) : (
+              attendanceSessions.map((session, idx) => (
+                <div key={session.key} className={idx > 0 ? 'mt-6' : ''}>
+                  <EntrySessionSeparator label={session.label} time={session.time} />
+                  <AttendanceTable
+                    logs={session.rows}
+                    statusBadge={statusBadge}
+                    avatarColor={avatarColor}
+                    formatDateString={formatDateString}
+                    formatTimeString={formatTimeString}
+                    onUpdate={onUpdate}
+                    onSuccess={onSuccess}
+                    onError={onError}
+                  />
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

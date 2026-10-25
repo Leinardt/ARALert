@@ -17,8 +17,11 @@ import {
   getActiveSystemSemester,
   setActiveSystemSemester,
   isAssessmentWindowOpen,
+  formatSessionLabel,
+  formatSessionTime,
   type SemesterType,
 } from '../../utils/sessionDescriptionHelpers';
+import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
 import { matchesSearch } from '../../utils/searchHelpers';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
 import {
@@ -1080,6 +1083,28 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
     return tableGroup.rows.filter((r) => r.date_logged.slice(0, 10) === selectedDate);
   }, [tableGroup.rows, selectedDate, isOpen]);
 
+  const scoreSessions = useMemo(() => {
+    const map = new Map<string, Grade[]>();
+    displayRows.forEach((r) => {
+      const label = formatSessionLabel(getScoreDescription(r));
+      const time = formatSessionTime(r.created_at);
+      const groupKey = r.batch_id ? `${r.batch_id}|${label}|${time}` : `${label}|${time}`;
+      if (!map.has(groupKey)) {
+        map.set(groupKey, []);
+      }
+      map.get(groupKey)!.push(r);
+    });
+
+    const groups: { key: string; label: string; time: string; rows: Grade[] }[] = [];
+    map.forEach((rows, groupKey) => {
+      const parts = groupKey.split('|');
+      const label = parts.length === 3 ? parts[1] : parts[0];
+      const time = parts.length === 3 ? parts[2] : parts[1];
+      groups.push({ key: groupKey, label, time, rows });
+    });
+    return groups;
+  }, [displayRows]);
+
   const milestoneTypes = useMemo(() => {
     const types = new Set<string>();
     displayRows.forEach((grade) => {
@@ -1212,10 +1237,22 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
 
           {/* The table entry: deactivated gray color if in trashbin */}
           <div className={isCurrentDateTrashed ? 'grayscale opacity-60 pointer-events-none select-none transition-all duration-200' : ''}>
-            <ScoreEntryTable
-              rows={displayRows}
-              {...tableProps}
-            />
+            {scoreSessions.length === 0 ? (
+              <ScoreEntryTable
+                rows={[]}
+                {...tableProps}
+              />
+            ) : (
+              scoreSessions.map((session, idx) => (
+                <div key={session.key} className={idx > 0 ? 'mt-6' : ''}>
+                  <EntrySessionSeparator label={session.label} time={session.time} />
+                  <ScoreEntryTable
+                    rows={session.rows}
+                    {...tableProps}
+                  />
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

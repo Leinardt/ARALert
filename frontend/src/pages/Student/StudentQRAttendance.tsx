@@ -30,6 +30,12 @@ import {
   getStudentManualCode,
 } from '../../utils/studentQrExportService';
 import { formatStudentName, extractLastNameAndFirstName, compareNamesByLastName } from '../../utils/studentFormatters';
+import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
+import {
+  formatSessionLabel,
+  formatSessionTime,
+  getAttendanceDescription,
+} from '../../utils/sessionDescriptionHelpers';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 
@@ -372,6 +378,26 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
     });
   }, [displayRecords, sortConfig, studentName]);
 
+  const attendanceSessions = useMemo(() => {
+    const map = new Map<string, Attendance[]>();
+    sortedRecords.forEach((r) => {
+      const label = formatSessionLabel(getAttendanceDescription(r));
+      const time = formatSessionTime(r.time_in || (r as any).created_at);
+      const groupKey = `${label}|${time}`;
+      if (!map.has(groupKey)) {
+        map.set(groupKey, []);
+      }
+      map.get(groupKey)!.push(r);
+    });
+
+    const groups: { key: string; label: string; time: string; rows: Attendance[] }[] = [];
+    map.forEach((rows, groupKey) => {
+      const [label, time] = groupKey.split('|');
+      groups.push({ key: groupKey, label, time, rows });
+    });
+    return groups;
+  }, [sortedRecords]);
+
   const SortableHeader: React.FC<{ label: string; sortKey: SortKey }> = ({ label, sortKey }) => {
     const isActive = sortConfig.key === sortKey;
     return (
@@ -441,57 +467,64 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
       </div>
 
       {isOpen && (
-        <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2">
-          <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
-            <thead>
-              <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-                <th className="w-[35%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-                  <SortableHeader label="STUDENT" sortKey="student" />
-                </th>
-                <th className="w-[30%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-                  <SortableHeader label="DATE" sortKey="date" />
-                </th>
-                <th className="w-[20%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-                  <SortableHeader label="TIME" sortKey="time" />
-                </th>
-                <th className="w-[15%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
-                  <SortableHeader label="STATUS" sortKey="status" />
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 bg-white dark:divide-[#1A1A1A] dark:bg-[#111111]">
-              {sortedRecords.map((log) => {
-                const isPresent = log.status === 'present';
-                return (
-                  <tr
-                    key={log.id}
-                    className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]"
-                  >
-                    <td className="px-4 py-2.5 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
-                      {log.user_name || studentName}
-                    </td>
-                    <td className="px-4 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
-                      {formatDateString(log.date)}
-                    </td>
-                    <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
-                      {log.time_in ? formatTimeString(log.time_in) : '—'}
-                    </td>
-                    <td className="px-4 py-2.5 text-left whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${
-                          isPresent
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                            : 'bg-rose-50 text-rose-700 border-rose-200 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-                        }`}
-                      >
-                        {log.status_display || (isPresent ? 'Present' : 'Absent')}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="space-y-6">
+          {attendanceSessions.map((session, sIdx) => (
+            <div key={session.key} className={sIdx > 0 ? 'mt-6' : ''}>
+              <EntrySessionSeparator label={session.label} time={session.time} />
+              <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2">
+                <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
+                  <thead>
+                    <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
+                      <th className="w-[35%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                        <SortableHeader label="STUDENT" sortKey="student" />
+                      </th>
+                      <th className="w-[30%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                        <SortableHeader label="DATE" sortKey="date" />
+                      </th>
+                      <th className="w-[20%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                        <SortableHeader label="TIME" sortKey="time" />
+                      </th>
+                      <th className="w-[15%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                        <SortableHeader label="STATUS" sortKey="status" />
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white dark:divide-[#1A1A1A] dark:bg-[#111111]">
+                    {session.rows.map((log) => {
+                      const isPresent = log.status === 'present';
+                      return (
+                        <tr
+                          key={log.id}
+                          className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]"
+                        >
+                          <td className="px-4 py-2.5 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
+                            {log.user_name || studentName}
+                          </td>
+                          <td className="px-4 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
+                            {formatDateString(log.date)}
+                          </td>
+                          <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
+                            {log.time_in ? formatTimeString(log.time_in) : '—'}
+                          </td>
+                          <td className="px-4 py-2.5 text-left whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${
+                                isPresent
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                  : 'bg-rose-50 text-rose-700 border-rose-200 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                              }`}
+                            >
+                              {log.status_display || (isPresent ? 'Present' : 'Absent')}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

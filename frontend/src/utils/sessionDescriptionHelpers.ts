@@ -236,3 +236,41 @@ export const getAttendanceDescription = (log: {
 
   return 'Intervention Activity';
 };
+
+/**
+ * Standardize session label for multi-entry separator:
+ * Strictly outputs:
+ * - 'MOSY ASSESSMENT'
+ * - 'EOSY ASSESSMENT'
+ * - 'SUMMER ASSESSMENT'
+ * - 'INTERVENTION ACTIVITY'
+ */
+export const formatSessionLabel = (rawDesc: string | null | undefined): string => {
+  if (!rawDesc) return 'INTERVENTION ACTIVITY';
+  const upper = rawDesc.toUpperCase();
+  if (upper.includes('MOSY')) return 'MOSY ASSESSMENT';
+  if (upper.includes('EOSY')) return 'EOSY ASSESSMENT';
+  if (upper.includes('SUMMER')) return 'SUMMER ASSESSMENT';
+  return 'INTERVENTION ACTIVITY';
+};
+
+/**
+ * Standardize time string for multi-entry separator:
+ * e.g., '10:40 AM'
+ */
+export const formatSessionTime = (timeStr: string | null | undefined): string => {
+  if (!timeStr || timeStr === '—' || timeStr === '-') return '';
+  const trimmed = timeStr.trim();
+  if (/^\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)$/i.test(trimmed)) {
+    return trimmed.replace(/:00\s*(AM|PM)$/i, ' $1');
+  }
+  try {
+    const d = new Date(trimmed.includes('T') ? trimmed : `1970-01-01T${trimmed}`);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+  } catch {
+    // fallback
+  }
+  return trimmed;
+};
