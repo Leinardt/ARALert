@@ -239,45 +239,8 @@ export const TutorStudentDirectory: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [user]);
 
-  const effectiveSelectedSchoolYear = useMemo(() => {
-    if (schoolYearOptions.some((opt) => opt.key === selectedSchoolYear)) {
-      return selectedSchoolYear;
-    }
-    return activePeriodKey;
-  }, [selectedSchoolYear, schoolYearOptions, activePeriodKey]);
-
-  const [filterSy, filterSem] = useMemo(() => {
-    if (!effectiveSelectedSchoolYear.includes('|')) {
-      return ['', ''];
-    }
-    return effectiveSelectedSchoolYear.split('|');
-  }, [effectiveSelectedSchoolYear]);
-
-  const filteredGrades = useMemo(() => {
-    return grades.filter((g) => {
-      const gDate = g.date_logged || g.created_at;
-      const gSy = getSchoolYearFromDate(gDate);
-      if (filterSy && gSy !== filterSy) return false;
-      if (filterSem) {
-        const gSem = getSemesterFromGrade(g);
-        if (gSem !== filterSem) return false;
-      }
-      return true;
-    });
-  }, [grades, filterSy, filterSem]);
-
-  const filteredAttendance = useMemo(() => {
-    return attendance.filter((a) => {
-      const aDate = a.date;
-      const aSy = getSchoolYearFromDate(aDate);
-      if (filterSy && aSy !== filterSy) return false;
-      if (filterSem) {
-        const aSem = getSemesterFromDate(aDate);
-        if (aSem !== filterSem) return false;
-      }
-      return true;
-    });
-  }, [attendance, filterSy, filterSem]);
+  const filteredGrades = grades;
+  const filteredAttendance = attendance;
 
   // Filter students matching the currently selected cohort
   const cohortStudents = useMemo(() => {
@@ -512,23 +475,6 @@ const aralLevelRank: Record<string, number> = {
 
             {/* Controls */}
             <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
-              {/* Auto-updating School Year Dropdown */}
-              <div className="relative inline-flex items-center shrink-0">
-                <select
-                  value={effectiveSelectedSchoolYear}
-                  onChange={(e) => setSelectedSchoolYear(e.target.value)}
-                  aria-label="Filter by School Year"
-                  className="h-7.5 sm:h-8.5 appearance-none rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-2.5 pr-7 sm:pl-3 sm:pr-8 text-[11px] sm:text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer"
-                >
-                  {schoolYearOptions.map((opt) => (
-                    <option key={opt.key} value={opt.key} className="bg-white dark:bg-[#111111] text-gray-800 dark:text-slate-200 font-medium">
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2 sm:right-2.5 h-3 sm:h-3.5 w-3 sm:w-3.5 text-[var(--brand)] opacity-75" />
-              </div>
-
               <label className="relative flex w-28 xs:w-36 sm:w-52 items-center shrink-0">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <input

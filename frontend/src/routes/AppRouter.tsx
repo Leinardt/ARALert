@@ -45,6 +45,7 @@ const TutorStudentProfile = lazyWithRetry(() => import('../pages/Tutor/TutorStud
 const TutorAnalytics = lazyWithRetry(() => import('../pages/Tutor/TutorAnalytics').then(m => ({ default: m.TutorAnalytics })));
 const StaffAttendanceScanner = lazyWithRetry(() => import('../pages/Tutor/StaffAttendanceScanner').then(m => ({ default: m.StaffAttendanceScanner })));
 const TutorScores = lazyWithRetry(() => import('../pages/Tutor/TutorScores'));
+const TutorArchive = lazyWithRetry(() => import('../pages/Tutor/TutorArchive').then(m => ({ default: m.TutorArchive })));
 const StudentHome = lazyWithRetry(() => import('../pages/Student/StudentHome').then(m => ({ default: m.StudentHome })));
 const StudentQRAttendance = lazyWithRetry(() => import('../pages/Student/StudentQRAttendance').then(m => ({ default: m.StudentQRAttendance })));
 const StudentScores = lazyWithRetry(() => import('../pages/Student/StudentScores').then(m => ({ default: m.StudentScores })));
@@ -185,6 +186,7 @@ export const AppRouter: React.FC = () => {
           <Route path="/tutor/attendance/generate" element={<TutorQRGenerator />} />
           <Route path="/tutor/analytics" element={<TutorAnalytics />} />
           <Route path="/tutor/students" element={<TutorStudentDirectory />} />
+          <Route path="/tutor/archive" element={<TutorArchive />} />
           <Route path="/tutor/scores" element={<TutorScores />} />
           <Route path="/tutor/students/:id" element={<TutorStudentProfile />} />
         </Route>

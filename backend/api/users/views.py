@@ -152,7 +152,7 @@ class UserListCreateView(generics.ListCreateAPIView):
         if not user.is_superuser and getattr(user, 'role', None) == 'tutor':
             if role == 'principal':
                 return queryset.filter(role='principal', is_active=True)
-            return queryset.filter(assigned_tutor=user, role='student').exclude(aral_level='graduated')
+            return queryset.filter(assigned_tutor=user, role='student')
 
         role = self.request.query_params.get('role', '').strip()
 

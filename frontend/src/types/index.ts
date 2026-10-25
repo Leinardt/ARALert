@@ -42,6 +42,7 @@ export interface User {
   has_mosy?: boolean;
   has_eosy?: boolean;
   has_summer?: boolean;
+  baseline_program?: string | null;
 }
 
 export interface AralProgressionResult {

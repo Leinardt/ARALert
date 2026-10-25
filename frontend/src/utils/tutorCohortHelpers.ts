@@ -336,7 +336,26 @@ export function isStudentInCohort(
   // 1. ARAL Level filter
   if (filter.aral_level && filter.aral_level.toLowerCase() !== 'all') {
     const sLevel = (student.aral_level || 'basic').toLowerCase().trim();
-    if (sLevel !== filter.aral_level.toLowerCase()) {
+    const filterLvl = filter.aral_level.toLowerCase().trim();
+    const baseline = (
+      student.baseline_program ||
+      (student as any).baseline_level ||
+      (student as any).program ||
+      sLevel
+    ).toLowerCase().trim();
+
+    // A student matches if:
+    // - Their baseline level matches this cohort (even if they leveled up to Plus or Graduated)
+    // - Or their current level matches this cohort
+    // - Or this is a Basic cohort and they leveled up to Plus
+    // - Or this is a Plus cohort and they leveled up to Graduated
+    const matchesLevel =
+      baseline === filterLvl ||
+      sLevel === filterLvl ||
+      (filterLvl === 'basic' && sLevel === 'plus') ||
+      (filterLvl === 'plus' && sLevel === 'graduated');
+
+    if (!matchesLevel) {
       return false;
     }
   }

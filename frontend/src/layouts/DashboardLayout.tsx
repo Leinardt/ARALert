@@ -789,6 +789,11 @@ export const DashboardLayout: React.FC = () => {
               {!collapsed && <span className="truncate">Assigned Students</span>}
             </Link>
 
+            <Link to="/tutor/archive" onClick={onItemClick} className={navLinkClass(isActive('/tutor/archive'), collapsed)} title="Archive">
+              <ArchiveNavIcon active={isActive('/tutor/archive')} theme={theme} />
+              {!collapsed && <span className="truncate">Archive</span>}
+            </Link>
+
             <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0' }} />
 
             <Link to="/staff/scan" onClick={onItemClick} className={navLinkClass(isActive('/staff/scan'), collapsed)} title="DTR Log">

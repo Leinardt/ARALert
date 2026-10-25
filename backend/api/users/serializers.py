@@ -35,6 +35,7 @@ class UserListSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
     assigned_tutor_name = serializers.SerializerMethodField()
     has_logged_in = serializers.SerializerMethodField()
+    baseline_program = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -44,8 +45,23 @@ class UserListSerializer(serializers.ModelSerializer):
             'date_joined', 'last_login', 'has_logged_in',
             'assigned_tutor', 'assigned_tutor_name', 'assessment_weight', 'weekly_tasks_weight',
             'attendance_weight', 'aral_level', 'subject', 'tutor_type', 'is_available_for_students',
-            'grade_level', 'parent_guardian_name', 'contact_number', 'has_bosy', 'has_mosy', 'has_eosy', 'has_summer'
+            'grade_level', 'parent_guardian_name', 'contact_number', 'has_bosy', 'has_mosy', 'has_eosy', 'has_summer',
+            'baseline_program'
         ]
+
+    def get_baseline_program(self, obj):
+        if getattr(obj, 'role', None) == 'student':
+            try:
+                from apps.academics.models import StudentEnrollment, SchoolYear
+                active_sy = SchoolYear.objects.filter(is_active=True).first()
+                if active_sy:
+                    enr = StudentEnrollment.objects.filter(student=obj, school_year=active_sy).first()
+                    if enr and enr.program:
+                        return enr.program.lower()
+            except Exception:
+                pass
+            return (getattr(obj, 'aral_level', None) or 'basic').lower()
+        return None
 
     def get_full_name(self, obj):
         return obj.get_full_name()

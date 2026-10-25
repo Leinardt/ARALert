@@ -40,142 +40,100 @@ from .serializers import (
 
 def evaluate_student_aral_progression(student):
     """
-    Automatically evaluates student's MOSY, EOSY, or ARAL Summer Assessment scores
-    and updates student.aral_level accordingly.
-    Rules:
-    - Basic level: Evaluated by MOSY score. If pass (>= 28/40) -> Promoted to Plus. If fail -> Retains Basic.
-    - Plus level: Evaluated by EOSY score. If pass (>= 28/40) -> Graduated. If fail -> Assigned to Summer.
-    - Summer level: Evaluated by ARAL Summer Assessment score. If pass (>= 28/40) -> Graduated. If fail -> Retains Summer.
+    Evaluates student's milestone assessment (MOSY, EOSY, or Summer) scores
+    and dynamically updates student.aral_level based on passing/failing the assessment.
+
+    Domain Rules:
+    - Only Basic and Plus levels exist (and Graduated once completed).
+    - In each semester / milestone (MOSY, EOSY, Summer Assessment):
+      - Passing (>= 70%, or >= 28/40):
+        - Basic -> Moves Up to Plus.
+        - Plus -> Moves Up to Graduated.
+      - Not Passing (< 70%):
+        - Reverts to the student's original baseline level for this period
+          (Basic reverts to Basic; Plus reverts to Plus).
+    - If a tutor edits a score from failing to passing -> Student moves up to Plus/Graduated.
+    - If a tutor edits a score from passing to failing -> Student reverts to original baseline level.
+    - Crucially: student.assigned_tutor is NEVER modified here. The student remains assigned to the tutor.
     """
-    curr_level = student.aral_level or 'basic'
-    if curr_level == 'graduated':
+    from apps.academics.models import StudentEnrollment, TutorAssignmentHistory, SchoolYear
+
+    active_sy = SchoolYear.objects.filter(is_active=True).first()
+
+    enrollment = None
+    if active_sy:
+        enrollment = StudentEnrollment.objects.filter(student=student, school_year=active_sy).first()
+
+    assignment_hist = None
+    if active_sy:
+        assignment_hist = TutorAssignmentHistory.objects.filter(student=student, school_year=active_sy).order_by('-start_date').first()
+
+    # Determine baseline program (the student's starting level for this period)
+    baseline_level = 'basic'
+    if enrollment and enrollment.program in ('basic', 'plus'):
+        baseline_level = enrollment.program.lower()
+    elif assignment_hist and assignment_hist.program in ('basic', 'plus'):
+        baseline_level = assignment_hist.program.lower()
+    elif student.aral_level in ('basic', 'plus'):
+        baseline_level = student.aral_level.lower()
+
+    # Find the most recently logged milestone grade (MOSY, EOSY, or Summer)
+    grades = ApiGrade.objects.filter(student=student)
+    milestone_grade = grades.filter(
+        Q(subject__icontains='MOSY') | Q(remarks__icontains='MOSY') |
+        Q(subject__icontains='EOSY') | Q(remarks__icontains='EOSY') |
+        Q(subject__icontains='Summer') | Q(remarks__icontains='Summer')
+    ).order_by('-date_logged', '-id').first()
+
+    if not milestone_grade:
         return {
             'student_id': str(student.id),
             'student_name': student.get_full_name(),
-            'previous_level': curr_level,
-            'new_level': curr_level,
+            'previous_level': student.aral_level or baseline_level,
+            'new_level': student.aral_level or baseline_level,
             'assessment_type': 'N/A',
             'score_percentage': None,
-            'status': 'GRADUATED',
-            'message': 'Student has already graduated from the ARAL program.'
+            'status': 'NO_CHANGE',
+            'message': 'No milestone assessment logged.'
         }
 
-    grades = ApiGrade.objects.filter(student=student)
+    ts = float(milestone_grade.total_score) if milestone_grade.total_score and float(milestone_grade.total_score) > 0 else 40.0
+    s = float(milestone_grade.score) if milestone_grade.score is not None else 0.0
+    pct = round((s / ts) * 100.0, 1)
+    is_pass = (s >= 28.0) if ts == 40.0 else ((s / ts) >= 0.7)
 
-    mosy_grade = grades.filter(Q(subject__icontains='MOSY') | Q(remarks__icontains='MOSY')).order_by('-date_logged').first()
-    eosy_grade = grades.filter(Q(subject__icontains='EOSY') | Q(remarks__icontains='EOSY')).order_by('-date_logged').first()
-    endline_grade = grades.filter(Q(subject__icontains='Summer') | Q(remarks__icontains='Summer') | Q(subject__icontains='EndLine') | Q(subject__icontains='BOSY') | Q(remarks__icontains='EndLine')).order_by('-date_logged').first()
+    # Determine assessment name
+    subj = (milestone_grade.subject or '').upper()
+    ass_type = 'MOSY' if 'MOSY' in subj else ('EOSY' if 'EOSY' in subj else 'Summer Assessment')
 
-    def check_pass(grade_obj):
-        if not grade_obj:
-            return False, 0.0
-        ts = float(grade_obj.total_score) if grade_obj.total_score and float(grade_obj.total_score) > 0 else 40.0
-        s = float(grade_obj.score) if grade_obj.score is not None else 0.0
-        pct = round((s / ts) * 100.0, 1)
-        # Passing score: 28 items out of 40 (or >= 70%)
-        is_pass = s >= 28.0 if ts == 40.0 else (s / ts) >= (28.0 / 40.0)
-        return is_pass, pct
-
-    new_level = curr_level
-    status_code = 'RETAINED'
-    msg = ''
-    ass_type = 'Milestone'
-    target_grade = None
-
-    if curr_level == 'basic':
-        if mosy_grade:
-            target_grade = mosy_grade
-            ass_type = 'MOSY'
-            passed, pct = check_pass(mosy_grade)
-            if passed:
-                new_level = 'plus'
-                status_code = 'PROMOTED'
-                msg = f'Passed MOSY with {mosy_grade.score}/{mosy_grade.total_score or 40} ({pct}%). Promoted to Plus level.'
-            else:
-                new_level = 'basic'
-                status_code = 'RETAINED'
-                msg = f'Did not reach passing score (28/40) on MOSY ({mosy_grade.score}/{mosy_grade.total_score or 40}). Retained in Basic level.'
-        elif eosy_grade:
-            target_grade = eosy_grade
-            ass_type = 'EOSY'
-            passed, pct = check_pass(eosy_grade)
-            if passed:
-                new_level = 'plus'
-                status_code = 'PROMOTED'
-                msg = f'Passed EOSY with {eosy_grade.score}/{eosy_grade.total_score or 40} ({pct}%). Promoted to Plus level.'
-            else:
-                new_level = 'summer'
-                status_code = 'ASSIGNED_SUMMER'
-                msg = f'Did not reach passing score (28/40) on EOSY ({eosy_grade.score}/{eosy_grade.total_score or 40}). Assigned to Summer remediation.'
+    curr_level = student.aral_level or baseline_level
+    if is_pass:
+        if baseline_level == 'basic':
+            new_level = 'plus'
+            status_code = 'PROMOTED'
+            msg = f'Passed {ass_type} with {milestone_grade.score}/{int(ts)} ({pct}%). Moved up to Plus.'
         else:
-            return {
-                'student_id': str(student.id),
-                'student_name': student.get_full_name(),
-                'previous_level': curr_level,
-                'new_level': curr_level,
-                'assessment_type': 'MOSY',
-                'score_percentage': None,
-                'status': 'RETAINED',
-                'message': 'Awaiting MOSY assessment entry for level evaluation.'
-            }
+            new_level = 'graduated'
+            status_code = 'GRADUATED'
+            msg = f'Passed {ass_type} with {milestone_grade.score}/{int(ts)} ({pct}%). Moved up to Graduated.'
+    else:
+        # Revert to original baseline level (Basic reverts to Basic, Plus reverts to Plus)
+        new_level = baseline_level
+        status_code = 'NO_CHANGE'
+        msg = f'Did not pass {ass_type} ({milestone_grade.score}/{int(ts)}, {pct}%). Retains original {baseline_level.capitalize()} level.'
 
-    elif curr_level == 'plus':
-        if eosy_grade:
-            target_grade = eosy_grade
-            ass_type = 'EOSY'
-            passed, pct = check_pass(eosy_grade)
-            if passed:
-                new_level = 'graduated'
-                status_code = 'GRADUATED'
-                msg = f'Passed EOSY with {eosy_grade.score}/{eosy_grade.total_score or 40} ({pct}%). Graduated from ARAL program!'
-            else:
-                new_level = 'summer'
-                status_code = 'ASSIGNED_SUMMER'
-                msg = f'Did not reach passing score (28/40) on EOSY ({eosy_grade.score}/{eosy_grade.total_score or 40}). Assigned to Summer remediation.'
-        else:
-            return {
-                'student_id': str(student.id),
-                'student_name': student.get_full_name(),
-                'previous_level': curr_level,
-                'new_level': curr_level,
-                'assessment_type': 'EOSY',
-                'score_percentage': None,
-                'status': 'RETAINED',
-                'message': 'Awaiting EOSY assessment entry for graduation evaluation.'
-            }
-
-    elif curr_level == 'summer':
-        if endline_grade:
-            target_grade = endline_grade
-            ass_type = 'ARAL Summer Assessment'
-            passed, pct = check_pass(endline_grade)
-            if passed:
-                new_level = 'graduated'
-                status_code = 'GRADUATED'
-                msg = f'Passed ARAL Summer Assessment with {endline_grade.score}/{endline_grade.total_score or 40} ({pct}%). Graduated from ARAL program!'
-            else:
-                new_level = 'summer'
-                status_code = 'RETAINED'
-                msg = f'Did not reach passing score (28/40) on ARAL Summer Assessment ({endline_grade.score}/{endline_grade.total_score or 40}). Retained in Summer remediation.'
-        else:
-            return {
-                'student_id': str(student.id),
-                'student_name': student.get_full_name(),
-                'previous_level': curr_level,
-                'new_level': curr_level,
-                'assessment_type': 'ARAL Summer Assessment',
-                'score_percentage': None,
-                'status': 'RETAINED',
-                'message': 'Awaiting ARAL Summer Assessment entry for remediation evaluation.'
-            }
-
-    if new_level != curr_level:
+    if new_level != student.aral_level:
         student.aral_level = new_level
         student.save(update_fields=['aral_level'])
 
-    ts = float(target_grade.total_score) if target_grade and target_grade.total_score else 40.0
-    s = float(target_grade.score) if target_grade and target_grade.score is not None else 0.0
-    pct_val = round((s / ts) * 100.0, 1)
+    # Sync enrollment milestone result
+    if enrollment:
+        if 'MOSY' in ass_type:
+            enrollment.mosy_result = 'passed' if is_pass else 'failed'
+            enrollment.save(update_fields=['mosy_result', 'updated_at'])
+        elif 'EOSY' in ass_type:
+            enrollment.eosy_result = 'passed' if is_pass else 'failed'
+            enrollment.save(update_fields=['eosy_result', 'updated_at'])
 
     return {
         'student_id': str(student.id),
@@ -183,7 +141,7 @@ def evaluate_student_aral_progression(student):
         'previous_level': curr_level,
         'new_level': new_level,
         'assessment_type': ass_type,
-        'score_percentage': pct_val,
+        'score_percentage': pct,
         'status': status_code,
         'message': msg
     }

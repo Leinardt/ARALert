@@ -201,10 +201,15 @@ def process_mosy_completion(admin_user: User | None = None) -> dict:
             # Update MOSY result
             if eval_status == 'completed':
                 enrollment.mosy_result = result
-                # If basic passed MOSY, promoted to Plus level
+                # Basic passed MOSY -> Promoted to Plus level
                 if enrollment.program == 'basic' and result == 'passed':
                     enrollment.program = 'plus'
                     student.aral_level = 'plus'
+                # Plus passed MOSY -> Graduated
+                elif enrollment.program == 'plus' and result == 'passed':
+                    enrollment.graduation_status = 'graduated'
+                    enrollment.enrollment_status = 'completed'
+                    student.aral_level = 'graduated'
 
             # CLEAN-SLATE RESET: All students (Plus and Basic) are unassigned after MOSY.
             # Every active TutorAssignmentHistory record is concluded with an end date.
@@ -237,7 +242,9 @@ def process_mosy_completion(admin_user: User | None = None) -> dict:
                     )
 
             student.assigned_tutor = None
-            save_fields = ['assigned_tutor', 'aral_level'] if (student.aral_level == 'plus' or enrollment.program == 'plus') else ['assigned_tutor']
+            save_fields = ['assigned_tutor']
+            if student.aral_level in ('plus', 'graduated'):
+                save_fields.append('aral_level')
             student.save(update_fields=save_fields)
             enrollment.assigned_tutor = None
             enrollment.save(update_fields=['assigned_tutor', 'program', 'mosy_result', 'updated_at'])

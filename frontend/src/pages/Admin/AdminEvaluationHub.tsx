@@ -8,6 +8,7 @@ import { userService } from '../../services/userService';
 import { AssignTutorModal } from '../../components/AssignTutorModal';
 import { BulkAssignCohortModal } from '../../components/BulkAssignCohortModal';
 import { TransitionConfirmationModal } from '../../components/TransitionConfirmationModal';
+import { SemesterTransitionModal } from '../../components/SemesterTransitionModal';
 import { EvaluateSummerModal } from '../../components/EvaluateSummerModal';
 import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
 import { CardSkeleton, StatsGridSkeleton, TableSkeleton } from '../../components/SkeletonLoader';
@@ -336,6 +337,21 @@ export const AdminEvaluationHub: React.FC = () => {
   const [isTransitionModalOpen, setIsTransitionModalOpen] = useState<boolean>(false);
   const [transitionSuccessMsg, setTransitionSuccessMsg] = useState<string | null>(null);
 
+  // Semester Milestone Transition Modal State (MOSY / EOSY)
+  const [semesterTransitionModal, setSemesterTransitionModal] = useState<{
+    isOpen: boolean;
+    type: 'mosy' | 'eosy';
+    title: string;
+    currentPeriod: string;
+    targetPeriod: string;
+  }>({
+    isOpen: false,
+    type: 'mosy',
+    title: '',
+    currentPeriod: '',
+    targetPeriod: '',
+  });
+
   // Summer state
   const [summerRecords, setSummerRecords] = useState<SummerRecord[]>([]);
   const [selectedSummerRecord, setSelectedSummerRecord] = useState<SummerRecord | null>(null);
@@ -498,9 +514,6 @@ export const AdminEvaluationHub: React.FC = () => {
   };
 
   const handleProcessMosy = async () => {
-    if (!window.confirm('Finalize the MOSY evaluation period? This will promote qualifying students to the Plus program and release tutor assignments for second-semester cohorts.')) {
-      return;
-    }
     setIsProcessingMosy(true);
     setMosyProcessSuccess(null);
     try {
@@ -517,6 +530,7 @@ export const AdminEvaluationHub: React.FC = () => {
       setMosyData(m);
       setMosyAssignments(ma);
       setQueueData(q);
+      setSemesterTransitionModal((prev) => ({ ...prev, isOpen: false }));
     } catch (err: any) {
       console.error('Failed to process MOSY completion:', err);
       alert(err.response?.data?.error || 'Failed to finalize MOSY.');
@@ -526,15 +540,13 @@ export const AdminEvaluationHub: React.FC = () => {
   };
 
   const handleProcessEosy = async () => {
-    if (!window.confirm(`Finalize EOSY evaluation period and start Summer Semester (${currentSchoolYearStr}, Summer)?`)) {
-      return;
-    }
     setIsProcessingEosy(true);
     try {
       setActiveSystemSemester('summer');
       setActiveSystemSem('summer');
       setActiveTab('summer');
       await handleRefresh();
+      setSemesterTransitionModal((prev) => ({ ...prev, isOpen: false }));
     } catch (err: any) {
       console.error('Failed to start summer semester:', err);
     } finally {
@@ -988,7 +1000,15 @@ export const AdminEvaluationHub: React.FC = () => {
               {activeTab === 'mosy' && (
                 <button
                   type="button"
-                  onClick={handleProcessMosy}
+                  onClick={() => {
+                    setSemesterTransitionModal({
+                      isOpen: true,
+                      type: 'mosy',
+                      title: 'Start Second Semester (Q3 & Q4)',
+                      currentPeriod: `${currentSchoolYearStr} - MOSY (1st Semester)`,
+                      targetPeriod: `${currentSchoolYearStr} - 2nd Semester`,
+                    });
+                  }}
                   disabled={!isAllTutorsComplete || isProcessingMosy}
                   className={`px-5 py-2 rounded-xl text-xs font-bold border transition duration-150 shrink-0 whitespace-nowrap ${
                     isAllTutorsComplete
@@ -1006,7 +1026,15 @@ export const AdminEvaluationHub: React.FC = () => {
               {activeTab === 'eosy' && (
                 <button
                   type="button"
-                  onClick={handleProcessEosy}
+                  onClick={() => {
+                    setSemesterTransitionModal({
+                      isOpen: true,
+                      type: 'eosy',
+                      title: 'Start Summer Semester',
+                      currentPeriod: `${currentSchoolYearStr} - EOSY (2nd Semester)`,
+                      targetPeriod: `${currentSchoolYearStr} - Summer Remediation`,
+                    });
+                  }}
                   disabled={!isAllTutorsComplete || isProcessingEosy}
                   className={`px-5 py-2 rounded-xl text-xs font-bold border transition duration-150 shrink-0 whitespace-nowrap ${
                     isAllTutorsComplete
@@ -1198,6 +1226,16 @@ export const AdminEvaluationHub: React.FC = () => {
         student={assignModalStudent}
         period={assignModalPeriod}
         onAssigned={handleRefresh}
+      />
+
+      <SemesterTransitionModal
+        isOpen={semesterTransitionModal.isOpen}
+        onClose={() => setSemesterTransitionModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={semesterTransitionModal.type === 'mosy' ? handleProcessMosy : handleProcessEosy}
+        title={semesterTransitionModal.title}
+        currentPeriod={semesterTransitionModal.currentPeriod}
+        targetPeriod={semesterTransitionModal.targetPeriod}
+        isProcessing={semesterTransitionModal.type === 'mosy' ? isProcessingMosy : isProcessingEosy}
       />
 
       <TransitionConfirmationModal
