@@ -30,11 +30,24 @@ const getAralBadge = (level?: string | null) => {
 };
 
 /* ─── Subject Badge Helper (Clean typography without pill container) ── */
-const getSubjectBadge = (subject?: string | null) => {
-  if (!subject) return <span className="text-gray-400 dark:text-slate-500">—</span>;
+const getSubjectBadge = (subject?: string | null, aralLevel?: string | null) => {
+  const isPlus = (aralLevel || '').toLowerCase().includes('plus');
+  if (!subject) {
+    return (
+      <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase">
+        {isPlus ? 'ENGLISH' : 'FILIPINO'}
+      </span>
+    );
+  }
   const parts = subject.split(',').map((s) => {
     const trimmed = s.trim();
-    return trimmed.toLowerCase() === 'reading' ? 'Filipino' : trimmed;
+    if (trimmed.toLowerCase() === 'reading') {
+      return isPlus ? 'English' : 'Filipino';
+    }
+    if (isPlus && trimmed.toLowerCase() === 'filipino') {
+      return 'English';
+    }
+    return trimmed;
   }).filter(Boolean);
   return (
     <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase">
@@ -1417,7 +1430,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                               )}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                              {getSubjectBadge(u.subject)}
+                              {getSubjectBadge(u.subject, u.aral_level)}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-700 dark:text-slate-300 font-medium">
                               {getGradeAndSection(u.grade_level).grade}

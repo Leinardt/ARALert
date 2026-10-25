@@ -205,6 +205,8 @@ def process_mosy_completion(admin_user: User | None = None) -> dict:
                 if enrollment.program == 'basic' and result == 'passed':
                     enrollment.program = 'plus'
                     student.aral_level = 'plus'
+                    if (student.subject or '').strip().lower() in ('filipino', 'reading', ''):
+                        student.subject = 'English'
                 # Plus passed MOSY -> Graduated
                 elif enrollment.program == 'plus' and result == 'passed':
                     enrollment.graduation_status = 'graduated'
@@ -245,7 +247,9 @@ def process_mosy_completion(admin_user: User | None = None) -> dict:
             save_fields = ['assigned_tutor']
             if student.aral_level in ('plus', 'graduated'):
                 save_fields.append('aral_level')
-            student.save(update_fields=save_fields)
+            if student.subject == 'English':
+                save_fields.append('subject')
+            student.save(update_fields=list(set(save_fields)))
             enrollment.assigned_tutor = None
             enrollment.save(update_fields=['assigned_tutor', 'program', 'mosy_result', 'updated_at'])
 

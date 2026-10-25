@@ -485,6 +485,11 @@ export const TutorArchive: React.FC = () => {
             }
           }
 
+          let displayAssessmentType = evalGrade?.subject || (selectedSemester === '2nd' ? 'EOSY Assessment' : 'MOSY Assessment');
+          if (st.program.toLowerCase() === 'plus' && displayAssessmentType.includes('Filipino')) {
+            displayAssessmentType = displayAssessmentType.replace('Filipino', 'English');
+          }
+
           items.push({
             id: `active-${st.student_id}`,
             studentId: st.student_id,
@@ -494,7 +499,7 @@ export const TutorArchive: React.FC = () => {
             classSection: classSec,
             schoolYear: selectedSchoolYear,
             semester: '1st',
-            assessmentType: evalGrade?.subject || 'MOSY Assessment',
+            assessmentType: displayAssessmentType,
             score: scoreStr,
             scorePct,
             outcome,
@@ -527,12 +532,20 @@ export const TutorArchive: React.FC = () => {
         timeStr = new Date(g.date_logged).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
       }
 
+      let displaySubj = g.subject || 'Intervention Activity';
+      const isStudentPlus = (st?.aral_level || '').toLowerCase().includes('plus') || selectedClass.toLowerCase().includes('plus');
+      if (isStudentPlus && displaySubj.includes('Filipino')) {
+        displaySubj = displaySubj.replace('Filipino', 'English');
+      } else if (displaySubj === 'Reading') {
+        displaySubj = isStudentPlus ? 'English Intervention Activity' : 'Filipino Intervention Activity';
+      }
+
       return {
         id: String(g.id),
         studentName: g.student_name || st?.full_name || 'Student',
         lrn: st?.lrn || '—',
         classSection: classSec,
-        subject: g.subject || 'Intervention Activity',
+        subject: displaySubj,
         quarter: g.quarter ? `Q${g.quarter}` : sem.toUpperCase(),
         scoreDisplay: `${sc} / ${ts}`,
         score: sc,

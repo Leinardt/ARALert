@@ -730,13 +730,19 @@ export const AdminEvaluationHub: React.FC = () => {
 
       const { grade, section } = getGradeAndSection(tutor.grade_level, tutor.section);
 
+      const tutorAralLevel = normalizeAralLevel(tutor.tutor_type || tutor.aral_level);
+      const rawSubj = (tutor.subject || '').trim();
+      const effectiveSubject = (rawSubj.toLowerCase() === 'reading' || !rawSubj)
+        ? (tutorAralLevel === 'PLUS' ? 'English' : 'Filipino')
+        : rawSubj;
+
       return {
         id: String(tutor.id),
         tutorName: tutor.full_name || `${tutor.first_name} ${tutor.last_name}`,
         gradeLevel: grade,
         section: section,
-        subject: tutor.subject === 'Reading' ? 'Filipino' : (tutor.subject || 'Filipino'),
-        aralLevel: normalizeAralLevel(tutor.tutor_type || tutor.aral_level),
+        subject: effectiveSubject,
+        aralLevel: tutorAralLevel,
         assignedCount,
         evaluatedCount,
         status,

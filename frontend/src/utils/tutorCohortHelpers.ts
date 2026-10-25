@@ -793,7 +793,7 @@ export function getChartAvailableSubjects(
     const isGeneral = !raw || raw === 'general' || raw.includes('all');
 
     const handlesFilipino = isGeneral || raw.includes('reading') || raw.includes('filipino');
-    const handlesEnglish = isGeneral || raw.includes('english');
+    const handlesEnglish = isGeneral || raw.includes('reading') || raw.includes('english');
     const handlesScience = isGeneral || raw.includes('science');
     const handlesMath = isGeneral || raw.includes('math');
 
@@ -1144,11 +1144,16 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
 
   const rawSubject = (user.subject || '').toLowerCase();
   const subjectsList: string[] = [];
-  if (rawSubject.includes('reading') || rawSubject.includes('filipino')) subjectsList.push('Filipino');
-  if (rawSubject.includes('english')) subjectsList.push('English');
+  if (rawSubject.includes('reading')) {
+    if (handlesBasic) subjectsList.push('Filipino');
+    if (handlesPlus) subjectsList.push('English');
+  } else {
+    if (rawSubject.includes('filipino')) subjectsList.push('Filipino');
+    if (rawSubject.includes('english')) subjectsList.push('English');
+  }
   if (rawSubject.includes('science')) subjectsList.push('Science');
   if (rawSubject.includes('math')) subjectsList.push('Math');
-  if (subjectsList.length === 0) subjectsList.push('Filipino');
+  if (subjectsList.length === 0) subjectsList.push(handlesPlus ? 'English' : 'Filipino');
 
   const rawGradeLevel = (user.grade_level || '').trim();
   const rawSection = (user.section || '').trim().toUpperCase();
@@ -1339,11 +1344,16 @@ export function buildTutorClassSections<T = any>(
       rawSub = aralLevel === 'basic' ? 'Filipino' : 'English';
     } else {
       const norm = rawSub.toLowerCase();
-      if (norm.includes('filipino') || norm.includes('reading')) rawSub = 'Filipino';
-      else if (norm.includes('english')) rawSub = 'English';
-      else if (norm.includes('math')) rawSub = 'Math';
+      if (norm.includes('math')) rawSub = 'Math';
       else if (norm.includes('sci')) rawSub = 'Science';
-      else rawSub = rawSub.charAt(0).toUpperCase() + rawSub.slice(1);
+      else if (norm.includes('english')) rawSub = 'English';
+      else if (norm.includes('filipino')) {
+        rawSub = aralLevel === 'plus' ? 'English' : 'Filipino';
+      } else if (norm.includes('reading')) {
+        rawSub = aralLevel === 'plus' ? 'English' : 'Filipino';
+      } else {
+        rawSub = rawSub.charAt(0).toUpperCase() + rawSub.slice(1);
+      }
     }
 
     let rawGrade = (studentObj.grade_level || st?.grade_level || st?.gradeLevel || '').toUpperCase().trim();

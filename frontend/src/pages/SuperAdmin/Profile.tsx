@@ -873,7 +873,17 @@ export const Profile: React.FC = () => {
                   Subject
                 </label>
                 <input
-                  value={localUser.subject === 'Reading' ? 'Filipino' : (localUser.subject || 'Filipino')}
+                  value={(() => {
+                    const isPlus = (localUser.aral_level || localUser.tutor_type || '').toLowerCase().includes('plus');
+                    const rawSub = (localUser.subject || '').trim();
+                    if (rawSub === 'Reading' || !rawSub) {
+                      return isPlus ? 'English' : 'Filipino';
+                    }
+                    if (isPlus && rawSub === 'Filipino') {
+                      return 'English';
+                    }
+                    return rawSub;
+                  })()}
                   readOnly
                   disabled
                   style={readonlyStyle}

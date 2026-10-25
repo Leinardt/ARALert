@@ -19,7 +19,11 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
     if (!student) return alert('Select a student first.');
     if (score === '' || Number.isNaN(score)) return alert('Enter a valid score.');
 
-    const studentSubject = student.subject === 'Reading' ? 'Filipino' : (student.subject || 'Filipino');
+    const isPlus = (student.aral_level || '').toLowerCase().includes('plus');
+    const rawSub = (student.subject || '').trim();
+    const studentSubject = (rawSub === 'Reading' || !rawSub)
+      ? (isPlus ? 'English' : 'Filipino')
+      : (isPlus && rawSub === 'Filipino' ? 'English' : rawSub);
 
     setLoading(true);
     try {
@@ -55,7 +59,11 @@ export const TutorScoreEntry: React.FC<Props> = ({ student, onCreated }) => {
   }
 
   const isReady = score !== '' && Number(score) >= 0;
-  const studentSubject = student.subject === 'Reading' ? 'Filipino' : (student.subject || 'Filipino');
+  const isPlus = (student.aral_level || '').toLowerCase().includes('plus');
+  const rawSub = (student.subject || '').trim();
+  const studentSubject = (rawSub === 'Reading' || !rawSub)
+    ? (isPlus ? 'English' : 'Filipino')
+    : (isPlus && rawSub === 'Filipino' ? 'English' : rawSub);
 
   return (
     <div className="rounded-md border border-gray-200 bg-white p-6 space-y-6">

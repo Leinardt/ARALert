@@ -164,8 +164,14 @@ class UserListCreateView(generics.ListCreateAPIView):
                 queryset = queryset.filter(assigned_tutor_id=assigned_tutor)
 
         subject = self.request.query_params.get('subject', '').strip()
+        aral_level = self.request.query_params.get('aral_level', '').strip()
         if subject:
-            if subject.lower() in ('reading', 'filipino'):
+            if subject.lower() == 'reading':
+                if aral_level and 'plus' in aral_level.lower():
+                    queryset = queryset.filter(Q(subject__icontains='English') | Q(subject__icontains='Reading') | Q(aral_level__icontains='plus'))
+                else:
+                    queryset = queryset.filter(Q(subject__icontains='Filipino') | Q(subject__icontains='Reading') | Q(aral_level__icontains='basic'))
+            elif subject.lower() == 'filipino':
                 queryset = queryset.filter(Q(subject__icontains='Filipino') | Q(subject__icontains='Reading') | Q(aral_level__icontains='basic'))
             else:
                 queryset = queryset.filter(Q(subject__icontains=subject) | (Q(aral_level__icontains='plus') if subject.lower() == 'english' else Q()))

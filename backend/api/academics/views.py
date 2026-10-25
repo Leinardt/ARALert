@@ -122,9 +122,22 @@ def evaluate_student_aral_progression(student):
         status_code = 'NO_CHANGE'
         msg = f'Did not pass {ass_type} ({milestone_grade.score}/{int(ts)}, {pct}%). Retains original {baseline_level.capitalize()} level.'
 
+    fields_to_update = []
     if new_level != student.aral_level:
         student.aral_level = new_level
-        student.save(update_fields=['aral_level'])
+        fields_to_update.append('aral_level')
+
+    # Synchronize reading subject focus with ARAL level
+    raw_sub = (student.subject or '').strip().lower()
+    if new_level == 'plus' and raw_sub in ('filipino', 'reading', ''):
+        student.subject = 'English'
+        fields_to_update.append('subject')
+    elif new_level == 'basic' and raw_sub in ('english', 'reading', ''):
+        student.subject = 'Filipino'
+        fields_to_update.append('subject')
+
+    if fields_to_update:
+        student.save(update_fields=list(set(fields_to_update)))
 
     # Sync enrollment milestone result
     if enrollment:

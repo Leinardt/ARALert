@@ -1238,6 +1238,25 @@ export const TutorScores: React.FC = () => {
     setSelectedCohortFilter,
   } = useTutorCohortFilter(user);
 
+  // Dynamically resolve subject from selected class cohort, selected ARAL level, or tutor's subject
+  const currentCohortSubject = useMemo(() => {
+    if (selectedSubject && selectedSubject.trim() && selectedSubject.toLowerCase() !== 'all') {
+      const s = selectedSubject.trim();
+      if (s.toLowerCase() === 'reading') {
+        return selectedAralLevel === 'plus' ? 'English' : 'Filipino';
+      }
+      return s;
+    }
+    if (selectedAralLevel === 'plus') return 'English';
+    if (selectedAralLevel === 'basic') return 'Filipino';
+    const raw = (user?.subject || '').trim();
+    if (raw.toLowerCase() === 'reading' || !raw) {
+      const isPlus = (user?.tutor_type || user?.aral_level || '').toLowerCase().includes('plus');
+      return isPlus ? 'English' : 'Filipino';
+    }
+    return raw;
+  }, [selectedSubject, selectedAralLevel, user?.subject, user?.tutor_type, user?.aral_level]);
+
   const [students, setStudents] = useState<User[]>(() => getCachedStudents(user?.id));
 
   // Filter students matching the currently selected cohort
@@ -1593,7 +1612,7 @@ export const TutorScores: React.FC = () => {
 
         const numScore = isNotTaken ? 0 : Number(entryScores[student.id] || 0);
         const remarks = isNotTaken ? 'Not Taken' : (numScore / activeTotal >= 0.7 ? 'Passed' : 'Failed');
-        const currentSubject = user?.subject === 'Reading' ? 'Filipino' : (user?.subject || 'Filipino');
+        const currentSubject = currentCohortSubject;
         const subject = entryKind === 'daily' ? `${currentSubject} Intervention Activity` : levelEntry.subject;
 
         if (entryKind !== 'daily') {
@@ -1687,7 +1706,7 @@ export const TutorScores: React.FC = () => {
 
       // ── Attendance-pattern: store batch ID → highlights the DTR row ──
       setLastSavedBatchId(batchId);
-      const titleName = entryKind === 'daily' ? 'Intervention Activity' : (Object.values(semesterScoreEntry).find((e) => e.kind === entryKind)?.title || assignedPeriod);
+      const titleName = entryKind === 'daily' ? `${currentCohortSubject} Intervention Activity` : `${assignedPeriod} ${currentCohortSubject}`;
       setSuccessModalTitle('Scores Saved Successfully');
       setSaveSuccessMsg(`${titleName} scores saved and highlighted below.`);
       setShowSuccessModal(true);
@@ -1948,7 +1967,7 @@ export const TutorScores: React.FC = () => {
   const assignedPeriod = useMemo<ScorePeriod>(() => {
     return getActiveSystemMilestone();
   }, [activeSystemSem]);
-  const tutorSubject = user?.subject === 'Reading' ? 'Filipino' : (user?.subject || 'Filipino');
+  const tutorSubject = currentCohortSubject;
   const levelEntry = useMemo(() => {
     const base = semesterScoreEntry[assignedPeriod] || semesterScoreEntry.MOSY;
     if (assignedPeriod === 'ARAL Summer Assessment') {
@@ -1961,10 +1980,10 @@ export const TutorScores: React.FC = () => {
     const semesterQuarter = assignedPeriod === 'MOSY' ? '(Q1/Q2)' : '(Q3/Q4)';
     return {
       ...base,
-      title: `${assignedPeriod} ${tutorSubject} Score ${semesterQuarter}`,
-      subject: `${assignedPeriod} ${tutorSubject}`,
+      title: `${assignedPeriod} ${currentCohortSubject} Score ${semesterQuarter}`,
+      subject: `${assignedPeriod} ${currentCohortSubject}`,
     };
-  }, [assignedPeriod, tutorSubject]);
+  }, [assignedPeriod, currentCohortSubject]);
   const dailyGrades = useMemo(() => safeGrades.filter((grade) => grade.component_type === 'assessment'), [safeGrades]);
   const studentsWithEntries = useMemo(() => new Set(dailyGrades.map((g) => g.student)).size, [dailyGrades]);
   const avgScoreAll = useMemo(() => {
@@ -2022,11 +2041,17 @@ export const TutorScores: React.FC = () => {
       const key = grade.batch_id || `solo-${grade.id}`;
       const existing = map.get(key);
       if (!existing) {
+        let displaySubject = grade.subject || 'Intervention Activity';
+        if (displaySubject === 'Reading') {
+          displaySubject = `${currentCohortSubject} Intervention Activity`;
+        } else if (selectedAralLevel === 'plus' && displaySubject.includes('Filipino')) {
+          displaySubject = displaySubject.replace('Filipino', 'English');
+        }
         map.set(key, {
           batchId: key,
           dateStr: grade.date_logged || '',
           timeStr: grade.created_at || null,
-          subject: grade.subject === 'Reading' ? 'Filipino' : (grade.subject || 'Filipino'),
+          subject: displaySubject,
           totalItems: Number(grade.total_score) || 0,
           takenCount: grade.remarks !== 'Not Taken' ? 1 : 0,
           notTakenCount: grade.remarks === 'Not Taken' ? 1 : 0,

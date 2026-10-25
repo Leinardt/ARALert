@@ -117,7 +117,7 @@ export const TutorStudentProfile: React.FC = () => {
     const aralLevel = rawAral.includes('PLUS') ? 'PLUS' : rawAral.includes('SUMMER') ? 'SUMMER' : 'BASIC';
 
     let subject = (studentUser?.subject || '').toUpperCase().trim();
-    if (!subject) {
+    if (!subject || subject === 'READING' || (aralLevel === 'PLUS' && subject === 'FILIPINO')) {
       subject = aralLevel === 'BASIC' ? 'FILIPINO' : 'ENGLISH';
     }
 

@@ -269,7 +269,14 @@ class User(AbstractBaseUser, PermissionsMixin):
             self.aral_level = level
             self.tutor_type = level
         if self.subject and self.subject.strip().lower() == 'reading':
-            self.subject = 'Filipino'
+            is_plus_only = self.aral_level == 'plus' or self.tutor_type == 'plus'
+            is_basic_plus = self.aral_level in ('basic,plus', 'basic_plus') or self.tutor_type in ('basic,plus', 'basic_plus')
+            if is_basic_plus:
+                self.subject = 'Filipino, English'
+            elif is_plus_only:
+                self.subject = 'English'
+            else:
+                self.subject = 'Filipino'
         # Auto-generate username from email for Django internal compatibility
         if not self.username:
             self.username = self.email
