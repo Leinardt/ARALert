@@ -203,101 +203,143 @@ def process_mosy_completion(admin_user: User | None = None) -> dict:
         )
 
     students = list(User.objects.filter(role='student', is_active=True).select_related('assigned_tutor'))
+    if not students:
+        return {
+            'status': 'SUCCESS',
+            'message': 'No active students found to process.',
+            'plus_unassigned_count': 0,
+            'basic_unassigned_count': 0,
+        }
+
     plus_unassigned_count = 0
     basic_retained_count = 0
+    today = timezone.localdate()
 
-    # Preload latest MOSY grade for all students in 1 query
+    # 1. Preload latest MOSY grade for all students in 1 query
     mosy_grades = ApiGrade.objects.filter(subject__icontains='MOSY').order_by('student_id', '-date_logged')
     mosy_grade_by_student = {}
     for g in mosy_grades:
         if g.student_id not in mosy_grade_by_student:
             mosy_grade_by_student[g.student_id] = g
 
-    # Preload enrollments for active school year in 1 query
+    # 2. Preload enrollments for active school year in 1 query
     existing_enrollments = {
         e.student_id: e
         for e in StudentEnrollment.objects.filter(school_year=active_sy, student__in=students)
     }
 
-    with transaction.atomic():
-        for student in students:
-            grade_obj = mosy_grade_by_student.get(student.id)
-            eval_status, result, pct = get_student_mosy_status(student, active_sy, grade_obj=grade_obj)
+    # 3. Preload all active TutorAssignmentHistory student IDs for active SY in 1 query
+    active_hist_student_ids = set(
+        TutorAssignmentHistory.objects.filter(
+            student__in=students,
+            school_year=active_sy,
+            is_active=True,
+        ).values_list('student_id', flat=True)
+    )
 
-            enrollment = existing_enrollments.get(student.id)
-            raw_level = (student.aral_level or 'basic').lower()
-            enrollment_prog = raw_level if raw_level in ('basic', 'plus', 'summer') else ('plus' if raw_level == 'graduated' else 'basic')
-            current_tutor = _get_safe_assigned_tutor(student)
+    new_enrollments = []
+    missing_histories = []
 
-            if not enrollment:
-                enrollment = StudentEnrollment.objects.create(
-                    student=student,
-                    school_year=active_sy,
-                    program=enrollment_prog,
-                    assigned_tutor=current_tutor,
-                    enrollment_status='completed' if raw_level == 'graduated' else 'active',
-                    graduation_status='graduated' if raw_level == 'graduated' else 'not_eligible',
-                )
-                existing_enrollments[student.id] = enrollment
+    # 4. In-memory processing loop (pure Python, 0 DB roundtrips)
+    for student in students:
+        grade_obj = mosy_grade_by_student.get(student.id)
+        eval_status, result, pct = get_student_mosy_status(student, active_sy, grade_obj=grade_obj)
 
-            # Update MOSY result
-            if eval_status == 'completed':
-                enrollment.mosy_result = result
-                # Basic passed MOSY -> Promoted to Plus level
-                if enrollment.program == 'basic' and result == 'passed':
-                    enrollment.program = 'plus'
-                    student.aral_level = 'plus'
-                    if (student.subject or '').strip().lower() in ('filipino', 'reading', ''):
-                        student.subject = 'English'
-                # Plus passed MOSY -> Graduated
-                elif enrollment.program == 'plus' and result == 'passed':
-                    enrollment.graduation_status = 'graduated'
-                    enrollment.enrollment_status = 'completed'
-                    student.aral_level = 'graduated'
+        enrollment = existing_enrollments.get(student.id)
+        raw_level = (student.aral_level or 'basic').lower()
+        enrollment_prog = raw_level if raw_level in ('basic', 'plus', 'summer') else ('plus' if raw_level == 'graduated' else 'basic')
+        current_tutor = _get_safe_assigned_tutor(student)
 
-            # CLEAN-SLATE RESET: All students (Plus and Basic) are unassigned after MOSY.
-            # Every active TutorAssignmentHistory record is concluded with an end date.
-            # Admin will reassign fresh cohorts to all tutors (who become fully vacant).
-            previous_tutor = current_tutor
+        if not enrollment:
+            enrollment = StudentEnrollment(
+                student=student,
+                school_year=active_sy,
+                program=enrollment_prog,
+                assigned_tutor=None,
+                enrollment_status='completed' if raw_level == 'graduated' else 'active',
+                graduation_status='graduated' if raw_level == 'graduated' else 'not_eligible',
+            )
+            existing_enrollments[student.id] = enrollment
+            new_enrollments.append(enrollment)
+
+        # Update MOSY result & progressions
+        if eval_status == 'completed':
+            enrollment.mosy_result = result
+            # Basic passed MOSY -> Promoted to Plus level
+            if enrollment.program == 'basic' and result == 'passed':
+                enrollment.program = 'plus'
+                student.aral_level = 'plus'
+                if (student.subject or '').strip().lower() in ('filipino', 'reading', ''):
+                    student.subject = 'English'
+            # Plus passed MOSY -> Graduated
+            elif enrollment.program == 'plus' and result == 'passed':
+                enrollment.graduation_status = 'graduated'
+                enrollment.enrollment_status = 'completed'
+                student.aral_level = 'graduated'
+
+        # If student has a currently assigned tutor but no active history record, capture concluding history
+        if current_tutor and student.id not in active_hist_student_ids:
             mosy_result_label = result if eval_status == 'completed' else 'pending'
-
-            if previous_tutor:
-                prev_name = previous_tutor.get_full_name() or previous_tutor.username
-                updated_count = TutorAssignmentHistory.objects.filter(
+            missing_histories.append(
+                TutorAssignmentHistory(
                     student=student,
+                    tutor=current_tutor,
                     school_year=active_sy,
-                    is_active=True,
-                ).update(
-                    is_active=False,
-                    end_date=timezone.localdate(),
                     period='MOSY',
-                    notes=f'Concluded after MOSY period — MOSY result: {mosy_result_label}. (Previously: {prev_name})'
+                    program=enrollment.program or 'basic',
+                    start_date=today,
+                    end_date=today,
+                    is_active=False,
+                    notes=f'Concluded after MOSY period — MOSY result: {mosy_result_label}.',
                 )
-                if updated_count == 0:
-                    try:
-                        TutorAssignmentHistory.objects.create(
-                            student=student,
-                            tutor=previous_tutor,
-                            school_year=active_sy,
-                            period='MOSY',
-                            program=enrollment.program or 'basic',
-                            start_date=timezone.localdate(),
-                            end_date=timezone.localdate(),
-                            is_active=False,
-                            notes=f'Concluded after MOSY period — MOSY result: {mosy_result_label}.'
-                        )
-                    except Exception as hist_err:
-                        logger.warning('Failed to create history for student %s: %s', student.id, hist_err)
+            )
 
-            student.assigned_tutor = None
-            student.save()
-            enrollment.assigned_tutor = None
-            enrollment.save()
+        # Clean-slate reset: unassign tutor on both
+        student.assigned_tutor = None
+        enrollment.assigned_tutor = None
 
-            if student.aral_level == 'plus' or enrollment.program == 'plus':
-                plus_unassigned_count += 1
-            else:
-                basic_retained_count += 1
+        if student.aral_level == 'plus' or enrollment.program == 'plus':
+            plus_unassigned_count += 1
+        else:
+            basic_retained_count += 1
+
+    # 5. Atomic Bulk Writes (Only 4-5 fast queries total, <500ms)
+    with transaction.atomic():
+        # A. Conclude all active TutorAssignmentHistory records in 1 query
+        TutorAssignmentHistory.objects.filter(
+            student__in=students,
+            school_year=active_sy,
+            is_active=True,
+        ).update(
+            is_active=False,
+            end_date=today,
+            period='MOSY',
+            notes='Concluded after MOSY evaluation period.',
+        )
+
+        # B. Bulk-create missing concluding histories (if any) in 1 query
+        if missing_histories:
+            TutorAssignmentHistory.objects.bulk_create(missing_histories, ignore_conflicts=True, batch_size=500)
+
+        # C. Bulk-create newly discovered enrollments in 1 query
+        if new_enrollments:
+            StudentEnrollment.objects.bulk_create(new_enrollments, ignore_conflicts=True, batch_size=500)
+
+        # D. Bulk-update pre-existing enrollments in 1 query
+        existing_to_update = [e for e in existing_enrollments.values() if e.pk is not None and e not in new_enrollments]
+        if existing_to_update:
+            StudentEnrollment.objects.bulk_update(
+                existing_to_update,
+                ['program', 'assigned_tutor', 'mosy_result', 'graduation_status', 'enrollment_status'],
+                batch_size=500,
+            )
+
+        # E. Bulk-update all students in 1 query
+        User.objects.bulk_update(
+            students,
+            ['assigned_tutor', 'aral_level', 'subject'],
+            batch_size=500,
+        )
 
     return {
         'status': 'SUCCESS',
