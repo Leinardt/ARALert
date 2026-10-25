@@ -62,10 +62,8 @@ const getTutorLevelDisplay = (tutor: User) => {
   const rawType = (tutor.tutor_type || '').toLowerCase();
   const handlesBasic = rawLevel.includes('basic') || rawType.includes('basic') || rawType === 'basic_plus' || (!rawLevel && !rawType);
   const handlesPlus = rawLevel.includes('plus') || rawType.includes('plus') || rawType === 'basic_plus';
-  const handlesSummer = rawLevel.includes('summer') || rawType.includes('summer');
 
   if (handlesBasic && handlesPlus) return 'Basic & Plus';
-  if (handlesSummer) return 'Summer';
   if (handlesPlus) return 'Plus';
   return 'Basic';
 };

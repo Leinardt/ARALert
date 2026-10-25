@@ -37,7 +37,6 @@ def validate_tutor_compatibility(tutor: User, student_program: str) -> None:
 
     handles_basic = 'basic' in combined or not combined
     handles_plus = 'plus' in combined
-    handles_summer = 'summer' in combined
 
     if s_prog == 'basic' and not handles_basic:
         raise ValidationError({
@@ -46,10 +45,6 @@ def validate_tutor_compatibility(tutor: User, student_program: str) -> None:
     elif s_prog == 'plus' and not handles_plus:
         raise ValidationError({
             'tutor': 'This tutor cannot be assigned to this student because the tutor does not handle the Plus level.'
-        })
-    elif s_prog == 'summer' and not handles_summer:
-        raise ValidationError({
-            'tutor': 'This tutor cannot be assigned to this student because the tutor does not handle the Summer level.'
         })
 
 
@@ -158,7 +153,6 @@ def get_available_tutors_data(program: str | None = None) -> list[dict]:
             'Basic & Plus Tutor' if is_basic_plus
             else 'Basic Tutor' if t_type == 'basic'
             else 'Plus Tutor' if t_type == 'plus'
-            else 'Summer Tutor' if t_type == 'summer'
             else f'{t_type.capitalize()} Tutor'
         )
 

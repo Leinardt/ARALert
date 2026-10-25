@@ -441,8 +441,8 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         updated_user = serializer.save()
         new_level = (getattr(updated_user, 'aral_level', '') or '').lower()
 
-        # If ARAL level is changed from graduated back to basic/plus/summer (reverting a mistake)
-        if updated_user.role == 'student' and prev_level == 'graduated' and new_level in ('basic', 'plus', 'summer'):
+        # If ARAL level is changed from graduated back to basic/plus (reverting a mistake)
+        if updated_user.role == 'student' and prev_level == 'graduated' and new_level in ('basic', 'plus'):
             try:
                 from apps.academics.models import StudentEnrollment
                 StudentEnrollment.objects.filter(

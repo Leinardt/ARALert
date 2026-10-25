@@ -177,7 +177,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         v = sanitize_input_text(value).lower()
         if v in ('basic_plus', 'basic,plus') or ('basic' in v and 'plus' in v):
             return 'basic,plus'
-        valid_parts = {'basic', 'plus', 'summer', 'graduated'}
+        valid_parts = {'basic', 'plus', 'graduated'}
         parts = [p.strip() for p in v.replace('_', ',').split(',') if p.strip()]
         if any(p not in valid_parts for p in parts):
             raise serializers.ValidationError('Invalid ARAL level.')
@@ -189,7 +189,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         v = sanitize_input_text(value).lower()
         if v in ('basic_plus', 'basic,plus') or ('basic' in v and 'plus' in v):
             return 'basic,plus'
-        valid_types = {'basic', 'plus', 'summer', 'basic_plus', 'basic,plus'}
+        valid_types = {'basic', 'plus', 'basic_plus', 'basic,plus'}
         if v not in valid_types:
             raise serializers.ValidationError('Invalid tutor type.')
         return v
@@ -355,7 +355,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         v = sanitize_input_text(value).lower()
         if v in ('basic_plus', 'basic,plus') or ('basic' in v and 'plus' in v):
             return 'basic,plus'
-        valid_parts = {'basic', 'plus', 'summer', 'graduated'}
+        valid_parts = {'basic', 'plus', 'graduated'}
         parts = [p.strip() for p in v.replace('_', ',').split(',') if p.strip()]
         if any(p not in valid_parts for p in parts):
             raise serializers.ValidationError('Invalid ARAL level.')
@@ -367,7 +367,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         v = sanitize_input_text(value).lower()
         if v in ('basic_plus', 'basic,plus') or ('basic' in v and 'plus' in v):
             return 'basic,plus'
-        valid_types = {'basic', 'plus', 'summer', 'basic_plus', 'basic,plus'}
+        valid_types = {'basic', 'plus', 'basic_plus', 'basic,plus'}
         if v not in valid_types:
             raise serializers.ValidationError('Invalid tutor type.')
         return v

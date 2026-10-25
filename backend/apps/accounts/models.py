@@ -241,8 +241,6 @@ class User(AbstractBaseUser, PermissionsMixin):
                 level = 'basic,plus'
             elif 'plus' in combined:
                 level = 'plus'
-            elif 'summer' in combined:
-                level = 'summer'
             else:
                 level = 'basic'
             self.aral_level = level
@@ -262,8 +260,6 @@ class User(AbstractBaseUser, PermissionsMixin):
                 level = 'basic,plus'
             elif 'plus' in combined:
                 level = 'plus'
-            elif 'summer' in combined:
-                level = 'summer'
             else:
                 level = 'basic'
             self.aral_level = level

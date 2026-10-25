@@ -862,7 +862,6 @@ export const EditUser: React.FC = () => {
                   >
                     <option value="basic">BASIC</option>
                     <option value="plus">PLUS</option>
-                    <option value="summer">SUMMER</option>
                     <option value="graduated">GRADUATED (Archive)</option>
                   </select>
                 </div>

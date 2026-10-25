@@ -29,8 +29,8 @@ export interface User {
   assessment_weight: number;
   weekly_tasks_weight: number;
   attendance_weight: number;
-  aral_level?: 'basic' | 'plus' | 'summer' | 'graduated' | string | null;
-  tutor_type?: 'basic' | 'plus' | 'summer' | 'basic_plus' | 'basic,plus' | string | null;
+  aral_level?: 'basic' | 'plus' | 'graduated' | string | null;
+  tutor_type?: 'basic' | 'plus' | 'basic_plus' | 'basic,plus' | string | null;
   is_available_for_students?: boolean;
   subject?: 'Filipino' | 'Reading' | 'Science' | 'Math' | 'English' | string | null;
   faculty_type?: string | null;
@@ -227,7 +227,7 @@ export interface StudentAcademicProfile {
     username: string;
     lrn: string | null;
     email: string;
-    aral_level: 'basic' | 'plus' | 'summer';
+    aral_level: 'basic' | 'plus';
   };
   assigned_tutor: {
     id: string;
@@ -273,7 +273,7 @@ export interface StudentEditRequest {
   proposed_middle_name: string;
   proposed_last_name: string;
   proposed_lrn: string | null;
-  proposed_aral_level?: 'basic' | 'plus' | 'summer' | 'graduated' | string;
+  proposed_aral_level?: 'basic' | 'plus' | 'graduated' | string;
   status: 'pending' | 'approved' | 'rejected';
   reviewed_by: string | null;
   reviewed_by_name: string | null;
@@ -317,7 +317,7 @@ export interface StudentEnrollment {
   school_year: number;
   school_year_str: string;
   grade_level: string;
-  program: 'basic' | 'plus' | 'summer';
+  program: 'basic' | 'plus';
   assigned_tutor: string | null;
   assigned_tutor_name: string;
   enrollment_status: 'active' | 'completed' | 'dropped' | 'inactive';

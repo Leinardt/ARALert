@@ -31,11 +31,10 @@ import {
 } from '../../utils/sessionDescriptionHelpers';
 import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
 
-/* ─── Normalize ARAL Level to strictly BASIC / PLUS / SUMMER ──────── */
-const normalizeAralLevel = (val?: string | null): 'BASIC' | 'PLUS' | 'SUMMER' => {
+/* ─── Normalize ARAL Level to strictly BASIC / PLUS ────────────────── */
+const normalizeAralLevel = (val?: string | null): 'BASIC' | 'PLUS' => {
   if (!val) return 'BASIC';
   const clean = val.trim().toLowerCase();
-  if (clean.includes('summer')) return 'SUMMER';
   if (clean.includes('plus')) return 'PLUS';
   return 'BASIC';
 };
@@ -45,7 +44,7 @@ interface StudentMetric {
   id: string;
   name: string;
   lrn: string;
-  aralLevel: 'BASIC' | 'PLUS' | 'SUMMER';
+  aralLevel: 'BASIC' | 'PLUS';
   attendanceRate: number;
   avgScore: number;
   assessmentScoreStr: string;
@@ -60,7 +59,7 @@ interface TutorEvaluationRow {
   gradeLevel: string;
   section: string;
   subject: string;
-  aralLevel: 'BASIC' | 'PLUS' | 'SUMMER';
+  aralLevel: 'BASIC' | 'PLUS';
   assignedCount: number;
   evaluatedCount: number;
   status: 'Pending' | 'Completed' | 'Closed' | 'No Students';

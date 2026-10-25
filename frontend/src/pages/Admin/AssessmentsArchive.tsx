@@ -12,10 +12,9 @@ import { useAuth } from '../../hooks/useAuth';
 import { isAssessmentWindowOpen } from '../../utils/sessionDescriptionHelpers';
 
 /* ─── Helper: Normalize ARAL Level ─────────────────────────────────── */
-const normalizeAralLevel = (val?: string | null): 'BASIC' | 'PLUS' | 'SUMMER' => {
+const normalizeAralLevel = (val?: string | null): 'BASIC' | 'PLUS' => {
   if (!val) return 'BASIC';
   const clean = val.trim().toLowerCase();
-  if (clean.includes('summer')) return 'SUMMER';
   if (clean.includes('plus')) return 'PLUS';
   return 'BASIC';
 };
@@ -43,7 +42,7 @@ interface StudentArchiveMetric {
   id: string;
   name: string;
   lrn: string;
-  aralLevel: 'BASIC' | 'PLUS' | 'SUMMER';
+  aralLevel: 'BASIC' | 'PLUS';
   attendanceRate: number;
   avgScore: number;
   assessmentScoreStr: string;
@@ -58,7 +57,7 @@ interface TutorArchiveRow {
   gradeLevel: string;
   section: string;
   subject: string;
-  aralLevel: 'BASIC' | 'PLUS' | 'SUMMER';
+  aralLevel: 'BASIC' | 'PLUS';
   totalStudents: number;
   movedUpCount: number;
   graduatedCount: number;

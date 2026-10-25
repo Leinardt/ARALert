@@ -192,13 +192,6 @@ class EvaluationWorkflowTests(TestCase):
         # Plus Tutor + Plus Student -> ALLOWED
         validate_tutor_compatibility(self.plus_tutor, 'plus')
 
-        # Summer Tutor + Summer Student -> ALLOWED
-        validate_tutor_compatibility(self.summer_tutor, 'summer')
-
-        # Summer Tutor + Basic Student -> NOT ALLOWED
-        with self.assertRaises(ValidationError):
-            validate_tutor_compatibility(self.summer_tutor, 'basic')
-
     def test_assign_tutor_history_preservation(self):
         """Test that assigning a new tutor does not overwrite historical records."""
         assign_tutor_to_student(
