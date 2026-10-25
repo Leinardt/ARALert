@@ -367,7 +367,7 @@ const aralLevelRank: Record<string, number> = {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 skeleton-container" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <div className="space-y-4 sm:space-y-6 skeleton-container" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
         {/* Cohort Filter Skeleton */}
         <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3 animate-pulse">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
@@ -380,18 +380,17 @@ const aralLevelRank: Record<string, number> = {
 
         {/* Directory Table Card skeleton */}
         <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] animate-pulse skeleton-row-2">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-6 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-3.5 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="space-y-1.5">
               <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
               <div className="h-3 w-24 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
-            <div className="flex items-center gap-2">
-              <div className="h-8.5 w-52 rounded-md bg-gray-100 dark:bg-gray-800" />
-              <div className="h-8.5 w-28 rounded-md bg-gray-100 dark:bg-gray-800" />
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="h-8 sm:h-8.5 w-full sm:w-52 rounded-md bg-gray-100 dark:bg-gray-800" />
             </div>
           </div>
 
-          <div className="p-6 space-y-3">
+          <div className="p-3.5 sm:p-6 space-y-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div key={i} className="flex items-center gap-4 py-2 border-b border-gray-50 dark:border-gray-900/50">
                 <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-800 shrink-0" />
@@ -430,7 +429,7 @@ const aralLevelRank: Record<string, number> = {
   }
 
   return (
-    <div className="space-y-6 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+    <div className="space-y-4 sm:space-y-6 data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
       {/* ── Tutor Multi-Cohort Filter (ARAL Level, Subject, Grade - Section) ── */}
       <TutorCohortFilter
@@ -452,7 +451,7 @@ const aralLevelRank: Record<string, number> = {
 
       {/* ── States ────────────────────────────────────────────────── */}
       {students.length === 0 ? (
-        <div className="bg-white dark:bg-[#111111] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-10 text-center space-y-3">
+        <div className="bg-white dark:bg-[#111111] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 sm:p-10 text-center space-y-3">
           <div className="w-14 h-14 rounded-md bg-gray-50 dark:bg-[#161616] border border-gray-200 dark:border-[#1A1A1A] flex items-center justify-center mx-auto">
             <Users className="w-7 h-7 text-gray-300 dark:text-slate-600" />
           </div>
@@ -462,34 +461,34 @@ const aralLevelRank: Record<string, number> = {
       ) : (
         <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative">
           {/* Section header */}
-          <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-2.5 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-            <div className="min-w-0 flex-1 truncate">
-              <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase truncate">ASSIGNED STUDENTS DETAILS</h3>
-              <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <div className="min-w-0">
+              <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase tracking-tight">ASSIGNED STUDENTS DETAILS</h3>
+              <p className="mt-0.5 text-[11px] sm:text-xs font-normal text-gray-500 dark:text-slate-400">
                 {filteredAndSorted.length} Student{filteredAndSorted.length !== 1 ? 's' : ''}
               </p>
             </div>
 
             {/* Controls */}
-            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
-              <label className="relative flex w-28 xs:w-36 sm:w-52 items-center shrink-0">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <label className="relative w-full sm:w-56 md:w-64">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <input
                   type="search"
-                  placeholder="Search student..."
+                  placeholder="Search student or LRN..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   aria-label="Search assigned students"
-                  className="h-7.5 sm:h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-8 pr-2.5 text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
+                  className="h-8 sm:h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-8 pr-2.5 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
                 />
               </label>
             </div>
           </div>
 
           {/* Content */}
-          <div className="p-4 sm:p-6">
+          <div className="p-3 sm:p-6">
             {filteredAndSorted.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-12 text-center">
+              <div className="flex flex-col items-center gap-2 py-10 sm:py-12 text-center">
                 <Users className="w-10 h-10 text-gray-200 dark:text-gray-700" />
                 <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No matching students found</p>
                 <p className="text-xs text-gray-400 dark:text-slate-500">
@@ -497,29 +496,29 @@ const aralLevelRank: Record<string, number> = {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2">
-                <table className="min-w-[800px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+              <div className="overflow-x-auto mobile-scroll-table -mx-3 sm:mx-0 px-3 sm:px-0">
+                <table className="min-w-[720px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                   <thead>
                     <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-                      <th className="w-12 px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                      <th className="w-12 px-2.5 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
                         #
                       </th>
-                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                      <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
                         <SortableHeader label="STUDENT" field="name" />
                       </th>
-                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                      <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
                         <SortableHeader label="LRN" field="lrn" />
                       </th>
-                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                      <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
                         <SortableHeader label="PARENT / GUARDIAN" field="parent_guardian" />
                       </th>
-                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                      <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
                         <SortableHeader label="CONTACT NO." field="contact" />
                       </th>
-                      <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                      <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
                         <SortableHeader label="ARAL LEVEL" field="level" />
                       </th>
-                      <th className="w-16 px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                      <th className="w-16 px-3 sm:px-4 py-2 sm:py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
                         ACTION
                       </th>
                     </tr>
@@ -527,28 +526,28 @@ const aralLevelRank: Record<string, number> = {
                   <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
                     {filteredAndSorted.map((row, index) => (
                       <tr key={row.student.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
-                        <td className="px-3 py-2.5 text-center text-xs font-normal text-gray-400 whitespace-nowrap">
+                        <td className="px-2.5 sm:px-3 py-2 sm:py-2.5 text-center text-xs font-normal text-gray-400 whitespace-nowrap">
                           {index + 1}
                         </td>
-                        <td className="px-4 py-2.5 font-semibold text-gray-800 dark:text-slate-100">
+                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 font-semibold text-gray-800 dark:text-slate-100">
                           <span className="block truncate font-semibold text-gray-800 dark:text-slate-100">{row.student.full_name}</span>
                         </td>
-                        <td className="px-4 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs font-normal font-mono">
+                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs font-normal font-mono">
                           {row.student.lrn || 'N/A'}
                         </td>
-                        <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-normal uppercase">
+                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-normal uppercase">
                           {row.student.parent_guardian_name || '—'}
                         </td>
-                        <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-mono">
+                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-mono">
                           {row.student.contact_number || '—'}
                         </td>
-                        <td className="px-4 py-2.5 whitespace-nowrap">
+                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap">
                           {getAralBadge(row.student.aral_level)}
                         </td>
-                        <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-center whitespace-nowrap">
                           <Link
                             to={`/tutor/students/${row.student.id}`}
-                            className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] transition-colors cursor-pointer p-1"
+                            className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] hover:bg-gray-100 dark:hover:bg-[#1e1e1e] rounded-md transition-colors cursor-pointer p-2 sm:p-1.5 touch-manipulation"
                             title="View Profile"
                             aria-label={`View profile for ${row.student.full_name}`}
                           >

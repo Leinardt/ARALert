@@ -326,92 +326,130 @@ def execute_school_year_transition(admin_user: User | None = None) -> dict:
             }
         )
 
-        all_students = User.objects.filter(role='student')
+        # Bulk preloads
+        all_students = list(User.objects.filter(role='student').select_related('assigned_tutor'))
+        active_enrollments = {
+            e.student_id: e
+            for e in StudentEnrollment.objects.filter(student__in=all_students, school_year=active_sy)
+        }
+
+        # Bulk preload latest EOSY grade for all students
+        eosy_grades = ApiGrade.objects.filter(subject__icontains='EOSY').order_by('student_id', '-date_logged')
+        eosy_grade_by_student = {}
+        for g in eosy_grades:
+            if g.student_id not in eosy_grade_by_student:
+                eosy_grade_by_student[g.student_id] = g
+
+        # Bulk preload basic failures
+        from collections import defaultdict
+        failed_basic_years = defaultdict(set)
+        for sid, sy_str in StudentEnrollment.objects.filter(program='basic', eosy_result='failed').values_list('student_id', 'school_year__school_year'):
+            if sy_str:
+                failed_basic_years[sid].add(sy_str)
+        for g in ApiGrade.objects.filter(subject__icontains='EOSY'):
+            ts = float(g.total_score or 40)
+            sc = float(g.score or 0)
+            passed = sc >= 28.0 if ts == 40 else (sc / ts) >= 0.7
+            if not passed:
+                failed_basic_years[g.student_id].add(f"grade-year-{g.date_logged.year}")
+
+        # Check existing summer records to avoid duplicates
+        existing_summer_enrollment_ids = set(
+            SummerRecord.objects.filter(previous_enrollment__in=active_enrollments.values())
+            .values_list('previous_enrollment_id', flat=True)
+        )
+
+        new_enrollments = []
+        summer_records = []
+        students_to_update = []
+        enrollments_to_update = []
+
+        today = timezone.localdate()
 
         for student in all_students:
             if not student.is_active:
                 summary_stats['inactive_dropped'] += 1
                 continue
 
-            current_enrollment = StudentEnrollment.objects.filter(
-                student=student,
-                school_year=active_sy,
-            ).first()
-
+            current_enrollment = active_enrollments.get(student.id)
             if not current_enrollment:
                 continue
 
-            prog = current_enrollment.program.lower().strip()
-            eval_status, eosy_result, pct = get_student_eosy_status(student, active_sy)
+            prog = (current_enrollment.program or '').lower().strip()
+            grade_obj = eosy_grade_by_student.get(student.id)
+            eval_status, eosy_result, pct = get_student_eosy_status(student, active_sy, grade_obj=grade_obj)
 
-            # Update current enrollment completion details
             current_enrollment.eosy_result = eosy_result
             current_enrollment.evaluation_status = 'completed'
-            current_enrollment.completion_date = timezone.localdate()
-            current_enrollment.save(update_fields=['eosy_result', 'evaluation_status', 'completion_date', 'updated_at'])
+            current_enrollment.completion_date = today
+
+            student_changed = False
 
             # STEP 4: Process Basic Students
             if prog == 'basic':
                 if eosy_result == 'passed':
-                    # Basic + Passed -> Plus
                     current_enrollment.final_result = 'Promoted to Plus'
                     current_enrollment.enrollment_status = 'completed'
-                    current_enrollment.save()
 
-                    # Create new enrollment for Next School Year: Program = Plus, Status = Active
-                    StudentEnrollment.objects.create(
+                    new_enrollments.append(StudentEnrollment(
                         student=student,
                         school_year=new_sy,
                         program='plus',
-                        assigned_tutor=None,  # Awaiting Plus tutor assignment
+                        assigned_tutor=None,
                         enrollment_status='active',
                         grade_level='Grade 8',
-                    )
+                    ))
                     student.aral_level = 'plus'
                     student.assigned_tutor = None
-                    student.save(update_fields=['aral_level', 'assigned_tutor'])
+                    student_changed = True
 
                     summary_stats['basic_to_plus'] += 1
                     summary_stats['unassigned_students'] += 1
                     summary_stats['tutor_changes'] += 1
 
                 elif eosy_result == 'failed':
-                    # Check failure count
-                    failures = count_historical_basic_failures(student)
+                    failures = len(failed_basic_years[student.id])
+                    # Count current failure towards total if not already counted
+                    if current_sy_str not in failed_basic_years[student.id]:
+                        failures += 1
+
                     if failures >= 2:
-                        # Basic + Failed Twice -> Summer Required
                         current_enrollment.final_result = 'Summer Remediation Required'
                         current_enrollment.enrollment_status = 'completed'
-                        current_enrollment.save()
+                        current_enrollment.summer_status = StudentEnrollment.SummerStatus.REQUIRED
 
-                        check_and_create_summer_record_if_eligible(
-                            student, current_enrollment, 'failed', current_sy_str
-                        )
+                        if current_enrollment.id not in existing_summer_enrollment_ids:
+                            summer_records.append(SummerRecord(
+                                student=student,
+                                previous_enrollment=current_enrollment,
+                                previous_program=current_enrollment.program,
+                                previous_school_year=current_sy_str,
+                                reason=SummerRecord.Reason.BASIC_FAILED_TWICE,
+                                summer_status=SummerRecord.Status.REQUIRED,
+                                summer_evaluation_status=SummerRecord.EvaluationStatus.PENDING,
+                            ))
                         summary_stats['sent_to_summer'] += 1
                     else:
-                        # Basic + Failed 1x -> Retained in Basic
                         current_enrollment.final_result = 'Retained in Basic'
                         current_enrollment.enrollment_status = 'completed'
-                        current_enrollment.save()
 
-                        # Check if current tutor is still compatible Basic tutor
                         tutor = student.assigned_tutor
                         tutor_compatible = (
                             tutor and ('basic' in f"{getattr(tutor, 'tutor_type', '')} {getattr(tutor, 'aral_level', '')}".lower())
                         )
                         next_tutor = tutor if tutor_compatible else None
 
-                        StudentEnrollment.objects.create(
+                        new_enrollments.append(StudentEnrollment(
                             student=student,
                             school_year=new_sy,
                             program='basic',
                             assigned_tutor=next_tutor,
                             enrollment_status='active',
                             grade_level='Grade 8',
-                        )
+                        ))
                         if not tutor_compatible:
                             student.assigned_tutor = None
-                            student.save(update_fields=['assigned_tutor'])
+                            student_changed = True
                             summary_stats['unassigned_students'] += 1
                             summary_stats['tutor_changes'] += 1
 
@@ -420,30 +458,54 @@ def execute_school_year_transition(admin_user: User | None = None) -> dict:
             # STEP 5: Process Plus Students
             elif prog == 'plus':
                 if eosy_result == 'passed':
-                    # Plus + Passed -> Graduated
                     current_enrollment.final_result = 'Graduated'
                     current_enrollment.graduation_status = 'graduated'
                     current_enrollment.enrollment_status = 'completed'
-                    current_enrollment.save()
 
                     student.aral_level = 'graduated'
                     student.assigned_tutor = None
-                    student.save(update_fields=['aral_level', 'assigned_tutor'])
+                    student_changed = True
 
                     summary_stats['plus_to_graduated'] += 1
                     summary_stats['tutor_changes'] += 1
-                    # Do NOT create another active school-year enrollment for a graduated student.
 
                 elif eosy_result == 'failed':
-                    # Plus + Failed -> Summer Required
                     current_enrollment.final_result = 'Summer Remediation Required'
                     current_enrollment.enrollment_status = 'completed'
-                    current_enrollment.save()
+                    current_enrollment.summer_status = StudentEnrollment.SummerStatus.REQUIRED
 
-                    check_and_create_summer_record_if_eligible(
-                        student, current_enrollment, 'failed', current_sy_str
-                    )
+                    if current_enrollment.id not in existing_summer_enrollment_ids:
+                        summer_records.append(SummerRecord(
+                            student=student,
+                            previous_enrollment=current_enrollment,
+                            previous_program=current_enrollment.program,
+                            previous_school_year=current_sy_str,
+                            reason=SummerRecord.Reason.PLUS_FAILED,
+                            summer_status=SummerRecord.Status.REQUIRED,
+                            summer_evaluation_status=SummerRecord.EvaluationStatus.PENDING,
+                        ))
                     summary_stats['sent_to_summer'] += 1
+
+            enrollments_to_update.append(current_enrollment)
+            if student_changed:
+                students_to_update.append(student)
+
+        # Atomic Bulk Operations
+        if enrollments_to_update:
+            StudentEnrollment.objects.bulk_update(
+                enrollments_to_update,
+                ['eosy_result', 'evaluation_status', 'completion_date', 'final_result', 'enrollment_status', 'graduation_status', 'summer_status'],
+                batch_size=500
+            )
+
+        if summer_records:
+            SummerRecord.objects.bulk_create(summer_records, ignore_conflicts=True, batch_size=500)
+
+        if new_enrollments:
+            StudentEnrollment.objects.bulk_create(new_enrollments, ignore_conflicts=True, batch_size=500)
+
+        if students_to_update:
+            User.objects.bulk_update(students_to_update, ['aral_level', 'assigned_tutor'], batch_size=500)
 
         # STEP 7: Clean-Slate Reset — conclude all active assignments for the archived school year.
         # All students (Basic, Plus) become unassigned. Tutors become fully vacant.

@@ -130,19 +130,23 @@ def get_available_tutors_data(program: str | None = None) -> list[dict]:
     and full slot availability (up to 25 per cohort).
     """
     MAX_COHORT = 25
+    from django.db.models import Count, Q
     tutors_qs = User.objects.filter(role='tutor', is_active=True, is_superuser=False)
 
     if program:
         prog = program.lower().strip()
-        from django.db.models import Q
         tutors_qs = tutors_qs.filter(
             Q(tutor_type=prog) | Q(tutor_type__icontains=prog) |
             Q(aral_level=prog) | Q(aral_level__icontains=prog)
         )
 
+    tutors_qs = tutors_qs.annotate(
+        assigned_count=Count('assigned_students', filter=Q(assigned_students__is_active=True))
+    )
+
     results = []
     for tutor in tutors_qs:
-        assigned_count = tutor.assigned_students.filter(is_active=True).count()
+        assigned_count = getattr(tutor, 'assigned_count', 0)
         available_slots = max(0, MAX_COHORT - assigned_count)
         t_type = tutor.tutor_type or tutor.aral_level or 'basic'
 
