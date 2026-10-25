@@ -382,7 +382,7 @@ export const academicService = {
   },
 
   processMosyCompletion: async (): Promise<{ status: string; message: string; plus_unassigned_count: number; basic_unassigned_count: number }> => {
-    const response = await api.post<{ status: string; message: string; plus_unassigned_count: number; basic_unassigned_count: number }>('/academics/evaluations/mosy-process/');
+    const response = await api.post<{ status: string; message: string; plus_unassigned_count: number; basic_unassigned_count: number }>('/academics/evaluations/mosy-process/', {});
     return response.data;
   },
 

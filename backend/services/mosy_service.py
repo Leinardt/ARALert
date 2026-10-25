@@ -202,19 +202,29 @@ def process_mosy_completion(admin_user: User | None = None) -> dict:
             defaults={'status': 'ACTIVE', 'is_active': True}
         )
 
-    students = User.objects.filter(role='student', is_active=True)
+    students = list(User.objects.filter(role='student', is_active=True).select_related('assigned_tutor'))
     plus_unassigned_count = 0
     basic_retained_count = 0
 
+    # Preload latest MOSY grade for all students in 1 query
+    mosy_grades = ApiGrade.objects.filter(subject__icontains='MOSY').order_by('student_id', '-date_logged')
+    mosy_grade_by_student = {}
+    for g in mosy_grades:
+        if g.student_id not in mosy_grade_by_student:
+            mosy_grade_by_student[g.student_id] = g
+
+    # Preload enrollments for active school year in 1 query
+    existing_enrollments = {
+        e.student_id: e
+        for e in StudentEnrollment.objects.filter(school_year=active_sy, student__in=students)
+    }
+
     with transaction.atomic():
         for student in students:
-            eval_status, result, pct = get_student_mosy_status(student, active_sy)
+            grade_obj = mosy_grade_by_student.get(student.id)
+            eval_status, result, pct = get_student_mosy_status(student, active_sy, grade_obj=grade_obj)
 
-            enrollment = StudentEnrollment.objects.filter(
-                student=student,
-                school_year=active_sy,
-            ).first()
-
+            enrollment = existing_enrollments.get(student.id)
             raw_level = (student.aral_level or 'basic').lower()
             enrollment_prog = raw_level if raw_level in ('basic', 'plus', 'summer') else ('plus' if raw_level == 'graduated' else 'basic')
             current_tutor = _get_safe_assigned_tutor(student)
@@ -228,6 +238,7 @@ def process_mosy_completion(admin_user: User | None = None) -> dict:
                     enrollment_status='completed' if raw_level == 'graduated' else 'active',
                     graduation_status='graduated' if raw_level == 'graduated' else 'not_eligible',
                 )
+                existing_enrollments[student.id] = enrollment
 
             # Update MOSY result
             if eval_status == 'completed':
