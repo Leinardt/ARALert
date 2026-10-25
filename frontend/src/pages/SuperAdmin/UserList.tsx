@@ -889,7 +889,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
   };
 
   return (
-    <div className="space-y-6" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+    <div className="space-y-4 sm:space-y-6" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
       {/* ── Top Navigation Tabs (Pill Switcher) ────────────────────────── */}
       <div
         className="flex w-full rounded-md bg-gray-100 p-1 gap-1 dark:bg-[#111111] overflow-x-auto no-scrollbar"
@@ -917,9 +917,9 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
       {/* ── Main Integrated Directory Table Card ──────────────────────── */}
       <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
         {/* Table Toolbar (Section Title + Action Buttons & Filters) */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 px-3 sm:px-4 py-2.5 border-b border-gray-100 dark:border-[#1A1A1A] overflow-x-auto no-scrollbar">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 px-3 sm:px-4 py-2.5 border-b border-gray-100 dark:border-[#1A1A1A] overflow-x-auto no-scrollbar">
           {/* Left: Title & Counter */}
-          <div className="shrink-0 flex items-center gap-2">
+          <div className="shrink-0 flex items-center justify-between lg:justify-start gap-2">
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase tracking-wide whitespace-nowrap">
               {activeTab === 'student'
                 ? 'STUDENTS DIRECTORY'
@@ -944,7 +944,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
           <div className="flex flex-wrap lg:flex-nowrap items-center gap-1.5 w-full lg:w-auto shrink-0">
             {/* Tutor Assignment Filter (Student Tab) */}
             {activeTab === 'student' && (
-              <div className="relative inline-flex items-center shrink-0">
+              <div className="relative inline-flex items-center shrink-0 flex-1 sm:flex-initial min-w-[120px] sm:min-w-0">
                 <select
                   value={assignedTutorFilter}
                   onChange={(e) => {
@@ -952,7 +952,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                     setPage(1);
                   }}
                   aria-label="Filter by Assigned Tutor"
-                  className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                  className="h-8 w-full sm:w-auto rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
                 >
                   <option value="">All Tutors</option>
                   <option value="none">TBA (Unassigned)</option>
@@ -967,7 +967,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
             {/* ARAL Level Filter (Student Tab) */}
             {activeTab === 'student' && (
-              <div className="relative inline-flex items-center shrink-0">
+              <div className="relative inline-flex items-center shrink-0 flex-1 sm:flex-initial min-w-[100px] sm:min-w-0">
                 <select
                   value={aralLevelFilter}
                   onChange={(e) => {
@@ -975,7 +975,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                     setPage(1);
                   }}
                   aria-label="Filter by ARAL Level"
-                  className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                  className="h-8 w-full sm:w-auto rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
                 >
                   <option value="">All Levels</option>
                   <option value="basic">Basic</option>
@@ -986,7 +986,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
             {/* ARAL Level Filter (Tutor Tab) */}
             {activeTab === 'tutor' && (
-              <div className="relative inline-flex items-center shrink-0">
+              <div className="relative inline-flex items-center shrink-0 flex-1 sm:flex-initial min-w-[100px] sm:min-w-0">
                 <select
                   value={aralLevelFilter}
                   onChange={(e) => {
@@ -994,7 +994,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                     setPage(1);
                   }}
                   aria-label="Filter by ARAL Level"
-                  className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                  className="h-8 w-full sm:w-auto rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
                 >
                   <option value="">All Levels</option>
                   <option value="basic">Basic</option>
@@ -1005,7 +1005,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
             {/* Subject Filter (Student & Tutor Tabs) */}
             {(activeTab === 'student' || activeTab === 'tutor') && (
-              <div className="relative inline-flex items-center shrink-0">
+              <div className="relative inline-flex items-center shrink-0 flex-1 sm:flex-initial min-w-[110px] sm:min-w-0">
                 <select
                   value={subjectFilter}
                   onChange={(e) => {
@@ -1013,7 +1013,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                     setPage(1);
                   }}
                   aria-label="Filter by Subject"
-                  className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                  className="h-8 w-full sm:w-auto rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
                 >
                   <option value="">All Subjects</option>
                   <option value="Filipino">Filipino</option>
@@ -1026,7 +1026,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
             {/* Grade Level Filter (Student & Tutor Tabs) */}
             {(activeTab === 'student' || activeTab === 'tutor') && (
-              <div className="relative inline-flex items-center shrink-0">
+              <div className="relative inline-flex items-center shrink-0 flex-1 sm:flex-initial min-w-[100px] sm:min-w-0">
                 <select
                   value={gradeLevelFilter}
                   onChange={(e) => {
@@ -1034,7 +1034,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                     setPage(1);
                   }}
                   aria-label="Filter by Grade Level"
-                  className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
+                  className="h-8 w-full sm:w-auto rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
                 >
                   <option value="">All Grades</option>
                   <option value="7">Grade 7</option>
@@ -1049,7 +1049,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
             {/* Section Filter (Student & Tutor Tabs) */}
             {(activeTab === 'student' || activeTab === 'tutor') && (
-              <div className="relative inline-flex items-center shrink-0">
+              <div className="relative inline-flex items-center shrink-0 flex-1 sm:flex-initial min-w-[110px] sm:min-w-0">
                 <select
                   value={sectionFilter}
                   onChange={(e) => {
@@ -1057,7 +1057,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                     setPage(1);
                   }}
                   aria-label="Filter by Section"
-                  className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer uppercase"
+                  className="h-8 w-full sm:w-auto rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer uppercase"
                 >
                   <option value="">All Sections</option>
                   {knownSections.map((sec) => (
@@ -1450,14 +1450,14 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                                 {u.is_active ? 'Active' : 'Inactive'}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-center whitespace-nowrap space-x-1.5">
+                            <td className="px-4 py-3 text-center whitespace-nowrap space-x-1 sm:space-x-1.5">
                               <Link
                                 to={
                                   currentUser?.is_superuser
                                     ? `/superadmin/users/edit/${u.id}`
                                     : `/admin/students/edit/${u.id}`
                                 }
-                                className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] transition-colors p-1 cursor-pointer"
+                                className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] hover:bg-gray-100 dark:hover:bg-white/[0.05] rounded-md transition-colors p-2 sm:p-1.5 touch-manipulation cursor-pointer"
                                 title="Edit User"
                                 aria-label={`Edit ${u.full_name || u.first_name}`}
                               >
@@ -1465,14 +1465,14 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                               </Link>
                               {isRootSuperAdmin(u) ? (
                                 <span
-                                  className="inline-flex items-center justify-center p-1 text-emerald-600 dark:text-emerald-400 cursor-not-allowed opacity-90"
+                                  className="inline-flex items-center justify-center p-2 sm:p-1.5 text-emerald-600 dark:text-emerald-400 cursor-not-allowed opacity-90"
                                   title={`Primary Root SuperAdmin (${ROOT_SUPERADMIN_EMAIL}) - Immune from deactivation`}
                                 >
                                   <ShieldCheck className="w-4 h-4" />
                                 </span>
                               ) : isSelfUser(u, currentUser) ? (
                                 <span
-                                  className="inline-flex items-center justify-center p-1 text-gray-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
+                                  className="inline-flex items-center justify-center p-2 sm:p-1.5 text-gray-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
                                   title="You cannot deactivate your own account"
                                 >
                                   <ShieldCheck className="w-4 h-4" />
@@ -1481,7 +1481,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                                 <button
                                   type="button"
                                   onClick={() => handleStatusClick(u)}
-                                  className={`inline-flex items-center justify-center p-1 cursor-pointer transition-colors ${u.is_active
+                                  className={`inline-flex items-center justify-center p-2 sm:p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.05] touch-manipulation cursor-pointer transition-colors ${u.is_active
                                     ? 'text-gray-400 hover:text-red-600'
                                     : 'text-gray-400 hover:text-emerald-600'
                                     }`}
@@ -1521,14 +1521,14 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                                 {u.is_active ? 'Active' : 'Inactive'}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-center whitespace-nowrap space-x-1.5">
+                            <td className="px-4 py-3 text-center whitespace-nowrap space-x-1 sm:space-x-1.5">
                               <Link
                                 to={
                                   currentUser?.is_superuser
                                     ? `/superadmin/users/edit/${u.id}`
                                     : `/admin/tutors/edit/${u.id}`
                                 }
-                                className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] transition-colors p-1 cursor-pointer"
+                                className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] hover:bg-gray-100 dark:hover:bg-white/[0.05] rounded-md transition-colors p-2 sm:p-1.5 touch-manipulation cursor-pointer"
                                 title="Edit User"
                                 aria-label={`Edit ${u.full_name || u.first_name}`}
                               >
@@ -1536,14 +1536,14 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                               </Link>
                               {isRootSuperAdmin(u) ? (
                                 <span
-                                  className="inline-flex items-center justify-center p-1 text-emerald-600 dark:text-emerald-400 cursor-not-allowed opacity-90"
+                                  className="inline-flex items-center justify-center p-2 sm:p-1.5 text-emerald-600 dark:text-emerald-400 cursor-not-allowed opacity-90"
                                   title={`Primary Root SuperAdmin (${ROOT_SUPERADMIN_EMAIL}) - Immune from deactivation`}
                                 >
                                   <ShieldCheck className="w-4 h-4" />
                                 </span>
                               ) : isSelfUser(u, currentUser) ? (
                                 <span
-                                  className="inline-flex items-center justify-center p-1 text-gray-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
+                                  className="inline-flex items-center justify-center p-2 sm:p-1.5 text-gray-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
                                   title="You cannot deactivate your own account"
                                 >
                                   <ShieldCheck className="w-4 h-4" />
@@ -1552,7 +1552,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                                 <button
                                   type="button"
                                   onClick={() => handleStatusClick(u)}
-                                  className={`inline-flex items-center justify-center p-1 cursor-pointer transition-colors ${u.is_active
+                                  className={`inline-flex items-center justify-center p-2 sm:p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.05] touch-manipulation cursor-pointer transition-colors ${u.is_active
                                     ? 'text-gray-400 hover:text-red-600'
                                     : 'text-gray-400 hover:text-emerald-600'
                                     }`}
@@ -1580,7 +1580,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                                 {u.is_active ? 'Active' : 'Inactive'}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-center whitespace-nowrap space-x-1.5">
+                            <td className="px-4 py-3 text-center whitespace-nowrap space-x-1 sm:space-x-1.5">
                               <Link
                                 to={
                                   currentUser?.is_superuser
@@ -1591,7 +1591,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                                     ? `/admin/principals/edit/${u.id}`
                                     : `/admin/faculty/edit/${u.id}`
                                 }
-                                className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] transition-colors p-1 cursor-pointer"
+                                className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] hover:bg-gray-100 dark:hover:bg-white/[0.05] rounded-md transition-colors p-2 sm:p-1.5 touch-manipulation cursor-pointer"
                                 title="Edit User"
                                 aria-label={`Edit ${u.full_name || u.first_name}`}
                               >
@@ -1599,14 +1599,14 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                               </Link>
                               {isRootSuperAdmin(u) ? (
                                 <span
-                                  className="inline-flex items-center justify-center p-1 text-emerald-600 dark:text-emerald-400 cursor-not-allowed opacity-90"
+                                  className="inline-flex items-center justify-center p-2 sm:p-1.5 text-emerald-600 dark:text-emerald-400 cursor-not-allowed opacity-90"
                                   title={`Primary Root SuperAdmin (${ROOT_SUPERADMIN_EMAIL}) - Immune from deactivation`}
                                 >
                                   <ShieldCheck className="w-4 h-4" />
                                 </span>
                               ) : isSelfUser(u, currentUser) ? (
                                 <span
-                                  className="inline-flex items-center justify-center p-1 text-gray-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
+                                  className="inline-flex items-center justify-center p-2 sm:p-1.5 text-gray-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
                                   title="You cannot deactivate your own account"
                                 >
                                   <ShieldCheck className="w-4 h-4" />
@@ -1615,7 +1615,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                                 <button
                                   type="button"
                                   onClick={() => handleStatusClick(u)}
-                                  className={`inline-flex items-center justify-center p-1 cursor-pointer transition-colors ${u.is_active
+                                  className={`inline-flex items-center justify-center p-2 sm:p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.05] touch-manipulation cursor-pointer transition-colors ${u.is_active
                                     ? 'text-gray-400 hover:text-red-600'
                                     : 'text-gray-400 hover:text-emerald-600'
                                     }`}

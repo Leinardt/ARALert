@@ -240,15 +240,15 @@ export const AuditLog: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-5 p-4 sm:p-6 max-w-7xl mx-auto w-full" style={{ fontFamily: 'var(--font-body)' }}>
+    <div className="flex flex-col gap-4 sm:gap-5 p-3.5 sm:p-6 max-w-7xl mx-auto w-full" style={{ fontFamily: 'var(--font-body)' }}>
 
       {/* ── Filters Bar ── */}
       <form
         onSubmit={handleSearch}
-        className="p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs flex flex-wrap items-end gap-3"
+        className="p-3.5 sm:p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs flex flex-wrap items-end gap-3"
       >
         {/* Filter by Event */}
-        <div className="flex flex-col gap-1.5 flex-1 min-w-[220px]">
+        <div className="flex flex-col gap-1.5 w-full sm:flex-1 sm:min-w-[200px]">
           <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
             Filter by Event
           </label>
@@ -318,7 +318,7 @@ export const AuditLog: React.FC = () => {
         </div>
 
         {/* Filter by Date */}
-        <div className="flex flex-col gap-1.5 min-w-[170px]">
+        <div className="flex flex-col gap-1.5 w-full sm:w-auto sm:min-w-[170px]">
           <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
             Filter by Date
           </label>
@@ -383,7 +383,7 @@ export const AuditLog: React.FC = () => {
         </div>
 
         {/* Filter by Name, Email, or LRN */}
-        <div className="flex flex-col gap-1.5 flex-1 min-w-[200px]">
+        <div className="flex flex-col gap-1.5 w-full sm:flex-1 sm:min-w-[200px]">
           <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
             Filter by Name, Email, or LRN
           </label>
@@ -400,12 +400,12 @@ export const AuditLog: React.FC = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end sm:justify-start">
           {(eventFilter || dateFilter || searchFilter || searchInput) && (
             <button
               type="button"
               onClick={handleClear}
-              className="h-9 px-3.5 rounded-md text-xs font-bold text-slate-600 dark:text-zinc-400 bg-gray-100 hover:bg-gray-200 dark:bg-[#111111] dark:hover:bg-[#1a1a1a] border border-gray-200 dark:border-[#1A1A1A] transition cursor-pointer"
+              className="h-9 px-3.5 flex-1 sm:flex-initial rounded-md text-xs font-bold text-slate-600 dark:text-zinc-400 bg-gray-100 hover:bg-gray-200 dark:bg-[#111111] dark:hover:bg-[#1a1a1a] border border-gray-200 dark:border-[#1A1A1A] transition cursor-pointer"
             >
               Clear
             </button>
@@ -414,7 +414,7 @@ export const AuditLog: React.FC = () => {
             type="button"
             onClick={() => setShowExportModal(true)}
             title="Export Audit Logs"
-            className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-3 sm:px-3.5 py-2 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap shadow-xs"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-3 sm:px-3.5 py-2 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer flex-1 sm:flex-initial shrink-0 whitespace-nowrap shadow-xs h-9"
           >
             <Download className="w-3.5 h-3.5 text-white" />
             <span>Export Audit Log</span>
@@ -501,7 +501,7 @@ export const AuditLog: React.FC = () => {
             No audit events match your filters.
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto mobile-scroll-table">
             <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
               <thead>
                 <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">

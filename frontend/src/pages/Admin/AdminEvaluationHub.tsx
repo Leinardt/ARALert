@@ -824,11 +824,11 @@ export const AdminEvaluationHub: React.FC = () => {
   const activePhaseLabel = activeTab.toUpperCase();
 
   return (
-    <div className="flex flex-col gap-5 p-4 sm:p-6 max-w-7xl mx-auto w-full" style={{ fontFamily: 'var(--font-body)' }}>
+    <div className="flex flex-col gap-4 sm:gap-5 p-3.5 sm:p-6 max-w-7xl mx-auto w-full" style={{ fontFamily: 'var(--font-body)' }}>
       {/* ── Top Bar: School Year (no icon) • MOSY(Q1 & Q2), EOSY(Q3 & Q4), SUMMER(Midyear) | Assessment Window Button ── */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-zinc-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-slate-200 dark:border-zinc-800">
         {/* Left: School Year (No Icon) & Phase Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span className="font-bold text-sm sm:text-base text-slate-900 dark:text-white whitespace-nowrap">
             {currentSchoolYearStr.startsWith('SY') ? currentSchoolYearStr : `SY ${currentSchoolYearStr}`}
           </span>
@@ -836,11 +836,11 @@ export const AdminEvaluationHub: React.FC = () => {
           <span className="text-slate-300 dark:text-zinc-700 font-bold text-base select-none">&bull;</span>
 
           {/* Phase Switcher Tabs */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 overflow-x-auto">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 overflow-x-auto no-scrollbar w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setActiveTab('mosy')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 activeTab === 'mosy'
                   ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
@@ -858,7 +858,7 @@ export const AdminEvaluationHub: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('eosy')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 activeTab === 'eosy'
                   ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
@@ -876,7 +876,7 @@ export const AdminEvaluationHub: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('summer')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 activeTab === 'summer'
                   ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
@@ -894,11 +894,11 @@ export const AdminEvaluationHub: React.FC = () => {
         </div>
 
         {/* Right: Assessment Window Control with Active Clockwise Glowing Outline */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
           <button
             type="button"
             onClick={handleToggleAssessmentWindow}
-            className={`relative inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold uppercase transition cursor-pointer border shadow-xs ${
+            className={`relative inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold uppercase transition cursor-pointer border shadow-xs w-full sm:w-auto ${
               isWindowOpen
                 ? 'border-emerald-400/80 dark:border-emerald-600/80 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/60 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
                 : 'border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60'
@@ -990,9 +990,9 @@ export const AdminEvaluationHub: React.FC = () => {
       ) : (
         <div className="space-y-6">
           {/* ── Assessment Status Card Container ──────────────────────────────────── */}
-          <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 sm:p-6 space-y-5 shadow-xs">
+          <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 sm:p-6 space-y-4 sm:space-y-5 shadow-xs">
             {/* 1. Header Row: Bold Evaluation Status Label on Left with Active Badge & Transition Button on Top Right */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
                   {activePhaseLabel} Evaluation Status
@@ -1021,7 +1021,7 @@ export const AdminEvaluationHub: React.FC = () => {
                     });
                   }}
                   disabled={!isAllTutorsComplete || isProcessingMosy}
-                  className={`px-5 py-2 rounded-xl text-xs font-bold border transition duration-150 shrink-0 whitespace-nowrap ${
+                  className={`w-full sm:w-auto text-center justify-center px-5 py-2 rounded-xl text-xs font-bold border transition duration-150 shrink-0 whitespace-nowrap ${
                     isAllTutorsComplete
                       ? 'bg-[#0052B7] text-white hover:bg-[#004194] border-[#0052B7] shadow-xs cursor-pointer'
                       : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 border-slate-200 dark:border-zinc-700 cursor-not-allowed opacity-60'
@@ -1047,7 +1047,7 @@ export const AdminEvaluationHub: React.FC = () => {
                     });
                   }}
                   disabled={!isAllTutorsComplete || isProcessingEosy}
-                  className={`px-5 py-2 rounded-xl text-xs font-bold border transition duration-150 shrink-0 whitespace-nowrap ${
+                  className={`w-full sm:w-auto text-center justify-center px-5 py-2 rounded-xl text-xs font-bold border transition duration-150 shrink-0 whitespace-nowrap ${
                     isAllTutorsComplete
                       ? 'bg-[#0052B7] text-white hover:bg-[#004194] border-[#0052B7] shadow-xs cursor-pointer'
                       : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 border-slate-200 dark:border-zinc-700 cursor-not-allowed opacity-60'
@@ -1065,7 +1065,7 @@ export const AdminEvaluationHub: React.FC = () => {
                   type="button"
                   onClick={() => setIsTransitionModalOpen(true)}
                   disabled={!isAllTutorsComplete}
-                  className={`px-5 py-2 rounded-xl text-xs font-bold border transition duration-150 shrink-0 whitespace-nowrap ${
+                  className={`w-full sm:w-auto text-center justify-center px-5 py-2 rounded-xl text-xs font-bold border transition duration-150 shrink-0 whitespace-nowrap ${
                     isAllTutorsComplete
                       ? 'bg-[#0052B7] text-white hover:bg-[#004194] border-[#0052B7] shadow-xs cursor-pointer'
                       : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 border-slate-200 dark:border-zinc-700 cursor-not-allowed opacity-60'
