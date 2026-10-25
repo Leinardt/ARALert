@@ -499,15 +499,15 @@ export const DashboardLayout: React.FC = () => {
     }
   };
 
-  // Auto-refresh high risk student alerts so the blinking number updates automatically
+  // Auto-refresh high risk student alerts with a gentle 60s interval and event-driven updates
   useEffect(() => {
     fetchRiskStudents();
     if (user?.role === 'tutor') {
       const interval = setInterval(() => {
-        if (document.visibilityState === 'visible') {
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
           fetchRiskStudents();
         }
-      }, 8000);
+      }, 60000);
       const handleCustomRefresh = () => {
         fetchRiskStudents();
       };
@@ -517,7 +517,7 @@ export const DashboardLayout: React.FC = () => {
         window.removeEventListener('aralert:refresh-risk-alerts', handleCustomRefresh);
       };
     }
-  }, [user, location.pathname]);
+  }, [user?.id, user?.role]);
 
   useEffect(() => { if (!showRiskList) return; fetchRiskStudents(); }, [showRiskList]);
 

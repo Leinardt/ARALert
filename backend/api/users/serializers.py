@@ -51,9 +51,21 @@ class UserListSerializer(serializers.ModelSerializer):
 
     def get_baseline_program(self, obj):
         if getattr(obj, 'role', None) == 'student':
+            request = self.context.get('request')
+            enr_map = getattr(request, '_cached_enrollments_map', None)
+            if enr_map is not None:
+                enr = enr_map.get(obj.id)
+                if enr and enr.program:
+                    return enr.program.lower()
+                return (getattr(obj, 'aral_level', None) or 'basic').lower()
+
             try:
                 from apps.academics.models import StudentEnrollment, SchoolYear
-                active_sy = SchoolYear.objects.filter(is_active=True).first()
+                active_sy = getattr(request, '_cached_active_sy', None) if request else None
+                if not active_sy:
+                    active_sy = SchoolYear.objects.filter(is_active=True).first()
+                    if request:
+                        request._cached_active_sy = active_sy
                 if active_sy:
                     enr = StudentEnrollment.objects.filter(student=obj, school_year=active_sy).first()
                     if enr and enr.program:
@@ -73,6 +85,18 @@ class UserListSerializer(serializers.ModelSerializer):
         if obj.role == 'student':
             if obj.assigned_tutor:
                 return obj.assigned_tutor.get_full_name()
+
+            request = self.context.get('request')
+            enr_map = getattr(request, '_cached_enrollments_map', None)
+            hist_map = getattr(request, '_cached_history_map', None)
+            if enr_map is not None:
+                enr = enr_map.get(obj.id)
+                if enr and enr.assigned_tutor:
+                    return enr.assigned_tutor.get_full_name()
+                if hist_map and obj.id in hist_map and hist_map[obj.id].tutor:
+                    return hist_map[obj.id].tutor.get_full_name()
+                return 'TBA'
+
             try:
                 from apps.academics.models import StudentEnrollment, TutorAssignmentHistory
                 hist = TutorAssignmentHistory.objects.filter(
@@ -569,11 +593,17 @@ class StudentEditRequestSerializer(serializers.ModelSerializer):
             else:
                 # For approved/rejected requests without a frozen snapshot, check the creation audit log
                 try:
-                    from apps.accounts.models import AuditLog
-                    sub_log = AuditLog.objects.filter(
-                        action='PROFILE_EDIT_REQUEST_SUBMITTED',
-                        details__request_id=str(obj.id),
-                    ).first()
+                    request = self.context.get('request')
+                    audit_map = getattr(request, '_cached_edit_audit_logs', None)
+                    sub_log = None
+                    if audit_map is not None:
+                        sub_log = audit_map.get(str(obj.id))
+                    else:
+                        from apps.accounts.models import AuditLog
+                        sub_log = AuditLog.objects.filter(
+                            action='PROFILE_EDIT_REQUEST_SUBMITTED',
+                            details__request_id=str(obj.id),
+                        ).first()
                     if sub_log:
                         target_name = sub_log.details.get('target_name', '')
                         if obj.request_type == 'student' and ',' in target_name:

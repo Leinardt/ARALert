@@ -197,7 +197,7 @@ REST_FRAMEWORK = {
         'scan': '30/minute',
         'export': '15/minute',
     },
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'DEFAULT_PAGINATION_CLASS': 'utilities.pagination.StandardResultsSetPagination',
     'PAGE_SIZE': 30,
     'EXCEPTION_HANDLER': 'utilities.exceptions.custom_exception_handler',
 }

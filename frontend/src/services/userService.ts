@@ -56,6 +56,8 @@ export const invalidateTutorStudentsCache = (tutorId?: string | number): void =>
   }
 };
 
+const inFlightUserRequests = new Map<string, Promise<User[]>>();
+
 export const userService = {
   getUsers: async (params: GetUsersParams = {}): Promise<GetUsersResponse> => {
     const response = await api.get<GetUsersResponse>('/users/', { params });
@@ -63,6 +65,12 @@ export const userService = {
   },
 
   getAllUsers: async (params: GetUsersParams = {}): Promise<User[]> => {
+    const queryKey = JSON.stringify(params);
+    const existingPromise = inFlightUserRequests.get(queryKey);
+    if (existingPromise) {
+      return existingPromise;
+    }
+
     const isPureTutorStudentsQuery =
       params.role === 'student' &&
       !!params.assigned_tutor &&
@@ -82,22 +90,30 @@ export const userService = {
       }
     }
 
-    const users: User[] = [];
-    let page = 1;
-    let response = await userService.getUsers({ ...params, page });
-    users.push(...response.results);
-    while (response.next) {
-      page += 1;
-      response = await userService.getUsers({ ...params, page });
+    const fetchPromise = (async () => {
+      const users: User[] = [];
+      let page = 1;
+      // Request page_size: 200 to fetch in a single HTTP request for typical class rosters
+      let response = await userService.getUsers({ ...params, page, page_size: 200 } as any);
       users.push(...response.results);
-    }
+      while (response.next) {
+        page += 1;
+        response = await userService.getUsers({ ...params, page, page_size: 200 } as any);
+        users.push(...response.results);
+      }
 
-    if (tutorKey) {
-      tutorStudentsCache.set(tutorKey, { data: users, timestamp: Date.now() });
-      setCachedTutorStudents(tutorKey, users);
-    }
+      if (tutorKey) {
+        tutorStudentsCache.set(tutorKey, { data: users, timestamp: Date.now() });
+        setCachedTutorStudents(tutorKey, users);
+      }
 
-    return users;
+      return users;
+    })().finally(() => {
+      inFlightUserRequests.delete(queryKey);
+    });
+
+    inFlightUserRequests.set(queryKey, fetchPromise);
+    return fetchPromise;
   },
 
   checkExistingLrns: async (lrns: string[]): Promise<string[]> => {

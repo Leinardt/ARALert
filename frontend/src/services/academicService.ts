@@ -76,35 +76,70 @@ export interface GetPrincipalDashboardParams {
   days?: number;
 }
 
+const inFlightGradesRequests = new Map<string, Promise<Grade[]>>();
+const gradesCache = new Map<string, { data: Grade[]; timestamp: number }>();
+const inFlightAttendanceRequests = new Map<string, Promise<Attendance[]>>();
+const attendanceCache = new Map<string, { data: Attendance[]; timestamp: number }>();
+const CACHE_TTL_MS = 5000;
+
+export const invalidateAcademicCache = () => {
+  gradesCache.clear();
+  attendanceCache.clear();
+};
+
 export const academicService = {
   // Grades
   getGrades: async (params: GetGradesParams = {}): Promise<Grade[]> => {
-    const response = await api.get<Grade[] | { results: Grade[]; next?: string | null }>('/academics/grades/', { params });
-    const data = response.data as any;
-    if (Array.isArray(data)) return data;
-
-    const grades = [...(data?.results ?? [])];
-    if (params.page !== undefined) return grades;
-
-    let page = 1;
-    let next = data?.next;
-    const MAX_PAGES = 50;
-    while (next && page < MAX_PAGES) {
-      page += 1;
-      const nextResponse = await api.get<Grade[] | { results: Grade[]; next?: string | null }>('/academics/grades/', { params: { ...params, page } });
-      const nextData = nextResponse.data as any;
-      if (Array.isArray(nextData)) {
-        grades.push(...nextData);
-        break;
-      }
-      grades.push(...(nextData?.results ?? []));
-      next = nextData?.next;
+    const key = JSON.stringify(params);
+    const cached = gradesCache.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data;
     }
-    return grades;
+    const inFlight = inFlightGradesRequests.get(key);
+    if (inFlight) return inFlight;
+
+    const promise = (async () => {
+      const response = await api.get<Grade[] | { results: Grade[]; next?: string | null }>('/academics/grades/', {
+        params: { ...params, page_size: params.page !== undefined ? undefined : 200 }
+      });
+      const data = response.data as any;
+      if (Array.isArray(data)) {
+        gradesCache.set(key, { data, timestamp: Date.now() });
+        return data;
+      }
+
+      const grades = [...(data?.results ?? [])];
+      if (params.page !== undefined) return grades;
+
+      let page = 1;
+      let next = data?.next;
+      const MAX_PAGES = 50;
+      while (next && page < MAX_PAGES) {
+        page += 1;
+        const nextResponse = await api.get<Grade[] | { results: Grade[]; next?: string | null }>('/academics/grades/', {
+          params: { ...params, page, page_size: 200 }
+        });
+        const nextData = nextResponse.data as any;
+        if (Array.isArray(nextData)) {
+          grades.push(...nextData);
+          break;
+        }
+        grades.push(...(nextData?.results ?? []));
+        next = nextData?.next;
+      }
+      gradesCache.set(key, { data: grades, timestamp: Date.now() });
+      return grades;
+    })().finally(() => {
+      inFlightGradesRequests.delete(key);
+    });
+
+    inFlightGradesRequests.set(key, promise);
+    return promise;
   },
 
   createGrade: async (data: Partial<Grade>): Promise<Grade> => {
     const response = await api.post<Grade>('/academics/grades/', data);
+    gradesCache.clear();
     return response.data;
   },
 
@@ -120,14 +155,17 @@ export const academicService = {
 
     try {
       const response = await api.post<Grade[]>('/academics/grades/', payload);
+      gradesCache.clear();
       return Array.isArray(response.data) ? response.data : [];
     } catch (err: any) {
       // Safe fallback if backend hasn't deployed bulk list support yet
       if (err?.response?.status === 400 && err?.response?.data?.non_field_errors) {
-        return Promise.all([
+        const res = await Promise.all([
           ...entriesToCreate.map((entry) => academicService.createGrade(entry)),
           ...entriesToUpdate.map(({ id, data }) => academicService.updateGrade(id, data)),
         ]);
+        gradesCache.clear();
+        return res;
       }
       throw err;
     }
@@ -135,11 +173,13 @@ export const academicService = {
 
   updateGrade: async (id: number, data: Partial<Grade>): Promise<Grade> => {
     const response = await api.patch<Grade>(`/academics/grades/${id}/`, data);
+    gradesCache.clear();
     return response.data;
   },
 
   deleteGrade: async (id: number): Promise<void> => {
     await api.delete(`/academics/grades/${id}/`);
+    gradesCache.clear();
   },
 
   // ARAL Activities
@@ -229,28 +269,51 @@ export const academicService = {
   },
 
   getAttendanceHistory: async (params: GetAttendanceParams = {}): Promise<Attendance[]> => {
-    const response = await api.get<Attendance[] | { results: Attendance[]; next?: string | null }>('/academics/attendance/history/', { params });
-    const data = response.data as any;
-    if (Array.isArray(data)) return data;
-
-    const records = [...(data?.results ?? [])];
-    if (params.page !== undefined) return records;
-
-    let page = 1;
-    let next = data?.next;
-    const MAX_PAGES = 50;
-    while (next && page < MAX_PAGES) {
-      page += 1;
-      const nextRes = await api.get<Attendance[] | { results: Attendance[]; next?: string | null }>('/academics/attendance/history/', { params: { ...params, page } });
-      const nextData = nextRes.data as any;
-      if (Array.isArray(nextData)) {
-        records.push(...nextData);
-        break;
-      }
-      records.push(...(nextData?.results ?? []));
-      next = nextData?.next;
+    const key = JSON.stringify(params);
+    const cached = attendanceCache.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data;
     }
-    return records;
+    const inFlight = inFlightAttendanceRequests.get(key);
+    if (inFlight) return inFlight;
+
+    const promise = (async () => {
+      const response = await api.get<Attendance[] | { results: Attendance[]; next?: string | null }>('/academics/attendance/history/', {
+        params: { ...params, page_size: params.page !== undefined ? undefined : 200 }
+      });
+      const data = response.data as any;
+      if (Array.isArray(data)) {
+        attendanceCache.set(key, { data, timestamp: Date.now() });
+        return data;
+      }
+
+      const records = [...(data?.results ?? [])];
+      if (params.page !== undefined) return records;
+
+      let page = 1;
+      let next = data?.next;
+      const MAX_PAGES = 50;
+      while (next && page < MAX_PAGES) {
+        page += 1;
+        const nextRes = await api.get<Attendance[] | { results: Attendance[]; next?: string | null }>('/academics/attendance/history/', {
+          params: { ...params, page, page_size: 200 }
+        });
+        const nextData = nextRes.data as any;
+        if (Array.isArray(nextData)) {
+          records.push(...nextData);
+          break;
+        }
+        records.push(...(nextData?.results ?? []));
+        next = nextData?.next;
+      }
+      attendanceCache.set(key, { data: records, timestamp: Date.now() });
+      return records;
+    })().finally(() => {
+      inFlightAttendanceRequests.delete(key);
+    });
+
+    inFlightAttendanceRequests.set(key, promise);
+    return promise;
   },
 
   clearAttendanceHistory: async (params?: { date?: string; all?: boolean; student_ids?: string[] }): Promise<{ message: string; count: number }> => {
@@ -258,11 +321,13 @@ export const academicService = {
       params: { date: params?.date, all: params?.all ? 'true' : undefined },
       data: { student_ids: params?.student_ids },
     });
+    attendanceCache.clear();
     return response.data;
   },
 
   updateAttendance: async (id: number | string, data: Partial<Pick<Attendance, 'date' | 'status' | 'time_in' | 'time_out'>>): Promise<Attendance> => {
     const response = await api.patch<Attendance>(`/academics/attendance/${id}/`, data);
+    attendanceCache.clear();
     return response.data;
   },
 

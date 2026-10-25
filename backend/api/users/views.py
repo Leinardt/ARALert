@@ -64,25 +64,45 @@ class UserStatsView(APIView):
         total_assessments = 0
 
         try:
-            from apps.academics.models import StudentAttendance, AssessmentScore
+            from apps.academics.models import ApiAttendance, ApiGrade, StudentAttendance, AssessmentScore
 
-            att_aggregates = StudentAttendance.objects.aggregate(
+            # Check active API tables first
+            att_aggregates = ApiAttendance.objects.aggregate(
                 total_logs=Count('id'),
-                present=Count('id', filter=Q(status__iexact='PRESENT')),
-                absent=Count('id', filter=Q(status__iexact='ABSENT')),
+                present=Count('id', filter=Q(status__iexact='present')),
+                absent=Count('id', filter=Q(status__iexact='absent')),
             )
-
-            score_aggregates = AssessmentScore.objects.filter(score__isnull=False).aggregate(
-                avg_score=Avg('score'),
-                total_assessments=Count('id'),
-            )
-
             total_att = att_aggregates['total_logs'] or 0
             present_att = att_aggregates['present'] or 0
             absent_att = att_aggregates['absent'] or 0
-            att_rate = round((present_att / total_att * 100.0), 1) if total_att > 0 else 0
-            avg_score = round(float(score_aggregates['avg_score']), 1) if score_aggregates['avg_score'] is not None else 0
+
+            # Fallback to historical table if api table has no logs
+            if total_att == 0:
+                h_att = StudentAttendance.objects.aggregate(
+                    total_logs=Count('id'),
+                    present=Count('id', filter=Q(status__iexact='PRESENT')),
+                    absent=Count('id', filter=Q(status__iexact='ABSENT')),
+                )
+                total_att = h_att['total_logs'] or 0
+                present_att = h_att['present'] or 0
+                absent_att = h_att['absent'] or 0
+
+            score_aggregates = ApiGrade.objects.filter(score__isnull=False).aggregate(
+                avg_score=Avg('score'),
+                total_assessments=Count('id'),
+            )
             total_assessments = score_aggregates['total_assessments'] or 0
+            if total_assessments == 0:
+                h_score = AssessmentScore.objects.filter(score__isnull=False).aggregate(
+                    avg_score=Avg('score'),
+                    total_assessments=Count('id'),
+                )
+                avg_score = round(float(h_score['avg_score']), 1) if h_score['avg_score'] is not None else 0
+                total_assessments = h_score['total_assessments'] or 0
+            else:
+                avg_score = round(float(score_aggregates['avg_score']), 1) if score_aggregates['avg_score'] is not None else 0
+
+            att_rate = round((present_att / total_att * 100.0), 1) if total_att > 0 else 0
         except Exception:
             pass
 
@@ -267,6 +287,57 @@ class UserListCreateView(generics.ListCreateAPIView):
                 queryset = queryset.order_by('last_name', 'first_name')
 
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        page = self.paginate_queryset(queryset)
+        users = page if page is not None else list(queryset)
+
+        # Batch preload student metadata to eliminate N+1 queries in UserListSerializer
+        student_users = [u for u in users if getattr(u, 'role', None) == 'student']
+        if student_users:
+            student_ids = [u.id for u in student_users]
+            try:
+                from apps.academics.models import SchoolYear, StudentEnrollment, TutorAssignmentHistory
+
+                active_sy = SchoolYear.objects.filter(is_active=True).first()
+                request._cached_active_sy = active_sy
+
+                enrollments_map = {}
+                if active_sy:
+                    enrs = StudentEnrollment.objects.filter(
+                        student_id__in=student_ids,
+                        school_year=active_sy,
+                    ).select_related('assigned_tutor')
+                    for e in enrs:
+                        enrollments_map[e.student_id] = e
+
+                # History fallback only for students without an assigned tutor
+                unassigned_ids = [
+                    u.id for u in student_users
+                    if not u.assigned_tutor_id and (u.id not in enrollments_map or not enrollments_map[u.id].assigned_tutor)
+                ]
+                history_map = {}
+                if unassigned_ids:
+                    histories = TutorAssignmentHistory.objects.filter(
+                        student_id__in=unassigned_ids,
+                        is_active=True,
+                    ).select_related('tutor').order_by('start_date')
+                    for h in histories:
+                        history_map[h.student_id] = h
+
+                request._cached_enrollments_map = enrollments_map
+                request._cached_history_map = history_map
+            except Exception:
+                pass
+
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(users, many=True)
+        return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         target_role = request.data.get('role')
@@ -1028,18 +1099,39 @@ class StudentEditRequestListCreateView(APIView):
         if student_id:
             queryset = queryset.filter(student_id=student_id)
 
-        serializer = StudentEditRequestSerializer(queryset, many=True)
-        is_admin_or_super = user.is_superuser or getattr(user, 'role', None) == 'admin'
+        request_items = list(queryset)
+
+        # Batch preload audit logs for requests lacking an embedded JSON snapshot
+        unfrozen_ids = [
+            str(r.id) for r in request_items
+            if r.status != 'pending' and not (r.reason and r.reason.strip().startswith('{') and '"before"' in r.reason)
+        ]
+        audit_logs_map = {}
+        if unfrozen_ids:
+            try:
+                from apps.accounts.models import AuditLog
+                for log in AuditLog.objects.filter(
+                    action='PROFILE_EDIT_REQUEST_SUBMITTED',
+                    details__request_id__in=unfrozen_ids,
+                ):
+                    req_id = str(log.details.get('request_id') or '')
+                    if req_id and req_id not in audit_logs_map:
+                        audit_logs_map[req_id] = log
+            except Exception:
+                pass
+
+        request._cached_edit_audit_logs = audit_logs_map
+        serializer = StudentEditRequestSerializer(request_items, many=True, context={'request': request})
         
         if user.is_superuser:
             pending_count = StudentEditRequest.objects.filter(status='pending').count()
         elif getattr(user, 'role', None) == 'admin':
             pending_count = StudentEditRequest.objects.filter(status='pending', required_reviewer_role='admin').count()
         else:
-            pending_count = queryset.filter(status='pending').count()
+            pending_count = sum(1 for r in request_items if r.status == 'pending')
 
         return Response({
-            'count': queryset.count(),
+            'count': len(request_items),
             'pending_count': pending_count,
             'results': serializer.data,
         })
