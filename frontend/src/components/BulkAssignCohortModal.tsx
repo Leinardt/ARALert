@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, Check, AlertCircle, AlertTriangle, Search } from 'lucide-react';
 import { academicService } from '../services/academicService';
 import type { AvailableTutorItem, AssignmentQueueItem, BulkAssignResult } from '../types';
+import { matchesSearch } from '../utils/searchHelpers';
 
 interface BulkAssignCohortModalProps {
   isOpen: boolean;
@@ -71,12 +72,13 @@ export const BulkAssignCohortModal: React.FC<BulkAssignCohortModalProps> = ({
 
   const filteredTutors = useMemo(() => {
     if (!searchQuery.trim()) return tutors;
-    const q = searchQuery.toLowerCase();
-    return tutors.filter(
-      (t) =>
-        t.full_name.toLowerCase().includes(q) ||
-        t.email.toLowerCase().includes(q) ||
-        t.tutor_type_display.toLowerCase().includes(q)
+    return tutors.filter((t) =>
+      matchesSearch(
+        searchQuery,
+        t.full_name,
+        t.email,
+        t.tutor_type_display
+      )
     );
   }, [tutors, searchQuery]);
 

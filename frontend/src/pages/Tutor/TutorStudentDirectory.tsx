@@ -271,10 +271,7 @@ export const TutorStudentDirectory: React.FC = () => {
         }
       }
       if (search.trim()) {
-        const q = search.toLowerCase();
-        const matchesName = rec.student_name.toLowerCase().includes(q);
-        const matchesLrn = rec.lrn ? rec.lrn.toLowerCase().includes(q) : false;
-        if (!matchesName && !matchesLrn) return false;
+        if (!matchesSearch(search, rec.student_name, rec.lrn)) return false;
       }
       return true;
     });
@@ -312,7 +309,7 @@ const aralLevelRank: Record<string, number> = {
   const filteredAndSorted = useMemo(() => {
     return studentRows
       .filter((r) => {
-        return matchesSearch(search, r.student.full_name, r.student.first_name, r.student.last_name, r.student.lrn, r.student.parent_guardian_name, r.student.contact_number);
+        return matchesSearch(search, r.student.full_name, r.student.first_name, r.student.last_name, r.student.middle_name, r.student.lrn, r.student.parent_guardian_name, r.student.contact_number);
       })
       .sort((a, b) => {
         if (sortField === 'name' || !sortField) {

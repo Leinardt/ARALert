@@ -1275,6 +1275,12 @@ export const TutorScores: React.FC = () => {
     [cohortStudents]
   );
 
+  const studentsById = useMemo(() => {
+    const map = new Map<string, User>();
+    students.forEach((s) => map.set(String(s.id), s));
+    return map;
+  }, [students]);
+
   const [grades, setGrades] = useState<Grade[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(() => getCachedStudents(user?.id).length === 0);
   const [gradesLoading, setGradesLoading] = useState(false);
@@ -2081,10 +2087,29 @@ export const TutorScores: React.FC = () => {
   }, [dailyGrades]);
 
   const searchedBatchRows = useMemo(() => {
-    return batchRows.filter((batch) =>
-      batch.grades.some((grade) => matchesSearch(scoreStudentSearch, grade.student_name, grade.subject))
-    );
-  }, [batchRows, scoreStudentSearch]);
+    const q = scoreStudentSearch.trim();
+    if (!q) return batchRows;
+    return batchRows
+      .map((batch) => {
+        const filteredGrades = batch.grades.filter((grade) => {
+          const st = studentsById.get(String(grade.student));
+          return matchesSearch(
+            q,
+            grade.student_name,
+            grade.subject,
+            st?.first_name,
+            st?.middle_name,
+            st?.last_name,
+            st?.lrn
+          );
+        });
+        return {
+          ...batch,
+          grades: filteredGrades,
+        };
+      })
+      .filter((batch) => batch.grades.length > 0);
+  }, [batchRows, scoreStudentSearch, studentsById]);
 
   const visibleBatchRows = useMemo(() => {
     if (jumpDate) {
@@ -2157,7 +2182,7 @@ export const TutorScores: React.FC = () => {
   const loggedScoreDates = useMemo(() => new Set(batchRows.map((batch) => batch.dateStr)), [batchRows]);
   const sortedStudents = useMemo(
     () => [...cohortStudents]
-      .filter((student) => matchesSearch(studentSearch, student.full_name, student.first_name, student.last_name, student.lrn))
+      .filter((student) => matchesSearch(studentSearch, student.full_name, student.first_name, student.last_name, student.middle_name, student.lrn))
       .sort((firstStudent, secondStudent) => {
         const comparison = compareNamesByLastName(firstStudent, secondStudent);
         return studentSortDirection === 'asc' ? comparison : -comparison;
@@ -2168,7 +2193,7 @@ export const TutorScores: React.FC = () => {
   // Mobile score entry must ALWAYS be in alphabetical order (A to Z by last name)
   const mobileAlphabeticalStudents = useMemo(
     () => [...cohortStudents]
-      .filter((student) => matchesSearch(studentSearch, student.full_name, student.first_name, student.last_name, student.lrn))
+      .filter((student) => matchesSearch(studentSearch, student.full_name, student.first_name, student.last_name, student.middle_name, student.lrn))
       .sort((firstStudent, secondStudent) => {
         return compareNamesByLastName(firstStudent, secondStudent);
       }),

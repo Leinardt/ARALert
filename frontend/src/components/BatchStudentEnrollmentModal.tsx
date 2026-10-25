@@ -16,6 +16,7 @@ import {
 import { userService } from '../services/userService';
 import { useAuth } from '../hooks/useAuth';
 import type { User } from '../types';
+import { matchesSearch } from '../utils/searchHelpers';
 
 export interface BatchParsedStudent {
   id: string; // client-side unique id for keying
@@ -596,16 +597,17 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
       list = list.filter((s) => s.sheetName === selectedSheet);
     }
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(
-        (s) =>
-          s.last_name.toLowerCase().includes(q) ||
-          s.first_name.toLowerCase().includes(q) ||
-          s.middle_name.toLowerCase().includes(q) ||
-          s.lrn.includes(q) ||
-          s.grade_level_grade.toLowerCase().includes(q) ||
-          s.grade_level_section.toLowerCase().includes(q) ||
-          s.parent_guardian_name.toLowerCase().includes(q)
+      list = list.filter((s) =>
+        matchesSearch(
+          searchQuery,
+          s.last_name,
+          s.first_name,
+          s.middle_name,
+          s.lrn,
+          s.grade_level_grade,
+          s.grade_level_section,
+          s.parent_guardian_name
+        )
       );
     }
     return list;

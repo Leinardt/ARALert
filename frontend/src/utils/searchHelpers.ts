@@ -23,21 +23,33 @@ export const matchesSearch = (
   if (qTokens.length === 0) return true;
 
   const targetWords: string[] = [];
+  const targetWordsNormalized: string[] = [];
+
   for (const text of targetTexts) {
     if (text !== null && text !== undefined && text !== '') {
-      const words = String(text)
-        .toLowerCase()
-        .split(/[^a-z0-9]+/i)
-        .filter(Boolean);
-      targetWords.push(...words);
+      const rawText = String(text).toLowerCase();
+      const words = rawText.split(/[^\p{L}\p{N}]+/gu).filter(Boolean);
+      for (const w of words) {
+        targetWords.push(w);
+        targetWordsNormalized.push(
+          w.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        );
+      }
     }
   }
 
   if (targetWords.length === 0) return false;
 
   return qTokens.every((qToken) => {
-    const cleanedQToken = qToken.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    const cleanedQToken = qToken.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
     if (!cleanedQToken) return true;
-    return targetWords.some((tWord) => tWord.startsWith(cleanedQToken));
+    const normQToken = cleanedQToken.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    return targetWords.some((tWord, idx) => {
+      return (
+        tWord.startsWith(cleanedQToken) ||
+        targetWordsNormalized[idx].startsWith(normQToken)
+      );
+    });
   });
 };

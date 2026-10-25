@@ -14,6 +14,7 @@ import QRCode from 'qrcode';
 import { exportStaffQrPrintFile, type ExportFormat } from '../../utils/staffQrPrintExport';
 import { ExportDtrModal } from '../../components/ExportDtrModal';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
+import { matchesSearch } from '../../utils/searchHelpers';
 
 import { getStaffDtrStatus, getStaffUndertimeStr } from '../../utils/dtrSchedule';
 
@@ -548,14 +549,20 @@ export const AdminAttendanceQR: React.FC = () => {
     }
 
     if (search.trim()) {
-      const q = search.toLowerCase();
       rows = rows.filter((r) => {
         const staff = staffMap.get(String(r.user));
-        const name = (r.user_name || staff?.full_name || '').toLowerCase();
-        const role = (staff?.role || r.role || '').toLowerCase();
-        const subj = (staff?.subject || '').toLowerCase();
-        const gr = (staff?.grade_level || '').toLowerCase();
-        return name.includes(q) || role.includes(q) || subj.includes(q) || gr.includes(q);
+        return matchesSearch(
+          search,
+          r.user_name,
+          staff?.full_name,
+          staff?.first_name,
+          staff?.last_name,
+          staff?.middle_name,
+          staff?.role,
+          r.role,
+          staff?.subject,
+          staff?.grade_level
+        );
       });
     }
 

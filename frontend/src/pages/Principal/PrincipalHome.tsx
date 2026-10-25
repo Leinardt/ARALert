@@ -23,6 +23,7 @@ import {
   getChartAvailableClasses,
   isStudentMatchingChartFilters,
 } from '../../utils/tutorCohortHelpers';
+import { matchesSearch } from '../../utils/searchHelpers';
 
 // ─── Chart Types & Interactive Chart Component ─────────────────────────────────
 
@@ -1136,8 +1137,9 @@ export const PrincipalHome: React.FC = () => {
 
   const filteredRankedTutors = useMemo(() => {
     if (!tutorSearch.trim()) return rankedTutorClasses;
-    const query = tutorSearch.toLowerCase().trim();
-    return rankedTutorClasses.filter((t) => t.tutorName.toLowerCase().includes(query));
+    return rankedTutorClasses.filter((t) =>
+      matchesSearch(tutorSearch, t.tutorName)
+    );
   }, [rankedTutorClasses, tutorSearch]);
 
   // ── Metrics Calculations ──

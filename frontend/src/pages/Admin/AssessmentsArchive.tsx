@@ -10,6 +10,7 @@ import { TableSkeleton } from '../../components/SkeletonLoader';
 import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
 import { useAuth } from '../../hooks/useAuth';
 import { isAssessmentWindowOpen } from '../../utils/sessionDescriptionHelpers';
+import { matchesSearch } from '../../utils/searchHelpers';
 
 /* ─── Helper: Normalize ARAL Level ─────────────────────────────────── */
 const normalizeAralLevel = (val?: string | null): 'BASIC' | 'PLUS' => {
@@ -616,25 +617,18 @@ export const AssessmentsArchive: React.FC = () => {
   const sortedAndFilteredRows = useMemo(() => {
     let list = [...tutorArchiveRows];
     if (search.trim()) {
-      const q = search.toLowerCase();
       list = list.filter(
         (r) =>
-          r.tutorName.toLowerCase().includes(q) ||
-          r.section.toLowerCase().includes(q) ||
-          r.gradeLevel.toLowerCase().includes(q) ||
-          r.subject.toLowerCase().includes(q) ||
-          r.aralLevel.toLowerCase().includes(q) ||
-          (q.includes('no student') && r.totalStudents === 0) ||
-          (q.includes('pending') && r.pendingCount > 0 && isWindowOpen) ||
-          (q.includes('closed') && r.pendingCount > 0 && !isWindowOpen) ||
-          r.students.some(
-            (st) =>
-              st.name.toLowerCase().includes(q) ||
-              st.lrn.toLowerCase().includes(q) ||
-              st.status.toLowerCase().includes(q) ||
-              (q === 'graduated' && st.status === 'GRADUATED') ||
-              (q.includes('move') && st.status === 'MOVED_UP') ||
-              (q.includes('retain') && st.status === 'RETAINED')
+          matchesSearch(
+            search,
+            r.tutorName,
+            r.section,
+            r.gradeLevel,
+            r.subject,
+            r.aralLevel
+          ) ||
+          r.students.some((st) =>
+            matchesSearch(search, st.name, st.lrn, st.status)
           )
       );
     }

@@ -12,6 +12,7 @@ import { SemesterTransitionModal } from '../../components/SemesterTransitionModa
 import { EvaluateSummerModal } from '../../components/EvaluateSummerModal';
 import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
 import { CardSkeleton, StatsGridSkeleton, TableSkeleton } from '../../components/SkeletonLoader';
+import { matchesSearch } from '../../utils/searchHelpers';
 import {
   MosyMonitoringData,
   MosyAssignmentData,
@@ -759,20 +760,19 @@ export const AdminEvaluationHub: React.FC = () => {
   const sortedAndFilteredTutorRows = useMemo(() => {
     let list = [...tutorRows];
     if (tutorSearch.trim()) {
-      const q = tutorSearch.toLowerCase();
       list = list.filter(
         (r) =>
-          r.tutorName.toLowerCase().includes(q) ||
-          r.section.toLowerCase().includes(q) ||
-          r.gradeLevel.toLowerCase().includes(q) ||
-          r.subject.toLowerCase().includes(q) ||
-          r.aralLevel.toLowerCase().includes(q) ||
-          r.status.toLowerCase().includes(q) ||
-          r.students.some(
-            (st) =>
-              st.name.toLowerCase().includes(q) ||
-              st.lrn.toLowerCase().includes(q) ||
-              st.status.toLowerCase().includes(q)
+          matchesSearch(
+            tutorSearch,
+            r.tutorName,
+            r.section,
+            r.gradeLevel,
+            r.subject,
+            r.aralLevel,
+            r.status
+          ) ||
+          r.students.some((st) =>
+            matchesSearch(tutorSearch, st.name, st.lrn, st.status)
           )
       );
     }

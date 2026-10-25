@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
 import { getRecentSchoolWeekdays, compareNamesByLastName } from '../../utils/studentFormatters';
+import { matchesSearch } from '../../utils/searchHelpers';
 import {
   getActiveSystemMilestone,
   getActiveSystemSemester,
@@ -1564,11 +1565,15 @@ export const AdminHome: React.FC = () => {
 
   const filteredTutorStatusList = useMemo(() => {
     if (!tutorSearch.trim()) return tutorAssessmentStatusList;
-    const query = tutorSearch.toLowerCase().trim();
     return tutorAssessmentStatusList.filter((item) => {
-      const name = (item.tutor.full_name || `${item.tutor.first_name} ${item.tutor.last_name}`).toLowerCase();
-      const email = (item.tutor.email || '').toLowerCase();
-      return name.includes(query) || email.includes(query);
+      return matchesSearch(
+        tutorSearch,
+        item.tutor.full_name,
+        item.tutor.first_name,
+        item.tutor.last_name,
+        item.tutor.middle_name,
+        item.tutor.email
+      );
     });
   }, [tutorAssessmentStatusList, tutorSearch]);
 

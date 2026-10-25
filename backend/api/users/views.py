@@ -215,13 +215,20 @@ class UserListCreateView(generics.ListCreateAPIView):
 
         search = self.request.query_params.get('search', '').strip()
         if search:
-            queryset = queryset.filter(
-                Q(first_name__icontains=search)
-                | Q(last_name__icontains=search)
-                | Q(username__icontains=search)
-                | Q(email__icontains=search)
-                | Q(lrn__icontains=search)
-            )
+            for token in search.split():
+                token_clean = token.strip()
+                if token_clean:
+                    queryset = queryset.filter(
+                        Q(first_name__istartswith=token_clean)
+                        | Q(first_name__icontains=' ' + token_clean)
+                        | Q(middle_name__istartswith=token_clean)
+                        | Q(middle_name__icontains=' ' + token_clean)
+                        | Q(last_name__istartswith=token_clean)
+                        | Q(last_name__icontains=' ' + token_clean)
+                        | Q(username__istartswith=token_clean)
+                        | Q(email__istartswith=token_clean)
+                        | Q(lrn__istartswith=token_clean)
+                    )
 
         if role and role != 'superadmin':
             if role == 'staff':
@@ -899,13 +906,20 @@ class AuditLogListView(APIView):
             if date_to:
                 qs = qs.filter(timestamp__date__lte=date_to)
         if search_filter:
-            qs = qs.filter(
-                Q(username__icontains=search_filter) |
-                Q(user__first_name__icontains=search_filter) |
-                Q(user__last_name__icontains=search_filter) |
-                Q(user__email__icontains=search_filter) |
-                Q(user__lrn__icontains=search_filter)
-            )
+            for token in search_filter.split():
+                token_clean = token.strip()
+                if token_clean:
+                    qs = qs.filter(
+                        Q(username__istartswith=token_clean)
+                        | Q(user__first_name__istartswith=token_clean)
+                        | Q(user__first_name__icontains=' ' + token_clean)
+                        | Q(user__middle_name__istartswith=token_clean)
+                        | Q(user__middle_name__icontains=' ' + token_clean)
+                        | Q(user__last_name__istartswith=token_clean)
+                        | Q(user__last_name__icontains=' ' + token_clean)
+                        | Q(user__email__istartswith=token_clean)
+                        | Q(user__lrn__istartswith=token_clean)
+                    )
 
         total = qs.count()
         offset = (page - 1) * page_size

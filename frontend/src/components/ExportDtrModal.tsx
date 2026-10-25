@@ -14,6 +14,7 @@ import { userService } from '../services/userService';
 import { exportDtrToExcel } from '../utils/dtrExportService';
 import { exportDtrToDocx } from '../utils/dtrDocxExportService';
 import { downloadElementAsPdf } from '../utils/pdfExportService';
+import { matchesSearch } from '../utils/searchHelpers';
 
 export interface ExportDtrModalProps {
   isOpen: boolean;
@@ -206,8 +207,7 @@ export const ExportDtrModal: React.FC<ExportDtrModalProps> = ({
   // Filtered staff list for search
   const filteredStaffList = useMemo(() => {
     if (!staffSearchQuery.trim()) return availableStaff;
-    const q = staffSearchQuery.toLowerCase();
-    return availableStaff.filter((s) => s.name.toLowerCase().includes(q) || s.role.toLowerCase().includes(q));
+    return availableStaff.filter((s) => matchesSearch(staffSearchQuery, s.name, s.role));
   }, [availableStaff, staffSearchQuery]);
 
   // Month navigation helpers

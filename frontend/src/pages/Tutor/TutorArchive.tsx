@@ -7,6 +7,7 @@ import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
 import type { SchoolYear, Grade, Attendance, User, TutorCohortHistoryData } from '../../types';
 import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
+import { matchesSearch } from '../../utils/searchHelpers';
 
 /* ─── Date & Week Helper Functions (Mirrors TutorScores layout) ─────── */
 const computeWeekOfMonth = (dateObj: Date): number => {
@@ -592,13 +593,13 @@ export const TutorArchive: React.FC = () => {
       if (selectedClass !== 'all' && rec.classSection !== selectedClass) return false;
       if (selectedDate && rec.date !== selectedDate) return false;
       if (studentSearch.trim()) {
-        const q = studentSearch.toLowerCase();
-        return (
-          rec.studentName.toLowerCase().includes(q) ||
-          rec.lrn.toLowerCase().includes(q) ||
-          rec.classSection.toLowerCase().includes(q) ||
-          rec.program.toLowerCase().includes(q) ||
-          rec.outcome.toLowerCase().includes(q)
+        return matchesSearch(
+          studentSearch,
+          rec.studentName,
+          rec.lrn,
+          rec.classSection,
+          rec.program,
+          rec.outcome
         );
       }
       return true;
@@ -611,13 +612,13 @@ export const TutorArchive: React.FC = () => {
       if (selectedClass !== 'all' && rec.classSection !== selectedClass) return false;
       if (selectedDate && rec.date !== selectedDate) return false;
       if (studentSearch.trim()) {
-        const q = studentSearch.toLowerCase();
-        return (
-          rec.studentName.toLowerCase().includes(q) ||
-          rec.lrn.toLowerCase().includes(q) ||
-          rec.classSection.toLowerCase().includes(q) ||
-          rec.subject.toLowerCase().includes(q) ||
-          rec.remarks.toLowerCase().includes(q)
+        return matchesSearch(
+          studentSearch,
+          rec.studentName,
+          rec.lrn,
+          rec.classSection,
+          rec.subject,
+          rec.remarks
         );
       }
       return true;
@@ -630,12 +631,12 @@ export const TutorArchive: React.FC = () => {
       if (selectedClass !== 'all' && rec.classSection !== selectedClass) return false;
       if (selectedDate && rec.date !== selectedDate) return false;
       if (studentSearch.trim()) {
-        const q = studentSearch.toLowerCase();
-        return (
-          rec.studentName.toLowerCase().includes(q) ||
-          rec.lrn.toLowerCase().includes(q) ||
-          rec.classSection.toLowerCase().includes(q) ||
-          rec.status.toLowerCase().includes(q)
+        return matchesSearch(
+          studentSearch,
+          rec.studentName,
+          rec.lrn,
+          rec.classSection,
+          rec.status
         );
       }
       return true;
