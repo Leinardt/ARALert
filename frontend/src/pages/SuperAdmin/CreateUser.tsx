@@ -502,29 +502,6 @@ export const CreateUser: React.FC = () => {
             </h4>
             <div className={`grid grid-cols-1 gap-4 ${selectedRole !== 'student' ? 'sm:grid-cols-2 md:grid-cols-4' : 'sm:grid-cols-3'}`}>
               <div>
-                <label htmlFor="last_name" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
-                  Last Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="last_name"
-                  type="text"
-                  placeholder="e.g. DELA CRUZ"
-                  {...register('last_name')}
-                  onInput={(e) => {
-                    e.currentTarget.value = e.currentTarget.value.replace(/[^a-zA-Z\s.\-ñÑ']/g, '');
-                  }}
-                  className={`w-full rounded-md border px-3 py-2 text-xs font-medium uppercase shadow-2xs focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:bg-[#111111] dark:text-slate-100 ${
-                    errors.last_name || serverErrors?.last_name ? 'border-red-300 dark:border-red-800' : 'border-gray-300 dark:border-[#1A1A1A]'
-                  }`}
-                />
-                {(errors.last_name || serverErrors?.last_name) && (
-                  <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
-                    {errors.last_name?.message || serverErrors?.last_name?.[0]}
-                  </p>
-                )}
-              </div>
-
-              <div>
                 <label htmlFor="first_name" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
                   First Name <span className="text-red-500">*</span>
                 </label>
@@ -568,6 +545,29 @@ export const CreateUser: React.FC = () => {
                   }}
                   className="w-full rounded-md border border-gray-300 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-3 py-2 text-xs font-medium uppercase shadow-2xs focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100"
                 />
+              </div>
+
+              <div>
+                <label htmlFor="last_name" className="mb-1 block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                  Last Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="last_name"
+                  type="text"
+                  placeholder="e.g. DELA CRUZ"
+                  {...register('last_name')}
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(/[^a-zA-Z\s.\-ñÑ']/g, '');
+                  }}
+                  className={`w-full rounded-md border px-3 py-2 text-xs font-medium uppercase shadow-2xs focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:bg-[#111111] dark:text-slate-100 ${
+                    errors.last_name || serverErrors?.last_name ? 'border-red-300 dark:border-red-800' : 'border-gray-300 dark:border-[#1A1A1A]'
+                  }`}
+                />
+                {(errors.last_name || serverErrors?.last_name) && (
+                  <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
+                    {errors.last_name?.message || serverErrors?.last_name?.[0]}
+                  </p>
+                )}
               </div>
 
               {/* For Staff (tutor, faculty, principal, admin, superadmin): Google Email Address is part of Personal Information */}
