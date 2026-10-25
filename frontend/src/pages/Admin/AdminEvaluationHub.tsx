@@ -522,18 +522,24 @@ export const AdminEvaluationHub: React.FC = () => {
       setActiveSystemSemester('2nd');
       setActiveSystemSem('2nd');
       setActiveTab('eosy');
-      const [m, ma, q] = await Promise.all([
-        academicService.getMosyMonitoring(),
-        academicService.getMosyAssignments(),
-        academicService.getAssignmentQueue().catch(() => null),
-      ]);
-      setMosyData(m);
-      setMosyAssignments(ma);
-      setQueueData(q);
       setSemesterTransitionModal((prev) => ({ ...prev, isOpen: false }));
+
+      try {
+        const [m, ma, q] = await Promise.all([
+          academicService.getMosyMonitoring().catch(() => null),
+          academicService.getMosyAssignments().catch(() => null),
+          academicService.getAssignmentQueue().catch(() => null),
+        ]);
+        if (m) setMosyData(m);
+        if (ma) setMosyAssignments(ma);
+        if (q) setQueueData(q);
+      } catch (refreshErr) {
+        console.warn('Post-transition data refresh warning:', refreshErr);
+      }
     } catch (err: any) {
       console.error('Failed to process MOSY completion:', err);
-      alert(err.response?.data?.error || 'Failed to finalize MOSY.');
+      const errorMsg = err.response?.data?.error || err.message || 'Failed to finalize MOSY.';
+      alert(errorMsg);
     } finally {
       setIsProcessingMosy(false);
     }

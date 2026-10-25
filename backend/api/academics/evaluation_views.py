@@ -2,6 +2,7 @@
 Evaluation, School Year Management, Archive, and Summer Remediation API Views.
 """
 
+import logging
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status
@@ -10,6 +11,8 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User
 from utilities.audit import log_audit_event
+
+logger = logging.getLogger(__name__)
 from apps.academics.models import (
     SchoolYear,
     StudentEnrollment,
@@ -149,17 +152,30 @@ class MosyProcessView(APIView):
     permission_classes = [IsAdmin]
 
     def post(self, request):
-        result = process_mosy_completion(admin_user=request.user)
-        log_audit_event(
-            'MOSY_FINALIZED',
-            user=request.user,
-            request=request,
-            details={
-                'school_year': result.get('school_year', '2026-2027'),
-                'message': result.get('message', 'MOSY finalized'),
-            }
-        )
-        return Response(result, status=status.HTTP_200_OK)
+        try:
+            result = process_mosy_completion(admin_user=request.user)
+            log_audit_event(
+                'MOSY_FINALIZED',
+                user=request.user,
+                request=request,
+                details={
+                    'school_year': result.get('school_year', '2026-2027'),
+                    'message': result.get('message', 'MOSY finalized'),
+                }
+            )
+            return Response(result, status=status.HTTP_200_OK)
+        except DjangoValidationError as e:
+            msg = str(e)
+            if hasattr(e, 'messages') and e.messages:
+                msg = e.messages[0]
+            logger.warning("MOSY validation error: %s", msg)
+            return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.exception("Failed to process MOSY completion: %s", e)
+            return Response(
+                {'error': f'Failed to finalize MOSY: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class MosyAssignmentsView(APIView):
@@ -167,8 +183,15 @@ class MosyAssignmentsView(APIView):
     permission_classes = [IsAdmin]
 
     def get(self, request):
-        data = get_mosy_assignment_dashboard_data()
-        return Response(data, status=status.HTTP_200_OK)
+        try:
+            data = get_mosy_assignment_dashboard_data()
+            return Response(data, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception("Failed to load MOSY assignments: %s", e)
+            return Response(
+                {'error': f'Failed to load MOSY assignments: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class AssignmentQueueView(APIView):
@@ -181,8 +204,15 @@ class AssignmentQueueView(APIView):
     permission_classes = [IsAdmin]
 
     def get(self, request):
-        data = get_unified_assignment_queue()
-        return Response(data, status=status.HTTP_200_OK)
+        try:
+            data = get_unified_assignment_queue()
+            return Response(data, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception("Failed to load assignment queue: %s", e)
+            return Response(
+                {'error': f'Failed to load assignment queue: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 # ---------------------------------------------------------------------------

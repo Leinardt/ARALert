@@ -4,6 +4,7 @@ Handles MOSY Evaluation monitoring, tutor progress calculation, and MOSY complet
 where Plus students become Unassigned awaiting Plus tutor assignment and Basic students retain their tutor.
 """
 
+import logging
 from django.db import transaction
 from django.utils import timezone
 from apps.accounts.models import User
@@ -14,17 +15,42 @@ from apps.academics.models import (
     ApiGrade,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def parse_mosy_grade_status(grade: ApiGrade | None) -> tuple[str, str, float | None]:
     if not grade:
         return 'pending', 'pending', None
 
-    ts = float(grade.total_score or 40)
-    sc = float(grade.score or 0)
+    try:
+        ts = float(grade.total_score) if grade.total_score is not None else 40.0
+    except (ValueError, TypeError):
+        ts = 40.0
+    if ts <= 0:
+        ts = 40.0
+
+    try:
+        sc = float(grade.score) if grade.score is not None else 0.0
+    except (ValueError, TypeError):
+        sc = 0.0
+
     pct = round((sc / ts) * 100.0, 1)
     passed = sc >= 28.0 if ts == 40 else (sc / ts) >= 0.7
     result = 'passed' if passed else 'failed'
     return 'completed', result, pct
+
+
+def _get_safe_assigned_tutor(student: User) -> User | None:
+    """Safely retrieves the assigned tutor without raising User.DoesNotExist if orphaned."""
+    if not getattr(student, 'assigned_tutor_id', None):
+        return None
+    try:
+        tutor = student.assigned_tutor
+        if tutor and getattr(tutor, 'role', '') == 'tutor':
+            return tutor
+        return None
+    except Exception:
+        return None
 
 
 def get_student_mosy_status(student: User, school_year: SchoolYear | None = None, grade_obj: ApiGrade | None = None) -> tuple[str, str, float | None]:
@@ -189,13 +215,18 @@ def process_mosy_completion(admin_user: User | None = None) -> dict:
                 school_year=active_sy,
             ).first()
 
+            raw_level = (student.aral_level or 'basic').lower()
+            enrollment_prog = raw_level if raw_level in ('basic', 'plus', 'summer') else ('plus' if raw_level == 'graduated' else 'basic')
+            current_tutor = _get_safe_assigned_tutor(student)
+
             if not enrollment:
                 enrollment = StudentEnrollment.objects.create(
                     student=student,
                     school_year=active_sy,
-                    program=student.aral_level or 'basic',
-                    assigned_tutor=student.assigned_tutor,
-                    enrollment_status='active',
+                    program=enrollment_prog,
+                    assigned_tutor=current_tutor,
+                    enrollment_status='completed' if raw_level == 'graduated' else 'active',
+                    graduation_status='graduated' if raw_level == 'graduated' else 'not_eligible',
                 )
 
             # Update MOSY result
@@ -216,10 +247,11 @@ def process_mosy_completion(admin_user: User | None = None) -> dict:
             # CLEAN-SLATE RESET: All students (Plus and Basic) are unassigned after MOSY.
             # Every active TutorAssignmentHistory record is concluded with an end date.
             # Admin will reassign fresh cohorts to all tutors (who become fully vacant).
-            previous_tutor = student.assigned_tutor
+            previous_tutor = current_tutor
             mosy_result_label = result if eval_status == 'completed' else 'pending'
 
             if previous_tutor:
+                prev_name = previous_tutor.get_full_name() or previous_tutor.username
                 updated_count = TutorAssignmentHistory.objects.filter(
                     student=student,
                     school_year=active_sy,
@@ -228,30 +260,28 @@ def process_mosy_completion(admin_user: User | None = None) -> dict:
                     is_active=False,
                     end_date=timezone.localdate(),
                     period='MOSY',
-                    notes=f'Concluded after MOSY period — MOSY result: {mosy_result_label}. (Previously: {previous_tutor.get_full_name()})'
+                    notes=f'Concluded after MOSY period — MOSY result: {mosy_result_label}. (Previously: {prev_name})'
                 )
                 if updated_count == 0:
-                    TutorAssignmentHistory.objects.create(
-                        student=student,
-                        tutor=previous_tutor,
-                        school_year=active_sy,
-                        period='MOSY',
-                        program=student.aral_level or 'basic',
-                        start_date=timezone.localdate(),
-                        end_date=timezone.localdate(),
-                        is_active=False,
-                        notes=f'Concluded after MOSY period — MOSY result: {mosy_result_label}.'
-                    )
+                    try:
+                        TutorAssignmentHistory.objects.create(
+                            student=student,
+                            tutor=previous_tutor,
+                            school_year=active_sy,
+                            period='MOSY',
+                            program=enrollment.program or 'basic',
+                            start_date=timezone.localdate(),
+                            end_date=timezone.localdate(),
+                            is_active=False,
+                            notes=f'Concluded after MOSY period — MOSY result: {mosy_result_label}.'
+                        )
+                    except Exception as hist_err:
+                        logger.warning('Failed to create history for student %s: %s', student.id, hist_err)
 
             student.assigned_tutor = None
-            save_fields = ['assigned_tutor']
-            if student.aral_level in ('plus', 'graduated'):
-                save_fields.append('aral_level')
-            if student.subject == 'English':
-                save_fields.append('subject')
-            student.save(update_fields=list(set(save_fields)))
+            student.save()
             enrollment.assigned_tutor = None
-            enrollment.save(update_fields=['assigned_tutor', 'program', 'mosy_result', 'updated_at'])
+            enrollment.save()
 
             if student.aral_level == 'plus' or enrollment.program == 'plus':
                 plus_unassigned_count += 1
@@ -318,7 +348,13 @@ def get_mosy_assignment_dashboard_data(school_year: SchoolYear | None = None) ->
     unassigned_plus = []
     for s in plus_students:
         last_assignment = last_assignment_map.get(s.id)
-        prev_tutor_name = last_assignment.tutor.get_full_name() if (last_assignment and last_assignment.tutor) else 'None'
+        prev_tutor_name = 'None'
+        if last_assignment:
+            try:
+                if last_assignment.tutor:
+                    prev_tutor_name = last_assignment.tutor.get_full_name() or last_assignment.tutor.username
+            except Exception:
+                prev_tutor_name = 'None'
         grade = mosy_grade_map.get(s.id)
         status, result, pct = get_student_mosy_status(s, school_year, grade_obj=grade)
 
@@ -351,7 +387,13 @@ def get_mosy_assignment_dashboard_data(school_year: SchoolYear | None = None) ->
         grade = mosy_grade_map.get(s.id)
         status, result, pct = get_student_mosy_status(s, school_year, grade_obj=grade)
         last_assignment = last_assignment_map.get(s.id)
-        prev_tutor_name = last_assignment.tutor.get_full_name() if (last_assignment and last_assignment.tutor) else 'None'
+        prev_tutor_name = 'None'
+        if last_assignment:
+            try:
+                if last_assignment.tutor:
+                    prev_tutor_name = last_assignment.tutor.get_full_name() or last_assignment.tutor.username
+            except Exception:
+                prev_tutor_name = 'None'
 
         if result == 'failed':
             status_badge = 'Needs Basic Retake (Q3/Q4 or Summer)'
@@ -488,7 +530,13 @@ def get_unified_assignment_queue(school_year=None):
         level = (s.aral_level or 'basic').lower()
 
         last_assignment = last_assignment_map.get(s.id)
-        prev_tutor = last_assignment.tutor.get_full_name() if last_assignment and last_assignment.tutor else 'None'
+        prev_tutor = 'None'
+        if last_assignment:
+            try:
+                if last_assignment.tutor:
+                    prev_tutor = last_assignment.tutor.get_full_name() or last_assignment.tutor.username
+            except Exception:
+                prev_tutor = 'None'
         prev_program = (last_assignment.program or 'basic').lower() if last_assignment else 'basic'
 
         # Enrollment data for result context
