@@ -21,7 +21,7 @@ const NAME_REGEX = /^[a-zA-Z\s.\-ñÑ']+$/;
 const SECTION_REGEX = /^[a-zA-Z0-9\s\-]+$/;
 const PHONE_REGEX = /^\d{11}$/;
 const LRN_REGEX = /^\d{12}$/;
-const DANGEROUS_INJECTION_PATTERN = /(--|;|\/\*|\*\/|@@|char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update|<script|<\/script>)/i;
+const DANGEROUS_INJECTION_PATTERN = /(--|;|\/\*|\*\/|@@|<script|<\/script>)/i;
 
 const createUserSchema = z.object({
   first_name: z.string()

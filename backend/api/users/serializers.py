@@ -15,7 +15,7 @@ NAME_PATTERN = re.compile(r"^[a-zA-Z\s.\-ñÑ']+$")
 SECTION_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-,]+$")
 PHONE_PATTERN = re.compile(r"^[0-9+\-\s()]+$")
 DANGEROUS_INJECTION_PATTERN = re.compile(
-    r"(--|;|\/\*|\*\/|@@|\b(char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update)\b|<script|<\/script>)",
+    r"(--|;|\/\*|\*\/|@@|<script|<\/script>)",
     re.IGNORECASE
 )
 
