@@ -200,6 +200,7 @@ export const CreateUser: React.FC = () => {
   // Filter tutors matching student's grade, section, ARAL level, and subject
   const matchingTutors = useMemo(() => {
     if (selectedRole !== 'student') return tutors;
+    if (!watchedStudentSection || !watchedStudentSection.trim()) return [];
     return tutors.filter((tutor) =>
       isTutorEligibleForStudent(tutor, {
         grade: watchedStudentGrade,

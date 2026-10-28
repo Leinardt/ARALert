@@ -18,6 +18,7 @@ from rest_framework.views import APIView
 from apps.accounts.models import AuditLog, User, StudentEditRequest
 from permissions.role_permissions import IsAdmin, IsTutor, role_required
 from utilities.audit import log_audit_event
+from utilities.pagination import StandardResultsSetPagination
 
 from .serializers import (
     BulkAssignTutorSerializer,
@@ -132,6 +133,7 @@ class UserStatsView(APIView):
 
 
 class UserListCreateView(generics.ListCreateAPIView):
+    pagination_class = StandardResultsSetPagination
     """
     GET  /api/users/     — List users (paginated, searchable, sortable, filterable).
     POST /api/users/     — Create a new user (SuperAdmin registers staff; Admin registers students).
@@ -873,6 +875,52 @@ class TutorListView(generics.ListAPIView):
         return User.objects.filter(role='tutor', is_active=True, is_superuser=False)
 
 
+class ExistingSectionsView(APIView):
+    """
+    GET /api/users/sections/
+    Returns the distinct list of sections currently existing in the system
+    from student and tutor grade_level fields.
+    Optionally accepts ?grade=... to filter sections for a specific grade.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        grade_param = (request.query_params.get('grade') or '').strip().upper()
+        clean_grade_num = re.sub(r'[^0-9]', '', grade_param)
+
+        qs = User.objects.filter(is_active=True, role__in=['student', 'tutor']).exclude(grade_level='')
+        raw_grade_levels = qs.values_list('grade_level', flat=True).distinct()
+
+        sections = set()
+        for raw in raw_grade_levels:
+            if not raw:
+                continue
+            for chunk in raw.split(','):
+                chunk = chunk.strip().upper()
+                if not chunk:
+                    continue
+                if ' - ' in chunk:
+                    parts = chunk.split(' - ')
+                    grade_part = parts[0].strip()
+                    sec_part = parts[-1].strip()
+                    if clean_grade_num:
+                        g_num = re.sub(r'[^0-9]', '', grade_part)
+                        if g_num and g_num != clean_grade_num:
+                            continue
+                    if sec_part and sec_part != '—' and not re.match(r'^GRADE\s*\d+$', sec_part):
+                        sections.add(sec_part)
+                else:
+                    if clean_grade_num:
+                        g_num = re.sub(r'[^0-9]', '', chunk)
+                        if g_num and g_num != clean_grade_num:
+                            continue
+                    clean = re.sub(r'^GRADE\s*\d*\s*', '', chunk).strip()
+                    if clean and clean != '—' and not clean.isdigit():
+                        sections.add(clean)
+
+        return Response({'sections': sorted(list(sections))})
+
+
 class AuditLogListView(APIView):
     """GET /api/users/audit-logs/ — Return paginated audit logs for SuperAdmin."""
 
@@ -897,7 +945,39 @@ class AuditLogListView(APIView):
 
         qs = AuditLog.objects.select_related('user').all().order_by('-timestamp')
         if action_filter:
-            qs = qs.filter(action__iexact=action_filter) if '_' in action_filter else qs.filter(action__icontains=action_filter)
+            af_upper = action_filter.upper()
+            if af_upper == 'LOGIN_SUCCESS':
+                qs = qs.filter(action__in=['LOGIN_SUCCESS', 'GOOGLE_LOGIN_SUCCESS', 'STUDENT_LOGIN_SUCCESS'])
+            elif af_upper in ('LOGIN_FAILED', 'LOGIN_FAILURE'):
+                qs = qs.filter(action__in=['STUDENT_LOGIN_FAILED', 'GOOGLE_LOGIN_INVALID_TOKEN', 'GOOGLE_LOGIN_UNREGISTERED_EMAIL', 'LOGIN_FAILED', 'LOGOUT_FAILED'])
+            elif af_upper == 'LOGIN_RATE_LIMITED':
+                qs = qs.filter(action__in=['GOOGLE_LOGIN_RATE_LIMITED', 'STUDENT_LOGIN_RATE_LIMITED', 'LOGIN_RATE_LIMITED'])
+            elif af_upper in ('LOGOUT_SUCCESS', 'LOGOUT'):
+                qs = qs.filter(action__in=['LOGOUT_SUCCESS', 'LOGOUT_FAILED'])
+            elif af_upper in ('STUDENT_EDIT_REQUEST_SUBMITTED', 'PROFILE_EDIT_REQUEST_SUBMITTED'):
+                qs = qs.filter(action__in=['STUDENT_EDIT_REQUEST_SUBMITTED', 'PROFILE_EDIT_REQUEST_SUBMITTED'])
+            elif af_upper in ('STUDENT_EDIT_REQUEST_APPROVED', 'PROFILE_EDIT_REQUEST_APPROVED'):
+                qs = qs.filter(action__in=['STUDENT_EDIT_REQUEST_APPROVED', 'PROFILE_EDIT_REQUEST_APPROVED'])
+            elif af_upper in ('STUDENT_EDIT_REQUEST_REJECTED', 'PROFILE_EDIT_REQUEST_REJECTED'):
+                qs = qs.filter(action__in=['STUDENT_EDIT_REQUEST_REJECTED', 'PROFILE_EDIT_REQUEST_REJECTED'])
+            elif af_upper in ('STUDENT_EDIT', 'PROFILE_EDIT'):
+                qs = qs.filter(action__icontains='EDIT_REQUEST')
+            elif af_upper == 'ATTENDANCE_QR_SCANNED':
+                qs = qs.filter(action__in=['ATTENDANCE_QR_SCANNED', 'ATTENDANCE_STUDENT_SCANNED_BY_TUTOR'])
+            elif af_upper == 'USER_UPDATED':
+                qs = qs.filter(action__in=['USER_UPDATED', 'PROFILE_UPDATED'])
+            elif af_upper == 'LOGIN':
+                qs = qs.filter(action__icontains='LOGIN')
+            elif af_upper == 'ATTENDANCE':
+                qs = qs.filter(action__icontains='ATTENDANCE')
+            elif af_upper == 'GRADE':
+                qs = qs.filter(action__icontains='GRADE')
+            elif af_upper == 'USER':
+                qs = qs.filter(action__icontains='USER')
+            elif af_upper == 'TRANSITION':
+                qs = qs.filter(Q(action__icontains='TRANSITION') | Q(action__icontains='MOSY') | Q(action__icontains='SUMMER'))
+            else:
+                qs = qs.filter(Q(action__iexact=action_filter) | Q(action__icontains=action_filter))
         if date_filter:
             qs = qs.filter(timestamp__date=date_filter)
         else:

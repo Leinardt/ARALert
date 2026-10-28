@@ -370,16 +370,19 @@ export function isTutorEligibleForStudent(
     }
   }
 
-  // 3. Section Match
+  // 3. Section Match - Student must have a section specified before tutor eligibility can be determined
   const cleanStudentSection = (student.section || '').toUpperCase().trim();
+  if (!cleanStudentSection) {
+    return false;
+  }
   const tutorSpecificSections = getTutorSpecificSections(tutor, student.grade);
 
   if (tutorSpecificSections.length > 0) {
     // If the tutor handles specific sections for this grade, the student must have entered a matching section.
-    if (!cleanStudentSection || !tutorSpecificSections.includes(cleanStudentSection)) {
+    if (!tutorSpecificSections.includes(cleanStudentSection)) {
       return false;
     }
-  } else if (cleanStudentSection) {
+  } else {
     // Tutor has no specific sections constraint, but student has a section:
     // Ensure tutor cohort string does not conflict
     if (tutorGradeLevelStr.includes(' - ') || tutorGradeLevelStr.includes(',')) {

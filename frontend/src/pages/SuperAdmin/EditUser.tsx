@@ -218,6 +218,9 @@ export const EditUser: React.FC = () => {
   const matchingTutors = useMemo(() => {
     if (selectedRole !== 'student') return tutors;
     const currentTutorId = userInitialData?.assigned_tutor;
+    if (!watchedStudentSection || !watchedStudentSection.trim()) {
+      return currentTutorId ? tutors.filter((t) => String(t.id) === String(currentTutorId)) : [];
+    }
     return tutors.filter((tutor) =>
       (currentTutorId && String(tutor.id) === String(currentTutorId)) ||
       isTutorEligibleForStudent(tutor, {

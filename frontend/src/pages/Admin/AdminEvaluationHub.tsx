@@ -11,15 +11,13 @@ import { TransitionConfirmationModal } from '../../components/TransitionConfirma
 import { SemesterTransitionModal } from '../../components/SemesterTransitionModal';
 import { EvaluateSummerModal } from '../../components/EvaluateSummerModal';
 import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
-import { CardSkeleton, StatsGridSkeleton, TableSkeleton } from '../../components/SkeletonLoader';
+import { TableSkeleton } from '../../components/SkeletonLoader';
 import { matchesSearch } from '../../utils/searchHelpers';
 import {
   MosyMonitoringData,
-  MosyAssignmentData,
   EosyMonitoringData,
   SummerRecord,
   SchoolYear,
-  AssignmentQueueData,
   User,
   Grade,
   Attendance
@@ -88,7 +86,7 @@ interface TutorClassSectionTableProps {
   isWindowOpen: boolean;
 }
 
-const TutorClassSectionTable: React.FC<TutorClassSectionTableProps> = ({
+const TutorClassSectionTable = React.memo<TutorClassSectionTableProps>(({
   cls,
   activeTab,
   isWindowOpen,
@@ -298,7 +296,7 @@ const TutorClassSectionTable: React.FC<TutorClassSectionTableProps> = ({
       )}
     </div>
   );
-};
+});
 
 export const AdminEvaluationHub: React.FC = () => {
   const getInitialTab = (): 'mosy' | 'eosy' | 'summer' => {
@@ -328,7 +326,6 @@ export const AdminEvaluationHub: React.FC = () => {
 
   // MOSY state
   const [mosyData, setMosyData] = useState<MosyMonitoringData | null>(null);
-  const [mosyAssignments, setMosyAssignments] = useState<MosyAssignmentData | null>(null);
   const [isProcessingMosy, setIsProcessingMosy] = useState<boolean>(false);
   const [mosyProcessSuccess, setMosyProcessSuccess] = useState<string | null>(null);
 
@@ -359,7 +356,6 @@ export const AdminEvaluationHub: React.FC = () => {
   const [isSummerModalOpen, setIsSummerModalOpen] = useState<boolean>(false);
 
   // Unified Assignment Queue & Bulk Cohort State
-  const [queueData, setQueueData] = useState<AssignmentQueueData | null>(null);
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState<boolean>(false);
 
   // Modals state
@@ -416,17 +412,15 @@ export const AdminEvaluationHub: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [sy, mosy, mosyAssign, eosy, summer, queue, tutorsList, studentsList, gradesList, attendanceList] = await Promise.all([
+      const [sy, mosy, eosy, summer, tutorsList, studentsList, gradesList, attendanceList] = await Promise.all([
         academicService.getCurrentSchoolYear().catch(() => null),
         academicService.getMosyMonitoring().catch(() => null),
-        academicService.getMosyAssignments().catch(() => null),
         academicService.getEosyMonitoring().catch(() => null),
         academicService.getSummerList().catch(() => []),
-        academicService.getAssignmentQueue().catch(() => null),
-        userService.getAllUsers({ role: 'tutor' }).catch(() => [] as User[]),
+        userService.getTutors().catch(() => [] as User[]),
         userService.getAllUsers({ role: 'student' }).catch(() => [] as User[]),
         academicService.getGrades().catch(() => [] as Grade[]),
-        academicService.getAttendanceHistory().catch(() => [] as Attendance[]),
+        academicService.getAttendanceHistory({ role: 'student' }).catch(() => [] as Attendance[]),
       ]);
 
       setCurrentSY(sy);
@@ -443,10 +437,8 @@ export const AdminEvaluationHub: React.FC = () => {
       }
 
       setMosyData(mosy);
-      setMosyAssignments(mosyAssign);
       setEosyData(eosy);
       setSummerRecords(summer);
-      setQueueData(queue);
       setTutors(Array.isArray(tutorsList) ? tutorsList : []);
       setStudents(Array.isArray(studentsList) ? studentsList : []);
       setGrades(Array.isArray(gradesList) ? gradesList : []);
@@ -526,14 +518,12 @@ export const AdminEvaluationHub: React.FC = () => {
       setSemesterTransitionModal((prev) => ({ ...prev, isOpen: false }));
 
       try {
-        const [m, ma, q] = await Promise.all([
+        const [m, e] = await Promise.all([
           academicService.getMosyMonitoring().catch(() => null),
-          academicService.getMosyAssignments().catch(() => null),
-          academicService.getAssignmentQueue().catch(() => null),
+          academicService.getEosyMonitoring().catch(() => null),
         ]);
         if (m) setMosyData(m);
-        if (ma) setMosyAssignments(ma);
-        if (q) setQueueData(q);
+        if (e) setEosyData(e);
       } catch (refreshErr) {
         console.warn('Post-transition data refresh warning:', refreshErr);
       }
@@ -580,17 +570,83 @@ export const AdminEvaluationHub: React.FC = () => {
     };
   };
 
-  // ── Compute Tutors Evaluation Rows & Status ────────────────────────────────
+  // ── Compute Tutors Evaluation Rows & Status (O(1) Map-Optimized) ──────────────
   const tutorRows = useMemo<TutorEvaluationRow[]>(() => {
+    // 1. Pre-index active students by assigned tutor id
+    const studentsByTutor = new Map<string, User[]>();
+    for (let i = 0; i < students.length; i++) {
+      const st = students[i];
+      if (st.assigned_tutor) {
+        const tid = String(st.assigned_tutor);
+        let list = studentsByTutor.get(tid);
+        if (!list) {
+          list = [];
+          studentsByTutor.set(tid, list);
+        }
+        list.push(st);
+      }
+    }
+
+    // 2. Pre-index student grades by student id
+    const gradesByStudent = new Map<string, Grade[]>();
+    for (let i = 0; i < grades.length; i++) {
+      const g = grades[i];
+      const sid = String(typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student);
+      let list = gradesByStudent.get(sid);
+      if (!list) {
+        list = [];
+        gradesByStudent.set(sid, list);
+      }
+      list.push(g);
+    }
+
+    // 3. Pre-index attendance records by student/user id
+    const attendanceByStudent = new Map<string, Attendance[]>();
+    for (let i = 0; i < attendance.length; i++) {
+      const a = attendance[i];
+      const uid = String(typeof a.user === 'object' && a.user !== null ? (a.user as any).id : a.user);
+      let list = attendanceByStudent.get(uid);
+      if (!list) {
+        list = [];
+        attendanceByStudent.set(uid, list);
+      }
+      list.push(a);
+    }
+
+    // 4. Pre-index summer records by student id and lrn
+    const summerRecordsByStudent = new Map<string, SummerRecord>();
+    for (let i = 0; i < summerRecords.length; i++) {
+      const sr = summerRecords[i];
+      if (sr.student) summerRecordsByStudent.set(String(sr.student), sr);
+      if (sr.student_lrn) summerRecordsByStudent.set(sr.student_lrn, sr);
+    }
+
+    // 5. Pre-index tutor progress from MOSY and EOSY monitoring data
+    const mosyProgressByTutor = new Map<string, any>();
+    if (mosyData?.tutors_progress) {
+      for (let i = 0; i < mosyData.tutors_progress.length; i++) {
+        const tp = mosyData.tutors_progress[i];
+        mosyProgressByTutor.set(tp.tutor_id, tp);
+      }
+    }
+
+    const eosyProgressByTutor = new Map<string, any>();
+    if (eosyData?.tutors_progress) {
+      for (let i = 0; i < eosyData.tutors_progress.length; i++) {
+        const tp = eosyData.tutors_progress[i];
+        eosyProgressByTutor.set(tp.tutor_id, tp);
+      }
+    }
+
     return tutors.map((tutor) => {
-      const tutorStudents = students.filter((s) => String(s.assigned_tutor) === String(tutor.id));
+      const tutorStudents = studentsByTutor.get(String(tutor.id)) || [];
       const assignedCount = tutorStudents.length;
 
       let evaluatedCount = 0;
       let isCompleted = false;
 
       if (activeTab === 'mosy') {
-        const p = mosyData?.tutors_progress?.find((tp) => tp.tutor_id === String(tutor.id));
+        const p = mosyProgressByTutor.get(String(tutor.id));
         if (p) {
           evaluatedCount = p.evaluated_count;
           isCompleted = assignedCount > 0 && (p.status === 'Completed' || p.remaining_count === 0);
@@ -598,16 +654,14 @@ export const AdminEvaluationHub: React.FC = () => {
           isCompleted = false;
         } else {
           const evaluatedStudents = tutorStudents.filter((s) => {
-            return grades.some((g) => {
-              const sid = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
-              return String(sid) === String(s.id) && (g.subject || '').toUpperCase().includes('MOSY') && g.remarks?.toLowerCase() !== 'not taken';
-            });
+            const sGrades = gradesByStudent.get(String(s.id)) || [];
+            return sGrades.some((g) => (g.subject || '').toUpperCase().includes('MOSY') && g.remarks?.toLowerCase() !== 'not taken');
           });
           evaluatedCount = evaluatedStudents.length;
           isCompleted = assignedCount > 0 && evaluatedCount >= assignedCount;
         }
       } else if (activeTab === 'eosy') {
-        const p = eosyData?.tutors_progress?.find((tp) => tp.tutor_id === String(tutor.id));
+        const p = eosyProgressByTutor.get(String(tutor.id));
         if (p) {
           evaluatedCount = p.evaluated_count;
           isCompleted = assignedCount > 0 && (p.status === 'Completed' || p.remaining_count === 0);
@@ -615,10 +669,8 @@ export const AdminEvaluationHub: React.FC = () => {
           isCompleted = false;
         } else {
           const evaluatedStudents = tutorStudents.filter((s) => {
-            return grades.some((g) => {
-              const sid = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
-              return String(sid) === String(s.id) && (g.subject || '').toUpperCase().includes('EOSY') && g.remarks?.toLowerCase() !== 'not taken';
-            });
+            const sGrades = gradesByStudent.get(String(s.id)) || [];
+            return sGrades.some((g) => (g.subject || '').toUpperCase().includes('EOSY') && g.remarks?.toLowerCase() !== 'not taken');
           });
           evaluatedCount = evaluatedStudents.length;
           isCompleted = assignedCount > 0 && evaluatedCount >= assignedCount;
@@ -629,10 +681,10 @@ export const AdminEvaluationHub: React.FC = () => {
           evaluatedCount = 0;
           isCompleted = false;
         } else {
-          const tutorSummerRecords = summerRecords.filter((sr) => {
-            const st = students.find((s) => s.id === sr.student || s.lrn === sr.student_lrn);
-            return st && String(st.assigned_tutor) === String(tutor.id);
-          });
+          const tutorSummerRecords = tutorStudents
+            .map((s) => summerRecordsByStudent.get(String(s.id)) || (s.lrn ? summerRecordsByStudent.get(s.lrn) : undefined))
+            .filter((sr): sr is SummerRecord => Boolean(sr));
+
           if (tutorSummerRecords.length === 0) {
             isCompleted = false;
           } else {
@@ -655,17 +707,8 @@ export const AdminEvaluationHub: React.FC = () => {
       }
 
       const studentMetrics: StudentMetric[] = tutorStudents.map((st) => {
-        // Filter student grades
-        const sGrades = grades.filter((g) => {
-          const sid = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
-          return String(sid) === String(st.id);
-        });
-
-        // Filter student attendance
-        const sAtt = attendance.filter((a) => {
-          const uid = typeof a.user === 'object' && a.user !== null ? (a.user as any).id : a.user;
-          return String(uid) === String(st.id);
-        });
+        const sGrades = gradesByStudent.get(String(st.id)) || [];
+        const sAtt = attendanceByStudent.get(String(st.id)) || [];
 
         // Compute Attendance Rate
         let attendanceRate = 100.0;
@@ -700,7 +743,7 @@ export const AdminEvaluationHub: React.FC = () => {
         let studentStatus: 'PASSED' | 'FAILED' | 'PENDING' = 'PENDING';
 
         if (activeTab === 'summer') {
-          const sr = summerRecords.find((r) => String(r.student) === String(st.id) || r.student_lrn === st.lrn);
+          const sr = summerRecordsByStudent.get(String(st.id)) || (st.lrn ? summerRecordsByStudent.get(st.lrn) : undefined);
           if (sr?.summer_result) {
             assessmentScoreStr = sr.summer_result === 'passed' ? '100.0%' : '50.0%';
             studentStatus = sr.summer_result === 'passed' ? 'PASSED' : 'FAILED';
@@ -980,13 +1023,16 @@ export const AdminEvaluationHub: React.FC = () => {
 
       {/* ── Main Loading Skeleton State ────────────────────────────────────────────── */}
       {isLoading ? (
-        <div className="space-y-5">
-          <StatsGridSkeleton count={4} cols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <CardSkeleton rows={4} />
-            <CardSkeleton rows={4} />
+        <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 sm:p-6 space-y-5 shadow-xs animate-pulse">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="h-6 w-52 bg-slate-200 dark:bg-zinc-800 rounded-md" />
+            <div className="h-9 w-48 bg-slate-200 dark:bg-zinc-800 rounded-xl" />
           </div>
-          <TableSkeleton rows={6} cols={6} />
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-4 bg-slate-200 dark:bg-zinc-800 rounded-full" />
+            <div className="h-4 w-32 bg-slate-200 dark:bg-zinc-800 rounded-md" />
+          </div>
+          <TableSkeleton rows={8} cols={3} />
         </div>
       ) : (
         <div className="space-y-6">

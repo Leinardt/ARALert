@@ -595,10 +595,25 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
     setPage(1);
   };
 
-  // Dynamic sections extraction & retention
-  const [knownSections, setKnownSections] = useState<string[]>([
-    'HYACINTH', 'MANGO', 'ROSE', 'SAMPAGUITA', 'ORCHID', 'TULIP', 'JASMINE', 'SUNFLOWER', 'LILY', 'CARNATION', 'DAISY'
-  ]);
+  // Dynamic sections extraction strictly from existing system data (no pre-filled mock values)
+  const [knownSections, setKnownSections] = useState<string[]>([]);
+
+  // Fetch sections that actually exist in the system from the backend
+  useEffect(() => {
+    let isMounted = true;
+    userService.getExistingSections(gradeLevelFilter).then((apiSections) => {
+      if (!isMounted) return;
+      const sorted = Array.isArray(apiSections) ? [...apiSections].sort((a, b) => a.localeCompare(b)) : [];
+      setKnownSections((prev) => {
+        const combined = new Set([...sorted, ...prev]);
+        return Array.from(combined).sort((a, b) => a.localeCompare(b));
+      });
+      if (sectionFilter && sorted.length > 0 && !sorted.includes(sectionFilter.toUpperCase())) {
+        setSectionFilter('');
+      }
+    });
+    return () => { isMounted = false; };
+  }, [gradeLevelFilter, activeTab]);
 
   useEffect(() => {
     if (!users || users.length === 0) return;

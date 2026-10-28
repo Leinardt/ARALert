@@ -23,6 +23,7 @@ from apps.academics.models import (
 )
 from apps.accounts.models import User
 from utilities.audit import log_audit_event
+from utilities.pagination import StandardResultsSetPagination
 
 from .serializers import (
     AcademicRiskSerializer,
@@ -172,6 +173,7 @@ def _is_milestone_grade(subject: str | None, remarks: str | None = None) -> bool
 
 
 class GradeListCreateView(generics.ListCreateAPIView):
+    pagination_class   = StandardResultsSetPagination
     """
     GET  /api/academics/grades/         — list grades (role-filtered)
     POST /api/academics/grades/         — create single or bulk grades (tutor only)
@@ -1264,6 +1266,7 @@ class AttendanceManualLogView(APIView):
 # ---------------------------------------------------------------------------
 
 class AttendanceHistoryView(generics.ListAPIView):
+    pagination_class   = StandardResultsSetPagination
     """
     GET /api/academics/attendance/history/
     """
@@ -1272,7 +1275,7 @@ class AttendanceHistoryView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs   = ApiAttendance.objects.select_related('user', 'tutor', 'aral_activity', 'session').all()
+        qs   = ApiAttendance.objects.select_related('user', 'tutor', 'aral_activity', 'session').order_by('-date', '-id')
 
         date_param    = self.request.query_params.get('date')
         role_param    = self.request.query_params.get('role')
@@ -1350,7 +1353,7 @@ class AttendanceDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs   = ApiAttendance.objects.select_related('user', 'tutor', 'aral_activity', 'session').all()
+        qs   = ApiAttendance.objects.select_related('user', 'tutor', 'aral_activity', 'session').order_by('-date', '-id')
         if user.is_superuser or user.role in ('principal', 'admin'):
             return qs
         if user.role == 'tutor':

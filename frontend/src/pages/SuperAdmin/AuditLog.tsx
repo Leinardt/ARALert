@@ -266,6 +266,8 @@ export const AuditLog: React.FC = () => {
               
               <optgroup label="Authentication & Security">
                 <option value="LOGIN_SUCCESS">Login Success</option>
+                <option value="GOOGLE_LOGIN_SUCCESS">Google Login (Staff)</option>
+                <option value="STUDENT_LOGIN_SUCCESS">Student Portal Login</option>
                 <option value="LOGOUT_SUCCESS">Logout Success</option>
                 <option value="LOGIN_FAILED">Login Failed / Unauthorized</option>
                 <option value="LOGIN_RATE_LIMITED">Login Rate Limited</option>

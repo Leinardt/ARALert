@@ -244,6 +244,17 @@ export const userService = {
     const response = await api.delete<{ detail: string }>(`/users/student-edit-requests/${id}/`);
     return response.data;
   },
+
+  getExistingSections: async (grade?: string): Promise<string[]> => {
+    try {
+      const params = grade ? { grade } : {};
+      const response = await api.get<{ sections: string[] }>('/users/sections/', { params });
+      return response.data.sections || [];
+    } catch (err) {
+      console.warn('Failed to fetch existing sections from API:', err);
+      return [];
+    }
+  },
 };
 
 
