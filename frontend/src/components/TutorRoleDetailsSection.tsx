@@ -38,11 +38,11 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
   };
 
   // Single-select ARAL Level (switches level and updates subject compatibility)
-  const handleSetAralLevel = (index: number, level: 'basic' | 'plus') => {
+  const handleSetAralLevel = (index: number, level: 'basic' | 'plus' | 'summer') => {
     const current = groups[index];
     if (current.aralLevel === level) return;
 
-    let nextSubject = current.subjects[0] || (level === 'basic' ? 'Filipino' : 'English');
+    let nextSubject = current.subjects[0] || (level === 'plus' ? 'English' : 'Filipino');
     if (level === 'basic' && nextSubject === 'English') {
       nextSubject = 'Filipino';
     } else if (level === 'plus' && nextSubject === 'Filipino') {
@@ -58,8 +58,8 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
   // Single-select Subject
   const handleSelectSubject = (index: number, subjectName: string) => {
     const current = groups[index];
-    if (subjectName === 'Filipino' && current.aralLevel !== 'basic') return;
-    if (subjectName === 'English' && current.aralLevel !== 'plus') return;
+    if (subjectName === 'Filipino' && current.aralLevel === 'plus') return;
+    if (subjectName === 'English' && current.aralLevel === 'basic') return;
 
     handleUpdateGroup(index, { subjects: [subjectName] });
   };
@@ -161,6 +161,19 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                     {group.aralLevel === 'plus' && <Check className="w-3.5 h-3.5" />}
                     <span>PLUS</span>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSetAralLevel(gIdx, 'summer')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all cursor-pointer ${
+                      group.aralLevel === 'summer'
+                        ? 'border-[var(--brand)] bg-blue-50/70 dark:bg-blue-950/30 text-[var(--brand)] font-bold shadow-2xs'
+                        : 'border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#181818] text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-[#383838]'
+                    }`}
+                  >
+                    {group.aralLevel === 'summer' && <Check className="w-3.5 h-3.5" />}
+                    <span>SUMMER</span>
+                  </button>
                 </div>
               </div>
 
@@ -171,16 +184,16 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                 </label>
                 <div className="p-3 bg-white dark:bg-[#181818] border border-gray-200 dark:border-[#222222] rounded-lg">
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* FILIPINO: Requires Basic */}
+                    {/* FILIPINO: Requires Basic or Summer */}
                     {(() => {
-                      const isFilipinoDisabled = group.aralLevel !== 'basic';
+                      const isFilipinoDisabled = group.aralLevel === 'plus';
                       const isFilipinoSelected = !isFilipinoDisabled && currentSubject === 'Filipino';
                       return (
                         <button
                           type="button"
                           disabled={isFilipinoDisabled}
                           onClick={() => handleSelectSubject(gIdx, 'Filipino')}
-                          title={isFilipinoDisabled ? 'Select BASIC ARAL Level above to assign Filipino' : undefined}
+                          title={isFilipinoDisabled ? 'Select BASIC or SUMMER ARAL Level above to assign Filipino' : undefined}
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all ${
                             isFilipinoDisabled
                               ? 'cursor-not-allowed bg-gray-100/60 dark:bg-[#1e1e1e] border-gray-200 dark:border-[#282828] text-gray-400 dark:text-neutral-500 opacity-60'
@@ -193,23 +206,23 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                           <span>FILIPINO</span>
                           {isFilipinoDisabled && (
                             <span className="text-[10px] font-normal text-gray-400 dark:text-neutral-500">
-                              (Basic)
+                              (Basic/Summer)
                             </span>
                           )}
                         </button>
                       );
                     })()}
 
-                    {/* ENGLISH: Requires Plus */}
+                    {/* ENGLISH: Requires Plus or Summer */}
                     {(() => {
-                      const isEnglishDisabled = group.aralLevel !== 'plus';
+                      const isEnglishDisabled = group.aralLevel === 'basic';
                       const isEnglishSelected = !isEnglishDisabled && currentSubject === 'English';
                       return (
                         <button
                           type="button"
                           disabled={isEnglishDisabled}
                           onClick={() => handleSelectSubject(gIdx, 'English')}
-                          title={isEnglishDisabled ? 'Select PLUS ARAL Level above to assign English' : undefined}
+                          title={isEnglishDisabled ? 'Select PLUS or SUMMER ARAL Level above to assign English' : undefined}
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all ${
                             isEnglishDisabled
                               ? 'cursor-not-allowed bg-gray-100/60 dark:bg-[#1e1e1e] border-gray-200 dark:border-[#282828] text-gray-400 dark:text-neutral-500 opacity-60'
@@ -222,7 +235,7 @@ export const TutorRoleDetailsSection: React.FC<TutorRoleDetailsSectionProps> = (
                           <span>ENGLISH</span>
                           {isEnglishDisabled && (
                             <span className="text-[10px] font-normal text-gray-400 dark:text-neutral-500">
-                              (Plus)
+                              (Plus/Summer)
                             </span>
                           )}
                         </button>

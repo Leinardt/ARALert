@@ -10,13 +10,13 @@ export interface TutorCohortFilterProps {
   user: User | null;
   students?: User[];
   isLoading?: boolean;
-  selectedAralLevel: 'all' | 'basic' | 'plus';
-  onSelectAralLevel: (level: 'all' | 'basic' | 'plus') => void;
+  selectedAralLevel: 'all' | 'basic' | 'plus' | 'summer';
+  onSelectAralLevel: (level: 'all' | 'basic' | 'plus' | 'summer') => void;
   selectedSubject: string;
   onSelectSubject: (subject: string) => void;
   selectedCohort: string;
   onSelectCohort: (cohort: string) => void;
-  onSelectClass?: (level: 'all' | 'basic' | 'plus', subject: string, cohort: string) => void;
+  onSelectClass?: (level: 'all' | 'basic' | 'plus' | 'summer', subject: string, cohort: string) => void;
   allowAll?: boolean;
   title?: string;
 }

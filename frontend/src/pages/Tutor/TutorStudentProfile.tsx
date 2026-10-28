@@ -123,7 +123,7 @@ export const TutorStudentProfile: React.FC = () => {
 
   const studentCohortInfo = useMemo(() => {
     const rawAral = (studentUser?.aral_level || profile?.student?.aral_level || 'basic').toUpperCase();
-    const aralLevel = rawAral.includes('PLUS') ? 'PLUS' : 'BASIC';
+    const aralLevel = rawAral.includes('PLUS') ? 'PLUS' : rawAral.includes('SUMMER') ? 'SUMMER' : 'BASIC';
 
     let subject = (studentUser?.subject || '').toUpperCase().trim();
     if (!subject || subject === 'READING' || (aralLevel === 'PLUS' && subject === 'FILIPINO')) {

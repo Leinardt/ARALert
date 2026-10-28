@@ -28,7 +28,7 @@ export interface BatchParsedStudent {
   middle_name: string;
   last_name: string;
   lrn: string;
-  aral_level: 'basic' | 'plus' | '';
+  aral_level: 'basic' | 'plus' | 'summer' | '';
   subject: string;
   assigned_tutor_id: string | null;
   assigned_tutor_name?: string;
@@ -613,8 +613,8 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
     return list;
   }, [students, selectedSheet, searchQuery]);
 
-  // Bulk actions: Set visible to Basic or Plus (scope can be 'all' or 'active')
-  const handleSetAllAralLevel = (level: 'basic' | 'plus', scope: 'all' | 'active' = 'all') => {
+  // Bulk actions: Set visible to Basic, Plus, or Summer (scope can be 'all' or 'active')
+  const handleSetAllAralLevel = (level: 'basic' | 'plus' | 'summer', scope: 'all' | 'active' = 'all') => {
     setStudents((prev) =>
       prev.map((s) => {
         if (scope === 'active' && selectedSheet !== 'all' && s.sheetName !== selectedSheet) return s;
@@ -1110,6 +1110,14 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                   >
                     SET ALL TO PLUS ({totalCount})
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetAllAralLevel('summer', 'all')}
+                    className="px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white shadow-xs transition-colors cursor-pointer"
+                    title={`Assign SUMMER to all ${totalCount} students across all classes in file`}
+                  >
+                    SET ALL TO SUMMER ({totalCount})
+                  </button>
                   {selectedSheet !== 'all' && (
                     <>
                       <span className="text-slate-300 dark:text-zinc-700 hidden sm:inline">|</span>
@@ -1128,6 +1136,14 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                         title={`Assign PLUS only to ${selectedSheet} (${activeTotalCount} students)`}
                       >
                         Set {selectedSheet} to Plus ({activeTotalCount})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSetAllAralLevel('summer', 'active')}
+                        className="px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-lg border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                        title={`Assign SUMMER only to ${selectedSheet} (${activeTotalCount} students)`}
+                      >
+                        Set {selectedSheet} to Summer ({activeTotalCount})
                       </button>
                     </>
                   )}
@@ -1353,6 +1369,7 @@ export const BatchStudentEnrollmentModal: React.FC<BatchStudentEnrollmentModalPr
                                   <option value="">Select Level...</option>
                                   <option value="basic">BASIC</option>
                                   <option value="plus">PLUS</option>
+                                  <option value="summer">SUMMER</option>
                                 </select>
                               </td>
 

@@ -185,18 +185,19 @@ export const CreateUser: React.FC = () => {
   // Synchronize student subject with selected ARAL level:
   // - Basic: English is unavailable, replaced by Filipino (value="Filipino")
   // - Plus: Filipino is unavailable, replaced by English (value="English")
+  // - Summer: All subjects (Filipino, English, Math, Science) are available
   // - Math and Science remain untouched
   useEffect(() => {
     if (selectedRole === 'student') {
       if (watchedStudentAralLevel === 'plus' && (watchedStudentSubject === 'Filipino' || watchedStudentSubject === 'Reading')) {
         setValue('subject', 'English');
-      } else if (watchedStudentAralLevel !== 'plus' && watchedStudentSubject === 'English') {
+      } else if (watchedStudentAralLevel === 'basic' && watchedStudentSubject === 'English') {
         setValue('subject', 'Filipino');
       }
     }
   }, [selectedRole, watchedStudentAralLevel, watchedStudentSubject, setValue]);
 
-  // Filter tutors matching student's grade, section, and ARAL level
+  // Filter tutors matching student's grade, section, ARAL level, and subject
   const matchingTutors = useMemo(() => {
     if (selectedRole !== 'student') return tutors;
     return tutors.filter((tutor) =>
@@ -204,9 +205,22 @@ export const CreateUser: React.FC = () => {
         grade: watchedStudentGrade,
         section: watchedStudentSection,
         aral_level: watchedStudentAralLevel,
+        subject: watchedStudentSubject,
       })
     );
-  }, [tutors, selectedRole, watchedStudentGrade, watchedStudentSection, watchedStudentAralLevel]);
+  }, [tutors, selectedRole, watchedStudentGrade, watchedStudentSection, watchedStudentAralLevel, watchedStudentSubject]);
+
+  const watchedAssignedTutor = watch('assigned_tutor');
+
+  // Auto-reset assigned_tutor if the currently selected tutor is no longer eligible
+  useEffect(() => {
+    if (selectedRole === 'student' && watchedAssignedTutor) {
+      const isStillMatching = matchingTutors.some((t) => String(t.id) === String(watchedAssignedTutor));
+      if (!isStillMatching) {
+        setValue('assigned_tutor', '');
+      }
+    }
+  }, [selectedRole, watchedAssignedTutor, matchingTutors, setValue]);
 
   // Tutor modular role details state (connecting ARAL Level, Grade Level, Subject, and Sections)
   const [tutorRoleDetails, setTutorRoleDetails] = useState<TutorRoleDetailGroup[]>([createDefaultRoleDetail()]);
@@ -371,8 +385,11 @@ export const CreateUser: React.FC = () => {
           const fallbackPayload = { ...payload };
           if (errData.aral_level || errData.tutor_type) {
             const hasBasic = tutorRoleDetails.some((g) => g.aralLevel === 'basic');
-            fallbackPayload.aral_level = hasBasic ? 'basic' : 'plus';
-            fallbackPayload.tutor_type = hasBasic ? 'basic' : 'plus';
+            const hasPlus = tutorRoleDetails.some((g) => g.aralLevel === 'plus');
+            const hasSummer = tutorRoleDetails.some((g) => g.aralLevel === 'summer');
+            const fallbackLevel = hasBasic ? 'basic' : hasPlus ? 'plus' : hasSummer ? 'summer' : 'basic';
+            fallbackPayload.aral_level = fallbackLevel;
+            fallbackPayload.tutor_type = fallbackLevel;
           }
           if (errData.subject && fallbackPayload.subject?.includes(',')) {
             fallbackPayload.subject = fallbackPayload.subject.includes('Filipino') ? 'Filipino' : 'English';
@@ -715,6 +732,7 @@ export const CreateUser: React.FC = () => {
                     >
                       <option value="basic">BASIC</option>
                       <option value="plus">PLUS</option>
+                      <option value="summer">SUMMER</option>
                     </select>
                   </div>
 
@@ -727,7 +745,12 @@ export const CreateUser: React.FC = () => {
                       {...register('subject')}
                       className="w-full rounded-md border border-gray-300 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-3 py-2 text-xs font-medium shadow-2xs focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] dark:text-slate-100 cursor-pointer"
                     >
-                      {watchedStudentAralLevel === 'plus' ? (
+                      {watchedStudentAralLevel === 'summer' ? (
+                        <>
+                          <option value="Filipino">FILIPINO</option>
+                          <option value="English">ENGLISH</option>
+                        </>
+                      ) : watchedStudentAralLevel === 'plus' ? (
                         <option value="English">ENGLISH (for Plus)</option>
                       ) : (
                         <option value="Filipino">FILIPINO (for Basic)</option>
@@ -752,7 +775,12 @@ export const CreateUser: React.FC = () => {
                       <option value="">{isLoadingTutors ? 'Loading available tutors...' : 'To Be Assigned (TBA)'}</option>
                       {matchingTutors.map((tutor) => (
                         <option key={tutor.id} value={tutor.id}>
-                          {formatTutorAssignmentOption(tutor)}
+                          {formatTutorAssignmentOption(tutor, {
+                            grade: watchedStudentGrade,
+                            section: watchedStudentSection,
+                            aral_level: watchedStudentAralLevel,
+                            subject: watchedStudentSubject,
+                          })}
                         </option>
                       ))}
                     </select>
@@ -763,7 +791,9 @@ export const CreateUser: React.FC = () => {
                     )}
                     {!isLoadingTutors && matchingTutors.length === 0 && (
                       <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
-                        No tutors currently handle {watchedStudentGrade || 'this grade'}{watchedStudentSection ? `, Section ${watchedStudentSection.toUpperCase()}` : ''}, and ARAL {(watchedStudentAralLevel || 'basic').toUpperCase()}.
+                        {!watchedStudentSection?.trim()
+                          ? `Enter a Section above to view eligible tutors assigned to ${watchedStudentGrade || 'this grade'}, ARAL ${(watchedStudentAralLevel || 'basic').toUpperCase()}, and Subject ${(watchedStudentSubject || '').toUpperCase()}.`
+                          : `No tutors currently handle ${watchedStudentGrade || 'this grade'}, Section ${watchedStudentSection.toUpperCase()}, ARAL ${(watchedStudentAralLevel || 'basic').toUpperCase()}${watchedStudentSubject ? `, and Subject ${watchedStudentSubject.toUpperCase()}` : ''}.`}
                       </p>
                     )}
                   </div>

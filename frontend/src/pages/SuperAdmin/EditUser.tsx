@@ -214,7 +214,7 @@ export const EditUser: React.FC = () => {
   const [tutorRoleDetails, setTutorRoleDetails] = useState<TutorRoleDetailGroup[]>([createDefaultRoleDetail()]);
   const [tutorGroupErrors, setTutorGroupErrors] = useState<Record<string, string>>({});
 
-  // Filter tutors matching student's grade, section, and ARAL level (always preserving current assignment)
+  // Filter tutors matching student's grade, section, ARAL level, and subject (always preserving current assignment)
   const matchingTutors = useMemo(() => {
     if (selectedRole !== 'student') return tutors;
     const currentTutorId = userInitialData?.assigned_tutor;
@@ -224,9 +224,10 @@ export const EditUser: React.FC = () => {
         grade: watchedStudentGrade,
         section: watchedStudentSection,
         aral_level: watchedStudentAralLevel,
+        subject: watchedStudentSubject,
       })
     );
-  }, [tutors, selectedRole, userInitialData, watchedStudentGrade, watchedStudentSection, watchedStudentAralLevel]);
+  }, [tutors, selectedRole, userInitialData, watchedStudentGrade, watchedStudentSection, watchedStudentAralLevel, watchedStudentSubject]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -405,8 +406,11 @@ export const EditUser: React.FC = () => {
           const fallbackPayload = { ...payload };
           if (errData.aral_level || errData.tutor_type) {
             const hasBasic = tutorRoleDetails.some((g) => g.aralLevel === 'basic');
-            fallbackPayload.aral_level = hasBasic ? 'basic' : 'plus';
-            fallbackPayload.tutor_type = hasBasic ? 'basic' : 'plus';
+            const hasPlus = tutorRoleDetails.some((g) => g.aralLevel === 'plus');
+            const hasSummer = tutorRoleDetails.some((g) => g.aralLevel === 'summer');
+            const fallbackLevel = hasBasic ? 'basic' : hasPlus ? 'plus' : hasSummer ? 'summer' : 'basic';
+            fallbackPayload.aral_level = fallbackLevel;
+            fallbackPayload.tutor_type = fallbackLevel;
           }
           if (errData.subject && fallbackPayload.subject?.includes(',')) {
             fallbackPayload.subject = fallbackPayload.subject.includes('Filipino') ? 'Filipino' : 'English';
@@ -862,6 +866,7 @@ export const EditUser: React.FC = () => {
                   >
                     <option value="basic">BASIC</option>
                     <option value="plus">PLUS</option>
+                    <option value="summer">SUMMER</option>
                     <option value="graduated">GRADUATED (Archive)</option>
                   </select>
                 </div>
@@ -875,7 +880,12 @@ export const EditUser: React.FC = () => {
                     {...register('subject')}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-[#1A1A1A] rounded-md shadow-sm focus:outline-none focus:ring-[var(--brand)] text-xs bg-white dark:bg-[#111111] dark:text-slate-100 font-medium cursor-pointer"
                   >
-                    {watchedStudentAralLevel === 'plus' || watchedStudentAralLevel === 'graduated' ? (
+                    {watchedStudentAralLevel === 'summer' ? (
+                      <>
+                        <option value="Filipino">FILIPINO</option>
+                        <option value="English">ENGLISH</option>
+                      </>
+                    ) : watchedStudentAralLevel === 'plus' || watchedStudentAralLevel === 'graduated' ? (
                       <option value="English">ENGLISH (for Plus/Graduated)</option>
                     ) : (
                       <option value="Filipino">FILIPINO (for Basic)</option>
@@ -900,7 +910,12 @@ export const EditUser: React.FC = () => {
                     <option value="">{isLoading ? 'Loading available tutors...' : 'To Be Assigned (TBA)'}</option>
                     {matchingTutors.map((tutor) => (
                       <option key={tutor.id} value={tutor.id}>
-                        {formatTutorAssignmentOption(tutor)}
+                        {formatTutorAssignmentOption(tutor, {
+                          grade: watchedStudentGrade,
+                          section: watchedStudentSection,
+                          aral_level: watchedStudentAralLevel,
+                          subject: watchedStudentSubject,
+                        })}
                       </option>
                     ))}
                   </select>
@@ -911,7 +926,9 @@ export const EditUser: React.FC = () => {
                   )}
                   {!isLoading && matchingTutors.length === 0 && (
                     <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
-                      No tutors currently handle {watchedStudentGrade || 'this grade'}{watchedStudentSection ? `, Section ${watchedStudentSection.toUpperCase()}` : ''}, and ARAL {(watchedStudentAralLevel || 'basic').toUpperCase()}.
+                      {!watchedStudentSection?.trim()
+                        ? `Enter a Section above to view eligible tutors assigned to ${watchedStudentGrade || 'this grade'}, ARAL ${(watchedStudentAralLevel || 'basic').toUpperCase()}, and Subject ${(watchedStudentSubject || '').toUpperCase()}.`
+                        : `No tutors currently handle ${watchedStudentGrade || 'this grade'}, Section ${watchedStudentSection.toUpperCase()}, ARAL ${(watchedStudentAralLevel || 'basic').toUpperCase()}${watchedStudentSubject ? `, and Subject ${watchedStudentSubject.toUpperCase()}` : ''}.`}
                     </p>
                   )}
                 </div>

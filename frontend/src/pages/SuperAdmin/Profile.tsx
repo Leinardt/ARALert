@@ -230,7 +230,7 @@ export const Profile: React.FC = () => {
     middle_name: '',
     last_name: '',
     lrn: '',
-    aral_level: 'basic' as 'basic' | 'plus' | 'graduated',
+    aral_level: 'basic' as 'basic' | 'plus' | 'summer' | 'graduated',
   });
 
   const fetchPendingRequest = useCallback(async () => {

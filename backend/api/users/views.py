@@ -211,7 +211,7 @@ class UserListCreateView(generics.ListCreateAPIView):
 
         section = self.request.query_params.get('section', '').strip()
         if section:
-            queryset = queryset.filter(Q(section__iexact=section) | Q(grade_level__icontains=section))
+            queryset = queryset.filter(grade_level__icontains=section)
 
         search = self.request.query_params.get('search', '').strip()
         if search:
@@ -519,8 +519,8 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         updated_user = serializer.save()
         new_level = (getattr(updated_user, 'aral_level', '') or '').lower()
 
-        # If ARAL level is changed from graduated back to basic/plus (reverting a mistake)
-        if updated_user.role == 'student' and prev_level == 'graduated' and new_level in ('basic', 'plus'):
+        # If ARAL level is changed from graduated back to basic/plus/summer (reverting a mistake)
+        if updated_user.role == 'student' and prev_level == 'graduated' and new_level in ('basic', 'plus', 'summer'):
             try:
                 from apps.academics.models import StudentEnrollment
                 StudentEnrollment.objects.filter(
