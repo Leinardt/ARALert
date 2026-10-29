@@ -439,25 +439,24 @@ export const Profile: React.FC = () => {
 
       {/* ── User Overview Header ── */}
       <div className="p-4 sm:p-6 md:p-8" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.25rem' }}>
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 sm:gap-5 text-center sm:text-left">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex flex-row items-center gap-3.5 sm:gap-5 text-left w-full sm:w-auto min-w-0">
             <div
-              className="flex items-center justify-center shrink-0 overflow-hidden rounded-2xl bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 mx-auto sm:mx-0"
-              style={{
-                width: '76px',
-                height: '76px',
-              }}
+              className="flex items-center justify-center shrink-0 overflow-hidden rounded-2xl bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 w-14 h-14 sm:w-[76px] sm:h-[76px]"
             >
               {localUser.avatar ? (
                 <img src={localUser.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                <UserIcon size={38} />
+                <UserIcon className="w-7 h-7 sm:w-[38px] sm:h-[38px]" />
               )}
             </div>
 
-            <div>
+            <div className="min-w-0 flex-1">
               {/* Displayed in uppercase with middle initial only across the system */}
-              <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
+              <h1
+                className="text-base sm:text-[1.4rem] font-extrabold leading-tight break-words"
+                style={{ margin: 0, fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', letterSpacing: '0.02em' }}
+              >
                 {formatSystemDisplayName(localUser)}
               </h1>
               {localUser.role === 'student' ? (
@@ -466,8 +465,8 @@ export const Profile: React.FC = () => {
                   <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>{localUser.lrn || '—'}</span>
                 </p>
               ) : (
-                <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Mail size={14} /> {localUser.email}
+                <p className="truncate" style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Mail size={14} className="shrink-0" /> <span className="truncate">{localUser.email}</span>
                 </p>
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
@@ -491,13 +490,13 @@ export const Profile: React.FC = () => {
 
       {/* ── Pending Edit Request Notification Banner (All non-superadmin roles) ── */}
       {!localUser.is_superuser && pendingEditRequest && (
-        <div className="bg-amber-50/80 dark:bg-amber-950/20 border-2 border-amber-500 dark:border-amber-500 rounded-3xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-500/40 flex items-center justify-center shrink-0">
-              <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+        <div className="bg-amber-50/80 dark:bg-amber-950/20 border-2 border-amber-500 dark:border-amber-500 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4">
+          <div className="flex items-start gap-3 sm:gap-3.5">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-500/40 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 dark:text-amber-400" />
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-amber-700 dark:text-amber-400">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-xs sm:text-sm font-bold text-amber-700 dark:text-amber-400 leading-snug">
                 PROFILE EDIT REQUEST PENDING REVIEW
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-200 mt-1 leading-relaxed">
@@ -514,12 +513,12 @@ export const Profile: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 self-start sm:self-center shrink-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto sm:self-center shrink-0">
             <button
               type="button"
               onClick={() => setShowCancelConfirmModal(true)}
               disabled={isCancelling}
-              className="inline-flex items-center px-4 py-2 rounded-xl bg-white dark:bg-rose-950/20 border border-rose-300 dark:border-rose-800/80 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-bold text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
+              className="flex-1 sm:flex-initial justify-center whitespace-nowrap inline-flex items-center px-3 sm:px-4 py-2 rounded-xl bg-white dark:bg-rose-950/20 border border-rose-300 dark:border-rose-800/80 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-bold text-[11px] sm:text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
             >
               {isCancelling ? 'Cancelling...' : 'Cancel Request'}
             </button>
@@ -527,9 +526,9 @@ export const Profile: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowPendingModal(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border border-amber-400 dark:border-amber-500 hover:border-amber-500 text-amber-700 dark:text-amber-400 font-bold text-xs shadow-xs transition cursor-pointer"
+              className="flex-1 sm:flex-initial justify-center whitespace-nowrap inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border border-amber-400 dark:border-amber-500 hover:border-amber-500 text-amber-700 dark:text-amber-400 font-bold text-[11px] sm:text-xs shadow-xs transition cursor-pointer"
             >
-              <Eye className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <Eye className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
               <span>View Request Details</span>
             </button>
           </div>
@@ -540,8 +539,8 @@ export const Profile: React.FC = () => {
       <div className="p-4 sm:p-6 md:p-8" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
 
         {/* Card header row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
-          <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+        <div className="flex items-center justify-between flex-wrap gap-2.5 mb-5 sm:mb-6">
+          <h2 className="text-sm sm:text-[1.1rem] font-bold m-0" style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>
             PROFILE INFORMATION
           </h2>
 
@@ -550,26 +549,17 @@ export const Profile: React.FC = () => {
               <button
                 type="button"
                 onClick={handleEditOpen}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-[1.1rem] sm:py-[0.5rem] text-[11px] sm:text-[0.8rem] font-bold text-white rounded-lg cursor-pointer whitespace-nowrap transition-colors"
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '0.5rem 1.1rem',
-                  borderRadius: 'var(--radius-md)',
                   border: 'none',
                   background: 'var(--brand)',
-                  color: '#fff',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
                   fontFamily: 'var(--font-body)',
-                  cursor: 'pointer',
                   boxShadow: '0 2px 8px rgba(9, 115, 55, 0.25)',
-                  transition: 'var(--transition-fast)',
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-dark, #065f2c)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--brand)'; }}
               >
-                <Edit3 size={14} />
+                <Edit3 size={14} className="shrink-0" />
                 Request Profile Update
               </button>
             )
@@ -835,8 +825,8 @@ export const Profile: React.FC = () => {
       {/* ── ARAL PROGRAM DETAILS (Student Profile) ── */}
       {localUser.role === 'student' && (
         <div className="p-4 sm:p-6 md:p-8" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <div className="flex items-center justify-between flex-wrap gap-2.5 mb-5 sm:mb-6">
+            <h2 className="text-sm sm:text-[1.1rem] font-bold m-0" style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>
               ARAL PROGRAM DETAILS
             </h2>
           </div>
@@ -943,11 +933,11 @@ export const Profile: React.FC = () => {
 
       {/* ── STUDENT EDIT REQUEST MODAL ─────────────────────────────── */}
       {isEditingStudent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <form onSubmit={handleStudentFormSubmit} className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <form onSubmit={handleStudentFormSubmit} className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-4 sm:p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg uppercase">
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm sm:text-lg uppercase">
                   REQUEST PROFILE UPDATE
                 </h3>
               </div>
@@ -1020,19 +1010,19 @@ export const Profile: React.FC = () => {
               )}
             </div>
 
-            <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
+            <div className="flex justify-end gap-2 sm:gap-2.5 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
               <button
                 type="button"
                 onClick={() => setIsEditingStudent(false)}
-                className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer"
+                className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer whitespace-nowrap"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-5 py-2 rounded-xl text-xs font-bold cursor-pointer shadow-sm transition-all inline-flex items-center gap-1.5"
+                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-4 sm:px-5 py-2 rounded-xl text-xs font-bold cursor-pointer shadow-sm transition-all inline-flex items-center gap-1.5 whitespace-nowrap"
               >
-                <Send className="w-3.5 h-3.5" />
+                <Send className="w-3.5 h-3.5 shrink-0" />
                 Submit Request for Approval
               </button>
             </div>
@@ -1042,10 +1032,10 @@ export const Profile: React.FC = () => {
 
       {/* ── CONFIRMATION MODAL BEFORE SUBMISSION ───────────────────── */}
       {showConfirmModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-6 max-w-sm w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 animate-fade-in-scale">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-4 sm:p-6 max-w-sm w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 animate-fade-in-scale">
             <div>
-              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
+              <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-slate-100">
                 Confirm Edit Request Submission
               </h3>
               <p className="mt-2 text-xs leading-relaxed text-gray-500 dark:text-slate-400">
@@ -1053,12 +1043,12 @@ export const Profile: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2">
+            <div className="flex items-center justify-end gap-2 sm:gap-2.5 pt-2">
               <button
                 type="button"
                 disabled={isSavingStudent}
                 onClick={() => setShowConfirmModal(false)}
-                className="rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-4 py-2 text-xs font-bold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer"
+                className="rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] px-3.5 sm:px-4 py-2 text-xs font-bold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer whitespace-nowrap"
               >
                 Cancel
               </button>
@@ -1066,7 +1056,7 @@ export const Profile: React.FC = () => {
                 type="button"
                 disabled={isSavingStudent}
                 onClick={handleConfirmSubmitRequest}
-                className="rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                className="rounded-xl bg-[var(--brand)] px-3.5 sm:px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5 whitespace-nowrap"
               >
                 {isSavingStudent ? 'Submitting...' : 'Yes, Submit Request'}
               </button>
@@ -1077,15 +1067,15 @@ export const Profile: React.FC = () => {
 
       {/* ── PENDING REQUEST DETAILS MODAL ──────────────────────────── */}
       {showPendingModal && pendingEditRequest && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl p-4 sm:p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
                   <Clock className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base uppercase">EDIT REQUEST PENDING</h3>
+                  <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm sm:text-base uppercase">EDIT REQUEST PENDING</h3>
                 </div>
               </div>
               <button
@@ -1099,14 +1089,14 @@ export const Profile: React.FC = () => {
 
             <div className="space-y-3 text-xs">
               <div className="bg-slate-50 dark:bg-[#111111] p-3.5 rounded-2xl border border-slate-200 dark:border-[#1A1A1A] space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-slate-400 font-medium">Submitted On:</span>
-                  <span className="font-semibold text-gray-800 dark:text-slate-200">
+                <div className="flex justify-between gap-2">
+                  <span className="text-gray-500 dark:text-slate-400 font-medium shrink-0">Submitted On:</span>
+                  <span className="font-semibold text-gray-800 dark:text-slate-200 text-right">
                     {new Date(pendingEditRequest.created_at).toLocaleString()}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 dark:text-slate-400 font-medium">Status:</span>
+                <div className="flex justify-between gap-2 items-center">
+                  <span className="text-gray-500 dark:text-slate-400 font-medium shrink-0">Status:</span>
                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
                     Pending Approval
                   </span>
@@ -1115,7 +1105,7 @@ export const Profile: React.FC = () => {
 
               <div className="space-y-2">
                 <h4 className="font-bold text-gray-700 dark:text-slate-300 text-xs">Proposed Changes:</h4>
-                <div className="bg-gray-50 dark:bg-[#111111] p-3 rounded-2xl border border-gray-100 dark:border-[#1A1A1A] space-y-1.5 font-mono text-[11px]">
+                <div className="bg-gray-50 dark:bg-[#111111] p-3 rounded-2xl border border-gray-100 dark:border-[#1A1A1A] space-y-1.5 font-mono text-[11px] break-words">
                   <p className="text-gray-700 dark:text-slate-200">
                     <span className="text-gray-400 dark:text-slate-400 font-sans">Name: </span>
                     <span className="font-semibold text-gray-900 dark:text-slate-100">{pendingEditRequest.proposed_last_name}, {pendingEditRequest.proposed_first_name} {pendingEditRequest.proposed_middle_name || ''}</span>

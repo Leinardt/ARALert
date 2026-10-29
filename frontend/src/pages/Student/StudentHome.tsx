@@ -52,10 +52,11 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
     const updateSize = () => {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
+      if (rect.width > 0) {
+        const minH = rect.width < 520 ? 196 : 220;
         setDimensions({
           width: Math.round(rect.width),
-          height: Math.round(rect.height),
+          height: Math.max(minH, Math.round(rect.height)),
         });
       }
     };
@@ -65,10 +66,11 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
-        if (width > 0 && height > 0) {
+        if (width > 0) {
+          const minH = width < 520 ? 196 : 220;
           setDimensions({
             width: Math.round(width),
-            height: Math.round(height),
+            height: Math.max(minH, Math.round(height)),
           });
         }
       }
@@ -80,11 +82,10 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
 
   const { width, height } = dimensions;
   const isMobile = width < 520;
-  const isSmallMobile = width < 380;
-  const paddingLeft = isMobile ? 44 : 50;
-  const paddingRight = isMobile ? 20 : 14;
-  const paddingTop = isMobile ? 18 : 20;
-  const paddingBottom = isMobile ? 26 : 24;
+  const paddingLeft = isMobile ? 38 : 50;
+  const paddingRight = isMobile ? 18 : 14;
+  const paddingTop = isMobile ? 16 : 20;
+  const paddingBottom = isMobile ? (trendFilter === 'month' ? 24 : 34) : 24;
 
   const chartW = Math.max(10, width - paddingLeft - paddingRight);
   const chartH = Math.max(10, height - paddingTop - paddingBottom);
@@ -113,64 +114,30 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
     ? `${pathD} L ${points[points.length - 1].x} ${paddingTop + chartH} L ${points[0].x} ${paddingTop + chartH} Z`
     : '';
 
-  // Dynamic tick density to prevent all label overlap
-  const visibleIndices = useMemo(() => {
-    const total = data.length;
-    if (total <= 1) return new Set([0]);
-    if (!isMobile) {
-      return new Set(Array.from({ length: total }, (_, i) => i));
+  const getMobileLabelLines = (label: string): [string, string?] => {
+    if (trendFilter === 'week') {
+      const parts = label.split(/\s*[–—\-]\s*/);
+      if (parts.length === 2) {
+        return [parts[0].trim(), `–${parts[1].trim()}`];
+      }
+      return [label];
+    }
+    if (trendFilter === 'day') {
+      const parts = label.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return [parts[0], parts.slice(1).join(' ')];
+      }
+      return [label];
     }
     if (trendFilter === 'month') {
-      if (width < 380) {
-        return new Set([0, 2, 4, total - 1]);
-      }
-      return new Set(Array.from({ length: total }, (_, i) => i));
+      return [label.split(' ')[0] || label];
     }
-    if (trendFilter === 'week') {
-      if (width < 430) {
-        return new Set([0, 2, 4, total - 1]);
-      }
-      return new Set(Array.from({ length: total }, (_, i) => i));
-    }
-    // Day mode (10 school days)
-    const step = isSmallMobile ? 3 : 2;
-    const indices: number[] = [];
-    for (let i = 0; i < total; i += step) {
-      indices.push(i);
-    }
-    const lastIdx = total - 1;
-    const prevIdx = indices[indices.length - 1];
-    if (lastIdx - prevIdx >= 2) {
-      indices.push(lastIdx);
-    } else if (indices.length > 1) {
-      indices[indices.length - 1] = lastIdx;
-    }
-    const set = new Set(indices);
-    data.forEach((p, idx) => {
-      if (p.assessmentLabels.length > 0 && !set.has(idx - 1) && !set.has(idx + 1)) {
-        set.add(idx);
-      }
-    });
-    return set;
-  }, [data, isMobile, isSmallMobile, trendFilter, width]);
-
-  const getFormattedLabel = (p: StudentChartPoint) => {
-    if (!isMobile) return p.label;
-    if (trendFilter === 'week') {
-      return formatShortDateRange(p.label);
-    }
-    if (trendFilter === 'month') {
-      if (width < 400) {
-        return p.label.split(' ')[0] || p.label;
-      }
-      return p.label.replace(/\s+20(\d\d)/, " '$1");
-    }
-    return p.label;
+    return [label];
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-full select-none min-w-0 overflow-hidden">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full block" role="img" aria-label="Student Performance Trend Chart">
+    <div ref={containerRef} className="relative flex-1 w-full h-full min-h-[196px] sm:min-h-[220px] select-none min-w-0 overflow-hidden">
+      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full h-full min-h-[196px] sm:min-h-[220px] block" role="img" aria-label="Student Performance Trend Chart">
         <defs>
           <linearGradient id="studentHomeChartFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.22" />
@@ -232,9 +199,37 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
           );
         })}
 
-        {/* X-axis date labels with collision and clipping prevention */}
+        {/* X-axis date labels (complete dates for every point) */}
         {points.map((p, idx) => {
-          if (!visibleIndices.has(idx)) return null;
+          if (isMobile) {
+            const [line1, line2] = getMobileLabelLines(p.label);
+            if (line2) {
+              return (
+                <text
+                  key={`label-${idx}`}
+                  x={p.x}
+                  y={paddingTop + chartH + 13}
+                  className="fill-slate-500 dark:fill-slate-400 font-semibold text-[8.5px]"
+                  textAnchor="middle"
+                >
+                  <tspan x={p.x} dy="0">{line1}</tspan>
+                  <tspan x={p.x} dy="10">{line2}</tspan>
+                </text>
+              );
+            }
+            return (
+              <text
+                key={`label-${idx}`}
+                x={p.x}
+                y={height - 6}
+                className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px]"
+                textAnchor="middle"
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                {line1}
+              </text>
+            );
+          }
 
           let textAnchor: 'start' | 'middle' | 'end' = 'middle';
           let labelX = p.x;
@@ -250,12 +245,12 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
             <text
               key={`label-${idx}`}
               x={labelX}
-              y={height - (isMobile ? 6 : 5)}
-              className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px] xs:text-[10px]"
+              y={height - 5}
+              className="fill-slate-500 dark:fill-slate-400 font-semibold text-[10px]"
               textAnchor={textAnchor}
               style={{ whiteSpace: 'nowrap' }}
             >
-              {getFormattedLabel(p)}
+              {p.label}
             </text>
           );
         })}
@@ -900,52 +895,64 @@ export const StudentHome: React.FC = () => {
 
       {/* ── Main Performance Trend (Full Width) ── */}
       <div className="flex-1 flex flex-col min-h-0 w-full min-w-0 max-w-full">
-        <div className="w-full max-w-full min-w-0 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3.5 sm:px-5 flex flex-col h-full min-h-0">
+        <div className="w-full max-w-full min-w-0 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3 py-3.5 sm:px-5 flex flex-col h-full min-h-0">
           {/* Chart Header */}
-          <div className="flex items-center justify-between gap-2 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-            <div className="min-w-0 flex-1">
-              <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight truncate">
-                {studentFirstName}'s Performance Trend
-              </h3>
-            </div>
-            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
-              <div className="hidden xs:flex items-center gap-2 sm:gap-3 shrink-0 whitespace-nowrap">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 whitespace-nowrap">
-                  <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
-                  <span className="hidden sm:inline whitespace-nowrap">Composite rating</span>
-                  <span className="sm:hidden whitespace-nowrap">Composite</span>
+          <div className="flex flex-col gap-1.5 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+            <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-[10px] sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate">
+                  {studentFirstName}'s Performance Trend
+                </h3>
+              </div>
+              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap">
+                <div className="hidden sm:flex items-center gap-3 shrink-0 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                    <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
+                    <span className="whitespace-nowrap">Composite rating</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400 whitespace-nowrap">
+                    <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block shrink-0" />
+                    <span className="whitespace-nowrap">{studentMilestone}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400 whitespace-nowrap">
-                  <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block shrink-0" />
-                  <span className="truncate max-w-[100px] sm:max-w-none whitespace-nowrap">{studentMilestone}</span>
+                <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
+                  {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setTrendFilter(filter)}
+                      className={`rounded-sm px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
+                        trendFilter === filter
+                          ? 'bg-[var(--brand)] text-white shadow-xs'
+                          : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      {filter}
+                    </button>
+                  ))}
                 </div>
               </div>
-              <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
-                {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                  <button
-                    key={filter}
-                    type="button"
-                    onClick={() => setTrendFilter(filter)}
-                    className={`rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
-                      trendFilter === filter
-                        ? 'bg-[var(--brand)] text-white shadow-xs'
-                        : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    {filter}
-                  </button>
-                ))}
+            </div>
+            {/* Mobile Legend Row (< 640px) */}
+            <div className="flex sm:hidden items-center gap-3 flex-wrap text-[11px] font-semibold">
+              <div className="flex items-center gap-1.5 text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
+                <span>Composite rating</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-sky-600 dark:text-sky-400 whitespace-nowrap">
+                <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block shrink-0" />
+                <span>{studentMilestone}</span>
               </div>
             </div>
           </div>
 
           {/* Chart Canvas & Bottom Stats */}
           <div className="flex-1 flex flex-col min-h-0 gap-3 mt-3 sm:mt-4">
-            <div className="relative flex-1 min-h-[180px] xs:min-h-[220px] sm:min-h-[240px] w-full min-w-0 max-w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-5 sm:py-2.5 overflow-hidden">
+            <div className="relative flex-1 flex flex-col min-h-[216px] sm:min-h-[240px] w-full min-w-0 max-w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2.5 sm:px-5 sm:py-2.5 overflow-hidden">
               {last4WeeksData.length > 0 ? (
                 <InteractiveStudentChart data={last4WeeksData} trendFilter={trendFilter} />
               ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 select-none">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center select-none">
                   <BarChart2 className="w-8 h-8 text-gray-200 dark:text-gray-700" />
                   <p className="text-xs font-semibold text-gray-400 dark:text-slate-500">
                     No score records submitted yet

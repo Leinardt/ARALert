@@ -167,6 +167,8 @@ const CustomCalendarDropdown: React.FC<{
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      if (target?.closest?.('#student-attendance-calendar-btn')) return;
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         onClose();
       }
@@ -390,14 +392,14 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
       <button
         type="button"
         onClick={() => toggleSort(sortKey)}
-        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer"
+        className="inline-flex items-center gap-0.5 sm:gap-1.5 text-left transition-colors hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer"
         aria-label={`Sort by ${label}`}
       >
         {label}
         {isActive ? (
-          sortConfig.direction === 'asc' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />
+          sortConfig.direction === 'asc' ? <ChevronUp className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 shrink-0" /> : <ChevronDown className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 shrink-0" />
         ) : (
-          <ArrowUpDown className="w-3.5 h-3.5 opacity-50" />
+          <ArrowUpDown className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 opacity-50 shrink-0" />
         )}
       </button>
     );
@@ -405,14 +407,19 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 py-0.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3 w-full sm:w-auto min-w-0">
+          <div className="flex items-center justify-between sm:justify-start gap-2 py-0.5">
             <span className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none">
               {group.title}
             </span>
+            {isOpen && (
+              <span className="sm:hidden text-[11px] font-semibold text-gray-400">
+                {displayRecords.length} Record{displayRecords.length !== 1 ? 's' : ''}
+              </span>
+            )}
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-nowrap sm:flex-wrap items-center gap-1 sm:gap-1.5 w-full sm:w-auto overflow-x-auto no-scrollbar">
             {groupDates.map((dateStr) => {
               const hasRecord = datesWithRecords.has(dateStr);
               const isSelected = selectedDate === dateStr;
@@ -423,7 +430,7 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
                   type="button"
                   disabled={!hasRecord}
                   onClick={() => onSelectDate(dateStr)}
-                  className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all inline-flex items-center gap-1.5 ${
+                  className={`h-7 sm:h-7.5 flex-1 sm:flex-initial justify-center whitespace-nowrap rounded-md px-1.5 sm:px-3 text-[9px] sm:text-[11px] font-bold uppercase transition-all inline-flex items-center gap-1 sm:gap-1.5 shrink-0 ${
                     hasRecord
                       ? isSelected
                         ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
@@ -446,7 +453,7 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
           </div>
         </div>
         {isOpen && (
-          <span className="text-[11px] font-semibold text-gray-400">
+          <span className="hidden sm:inline text-[11px] font-semibold text-gray-400">
             {displayRecords.length} Record{displayRecords.length !== 1 ? 's' : ''}
           </span>
         )}
@@ -457,20 +464,20 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
           {attendanceSessions.map((session, sIdx) => (
             <div key={session.key} className={sIdx > 0 ? 'mt-6' : ''}>
               <EntrySessionSeparator label={session.label} time={session.time} />
-              <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2">
-                <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
+              <div className="overflow-x-auto mobile-scroll-table sm:-mx-2 sm:px-2">
+                <table className="w-full sm:min-w-[680px] divide-y divide-gray-100 dark:divide-[#1A1A1A] text-xs sm:text-sm">
                   <thead>
                     <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-                      <th className="w-[35%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      <th className="w-[30%] sm:w-[35%] px-1.5 sm:px-3 py-2 sm:py-2.5 text-left text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         <SortableHeader label="STUDENT" sortKey="student" />
                       </th>
-                      <th className="w-[30%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      <th className="w-[30%] sm:w-[30%] px-1.5 sm:px-3 py-2 sm:py-2.5 text-left text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         <SortableHeader label="DATE" sortKey="date" />
                       </th>
-                      <th className="w-[20%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-3 py-2 sm:py-2.5 text-left text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         <SortableHeader label="TIME" sortKey="time" />
                       </th>
-                      <th className="w-[15%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
+                      <th className="w-[22%] sm:w-[15%] px-1.5 sm:px-3 py-2 sm:py-2.5 text-left text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">
                         <SortableHeader label="STATUS" sortKey="status" />
                       </th>
                     </tr>
@@ -478,23 +485,32 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
                   <tbody className="divide-y divide-gray-100 bg-white dark:divide-[#1A1A1A] dark:bg-[#111111]">
                     {session.rows.map((log) => {
                       const isPresent = log.status === 'present';
+                      const formattedDate = formatDateString(log.date);
+                      const [datePart, dayPart] = formattedDate.split(' | ');
+                      const shortDatePart = datePart ? datePart.replace(/^([A-Za-z]{3})[a-z]+/, '$1') : '';
                       return (
                         <tr
                           key={log.id}
                           className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]"
                         >
-                          <td className="px-4 py-2.5 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
+                          <td className="px-1.5 sm:px-4 py-2 sm:py-2.5 font-semibold text-gray-800 dark:text-slate-100 text-[10px] sm:text-sm leading-snug whitespace-normal sm:whitespace-nowrap break-words">
                             {log.user_name || studentName}
                           </td>
-                          <td className="px-4 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
-                            {formatDateString(log.date)}
+                          <td className="px-1.5 sm:px-4 py-2 sm:py-2.5 text-gray-600 dark:text-slate-300 text-[10px] sm:text-xs">
+                            <span className="hidden sm:inline whitespace-nowrap">{formattedDate}</span>
+                            <span className="flex sm:hidden flex-col leading-tight">
+                              <span className="whitespace-nowrap font-medium text-gray-700 dark:text-slate-200">{shortDatePart}</span>
+                              {dayPart && (
+                                <span className="text-[9px] text-gray-400 dark:text-slate-400 whitespace-nowrap">{dayPart}</span>
+                              )}
+                            </span>
                           </td>
-                          <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
+                          <td className="px-1.5 sm:px-4 py-2 sm:py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-[10px] sm:text-xs">
                             {log.time_in ? formatTimeString(log.time_in) : '—'}
                           </td>
-                          <td className="px-4 py-2.5 text-left whitespace-nowrap">
+                          <td className="px-1.5 sm:px-4 py-2 sm:py-2.5 text-left whitespace-nowrap">
                             <span
-                              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${
+                              className={`inline-flex items-center rounded-full border px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-[11px] font-medium capitalize whitespace-nowrap ${
                                 isPresent
                                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
                                   : 'bg-rose-50 text-rose-700 border-rose-200 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
@@ -564,11 +580,19 @@ export const StudentQRAttendance: React.FC = () => {
     direction: 'desc',
   });
 
-  // Recent scans feed
+  // Recent scans feed (most recent scan always at the top)
   const recentScans = useMemo(
     () =>
       [...attendanceLogs]
-        .sort((a, b) => `${b.date}${b.time_out || b.time_in || ''}`.localeCompare(`${a.date}${a.time_in || ''}`))
+        .sort((a, b) => {
+          const dateCmp = String(b.date || '').localeCompare(String(a.date || ''));
+          if (dateCmp !== 0) return dateCmp;
+          const timeB = String(b.time_out || b.time_in || '');
+          const timeA = String(a.time_out || a.time_in || '');
+          const timeCmp = timeB.localeCompare(timeA);
+          if (timeCmp !== 0) return timeCmp;
+          return Number(b.id || 0) - Number(a.id || 0);
+        })
         .slice(0, 10),
     [attendanceLogs]
   );
@@ -596,7 +620,7 @@ export const StudentQRAttendance: React.FC = () => {
   }, [attendanceLogs]);
 
   const activeRecords = useMemo(
-    () => (jumpDate ? sortedHistory.filter((l) => l.date === jumpDate) : sortedHistory),
+    () => (jumpDate ? sortedHistory.filter((l) => l.date?.slice(0, 10) === jumpDate) : sortedHistory),
     [sortedHistory, jumpDate]
   );
 
@@ -651,7 +675,7 @@ export const StudentQRAttendance: React.FC = () => {
   const loggedDates = useMemo(() => {
     const set = new Set<string>();
     attendanceLogs.forEach((l) => {
-      if (l.date) set.add(l.date);
+      if (l.date) set.add(l.date.slice(0, 10));
     });
     return set;
   }, [attendanceLogs]);
@@ -777,11 +801,11 @@ export const StudentQRAttendance: React.FC = () => {
 
         {/* ── RIGHT: Student Attendance Feed ── */}
         <div className="lg:col-span-5">
-          <div className="flex h-full min-h-[480px] flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden">
+          <div className="flex h-[240px] sm:h-[260px] lg:h-[480px] flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden">
             {/* Feed Header */}
-            <div className="h-[52px] shrink-0 flex items-center justify-between px-5 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <div className="h-[52px] shrink-0 flex items-center justify-between px-4 sm:px-5 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm uppercase">
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase">
                   {studentFirstName}'S RECENT SCANS
                 </h3>
               </div>
@@ -793,7 +817,7 @@ export const StudentQRAttendance: React.FC = () => {
             </div>
 
             {/* Feed List */}
-            <div className="flex-1 overflow-y-auto p-3.5 space-y-2">
+            <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-3.5 space-y-2">
               {logsLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3, 4].map((i) => (
@@ -807,12 +831,12 @@ export const StudentQRAttendance: React.FC = () => {
                   ))}
                 </div>
               ) : recentScans.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-5 gap-2.5 min-h-[260px]">
-                  <div className="w-12 h-12 rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] flex items-center justify-center">
-                    <UserCheck className="w-6 h-6 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
+                <div className="h-full flex flex-col items-center justify-center text-center p-4 sm:p-5 gap-2">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] flex items-center justify-center">
+                    <UserCheck className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center whitespace-nowrap">
+                    <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center">
                       Your QR check-in records will appear here
                     </p>
                   </div>
@@ -824,17 +848,19 @@ export const StudentQRAttendance: React.FC = () => {
                 recentScans.map((log) => (
                   <div
                     key={log.id}
-                    className="flex items-center justify-between gap-3 p-2.5 bg-gray-50 dark:bg-[#111111] hover:bg-gray-100/60 dark:hover:bg-[#161616] rounded-md border border-gray-100 dark:border-[#1A1A1A] transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-3 p-2.5 bg-gray-50 dark:bg-[#111111] hover:bg-gray-100/60 dark:hover:bg-[#161616] rounded-md border border-gray-100 dark:border-[#1A1A1A] transition-colors"
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-gray-800 dark:text-slate-100 leading-tight truncate">
+                    <div className="min-w-0 sm:flex-1">
+                      <p className="text-xs font-bold text-gray-800 dark:text-slate-100 leading-tight break-words sm:truncate">
                         {user?.full_name || studentFirstName}
                       </p>
                     </div>
-                    <div className="text-right shrink-0">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800/40">
-                        <CheckCircle2 className="w-3 h-3" />
-                        {log.date ? `${formatDateString(log.date)} | ` : ''}{log.time_in ? formatTimeString(log.time_in) : 'Logged'}
+                    <div className="sm:text-right shrink-0">
+                      <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800/40 max-w-full">
+                        <CheckCircle2 className="w-3 h-3 shrink-0" />
+                        <span className="truncate">
+                          {log.date ? `${formatDateString(log.date)} | ` : ''}{log.time_in ? formatTimeString(log.time_in) : 'Logged'}
+                        </span>
                       </span>
                     </div>
                   </div>
@@ -894,7 +920,7 @@ export const StudentQRAttendance: React.FC = () => {
         {/* Section Header with Pills and Calendar */}
         <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
           <div className="min-w-0 flex-1 truncate">
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase truncate">
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-[10px] sm:text-sm tracking-tight uppercase whitespace-nowrap truncate">
               {studentFirstName}'S ATTENDANCE HISTORY
             </h3>
             <p className="mt-0.5 text-[10px] sm:text-xs font-medium text-gray-500 dark:text-slate-400 truncate">
@@ -903,7 +929,7 @@ export const StudentQRAttendance: React.FC = () => {
           </div>
 
           {/* Controls */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
             {/* View Mode Toggle */}
             <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
               {(['week', 'month'] as const).map((mode) => (
@@ -984,7 +1010,7 @@ export const StudentQRAttendance: React.FC = () => {
         )}
 
         {/* Content Area */}
-        <div className="p-4 sm:p-5">
+        <div className="p-3 sm:p-5">
           {logsLoading ? (
             <div className="space-y-3 animate-pulse">
               <div className="flex items-center gap-3 mb-2">

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { academicService } from '../../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../../utils/analyticsHelpers';
@@ -385,21 +385,50 @@ const MobileRiskTrendChart: React.FC<{
   total: number;
   isSingleStudent: boolean;
   studentName?: string;
-}> = ({ data, total, isSingleStudent, studentName }) => {
+  trendFilter: TrendFilter;
+}> = ({ data, isSingleStudent, studentName, trendFilter }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [dimensions, setDimensions] = useState({ width: 320, height: 196 });
 
-  // Compact bar slot and responsive margins so bars and labels fit comfortably on mobile
-  const minBarSlot = 44;
-  const paddingLeft = 38;
-  const paddingRight = 24;
-  const paddingTop = 20;
-  const paddingBottom = 48;
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      if (rect.width > 0) {
+        setDimensions({
+          width: Math.round(rect.width),
+          height: 196,
+        });
+      }
+    };
+    updateSize();
 
-  const width = Math.max(300, data.length * minBarSlot + paddingLeft + paddingRight);
-  const height = 240;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width } = entry.contentRect;
+        if (width > 0) {
+          setDimensions({
+            width: Math.round(width),
+            height: 196,
+          });
+        }
+      }
+    });
 
-  const chartWidth = width - paddingLeft - paddingRight;
-  const chartHeight = height - paddingTop - paddingBottom;
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const { width, height } = dimensions;
+  const paddingLeft = isSingleStudent ? 24 : 34;
+  const paddingRight = 16;
+  const paddingTop = 14;
+  const paddingBottom = trendFilter === 'month' ? 24 : 34;
+
+  const chartWidth = Math.max(10, width - paddingLeft - paddingRight);
+  const chartHeight = Math.max(10, height - paddingTop - paddingBottom);
 
   const axisSteps = isSingleStudent ? [0, 1] : [0, 25, 50, 75, 100];
 
@@ -409,165 +438,180 @@ const MobileRiskTrendChart: React.FC<{
     { key: 'low' as const, color: '#22C55E', label: 'Low Risk' },
   ];
 
-  // Dynamic bar width: 12px to 18px (clean, proportionate, non-bulky)
-  const barWidth = Math.max(12, Math.min(18, (chartWidth / (data.length || 1)) * 0.38));
+  const barWidth = Math.max(10, Math.min(18, (chartWidth / (data.length || 1)) * 0.42));
   const getBarX = (index: number) =>
     paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1 || 1);
 
+  const getLabelLines = (label: string): [string, string?] => {
+    if (trendFilter === 'week') {
+      const parts = label.split(/\s*[–—\-]\s*/);
+      if (parts.length === 2) {
+        return [parts[0].trim(), `–${parts[1].trim()}`];
+      }
+      return [label];
+    }
+    if (trendFilter === 'day') {
+      const parts = label.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return [parts[0], parts.slice(1).join(' ')];
+      }
+      return [label];
+    }
+    if (trendFilter === 'month') {
+      return [label.split(' ')[0] || label];
+    }
+    return [label];
+  };
+
   return (
-    <div className="relative select-none w-full max-w-full min-w-0 overflow-hidden">
-      {/* Mobile Swipe / Tap hint */}
-      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400 pb-1.5 px-1 font-medium">
-        <span>Tap bar for details</span>
-        <span className="text-[11px] text-gray-400">Swipe to view history &rarr;</span>
-      </div>
+    <div ref={containerRef} className="relative select-none w-full max-w-full min-w-0 h-[196px] overflow-hidden">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+        className="w-full h-full block"
+        role="img"
+        aria-label="Risk level trend chart"
+      >
+        {/* Horizontal Grid lines and Y-axis labels */}
+        {axisSteps.map((value) => {
+          const y = paddingTop + chartHeight - (isSingleStudent ? value * chartHeight : (value / 100) * chartHeight);
+          return (
+            <g key={value}>
+              <line
+                x1={paddingLeft}
+                y1={y}
+                x2={width - paddingRight}
+                y2={y}
+                stroke="var(--slate-200, #E2E8F0)"
+                strokeWidth="0.75"
+                strokeDasharray="3 3"
+                className="opacity-70 dark:opacity-20"
+              />
+              <text
+                x={paddingLeft - 6}
+                y={y + 3}
+                textAnchor="end"
+                className="fill-slate-400 dark:fill-slate-400 font-semibold text-[9px]"
+              >
+                {value}
+              </text>
+            </g>
+          );
+        })}
 
-      <div className="w-full max-w-full min-w-0 overflow-x-auto mobile-scroll-table overscroll-x-contain -mx-1 px-1 rounded-md">
-        <div style={{ minWidth: `${width}px`, width: `${width}px` }}>
-          <svg
-            viewBox={`0 0 ${width} ${height}`}
-            className="w-full h-[240px] block"
-            role="img"
-            aria-label="Risk level trend chart"
-          >
-            {/* Horizontal Grid lines and crisp Y-axis labels (0, 25, 50, 75, 100) */}
-            {axisSteps.map((value) => {
-              const y = paddingTop + chartHeight - (isSingleStudent ? value * chartHeight : (value / 100) * chartHeight);
-              return (
-                <g key={value}>
-                  <line
-                    x1={paddingLeft}
-                    y1={y}
-                    x2={width - paddingRight}
-                    y2={y}
-                    stroke="var(--slate-200, #E2E8F0)"
-                    strokeWidth="1"
-                    strokeDasharray="4 4"
-                    className="opacity-70 dark:opacity-20"
-                  />
-                  <text
-                    x={paddingLeft - 8}
-                    y={y + 3.5}
-                    textAnchor="end"
-                    className="fill-slate-500 dark:fill-slate-400 font-semibold"
-                    style={{ fontSize: '10px' }}
-                  >
-                    {value}
-                  </text>
-                </g>
-              );
-            })}
+        {/* Bars and X-axis Labels */}
+        {data.map((point, index) => {
+          const x = getBarX(index);
+          const [line1, line2] = getLabelLines(point.label);
 
-            {/* Bars and X-axis Labels */}
-            {data.map((point, index) => {
-              const x = getBarX(index);
-              const shouldShowLabel = data.length <= 6 || index % 2 === 0 || index === data.length - 1;
-              const shortLabel = formatShortDateRange(point.label);
+          const highCount = point.high || 0;
+          const medCount = point.medium || 0;
+          const lowCount = point.low || 0;
+          const pointTotal = isSingleStudent ? 1 : (highCount + medCount + lowCount || 1);
 
-              const highCount = point.high || 0;
-              const medCount = point.medium || 0;
-              const lowCount = point.low || 0;
-              const pointTotal = isSingleStudent ? 1 : (highCount + medCount + lowCount || 1);
+          const lowPct = (lowCount / pointTotal) * 100;
+          const medPct = (medCount / pointTotal) * 100;
+          const highPct = (highCount / pointTotal) * 100;
 
-              const lowPct = (lowCount / pointTotal) * 100;
-              const medPct = (medCount / pointTotal) * 100;
-              const highPct = (highCount / pointTotal) * 100;
+          const lowH = (lowPct / 100) * chartHeight;
+          const medH = (medPct / 100) * chartHeight;
+          const highH = (highPct / 100) * chartHeight;
 
-              const lowH = (lowPct / 100) * chartHeight;
-              const medH = (medPct / 100) * chartHeight;
-              const highH = (highPct / 100) * chartHeight;
+          const segments = [
+            { key: 'low', color: '#22C55E', height: lowH, count: lowCount, pct: lowPct },
+            { key: 'medium', color: '#F59E0B', height: medH, count: medCount, pct: medPct },
+            { key: 'high', color: '#EF4444', height: highH, count: highCount, pct: highPct },
+          ];
 
-              const segments = [
-                { key: 'low', color: '#22C55E', height: lowH, count: lowCount, pct: lowPct },
-                { key: 'medium', color: '#F59E0B', height: medH, count: medCount, pct: medPct },
-                { key: 'high', color: '#EF4444', height: highH, count: highCount, pct: highPct },
-              ];
+          let currentY = paddingTop + chartHeight;
+          const isHovered = hoveredIdx === index;
 
-              let currentY = paddingTop + chartHeight;
-              const isHovered = hoveredIdx === index;
-
-              return (
-                <g
-                  key={point.dateKey}
-                  onMouseEnter={() => setHoveredIdx(index)}
-                  onMouseLeave={() => setHoveredIdx(null)}
-                  onTouchStart={(e) => {
-                    e.preventDefault();
-                    setHoveredIdx(hoveredIdx === index ? null : index);
-                  }}
-                  onClick={() => setHoveredIdx(hoveredIdx === index ? null : index)}
-                  className="cursor-pointer"
-                >
-                  {/* Stacked Bar segments: green, orange, red */}
-                  {segments.map((seg) => {
-                    if (seg.height <= 0) return null;
-                    currentY -= seg.height;
-                    return (
-                      <rect
-                        key={seg.key}
-                        x={x - barWidth / 2}
-                        y={currentY}
-                        width={barWidth}
-                        height={seg.height}
-                        fill={seg.color}
-                        fillOpacity={isHovered ? 1 : 0.88}
-                        stroke="#FFFFFF"
-                        strokeWidth="1.2"
-                        rx={seg.key === 'high' || (seg.key === 'medium' && highH === 0) || (seg.key === 'low' && highH === 0 && medH === 0) ? 3 : 0}
-                      />
-                    );
-                  })}
-
-                  {/* Hover outline ring */}
-                  {isHovered && (
-                    <rect
-                      x={x - barWidth / 2 - 2}
-                      y={paddingTop + chartHeight - (lowH + medH + highH) - 2}
-                      width={barWidth + 4}
-                      height={lowH + medH + highH + 4}
-                      fill="none"
-                      stroke="#0052B7"
-                      strokeWidth="2"
-                      rx={4}
-                      className="pointer-events-none"
-                    />
-                  )}
-
-                  {/* X-Axis Rotated ~25° Date Label */}
-                  {shouldShowLabel && (
-                    <g transform={`translate(${x}, ${paddingTop + chartHeight + 10})`}>
-                      <text
-                        transform="rotate(-25)"
-                        textAnchor="end"
-                        className="fill-slate-600 dark:fill-slate-300 select-none font-semibold"
-                        style={{ fontSize: '10px' }}
-                      >
-                        {shortLabel}
-                      </text>
-                    </g>
-                  )}
-
-                  {/* Wide touch region */}
+          return (
+            <g
+              key={point.dateKey}
+              onMouseEnter={() => setHoveredIdx(index)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              onTouchStart={() => setHoveredIdx(hoveredIdx === index ? null : index)}
+              onClick={() => setHoveredIdx(hoveredIdx === index ? null : index)}
+              className="cursor-pointer"
+            >
+              {/* Stacked Bar segments: green, orange, red */}
+              {segments.map((seg) => {
+                if (seg.height <= 0) return null;
+                currentY -= seg.height;
+                return (
                   <rect
-                    x={x - Math.max(barWidth, 40) / 2}
-                    y={paddingTop}
-                    width={Math.max(barWidth, 40)}
-                    height={chartHeight + 40}
-                    fill="transparent"
+                    key={seg.key}
+                    x={x - barWidth / 2}
+                    y={currentY}
+                    width={barWidth}
+                    height={seg.height}
+                    fill={seg.color}
+                    fillOpacity={isHovered ? 1 : 0.88}
+                    stroke="#FFFFFF"
+                    strokeWidth="1.2"
+                    rx={seg.key === 'high' || (seg.key === 'medium' && highH === 0) || (seg.key === 'low' && highH === 0 && medH === 0) ? 3 : 0}
                   />
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-      </div>
+                );
+              })}
+
+              {/* Hover outline ring */}
+              {isHovered && (
+                <rect
+                  x={x - barWidth / 2 - 2}
+                  y={paddingTop + chartHeight - (lowH + medH + highH) - 2}
+                  width={barWidth + 4}
+                  height={lowH + medH + highH + 4}
+                  fill="none"
+                  stroke="#0052B7"
+                  strokeWidth="1.75"
+                  rx={4}
+                  className="pointer-events-none"
+                />
+              )}
+
+              {/* Complete X-Axis Date Labels Under Every Bar */}
+              {line2 ? (
+                <text
+                  x={x}
+                  y={paddingTop + chartHeight + 13}
+                  textAnchor="middle"
+                  className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[8.5px]"
+                >
+                  <tspan x={x} dy="0">{line1}</tspan>
+                  <tspan x={x} dy="10">{line2}</tspan>
+                </text>
+              ) : (
+                <text
+                  x={x}
+                  y={height - 6}
+                  textAnchor="middle"
+                  className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[9px]"
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  {line1}
+                </text>
+              )}
+
+              {/* Hit region */}
+              <rect
+                x={x - Math.max(barWidth, chartWidth / (data.length || 1)) / 2}
+                y={paddingTop}
+                width={Math.max(barWidth, chartWidth / (data.length || 1))}
+                height={chartHeight + paddingBottom}
+                fill="transparent"
+              />
+            </g>
+          );
+        })}
+      </svg>
 
       {/* Floating Mobile Tooltip */}
       {hoveredIdx !== null && data[hoveredIdx] && (() => {
         const p = data[hoveredIdx];
         const barX = getBarX(hoveredIdx);
-        const barLeftPct = ((barX - barWidth / 2) / width) * 100;
-        const mobileLeftPct = Math.max(4, Math.min(60, barLeftPct - 15));
+        const maxTooltipWidth = Math.min(210, Math.max(150, width - 20));
+        const leftPos = Math.max(8, Math.min(width - maxTooltipWidth - 8, barX - maxTooltipWidth / 2));
 
         const highCount = p.high || 0;
         const medCount = p.medium || 0;
@@ -576,27 +620,28 @@ const MobileRiskTrendChart: React.FC<{
 
         return (
           <div
-            className="pointer-events-none absolute z-20 min-w-[160px] max-w-[calc(100vw-3rem)] rounded-xl border border-slate-200 dark:border-zinc-700/60 bg-white/95 dark:bg-zinc-900/95 p-3 text-left text-xs leading-normal text-slate-800 dark:text-white shadow-xl dark:shadow-2xl shadow-slate-900/10 dark:shadow-black/60 backdrop-blur-sm"
+            className="pointer-events-none absolute z-20 w-max rounded-xl border border-slate-200 dark:border-zinc-700/60 bg-white/95 dark:bg-zinc-900/95 p-2.5 text-left text-[11px] leading-normal text-slate-800 dark:text-white shadow-xl dark:shadow-2xl shadow-slate-900/10 dark:shadow-black/60 backdrop-blur-sm"
             style={{
-              left: `${mobileLeftPct}%`,
-              top: '12px',
+              left: `${leftPos}px`,
+              top: '8px',
+              maxWidth: `${maxTooltipWidth}px`,
             }}
           >
-            <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-zinc-700/80 pb-1.5 mb-2">
-              <span className="text-xs font-bold uppercase text-slate-700 dark:text-zinc-200">{p.label}</span>
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-zinc-700/80 pb-1 mb-1.5">
+              <span className="text-[10px] font-bold uppercase text-slate-700 dark:text-zinc-200">{p.label}</span>
               {isSingleStudent && studentName && (
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 truncate max-w-[120px]" title={studentName}>
+                <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 truncate max-w-[100px]" title={studentName}>
                   {studentName}
                 </span>
               )}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {series.map((item) => {
                 const count = p[item.key] || 0;
                 const pct = pointTotal > 0 ? Math.round((count / pointTotal) * 100) : 0;
                 return (
-                  <div key={item.key} className="flex items-center justify-between gap-4 text-xs font-medium">
+                  <div key={item.key} className="flex items-center justify-between gap-4 text-[11px] font-medium">
                     <span className="flex items-center gap-1.5" style={{ color: item.color }}>
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                       {item.label}
@@ -610,7 +655,7 @@ const MobileRiskTrendChart: React.FC<{
             </div>
 
             {!isSingleStudent && (
-              <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-zinc-700/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 font-semibold">
+              <div className="mt-1.5 pt-1 border-t border-slate-100 dark:border-zinc-700/80 flex items-center justify-between text-[10px] text-slate-500 dark:text-zinc-400 font-semibold">
                 <span>Total evaluated</span>
                 <span className="text-slate-800 dark:text-white">{pointTotal} students</span>
               </div>
@@ -627,7 +672,8 @@ const RiskTrendChart: React.FC<{
   total: number;
   isSingleStudent: boolean;
   studentName?: string;
-}> = ({ data, total, isSingleStudent, studentName }) => {
+  trendFilter: TrendFilter;
+}> = ({ data, total, isSingleStudent, studentName, trendFilter }) => {
   if (data.length === 0) {
     return (
       <div className="flex h-52 items-center justify-center text-xs text-gray-400">
@@ -655,6 +701,7 @@ const RiskTrendChart: React.FC<{
           total={total}
           isSingleStudent={isSingleStudent}
           studentName={studentName}
+          trendFilter={trendFilter}
         />
       </div>
     </>
@@ -920,64 +967,83 @@ export const StudentAnalytics: React.FC = () => {
 
       {/* ── Risk Level Trend Chart ── */}
       <section
-        className="rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]"
+        className="rounded-md border border-gray-200 bg-white px-3 py-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]"
         aria-labelledby="risk-overview-heading"
       >
-        <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
-          <div className="min-w-0 flex-1 truncate">
-            <h3
-              id="risk-overview-heading"
-              className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate"
-            >
-              RISK LEVEL TREND CHART
-            </h3>
+        <div className="flex flex-col gap-1.5 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
+          <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0">
+            <div className="min-w-0 flex-1 truncate">
+              <h3
+                id="risk-overview-heading"
+                className="text-[10px] sm:text-sm font-bold uppercase tracking-tight text-gray-900 dark:text-slate-100 whitespace-nowrap truncate"
+              >
+                RISK LEVEL TREND CHART
+              </h3>
+            </div>
+
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap">
+              <div className="hidden sm:flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#EF4444' }} />
+                  High Risk
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#F59E0B' }} />
+                  Medium Risk
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#22C55E' }} />
+                  Low Risk
+                </span>
+              </div>
+              <div
+                className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0 whitespace-nowrap"
+                role="group"
+                aria-label="Filter risk chart by time period"
+              >
+                {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => setTrendFilter(filter)}
+                    className={`cursor-pointer rounded-sm px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all whitespace-nowrap ${
+                      trendFilter === filter
+                        ? 'bg-[var(--brand)] text-white shadow-xs'
+                        : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    {filter}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
-            <div className="hidden xs:flex items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#EF4444' }} />
-                High Risk
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#F59E0B' }} />
-                Medium Risk
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#22C55E' }} />
-                Low Risk
-              </span>
-            </div>
-            <div
-              className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111] shrink-0 whitespace-nowrap"
-              role="group"
-              aria-label="Filter risk chart by time period"
-            >
-              {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                <button
-                  key={filter}
-                  type="button"
-                  onClick={() => setTrendFilter(filter)}
-                  className={`cursor-pointer rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all whitespace-nowrap ${
-                    trendFilter === filter
-                      ? 'bg-[var(--brand)] text-white shadow-xs'
-                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                  }`}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
+          {/* Mobile Legend Row (< 640px) */}
+          <div className="flex sm:hidden items-center gap-3 flex-wrap text-[11px] font-semibold text-gray-600 dark:text-slate-300">
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+              <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: '#EF4444' }} />
+              High Risk
+            </span>
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+              <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: '#F59E0B' }} />
+              Medium Risk
+            </span>
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+              <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: '#22C55E' }} />
+              Low Risk
+            </span>
           </div>
         </div>
 
-        <div className="mt-4">
-          <div className="relative rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+        <div className="mt-3 sm:mt-4">
+          <div className="relative rounded-md border border-gray-100 bg-gray-50/60 px-2 py-2.5 sm:p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
             <RiskTrendChart
               data={riskTrend}
               total={1}
               isSingleStudent={true}
               studentName={user?.full_name || studentFirstName}
+              trendFilter={trendFilter}
             />
           </div>
         </div>

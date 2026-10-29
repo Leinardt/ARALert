@@ -1454,7 +1454,7 @@ export const DashboardLayout: React.FC = () => {
                   <>
                     {/* Mobile Backdrop */}
                     <div
-                      className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
+                      className="fixed inset-0 z-40 bg-transparent sm:hidden"
                       onClick={() => setShowRiskList(false)}
                       aria-hidden="true"
                     />
@@ -1850,7 +1850,7 @@ export const DashboardLayout: React.FC = () => {
                   <>
                     {/* Mobile Backdrop */}
                     <div
-                      className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
+                      className="fixed inset-0 z-40 bg-transparent sm:hidden"
                       onClick={() => setShowTutorNotifications(false)}
                       aria-hidden="true"
                     />
@@ -2168,7 +2168,7 @@ export const DashboardLayout: React.FC = () => {
                   <>
                     {/* Mobile Backdrop */}
                     <div
-                      className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:hidden"
+                      className="fixed inset-0 z-40 bg-transparent sm:hidden"
                       onClick={() => setShowStudentEditRequests(false)}
                       aria-hidden="true"
                     />

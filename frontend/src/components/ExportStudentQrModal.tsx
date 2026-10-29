@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Download } from 'lucide-react';
 import {
   StudentQrData,
@@ -54,6 +54,36 @@ export const ExportStudentQrModal: React.FC<ExportStudentQrModalProps> = ({
   const [paperSize, setPaperSize] = useState<QrPaperSize>('a4');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [isExportingFormat, setIsExportingFormat] = useState<'docx' | 'pdf' | 'jpeg' | null>(null);
+  const previewWrapRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [sheetScale, setSheetScale] = useState<number>(1);
+  const [sheetHeight, setSheetHeight] = useState<number>(764);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const updateScale = () => {
+      const wrapEl = previewWrapRef.current;
+      const sheetEl = sheetRef.current;
+      if (!wrapEl) return;
+      const style = window.getComputedStyle(wrapEl);
+      const padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+      const availW = Math.max(200, wrapEl.clientWidth - padX);
+      const nextScale = availW < 540 ? availW / 540 : 1;
+      setSheetScale(nextScale);
+      if (sheetEl) {
+        setSheetHeight(sheetEl.offsetHeight || parseInt(QR_PAPER_CONFIG[paperSize].minHeight, 10) || 764);
+      }
+    };
+    updateScale();
+    const ro = new ResizeObserver(updateScale);
+    if (previewWrapRef.current) ro.observe(previewWrapRef.current);
+    if (sheetRef.current) ro.observe(sheetRef.current);
+    window.addEventListener('resize', updateScale);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', updateScale);
+    };
+  }, [isOpen, paperSize, qrDataUrl]);
 
   useEffect(() => {
     if (!student?.id) return;
@@ -109,16 +139,16 @@ export const ExportStudentQrModal: React.FC<ExportStudentQrModalProps> = ({
     >
       <div className="relative w-full max-w-[96vw] 2xl:max-w-[1440px] h-[95vh] max-h-[95vh] rounded-3xl bg-white dark:bg-[#0A0A0A] shadow-2xl border border-slate-200 dark:border-[#1A1A1A] flex flex-col overflow-hidden">
         {/* Fixed Top Header (Clean title without icon or subtitle) */}
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#1A1A1A] px-6 py-3.5 flex-shrink-0 bg-white dark:bg-[#0A0A0A] z-20">
-          <div>
-            <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-200 dark:border-[#1A1A1A] px-4 sm:px-6 py-3 sm:py-3.5 flex-shrink-0 bg-white dark:bg-[#0A0A0A] z-20">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-xs sm:text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight whitespace-nowrap truncate">
               EXPORT STUDENT ATTENDANCE QR CODE
             </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition cursor-pointer"
+            className="shrink-0 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition cursor-pointer"
             aria-label="Close modal"
           >
             <X className="w-4 h-4" />
@@ -126,7 +156,7 @@ export const ExportStudentQrModal: React.FC<ExportStudentQrModalProps> = ({
         </div>
 
         {/* Scrollable Content Body */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 scroll-smooth">
+        <div className="flex-1 overflow-y-auto px-3.5 sm:px-6 py-3.5 sm:py-4 space-y-4 scroll-smooth">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
             {/* Left Column: Student Details & Paper Size Selection */}
             <div className="lg:col-span-4 xl:col-span-4 space-y-3.5 lg:sticky lg:top-0">
@@ -216,19 +246,40 @@ export const ExportStudentQrModal: React.FC<ExportStudentQrModalProps> = ({
 
             {/* Right Column: Physical Paper Sheet Preview (Accurate to printed output) */}
             <div className="lg:col-span-8 xl:col-span-8 flex flex-col min-w-0">
-              <div className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-slate-100/90 dark:bg-[#111111] p-4 sm:p-6 overflow-x-auto flex flex-col items-center shadow-inner min-h-[640px]">
-                {/* Physical Sheet Card with Clean Flow Matching Print Output */}
+              <div
+                ref={previewWrapRef}
+                className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-slate-100/90 dark:bg-[#111111] p-3 sm:p-6 overflow-x-auto flex flex-col items-center shadow-inner sm:min-h-[640px]"
+              >
                 <div
-                  style={{
-                    width: QR_PAPER_CONFIG[paperSize].width,
-                    minHeight: QR_PAPER_CONFIG[paperSize].minHeight,
-                    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif",
-                    colorScheme: 'light',
-                    backgroundColor: '#FFFFFF',
-                    color: '#000000',
-                  }}
-                  className="export-paper-sheet bg-white text-black shadow-lg border border-slate-300 rounded-none p-6 sm:p-8 select-none flex flex-col transition-all duration-200"
+                  style={
+                    sheetScale < 1
+                      ? {
+                          width: `${Math.round(540 * sheetScale)}px`,
+                          height: `${Math.round(sheetHeight * sheetScale)}px`,
+                          position: 'relative',
+                        }
+                      : undefined
+                  }
                 >
+                  {/* Physical Sheet Card with Clean Flow Matching Print Output */}
+                  <div
+                    ref={sheetRef}
+                    style={{
+                      width: QR_PAPER_CONFIG[paperSize].width,
+                      minHeight: QR_PAPER_CONFIG[paperSize].minHeight,
+                      fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif",
+                      colorScheme: 'light',
+                      backgroundColor: '#FFFFFF',
+                      color: '#000000',
+                      ...(sheetScale < 1
+                        ? {
+                            transform: `scale(${sheetScale})`,
+                            transformOrigin: 'top left',
+                          }
+                        : {}),
+                    }}
+                    className="export-paper-sheet bg-white text-black shadow-lg border border-slate-300 rounded-none p-6 sm:p-8 select-none flex flex-col transition-all duration-200"
+                  >
                   {/* Top Header */}
                   <div className="text-center">
                     <h1 className="text-2xl font-bold tracking-tight text-black" style={{ color: '#000000' }}>
@@ -295,14 +346,15 @@ export const ExportStudentQrModal: React.FC<ExportStudentQrModalProps> = ({
                     </div>
                   </div>
                 </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Fixed Bottom Footer (Without LRN) */}
-        <div className="flex-shrink-0 bg-white dark:bg-[#0A0A0A] border-t border-slate-200 dark:border-[#1A1A1A] px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
-          <div className="text-xs text-slate-600 dark:text-slate-400 flex flex-wrap items-center gap-2">
+        <div className="flex-shrink-0 bg-white dark:bg-[#0A0A0A] border-t border-slate-200 dark:border-[#1A1A1A] px-4 sm:px-5 py-2.5 sm:py-3 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+          <div className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 flex flex-wrap items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
             <span className="font-bold text-slate-900 dark:text-slate-100">{displayName}</span>
             <span>•</span>
             <span className="uppercase font-semibold text-slate-700 dark:text-slate-300">
@@ -310,12 +362,12 @@ export const ExportStudentQrModal: React.FC<ExportStudentQrModalProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-end">
             <button
               type="button"
               disabled={isExportingFormat !== null}
               onClick={onClose}
-              className="w-full sm:w-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+              className="w-full sm:w-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-1.5 sm:py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
             >
               Cancel
             </button>
@@ -324,7 +376,7 @@ export const ExportStudentQrModal: React.FC<ExportStudentQrModalProps> = ({
               type="button"
               disabled={isExportingFormat !== null}
               onClick={() => handleDownload('docx')}
-              className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
+              className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-4 py-1.5 sm:py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
             >
               {isExportingFormat === 'docx' ? (
                 <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -338,7 +390,7 @@ export const ExportStudentQrModal: React.FC<ExportStudentQrModalProps> = ({
               type="button"
               disabled={isExportingFormat !== null}
               onClick={() => handleDownload('pdf')}
-              className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
+              className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-4 py-1.5 sm:py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
             >
               {isExportingFormat === 'pdf' ? (
                 <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -352,7 +404,7 @@ export const ExportStudentQrModal: React.FC<ExportStudentQrModalProps> = ({
               type="button"
               disabled={isExportingFormat !== null}
               onClick={() => handleDownload('jpeg')}
-              className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
+              className="w-full sm:w-auto rounded-xl bg-[var(--brand)] px-4 py-1.5 sm:py-2 text-xs font-bold text-white hover:bg-[var(--brand-dark)] transition shadow-xs disabled:opacity-60 cursor-pointer inline-flex items-center justify-center gap-1.5"
             >
               {isExportingFormat === 'jpeg' ? (
                 <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

@@ -274,7 +274,7 @@ const CustomCalendarDropdown: React.FC<{
   return (
     <div
       ref={dropdownRef}
-      className={`absolute z-50 mt-2 p-4 w-72 rounded-2xl bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] shadow-xl text-gray-800 dark:text-slate-200 ${className || ''}`}
+      className={`absolute z-50 mt-2 p-4 w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] shadow-xl text-gray-800 dark:text-slate-200 ${className || ''}`}
       style={{ top: '100%', right: 0 }}
     >
       <div className="flex items-center justify-between mb-3">
@@ -484,14 +484,19 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 py-0.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3 w-full sm:w-auto min-w-0">
+          <div className="flex items-center justify-between sm:justify-start gap-2 py-0.5">
             <span className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none">
               {tableGroup.title}
             </span>
+            {isOpen && (
+              <span className="sm:hidden text-[11px] font-semibold text-gray-400">
+                {displayRows.length} Record{displayRows.length !== 1 ? 's' : ''}
+              </span>
+            )}
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-nowrap sm:flex-wrap items-center gap-1 sm:gap-1.5 w-full sm:w-auto overflow-x-auto no-scrollbar">
             {groupDates.map((dateStr) => {
               const hasRecord = datesWithRecords.has(dateStr);
               const isSelected = selectedDate === dateStr;
@@ -504,7 +509,7 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
                   type="button"
                   disabled={!hasRecord}
                   onClick={() => onSelectDate(dateStr)}
-                  className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all inline-flex items-center gap-1.5 ${
+                  className={`h-7 sm:h-7.5 flex-1 sm:flex-initial justify-center whitespace-nowrap rounded-md px-1.5 sm:px-3 text-[9px] sm:text-[11px] font-bold uppercase transition-all inline-flex items-center gap-1 sm:gap-1.5 shrink-0 ${
                     hasRecord
                       ? isSelected
                         ? 'bg-[var(--brand)] text-white shadow-xs font-bold border border-[var(--brand)] cursor-pointer'
@@ -532,7 +537,7 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
           </div>
         </div>
         {isOpen && (
-          <span className="text-[11px] font-semibold text-gray-400">
+          <span className="hidden sm:inline text-[11px] font-semibold text-gray-400">
             {displayRows.length} Record{displayRows.length !== 1 ? 's' : ''}
           </span>
         )}
@@ -757,6 +762,18 @@ export const StudentScores: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
+  const periodDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (periodDropdownRef.current && !periodDropdownRef.current.contains(e.target as Node)) {
+        setShowPeriodDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // ── Unified School Year - Semester/Summer Filter State ──
   const currentSchoolYear = useMemo(() => getDepEdSchoolYear(), []);
@@ -1145,9 +1162,10 @@ export const StudentScores: React.FC = () => {
       {/* ── Academic Records Container ──────────────────────────────────── */}
       <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
         {/* Header & Controls Toolbar */}
-        <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-          <div className="min-w-0 flex-1 truncate">
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase truncate">
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 px-3 sm:px-5 py-3 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+          {/* 1. Title & Record Count */}
+          <div className="order-1 min-w-0 flex-1 sm:mr-auto truncate">
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-[10px] sm:text-sm tracking-tight uppercase whitespace-nowrap truncate">
               {studentFirstName}'s Academic Records
             </h3>
             <p className="mt-0.5 text-[10px] sm:text-xs font-medium text-gray-500 dark:text-slate-400 truncate">
@@ -1155,33 +1173,66 @@ export const StudentScores: React.FC = () => {
             </p>
           </div>
 
-          {/* Filter controls */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
-            {/* Unified School Year - Semester/Summer Dropdown (matches Tutor Assigned Students dropdown) */}
-            <div className="relative inline-flex items-center shrink-0">
-              <select
-                value={effectiveSelectedPeriod}
-                onChange={(e) => {
-                  setSelectedPeriod(e.target.value);
-                  setJumpDate(null);
-                }}
-                aria-label="Filter by School Year and Semester"
-                className="h-7.5 sm:h-8 appearance-none rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-2.5 pr-7 sm:pl-3 sm:pr-8 text-[11px] sm:text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer"
-              >
-                {schoolYearOptions.map((opt) => (
-                  <option
-                    key={opt.key}
-                    value={opt.key}
-                    className="bg-white dark:bg-[#111111] text-gray-800 dark:text-slate-200 font-medium"
-                  >
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 sm:right-2.5 h-3 sm:h-3.5 w-3 sm:w-3.5 text-[var(--brand)] opacity-75" />
-            </div>
+          {/* 2. Unified School Year - Semester/Summer Custom Dropdown (Constrained to card width on mobile) */}
+          <div ref={periodDropdownRef} className="order-3 sm:order-2 relative w-full sm:w-auto min-w-0 sm:shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowPeriodDropdown((prev) => !prev)}
+              aria-label="Filter by School Year and Semester"
+              aria-expanded={showPeriodDropdown}
+              className="flex items-center justify-between gap-2 min-h-[32px] w-full sm:w-auto rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 py-1.5 sm:px-3 sm:py-1 text-left text-[11px] sm:text-xs font-bold text-[var(--brand)] outline-none transition hover:bg-gray-100 dark:hover:bg-[#222222] focus:border-[var(--brand)] cursor-pointer"
+            >
+              <span className="min-w-0 flex-1 flex flex-col">
+                <span className="leading-snug break-words sm:whitespace-nowrap">
+                  {schoolYearOptions.find((opt) => opt.key === effectiveSelectedPeriod)?.label || schoolYearOptions[0]?.label}
+                </span>
+                <span
+                  className="hidden sm:flex sm:flex-col h-0 overflow-hidden invisible pointer-events-none select-none"
+                  aria-hidden="true"
+                >
+                  {schoolYearOptions.map((opt) => (
+                    <span key={opt.key} className="whitespace-nowrap">
+                      {opt.label}
+                    </span>
+                  ))}
+                </span>
+              </span>
+              <ChevronDown
+                className={`h-3.5 w-3.5 shrink-0 text-[var(--brand)] opacity-75 transition-transform duration-150 ${
+                  showPeriodDropdown ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
 
-            {/* View mode toggle (WEEK / MONTH) */}
+            {showPeriodDropdown && (
+              <div className="absolute left-0 right-0 w-full top-full mt-1.5 z-50 flex flex-col gap-0.5 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-1 shadow-xl">
+                {schoolYearOptions.map((opt) => {
+                  const isSelected = opt.key === effectiveSelectedPeriod;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPeriod(opt.key);
+                        setJumpDate(null);
+                        setShowPeriodDropdown(false);
+                      }}
+                      className={`block w-full text-left px-2.5 py-2 rounded-lg text-[11px] sm:text-xs leading-snug break-words sm:whitespace-nowrap transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'bg-[var(--brand-light)] text-[var(--brand)] font-bold dark:bg-blue-950/50 dark:text-blue-300'
+                          : 'text-gray-700 dark:text-slate-200 font-medium hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 3. View mode toggle (WEEK / MONTH) + Calendar Button */}
+          <div className="order-2 sm:order-3 flex items-center gap-1.5 sm:gap-2 shrink-0">
             <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
               {(['week', 'month'] as const).map((mode) => (
                 <button
@@ -1191,7 +1242,7 @@ export const StudentScores: React.FC = () => {
                     setViewMode(mode);
                     setJumpDate(null);
                   }}
-                  className={`h-7.5 sm:h-7 whitespace-nowrap rounded-sm px-2 sm:px-3 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
+                  className={`h-7 whitespace-nowrap rounded-sm px-1.5 sm:px-3 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer ${viewMode === mode && !jumpDate
                     ? 'bg-[var(--brand)] text-white'
                     : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                     }`}
@@ -1201,7 +1252,6 @@ export const StudentScores: React.FC = () => {
               ))}
             </div>
 
-            {/* Custom Calendar Dropdown Button */}
             <div className="relative inline-flex items-center shrink-0">
               <button
                 type="button"
