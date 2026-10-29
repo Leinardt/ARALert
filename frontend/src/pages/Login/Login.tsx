@@ -288,7 +288,7 @@ export const Login: React.FC = () => {
               {loginType === 'staff' && 'PNAHS Personnel Login'}
               {loginType === 'student' && 'Student Login'}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-6 whitespace-nowrap overflow-hidden text-ellipsis text-center w-full px-2">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-5 sm:mb-6 leading-relaxed text-center w-full px-1 sm:px-2">
               {loginType === 'select' && 'Select your portal to access ARALert.'}
               {loginType === 'staff' && 'Sign in using your pre-registered Google account.'}
               {loginType === 'student' && 'Enter your 12-digit Learner Reference Number.'}
@@ -296,10 +296,10 @@ export const Login: React.FC = () => {
           </div>
 
           {/* Card Body */}
-          <div className="p-5 sm:p-8 pt-0 sm:pt-0">
+          <div className="p-4 sm:p-8 pt-0 sm:pt-0">
             {/* ── Option Cards (Solid Visible Cards with Chevron and High-Contrast Hover) ── */}
             {loginType === 'select' && (
-              <div className="flex flex-col gap-3.5 animate-view-fade-in">
+              <div className="flex flex-col gap-3 sm:gap-3.5 animate-view-fade-in">
                 {/* PNAHS Personnel Google Login Option */}
                 <button
                   type="button"
@@ -307,13 +307,13 @@ export const Login: React.FC = () => {
                     setLoginType('staff');
                     setServerError(null);
                   }}
-                  className="group flex items-center justify-between p-4 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none transition-all duration-200 bg-slate-50 hover:bg-blue-50/70 dark:bg-neutral-900 dark:hover:bg-neutral-800/90 border border-slate-300 hover:border-[#0052B7] dark:border-neutral-700 dark:hover:border-blue-500 shadow-xs hover:shadow-md hover:-translate-y-0.5"
+                  className="group flex items-center justify-between p-3.5 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none transition-all duration-200 bg-slate-50 hover:bg-blue-50/70 dark:bg-neutral-900 dark:hover:bg-neutral-800/90 border border-slate-300 hover:border-[#0052B7] dark:border-neutral-700 dark:hover:border-blue-500 shadow-xs hover:shadow-md hover:-translate-y-0.5"
                 >
-                  <div className="min-w-0 pr-3">
-                    <div className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 mb-1 transition-colors duration-200">
+                  <div className="min-w-0 pr-2.5 sm:pr-3">
+                    <div className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 mb-0.5 sm:mb-1 transition-colors duration-200">
                       PNAHS Personnel Portal
                     </div>
-                    <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed truncate">
+                    <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-snug sm:leading-relaxed">
                       Sign in using your pre-registered Google account.
                     </div>
                   </div>
@@ -327,13 +327,13 @@ export const Login: React.FC = () => {
                     setLoginType('student');
                     setServerError(null);
                   }}
-                  className="group flex items-center justify-between p-4 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none transition-all duration-200 bg-slate-50 hover:bg-blue-50/70 dark:bg-neutral-900 dark:hover:bg-neutral-800/90 border border-slate-300 hover:border-[#0052B7] dark:border-neutral-700 dark:hover:border-blue-500 shadow-xs hover:shadow-md hover:-translate-y-0.5"
+                  className="group flex items-center justify-between p-3.5 sm:p-5 rounded-xl text-left w-full cursor-pointer select-none transition-all duration-200 bg-slate-50 hover:bg-blue-50/70 dark:bg-neutral-900 dark:hover:bg-neutral-800/90 border border-slate-300 hover:border-[#0052B7] dark:border-neutral-700 dark:hover:border-blue-500 shadow-xs hover:shadow-md hover:-translate-y-0.5"
                 >
-                  <div className="min-w-0 pr-3">
-                    <div className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 mb-1 transition-colors duration-200">
+                  <div className="min-w-0 pr-2.5 sm:pr-3">
+                    <div className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-[#0052B7] dark:group-hover:text-blue-400 mb-0.5 sm:mb-1 transition-colors duration-200">
                       Student Portal
                     </div>
-                    <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed truncate">
+                    <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-snug sm:leading-relaxed">
                       Sign in using your 12-digit Learner Reference Number.
                     </div>
                   </div>
@@ -378,7 +378,7 @@ export const Login: React.FC = () => {
                   />
                 </div>
 
-                <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 text-center mt-2 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 w-full whitespace-nowrap overflow-hidden text-ellipsis select-none tracking-tight">
+                <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 text-center mt-2 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 w-full leading-relaxed select-none tracking-tight">
                   Only authorized Google accounts are permitted to access.
                 </div>
               </div>
@@ -414,7 +414,7 @@ export const Login: React.FC = () => {
                       {studentForm.formState.errors.lrn.message}
                     </p>
                   )}
-                  <p className="mt-1.5 text-[11px] text-slate-400 dark:text-neutral-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                  <p className="mt-1.5 text-[11px] text-slate-400 dark:text-neutral-500 leading-relaxed">
                     Official 12-digit number issued by the Department of Education.
                   </p>
                 </div>
@@ -432,15 +432,17 @@ export const Login: React.FC = () => {
         </div>
 
         {/* Footer Legal Links */}
-        <div className="mt-6 text-center text-xs text-slate-500 dark:text-neutral-500 flex items-center justify-center gap-1.5 flex-wrap">
+        <div className="mt-5 sm:mt-6 text-center text-xs text-slate-500 dark:text-neutral-500 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5">
           <span>By continuing, you acknowledge our</span>
-          <Link to="/terms" className="text-[#0052B7] dark:text-blue-400 hover:underline font-medium">
-            Terms of Service
-          </Link>
-          <span>&bull;</span>
-          <Link to="/privacy" className="text-[#0052B7] dark:text-blue-400 hover:underline font-medium">
-            Privacy Policy
-          </Link>
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <Link to="/terms" className="text-[#0052B7] dark:text-blue-400 hover:underline font-medium">
+              Terms of Service
+            </Link>
+            <span>&bull;</span>
+            <Link to="/privacy" className="text-[#0052B7] dark:text-blue-400 hover:underline font-medium">
+              Privacy Policy
+            </Link>
+          </span>
         </div>
       </div>
 
