@@ -46,7 +46,7 @@ const PenDoodleOval: React.FC<{ className?: string }> = ({
     viewBox="0 0 460 76"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
-    className={`absolute -inset-x-4 -inset-y-3 w-[calc(100%+2rem)] h-[calc(100%+1.5rem)] pointer-events-none select-none ${className}`}
+    className={`absolute -inset-x-2.5 sm:-inset-x-4 -inset-y-2 sm:-inset-y-3 w-[calc(100%+1.25rem)] sm:w-[calc(100%+2rem)] h-[calc(100%+1rem)] sm:h-[calc(100%+1.5rem)] pointer-events-none select-none ${className}`}
     preserveAspectRatio="none"
     aria-hidden="true"
   >
@@ -241,33 +241,35 @@ export const Landing: React.FC = () => {
 
             {/* Subtitle — one ruled row per line */}
             <p className="notebook-snap-lead text-slate-700 dark:text-slate-200 font-medium mb-10">
-              A Student Performance Monitoring and{' '}
-              <span className="relative inline-block text-slate-900 dark:text-white font-bold">
+              <span className="block sm:inline">A Student Performance Monitoring and{' '}</span>
+              <span className="relative inline-block whitespace-nowrap text-slate-900 dark:text-white font-bold">
                 Early Academic Risk Detection
                 <PenRoughUnderline variant="single" className="text-[#1A5DAD]/80 dark:text-blue-400/80" />
               </span>{' '}
-              System for the ARAL Program of{' '}
-              <span className="relative inline-block px-3.5 mx-1 font-bold text-[#0052B7] dark:text-blue-400 whitespace-normal sm:whitespace-nowrap break-words">
-                Palanas National Agriculture High School
-                <PenDoodleOval className="text-[#0052B7] dark:text-blue-400" />
+              <span className="block sm:inline">System for the ARAL Program of{' '}</span>
+              <span className="inline-block whitespace-nowrap">
+                <span className="relative inline-block px-1.5 sm:px-3.5 mx-0.5 sm:mx-1 font-bold text-[#0052B7] dark:text-blue-400 whitespace-nowrap">
+                  Palanas National Agriculture High School
+                  <PenDoodleOval className="text-[#0052B7] dark:text-blue-400" />
+                </span>
+                <span className="inline-block pl-0.5">.</span>
               </span>
-              <span className="inline-block pl-0.5">.</span>
             </p>
 
             {/* Primary actions — one blank row, then 2-row buttons whose borders sit on rules */}
-            <div className="mt-10 flex flex-wrap items-start justify-center gap-x-4 gap-y-[38px]">
+            <div className="mt-10 flex flex-wrap items-start justify-center gap-x-3 sm:gap-x-4 gap-y-[38px]">
               <Link
                 id="hero-portal-cta"
                 to={isAuthenticated ? getDashboardLink() : '/login'}
                 onClick={() => {
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="group notebook-btn-2line inline-flex items-center justify-center gap-2.5 px-8 rounded-xl border-2 border-[#0052B7] dark:border-blue-400 text-[#0052B7] dark:text-blue-400 hover:!bg-[#0052B7] hover:!text-white hover:!border-[#0052B7] dark:hover:!bg-[#0052B7] dark:hover:!text-white font-bold text-base cursor-pointer select-none transition-all duration-200 hover:shadow-lg hover:shadow-blue-600/25"
+                className="group notebook-btn-2line inline-flex items-center justify-center gap-2 sm:gap-2.5 px-4 sm:px-8 rounded-xl border-2 border-[#0052B7] dark:border-blue-400 text-[#0052B7] dark:text-blue-400 hover:!bg-[#0052B7] hover:!text-white hover:!border-[#0052B7] dark:hover:!bg-[#0052B7] dark:hover:!text-white font-bold text-sm sm:text-base whitespace-nowrap cursor-pointer select-none transition-all duration-200 hover:shadow-lg hover:shadow-blue-600/25"
               >
                 <span className="text-[#0052B7] dark:text-blue-400 group-hover:!text-white transition-colors duration-200">
                   {isAuthenticated ? 'Go to Dashboard' : 'Access System Portal'}
                 </span>
-                <ArrowRight className="w-5 h-5 text-[#0052B7] dark:text-blue-400 group-hover:!text-white group-hover:translate-x-0.5 transition-all duration-200 shrink-0" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-[#0052B7] dark:text-blue-400 group-hover:!text-white group-hover:translate-x-0.5 transition-all duration-200 shrink-0" />
               </Link>
 
               <a
@@ -277,7 +279,7 @@ export const Landing: React.FC = () => {
                   e.preventDefault();
                   document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' });
                 }}
-                className="group notebook-btn-2line inline-flex items-center justify-center px-8 rounded-xl border-2 border-slate-300 dark:border-neutral-700 text-slate-700 dark:text-slate-200 hover:!border-[#0052B7] hover:!bg-blue-50/70 hover:!text-[#0052B7] dark:hover:!border-blue-400 dark:hover:!bg-blue-950/40 dark:hover:!text-blue-400 font-bold text-base cursor-pointer select-none transition-all duration-200"
+                className="group notebook-btn-2line inline-flex items-center justify-center px-5 sm:px-8 rounded-xl border-2 border-slate-300 dark:border-neutral-700 text-slate-700 dark:text-slate-200 hover:!border-[#0052B7] hover:!bg-blue-50/70 hover:!text-[#0052B7] dark:hover:!border-blue-400 dark:hover:!bg-blue-950/40 dark:hover:!text-blue-400 font-bold text-sm sm:text-base whitespace-nowrap cursor-pointer select-none transition-all duration-200"
               >
                 <span className="group-hover:!text-[#0052B7] dark:group-hover:!text-blue-400 transition-colors duration-200">
                   FAQ

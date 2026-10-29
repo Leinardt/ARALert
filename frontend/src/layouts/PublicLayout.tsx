@@ -307,7 +307,7 @@ export const PublicLayout: React.FC = () => {
               <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-2.5">
                 Quick Navigation
               </h4>
-              <ul className="space-y-1.5 font-medium">
+              <ul className="grid grid-cols-2 sm:grid-cols-1 gap-x-4 gap-y-1.5 font-medium">
                 <li>
                   <a
                     href="/#home"
@@ -407,16 +407,16 @@ export const PublicLayout: React.FC = () => {
           </div>
 
           {/* Bottom Copyright & Status Bar */}
-          <div className="mt-5 pt-3.5 border-t border-slate-200/80 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400 dark:text-slate-500">
+          <div className="mt-5 pt-3.5 border-t border-slate-200/80 dark:border-neutral-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px] text-slate-400 dark:text-slate-500">
             <p>
               &copy; {new Date().getFullYear()} ARALert &bull; Palanas National Agriculture High School. All rights reserved.
             </p>
-            <div className="flex items-center gap-3 text-[11px]">
-              <Link to="/terms" className="hover:text-[var(--brand)] dark:hover:text-blue-400 transition-colors">Terms of Service</Link>
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px]">
+              <Link to="/terms" className="whitespace-nowrap hover:text-[var(--brand)] dark:hover:text-blue-400 transition-colors">Terms of Service</Link>
               <span>&bull;</span>
-              <Link to="/privacy" className="hover:text-[var(--brand)] dark:hover:text-blue-400 transition-colors">Privacy Policy</Link>
+              <Link to="/privacy" className="whitespace-nowrap hover:text-[var(--brand)] dark:hover:text-blue-400 transition-colors">Privacy Policy</Link>
               <span>&bull;</span>
-              <span>RA 10173 &amp; RA 12028 Compliant</span>
+              <span className="whitespace-nowrap">RA 10173 &amp; RA 12028 Compliant</span>
             </div>
           </div>
         </div>
