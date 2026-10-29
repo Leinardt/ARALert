@@ -146,7 +146,11 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
     }
 
     const centerRect = centerEl.getBoundingClientRect();
-    const targetRect = sidebarEl.getBoundingClientRect();
+    const rawTargetRect = sidebarEl.getBoundingClientRect();
+    const isTargetOffscreen = rawTargetRect.left < 0 || rawTargetRect.width === 0;
+    const targetRect = isTargetOffscreen
+      ? { left: 16, top: 14, width: 28, height: 28 }
+      : rawTargetRect;
 
     // Start flying logo at exact current center coordinates
     setFlightCoords({
@@ -324,9 +328,9 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
               />
             </div>
 
-            {/* Chat Bubble (Longer single-line container) */}
+            {/* Chat Bubble (Responsive on mobile, single-line on desktop) */}
             <div
-              className={`relative bg-white dark:bg-[#141414] border border-gray-200/90 dark:border-gray-800 rounded-3xl px-6 py-4 sm:px-8 sm:py-5 shadow-2xl shadow-black/20 dark:shadow-black/70 w-fit max-w-[92vw] sm:max-w-none transition-all duration-300 ${
+              className={`relative bg-white dark:bg-[#141414] border border-gray-200/90 dark:border-gray-800 rounded-2xl sm:rounded-3xl px-5 py-3.5 sm:px-8 sm:py-5 shadow-2xl shadow-black/20 dark:shadow-black/70 w-fit max-w-[calc(100vw-2rem)] sm:max-w-none transition-all duration-300 ${
                 bubbleVisible
                   ? 'opacity-100 scale-100 translate-y-0'
                   : 'opacity-0 scale-85 -translate-y-3 pointer-events-none'
@@ -350,7 +354,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
               />
 
               {/* Dynamic Greeting Message (Welcome to ARALert for first-time, Welcome back for returning) */}
-              <p className="text-base sm:text-lg font-bold text-gray-900 dark:text-slate-100 leading-normal tracking-tight whitespace-nowrap">
+              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-slate-100 leading-snug sm:leading-normal tracking-tight text-center sm:text-left whitespace-normal sm:whitespace-nowrap break-words">
                 {timeGreeting}, {greetingRolePrefix}
                 <span className="text-[var(--brand)] dark:text-blue-400 font-extrabold">
                   {firstName}

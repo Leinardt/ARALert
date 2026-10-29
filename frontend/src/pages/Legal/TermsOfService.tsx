@@ -10,13 +10,13 @@ export const TermsOfService: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen w-full bg-slate-50 dark:bg-[#0A0A0A] text-slate-800 dark:text-slate-200 pt-24 sm:pt-28 pb-24 px-4 sm:px-6 lg:px-8 transition-colors"
+      className="min-h-screen w-full bg-slate-50 dark:bg-[#0A0A0A] text-slate-800 dark:text-slate-200 pt-20 sm:pt-28 pb-16 sm:pb-24 px-4 sm:px-6 lg:px-8 transition-colors"
       style={{ fontFamily: "'Poppins', sans-serif" }}
     >
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-5 sm:space-y-8">
 
         {/* Navigation */}
-        <div className="flex items-center justify-between pb-2">
+        <div className="flex items-center justify-between pb-1 sm:pb-2">
           <button
             type="button"
             onClick={() => {
@@ -30,24 +30,24 @@ export const TermsOfService: React.FC = () => {
           >
             &larr; Return to Previous Page
           </button>
-          <span className="text-xs font-medium text-slate-500 dark:text-neutral-500">
+          <span className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-neutral-500">
             Institutional Document
           </span>
         </div>
 
         {/* Institutional Document Header */}
-        <header className="border-b border-slate-300 dark:border-neutral-800 pb-8 space-y-4">
-          <div className="space-y-1 text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400">
+        <header className="border-b border-slate-300 dark:border-neutral-800 pb-5 sm:pb-8 space-y-3 sm:space-y-4">
+          <div className="space-y-0.5 sm:space-y-1 text-[10.5px] sm:text-xs uppercase tracking-wide sm:tracking-widest text-slate-500 dark:text-slate-400 leading-snug">
             <p className="font-semibold">Republic of the Philippines</p>
             <p className="font-semibold">Department of Education &bull; Region V (Bicol) &bull; Division of Masbate</p>
             <p className="font-bold text-slate-700 dark:text-slate-300">Palanas National Agriculture High School</p>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight pt-2">
+          <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-snug pt-1 sm:pt-2">
             Terms of Service and Conditions of Platform Use
           </h1>
 
-          <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-y-1 gap-x-6 text-xs text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-neutral-800/80 pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1.5 sm:gap-y-1 gap-x-6 text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-neutral-800/80 pt-3 sm:pt-4">
             <div>
               <span className="font-semibold text-slate-700 dark:text-slate-300">Document Identifier: </span>
               <span>DepEd-PNAHS-ARAL-TOS-2025</span>
@@ -68,7 +68,7 @@ export const TermsOfService: React.FC = () => {
         </header>
 
         {/* Preamble */}
-        <div className="space-y-4 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+        <div className="space-y-3 sm:space-y-4 text-xs sm:text-[15px] leading-relaxed sm:leading-7 text-slate-700 dark:text-slate-300">
           <p>
             The <strong>ARALert Academic Early Warning and Intervention Platform</strong> (&ldquo;ARALert&rdquo; or the &ldquo;System&rdquo;) is an institutional information system deployed at Palanas National Agriculture High School. The platform provides continuous tracking of academic recovery indicators, attendance verification, risk cohort flagging, and assessment record management pursuant to the <strong>Academic Recovery and Accessible Learning (ARAL) Program Act (Republic Act No. 12028)</strong> and Department of Education regulations.
           </p>
@@ -78,11 +78,11 @@ export const TermsOfService: React.FC = () => {
         </div>
 
         {/* Section 1 */}
-        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
-          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+        <section className="space-y-2.5 sm:space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide leading-snug">
             Section 1. General Provisions and Scope of Applicability
           </h2>
-          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+          <div className="space-y-2.5 sm:space-y-3 text-xs sm:text-[15px] leading-relaxed sm:leading-7 text-slate-700 dark:text-slate-300">
             <p>
               <strong>1.1 Purpose.</strong> The platform is designed solely to facilitate educational assessment, intervention delivery, daily attendance recording, and progress reporting under the ARAL Program. Commercial exploitation, private utilization, or unauthorized administrative manipulation is strictly prohibited.
             </p>
@@ -96,11 +96,11 @@ export const TermsOfService: React.FC = () => {
         </section>
 
         {/* Section 2 */}
-        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
-          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+        <section className="space-y-2.5 sm:space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide leading-snug">
             Section 2. User Classifications, Authentication, and Responsibilities
           </h2>
-          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+          <div className="space-y-2.5 sm:space-y-3 text-xs sm:text-[15px] leading-relaxed sm:leading-7 text-slate-700 dark:text-slate-300">
             <p>
               <strong>2.1 School Administrators and Principals.</strong> Administrative accounts possess privileged oversight for user lifecycle management, school year transitions, institutional evaluation tools, and school-wide analytics. Administrators are legally bound to enforce role-based access restrictions and ensure audit integrity.
             </p>
@@ -117,15 +117,15 @@ export const TermsOfService: React.FC = () => {
         </section>
 
         {/* Section 3 */}
-        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
-          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+        <section className="space-y-2.5 sm:space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide leading-snug">
             Section 3. Standards of Academic Integrity and Prohibited Conduct
           </h2>
-          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+          <div className="space-y-2.5 sm:space-y-3 text-xs sm:text-[15px] leading-relaxed sm:leading-7 text-slate-700 dark:text-slate-300">
             <p>
               All interactions within the platform must strictly conform to Philippine civil service laws, the Code of Ethics for Professional Teachers (Resolution No. 435, s. 1997), and DepEd Child Protection guidelines. The following acts constitute grave violations:
             </p>
-            <div className="pl-4 border-l-2 border-slate-300 dark:border-neutral-700 space-y-2.5">
+            <div className="pl-3 sm:pl-4 border-l-2 border-slate-300 dark:border-neutral-700 space-y-2 sm:space-y-2.5">
               <p>
                 <strong>3.1 Falsification of Academic Data.</strong> Tampering with, inflating, pre-dating, or retroactively falsifying formative scores, periodic assessment results (BOSY, MOSY, EOSY, or Summer), or learning recovery evaluations.
               </p>
@@ -146,11 +146,11 @@ export const TermsOfService: React.FC = () => {
         </section>
 
         {/* Section 4 */}
-        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
-          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+        <section className="space-y-2.5 sm:space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide leading-snug">
             Section 4. Data Privacy and Confidentiality Compliance
           </h2>
-          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+          <div className="space-y-2.5 sm:space-y-3 text-xs sm:text-[15px] leading-relaxed sm:leading-7 text-slate-700 dark:text-slate-300">
             <p>
               <strong>4.1 Statutory Compliance.</strong> All personal, academic, and biometric identifiers processed through ARALert are collected and handled in strict accordance with the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong>, its Implementing Rules and Regulations, and National Privacy Commission directives.
             </p>
@@ -167,11 +167,11 @@ export const TermsOfService: React.FC = () => {
         </section>
 
         {/* Section 5 */}
-        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
-          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+        <section className="space-y-2.5 sm:space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide leading-snug">
             Section 5. System Availability, Backups, and Service Limitations
           </h2>
-          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+          <div className="space-y-2.5 sm:space-y-3 text-xs sm:text-[15px] leading-relaxed sm:leading-7 text-slate-700 dark:text-slate-300">
             <p>
               <strong>5.1 Maintenance Schedules.</strong> Palanas National Agriculture High School reserves the right to suspend platform availability periodically for routine database optimization, server patching, security audits, and deployment of academic updates. Notice will be provided prior to scheduled downtime whenever practicable.
             </p>
@@ -182,11 +182,11 @@ export const TermsOfService: React.FC = () => {
         </section>
 
         {/* Section 6 */}
-        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
-          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+        <section className="space-y-2.5 sm:space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide leading-snug">
             Section 6. Amendments, Governing Law, and Severability
           </h2>
-          <div className="space-y-3 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+          <div className="space-y-2.5 sm:space-y-3 text-xs sm:text-[15px] leading-relaxed sm:leading-7 text-slate-700 dark:text-slate-300">
             <p>
               <strong>6.1 Right of Amendment.</strong> The School Administration and the ARAL Program Implementation Committee reserve the right to amend or update these Terms to reflect legislative changes, DepEd orders, or technical enhancements. Continued use of the platform after publication of revised terms constitutes formal acceptance.
             </p>
@@ -200,22 +200,22 @@ export const TermsOfService: React.FC = () => {
         </section>
 
         {/* Section 7 */}
-        <section className="space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
-          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+        <section className="space-y-2.5 sm:space-y-3 pt-4 border-t border-slate-200 dark:border-neutral-800/80">
+          <h2 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide leading-snug">
             Section 7. Institutional Inquiries and Official Contact
           </h2>
-          <div className="space-y-2 text-sm sm:text-[15px] leading-7 text-slate-700 dark:text-slate-300">
+          <div className="space-y-2 text-xs sm:text-[15px] leading-relaxed sm:leading-7 text-slate-700 dark:text-slate-300">
             <p>
               Official correspondence regarding the interpretation of these Terms, technical grievances, or academic disputes may be addressed to:
             </p>
-            <div className="pl-4 border-l-2 border-slate-300 dark:border-neutral-700 space-y-1 text-xs sm:text-sm">
+            <div className="pl-3 sm:pl-4 border-l-2 border-slate-300 dark:border-neutral-700 space-y-1 text-xs sm:text-sm">
               <p className="font-bold text-slate-900 dark:text-white">Office of the School Principal &bull; ARAL Program Committee</p>
               <p className="text-slate-600 dark:text-slate-400">Palanas National Agriculture High School</p>
               <p className="text-slate-600 dark:text-slate-400">Division of Masbate, Region V (Bicol), Philippines</p>
               <p className="text-slate-600 dark:text-slate-400">
                 Official Email:{' '}
-                <a href="mailto:contact@aralert.ph" className="font-semibold text-[#0052B7] dark:text-blue-400 hover:underline">
-                  contact@aralert.ph
+                <a href="mailto:aralert.alo@gmail.com" className="font-semibold text-[#0052B7] dark:text-blue-400 hover:underline">
+                  aralert.alo@gmail.com
                 </a>
               </p>
             </div>
