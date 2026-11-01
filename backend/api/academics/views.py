@@ -1507,7 +1507,7 @@ class StudentAcademicProfileView(APIView):
                 'aral_level':  student.aral_level,
                 'subject':     student.subject,
                 'grade_level': student.grade_level,
-                'section':     student.section,
+                'section':     getattr(student, 'section', '') or (student.grade_level.split(' - ')[-1].strip() if ' - ' in (student.grade_level or '') else ''),
             },
             'assigned_tutor': {
                 'id':                  str(tutor.id),

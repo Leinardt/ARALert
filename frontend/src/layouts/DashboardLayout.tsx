@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, useRef, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -375,13 +375,15 @@ export const DashboardLayout: React.FC = () => {
   };
 
   const [highRiskStudents, setHighRiskStudents] = useState<StudentRiskRow[]>([]);
-  const highRiskCount = highRiskStudents.length;
+  const [acknowledgedAlerts, setAcknowledgedAlerts] = useState<Record<string, boolean>>({});
+  const [acknowledgedRiskIds, setAcknowledgedRiskIds] = useState<Record<string, number>>({});
+  const highRiskCount = useMemo(() => {
+    return highRiskStudents.filter((r) => !acknowledgedAlerts[r.student.id]).length;
+  }, [highRiskStudents, acknowledgedAlerts]);
   const [moderateRiskStudents, setModerateRiskStudents] = useState<StudentRiskRow[]>([]);
   const [showRiskList, setShowRiskList] = useState(false);
   const [selectedAlertClass, setSelectedAlertClass] = useState<string>('all');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [acknowledgedAlerts, setAcknowledgedAlerts] = useState<Record<string, boolean>>({});
-  const [acknowledgedRiskIds, setAcknowledgedRiskIds] = useState<Record<string, number>>({});
   const [showStudentEditRequests, setShowStudentEditRequests] = useState(false);
   const [pendingEditRequestsCount, setPendingEditRequestsCount] = useState<number>(0);
   const totalNotificationsCount = pendingEditRequestsCount + SYSTEM_UPDATES.length;
@@ -454,6 +456,38 @@ export const DashboardLayout: React.FC = () => {
     return buildTutorClassSections(user, highRiskStudents);
   }, [user, highRiskStudents]);
 
+  const [isAlertClassDropdownOpen, setIsAlertClassDropdownOpen] = useState(false);
+  const alertClassDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (alertClassDropdownRef.current && !alertClassDropdownRef.current.contains(e.target as Node)) {
+        setIsAlertClassDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsAlertClassDropdownOpen(false);
+    };
+
+    if (isAlertClassDropdownOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAlertClassDropdownOpen]);
+
+  const selectedAlertClassLabel = useMemo(() => {
+    if (selectedAlertClass === 'all') {
+      const totalHigh = tutorClassSections.reduce((s, c) => s + c.students.length, 0);
+      return `ALL CLASSES (${totalHigh} high-risk)`;
+    }
+    const match = tutorClassSections.find((c) => c.key === selectedAlertClass);
+    return match ? `${match.label} (${match.students.length})` : 'ALL CLASSES';
+  }, [selectedAlertClass, tutorClassSections]);
+
   const handleAcknowledgeAlert = async (row: StudentRiskRow) => {
     const existingRiskId = acknowledgedRiskIds[row.student.id];
     const studentRiskLevel: AcademicRisk['risk_level'] =
@@ -461,13 +495,14 @@ export const DashboardLayout: React.FC = () => {
         : row.riskTier === 'Medium' ? 'medium'
           : 'low';
     try {
+      const detailsMsg = `High risk alert acknowledged by ${user?.first_name || 'tutor'}.`;
       if (existingRiskId) {
-        await academicService.updateAcademicRisk(existingRiskId, { resolved: true });
+        await academicService.updateAcademicRisk(existingRiskId, { resolved: true, details: detailsMsg });
       } else {
         const newRisk = await academicService.createAcademicRisk({
           student: row.student.id,
           risk_level: studentRiskLevel,
-          details: '',
+          details: detailsMsg,
           resolved: true,
         });
         setAcknowledgedRiskIds((prev) => ({ ...prev, [row.student.id]: newRisk.id }));
@@ -1325,7 +1360,7 @@ export const DashboardLayout: React.FC = () => {
 
         {/* ── Top Bar ── */}
         <header
-          className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 z-10"
+          className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 z-30"
           style={{
             background: 'var(--glass-bg)',
             backdropFilter: 'blur(12px)',
@@ -1461,10 +1496,11 @@ export const DashboardLayout: React.FC = () => {
 
                     {/* Notification Panel */}
                     <div
-                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[380px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 overflow-hidden"
+                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[380px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50"
                     >
                       {/* Dropdown header */}
                       <div
+                        className="rounded-t-2xl sm:rounded-t-xl"
                         style={{
                           padding: '0.875rem 1.25rem',
                           background: 'var(--surface-muted)',
@@ -1505,37 +1541,77 @@ export const DashboardLayout: React.FC = () => {
 
                       {/* Class filter dropdown */}
                       {tutorClassSections.length > 1 && (
-                        <div style={{ padding: '0.625rem 1rem 0', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-200)' }}>
-                          <select
-                            value={selectedAlertClass}
-                            onChange={(e) => setSelectedAlertClass(e.target.value)}
-                            aria-label="Filter by class"
-                            style={{
-                              width: '100%',
-                              padding: '0.4rem 0.75rem',
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
-                              borderRadius: '8px',
-                              border: '1px solid var(--slate-200)',
-                              background: 'var(--surface-card)',
-                              color: 'var(--text-primary)',
-                              marginBottom: '0.625rem',
-                              cursor: 'pointer',
-                              outline: 'none',
-                            }}
-                          >
-                            <option value="all">ALL CLASSES ({tutorClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)</option>
-                            {tutorClassSections.map((cls) => (
-                              <option key={cls.key} value={cls.key}>
-                                {cls.label} ({cls.students.length})
-                              </option>
-                            ))}
-                          </select>
+                        <div style={{ padding: '0.625rem 1rem 0.625rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-200)' }}>
+                          <div ref={alertClassDropdownRef} className="relative w-full max-w-full">
+                            <button
+                              type="button"
+                              onClick={() => setIsAlertClassDropdownOpen((prev) => !prev)}
+                              aria-haspopup="listbox"
+                              aria-expanded={isAlertClassDropdownOpen}
+                              aria-label="Filter high-risk students by class"
+                              className="w-full min-h-[36px] flex items-center justify-between rounded-lg border border-slate-200 dark:border-neutral-800 bg-[var(--surface-card)] px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-2xs focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 focus:outline-none transition-all cursor-pointer text-left"
+                            >
+                              <span className="truncate pr-2">{selectedAlertClassLabel}</span>
+                              <ChevronDown className={`shrink-0 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-150 ${isAlertClassDropdownOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {isAlertClassDropdownOpen && (
+                              <div
+                                role="listbox"
+                                aria-label="Filter classes"
+                                className="absolute left-0 right-0 top-full mt-1.5 z-50 w-full max-w-full rounded-xl border border-slate-200 dark:border-neutral-800 bg-[var(--surface-card)] p-1.5 shadow-xl max-h-56 overflow-y-auto no-scrollbar animate-in fade-in zoom-in-95 duration-100"
+                              >
+                                <button
+                                  type="button"
+                                  role="option"
+                                  aria-selected={selectedAlertClass === 'all'}
+                                  onClick={() => {
+                                    setSelectedAlertClass('all');
+                                    setIsAlertClassDropdownOpen(false);
+                                  }}
+                                  className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${
+                                    selectedAlertClass === 'all'
+                                      ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-[var(--brand-dark)]/20 dark:text-[var(--brand-light)]'
+                                      : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
+                                  }`}
+                                  title={`ALL CLASSES (${tutorClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)`}
+                                >
+                                  <span className="truncate">ALL CLASSES ({tutorClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)</span>
+                                  {selectedAlertClass === 'all' && <Check className="w-3.5 h-3.5 shrink-0 text-[var(--brand)] ml-2" />}
+                                </button>
+                                {tutorClassSections.map((cls) => {
+                                  const isSelected = selectedAlertClass === cls.key;
+                                  return (
+                                    <button
+                                      key={cls.key}
+                                      type="button"
+                                      role="option"
+                                      aria-selected={isSelected}
+                                      onClick={() => {
+                                        setSelectedAlertClass(cls.key);
+                                        setIsAlertClassDropdownOpen(false);
+                                      }}
+                                      className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${
+                                        isSelected
+                                          ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-[var(--brand-dark)]/20 dark:text-[var(--brand-light)]'
+                                          : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
+                                      }`}
+                                      title={`${cls.label} (${cls.students.length})`}
+                                    >
+                                      <span className="truncate">{cls.label} ({cls.students.length})</span>
+                                      {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-[var(--brand)] ml-2" />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
 
                       {/* Risk list body */}
                       <div
+                        className="rounded-b-2xl sm:rounded-b-xl"
                         style={{
                           maxHeight: 'min(420px, calc(100vh - 140px))',
                           overflowY: 'auto',

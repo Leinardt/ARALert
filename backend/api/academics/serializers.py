@@ -84,6 +84,7 @@ class AralActivitySerializer(serializers.ModelSerializer):
 class AcademicRiskSerializer(serializers.ModelSerializer):
     student_name       = serializers.SerializerMethodField()
     risk_level_display = serializers.SerializerMethodField()
+    details            = serializers.CharField(required=False, allow_blank=True, default='')
 
     class Meta:
         model  = ApiAcademicRisk
