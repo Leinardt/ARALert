@@ -199,24 +199,46 @@ class UserCreateSerializer(serializers.ModelSerializer):
         if not value:
             return 'basic'
         v = sanitize_input_text(value).lower()
-        if v in ('basic_plus', 'basic,plus') or ('basic' in v and 'plus' in v):
-            return 'basic,plus'
         valid_parts = {'basic', 'plus', 'summer', 'graduated'}
         parts = [p.strip() for p in v.replace('_', ',').split(',') if p.strip()]
-        if any(p not in valid_parts for p in parts):
+        if not parts or any(p not in valid_parts for p in parts):
             raise serializers.ValidationError('Invalid ARAL level.')
-        return v
+        return ','.join(parts)
 
     def validate_tutor_type(self, value):
         if not value:
             return 'basic'
         v = sanitize_input_text(value).lower()
-        if v in ('basic_plus', 'basic,plus') or ('basic' in v and 'plus' in v):
-            return 'basic,plus'
-        valid_types = {'basic', 'plus', 'summer', 'basic_plus', 'basic,plus'}
-        if v not in valid_types:
+        valid_parts = {'basic', 'plus', 'summer'}
+        parts = [p.strip() for p in v.replace('_', ',').split(',') if p.strip()]
+        if not parts or any(p not in valid_parts for p in parts):
             raise serializers.ValidationError('Invalid tutor type.')
-        return v
+        return ','.join(parts)
+
+    def validate_subject(self, value):
+        if not value:
+            return 'Filipino'
+        v = sanitize_input_text(value).strip()
+        parts = [p.strip() for p in v.replace(';', ',').split(',') if p.strip()]
+        valid_map = {
+            'filipino': 'Filipino',
+            'reading': 'Filipino',
+            'english': 'English',
+            'science': 'Science',
+            'math': 'Math',
+        }
+        cleaned = []
+        for p in parts:
+            matched = valid_map.get(p.lower())
+            if matched:
+                cleaned.append(matched)
+
+        if cleaned:
+            combined = ', '.join(cleaned)
+            if len(combined) <= 50:
+                return combined
+            return cleaned[0]
+        return 'Filipino'
 
     def validate_role(self, value):
         """Allow roles and permit None/empty if is_superuser is set."""
@@ -377,24 +399,21 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         if not value:
             return 'basic'
         v = sanitize_input_text(value).lower()
-        if v in ('basic_plus', 'basic,plus') or ('basic' in v and 'plus' in v):
-            return 'basic,plus'
         valid_parts = {'basic', 'plus', 'summer', 'graduated'}
         parts = [p.strip() for p in v.replace('_', ',').split(',') if p.strip()]
-        if any(p not in valid_parts for p in parts):
+        if not parts or any(p not in valid_parts for p in parts):
             raise serializers.ValidationError('Invalid ARAL level.')
-        return v
+        return ','.join(parts)
 
     def validate_tutor_type(self, value):
         if not value:
             return 'basic'
         v = sanitize_input_text(value).lower()
-        if v in ('basic_plus', 'basic,plus') or ('basic' in v and 'plus' in v):
-            return 'basic,plus'
-        valid_types = {'basic', 'plus', 'summer', 'basic_plus', 'basic,plus'}
-        if v not in valid_types:
+        valid_parts = {'basic', 'plus', 'summer'}
+        parts = [p.strip() for p in v.replace('_', ',').split(',') if p.strip()]
+        if not parts or any(p not in valid_parts for p in parts):
             raise serializers.ValidationError('Invalid tutor type.')
-        return v
+        return ','.join(parts)
 
     def validate_subject(self, value):
         if not value:
@@ -411,12 +430,12 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         cleaned = []
         for p in parts:
             matched = valid_map.get(p.lower())
-            if matched and matched not in cleaned:
+            if matched:
                 cleaned.append(matched)
 
         if cleaned:
             combined = ', '.join(cleaned)
-            if len(combined) <= 20:
+            if len(combined) <= 50:
                 return combined
             return cleaned[0]
         return 'Filipino'

@@ -87,7 +87,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         GRADUATED = 'graduated', 'Graduated'
 
     aral_level = models.CharField(
-        max_length=15,
+        max_length=50,
         choices=AralLevel.choices,
         default=AralLevel.BASIC,
         verbose_name='ARAL Level',
@@ -118,7 +118,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     # Subject handled by the tutor or student subject focus (Filipino, Science, Math, English)
     subject = models.CharField(
-        max_length=20,
+        max_length=50,
         choices=Subject.choices,
         null=True,
         blank=True,
@@ -164,7 +164,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
 
     tutor_type = models.CharField(
-        max_length=20,
+        max_length=50,
         choices=TutorType.choices,
         default=TutorType.BASIC,
         verbose_name='Tutor Type',
@@ -233,18 +233,23 @@ class User(AbstractBaseUser, PermissionsMixin):
     def get_short_name(self):
         return self.first_name.upper().strip() if self.first_name else ''
 
+    @staticmethod
+    def _normalize_tutor_levels(aral_level: str | None, tutor_type: str | None) -> str:
+        raw = (aral_level or tutor_type or 'basic').lower().replace('_', ',')
+        tokens = [t.strip() for t in raw.split(',') if t.strip() in ('basic', 'plus', 'summer')]
+        if not tokens:
+            combined = f"{tutor_type or ''} {aral_level or ''}".lower()
+            for lvl in ('basic', 'plus', 'summer'):
+                if lvl in combined:
+                    tokens.append(lvl)
+        if not tokens:
+            return 'basic'
+        return ','.join(tokens)
+
     def clean(self):
         super().clean()
         if self.role == 'tutor':
-            combined = f"{self.tutor_type or ''} {self.aral_level or ''}".lower()
-            if ('basic' in combined and 'plus' in combined) or 'basic_plus' in combined or 'basic,plus' in combined:
-                level = 'basic,plus'
-            elif 'plus' in combined:
-                level = 'plus'
-            elif 'summer' in combined:
-                level = 'summer'
-            else:
-                level = 'basic'
+            level = self._normalize_tutor_levels(self.aral_level, self.tutor_type)
             self.aral_level = level
             self.tutor_type = level
 
@@ -257,15 +262,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         if self.last_name:
             self.last_name = self.last_name.upper().strip()
         if self.role == 'tutor':
-            combined = f"{self.tutor_type or ''} {self.aral_level or ''}".lower()
-            if ('basic' in combined and 'plus' in combined) or 'basic_plus' in combined or 'basic,plus' in combined:
-                level = 'basic,plus'
-            elif 'plus' in combined:
-                level = 'plus'
-            elif 'summer' in combined:
-                level = 'summer'
-            else:
-                level = 'basic'
+            level = self._normalize_tutor_levels(self.aral_level, self.tutor_type)
             self.aral_level = level
             self.tutor_type = level
         if self.subject and self.subject.strip().lower() == 'reading':
