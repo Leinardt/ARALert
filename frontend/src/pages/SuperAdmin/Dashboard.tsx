@@ -107,7 +107,7 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   const staffTotal = stats
-    ? stats.admins + stats.principals + stats.faculty + stats.tutors
+    ? stats.admins + stats.principals + stats.tutors
     : 0;
 
   const activeRate = stats && stats.total_users > 0
@@ -119,7 +119,6 @@ export const Dashboard: React.FC = () => {
         { label: 'Super Admin', count: 1 },
         { label: 'Administrators', count: stats.admins },
         { label: 'Principals', count: stats.principals },
-        { label: 'Faculty Members', count: stats.faculty },
         { label: 'Tutors', count: stats.tutors },
         { label: 'Students', count: stats.students },
       ]
@@ -180,7 +179,7 @@ export const Dashboard: React.FC = () => {
                 {staffTotal.toLocaleString()}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 truncate">
-                {stats.tutors} Tutors • {stats.faculty} Faculty • {stats.admins} Admins
+                {stats.tutors} Tutors • {stats.admins} Admins
               </p>
             </div>
 

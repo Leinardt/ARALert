@@ -40,7 +40,7 @@ const createUserSchema = z.object({
     .refine((v) => NAME_REGEX.test(v), 'Last Name can only contain letters, spaces, hyphens, and periods.')
     .refine((v) => !DANGEROUS_INJECTION_PATTERN.test(v), 'Invalid characters detected.'),
   email: z.string().optional(),
-  role: z.enum(['superadmin', 'admin', 'principal', 'faculty', 'tutor', 'student'], {
+  role: z.enum(['superadmin', 'admin', 'principal', 'tutor', 'student'], {
     message: 'Please select a valid role.',
   }),
   lrn: z.string().optional(),
@@ -141,8 +141,8 @@ export const CreateUser: React.FC = () => {
   const searchParams = new URLSearchParams(location.search);
   const requestedRole = searchParams.get('role');
   const allowedRoles = isSuperUser
-    ? ['student', 'tutor', 'faculty', 'principal', 'admin', 'superadmin']
-    : ['student', 'tutor', 'faculty', 'principal'];
+    ? ['student', 'tutor', 'principal', 'admin', 'superadmin']
+    : ['student', 'tutor', 'principal'];
   const initialRole = (requestedRole && allowedRoles.includes(requestedRole))
     ? (requestedRole as CreateUserFields['role'])
     : (isSuperUser ? 'tutor' : 'student');
@@ -269,10 +269,6 @@ export const CreateUser: React.FC = () => {
         return {
           title: 'Add Tutor',
         };
-      case 'faculty':
-        return {
-          title: 'Add Faculty',
-        };
       case 'principal':
         return {
           title: 'Add Principal',
@@ -296,14 +292,12 @@ export const CreateUser: React.FC = () => {
     if (currentUser?.is_superuser) {
       if (selectedRole === 'student') return '/superadmin/students';
       if (selectedRole === 'tutor') return '/superadmin/tutors';
-      if (selectedRole === 'faculty') return '/superadmin/faculty';
       if (selectedRole === 'principal') return '/superadmin/principals';
       if (selectedRole === 'admin') return '/superadmin/admins';
       if (selectedRole === 'superadmin') return '/superadmin/superadmins';
       return '/superadmin/users';
     }
     if (selectedRole === 'tutor') return '/admin/tutors';
-    if (selectedRole === 'faculty') return '/admin/faculty';
     if (selectedRole === 'principal') return '/admin/principals';
     return '/admin/students';
   };
@@ -388,7 +382,11 @@ export const CreateUser: React.FC = () => {
             const hasBasic = tutorRoleDetails.some((g) => g.aralLevel === 'basic');
             const hasPlus = tutorRoleDetails.some((g) => g.aralLevel === 'plus');
             const hasSummer = tutorRoleDetails.some((g) => g.aralLevel === 'summer');
-            const fallbackLevel = hasBasic ? 'basic' : hasPlus ? 'plus' : hasSummer ? 'summer' : 'basic';
+            const fallbackLevels: string[] = [];
+            if (hasBasic) fallbackLevels.push('basic');
+            if (hasPlus) fallbackLevels.push('plus');
+            if (hasSummer) fallbackLevels.push('summer');
+            const fallbackLevel = fallbackLevels.length > 0 ? fallbackLevels.join(',') : 'basic';
             fallbackPayload.aral_level = fallbackLevel;
             fallbackPayload.tutor_type = fallbackLevel;
           }
@@ -600,8 +598,6 @@ export const CreateUser: React.FC = () => {
                     placeholder={
                       selectedRole === 'tutor'
                         ? 'e.g. tutor@bicol-u.edu.ph'
-                        : selectedRole === 'faculty'
-                        ? 'e.g. faculty@deped.gov.ph'
                         : selectedRole === 'principal'
                         ? 'e.g. principal@deped.gov.ph'
                         : selectedRole === 'admin'

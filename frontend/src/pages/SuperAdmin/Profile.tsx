@@ -129,8 +129,9 @@ const SecurityHelpButton: React.FC<{ label: string; description: string }> = ({ 
     >
       <Info size={14} />
     </button>
-    <span className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-72 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs font-semibold leading-relaxed text-slate-800 dark:text-white shadow-lg group-hover:block group-focus-within:block">
+    <span className="pointer-events-none absolute left-0 bottom-full z-20 mb-2 hidden w-72 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs font-semibold leading-relaxed text-slate-800 dark:text-white shadow-xl group-hover:block group-focus-within:block">
       {description}
+      <span className="absolute left-6 top-full -mt-1 border-4 border-transparent border-t-white dark:border-t-zinc-900" />
     </span>
   </span>
 );
@@ -413,72 +414,67 @@ export const Profile: React.FC = () => {
 
   const readonlyStyle: React.CSSProperties = {
     width: '100%',
-    padding: '0.65rem 0.85rem',
+    padding: '0.45rem 0.75rem',
     borderRadius: 'var(--radius-md)',
     border: '1px solid var(--slate-200)',
     background: 'var(--surface-muted)',
     backgroundColor: 'var(--surface-muted)',
-    fontSize: '0.875rem',
+    fontSize: '0.8125rem',
     color: 'var(--text-muted)',
     cursor: 'not-allowed',
   };
 
   const editableStyle: React.CSSProperties = {
-    padding: '0.65rem 0.85rem',
+    width: '100%',
+    padding: '0.45rem 0.75rem',
     borderRadius: 'var(--radius-md)',
     border: '1.5px solid var(--brand)',
     background: 'var(--surface-card)',
-    fontSize: '0.875rem',
+    fontSize: '0.8125rem',
     color: 'var(--text-primary)',
     outline: 'none',
     transition: 'border-color 0.2s',
   };
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="max-w-[900px] mx-auto flex flex-col gap-3.5 sm:gap-6 w-full min-w-0">
 
       {/* ── User Overview Header ── */}
-      <div className="p-4 sm:p-6 md:p-8" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
+      <div className="p-3.5 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-2xs">
         <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex flex-row items-center gap-3.5 sm:gap-5 text-left w-full sm:w-auto min-w-0">
+          <div className="flex flex-row items-center gap-3 sm:gap-5 text-left w-full sm:w-auto min-w-0">
             <div
-              className="flex items-center justify-center shrink-0 overflow-hidden rounded-2xl bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 w-14 h-14 sm:w-[76px] sm:h-[76px]"
+              className="flex items-center justify-center shrink-0 overflow-hidden rounded-xl sm:rounded-2xl bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 w-12 h-12 sm:w-16 sm:h-16 md:w-[76px] md:h-[76px]"
             >
               {localUser.avatar ? (
                 <img src={localUser.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                <UserIcon className="w-7 h-7 sm:w-[38px] sm:h-[38px]" />
+                <UserIcon className="w-6 h-6 sm:w-8 sm:h-8 md:w-[38px] md:h-[38px]" />
               )}
             </div>
 
             <div className="min-w-0 flex-1">
               {/* Displayed in uppercase with middle initial only across the system */}
               <h1
-                className="text-base sm:text-[1.4rem] font-extrabold leading-tight break-words"
-                style={{ margin: 0, fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', letterSpacing: '0.02em' }}
+                className="text-sm sm:text-lg md:text-[1.4rem] font-extrabold leading-tight break-words text-gray-900 dark:text-white tracking-wide"
+                style={{ margin: 0, fontFamily: 'var(--font-heading)' }}
               >
                 {formatSystemDisplayName(localUser)}
               </h1>
               {localUser.role === 'student' ? (
-                <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-muted)' }}>LRN:</span>
-                  <span style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>{localUser.lrn || '—'}</span>
+                <p className="mt-0.5 text-xs sm:text-[0.85rem] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <span className="font-bold text-[10px] sm:text-xs text-slate-400 dark:text-slate-500">LRN:</span>
+                  <span className="font-mono font-semibold">{localUser.lrn || '—'}</span>
                 </p>
               ) : (
-                <p className="truncate" style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Mail size={14} className="shrink-0" /> <span className="truncate">{localUser.email}</span>
+                <p className="mt-0.5 text-xs sm:text-[0.85rem] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 min-w-0">
+                  <Mail size={13} className="shrink-0 text-slate-400" />
+                  <span className="truncate sm:break-normal" title={localUser.email}>{localUser.email}</span>
                 </p>
               )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 <span
-                  className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-zinc-700"
-                  style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                    padding: '3px 10px',
-                    borderRadius: 'var(--radius-pill)',
-                  }}
+                  className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-zinc-700 text-[10px] sm:text-xs font-extrabold uppercase px-2.5 py-0.5 rounded-full"
                 >
                   {localUser.is_superuser ? 'SuperAdmin' : localUser.role?.toUpperCase() || 'USER'}
                 </span>
@@ -536,11 +532,11 @@ export const Profile: React.FC = () => {
       )}
 
       {/* ── Profile Details Section ── */}
-      <div className="p-4 sm:p-6 md:p-8" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
+      <div className="p-3.5 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-2xs">
 
         {/* Card header row */}
-        <div className="flex items-center justify-between flex-wrap gap-2.5 mb-5 sm:mb-6">
-          <h2 className="text-sm sm:text-[1.1rem] font-bold m-0" style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>
+        <div className="flex items-center justify-between gap-2 mb-3.5 sm:mb-6">
+          <h2 className="text-xs sm:text-base md:text-[1.1rem] font-bold text-gray-900 dark:text-white uppercase tracking-tight truncate">
             PROFILE INFORMATION
           </h2>
 
@@ -549,95 +545,39 @@ export const Profile: React.FC = () => {
               <button
                 type="button"
                 onClick={handleEditOpen}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-[1.1rem] sm:py-[0.5rem] text-[11px] sm:text-[0.8rem] font-bold text-white rounded-lg cursor-pointer whitespace-nowrap transition-colors"
-                style={{
-                  border: 'none',
-                  background: 'var(--brand)',
-                  fontFamily: 'var(--font-body)',
-                  boxShadow: '0 2px 8px rgba(9, 115, 55, 0.25)',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-dark, #065f2c)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--brand)'; }}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] rounded-lg cursor-pointer whitespace-nowrap transition-colors shrink-0 shadow-2xs"
               >
-                <Edit3 size={14} className="shrink-0" />
-                Request Profile Update
+                <Edit3 size={13} className="shrink-0" />
+                <span><span className="hidden xs:inline">Request </span>Update</span>
               </button>
             )
           ) : !isEditing ? (
             <button
               type="button"
               onClick={handleEditOpen}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                padding: '0.5rem 1.1rem',
-                borderRadius: 'var(--radius-md)',
-                border: 'none',
-                background: 'var(--brand)',
-                color: '#fff',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                fontFamily: 'var(--font-body)',
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(9, 115, 55, 0.25)',
-                transition: 'var(--transition-fast)',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--brand-dark, #065f2c)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--brand)'; }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] rounded-lg cursor-pointer whitespace-nowrap transition-colors shrink-0 shadow-2xs"
             >
-              <Edit3 size={14} />
-              Edit
+              <Edit3 size={13} className="shrink-0" />
+              <span>Edit</span>
             </button>
           ) : (
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleCancel}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '0.5rem 1rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1.5px solid var(--slate-200)',
-                  background: 'var(--surface-muted)',
-                  color: 'var(--text-secondary)',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-body)',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-fast)',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-100)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; }}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 rounded-lg cursor-pointer transition-colors"
               >
-                <X size={14} />
-                Cancel
+                <X size={13} />
+                <span>Cancel</span>
               </button>
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '0.5rem 1.1rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: 'none',
-                  background: isSaving ? 'var(--brand-muted, #6ee7a0)' : 'var(--brand)',
-                  color: '#fff',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-body)',
-                  cursor: isSaving ? 'not-allowed' : 'pointer',
-                  transition: 'var(--transition-fast)',
-                  opacity: isSaving ? 0.7 : 1,
-                }}
+                className="inline-flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] rounded-lg cursor-pointer transition-colors disabled:opacity-50"
               >
-                <Save size={14} />
-                {isSaving ? 'Saving…' : 'Save'}
+                <Save size={13} />
+                <span>{isSaving ? 'Saving…' : 'Save'}</span>
               </button>
             </div>
           )}
@@ -655,11 +595,11 @@ export const Profile: React.FC = () => {
           </div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="flex flex-col gap-3 sm:gap-4">
           {/* First Name / Middle Name / Last Name (Normal Typography) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>First Name</label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4">
+            <div className="flex flex-col gap-1 sm:gap-1.5">
+              <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wide">First Name</label>
               {isEditing && localUser.role !== 'student' ? (
                 <input
                   value={editFirst}
@@ -672,8 +612,8 @@ export const Profile: React.FC = () => {
               )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Middle Name</label>
+            <div className="flex flex-col gap-1 sm:gap-1.5">
+              <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Middle Name</label>
               {isEditing && localUser.role !== 'student' ? (
                 <input
                   value={editMiddle}
@@ -686,8 +626,8 @@ export const Profile: React.FC = () => {
               )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Last Name</label>
+            <div className="flex flex-col gap-1 sm:gap-1.5">
+              <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Last Name</label>
               {isEditing && localUser.role !== 'student' ? (
                 <input
                   value={editLast}
@@ -702,9 +642,9 @@ export const Profile: React.FC = () => {
           </div>
 
           {/* Email (or LRN for students) / Member Since */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
+            <div className="flex flex-col gap-1 sm:gap-1.5">
+              <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wide">
                 {localUser.role === 'student' ? 'Learner Reference Number (LRN)' : 'Email Address'}
               </label>
               <div
@@ -733,8 +673,8 @@ export const Profile: React.FC = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <div className="flex flex-col gap-1 sm:gap-1.5">
+              <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wide">
                 Member Since
               </label>
               <input
@@ -748,40 +688,31 @@ export const Profile: React.FC = () => {
 
           {/* Tutor Role Details & Handled Classes */}
           {localUser.role === 'tutor' && (
-            <div className="mt-2 pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-3.5">
+            <div className="mt-2 pt-3.5 sm:pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-2.5 sm:space-y-3.5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
-                    ASSIGNED CLASSES
+                  <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                    ASSIGNED CLASSES {tutorAssignedClasses.length > 0 && `(${tutorAssignedClasses.length})`}
                   </h3>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
                 {tutorAssignedClasses.map((cls, idx) => {
-                  const isPlus = cls.aralLevel === 'plus';
-
                   return (
                     <div
                       key={cls.key || idx}
-                      className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 p-4 space-y-3 shadow-xs"
+                      className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 p-3 sm:p-4 space-y-2.5 sm:space-y-3 shadow-xs"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                          Role Detail #{idx + 1}
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-zinc-800/80">
+                        <span className="text-[10.5px] sm:text-[11px] font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
+                          Class #{idx + 1}
                         </span>
                         <span
-                          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${isPlus
-                              ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
-                              : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                            }`}
+                          className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-zinc-700 text-[9.5px] sm:text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider"
                         >
                           {cls.aralLevel.toUpperCase()}
                         </span>
-                      </div>
-
-                      <div className="text-xs font-bold text-gray-900 dark:text-white pb-2.5 border-b border-slate-200/60 dark:border-zinc-800/80">
-                        {cls.label}
                       </div>
 
                       <div className="space-y-1.5 text-xs">
@@ -789,7 +720,7 @@ export const Profile: React.FC = () => {
                           <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
                             Subject
                           </span>
-                          <span className="font-semibold text-gray-800 dark:text-slate-200 text-right">
+                          <span className="font-semibold text-gray-800 dark:text-slate-200 text-right truncate">
                             {cls.subject}
                           </span>
                         </div>
@@ -797,7 +728,7 @@ export const Profile: React.FC = () => {
                           <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
                             Grade & Section
                           </span>
-                          <span className="font-semibold text-gray-800 dark:text-slate-200 text-right">
+                          <span className="font-semibold text-gray-800 dark:text-slate-200 text-right truncate">
                             {cls.cohort}
                           </span>
                         </div>
@@ -912,19 +843,23 @@ export const Profile: React.FC = () => {
       )}
 
       {localUser.role !== 'student' && (
-        <section style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', padding: '2rem', boxShadow: 'var(--shadow-xs)' }}>
-          <h2 style={{ margin: '0 0 1.25rem', fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+        <section className="p-3.5 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-xs">
+          <h2 className="text-xs sm:text-sm md:text-base font-bold uppercase tracking-wider text-gray-900 dark:text-white mb-3 sm:mb-4">
             ACCOUNT SECURITY
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-            <div style={{ border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-lg)', padding: '1.15rem' }}>
-              <h3 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>CHANGE PASSWORD</h3>
-              <p style={{ margin: '0.35rem 0 0.85rem', fontSize: '0.78rem', lineHeight: 1.5, color: 'var(--text-muted)' }}>Your sign-in password is managed through your Google Account.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
+            <div className="border border-slate-200 dark:border-zinc-800 rounded-lg sm:rounded-xl p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-900/30 flex flex-col justify-between">
+              <div>
+                <h3 className="text-xs sm:text-[0.85rem] font-extrabold text-gray-900 dark:text-slate-100 uppercase tracking-wide">CHANGE PASSWORD</h3>
+                <p className="text-[11px] sm:text-[0.78rem] text-slate-500 dark:text-slate-400 mt-1 mb-3 leading-relaxed">Your sign-in password is managed through your Google Account.</p>
+              </div>
               <SecurityHelpButton label="How to change password" description="Open your Google Account, select Security, then choose Password under “How you sign in to Google.”" />
             </div>
-            <div style={{ border: '1px solid var(--slate-200)', borderRadius: 'var(--radius-lg)', padding: '1.15rem' }}>
-              <h3 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>ENABLE 2-FACTOR AUTHENTICATION</h3>
-              <p style={{ margin: '0.35rem 0 0.85rem', fontSize: '0.78rem', lineHeight: 1.5, color: 'var(--text-muted)' }}>Two-factor authentication is managed through your Google Account.</p>
+            <div className="border border-slate-200 dark:border-zinc-800 rounded-lg sm:rounded-xl p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-900/30 flex flex-col justify-between">
+              <div>
+                <h3 className="text-xs sm:text-[0.85rem] font-extrabold text-gray-900 dark:text-slate-100 uppercase tracking-wide">ENABLE 2-FACTOR AUTHENTICATION</h3>
+                <p className="text-[11px] sm:text-[0.78rem] text-slate-500 dark:text-slate-400 mt-1 mb-3 leading-relaxed">Two-factor authentication is managed through your Google Account.</p>
+              </div>
               <SecurityHelpButton label="How to enable 2-factor authentication" description="Open your Google Account, select Security, then choose 2-Step Verification and follow the setup steps." />
             </div>
           </div>

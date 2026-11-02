@@ -40,7 +40,7 @@ const editUserSchema = z.object({
     .refine((v) => NAME_REGEX.test(v), 'Last Name can only contain letters, spaces, hyphens, and periods.')
     .refine((v) => !DANGEROUS_INJECTION_PATTERN.test(v), 'Invalid characters detected.'),
   email: z.string().optional(),
-  role: z.enum(['admin', 'principal', 'faculty', 'tutor', 'student'], {
+  role: z.enum(['admin', 'principal', 'tutor', 'student'], {
     message: 'Please select a valid role.',
   }),
   lrn: z.string().optional(),
@@ -411,7 +411,11 @@ export const EditUser: React.FC = () => {
             const hasBasic = tutorRoleDetails.some((g) => g.aralLevel === 'basic');
             const hasPlus = tutorRoleDetails.some((g) => g.aralLevel === 'plus');
             const hasSummer = tutorRoleDetails.some((g) => g.aralLevel === 'summer');
-            const fallbackLevel = hasBasic ? 'basic' : hasPlus ? 'plus' : hasSummer ? 'summer' : 'basic';
+            const fallbackLevels: string[] = [];
+            if (hasBasic) fallbackLevels.push('basic');
+            if (hasPlus) fallbackLevels.push('plus');
+            if (hasSummer) fallbackLevels.push('summer');
+            const fallbackLevel = fallbackLevels.length > 0 ? fallbackLevels.join(',') : 'basic';
             fallbackPayload.aral_level = fallbackLevel;
             fallbackPayload.tutor_type = fallbackLevel;
           }
@@ -445,13 +449,11 @@ export const EditUser: React.FC = () => {
         if (currentUser?.is_superuser) {
           if (data.role === 'student') return '/superadmin/students';
           if (data.role === 'tutor') return '/superadmin/tutors';
-          if (data.role === 'faculty') return '/superadmin/faculty';
           if (data.role === 'principal') return '/superadmin/principals';
           if (data.role === 'admin') return '/superadmin/admins';
           return '/superadmin/superadmins';
         }
         if (data.role === 'principal') return '/admin/principals';
-        if (data.role === 'faculty') return '/admin/faculty';
         if (data.role === 'tutor') return '/admin/tutors';
         return '/admin/students';
       };
@@ -537,13 +539,11 @@ export const EditUser: React.FC = () => {
     if (currentUser?.is_superuser) {
       if (role === 'student') target = '/superadmin/students';
       else if (role === 'tutor') target = '/superadmin/tutors';
-      else if (role === 'faculty') target = '/superadmin/faculty';
       else if (role === 'principal') target = '/superadmin/principals';
       else if (role === 'admin') target = '/superadmin/admins';
       else target = '/superadmin/superadmins';
     } else {
       if (role === 'principal') target = '/admin/principals';
-      else if (role === 'faculty') target = '/admin/faculty';
       else if (role === 'tutor') target = '/admin/tutors';
     }
     navigate(target, {
@@ -610,13 +610,11 @@ export const EditUser: React.FC = () => {
           currentUser?.is_superuser
             ? selectedRole === 'student' ? '/superadmin/students'
             : selectedRole === 'tutor' ? '/superadmin/tutors'
-            : selectedRole === 'faculty' ? '/superadmin/faculty'
             : selectedRole === 'principal' ? '/superadmin/principals'
             : selectedRole === 'admin' ? '/superadmin/admins'
             : '/superadmin/users'
             : selectedRole === 'admin' ? '/admin/admins'
             : selectedRole === 'principal' ? '/admin/principals'
-            : selectedRole === 'faculty' ? '/admin/faculty'
             : selectedRole === 'tutor' ? '/admin/tutors'
             : '/admin/students'
         }
@@ -741,8 +739,6 @@ export const EditUser: React.FC = () => {
                     placeholder={
                       selectedRole === 'tutor'
                         ? 'e.g. tutor@bicol-u.edu.ph'
-                        : selectedRole === 'faculty'
-                        ? 'e.g. faculty@bicol-u.edu.ph'
                         : selectedRole === 'principal'
                         ? 'e.g. principal@bicol-u.edu.ph'
                         : selectedRole === 'admin'

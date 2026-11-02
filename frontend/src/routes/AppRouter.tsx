@@ -32,18 +32,15 @@ const AuditLog = lazyWithRetry(() => import('../pages/SuperAdmin/AuditLog').then
 
 // Role pages
 const AdminHome = lazyWithRetry(() => import('../pages/Admin/AdminHome').then(m => ({ default: m.AdminHome })));
-const AdminAttendanceQR = lazyWithRetry(() => import('../pages/Admin/AdminAttendanceQR').then(m => ({ default: m.AdminAttendanceQR })));
 const AdminEvaluationHub = lazyWithRetry(() => import('../pages/Admin/AdminEvaluationHub').then(m => ({ default: m.AdminEvaluationHub })));
 const AssessmentsArchive = lazyWithRetry(() => import('../pages/Admin/AssessmentsArchive').then(m => ({ default: m.AssessmentsArchive })));
 const PrincipalHome = lazyWithRetry(() => import('../pages/Principal/PrincipalHome').then(m => ({ default: m.PrincipalHome })));
 const PrincipalAnalytics = lazyWithRetry(() => import('../pages/Principal/PrincipalAnalytics').then(m => ({ default: m.PrincipalAnalytics })));
-const FacultyHome = lazyWithRetry(() => import('../pages/Faculty/FacultyHome').then(m => ({ default: m.FacultyHome })));
 const TutorHome = lazyWithRetry(() => import('../pages/Tutor/TutorHome').then(m => ({ default: m.TutorHome })));
 const TutorQRGenerator = lazyWithRetry(() => import('../pages/Tutor/TutorQRGenerator').then(m => ({ default: m.TutorQRGenerator })));
 const TutorStudentDirectory = lazyWithRetry(() => import('../pages/Tutor/TutorStudentDirectory').then(m => ({ default: m.TutorStudentDirectory })));
 const TutorStudentProfile = lazyWithRetry(() => import('../pages/Tutor/TutorStudentProfile').then(m => ({ default: m.TutorStudentProfile })));
 const TutorAnalytics = lazyWithRetry(() => import('../pages/Tutor/TutorAnalytics').then(m => ({ default: m.TutorAnalytics })));
-const StaffAttendanceScanner = lazyWithRetry(() => import('../pages/Tutor/StaffAttendanceScanner').then(m => ({ default: m.StaffAttendanceScanner })));
 const TutorScores = lazyWithRetry(() => import('../pages/Tutor/TutorScores'));
 const TutorArchive = lazyWithRetry(() => import('../pages/Tutor/TutorArchive').then(m => ({ default: m.TutorArchive })));
 const StudentHome = lazyWithRetry(() => import('../pages/Student/StudentHome').then(m => ({ default: m.StudentHome })));
@@ -98,9 +95,6 @@ export const AppRouter: React.FC = () => {
           <Route path="/superadmin/tutors" element={<UserList />} />
           <Route path="/superadmin/tutors/create" element={<CreateUser />} />
           <Route path="/superadmin/tutors/edit/:id" element={<EditUser />} />
-          <Route path="/superadmin/faculty" element={<UserList />} />
-          <Route path="/superadmin/faculty/create" element={<CreateUser />} />
-          <Route path="/superadmin/faculty/edit/:id" element={<EditUser />} />
           <Route path="/superadmin/principals" element={<UserList />} />
           <Route path="/superadmin/principals/create" element={<CreateUser />} />
           <Route path="/superadmin/principals/edit/:id" element={<EditUser />} />
@@ -110,7 +104,6 @@ export const AppRouter: React.FC = () => {
           <Route path="/superadmin/superadmins" element={<UserList />} />
           <Route path="/superadmin/superadmins/create" element={<CreateUser />} />
           <Route path="/superadmin/superadmins/edit/:id" element={<EditUser />} />
-          <Route path="/superadmin/attendance" element={<AdminAttendanceQR />} />
           <Route path="/superadmin/evaluations" element={<AdminEvaluationHub />} />
           <Route path="/superadmin/archive" element={<AssessmentsArchive />} />
           <Route path="/superadmin/audit-logs" element={<AuditLog />} />
@@ -134,16 +127,12 @@ export const AppRouter: React.FC = () => {
           <Route path="/admin/tutors" element={<UserList />} />
           <Route path="/admin/tutors/create" element={<CreateUser />} />
           <Route path="/admin/tutors/edit/:id" element={<EditUser />} />
-          <Route path="/admin/faculty" element={<UserList />} />
-          <Route path="/admin/faculty/create" element={<CreateUser />} />
-          <Route path="/admin/faculty/edit/:id" element={<EditUser />} />
           <Route path="/admin/principals" element={<UserList />} />
           <Route path="/admin/principals/create" element={<CreateUser />} />
           <Route path="/admin/principals/edit/:id" element={<EditUser />} />
           <Route path="/admin/admins" element={<UserList />} />
           <Route path="/admin/admins/create" element={<CreateUser />} />
           <Route path="/admin/admins/edit/:id" element={<EditUser />} />
-          <Route path="/admin/attendance" element={<AdminAttendanceQR />} />
           <Route path="/admin/evaluations" element={<AdminEvaluationHub />} />
           <Route path="/admin/archive" element={<AssessmentsArchive />} />
           <Route path="/admin/audit-logs" element={<AuditLog />} />
@@ -163,16 +152,6 @@ export const AppRouter: React.FC = () => {
           <Route path="/principal/analytics" element={<PrincipalAnalytics />} />
         </Route>
 
-        {/* ── Faculty routes ────────────────────────── */}
-        <Route
-          element={
-            <ProtectedRoute allowedRoles={['faculty']}>
-              <DashboardLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/faculty" element={<FacultyHome />} />
-        </Route>
 
         {/* ── Tutor routes ──────────────────────────── */}
         <Route
@@ -191,20 +170,10 @@ export const AppRouter: React.FC = () => {
           <Route path="/tutor/students/:id" element={<TutorStudentProfile />} />
         </Route>
 
-        {/* ── Shared Staff routes ──────────────────── */}
-        <Route
-          element={
-            <ProtectedRoute allowedRoles={['admin', 'tutor', 'faculty', 'student', 'principal']}>
-              <DashboardLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/staff/scan" element={<StaffAttendanceScanner />} />
-        </Route>
 
         <Route
           element={
-            <ProtectedRoute allowedRoles={['superadmin', 'admin', 'tutor', 'principal', 'faculty', 'student']}>
+            <ProtectedRoute allowedRoles={['superadmin', 'admin', 'tutor', 'principal', 'student']}>
               <DashboardLayout />
             </ProtectedRoute>
           }
