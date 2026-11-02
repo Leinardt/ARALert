@@ -623,9 +623,14 @@ export const AssessmentsArchive: React.FC = () => {
           const isPassed = ts === 40 ? sc >= 28 : (sc / ts) >= 0.7;
 
           if (activeTab === 'mosy') {
-            // In MOSY (Q1 & Q2): Passed students move up an ARAL level (Basic -> Plus).
-            // Retained students remain in their ARAL level (they failed but we don't call it fail).
-            status = isPassed ? 'MOVED_UP' : 'RETAINED';
+            // In MOSY (Q1 & Q2): Plus students who pass graduate!
+            // Basic students who pass move up an ARAL level (Basic -> Plus).
+            // Retained students remain in their ARAL level.
+            if (isPassed || rawLevel === 'graduated') {
+              status = isPlusCohort ? 'GRADUATED' : 'MOVED_UP';
+            } else {
+              status = 'RETAINED';
+            }
           } else if (activeTab === 'eosy') {
             // In EOSY (Q3 & Q4): Plus students who pass graduate!
             // Basic students who pass move up an ARAL level (Basic -> Plus).

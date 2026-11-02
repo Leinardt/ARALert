@@ -554,12 +554,12 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         # Log individual tutor assignment if changed
         if 'assigned_tutor' in serializer.validated_data and updated_user.assigned_tutor != prev_tutor:
             tutor_obj = updated_user.assigned_tutor
-            from services.tutor_service import assign_tutor_to_student
+            from services.tutor_service import assign_tutor_to_student, get_active_milestone_period
             assign_tutor_to_student(
                 student=updated_user,
                 tutor=tutor_obj,
                 assigned_by=self.request.user,
-                period='MOSY',
+                period=get_active_milestone_period(),
                 notes='Individual tutor assignment'
             )
             log_audit_event(
@@ -744,7 +744,7 @@ class BulkAssignTutorView(APIView):
 
         students = list(User.objects.filter(id__in=student_ids, role='student', is_superuser=False))
 
-        from services.tutor_service import assign_tutor_to_student, validate_tutor_compatibility
+        from services.tutor_service import assign_tutor_to_student, validate_tutor_compatibility, get_active_milestone_period
         from django.core.exceptions import ValidationError as DjangoValidationError
         from rest_framework.exceptions import ValidationError as RestValidationError
 
@@ -769,13 +769,14 @@ class BulkAssignTutorView(APIView):
                     })
 
         # Process assignments
+        active_period = get_active_milestone_period()
         for s in students:
             try:
                 assign_tutor_to_student(
                     student=s,
                     tutor=tutor,
                     assigned_by=request.user,
-                    period='MOSY',
+                    period=active_period,
                     notes='Bulk tutor assignment',
                 )
             except DjangoValidationError as e:

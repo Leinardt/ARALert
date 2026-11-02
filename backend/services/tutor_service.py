@@ -53,18 +53,40 @@ def validate_tutor_compatibility(tutor: User, student_program: str) -> None:
         })
 
 
+def get_active_milestone_period() -> str:
+    """
+    Resolve active milestone period ('MOSY', 'EOSY', 'SUMMER') based on the current system semester.
+    Defaults to 'EOSY' if in 2nd semester, 'MOSY' if in 1st, or 'SUMMER' if in summer.
+    """
+    try:
+        from apps.audit.models import AuditLog
+        last_sem_log = AuditLog.objects.filter(action='SEMESTER_TRANSITION_SET').order_by('-timestamp').first()
+        if (
+            last_sem_log
+            and isinstance(last_sem_log.details, dict)
+            and last_sem_log.details.get('semester') in ('1st', '2nd', 'summer')
+        ):
+            sem = last_sem_log.details.get('semester')
+            return 'EOSY' if sem == '2nd' else ('SUMMER' if sem == 'summer' else 'MOSY')
+    except Exception:
+        pass
+    return 'EOSY'
+
+
 def assign_tutor_to_student(
     student: User,
     tutor: User | None,
     school_year: SchoolYear | None = None,
     assigned_by: User | None = None,
-    period: str = 'MOSY',
+    period: str | None = None,
     notes: str = ''
 ) -> TutorAssignmentHistory | None:
     """
     Assign a tutor to a student with historical preservation and compatibility enforcement.
     Never overwrites previous tutor assignment records.
     """
+    if not period or period == 'MOSY':
+        period = get_active_milestone_period()
     if not school_year:
         school_year = SchoolYear.objects.filter(is_active=True).first()
         if not school_year:

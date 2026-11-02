@@ -1706,11 +1706,24 @@ export const TutorScores: React.FC = () => {
           }
         }
 
+        const semesterQuarter =
+          (entryKind as string) === 'mosy'
+            ? 1
+            : (entryKind as string) === 'eosy'
+            ? 2
+            : (entryKind as string) === 'endline' || (entryKind as string) === 'summer'
+            ? 3
+            : activeSystemSem === '2nd'
+            ? 2
+            : activeSystemSem === 'summer'
+            ? 3
+            : 1;
+
         entriesToCreate.push({
           student: student.id,
           component_type: 'assessment' as Grade['component_type'],
           subject: subject,
-          quarter: Math.ceil((new Date().getMonth() + 1) / 3),
+          quarter: semesterQuarter,
           score: numScore,
           total_score: activeTotal,
           remarks: remarks,

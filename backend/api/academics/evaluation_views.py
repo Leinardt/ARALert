@@ -78,7 +78,7 @@ class CurrentSchoolYearView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        sy = SchoolYear.objects.filter(school_year='2026-2027', is_active=True).first()
+        sy = SchoolYear.objects.filter(is_active=True).first()
         if not sy:
             sy, _ = SchoolYear.objects.get_or_create(
                 school_year='2026-2027',
