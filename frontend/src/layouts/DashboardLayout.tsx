@@ -38,10 +38,6 @@ import qrDarkDefault from '../assets/icons/qr_attendance_dark.png';
 import qrDarkActive from '../assets/icons/qr_attendance_dark_active.png';
 import qrLightDefault from '../assets/icons/qr_attendance_light.png';
 import qrLightActive from '../assets/icons/qr_attendance_light_active.png';
-import clockDarkDefault from '../assets/icons/dtrlog_dark.png';
-import clockDarkActive from '../assets/icons/dtrlog_dark_active.png';
-import clockLightDefault from '../assets/icons/dtrlog_light.png';
-import clockLightActive from '../assets/icons/dtrlog_light_active.png';
 import scoreDarkDefault from '../assets/icons/score_entry_dark.png';
 import scoreDarkActive from '../assets/icons/score_entry_dark_active.png';
 import scoreLightDefault from '../assets/icons/score_entry_light.png';
@@ -356,16 +352,13 @@ export const DashboardLayout: React.FC = () => {
       p.includes('/superadmin/users') ||
       p.includes('/superadmin/students') ||
       p.includes('/superadmin/tutors') ||
-      p.includes('/superadmin/faculty') ||
-      p.includes('/superadmin/principals') ||
+            p.includes('/superadmin/principals') ||
       p.includes('/superadmin/admins') ||
       p.includes('/superadmin/superadmins')
     ) return 'User Management';
-    if (p.includes('/admin/students') || p.includes('/admin/tutors') || p.includes('/admin/faculty') || p.includes('/admin/principals') || p.includes('/admin/users')) return 'User Management';
+    if (p.includes('/admin/students') || p.includes('/admin/tutors') || p.includes('/admin/principals') || p.includes('/admin/users')) return 'User Management';
     if (p.includes('/tutor/students')) return 'Assigned Students';
     if (p.includes('/student/attendance')) return 'QR Attendance';
-    if (p.includes('/staff/scan')) return user?.role === 'student' ? 'Scan Attendance QR' : 'DTR Log';
-    if (p.includes('/admin/attendance')) return 'QR Attendance';
     if (p.includes('/tutor/attendance')) return 'QR Attendance';
     if (p.includes('/profile')) return user?.role === 'tutor' ? 'Tutor Profile' : 'Profile';
     if (p.includes('/settings')) return 'System Settings';
@@ -409,6 +402,7 @@ export const DashboardLayout: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path;
   const isActivePrefix = (prefix: string) => location.pathname.startsWith(prefix);
+  const isProfileActive = location.pathname === getProfilePath() || location.pathname === '/profile' || location.pathname.endsWith('/profile');
 
   const navLinkClass = (active: boolean, collapsed: boolean = isSidebarCollapsed) =>
     `sidebar-item ${active ? 'active' : ''} ${collapsed ? 'justify-center !p-0 w-10 h-10 mx-auto' : ''}`;
@@ -608,8 +602,7 @@ export const DashboardLayout: React.FC = () => {
                 isActivePrefix('/superadmin/users') ||
                 isActivePrefix('/superadmin/students') ||
                 isActivePrefix('/superadmin/tutors') ||
-                isActivePrefix('/superadmin/faculty') ||
-                isActivePrefix('/superadmin/principals') ||
+                                isActivePrefix('/superadmin/principals') ||
                 isActivePrefix('/superadmin/admins') ||
                 isActivePrefix('/superadmin/superadmins'),
                 collapsed
@@ -625,8 +618,7 @@ export const DashboardLayout: React.FC = () => {
                   isActivePrefix('/superadmin/users') ||
                   isActivePrefix('/superadmin/students') ||
                   isActivePrefix('/superadmin/tutors') ||
-                  isActivePrefix('/superadmin/faculty') ||
-                  isActivePrefix('/superadmin/principals') ||
+                                    isActivePrefix('/superadmin/principals') ||
                   isActivePrefix('/superadmin/admins') ||
                   isActivePrefix('/superadmin/superadmins')
                 }
@@ -685,7 +677,7 @@ export const DashboardLayout: React.FC = () => {
             <Link
               to="/admin/students"
               onClick={onItemClick}
-              className={navLinkClass(isActivePrefix('/admin/students') || isActivePrefix('/admin/tutors') || isActivePrefix('/admin/faculty') || isActivePrefix('/admin/principals') || isActivePrefix('/admin/users'), collapsed)}
+              className={navLinkClass(isActivePrefix('/admin/students') || isActivePrefix('/admin/tutors') || isActivePrefix('/admin/principals') || isActivePrefix('/admin/users'), collapsed)}
               title="User Management"
             >
               <AssetSidebarIcon
@@ -693,7 +685,7 @@ export const DashboardLayout: React.FC = () => {
                 darkActiveSrc={studentsDarkActive}
                 lightSrc={studentsLightDefault}
                 lightActiveSrc={studentsLightActive}
-                active={isActivePrefix('/admin/students') || isActivePrefix('/admin/tutors') || isActivePrefix('/admin/faculty') || isActivePrefix('/admin/principals') || isActivePrefix('/admin/users')}
+                active={isActivePrefix('/admin/students') || isActivePrefix('/admin/tutors') || isActivePrefix('/admin/principals') || isActivePrefix('/admin/users')}
                 alt="User Management"
                 size={18}
                 theme={theme}
@@ -730,19 +722,6 @@ export const DashboardLayout: React.FC = () => {
 
             <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0' }} />
 
-            <Link to="/admin/attendance" onClick={onItemClick} className={navLinkClass(isActive('/admin/attendance'), collapsed)} title="DTR Log">
-              <AssetSidebarIcon
-                darkSrc={clockDarkDefault}
-                darkActiveSrc={clockDarkActive}
-                lightSrc={clockLightDefault}
-                lightActiveSrc={clockLightActive}
-                active={isActive('/admin/attendance')}
-                alt="DTR Log"
-                size={18}
-                theme={theme}
-              />
-              {!collapsed && <span className="truncate">DTR Log</span>}
-            </Link>
           </>
         )}
 
@@ -810,13 +789,13 @@ export const DashboardLayout: React.FC = () => {
               {!collapsed && <span className="truncate">Data Analytics</span>}
             </Link>
 
-            <Link to="/tutor/students" onClick={onItemClick} className={navLinkClass(isActive('/tutor/students'), collapsed)} title="Assigned Students">
+            <Link to="/tutor/students" onClick={onItemClick} className={navLinkClass(isActivePrefix('/tutor/students'), collapsed)} title="Assigned Students">
               <AssetSidebarIcon
                 darkSrc={studentsDarkDefault}
                 darkActiveSrc={studentsDarkActive}
                 lightSrc={studentsLightDefault}
                 lightActiveSrc={studentsLightActive}
-                active={isActive('/tutor/students')}
+                active={isActivePrefix('/tutor/students')}
                 alt="Assigned Students"
                 size={18}
                 theme={theme}
@@ -827,22 +806,6 @@ export const DashboardLayout: React.FC = () => {
             <Link to="/tutor/archive" onClick={onItemClick} className={navLinkClass(isActive('/tutor/archive'), collapsed)} title="Archive">
               <ArchiveNavIcon active={isActive('/tutor/archive')} theme={theme} />
               {!collapsed && <span className="truncate">Archive</span>}
-            </Link>
-
-            <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0' }} />
-
-            <Link to="/staff/scan" onClick={onItemClick} className={navLinkClass(isActive('/staff/scan'), collapsed)} title="DTR Log">
-              <AssetSidebarIcon
-                darkSrc={clockDarkDefault}
-                darkActiveSrc={clockDarkActive}
-                lightSrc={clockLightDefault}
-                lightActiveSrc={clockLightActive}
-                active={isActive('/staff/scan')}
-                alt="DTR Log"
-                size={18}
-                theme={theme}
-              />
-              {!collapsed && <span className="truncate">DTR Log</span>}
             </Link>
           </>
         )}
@@ -876,57 +839,6 @@ export const DashboardLayout: React.FC = () => {
                 theme={theme}
               />
               {!collapsed && <span className="truncate">Data Analytics</span>}
-            </Link>
-
-            <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0' }} />
-
-            <Link to="/staff/scan" onClick={onItemClick} className={navLinkClass(isActive('/staff/scan'), collapsed)} title="DTR Log">
-              <AssetSidebarIcon
-                darkSrc={clockDarkDefault}
-                darkActiveSrc={clockDarkActive}
-                lightSrc={clockLightDefault}
-                lightActiveSrc={clockLightActive}
-                active={isActive('/staff/scan')}
-                alt="DTR Log"
-                size={18}
-                theme={theme}
-              />
-              {!collapsed && <span className="truncate">DTR Log</span>}
-            </Link>
-          </>
-        )}
-
-        {/* Faculty nav */}
-        {user?.role === 'faculty' && (
-          <>
-            <Link to="/faculty" onClick={onItemClick} className={navLinkClass(isActive('/faculty'), collapsed)} title="Dashboard">
-              <AssetSidebarIcon
-                darkSrc={dashboardDarkDefault}
-                darkActiveSrc={dashboardDarkActive}
-                lightSrc={dashboardLightDefault}
-                lightActiveSrc={dashboardLightActive}
-                active={isActive('/faculty')}
-                alt="Dashboard"
-                size={18}
-                theme={theme}
-              />
-              {!collapsed && <span className="truncate">Dashboard</span>}
-            </Link>
-
-            <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0' }} />
-
-            <Link to="/staff/scan" onClick={onItemClick} className={navLinkClass(isActive('/staff/scan'), collapsed)} title="DTR Log">
-              <AssetSidebarIcon
-                darkSrc={clockDarkDefault}
-                darkActiveSrc={clockDarkActive}
-                lightSrc={clockLightDefault}
-                lightActiveSrc={clockLightActive}
-                active={isActive('/staff/scan')}
-                alt="DTR Log"
-                size={18}
-                theme={theme}
-              />
-              {!collapsed && <span className="truncate">DTR Log</span>}
             </Link>
           </>
         )}
@@ -979,10 +891,10 @@ export const DashboardLayout: React.FC = () => {
 
             <Link to="/student/attendance" onClick={onItemClick} className={navLinkClass(isActive('/student/attendance'), collapsed)} title="QR Attendance">
               <AssetSidebarIcon
-                darkSrc={clockDarkDefault}
-                darkActiveSrc={clockDarkActive}
-                lightSrc={clockLightDefault}
-                lightActiveSrc={clockLightActive}
+                darkSrc={qrDarkDefault}
+                darkActiveSrc={qrDarkActive}
+                lightSrc={qrLightDefault}
+                lightActiveSrc={qrLightActive}
                 active={isActive('/student/attendance')}
                 alt="QR Attendance"
                 size={18}
@@ -1154,20 +1066,30 @@ export const DashboardLayout: React.FC = () => {
               aria-expanded={profileMenuOpen}
               aria-haspopup="menu"
               aria-label="Profile and account menu"
-              className={`w-10 h-10 mx-auto rounded-xl flex items-center justify-center border transition-all duration-150 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${profileMenuOpen
+              className={`sidebar-item ${isProfileActive ? 'active' : ''} w-10 h-10 mx-auto !p-0 justify-center rounded-xl flex items-center border transition-all duration-150 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${profileMenuOpen
                   ? 'border-slate-300 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 shadow-xs'
-                  : 'border-transparent hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-slate-300'
+                  : isProfileActive
+                    ? ''
+                    : 'border-transparent hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-slate-300'
                 }`}
             >
               {user?.avatar ? (
                 <img
                   src={user.avatar}
                   alt={getDisplayName()}
-                  className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-zinc-700"
+                  className={`w-7 h-7 rounded-full object-cover border transition-colors ${
+                    isProfileActive
+                      ? 'border-[var(--brand)] ring-1 ring-[var(--brand)]/30'
+                      : 'border-slate-200 dark:border-zinc-700'
+                  }`}
                 />
               ) : (
-                <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-medium text-xs border border-slate-200 dark:border-zinc-700">
-                  <UserIcon size={14} strokeWidth={1.8} />
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center font-medium text-xs border transition-colors ${
+                  isProfileActive
+                    ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] border-[var(--sidebar-active-border)]'
+                    : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700'
+                }`}>
+                  <UserIcon size={14} strokeWidth={isProfileActive ? 2.2 : 1.8} />
                 </div>
               )}
             </button>
@@ -1179,24 +1101,38 @@ export const DashboardLayout: React.FC = () => {
               aria-expanded={profileMenuOpen}
               aria-haspopup="menu"
               aria-label="Profile and account menu"
-              className={`w-full flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${profileMenuOpen
+              className={`sidebar-item ${isProfileActive ? 'active' : ''} w-full flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${profileMenuOpen
                   ? 'border-slate-300 dark:border-zinc-700 bg-slate-100/90 dark:bg-zinc-800/80 shadow-xs'
-                  : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
+                  : isProfileActive
+                    ? ''
+                    : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
                 }`}
             >
               {user?.avatar ? (
                 <img
                   src={user.avatar}
                   alt={getDisplayName()}
-                  className="w-8 h-8 rounded-full object-cover border border-slate-200/80 dark:border-zinc-700 shrink-0"
+                  className={`w-8 h-8 rounded-full object-cover border shrink-0 transition-colors ${
+                    isProfileActive
+                      ? 'border-[var(--brand)] ring-1 ring-[var(--brand)]/30'
+                      : 'border-slate-200/80 dark:border-zinc-700'
+                  }`}
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-medium text-xs border border-slate-200/80 dark:border-zinc-700 shrink-0">
-                  <UserIcon size={15} strokeWidth={1.8} />
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-xs border shrink-0 transition-colors ${
+                  isProfileActive
+                    ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] border-[var(--sidebar-active-border)]'
+                    : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border-slate-200/80 dark:border-zinc-700'
+                }`}>
+                  <UserIcon size={15} strokeWidth={isProfileActive ? 2.2 : 1.8} />
                 </div>
               )}
               <div className="flex-1 min-w-0 flex flex-col justify-center">
-                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate leading-tight">
+                <span className={`text-xs truncate leading-tight transition-colors ${
+                  isProfileActive
+                    ? 'font-bold text-[var(--sidebar-active-text)]'
+                    : 'font-semibold text-slate-800 dark:text-slate-200'
+                }`}>
                   {getDisplayName()}
                 </span>
               </div>
@@ -1330,24 +1266,38 @@ export const DashboardLayout: React.FC = () => {
             aria-expanded={profileMenuOpen}
             aria-haspopup="menu"
             aria-label="Profile and account menu"
-            className={`w-full flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${profileMenuOpen
+            className={`sidebar-item ${isProfileActive ? 'active' : ''} w-full flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${profileMenuOpen
                 ? 'border-slate-300 dark:border-zinc-700 bg-slate-100/90 dark:bg-zinc-800/80 shadow-xs'
-                : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
+                : isProfileActive
+                  ? ''
+                  : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
               }`}
           >
             {user?.avatar ? (
               <img
                 src={user.avatar}
                 alt={getDisplayName()}
-                className="w-8 h-8 rounded-full object-cover border border-slate-200/80 dark:border-zinc-700 shrink-0"
+                className={`w-8 h-8 rounded-full object-cover border shrink-0 transition-colors ${
+                  isProfileActive
+                    ? 'border-[var(--brand)] ring-1 ring-[var(--brand)]/30'
+                    : 'border-slate-200/80 dark:border-zinc-700'
+                }`}
               />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-medium text-xs border border-slate-200/80 dark:border-zinc-700 shrink-0">
-                <UserIcon size={15} strokeWidth={1.8} />
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-xs border shrink-0 transition-colors ${
+                isProfileActive
+                  ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] border-[var(--sidebar-active-border)]'
+                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border-slate-200/80 dark:border-zinc-700'
+              }`}>
+                <UserIcon size={15} strokeWidth={isProfileActive ? 2.2 : 1.8} />
               </div>
             )}
             <div className="flex-1 min-w-0 flex flex-col justify-center">
-              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate leading-tight">
+              <span className={`text-xs truncate leading-tight transition-colors ${
+                isProfileActive
+                  ? 'font-bold text-[var(--sidebar-active-text)]'
+                  : 'font-semibold text-slate-800 dark:text-slate-200'
+              }`}>
                 {getDisplayName()}
               </span>
             </div>
@@ -1831,7 +1781,7 @@ export const DashboardLayout: React.FC = () => {
             )}
 
             {/* Universal Notification Bell (Tutor, Faculty, Principal) */}
-            {(user?.role === 'tutor' || user?.role === 'faculty' || user?.role === 'principal') && (
+            {(user?.role === 'tutor' || user?.role === 'principal') && (
               <div style={{ position: 'relative' }}>
                 <button
                   type="button"
@@ -2524,13 +2474,21 @@ export const DashboardLayout: React.FC = () => {
                   setIsMobileDrawerOpen(false);
                   navigate(getProfilePath());
                 }}
-                className="group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-900 hover:text-slate-900 dark:hover:text-white transition-all duration-150 text-left cursor-pointer"
+                className={`group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-150 text-left cursor-pointer ${
+                  isProfileActive
+                    ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] font-bold'
+                    : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-900 hover:text-slate-900 dark:hover:text-white'
+                }`}
                 role="menuitem"
               >
                 <UserIcon
                   size={16}
-                  strokeWidth={2}
-                  className="text-slate-400 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors shrink-0"
+                  strokeWidth={isProfileActive ? 2.2 : 2}
+                  className={`transition-colors shrink-0 ${
+                    isProfileActive
+                      ? 'text-[var(--sidebar-active-text)]'
+                      : 'text-slate-400 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-white'
+                  }`}
                 />
                 <span>Profile</span>
               </button>

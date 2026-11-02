@@ -321,6 +321,7 @@ export const AssessmentsArchive: React.FC = () => {
   const isSuperAdmin = Boolean(currentUser?.is_superuser);
 
   const [archivedYears, setArchivedYears] = useState<SchoolYear[]>([]);
+  const [currentSchoolYear, setCurrentSchoolYear] = useState<SchoolYear | null>(null);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('2026-2027');
   const [activeTab, setActiveTab] = useState<'mosy' | 'eosy' | 'summer'>('mosy');
 
@@ -351,29 +352,67 @@ export const AssessmentsArchive: React.FC = () => {
     return () => window.removeEventListener('assessment_window_changed', handleWindowChange);
   }, []);
 
-  const isWindowOpen = useMemo(() => {
-    const activeYearObj = archivedYears.find((y) => y.school_year === selectedSchoolYear);
-    if (archivedYears.length > 0 && activeYearObj && !activeYearObj.is_active) {
-      return false;
-    }
-    const sem = activeTab === 'mosy' ? '1st' : activeTab === 'eosy' ? '2nd' : 'summer';
-    return isAssessmentWindowOpen(sem);
-  }, [archivedYears, selectedSchoolYear, activeTab, windowState]);
+  // Concluded tabs for selected school year: past years have all 3 tabs; active year only has concluded semesters
+  type ArchiveTab = 'mosy' | 'eosy' | 'summer';
 
-  // 1. Initial Load of Available School Years
+  const concludedTabsForSelectedYear = useMemo<ArchiveTab[]>(() => {
+    const activeYearObj = archivedYears.find((y) => y.school_year === selectedSchoolYear);
+    const isSelectedYearActive = Boolean(activeYearObj?.is_active);
+
+    if (!isSelectedYearActive) {
+      return ['mosy', 'eosy', 'summer'];
+    }
+
+    const curSem = currentSchoolYear?.current_semester || '2nd';
+    if (curSem === '2nd') {
+      return ['mosy'];
+    }
+    if (curSem === 'summer') {
+      return ['mosy', 'eosy'];
+    }
+    return [];
+  }, [archivedYears, selectedSchoolYear, currentSchoolYear]);
+
+  // Ensure active tab is always a concluded tab
+  useEffect(() => {
+    if (concludedTabsForSelectedYear.length > 0 && !concludedTabsForSelectedYear.includes(activeTab)) {
+      setActiveTab(concludedTabsForSelectedYear[0]);
+    }
+  }, [concludedTabsForSelectedYear, activeTab]);
+
+  const isWindowOpen = useMemo(() => {
+    // Concluded historical archives: evaluation windows are closed
+    return false;
+  }, []);
+
+  // 1. Initial Load of Available School Years with Concluded Semesters
   useEffect(() => {
     loadSchoolYears();
   }, []);
 
   const loadSchoolYears = async () => {
     try {
-      const years = await academicService.getArchivedSchoolYears();
-      if (years && years.length > 0) {
-        setArchivedYears(years);
-        const activeYear = years.find((y) => y.is_active)?.school_year || years[0].school_year;
+      const [years, curSY] = await Promise.all([
+        academicService.getArchivedSchoolYears(),
+        academicService.getCurrentSchoolYear().catch(() => null),
+      ]);
+      setCurrentSchoolYear(curSY);
+
+      // Concluded school years:
+      // 1. Inactive past years (status === 'ARCHIVED' or !is_active)
+      // 2. Active year ONLY IF it has concluded at least one semester (i.e. curSY.current_semester !== '1st')
+      const validYears = (years || []).filter((y) => {
+        if (!y.is_active || y.status === 'ARCHIVED') return true;
+        return curSY && curSY.current_semester !== '1st';
+      });
+
+      if (validYears.length > 0) {
+        setArchivedYears(validYears);
+        const activeYear = validYears.find((y) => y.is_active)?.school_year || validYears[0].school_year;
         setSelectedSchoolYear(activeYear);
       } else {
-        setSelectedSchoolYear('2026-2027');
+        setArchivedYears([]);
+        setSelectedSchoolYear('');
       }
     } catch (err: any) {
       console.error('Failed to load archived school years:', err);
@@ -486,16 +525,47 @@ export const AssessmentsArchive: React.FC = () => {
       let pendingCount = 0;
 
       const studentMetrics: StudentArchiveMetric[] = tutorStudents.map((st) => {
-        // Filter student grades
+        // Filter student grades strictly to the selected concluded semester
         const sGrades = grades.filter((g) => {
           const sid = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
-          return String(sid) === String(st.id);
+          if (String(sid) !== String(st.id)) return false;
+
+          const subj = (g.subject || '').toUpperCase();
+          const q = Number(g.quarter) || 0;
+
+          if (activeTab === 'mosy') {
+            return q === 1 || q === 2 || subj.includes('MOSY') || (!subj.includes('EOSY') && !subj.includes('SUMMER') && q <= 2);
+          }
+          if (activeTab === 'eosy') {
+            return q === 3 || q === 4 || subj.includes('EOSY');
+          }
+          if (activeTab === 'summer') {
+            return subj.includes('SUMMER');
+          }
+          return true;
         });
 
-        // Filter student attendance
+        // Filter student attendance strictly to the selected concluded semester
         const sAtt = attendance.filter((a) => {
           const uid = typeof a.user === 'object' && a.user !== null ? (a.user as any).id : a.user;
-          return String(uid) === String(st.id);
+          if (String(uid) !== String(st.id)) return false;
+
+          const dateStr = a.date || '';
+          const month = parseInt(dateStr.slice(5, 7), 10);
+
+          if (activeTab === 'mosy') {
+            // DepEd 1st Semester: Aug to Dec/Jan
+            return month >= 8 || month === 1;
+          }
+          if (activeTab === 'eosy') {
+            // DepEd 2nd Semester: Jan to May
+            return month >= 1 && month <= 5;
+          }
+          if (activeTab === 'summer') {
+            // DepEd Summer: June to July
+            return month >= 6 && month <= 7;
+          }
+          return true;
         });
 
         // Compute Attendance Rate
@@ -725,16 +795,20 @@ export const AssessmentsArchive: React.FC = () => {
 
           <span className="text-slate-300 dark:text-zinc-700 font-bold text-base select-none">&bull;</span>
 
-          {/* Phase Switcher Tabs */}
+          {/* Phase Switcher Tabs — Concluded Semesters Only */}
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 overflow-x-auto">
             <button
               type="button"
               onClick={() => setActiveTab('mosy')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                activeTab === 'mosy'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+              disabled={!concludedTabsForSelectedYear.includes('mosy')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+                !concludedTabsForSelectedYear.includes('mosy')
+                  ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-zinc-600'
+                  : activeTab === 'mosy'
+                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs cursor-pointer'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white cursor-pointer'
               }`}
+              title={!concludedTabsForSelectedYear.includes('mosy') ? '1st Semester not yet concluded' : 'Concluded 1st Semester'}
             >
               <span>MOSY (Q1 & Q2)</span>
             </button>
@@ -742,27 +816,37 @@ export const AssessmentsArchive: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('eosy')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                activeTab === 'eosy'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+              disabled={!concludedTabsForSelectedYear.includes('eosy')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+                !concludedTabsForSelectedYear.includes('eosy')
+                  ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-zinc-600'
+                  : activeTab === 'eosy'
+                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs cursor-pointer'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white cursor-pointer'
               }`}
+              title={!concludedTabsForSelectedYear.includes('eosy') ? '2nd Semester currently in progress (not concluded)' : 'Concluded 2nd Semester'}
             >
               <span>EOSY (Q3 & Q4)</span>
+              {!concludedTabsForSelectedYear.includes('eosy') && (
+                <span className="text-[10px] font-normal text-slate-400 dark:text-zinc-500">(In Progress)</span>
+              )}
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('summer')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-                activeTab === 'summer'
-                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+              disabled={!concludedTabsForSelectedYear.includes('summer')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+                !concludedTabsForSelectedYear.includes('summer')
+                  ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-zinc-600'
+                  : activeTab === 'summer'
+                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs cursor-pointer'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white cursor-pointer'
               }`}
+              title={!concludedTabsForSelectedYear.includes('summer') ? 'Summer period not concluded' : 'Concluded Summer'}
             >
               <span>SUMMER (Midyear)</span>
             </button>
-
           </div>
         </div>
       </div>
