@@ -37,7 +37,7 @@ export const getActiveSystemSemester = (): SemesterType => {
   } catch {
     // ignore localStorage errors
   }
-  return '2nd';
+  return '1st';
 };
 
 /**

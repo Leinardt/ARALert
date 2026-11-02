@@ -413,22 +413,19 @@ export const TutorArchive: React.FC = () => {
 
         setCurrentSchoolYear(cur);
 
-        // Filter school years that have at least one concluded semester:
-        // - Inactive / archived school years (all semesters concluded)
-        // - Active school year only if current_semester !== '1st'
-        const concludedYears = (sys || []).filter((y) => {
-          if (!y.is_active || y.status === 'ARCHIVED') return true;
-          return cur && cur.current_semester !== '1st';
+        // Include current active school year and historical archived school years
+        const allYears: SchoolYear[] = [];
+        if (cur) {
+          allYears.push(cur);
+        }
+        (sys || []).forEach((y) => {
+          if (!allYears.some((ay) => ay.school_year === y.school_year)) {
+            allYears.push(y);
+          }
         });
 
-        setSchoolYears(concludedYears);
-
-        if (concludedYears.length > 0) {
-          const activeYear = concludedYears.find((y) => y.is_active)?.school_year || concludedYears[0].school_year;
-          setSelectedSchoolYear(activeYear);
-        } else {
-          setSelectedSchoolYear('');
-        }
+        setSchoolYears(allYears);
+        setSelectedSchoolYear(cur?.school_year || allYears[0]?.school_year || '2026-2027');
       } catch (err) {
         console.error('Failed to fetch school years:', err);
       }
@@ -443,8 +440,9 @@ export const TutorArchive: React.FC = () => {
   // 2. Compute Available Concluded Semesters for the Selected School Year
   const availableSemesters = useMemo<Array<{ id: '1st' | '2nd' | 'summer'; label: string }>>(() => {
     if (!selectedSchoolYear) return [];
-    const activeYearObj = schoolYears.find((y) => y.school_year === selectedSchoolYear);
-    const isSelectedYearActive = Boolean(activeYearObj?.is_active);
+    const isSelectedYearActive =
+      (selectedSchoolYear === currentSchoolYear?.school_year && Boolean(currentSchoolYear?.is_active)) ||
+      Boolean(schoolYears.find((y) => y.school_year === selectedSchoolYear)?.is_active);
 
     if (!isSelectedYearActive) {
       return [
@@ -454,7 +452,7 @@ export const TutorArchive: React.FC = () => {
       ];
     }
 
-    const curSem = currentSchoolYear?.current_semester || '2nd';
+    const curSem = currentSchoolYear?.current_semester || '1st';
     if (curSem === '2nd') {
       return [{ id: '1st', label: '1st Semester (MOSY)' }];
     }
@@ -478,7 +476,11 @@ export const TutorArchive: React.FC = () => {
 
   // 3. Fetch Data when School Year Changes
   useEffect(() => {
-    if (!user?.id || !selectedSchoolYear) {
+    if (!user?.id || !selectedSchoolYear || availableSemesters.length === 0) {
+      setCohortHistory(null);
+      setGrades([]);
+      setAttendance([]);
+      setAllStudents([]);
       setIsLoading(false);
       return;
     }
@@ -861,7 +863,7 @@ export const TutorArchive: React.FC = () => {
             </label>
             <select
               id="archive-semester-select"
-              value={selectedSemester}
+              value={availableSemesters.length === 0 ? '' : selectedSemester}
               onChange={(e) => setSelectedSemester(e.target.value as any)}
               disabled={availableSemesters.length === 0}
               className="font-bold text-xs sm:text-sm bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-1.5 min-h-[38px] sm:min-h-0 text-slate-900 dark:text-white shadow-2xs focus:outline-none cursor-pointer disabled:opacity-50 flex-1 sm:flex-initial"
@@ -887,7 +889,7 @@ export const TutorArchive: React.FC = () => {
             </label>
             <select
               id="archive-class-select"
-              value={selectedClass}
+              value={handledClasses.length === 0 ? '' : selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
               disabled={handledClasses.length === 0}
               className="font-bold text-xs sm:text-sm bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-1.5 min-h-[38px] sm:min-h-0 text-slate-900 dark:text-white shadow-2xs focus:outline-none cursor-pointer disabled:opacity-50 flex-1 sm:flex-initial truncate"

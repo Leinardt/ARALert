@@ -356,14 +356,16 @@ export const AssessmentsArchive: React.FC = () => {
   type ArchiveTab = 'mosy' | 'eosy' | 'summer';
 
   const concludedTabsForSelectedYear = useMemo<ArchiveTab[]>(() => {
-    const activeYearObj = archivedYears.find((y) => y.school_year === selectedSchoolYear);
-    const isSelectedYearActive = Boolean(activeYearObj?.is_active);
+    const isSelectedYearActive =
+      (selectedSchoolYear === currentSchoolYear?.school_year && Boolean(currentSchoolYear?.is_active)) ||
+      Boolean(archivedYears.find((y) => y.school_year === selectedSchoolYear)?.is_active);
 
     if (!isSelectedYearActive) {
+      if (!selectedSchoolYear) return [];
       return ['mosy', 'eosy', 'summer'];
     }
 
-    const curSem = currentSchoolYear?.current_semester || '2nd';
+    const curSem = currentSchoolYear?.current_semester || '1st';
     if (curSem === '2nd') {
       return ['mosy'];
     }
@@ -398,22 +400,19 @@ export const AssessmentsArchive: React.FC = () => {
       ]);
       setCurrentSchoolYear(curSY);
 
-      // Concluded school years:
-      // 1. Inactive past years (status === 'ARCHIVED' or !is_active)
-      // 2. Active year ONLY IF it has concluded at least one semester (i.e. curSY.current_semester !== '1st')
-      const validYears = (years || []).filter((y) => {
-        if (!y.is_active || y.status === 'ARCHIVED') return true;
-        return curSY && curSY.current_semester !== '1st';
+      // Build available school years list: current active year plus any historical archived years
+      const allYears: SchoolYear[] = [];
+      if (curSY) {
+        allYears.push(curSY);
+      }
+      (years || []).forEach((y) => {
+        if (!allYears.some((ay) => ay.school_year === y.school_year)) {
+          allYears.push(y);
+        }
       });
 
-      if (validYears.length > 0) {
-        setArchivedYears(validYears);
-        const activeYear = validYears.find((y) => y.is_active)?.school_year || validYears[0].school_year;
-        setSelectedSchoolYear(activeYear);
-      } else {
-        setArchivedYears([]);
-        setSelectedSchoolYear('');
-      }
+      setArchivedYears(allYears);
+      setSelectedSchoolYear(curSY?.school_year || allYears[0]?.school_year || '2026-2027');
     } catch (err: any) {
       console.error('Failed to load archived school years:', err);
       setSelectedSchoolYear('2026-2027');
@@ -422,10 +421,16 @@ export const AssessmentsArchive: React.FC = () => {
 
   // 2. Auto-fetch data whenever selectedSchoolYear or activeTab changes
   useEffect(() => {
-    if (selectedSchoolYear) {
-      fetchArchiveData();
+    if (!selectedSchoolYear || concludedTabsForSelectedYear.length === 0) {
+      setTutors([]);
+      setStudents([]);
+      setGrades([]);
+      setAttendance([]);
+      setIsLoading(false);
+      return;
     }
-  }, [selectedSchoolYear, activeTab]);
+    fetchArchiveData();
+  }, [selectedSchoolYear, activeTab, concludedTabsForSelectedYear.length]);
 
   const fetchArchiveData = async () => {
     setIsLoading(true);
@@ -507,6 +512,9 @@ export const AssessmentsArchive: React.FC = () => {
 
   // 5. Aggregate Tutors & Students metrics for selected period
   const tutorArchiveRows = useMemo<TutorArchiveRow[]>(() => {
+    if (concludedTabsForSelectedYear.length === 0 || !concludedTabsForSelectedYear.includes(activeTab)) {
+      return [];
+    }
     return tutors.map((tutor) => {
       const tutorStudents = students.filter((s) => {
         if (String(s.assigned_tutor) === String(tutor.id)) return true;
@@ -811,6 +819,9 @@ export const AssessmentsArchive: React.FC = () => {
               title={!concludedTabsForSelectedYear.includes('mosy') ? '1st Semester not yet concluded' : 'Concluded 1st Semester'}
             >
               <span>MOSY (Q1 & Q2)</span>
+              {currentSchoolYear?.current_semester === '1st' && (
+                <span className="text-[10px] font-normal text-slate-400 dark:text-zinc-500">(In Progress)</span>
+              )}
             </button>
 
             <button
@@ -824,10 +835,10 @@ export const AssessmentsArchive: React.FC = () => {
                   ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs cursor-pointer'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white cursor-pointer'
               }`}
-              title={!concludedTabsForSelectedYear.includes('eosy') ? '2nd Semester currently in progress (not concluded)' : 'Concluded 2nd Semester'}
+              title={!concludedTabsForSelectedYear.includes('eosy') ? '2nd Semester not yet concluded' : 'Concluded 2nd Semester'}
             >
               <span>EOSY (Q3 & Q4)</span>
-              {!concludedTabsForSelectedYear.includes('eosy') && (
+              {currentSchoolYear?.current_semester === '2nd' && (
                 <span className="text-[10px] font-normal text-slate-400 dark:text-zinc-500">(In Progress)</span>
               )}
             </button>
@@ -846,6 +857,9 @@ export const AssessmentsArchive: React.FC = () => {
               title={!concludedTabsForSelectedYear.includes('summer') ? 'Summer period not concluded' : 'Concluded Summer'}
             >
               <span>SUMMER (Midyear)</span>
+              {currentSchoolYear?.current_semester === 'summer' && (
+                <span className="text-[10px] font-normal text-slate-400 dark:text-zinc-500">(In Progress)</span>
+              )}
             </button>
           </div>
         </div>
@@ -902,12 +916,22 @@ export const AssessmentsArchive: React.FC = () => {
                 placeholder="Search tutor, student, LRN, section..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-lg text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[var(--brand)]"
+                disabled={concludedTabsForSelectedYear.length === 0}
+                className="w-full pl-8 pr-3 py-1.5 bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-lg text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[var(--brand)] disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
           </div>
 
-          {sortedAndFilteredRows.length === 0 ? (
+          {concludedTabsForSelectedYear.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 sm:p-16 text-center bg-white dark:bg-[#0A0A0A]">
+              <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">
+                No Concluded Semester Records Found
+              </p>
+              <p className="mt-1.5 text-xs text-slate-500 dark:text-zinc-400 max-w-md">
+                School Year {selectedSchoolYear || '2026-2027'} is currently in progress (1st Semester / MOSY). Concluded evaluation records will be archived here once a semester ends.
+              </p>
+            </div>
+          ) : sortedAndFilteredRows.length === 0 ? (
             <div className="p-12 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A]">
               {tutorArchiveRows.length === 0 ? 'No tutor records found for this period.' : 'No tutors matching search filter.'}
             </div>

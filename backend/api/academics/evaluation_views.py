@@ -93,12 +93,17 @@ class CurrentSchoolYearView(APIView):
 
         data = SchoolYearSerializer(sy).data
 
-        # Check if an explicit semester transition was logged, otherwise default to 2nd Semester (EOSY)
+        # Check if an explicit semester transition was logged for this school year, otherwise default to 1st Semester (MOSY)
         last_sem_log = AuditLog.objects.filter(action='SEMESTER_TRANSITION_SET').order_by('-timestamp').first()
-        if last_sem_log and last_sem_log.details and last_sem_log.details.get('semester') in ('1st', '2nd', 'summer'):
+        if (
+            last_sem_log
+            and isinstance(last_sem_log.details, dict)
+            and last_sem_log.details.get('school_year') == sy.school_year
+            and last_sem_log.details.get('semester') in ('1st', '2nd', 'summer')
+        ):
             active_semester = last_sem_log.details.get('semester')
         else:
-            active_semester = '2nd'
+            active_semester = '1st'
 
         data['current_semester'] = active_semester
         data['current_period'] = active_semester
