@@ -69,6 +69,14 @@ const formatNumericDate = (d: Date | string): string => {
   return `${month}/${day}/${year}`;
 };
 
+const formatShortNumericDate = (dKey: string): string => {
+  const parts = dKey.split('-');
+  if (parts.length === 3) {
+    return `${Number(parts[1])}/${Number(parts[2])}`;
+  }
+  return dKey;
+};
+
 export const getScoreWeeksForMonth = (
   year: number,
   month: number // 0-indexed: 0 = Jan, 11 = Dec
@@ -414,8 +422,39 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
   const [confirmDownloadFormat, setConfirmDownloadFormat] = useState<'docx' | 'pdf' | 'excel' | null>(null);
 
   const printRef = useRef<HTMLDivElement>(null);
+  const previewWrapRef = useRef<HTMLDivElement>(null);
   const scrollBodyRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
+
+  const [sheetScale, setSheetScale] = useState<number>(1);
+  const [sheetHeight, setSheetHeight] = useState<number>(1056);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const updateScale = () => {
+      const wrapEl = previewWrapRef.current;
+      const sheetEl = printRef.current;
+      if (!wrapEl) return;
+      const style = window.getComputedStyle(wrapEl);
+      const padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+      const availW = Math.max(200, wrapEl.clientWidth - padX);
+      const targetW = parseInt(PAPER_CONFIG[paperSize].width, 10) || 816;
+      const nextScale = availW < targetW ? availW / targetW : 1;
+      setSheetScale(nextScale);
+      if (sheetEl) {
+        setSheetHeight(sheetEl.offsetHeight || parseInt(PAPER_CONFIG[paperSize].minHeight, 10) || 1056);
+      }
+    };
+    updateScale();
+    const ro = new ResizeObserver(updateScale);
+    if (previewWrapRef.current) ro.observe(previewWrapRef.current);
+    if (printRef.current) ro.observe(printRef.current);
+    window.addEventListener('resize', updateScale);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', updateScale);
+    };
+  }, [isOpen, paperSize]);
 
   const handleToggleSettings = () => {
     setShowSettings((prev) => {
@@ -696,24 +735,35 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
     );
   }, [weeks]);
 
-  // Group all recorded sessions for the selected date to let tutor choose which to export
+  // Group all recorded sessions for the selected date or date range to let tutor choose which to export
   const availableSessions = useMemo(() => {
-    const targetDate = selectedDateKey || (weeks[0]?.days[0]?.dateKey) || new Date().toISOString().slice(0, 10);
-    const gradesOnDate = assessmentGrades.filter((g) => {
-      const dKey = g.date_logged?.length >= 10 ? g.date_logged.slice(0, 10) : new Date(g.date_logged).toISOString().slice(0, 10);
-      return dKey === targetDate;
-    });
+    let relevantGrades: Grade[] = [];
 
-    const map = new Map<string, { key: string; label: string; time: string; count: number; rawDesc: string; orderTime: string }>();
+    if (exportMode === 'daily') {
+      const targetDate = selectedDateKey || (weeks[0]?.days[0]?.dateKey) || new Date().toISOString().slice(0, 10);
+      relevantGrades = assessmentGrades.filter((g) => {
+        const dKey = g.date_logged?.length >= 10 ? g.date_logged.slice(0, 10) : new Date(g.date_logged).toISOString().slice(0, 10);
+        return dKey === targetDate;
+      });
+    } else {
+      const inRangeDateKeys = new Set(weeks.flatMap((w) => w.days).map((d) => d.dateKey));
+      relevantGrades = assessmentGrades.filter((g) => {
+        const dKey = g.date_logged?.length >= 10 ? g.date_logged.slice(0, 10) : new Date(g.date_logged).toISOString().slice(0, 10);
+        return inRangeDateKeys.has(dKey);
+      });
+    }
 
-    gradesOnDate.forEach((g) => {
+    const map = new Map<string, { key: string; label: string; time: string; count: number; rawDesc: string; orderTime: string; dateKey: string }>();
+
+    relevantGrades.forEach((g) => {
       const rawDesc = getScoreDescription(g);
       const label = formatSessionLabel(rawDesc);
       const rawTime = g.created_at || (g as any).time_logged || '';
       const time = formatSessionTime(rawTime);
+      const dKey = g.date_logged?.length >= 10 ? g.date_logged.slice(0, 10) : new Date(g.date_logged).toISOString().slice(0, 10);
       const key = g.batch_id ? `${g.batch_id}|${label}|${time}` : `${label}|${time}`;
       if (!map.has(key)) {
-        map.set(key, { key, label, time, count: 0, rawDesc, orderTime: rawTime });
+        map.set(key, { key, label, time, count: 0, rawDesc, orderTime: rawTime, dateKey: dKey });
       }
       map.get(key)!.count += 1;
     });
@@ -725,18 +775,22 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
     });
 
     return list;
-  }, [assessmentGrades, selectedDateKey, weeks]);
+  }, [assessmentGrades, exportMode, selectedDateKey, weeks]);
 
   useEffect(() => {
     if (availableSessions.length > 0) {
       const exists = availableSessions.some((s) => s.key === selectedSessionKey);
-      if (!exists) {
-        setSelectedSessionKey(availableSessions[0].key);
+      if (!exists && selectedSessionKey !== 'all') {
+        if (exportMode !== 'daily' && availableSessions.length > 1) {
+          setSelectedSessionKey('all');
+        } else {
+          setSelectedSessionKey(availableSessions[0].key);
+        }
       }
     } else {
       setSelectedSessionKey('');
     }
-  }, [availableSessions, selectedSessionKey]);
+  }, [availableSessions, selectedSessionKey, exportMode]);
 
   useEffect(() => {
     if (!selectedSessionKey) return;
@@ -844,7 +898,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
         return a.id - b.id;
       });
 
-      if (selectedSessionKey && (exportMode === 'daily' || col.dateKey === selectedDateKey)) {
+      if (selectedSessionKey && selectedSessionKey !== 'all' && (exportMode === 'daily' || col.dateKey === selectedDateKey)) {
         matchedGrade = studentGradesOnDate.find((g) => {
           const rawDesc = getScoreDescription(g);
           const label = formatSessionLabel(rawDesc);
@@ -1197,9 +1251,9 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       SESSION ENTRY / TIME
                     </span>
-                    {availableSessions.length > 1 && (
+                    {availableSessions.length > 0 && (
                       <span className="text-[9.5px] font-bold text-[var(--brand)] dark:text-blue-400">
-                        {availableSessions.length} SESSIONS
+                        {availableSessions.length} {availableSessions.length === 1 ? 'SESSION' : 'SESSIONS'}
                       </span>
                     )}
                   </div>
@@ -1210,13 +1264,30 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                     className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#141414] px-2.5 py-1.5 font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-[11px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition"
                   >
                     {availableSessions.length === 0 ? (
-                      <option value="">No recorded sessions for this date</option>
+                      <option value="">
+                        {exportMode === 'daily'
+                          ? 'No recorded sessions for this date'
+                          : exportMode === 'weekly'
+                          ? 'No recorded sessions for this week'
+                          : 'No recorded sessions for this month'}
+                      </option>
                     ) : (
-                      availableSessions.map((s) => (
-                        <option key={s.key} value={s.key}>
-                          {s.time ? `[${s.label}] [${s.time}]` : `[${s.label}]`}
-                        </option>
-                      ))
+                      <>
+                        {exportMode !== 'daily' && availableSessions.length > 1 && (
+                          <option value="all">
+                            All Recorded Sessions ({availableSessions.length} Sessions)
+                          </option>
+                        )}
+                        {availableSessions.map((s) => {
+                          const dateLabel = exportMode !== 'daily' && (s as any).dateKey ? `${formatShortNumericDate((s as any).dateKey)} - ` : '';
+                          const timeLabel = s.time ? `[${s.label}] [${s.time}]` : `[${s.label}]`;
+                          return (
+                            <option key={s.key} value={s.key}>
+                              {dateLabel}{timeLabel}
+                            </option>
+                          );
+                        })}
+                      </>
                     )}
                   </select>
                 </div>
@@ -1291,7 +1362,6 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                   selectedMonthKey={selectedMonthKey}
                   onSelectDate={(dKey) => {
                     setSelectedDateKey(dKey);
-                    if (exportMode !== 'daily') setExportMode('daily');
                   }}
                   onSelectWeek={(wKey) => {
                     setSelectedWeekKey(wKey);
@@ -1337,29 +1407,49 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
             {/* Right Column: Physical Paper Sheet Preview (Full Width in Confirmation Mode) */}
             <div className={confirmDownloadFormat ? "col-span-12 flex flex-col items-center justify-center min-w-0 animate-fade-in" : "lg:col-span-8 xl:col-span-9 2xl:col-span-9 flex flex-col min-w-0"}>
               {/* Paper Workspace Canvas */}
-              <div className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-slate-100/90 dark:bg-[#111111] p-4 sm:p-6 overflow-x-auto flex flex-col items-center shadow-inner">
-                {/* Physical Sheet Card with Fixed Proportions */}
+              <div
+                ref={previewWrapRef}
+                className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-slate-100/90 dark:bg-[#111111] p-2.5 sm:p-6 overflow-x-auto flex flex-col items-center shadow-inner"
+              >
                 <div
-                  ref={printRef}
-                  data-print-container="true"
-                  style={{
-                    width: PAPER_CONFIG[paperSize].width,
-                    minHeight: PAPER_CONFIG[paperSize].minHeight,
-                    fontFamily: "'Times New Roman', Times, Georgia, serif",
-                    colorScheme: 'light',
-                    backgroundColor: '#ffffff',
-                    color: '#0f172a',
-                    ['--slate-50' as any]: '#F8FAFC',
-                    ['--slate-100' as any]: '#F1F5F9',
-                    ['--slate-200' as any]: '#E2E8F0',
-                    ['--slate-300' as any]: '#CBD5E1',
-                    ['--slate-400' as any]: '#94A3B8',
-                    ['--slate-500' as any]: '#64748B',
-                    ['--slate-600' as any]: '#475569',
-                    ['--slate-700' as any]: '#334155',
-                    ['--slate-800' as any]: '#1E293B',
-                    ['--slate-900' as any]: '#0F172A',
-                  }}
+                  style={
+                    sheetScale < 1
+                      ? {
+                          width: `${Math.round((parseInt(PAPER_CONFIG[paperSize].width, 10) || 816) * sheetScale)}px`,
+                          height: `${Math.round(sheetHeight * sheetScale)}px`,
+                          position: 'relative',
+                        }
+                      : undefined
+                  }
+                >
+                  {/* Physical Sheet Card with Fixed Proportions */}
+                  <div
+                    ref={printRef}
+                    data-print-container="true"
+                    style={{
+                      width: PAPER_CONFIG[paperSize].width,
+                      minHeight: PAPER_CONFIG[paperSize].minHeight,
+                      fontFamily: "'Times New Roman', Times, Georgia, serif",
+                      colorScheme: 'light',
+                      backgroundColor: '#ffffff',
+                      color: '#0f172a',
+                      ['--slate-50' as any]: '#F8FAFC',
+                      ['--slate-100' as any]: '#F1F5F9',
+                      ['--slate-200' as any]: '#E2E8F0',
+                      ['--slate-300' as any]: '#CBD5E1',
+                      ['--slate-400' as any]: '#94A3B8',
+                      ['--slate-500' as any]: '#64748B',
+                      ['--slate-600' as any]: '#475569',
+                      ['--slate-700' as any]: '#334155',
+                      ['--slate-800' as any]: '#1E293B',
+                      ['--slate-900' as any]: '#0F172A',
+                      ...(sheetScale < 1
+                        ? {
+                            transform: `scale(${sheetScale})`,
+                            transformOrigin: 'top left',
+                          }
+                        : {}),
+                    }}
                   className={`export-paper-sheet bg-white shadow-xl border border-slate-300 ${
                     isPreviewDense ? 'pt-8 pb-8' : isPreviewCompact ? 'pt-12 pb-12' : 'pt-20 pb-20'
                   } ${
@@ -1587,6 +1677,7 @@ export const ExportScoreModal: React.FC<ExportScoreModalProps> = ({
                     </div>
                   </div>
                 </div>
+              </div>
               </div>
             </div>
           </div>

@@ -346,13 +346,13 @@ const aralLevelRank: Record<string, number> = {
       });
   }, [studentRows, search, sortField, sortAsc]);
 
-  const SortableHeader: React.FC<{ label: string; field: string }> = ({ label, field }) => {
+  const SortableHeader: React.FC<{ label: string; field: string; className?: string }> = ({ label, field, className = '' }) => {
     const isActive = sortField === field;
     return (
       <button
         type="button"
         onClick={() => handleSort(field)}
-        className="inline-flex items-center gap-1.5 whitespace-nowrap text-left transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none cursor-pointer"
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap text-left transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none cursor-pointer ${className}`}
         aria-label={`Sort by ${label}`}
       >
         <span className="whitespace-nowrap">{label}</span>
@@ -496,69 +496,144 @@ const aralLevelRank: Record<string, number> = {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto mobile-scroll-table -mx-3 sm:mx-0 px-3 sm:px-0">
-                <table className="min-w-[720px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-                  <thead>
-                    <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-                      <th className="w-12 px-2.5 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
-                        #
-                      </th>
-                      <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
-                        <SortableHeader label="STUDENT" field="name" />
-                      </th>
-                      <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
-                        <SortableHeader label="LRN" field="lrn" />
-                      </th>
-                      <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
-                        <SortableHeader label="PARENT / GUARDIAN" field="parent_guardian" />
-                      </th>
-                      <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
-                        <SortableHeader label="CONTACT NO." field="contact" />
-                      </th>
-                      <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
-                        <SortableHeader label="ARAL LEVEL" field="level" />
-                      </th>
-                      <th className="w-16 px-3 sm:px-4 py-2 sm:py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
-                        ACTION
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
-                    {filteredAndSorted.map((row, index) => (
-                      <tr key={row.student.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
-                        <td className="px-2.5 sm:px-3 py-2 sm:py-2.5 text-center text-xs font-normal text-gray-400 whitespace-nowrap">
-                          {index + 1}
-                        </td>
-                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 font-semibold text-gray-800 dark:text-slate-100">
-                          <span className="block truncate font-semibold text-gray-800 dark:text-slate-100">{row.student.full_name}</span>
-                        </td>
-                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs font-normal font-mono">
-                          {row.student.lrn || 'N/A'}
-                        </td>
-                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-normal uppercase">
-                          {row.student.parent_guardian_name || '—'}
-                        </td>
-                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-mono">
-                          {row.student.contact_number || '—'}
-                        </td>
-                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap">
-                          {getAralBadge(row.student.aral_level)}
-                        </td>
-                        <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-center whitespace-nowrap">
-                          <Link
-                            to={`/tutor/students/${row.student.id}`}
-                            className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] hover:bg-gray-100 dark:hover:bg-[#1e1e1e] rounded-md transition-colors cursor-pointer p-2 sm:p-1.5 touch-manipulation"
-                            title="View Profile"
-                            aria-label={`View profile for ${row.student.full_name}`}
-                          >
-                            <UserIcon className="w-4 h-4" />
-                          </Link>
-                        </td>
+              <>
+                {/* ── Mobile View (< 768px): Mobile-optimized table with sealed sticky student column ── */}
+                <div className="md:hidden overflow-x-auto mobile-scroll-table -mx-3 px-0 border border-gray-200 dark:border-[#1A1A1A] rounded-md bg-white dark:bg-[#111111]">
+                  <table className="min-w-[620px] w-full border-separate border-spacing-0 text-xs" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                    <thead>
+                      <tr className="bg-gray-50 dark:bg-[#151515]">
+                        <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[34%] min-w-[145px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                          <SortableHeader label="STUDENT" field="name" />
+                        </th>
+                        <th className="min-w-[95px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                          <SortableHeader label="LRN" field="lrn" className="justify-center" />
+                        </th>
+                        <th className="min-w-[85px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                          <SortableHeader label="ARAL LEVEL" field="level" className="justify-center" />
+                        </th>
+                        <th className="min-w-[130px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                          <SortableHeader label="PARENT / GUARDIAN" field="parent_guardian" />
+                        </th>
+                        <th className="min-w-[105px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                          <SortableHeader label="CONTACT NO." field="contact" className="justify-center" />
+                        </th>
+                        <th className="w-14 min-w-[55px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                          ACTION
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="bg-white dark:bg-[#111111]">
+                      {filteredAndSorted.map((row, index) => (
+                        <tr key={`mobile-assigned-${row.student.id}`} className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
+                          <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-[10px] text-gray-400 font-mono shrink-0 w-4 text-right">
+                                {index + 1}.
+                              </span>
+                              <Link
+                                to={`/tutor/students/${row.student.id}`}
+                                className="block truncate max-w-[115px] text-xs font-semibold text-gray-800 dark:text-slate-100 hover:text-[var(--brand)] transition-colors"
+                                title={row.student.full_name}
+                              >
+                                {row.student.full_name}
+                              </Link>
+                            </div>
+                          </td>
+                          <td className="px-2 py-2 text-center text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs font-normal font-mono border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {row.student.lrn || 'N/A'}
+                          </td>
+                          <td className="px-2 py-2 text-center whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {getAralBadge(row.student.aral_level)}
+                          </td>
+                          <td className="px-2 py-2 text-left text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-normal uppercase border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            <span className="block truncate max-w-[125px]" title={row.student.parent_guardian_name || '—'}>
+                              {row.student.parent_guardian_name || '—'}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2 text-center text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-mono border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {row.student.contact_number || '—'}
+                          </td>
+                          <td className="px-2 py-2 text-center whitespace-nowrap border-b border-gray-100 dark:border-[#1A1A1A]">
+                            <Link
+                              to={`/tutor/students/${row.student.id}`}
+                              className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] hover:bg-gray-100 dark:hover:bg-[#1e1e1e] rounded-md transition-colors cursor-pointer p-1.5 touch-manipulation"
+                              title="View Profile"
+                              aria-label={`View profile for ${row.student.full_name}`}
+                            >
+                              <UserIcon className="w-4 h-4" />
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* ── Desktop View (>= 768px): Original full table ── */}
+                <div className="hidden md:block overflow-x-auto mobile-scroll-table -mx-3 sm:mx-0 px-3 sm:px-0">
+                  <table className="min-w-[720px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                    <thead>
+                      <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
+                        <th className="w-12 px-2.5 sm:px-3 py-2 sm:py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                          #
+                        </th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                          <SortableHeader label="STUDENT" field="name" />
+                        </th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                          <SortableHeader label="LRN" field="lrn" />
+                        </th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                          <SortableHeader label="PARENT / GUARDIAN" field="parent_guardian" />
+                        </th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                          <SortableHeader label="CONTACT NO." field="contact" />
+                        </th>
+                        <th className="px-3 sm:px-4 py-2 sm:py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                          <SortableHeader label="ARAL LEVEL" field="level" />
+                        </th>
+                        <th className="w-16 px-3 sm:px-4 py-2 sm:py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                          ACTION
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
+                      {filteredAndSorted.map((row, index) => (
+                        <tr key={row.student.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
+                          <td className="px-2.5 sm:px-3 py-2 sm:py-2.5 text-center text-xs font-normal text-gray-400 whitespace-nowrap">
+                            {index + 1}
+                          </td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-2.5 font-semibold text-gray-800 dark:text-slate-100">
+                            <span className="block truncate font-semibold text-gray-800 dark:text-slate-100">{row.student.full_name}</span>
+                          </td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs font-normal font-mono">
+                            {row.student.lrn || 'N/A'}
+                          </td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-normal uppercase">
+                            {row.student.parent_guardian_name || '—'}
+                          </td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-mono">
+                            {row.student.contact_number || '—'}
+                          </td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap">
+                            {getAralBadge(row.student.aral_level)}
+                          </td>
+                          <td className="px-3 sm:px-4 py-2 sm:py-2.5 text-center whitespace-nowrap">
+                            <Link
+                              to={`/tutor/students/${row.student.id}`}
+                              className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] hover:bg-gray-100 dark:hover:bg-[#1e1e1e] rounded-md transition-colors cursor-pointer p-2 sm:p-1.5 touch-manipulation"
+                              title="View Profile"
+                              aria-label={`View profile for ${row.student.full_name}`}
+                            >
+                              <UserIcon className="w-4 h-4" />
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </div>

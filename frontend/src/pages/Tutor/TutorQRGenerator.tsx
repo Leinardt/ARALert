@@ -77,6 +77,16 @@ const formatDateString = (value: string | null | undefined): string => {
   return `${month} ${day}, ${year} | ${weekday}`;
 };
 
+const formatShortDateString = (value: string | null | undefined): string => {
+  if (!value) return '—';
+  const date = new Date(value.includes('T') ? value : `${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const day = date.getDate();
+  const year = date.getFullYear();
+  return `${month} ${day}, ${year}`;
+};
+
 const formatTimeString = (value: string | null | undefined): string => {
   if (!value) return '—';
 
@@ -516,119 +526,249 @@ const AttendanceTable: React.FC<{
   };
 
   return (
-    <div className="overflow-x-auto mobile-scroll-table -mx-2 px-2">
-      <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
-        <thead>
-          <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-            <th className="w-[35%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="STUDENT" sortKey="student" /></th>
-            <th className="w-[25%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="DATE" sortKey="date" /></th>
-            <th className="w-[20%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="TIME" sortKey="time" /></th>
-            <th className="w-[12%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="STATUS" sortKey="status" /></th>
-            <th className="w-[8%] px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">ACTIONS</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 bg-white dark:divide-[#1A1A1A] dark:bg-[#111111]">
-          {sortedLogs.map((log) => (
-            <tr key={log.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
-              <td className="px-4 py-2.5 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
-                {log.user_name}
-              </td>
-              <td className="px-4 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
-                {editingId === log.id ? (
-                  <div className="relative inline-block">
-                    <button type="button" onClick={(event) => togglePicker('date', event)} className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700" style={{ color: editDate ? '#1f2937' : '#9ca3af' }}>
-                      {editDate || 'Select date'}
-                    </button>
-                    {openPicker === 'date' && createPortal(
-                      <CustomCalendarDropdown
-                        selectedDate={editDate}
-                        onSelectDate={setEditDate}
-                        onClear={() => setEditDate('')}
-                        onClose={() => setOpenPicker(null)}
-                        loggedDates={new Set(logs.map((attendance) => attendance.date))}
-                        className="fixed"
-                        style={{ position: 'fixed', top: pickerPosition.top, left: pickerPosition.left, marginTop: 0 }}
-                      />,
-                      document.body
-                    )}
-                  </div>
-                ) : formatDateString(log.date)}
-              </td>
-              <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
-                {editingId === log.id ? (
-                  <div className="relative inline-block">
-                    <button type="button" onClick={(event) => togglePicker('time', event)} className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700" style={{ color: editTimeIn ? '#1f2937' : '#9ca3af' }}>
-                      {formatEditTime(editTimeIn)}
-                    </button>
-                    {openPicker === 'time' && createPortal(
-                      <div
-                        ref={timePickerRef}
-                        className="fixed z-[70] w-64 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150"
-                        style={{ top: pickerPosition.top, left: pickerPosition.left, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
-                      >
-                        <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Set time</p>
-                          <button
-                            type="button"
-                            onClick={() => setOpenPicker(null)}
-                            className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                            aria-label="Close time picker"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <select value={String(Number(editTimeIn ? editTimeIn.split(':')[0] : 0) % 12 || 12)} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'hour', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer">
-                            {Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}
-                          </select>
-                          <select value={String(Number(editTimeIn ? editTimeIn.split(':')[1] : 0)).padStart(2, '0')} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'minute', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer">
-                            {Array.from({ length: 60 }, (_, index) => <option key={index} value={String(index).padStart(2, '0')}>{String(index).padStart(2, '0')}</option>)}
-                          </select>
-                          <select value={editTimeIn && Number(editTimeIn.split(':')[0]) >= 12 ? 'PM' : 'AM'} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'period', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer">
-                            <option value="AM">AM</option>
-                            <option value="PM">PM</option>
-                          </select>
-                        </div>
-                        <div className="mt-3 flex items-center justify-end border-t border-gray-100 dark:border-[#1A1A1A] pt-2 text-[11px] font-semibold">
-                          <button type="button" onClick={() => setOpenPicker(null)} className="text-[var(--brand)] transition hover:underline cursor-pointer font-bold">Done</button>
-                        </div>
-                      </div>,
-                      document.body
-                    )}
-                  </div>
-                ) : formatTimeString(log.time_in)}
-              </td>
-              <td className="px-4 py-2.5">
-                {editingId === log.id ? (
-                  <select value={editStatus} onChange={(event) => setEditStatus(event.target.value as Attendance['status'])} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#161616] px-2 py-1 text-xs text-gray-700 dark:text-slate-200 outline-none focus:border-[var(--brand)]">
-                    <option value="present">Present</option>
-                    <option value="absent">Absent</option>
-                  </select>
-                ) : (
-                  statusBadge(log.status, log.status_display)
-                )}
-              </td>
-              <td className="px-4 py-2.5 text-center">
-                {editingId === log.id ? (
-                  <div className="inline-flex items-center gap-1.5">
-                    <button type="button" onClick={saveEditing} disabled={isSaving} className="rounded-md p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50" aria-label="Save attendance changes" title="Save attendance changes">
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
-                    <button type="button" onClick={cancelEditing} disabled={isSaving} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 disabled:opacity-50" aria-label="Cancel attendance changes" title="Cancel attendance changes">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" onClick={() => startEditing(log)} className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700" aria-label={`Edit attendance for ${log.user_name}`} title="Edit attendance">
-                    <Edit3 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </td>
+    <>
+      {/* ── Desktop View (>= 768px): Exact original table ── */}
+      <div className="hidden md:block overflow-x-auto mobile-scroll-table -mx-2 px-2">
+        <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
+          <thead>
+            <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
+              <th className="w-[35%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="STUDENT" sortKey="student" /></th>
+              <th className="w-[25%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="DATE" sortKey="date" /></th>
+              <th className="w-[20%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="TIME" sortKey="time" /></th>
+              <th className="w-[12%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="STATUS" sortKey="status" /></th>
+              <th className="w-[8%] px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">ACTIONS</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody className="divide-y divide-gray-100 bg-white dark:divide-[#1A1A1A] dark:bg-[#111111]">
+            {sortedLogs.map((log) => (
+              <tr key={log.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
+                <td className="px-4 py-2.5 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
+                  {log.user_name}
+                </td>
+                <td className="px-4 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
+                  {editingId === log.id ? (
+                    <div className="relative inline-block">
+                      <button type="button" onClick={(event) => togglePicker('date', event)} className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700" style={{ color: editDate ? '#1f2937' : '#9ca3af' }}>
+                        {editDate || 'Select date'}
+                      </button>
+                      {openPicker === 'date' && createPortal(
+                        <CustomCalendarDropdown
+                          selectedDate={editDate}
+                          onSelectDate={setEditDate}
+                          onClear={() => setEditDate('')}
+                          onClose={() => setOpenPicker(null)}
+                          loggedDates={new Set(logs.map((attendance) => attendance.date))}
+                          className="fixed"
+                          style={{ position: 'fixed', top: pickerPosition.top, left: pickerPosition.left, marginTop: 0 }}
+                        />,
+                        document.body
+                      )}
+                    </div>
+                  ) : formatDateString(log.date)}
+                </td>
+                <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
+                  {editingId === log.id ? (
+                    <div className="relative inline-block">
+                      <button type="button" onClick={(event) => togglePicker('time', event)} className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700" style={{ color: editTimeIn ? '#1f2937' : '#9ca3af' }}>
+                        {formatEditTime(editTimeIn)}
+                      </button>
+                      {openPicker === 'time' && createPortal(
+                        <div
+                          ref={timePickerRef}
+                          className="fixed z-[70] w-64 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150"
+                          style={{ top: pickerPosition.top, left: pickerPosition.left, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+                        >
+                          <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Set time</p>
+                            <button
+                              type="button"
+                              onClick={() => setOpenPicker(null)}
+                              className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                              aria-label="Close time picker"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <select value={String(Number(editTimeIn ? editTimeIn.split(':')[0] : 0) % 12 || 12)} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'hour', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer">
+                              {Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}
+                            </select>
+                            <select value={String(Number(editTimeIn ? editTimeIn.split(':')[1] : 0)).padStart(2, '0')} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'minute', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer">
+                              {Array.from({ length: 60 }, (_, index) => <option key={index} value={String(index).padStart(2, '0')}>{String(index).padStart(2, '0')}</option>)}
+                            </select>
+                            <select value={editTimeIn && Number(editTimeIn.split(':')[0]) >= 12 ? 'PM' : 'AM'} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'period', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer">
+                              <option value="AM">AM</option>
+                              <option value="PM">PM</option>
+                            </select>
+                          </div>
+                          <div className="mt-3 flex items-center justify-end border-t border-gray-100 dark:border-[#1A1A1A] pt-2 text-[11px] font-semibold">
+                            <button type="button" onClick={() => setOpenPicker(null)} className="text-[var(--brand)] transition hover:underline cursor-pointer font-bold">Done</button>
+                          </div>
+                        </div>,
+                        document.body
+                      )}
+                    </div>
+                  ) : formatTimeString(log.time_in)}
+                </td>
+                <td className="px-4 py-2.5">
+                  {editingId === log.id ? (
+                    <select value={editStatus} onChange={(event) => setEditStatus(event.target.value as Attendance['status'])} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#161616] px-2 py-1 text-xs text-gray-700 dark:text-slate-200 outline-none focus:border-[var(--brand)]">
+                      <option value="present">Present</option>
+                      <option value="absent">Absent</option>
+                    </select>
+                  ) : (
+                    statusBadge(log.status, log.status_display)
+                  )}
+                </td>
+                <td className="px-4 py-2.5 text-center">
+                  {editingId === log.id ? (
+                    <div className="inline-flex items-center gap-1.5">
+                      <button type="button" onClick={saveEditing} disabled={isSaving} className="rounded-md p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50" aria-label="Save attendance changes" title="Save attendance changes">
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button type="button" onClick={cancelEditing} disabled={isSaving} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 disabled:opacity-50" aria-label="Cancel attendance changes" title="Cancel attendance changes">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => startEditing(log)} className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700" aria-label={`Edit attendance for ${log.user_name}`} title="Edit attendance">
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Mobile View (< 768px): Mobile-optimized table with sealed sticky student column ── */}
+      <div className="md:hidden overflow-x-auto mobile-scroll-table rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111]">
+        <table className="min-w-[480px] w-full border-separate border-spacing-0 text-xs">
+          <thead>
+            <tr className="bg-gray-50 dark:bg-[#151515]">
+              <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[35%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                <SortableHeader label="STUDENT" sortKey="student" />
+              </th>
+              <th className="w-[26%] min-w-[105px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                <SortableHeader label="DATE" sortKey="date" />
+              </th>
+              <th className="w-[18%] min-w-[75px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                <SortableHeader label="TIME" sortKey="time" />
+              </th>
+              <th className="w-[13%] min-w-[85px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                <SortableHeader label="STATUS" sortKey="status" />
+              </th>
+              <th className="w-[8%] min-w-[60px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                ACTIONS
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white dark:bg-[#111111]">
+            {sortedLogs.map((log) => (
+              <tr key={`mobile-row-${log.id}`} className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
+                <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                  <span className="block truncate max-w-[120px] text-xs font-semibold text-gray-800 dark:text-slate-100">
+                    {log.user_name}
+                  </span>
+                </td>
+                <td className="px-2 py-2 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                  {editingId === log.id ? (
+                    <div className="relative inline-block">
+                      <button type="button" onClick={(event) => togglePicker('date', event)} className="h-7.5 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700" style={{ color: editDate ? '#1f2937' : '#9ca3af' }}>
+                        {editDate || 'Select date'}
+                      </button>
+                      {openPicker === 'date' && createPortal(
+                        <CustomCalendarDropdown
+                          selectedDate={editDate}
+                          onSelectDate={setEditDate}
+                          onClear={() => setEditDate('')}
+                          onClose={() => setOpenPicker(null)}
+                          loggedDates={new Set(logs.map((attendance) => attendance.date))}
+                          className="fixed"
+                          style={{ position: 'fixed', top: pickerPosition.top, left: pickerPosition.left, marginTop: 0 }}
+                        />,
+                        document.body
+                      )}
+                    </div>
+                  ) : formatShortDateString(log.date)}
+                </td>
+                <td className="px-2 py-2 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-mono border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                  {editingId === log.id ? (
+                    <div className="relative inline-block">
+                      <button type="button" onClick={(event) => togglePicker('time', event)} className="h-7.5 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700" style={{ color: editTimeIn ? '#1f2937' : '#9ca3af' }}>
+                        {formatEditTime(editTimeIn)}
+                      </button>
+                      {openPicker === 'time' && createPortal(
+                        <div
+                          ref={timePickerRef}
+                          className="fixed z-[70] w-64 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150"
+                          style={{ top: pickerPosition.top, left: pickerPosition.left, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+                        >
+                          <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Set time</p>
+                            <button
+                              type="button"
+                              onClick={() => setOpenPicker(null)}
+                              className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                              aria-label="Close time picker"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <select value={String(Number(editTimeIn ? editTimeIn.split(':')[0] : 0) % 12 || 12)} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'hour', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer">
+                              {Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}
+                            </select>
+                            <select value={String(Number(editTimeIn ? editTimeIn.split(':')[1] : 0)).padStart(2, '0')} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'minute', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer">
+                              {Array.from({ length: 60 }, (_, index) => <option key={index} value={String(index).padStart(2, '0')}>{String(index).padStart(2, '0')}</option>)}
+                            </select>
+                            <select value={editTimeIn && Number(editTimeIn.split(':')[0]) >= 12 ? 'PM' : 'AM'} onChange={(event) => setEditTimeIn(updateEditTimePart(editTimeIn, 'period', event.target.value))} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer">
+                              <option value="AM">AM</option>
+                              <option value="PM">PM</option>
+                            </select>
+                          </div>
+                          <div className="mt-3 flex items-center justify-end border-t border-gray-100 dark:border-[#1A1A1A] pt-2 text-[11px] font-semibold">
+                            <button type="button" onClick={() => setOpenPicker(null)} className="text-[var(--brand)] transition hover:underline cursor-pointer font-bold">Done</button>
+                          </div>
+                        </div>,
+                        document.body
+                      )}
+                    </div>
+                  ) : formatTimeString(log.time_in)}
+                </td>
+                <td className="px-2 py-2 whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                  {editingId === log.id ? (
+                    <select value={editStatus} onChange={(event) => setEditStatus(event.target.value as Attendance['status'])} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#161616] px-1.5 py-1 text-xs text-gray-700 dark:text-slate-200 outline-none focus:border-[var(--brand)]">
+                      <option value="present">Present</option>
+                      <option value="absent">Absent</option>
+                    </select>
+                  ) : (
+                    statusBadge(log.status, log.status_display)
+                  )}
+                </td>
+                <td className="px-2 py-2 text-center whitespace-nowrap border-b border-gray-100 dark:border-[#1A1A1A]">
+                  {editingId === log.id ? (
+                    <div className="inline-flex items-center gap-1">
+                      <button type="button" onClick={saveEditing} disabled={isSaving} className="rounded-md p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50" aria-label="Save attendance changes" title="Save attendance changes">
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button type="button" onClick={cancelEditing} disabled={isSaving} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 disabled:opacity-50" aria-label="Cancel attendance changes" title="Cancel attendance changes">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => startEditing(log)} className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700" aria-label={`Edit attendance for ${log.user_name}`} title="Edit attendance">
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 };
 
@@ -753,14 +893,14 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 py-0.5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-2 py-0.5 shrink-0">
             <span className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none">
               {group.title}
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className={`flex items-center gap-1 sm:gap-1.5 py-0.5 max-w-full ${group.isMonthGroup ? 'overflow-x-auto no-scrollbar' : 'w-full'}`}>
             {groupDates.map((dateStr) => {
               const hasRecord = datesWithRecords.has(dateStr);
               const isSelected = selectedDate === dateStr;
@@ -768,13 +908,13 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
               const label = formatDateButtonLabel(dateStr);
               const isDayEditMode = editDayModeDate === dateStr;
               return (
-                <div key={dateStr} className="inline-flex items-center gap-1">
+                <div key={dateStr} className={`inline-flex items-center gap-1 ${group.isMonthGroup ? 'shrink-0' : 'flex-1 min-w-0 sm:flex-initial'}`}>
                   <button
                     key={dateStr}
                     type="button"
                     disabled={!hasRecord}
                     onClick={() => onSelectDate(dateStr)}
-                    className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all inline-flex items-center gap-1.5 ${
+                    className={`w-full sm:w-auto h-7.5 whitespace-nowrap rounded-md px-1 sm:px-3 text-[10px] min-[360px]:text-[10.5px] sm:text-[11px] font-bold uppercase transition-all inline-flex items-center justify-center gap-1 ${
                       hasRecord
                         ? isTrashed
                           ? isSelected
@@ -797,7 +937,7 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
                     aria-label={label}
                   >
                     {isTrashed && (
-                      <Trash2 className="w-3 h-3 text-gray-400" />
+                      <Trash2 className="w-3 h-3 text-gray-400 shrink-0" />
                     )}
                     {label}
                   </button>
@@ -1904,16 +2044,16 @@ export const TutorQRGenerator: React.FC = () => {
       />
 
       {/* ── Main Grid ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-6">
 
         {/* ── LEFT: QR Generator ─────────────────────────────────── */}
         <div className="lg:col-span-7">
           <div className="h-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden">
 
             {/* Card Header */}
-            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <div className="h-12 sm:h-[60px] shrink-0 flex items-center justify-between px-3.5 sm:px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h2 className="text-base font-bold text-gray-900 dark:text-slate-100 uppercase">ATTENDANCE SCANNER SETUP</h2>
+                <h2 className="text-xs sm:text-base font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">ATTENDANCE SCANNER SETUP</h2>
               </div>
               {session && isSessionForCurrentClass && (
                 <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold border ${session.is_active
@@ -1926,22 +2066,22 @@ export const TutorQRGenerator: React.FC = () => {
               )}
             </div>
 
-            <div className="p-6 flex flex-col gap-5">
+            <div className="p-3.5 sm:p-6 flex flex-col gap-3 sm:gap-5">
 
               {(!session || !isSessionForCurrentClass) && (
-                <div className="order-2 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/60 dark:bg-[#161616] p-4 space-y-4">
+                <div className="order-2 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/60 dark:bg-[#161616] p-3 sm:p-4 space-y-2.5 sm:space-y-4">
                   {/* Duration */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-3">
+                    <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5 sm:mb-3">
                       Duration
                     </label>
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
                       {[5, 10, 15, 30].map((mins) => (
                         <button
                           key={mins}
                           type="button"
                           onClick={() => setExpiresIn(mins)}
-                          className={`py-2 rounded-md text-xs font-bold border transition-all cursor-pointer ${expiresIn === mins
+                          className={`py-1.5 sm:py-2 rounded-md text-[11px] sm:text-xs font-bold border transition-all cursor-pointer ${expiresIn === mins
                             ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
                             : 'bg-white dark:bg-[#111111] text-gray-600 dark:text-slate-300 border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:text-[var(--brand)]'
                             }`}
@@ -1959,7 +2099,7 @@ export const TutorQRGenerator: React.FC = () => {
                 <button
                   onClick={generateStudentQR}
                   disabled={isLoading}
-                  className="order-3 w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2.5 rounded-md text-sm font-bold transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="order-3 w-full flex items-center justify-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white py-2.5 px-3 rounded-md text-xs sm:text-sm font-bold transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed text-center leading-snug"
                 >
                   {isLoading ? (
                     <>
@@ -1974,7 +2114,7 @@ export const TutorQRGenerator: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleCancelSessionClick}
-                  className="order-3 w-full flex items-center justify-center border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand-light)] py-2.5 rounded-md text-sm font-bold transition-all cursor-pointer"
+                  className="order-3 w-full flex items-center justify-center border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand-light)] py-2.5 px-3 rounded-md text-xs sm:text-sm font-bold transition-all cursor-pointer text-center leading-snug"
                 >
                   Close Session
                 </button>
@@ -2028,7 +2168,7 @@ export const TutorQRGenerator: React.FC = () => {
                 {/* Viewport: Active Session Scanner OR Expired OR Awaiting Session */}
                 {session?.is_active && isSessionForCurrentClass ? (
                   <div className="space-y-3">
-                    <div className="relative flex min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-4 overflow-hidden">
+                    <div className="relative flex min-h-[220px] sm:min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-3 sm:p-4 overflow-hidden">
                       <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 border-[var(--brand)] rounded-tl-xs z-10" />
                       <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 border-[var(--brand)] rounded-tr-xs z-10" />
                       <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-[var(--brand)] rounded-bl-xs z-10" />
@@ -2061,7 +2201,7 @@ export const TutorQRGenerator: React.FC = () => {
                     </div>
 
                     {/* Manual Attendance Entry */}
-                    <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] p-3.5 space-y-2">
+                    <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] p-3 sm:p-3.5 space-y-2">
                       <div className="flex items-center justify-between">
                         <div>
                           <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase">MANUAL ATTENDANCE ENTRY</h3>
@@ -2106,17 +2246,17 @@ export const TutorQRGenerator: React.FC = () => {
                     </div>
                   </div>
                 ) : session?.is_active && !isSessionForCurrentClass ? (
-                  <div className="relative flex min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 px-4 py-6 text-center">
-                    <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center mb-3">
-                      <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                  <div className="relative flex min-h-[190px] sm:min-h-[280px] flex-col items-center justify-center rounded-md border-2 border-dashed border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 p-3.5 sm:p-6 text-center">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-100 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center mb-2 sm:mb-3">
+                      <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400" />
                     </div>
-                    <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm">
+                    <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm">
                       Attendance Session Active for {sessionCohort}
                     </h3>
-                    <p className="text-xs text-gray-600 dark:text-slate-300 mt-1.5 max-w-sm leading-relaxed">
+                    <p className="text-[11px] sm:text-xs text-gray-600 dark:text-slate-300 mt-1 max-w-sm leading-relaxed">
                       You are currently viewing <span className="font-bold">{selectedCohort}</span>. Switch back to <span className="font-bold">{sessionCohort}</span> to scan student QR codes, or close the {sessionCohort} session to start one for {selectedCohort}.
                     </p>
-                    <div className="mt-4 flex w-full items-center justify-center gap-1.5">
+                    <div className="mt-3 sm:mt-4 flex flex-wrap w-full items-center justify-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => {
@@ -2136,12 +2276,12 @@ export const TutorQRGenerator: React.FC = () => {
                     </div>
                   </div>
                 ) : session && !session.is_active ? (
-                  <div className="relative flex min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-6 text-center">
-                    <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/50 flex items-center justify-center mb-3">
-                      <Clock className="w-6 h-6 text-red-500" />
+                  <div className="relative flex min-h-[190px] sm:min-h-[280px] flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-3.5 sm:p-6 text-center">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/50 flex items-center justify-center mb-2 sm:mb-3">
+                      <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-red-500" />
                     </div>
-                    <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm">Attendance Session Expired</h3>
-                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 max-w-xs">
+                    <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm">Attendance Session Expired</h3>
+                    <p className="text-[11px] sm:text-xs text-gray-500 dark:text-slate-400 mt-1 max-w-xs">
                       The timer for this attendance session has elapsed. Start a new session to continue scanning.
                     </p>
                     <button
@@ -2155,20 +2295,20 @@ export const TutorQRGenerator: React.FC = () => {
                         recentScansMapRef.current.clear();
                         void fetchAttendanceHistory();
                       }}
-                      className="mt-4 px-4 py-1.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-md text-xs font-bold transition-all cursor-pointer"
+                      className="mt-3 sm:mt-4 px-3.5 py-1.5 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white rounded-md text-xs font-bold transition-all cursor-pointer"
                     >
                       Reset Session
                     </button>
                   </div>
                 ) : (
-                  <div className="relative flex min-h-[300px] flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-6 text-center">
-                    <div className="w-14 h-14 rounded-full border border-dashed border-gray-300 dark:border-white/10 bg-white dark:bg-[#111111] flex items-center justify-center mb-3">
-                      <Camera className="w-7 h-7 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
+                  <div className="relative flex min-h-[170px] sm:min-h-[280px] flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-200 dark:border-[#1A1A1A] bg-gray-50/70 dark:bg-[#161616] p-4 sm:p-6 text-center">
+                    <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-full border border-dashed border-gray-300 dark:border-white/10 bg-white dark:bg-[#111111] flex items-center justify-center mb-2 sm:mb-3">
+                      <Camera className="w-5 h-5 sm:w-7 sm:h-7 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
                     </div>
-                    <h3 className="text-sm font-bold text-gray-800 dark:text-slate-200">
+                    <h3 className="text-xs sm:text-sm font-bold text-gray-800 dark:text-slate-200">
                       Ready to Scan Student Attendance
                     </h3>
-                    <p className="text-xs text-gray-400 dark:text-slate-500 max-w-xs mt-1">
+                    <p className="text-[11px] sm:text-xs text-gray-400 dark:text-slate-500 max-w-xs mt-0.5 sm:mt-1">
                       Select a session duration and start the session to activate the camera scanner.
                     </p>
                   </div>
@@ -2176,7 +2316,7 @@ export const TutorQRGenerator: React.FC = () => {
 
                 {/* Countdown + session info */}
                 {session?.is_active && isSessionForCurrentClass && (
-                  <div className="mt-4 space-y-1.5">
+                  <div className="mt-3 sm:mt-4 space-y-1.5">
                     {/* Progress bar */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900 dark:text-slate-100">
@@ -2200,12 +2340,12 @@ export const TutorQRGenerator: React.FC = () => {
 
         {/* ── RIGHT: Live Check-in Feed ──────────────────────────── */}
         <div className="lg:col-span-5">
-          <div className="flex h-full min-h-[480px] flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden">
+          <div className="flex h-full min-h-[240px] sm:min-h-[380px] lg:min-h-[480px] flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden">
 
             {/* Feed header */}
-            <div className="h-[60px] shrink-0 flex items-center justify-between px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
+            <div className="h-12 sm:h-[60px] shrink-0 flex items-center justify-between px-3.5 sm:px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">RECENT STUDENT QR SCANS</h3>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base">RECENT STUDENT QR SCANS</h3>
               </div>
               <div>
                 <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
@@ -2215,11 +2355,11 @@ export const TutorQRGenerator: React.FC = () => {
             </div>
 
             {/* Feed list */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1.5 sm:space-y-2">
               {!isSessionForCurrentClass && session?.is_active ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-3 min-h-[280px]">
-                  <div className="w-14 h-14 rounded-md border border-dashed border-amber-200 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20 flex items-center justify-center">
-                    <UserCheck className="w-7 h-7 text-amber-500/70 stroke-[1.5]" />
+                <div className="h-full flex flex-col items-center justify-center text-center p-4 sm:p-6 gap-2 sm:gap-3 min-h-[160px] sm:min-h-[240px]">
+                  <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-md border border-dashed border-amber-200 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20 flex items-center justify-center">
+                    <UserCheck className="w-5 h-5 sm:w-7 sm:h-7 text-amber-500/70 stroke-[1.5]" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-gray-700 dark:text-slate-200">Session belongs to {sessionCohort}</p>
@@ -2227,22 +2367,22 @@ export const TutorQRGenerator: React.FC = () => {
                   </div>
                 </div>
               ) : (isSessionForCurrentClass ? scannedStudents : []).length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-3 min-h-[280px]">
-                  <div className="w-14 h-14 rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] flex items-center justify-center">
-                    <UserCheck className="w-7 h-7 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
+                <div className="h-full flex flex-col items-center justify-center text-center p-4 sm:p-6 gap-2 sm:gap-3 min-h-[160px] sm:min-h-[240px]">
+                  <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-md border border-dashed border-gray-200 dark:border-[#1A1A1A] flex items-center justify-center">
+                    <UserCheck className="w-5 h-5 sm:w-7 sm:h-7 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-gray-400 dark:text-slate-400 text-center whitespace-nowrap">Scanned students will appear here in real-time</p>
+                    <p className="text-[11px] sm:text-xs font-medium text-gray-400 dark:text-slate-400 text-center whitespace-normal sm:whitespace-nowrap">Scanned students will appear here in real-time</p>
                   </div>
                   {(!session || !session.is_active) && (
-                    <p className="text-[11px] text-gray-300 dark:text-slate-600 font-medium">Start an attendance session to begin</p>
+                    <p className="text-[10px] sm:text-[11px] text-gray-300 dark:text-slate-600 font-medium">Start an attendance session to begin</p>
                   )}
                 </div>
               ) : (
                 scannedStudents.map((log) => (
                   <div
                     key={log.id}
-                    className="flex items-center justify-between gap-3 p-3 bg-gray-50/60 dark:bg-[#161616] hover:bg-gray-100/60 dark:hover:bg-[#1a1a1a] rounded-md border border-gray-100 dark:border-[#1A1A1A] transition-colors"
+                    className="flex items-center justify-between gap-3 p-2.5 sm:p-3 bg-gray-50/60 dark:bg-[#161616] hover:bg-gray-100/60 dark:hover:bg-[#1a1a1a] rounded-md border border-gray-100 dark:border-[#1A1A1A] transition-colors"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-gray-800 dark:text-slate-200 leading-tight truncate">{log.user_name}</p>
@@ -2266,17 +2406,17 @@ export const TutorQRGenerator: React.FC = () => {
       <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
         {/* Section header */}
-        <div className="flex items-center justify-between gap-2 px-3 sm:px-6 py-2.5 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-          <div className="min-w-0 flex-1 truncate">
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase truncate">STUDENTS ATTENDANCE HISTORY</h3>
-            <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+          <div className="min-w-0">
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase tracking-tight">STUDENTS ATTENDANCE HISTORY</h3>
+            <p className="mt-0.5 text-[11px] sm:text-xs font-normal text-gray-500 dark:text-slate-400">
               {activeHistoryRecords.length} Record{activeHistoryRecords.length !== 1 ? 's' : ''}
             </p>
           </div>
 
           {/* ── Controls ── */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
-            <label className="relative flex w-28 xs:w-36 sm:w-52 items-center shrink-0">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+            <label className="relative flex-1 sm:flex-initial sm:w-52 items-center">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
               <input
                 type="search"
@@ -2284,7 +2424,7 @@ export const TutorQRGenerator: React.FC = () => {
                 onChange={(event) => setStudentSearch(event.target.value)}
                 placeholder="Search student..."
                 aria-label="Search attendance history by student"
-                className="h-7.5 sm:h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-8 pr-2.5 text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
+                className="h-8 sm:h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-8 pr-2.5 text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
               />
             </label>
 
@@ -2337,9 +2477,9 @@ export const TutorQRGenerator: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowExportModal(true)}
-              className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-3 py-2 sm:py-1.5 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap"
             >
-              <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
+              <Download className="w-3.5 h-3.5 text-white" />
               <span>Export Attendance Sheet</span>
             </button>
           </div>

@@ -246,12 +246,14 @@ export const getAttendanceDescription = (log: {
  * - 'INTERVENTION ACTIVITY'
  */
 export const formatSessionLabel = (rawDesc: string | null | undefined): string => {
-  if (!rawDesc) return 'INTERVENTION ACTIVITY';
+  if (!rawDesc) return 'SESSION';
   const upper = rawDesc.toUpperCase();
+  if (upper.includes('SESSION')) return 'SESSION';
   if (upper.includes('MOSY')) return 'MOSY ASSESSMENT';
   if (upper.includes('EOSY')) return 'EOSY ASSESSMENT';
   if (upper.includes('SUMMER')) return 'SUMMER ASSESSMENT';
-  return 'INTERVENTION ACTIVITY';
+  if (upper.includes('INTERVENTION')) return 'INTERVENTION ACTIVITY';
+  return 'SESSION';
 };
 
 /**
@@ -392,13 +394,13 @@ export const groupAttendanceBySession = <T extends Record<string, any>>(
   const getSessionId = options?.getSessionId || ((r: any) => r.session || r.sessionId || null);
   const getTimeIn = options?.getTimeIn || ((r: any) => r.time_in || r.timeIn || null);
   const getCreatedAt = options?.getCreatedAt || ((r: any) => r.created_at || r.createdAt || null);
-  const getLabel = options?.getLabel || ((r: any) => formatSessionLabel(getAttendanceDescription(r)));
+  const getLabel = options?.getLabel || (() => 'SESSION');
 
   // 1. Group records by date and activity label
   const dateAndLabelMap = new Map<string, T[]>();
   records.forEach((r) => {
     const d = getDate(r) || 'unknown';
-    const l = getLabel(r) || 'INTERVENTION ACTIVITY';
+    const l = getLabel(r) || 'SESSION';
     const key = `${d}|${l}`;
     if (!dateAndLabelMap.has(key)) {
       dateAndLabelMap.set(key, []);

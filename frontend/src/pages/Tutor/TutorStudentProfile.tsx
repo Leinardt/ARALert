@@ -625,86 +625,88 @@ export const TutorStudentProfile: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+    <div className="space-y-4 sm:space-y-6 max-w-6xl mx-auto data-loaded-content" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
       {/* ── Top Navigation & Actions ─────────────────────────────── */}
       <div className="flex items-center justify-between">
         <Link
           to={backPath}
-          className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-[var(--brand)] transition-colors"
+          className="inline-flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold text-gray-500 hover:text-[var(--brand)] transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           {backLabel}
         </Link>
       </div>
 
       {/* ── Student Header Card ──────────────────────────────────── */}
-      <div className="bg-white dark:bg-[#111111] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 space-y-5">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
-          <div className="flex items-center gap-4">
-            <div className={`w-14 h-14 rounded-full flex items-center justify-center shrink-0 ${avatarColor(profile.student.name)}`}>
-              <User className="w-7 h-7" />
+      <div className="bg-white dark:bg-[#111111] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-4 sm:space-y-5">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:gap-5">
+          <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+            <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center shrink-0 ${avatarColor(profile.student.name)}`}>
+              <User className="w-6 h-6 sm:w-7 sm:h-7" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{profile.student.name}</h1>
-              <div className="flex flex-wrap items-center gap-1.5 mt-1 text-xs font-semibold uppercase text-gray-500 dark:text-slate-400">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-slate-100 truncate">{profile.student.name}</h1>
+              <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1 text-[11px] sm:text-xs font-semibold uppercase text-gray-500 dark:text-slate-400">
                 <span className="font-bold text-gray-500 dark:text-slate-400">{studentCohortInfo.aralLevel}</span>
                 <span className="text-gray-300 dark:text-zinc-600">•</span>
                 <span>{studentCohortInfo.subject}</span>
                 <span className="text-gray-300 dark:text-zinc-600">•</span>
                 <span>{studentCohortInfo.gradeLevel} - {studentCohortInfo.section}</span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mt-1">
+              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-slate-400 font-medium mt-0.5 sm:mt-1">
                 LRN: <span className="font-mono font-bold text-gray-700 dark:text-slate-300">{profile.student.lrn || 'N/A'}</span>
               </p>
             </div>
           </div>
 
           {/* Action buttons: Edit Student Details / Pending Status */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
             {pendingEditRequest && (
               <button
                 type="button"
                 onClick={() => setShowPendingModal(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition cursor-pointer"
               >
-                <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                <span>Edit Request Pending Approval</span>
+                <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span className="truncate">Edit Request Pending Approval</span>
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => {
-                if (profile?.student) {
-                  setStudentForm({
-                    first_name: profile.student.first_name || '',
-                    middle_name: profile.student.middle_name || studentUser?.middle_name || '',
-                    last_name: profile.student.last_name || '',
-                    username: profile.student.username || '',
-                    email: profile.student.email || '',
-                    lrn: profile.student.lrn || '',
-                    aral_level: profile.student.aral_level || 'basic',
-                  });
-                }
-                setIsEditingStudent(true);
-                setStudentEditError(null);
-              }}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold border border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:bg-[var(--brand-light)] dark:hover:bg-[#161616] text-gray-700 dark:text-slate-300 hover:text-[var(--brand-dark)] transition cursor-pointer"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Edit Student Details</span>
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  if (profile?.student) {
+                    setStudentForm({
+                      first_name: profile.student.first_name || '',
+                      middle_name: profile.student.middle_name || studentUser?.middle_name || '',
+                      last_name: profile.student.last_name || '',
+                      username: profile.student.username || '',
+                      email: profile.student.email || '',
+                      lrn: profile.student.lrn || '',
+                      aral_level: profile.student.aral_level || 'basic',
+                    });
+                  }
+                  setIsEditingStudent(true);
+                  setStudentEditError(null);
+                }}
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-md text-xs font-bold border border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:bg-[var(--brand-light)] dark:hover:bg-[#161616] text-gray-700 dark:text-slate-300 hover:text-[var(--brand-dark)] transition cursor-pointer whitespace-nowrap"
+              >
+                <Edit3 className="w-3.5 h-3.5 shrink-0" />
+                <span>Edit Student Details</span>
+              </button>
 
-            <button
-              type="button"
-              disabled={!profile}
-              onClick={() => setShowExportQrModal(true)}
-              className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer shrink-0 whitespace-nowrap shadow-xs disabled:opacity-60"
-              title="Export Student Attendance QR Code"
-            >
-              <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
-              <span>Export QR Code</span>
-            </button>
+              <button
+                type="button"
+                disabled={!profile}
+                onClick={() => setShowExportQrModal(true)}
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-2.5 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer whitespace-nowrap shadow-xs disabled:opacity-60"
+                title="Export Student Attendance QR Code"
+              >
+                <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white shrink-0" />
+                <span>Export QR Code</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -729,7 +731,7 @@ export const TutorStudentProfile: React.FC = () => {
               role="tab"
               aria-selected={isActive}
               onClick={() => setActiveTab(tabKey)}
-              className={`flex-1 rounded-sm py-2 px-3 text-xs font-bold uppercase flex items-center justify-center transition-all cursor-pointer ${isActive
+              className={`flex-1 rounded-sm py-1.5 sm:py-2 px-2 sm:px-3 text-[11px] sm:text-xs font-bold uppercase flex items-center justify-center transition-all cursor-pointer ${isActive
                 ? 'bg-[var(--brand)] text-white'
                 : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                 }`}
@@ -741,33 +743,33 @@ export const TutorStudentProfile: React.FC = () => {
       </div>
 
       {/* ── Tab Content Panels ─────────────────────────────────────── */}
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
 
         {/* ── 1. OVERALL TAB ───────────────────────────────────────── */}
         {activeTab === 'overall' && (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* KPI Containers */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center md:col-span-1">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-black dark:text-white">COMPOSITE SCORE</p>
-                <p className={`text-2xl font-extrabold mt-0.5 ${riskTier === 'High' ? 'text-risk-high' : riskTier === 'Medium' ? 'text-risk-medium' : 'text-risk-low'}`}>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-4">
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex flex-col justify-center col-span-1">
+                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-black dark:text-white truncate">COMPOSITE SCORE</p>
+                <p className={`text-xl sm:text-2xl font-extrabold mt-0.5 ${riskTier === 'High' ? 'text-risk-high' : riskTier === 'Medium' ? 'text-risk-medium' : 'text-risk-low'}`}>
                   {smartPct(compositeScore)}%
                 </p>
               </div>
 
-              <div className={`rounded-md border p-5 flex flex-col justify-center md:col-span-2 ${riskTier === 'High'
+              <div className={`rounded-md border p-3.5 sm:p-5 flex flex-col justify-center col-span-1 md:col-span-2 ${riskTier === 'High'
                 ? 'risk-card-high'
                 : riskTier === 'Medium'
                   ? 'risk-card-medium'
                   : 'risk-card-low'
                 }`}>
-                <p className={`text-[11px] font-bold uppercase tracking-wider ${riskTier === 'High'
+                <p className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate ${riskTier === 'High'
                   ? 'text-risk-high'
                   : riskTier === 'Medium'
                     ? 'text-risk-medium'
                     : 'text-risk-low'
                   }`}>RISK LEVEL</p>
-                <p className={`text-2xl font-extrabold mt-0.5 ${riskTier === 'High'
+                <p className={`text-xl sm:text-2xl font-extrabold mt-0.5 truncate ${riskTier === 'High'
                   ? 'text-risk-high'
                   : riskTier === 'Medium'
                     ? 'text-risk-medium'
@@ -780,28 +782,28 @@ export const TutorStudentProfile: React.FC = () => {
 
             {/* Performance Summary Table */}
             <div className="overflow-hidden rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111]">
-              <div className="border-b border-gray-100 dark:border-[#1A1A1A] px-6 py-4">
-                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT PERFORMANCE SUMMARY</h3>
-                <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">Overview of the calculation</p>
+              <div className="border-b border-gray-100 dark:border-[#1A1A1A] px-4 sm:px-6 py-3 sm:py-4">
+                <h3 className="text-xs sm:text-base font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT PERFORMANCE SUMMARY</h3>
+                <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400">Overview of the calculation</p>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                <table className="min-w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-xs sm:text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                   <thead className="bg-gray-50 dark:bg-[#151515]">
-                    <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                      <th className="px-6 py-3 text-center">AVERAGE ATTENDANCE RATE</th>
-                      <th className="px-6 py-3 text-center">AVERAGE SCORE</th>
-                      <th className="px-6 py-3 text-center">COMPOSITE SCORE</th>
+                    <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] text-left text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                      <th className="px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">AVERAGE ATTENDANCE RATE</th>
+                      <th className="px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">AVERAGE SCORE</th>
+                      <th className="px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">COMPOSITE SCORE</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
                     <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515] text-center">
-                      <td className={`px-6 py-3.5 font-normal ${attendanceRate >= 81 ? 'text-risk-low' : attendanceRate >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                      <td className={`px-2 sm:px-6 py-2.5 sm:py-3.5 font-semibold ${attendanceRate >= 81 ? 'text-risk-low' : attendanceRate >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
                         {smartPct(attendanceRate)}%
                       </td>
-                      <td className={`px-6 py-3.5 font-normal ${calculatedAvgScore >= 81 ? 'text-risk-low' : calculatedAvgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                      <td className={`px-2 sm:px-6 py-2.5 sm:py-3.5 font-semibold ${calculatedAvgScore >= 81 ? 'text-risk-low' : calculatedAvgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
                         {smartPct(calculatedAvgScore)}%
                       </td>
-                      <td className="px-6 py-3.5 font-normal text-indigo-600 dark:text-indigo-400">
+                      <td className="px-2 sm:px-6 py-2.5 sm:py-3.5 font-semibold text-indigo-600 dark:text-indigo-400">
                         {smartPct(compositeScore)}%
                       </td>
                     </tr>
@@ -816,28 +818,28 @@ export const TutorStudentProfile: React.FC = () => {
         {activeTab === 'attendance' && (
           <div className="space-y-4">
             {/* Stat Containers */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
-                <Check className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
+              <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4 col-span-1">
+                <Check className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">TOTAL PRESENT</p>
-                  <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{profile.attendance.present}</p>
-                  <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s total present records</p>
+                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 truncate">TOTAL PRESENT</p>
+                  <p className="text-xl sm:text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{profile.attendance.present}</p>
+                  <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s total present records</p>
                 </div>
               </div>
-              <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
-                <X className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
+              <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4 col-span-1">
+                <X className="w-5 h-5 sm:w-6 sm:h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">TOTAL ABSENT</p>
-                  <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{profile.attendance.absent}</p>
-                  <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s total absent records</p>
+                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 truncate">TOTAL ABSENT</p>
+                  <p className="text-xl sm:text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{profile.attendance.absent}</p>
+                  <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s total absent records</p>
                 </div>
               </div>
-              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center">
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex flex-col justify-center col-span-2 sm:col-span-1">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE ATTENDANCE RATE</p>
+                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100 truncate">AVG ATTENDANCE RATE</p>
                   <p
-                    className={`text-2xl font-extrabold mt-0.5 ${
+                    className={`text-xl sm:text-2xl font-extrabold mt-0.5 ${
                       !hasAttendanceData
                         ? 'text-gray-900 dark:text-slate-100'
                         : attendanceRate >= 81
@@ -849,7 +851,7 @@ export const TutorStudentProfile: React.FC = () => {
                   >
                     {hasAttendanceData ? `${smartPct(attendanceRate)}%` : '—'}
                   </p>
-                  <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s average attendance rate</p>
+                  <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s average attendance rate</p>
                 </div>
               </div>
             </div>
@@ -863,28 +865,28 @@ export const TutorStudentProfile: React.FC = () => {
         {activeTab === 'score' && (
           <div className="space-y-4">
             {/* Stat Containers */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
-                <Check className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
+              <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4 col-span-1">
+                <Check className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">TOTAL PASSED</p>
-                  <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{passedCount}</p>
-                  <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s total passed score records</p>
+                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 truncate">TOTAL PASSED</p>
+                  <p className="text-xl sm:text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{passedCount}</p>
+                  <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s total passed score records</p>
                 </div>
               </div>
-              <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white dark:bg-[#111111] p-5 flex items-center gap-4">
-                <X className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
+              <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4 col-span-1">
+                <X className="w-5 h-5 sm:w-6 sm:h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">TOTAL FAILED</p>
-                  <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{failedCount}</p>
-                  <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s total failed score records</p>
+                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 truncate">TOTAL FAILED</p>
+                  <p className="text-xl sm:text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{failedCount}</p>
+                  <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s total failed score records</p>
                 </div>
               </div>
-              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 flex flex-col justify-center">
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex flex-col justify-center col-span-2 sm:col-span-1">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE SCORE</p>
+                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100 truncate">AVERAGE SCORE</p>
                   <p
-                    className={`text-2xl font-extrabold mt-0.5 ${
+                    className={`text-xl sm:text-2xl font-extrabold mt-0.5 ${
                       !hasScoreData
                         ? 'text-gray-900 dark:text-slate-100'
                         : calculatedAvgScore >= 81
@@ -896,7 +898,7 @@ export const TutorStudentProfile: React.FC = () => {
                   >
                     {hasScoreData ? `${smartPct(calculatedAvgScore)}%` : '—'}
                   </p>
-                  <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s average score</p>
+                  <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s average score</p>
                 </div>
               </div>
             </div>
@@ -914,7 +916,7 @@ export const TutorStudentProfile: React.FC = () => {
       {/* ── ARAL ACTIVITY MODAL ────────────────────────────────────── */}
       {showActivityModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleAddActivity} className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
+          <form onSubmit={handleAddActivity} className="bg-white dark:bg-[#111111] rounded-lg p-4 sm:p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <h3 className="font-bold text-gray-900 dark:text-white text-base">Create ARAL Activity</h3>
               <button type="button" onClick={() => setShowActivityModal(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors cursor-pointer">
@@ -990,7 +992,7 @@ export const TutorStudentProfile: React.FC = () => {
       {/* ── RISK ALERTS MODAL ──────────────────────────────────────── */}
       {showRiskModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleAddRisk} className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
+          <form onSubmit={handleAddRisk} className="bg-white dark:bg-[#111111] rounded-lg p-4 sm:p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <h3 className="font-bold text-gray-900 dark:text-white text-base">Log Academic Risk Warning</h3>
               <button type="button" onClick={() => setShowRiskModal(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors cursor-pointer">
@@ -1044,7 +1046,7 @@ export const TutorStudentProfile: React.FC = () => {
       {/* ── ATTENDANCE MODAL ───────────────────────────────────────── */}
       {showAttendanceModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleAddAttendance} className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
+          <form onSubmit={handleAddAttendance} className="bg-white dark:bg-[#111111] rounded-lg p-4 sm:p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <h3 className="font-bold text-gray-900 dark:text-white text-base">Log Manual Attendance</h3>
               <button type="button" onClick={() => setShowAttendanceModal(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors cursor-pointer">
@@ -1117,7 +1119,7 @@ export const TutorStudentProfile: React.FC = () => {
             onSubmit={handlePromptSaveStudent}
             autoComplete="off"
             data-form-type="other"
-            className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-8 animate-fade-in-scale"
+            className="bg-white dark:bg-[#111111] rounded-lg p-4 sm:p-6 max-w-lg w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4 my-4 sm:my-8 animate-fade-in-scale"
           >
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <div>
@@ -1240,7 +1242,7 @@ export const TutorStudentProfile: React.FC = () => {
           aria-modal="true"
           className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
         >
-          <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#222222] rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-fade-in-scale">
+          <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#222222] rounded-xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 animate-fade-in-scale">
             <div className="flex items-center gap-3 text-[var(--brand)]">
               <div className="p-2.5 rounded-full bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900/40">
                 <AlertCircle className="w-6 h-6 text-[var(--brand)]" />
@@ -1305,7 +1307,7 @@ export const TutorStudentProfile: React.FC = () => {
       {/* ── PENDING REQUEST DETAILS MODAL ──────────────────────────── */}
       {showPendingModal && pendingEditRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#111111] rounded-lg p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-[#111111] rounded-lg p-4 sm:p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-md bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 flex items-center justify-center">
@@ -1370,7 +1372,7 @@ export const TutorStudentProfile: React.FC = () => {
       {/* ── CONFIRMATION MODAL BEFORE WITHDRAWING EDIT REQUEST ── */}
       {showCancelConfirmModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-60 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white dark:bg-[#111111] rounded-2xl p-6 max-w-sm w-full border border-gray-200 dark:border-[#222222] shadow-2xl space-y-4 animate-fade-in-scale">
+          <div className="bg-white dark:bg-[#111111] rounded-2xl p-4 sm:p-6 max-w-sm w-full border border-gray-200 dark:border-[#222222] shadow-2xl space-y-4 animate-fade-in-scale">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 flex items-center justify-center shrink-0">
                 <AlertCircle className="w-5 h-5" />
@@ -1769,22 +1771,22 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
 
   const renderTable = (records: Grade[]) => (
     <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-[#1A1A1A]">
-      <table className="min-w-full divide-y divide-gray-100 text-sm">
+      <table className="min-w-full divide-y divide-gray-100 text-xs sm:text-sm">
         <thead>
           <tr className="divide-x divide-gray-100 bg-gray-50">
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
               <SortableHeader label="SCORE" sortKey="score" />
             </th>
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
               <SortableHeader label="REMARKS" sortKey="remarks" />
             </th>
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
               <SortableHeader label="STATUS" sortKey="status" />
             </th>
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
               <SortableHeader label="DATE" sortKey="date" />
             </th>
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
               <SortableHeader label="TIME" sortKey="time" />
             </th>
           </tr>
@@ -1798,13 +1800,13 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
 
             return (
               <tr key={grade.id} className="group divide-x divide-gray-100 transition-colors hover:bg-gray-50/80">
-                <td className="px-4 py-3 font-semibold text-gray-800 whitespace-nowrap text-xs">
+                <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 font-semibold text-gray-800 whitespace-nowrap text-xs">
                   <span className="font-bold text-gray-900">{grade.score}</span>
                   <span className="text-gray-400 font-normal"> / {grade.total_score || 100}</span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-2.5 sm:px-4 py-2.5 sm:py-3">
                   <span
-                    className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${isNotTaken
+                    className={`text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 rounded-full border uppercase ${isNotTaken
                       ? 'bg-gray-50 text-gray-500 border-gray-200'
                       : isPassed
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -1814,9 +1816,9 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
                     {isNotTaken ? 'Not Taken' : isPassed ? 'Passed' : 'Failed'}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-2.5 sm:px-4 py-2.5 sm:py-3">
                   <span
-                    className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${isNotTaken
+                    className={`text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 rounded-full border uppercase ${isNotTaken
                       ? 'bg-amber-50 text-amber-700 border-amber-200'
                       : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                       }`}
@@ -1824,10 +1826,10 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
                     {isNotTaken ? 'Not Taken' : 'Taken'}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-semibold text-gray-800 whitespace-nowrap text-xs">
+                <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 font-semibold text-gray-800 whitespace-nowrap text-xs">
                   {formatDateString(grade.date_logged)}
                 </td>
-                <td className="px-4 py-3 text-gray-600 font-mono text-xs">
+                <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 text-gray-600 font-mono text-xs whitespace-nowrap">
                   {grade.created_at ? formatTimeString(grade.created_at) : '—'}
                 </td>
               </tr>
@@ -1841,7 +1843,7 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
   if (isLoading) {
     return (
       <div
-        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 space-y-4"
+        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4"
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -1858,7 +1860,7 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
   if (grades.length === 0) {
     return (
       <div
-        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 space-y-4"
+        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4"
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -1878,7 +1880,7 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
 
   return (
     <div
-      className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 space-y-4 relative"
+      className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4 relative"
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       {/* ── Header ── */}
@@ -2212,16 +2214,16 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
 
   const renderTable = (records: Attendance[]) => (
     <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-[#1A1A1A]">
-      <table className="min-w-full divide-y divide-gray-100 text-sm">
+      <table className="min-w-full divide-y divide-gray-100 text-xs sm:text-sm">
         <thead>
           <tr className="divide-x divide-gray-100 bg-gray-50">
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
               <SortableHeader label="DATE" sortKey="date" />
             </th>
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
               <SortableHeader label="TIME" sortKey="time" />
             </th>
-            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
               <SortableHeader label="STATUS" sortKey="status" />
             </th>
           </tr>
@@ -2229,15 +2231,15 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
         <tbody className="divide-y divide-gray-100 bg-white">
           {records.map((log) => (
             <tr key={log.id} className="group divide-x divide-gray-100 transition-colors hover:bg-gray-50/80">
-              <td className="px-4 py-3 font-semibold text-gray-800 whitespace-nowrap text-xs">
+              <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 font-semibold text-gray-800 whitespace-nowrap text-xs">
                 {formatDateString(log.date)}
               </td>
-              <td className="px-4 py-3 text-gray-600 font-mono text-xs">
+              <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 text-gray-600 font-mono text-xs whitespace-nowrap">
                 {log.time_in ? formatTimeString(log.time_in) : '—'}
               </td>
-              <td className="px-4 py-3">
+              <td className="px-2.5 sm:px-4 py-2.5 sm:py-3">
                 <span
-                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${log.status === 'present'
+                  className={`text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 rounded-full border uppercase ${log.status === 'present'
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     : 'bg-rose-50 text-rose-700 border-rose-200'
                     }`}
@@ -2255,7 +2257,7 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
   if (isLoading) {
     return (
       <div
-        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 space-y-4"
+        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4"
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -2272,7 +2274,7 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
   if (logs.length === 0) {
     return (
       <div
-        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 space-y-4"
+        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4"
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -2292,7 +2294,7 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
 
   return (
     <div
-      className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-6 space-y-4 relative"
+      className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4 relative"
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       {/* ── Header ── */}

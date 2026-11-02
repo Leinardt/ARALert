@@ -908,13 +908,14 @@ export function getChartAvailableAralLevels(
   const allLevels = [
     { id: 'basic', label: 'BASIC' },
     { id: 'plus', label: 'PLUS' },
+    { id: 'summer', label: 'SUMMER' },
   ];
 
   if (!tutor) return allLevels.sort((a, b) => a.label.localeCompare(b.label));
 
   const handled = parseTutorHandledAralLevels(tutor);
   return allLevels
-    .filter((lvl) => handled.includes(lvl.id as 'basic' | 'plus'))
+    .filter((lvl) => handled.includes(lvl.id as 'basic' | 'plus' | 'summer'))
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
@@ -1346,27 +1347,21 @@ export function createDefaultRoleDetail(
 export function buildTutorPayloadFromRoleDetails(groups: TutorRoleDetailGroup[]) {
   const hasBasic = groups.some((g) => g.aralLevel === 'basic');
   const hasPlus = groups.some((g) => g.aralLevel === 'plus');
-  const hasSummer = groups.some((g) => g.aralLevel === 'summer');
 
-  const levels: string[] = [];
-  if (hasBasic) levels.push('basic');
-  if (hasPlus) levels.push('plus');
-  if (hasSummer) levels.push('summer');
+  const orderedLevels = groups.map((g) => g.aralLevel || 'basic');
+  const aralLevel = orderedLevels.length > 0 ? orderedLevels.join(',') : 'basic';
+  const tutorType = aralLevel;
 
-  const aralLevel = levels.length > 0 ? levels.join(',') : 'basic';
-  const tutorType = levels.length > 0 ? levels.join(',') : 'basic';
-
-  const subjectSet = new Set<string>();
+  const orderedSubjects: string[] = [];
   groups.forEach((g) => {
-    g.subjects.forEach((s) => {
-      if (s) subjectSet.add(s);
-    });
+    const primarySub = g.subjects[0] || (g.aralLevel === 'plus' ? 'English' : 'Filipino');
+    orderedSubjects.push(primarySub);
   });
-  if (subjectSet.size === 0) {
-    if (hasBasic) subjectSet.add('Filipino');
-    if (hasPlus) subjectSet.add('English');
+  if (orderedSubjects.length === 0) {
+    if (hasBasic) orderedSubjects.push('Filipino');
+    if (hasPlus) orderedSubjects.push('English');
   }
-  const subject = Array.from(subjectSet).join(', ');
+  const subject = orderedSubjects.join(', ');
 
   const cohortEntries: string[] = [];
   groups.forEach((g) => {
@@ -1392,24 +1387,35 @@ export function buildTutorPayloadFromRoleDetails(groups: TutorRoleDetailGroup[])
 export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undefined): TutorRoleDetailGroup[] {
   if (!user) return [createDefaultRoleDetail()];
 
-  const rawLevel = (user.aral_level || '').toLowerCase();
+  const rawLevel = (user.aral_level || user.tutor_type || '').toLowerCase();
   const rawType = (user.tutor_type || '').toLowerCase();
   const handlesSummer = rawLevel.includes('summer') || rawType.includes('summer');
   const handlesBasic = rawLevel.includes('basic') || rawType.includes('basic') || rawType === 'basic_plus' || (!rawLevel && !rawType && !handlesSummer);
   const handlesPlus = rawLevel.includes('plus') || rawType.includes('plus') || rawType === 'basic_plus';
 
-  const rawSubject = (user.subject || '').toLowerCase();
-  const subjectsList: string[] = [];
-  if (rawSubject.includes('reading')) {
-    if (handlesBasic) subjectsList.push('Filipino');
-    if (handlesPlus) subjectsList.push('English');
-  } else {
-    if (rawSubject.includes('filipino')) subjectsList.push('Filipino');
-    if (rawSubject.includes('english')) subjectsList.push('English');
-  }
-  if (rawSubject.includes('science')) subjectsList.push('Science');
-  if (rawSubject.includes('math')) subjectsList.push('Math');
-  if (subjectsList.length === 0) subjectsList.push(handlesPlus ? 'English' : 'Filipino');
+  const levelTokens = rawLevel
+    .replace('_', ',')
+    .split(',')
+    .map((l) => l.trim() as 'basic' | 'plus' | 'summer')
+    .filter((l): l is 'basic' | 'plus' | 'summer' => l === 'basic' || l === 'plus' || l === 'summer');
+
+  const rawSubject = (user.subject || '').trim();
+  const subjectTokens = rawSubject
+    ? rawSubject
+        .split(',')
+        .map((s) => {
+          const low = s.trim().toLowerCase();
+          if (low.includes('filipino') || low.includes('reading')) return 'Filipino';
+          if (low.includes('english')) return 'English';
+          if (low.includes('science')) return 'Science';
+          if (low.includes('math')) return 'Math';
+          return '';
+        })
+        .filter(Boolean)
+    : [];
+
+  const subjectsList: string[] = Array.from(new Set(subjectTokens));
+  if (subjectsList.length === 0) subjectsList.push(handlesPlus && !handlesBasic ? 'English' : 'Filipino');
 
   const rawGradeLevel = (user.grade_level || '').trim();
   const rawSection = (user.section || '').trim().toUpperCase();
@@ -1444,7 +1450,7 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
     return [
       {
         id: Math.random().toString(36).substring(2, 9),
-        aralLevel: handlesBasic ? 'basic' : 'plus',
+        aralLevel: handlesSummer && !handlesBasic && !handlesPlus ? 'summer' : (handlesBasic ? 'basic' : 'plus'),
         subjects: groupSubjects,
         gradeLevel: 'GRADE 7',
         sections: [rawSection || 'HYACINTH'],
@@ -1502,7 +1508,7 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
   });
 
   // If tutor handles both Basic & Plus and only 1 cohort is listed, they handle 2 distinct role details
-  if (handlesBasic && handlesPlus && parsedCohorts.length === 1) {
+  if (handlesBasic && handlesPlus && !handlesSummer && parsedCohorts.length === 1) {
     const cohort = parsedCohorts[0];
     const sec = cohort.section || rawSection || 'HYACINTH';
     const subjBasic = subjectsList.includes('Filipino') ? 'Filipino' : (subjectsList[0] || 'Filipino');
@@ -1530,7 +1536,11 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
 
   return parsedCohorts.map((cohort, index) => {
     let groupLevel: 'basic' | 'plus' | 'summer' = 'basic';
-    if (handlesSummer) {
+    if (levelTokens[index]) {
+      groupLevel = levelTokens[index];
+    } else if (levelTokens.length > 0) {
+      groupLevel = levelTokens[index % levelTokens.length];
+    } else if (handlesSummer) {
       groupLevel = 'summer';
     } else if (handlesBasic && handlesPlus) {
       groupLevel = index % 2 === 0 ? 'basic' : 'plus';
@@ -1538,21 +1548,28 @@ export function parseTutorRoleDetailsFromUser(user: Partial<User> | null | undef
       groupLevel = 'plus';
     }
 
-    const itemSubjects = groupLevel === 'basic'
-      ? (subjectsList.includes('Filipino') ? ['Filipino'] : [subjectsList[0] || 'Filipino'])
-      : (subjectsList.includes('English')
-          ? ['English']
-          : (subjectsList.includes('Math')
-              ? ['Math']
-              : (subjectsList.includes('Science') ? ['Science'] : ['English'])));
+    let primarySubject = '';
+    if (subjectTokens[index]) {
+      primarySubject = subjectTokens[index];
+    } else if (groupLevel === 'basic') {
+      primarySubject = subjectsList.includes('Filipino') ? 'Filipino' : (subjectsList[0] || 'Filipino');
+    } else if (groupLevel === 'plus') {
+      primarySubject = subjectsList.includes('English')
+        ? 'English'
+        : (subjectsList.includes('Math')
+            ? 'Math'
+            : (subjectsList.includes('Science') ? 'Science' : 'English'));
+    } else {
+      primarySubject = subjectsList[index] || subjectsList[subjectsList.length - 1] || 'Filipino';
+    }
 
-    if (subjectsList.includes('Science') && !itemSubjects.includes('Science')) itemSubjects.push('Science');
-    if (subjectsList.includes('Math') && !itemSubjects.includes('Math')) itemSubjects.push('Math');
+    if (groupLevel === 'basic' && primarySubject === 'English') primarySubject = 'Filipino';
+    if (groupLevel === 'plus' && primarySubject === 'Filipino') primarySubject = 'English';
 
     return {
       id: Math.random().toString(36).substring(2, 9),
       aralLevel: groupLevel,
-      subjects: itemSubjects,
+      subjects: [primarySubject],
       gradeLevel: (cohort.grade || 'GRADE 7').replace(/\s*-\s*$/, ''),
       sections: cohort.section ? [cohort.section] : (rawSection ? [rawSection] : ['HYACINTH']),
     };

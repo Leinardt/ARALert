@@ -51,7 +51,7 @@ type TrendFilter = 'day' | 'week' | 'month';
 type AnalyticsTab = 'overall' | 'attendance' | 'score';
 type RiskScope = 'all' | string;
 type OverallSortField = keyof ExtendedRiskRow | 'student' | 'aralLevel';
-type AttendanceDetailSortField = 'student' | 'aralLevel' | 'description' | 'present' | 'absent' | 'attendanceAverage';
+type AttendanceDetailSortField = 'student' | 'aralLevel' | 'present' | 'absent' | 'attendanceAverage';
 type ScoreDetailSortField = 'student' | 'aralLevel' | 'description' | 'passed' | 'failed' | 'scoreAverage';
 
 const aralLevelRank: Record<string, number> = {
@@ -360,21 +360,21 @@ const formatShortDateRange = (label?: string | null): string => {
     if (m1.toLowerCase() === m2.toLowerCase()) {
       return `${m1} ${d1}–${d2}`;
     }
-    return `${m1} ${d1} – ${m2} ${d2}`;
+    return `${m1} ${d1}–${m2} ${d2}`;
   }
   return label;
 };
 
 const TrendChart: React.FC<{
   data: TrendPoint[];
-  color: string;
+  color?: string;
   emptyLabel: string;
   valueLabel?: string;
   trendFilter?: TrendFilter;
-}> = ({ data, color, emptyLabel, valueLabel = 'Class Average', trendFilter = 'week' }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 240 });
+}> = ({ data, color = 'var(--brand)', emptyLabel, valueLabel = 'Class Average', trendFilter = 'week' }) => {
+  const containerRef = React.useRef<HTMLDivElement>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 260 });
 
   useEffect(() => {
     setHoveredIdx(null);
@@ -383,23 +383,27 @@ const TrendChart: React.FC<{
   useEffect(() => {
     if (!containerRef.current) return;
     const updateSize = () => {
-      if (containerRef.current) {
-        const { clientWidth, clientHeight } = containerRef.current;
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      if (rect.width > 0) {
+        const minH = rect.width < 520 ? 196 : 220;
         setDimensions({
-          width: Math.max(300, Math.round(clientWidth || 800)),
-          height: Math.max(180, Math.round(clientHeight || 240)),
+          width: Math.round(rect.width),
+          height: Math.max(minH, Math.round(rect.height)),
         });
       }
     };
+
     updateSize();
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
-        if (width > 0 && height > 0) {
+        if (width > 0) {
+          const minH = width < 520 ? 196 : 220;
           setDimensions({
             width: Math.round(width),
-            height: Math.round(height),
+            height: Math.max(minH, Math.round(height)),
           });
         }
       }
@@ -411,55 +415,58 @@ const TrendChart: React.FC<{
 
   const { width, height } = dimensions;
   const isMobile = width < 520;
-  const isSmallMobile = width < 380;
-  const paddingLeft = isMobile ? 44 : 50;
-  const paddingRight = isMobile ? 18 : 20;
-  const paddingTop = 20;
-  const paddingBottom = isMobile ? 32 : 30;
+  const paddingLeft = isMobile ? 38 : 50;
+  const paddingRight = isMobile ? 18 : 14;
+  const paddingTop = isMobile ? 16 : 20;
+  const paddingBottom = isMobile ? (trendFilter === 'month' ? 24 : 34) : 24;
 
-  const chartWidth = Math.max(10, width - paddingLeft - paddingRight);
-  const chartHeight = Math.max(10, height - paddingTop - paddingBottom);
+  const chartW = Math.max(10, width - paddingLeft - paddingRight);
+  const chartH = Math.max(10, height - paddingTop - paddingBottom);
 
-  const colorId = color.replace(/[^a-zA-Z0-9]/g, '');
-  const gradientId = `trendChartFill_${colorId}`;
-  const filterId = `trendChartGlow_${colorId}`;
+  const points = data.map((d, idx) => {
+    const val = typeof d.value === 'number' && !isNaN(d.value) ? d.value : 0;
+    const x = paddingLeft + (idx * chartW) / (data.length - 1 || 1);
+    const y = paddingTop + chartH - (val / 100) * chartH;
+    return { x, y, ...d, value: val };
+  });
 
-  const visibleIndices = useMemo(() => {
-    const total = data.length;
-    if (total <= 1) return new Set([0]);
-    if (!isMobile) {
-      return new Set(Array.from({ length: total }, (_, i) => i));
+  let pathD = '';
+  if (points.length > 0) {
+    pathD = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      const p0 = points[i - 1];
+      const p1 = points[i];
+      const cp1x = p0.x + (p1.x - p0.x) / 3;
+      const cp1y = p0.y;
+      const cp2x = p1.x - (p1.x - p0.x) / 3;
+      const cp2y = p1.y;
+      pathD += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p1.x} ${p1.y}`;
+    }
+  }
+
+  const areaD = points.length > 0
+    ? `${pathD} L ${points[points.length - 1].x} ${paddingTop + chartH} L ${points[0].x} ${paddingTop + chartH} Z`
+    : '';
+
+  const getMobileLabelLines = (label: string): [string, string?] => {
+    if (trendFilter === 'week') {
+      const parts = label.split(/\s*[–—\-]\s*/);
+      if (parts.length === 2) {
+        return [parts[0].trim(), `–${parts[1].trim()}`];
+      }
+      return [label];
+    }
+    if (trendFilter === 'day') {
+      const parts = label.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return [parts[0], parts.slice(1).join(' ')];
+      }
+      return [label];
     }
     if (trendFilter === 'month') {
-      if (width < 380) return new Set([0, 2, 4, total - 1]);
-      return new Set(Array.from({ length: total }, (_, i) => i));
+      return [label.split(' ')[0] || label];
     }
-    if (trendFilter === 'week') {
-      if (width < 430) return new Set([0, 2, 4, total - 1]);
-      return new Set(Array.from({ length: total }, (_, i) => i));
-    }
-    const step = isSmallMobile ? 3 : 2;
-    const indices: number[] = [];
-    for (let i = 0; i < total; i += step) {
-      indices.push(i);
-    }
-    const lastIdx = total - 1;
-    const prevIdx = indices[indices.length - 1];
-    if (lastIdx - prevIdx >= 2) {
-      indices.push(lastIdx);
-    } else if (indices.length > 1) {
-      indices[indices.length - 1] = lastIdx;
-    }
-    return new Set(indices);
-  }, [data.length, isMobile, isSmallMobile, trendFilter, width]);
-
-  const getFormattedLabel = (label?: string | null) => {
-    if (!label) return '';
-    if (trendFilter === 'week') return formatShortDateRange(label);
-    if (trendFilter === 'month' && isSmallMobile) {
-      return label.split(' ')[0] || label;
-    }
-    return label;
+    return [label];
   };
 
   if (data.length === 0) {
@@ -470,44 +477,25 @@ const TrendChart: React.FC<{
     );
   }
 
-  const points = data.map((point, index) => {
-    const val = typeof point.value === 'number' && !isNaN(point.value) ? point.value : 0;
-    return {
-      ...point,
-      value: val,
-      x: paddingLeft + (index * chartWidth) / (data.length - 1 || 1),
-      y: paddingTop + chartHeight - (val / 100) * chartHeight,
-    };
-  });
-
-  let path = '';
-  if (points.length === 1) {
-    path = `M ${paddingLeft} ${points[0].y} L ${width - paddingRight} ${points[0].y}`;
-  } else if (points.length > 1) {
-    path = `M ${points[0].x} ${points[0].y}`;
-    for (let index = 1; index < points.length; index += 1) {
-      const previous = points[index - 1];
-      const current = points[index];
-      const controlOffset = (current.x - previous.x) / 3;
-      path += ` C ${previous.x + controlOffset} ${previous.y}, ${current.x - controlOffset} ${current.y}, ${current.x} ${current.y}`;
-    }
-  }
-
-  const areaPath = points.length === 1
-    ? `M ${paddingLeft} ${points[0].y} L ${width - paddingRight} ${points[0].y} L ${width - paddingRight} ${paddingTop + chartHeight} L ${paddingLeft} ${paddingTop + chartHeight} Z`
-    : points.length > 1
-    ? `${path} L ${points[points.length - 1].x} ${paddingTop + chartHeight} L ${points[0].x} ${paddingTop + chartHeight} Z`
-    : '';
+  const colorId = color.replace(/[^a-zA-Z0-9]/g, '') || 'brand';
+  const gradientId = `trendChartFill_${colorId}`;
+  const filterId = `trendChartGlow_${colorId}`;
 
   return (
-    <div ref={containerRef} className="relative w-full h-full select-none min-w-0 overflow-hidden">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full block" role="img" aria-label="Trend chart">
+    <div ref={containerRef} className="relative flex-1 w-full h-full min-h-[196px] sm:min-h-[220px] select-none min-w-0 overflow-hidden">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+        className="w-full h-full min-h-[196px] sm:min-h-[220px] block"
+        role="img"
+        aria-label="Trend chart"
+      >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity="0.22" />
             <stop offset="100%" stopColor={color} stopOpacity="0.01" />
           </linearGradient>
-          <filter id={filterId} filterUnits="userSpaceOnUse" x={-20} y={-20} width={width + 40} height={height + 40}>
+          <filter id={filterId} x="-20%" y="-30%" width="140%" height="160%">
             <feGaussianBlur stdDeviation="3" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
@@ -515,72 +503,154 @@ const TrendChart: React.FC<{
             </feMerge>
           </filter>
         </defs>
-        {[0, 25, 50, 75, 100].map((value) => {
-          const y = paddingTop + chartHeight - (value / 100) * chartHeight;
+
+        {[0, 25, 50, 75, 100].map((val) => {
+          const y = paddingTop + chartH - (val / 100) * chartH;
           return (
-            <g key={value}>
+            <g key={val}>
               <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="var(--slate-200)" strokeWidth="0.5" strokeDasharray="3 3" opacity="0.6" />
-              <text x={paddingLeft - 8} y={y + 3.5} textAnchor="end" className="fill-slate-400 font-bold text-[9px] xs:text-[10px]">{value}%</text>
+              <text x={paddingLeft - 8} y={y + 3} className="fill-slate-400 font-semibold text-[9px] xs:text-[10px]" textAnchor="end">{val}%</text>
             </g>
           );
         })}
-        {areaPath && <path d={areaPath} fill={`url(#${gradientId})`} />}
-        {path && <path d={path} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.28" filter={`url(#${filterId})`} />}
-        {path && <path d={path} fill="none" stroke={color} strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />}
-        {points.map((point, idx) => {
-          if (!visibleIndices.has(idx)) return null;
-          const formattedLabel = getFormattedLabel(point.label);
-          const textAnchor = idx === 0 && points.length > 1 ? 'start' : idx === points.length - 1 && points.length > 1 ? 'end' : 'middle';
+
+        {/* X-axis date labels */}
+        {points.map((p, idx) => {
+          if (isMobile) {
+            const [line1, line2] = getMobileLabelLines(p.label);
+            if (line2) {
+              return (
+                <text
+                  key={`label-${idx}`}
+                  x={p.x}
+                  y={paddingTop + chartH + 13}
+                  className="fill-slate-500 dark:fill-slate-400 font-semibold text-[8.5px] select-none"
+                  textAnchor="middle"
+                >
+                  <tspan x={p.x} dy="0">{line1}</tspan>
+                  <tspan x={p.x} dy="10">{line2}</tspan>
+                </text>
+              );
+            }
+            return (
+              <text
+                key={`label-${idx}`}
+                x={p.x}
+                y={height - 6}
+                className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px] select-none"
+                textAnchor="middle"
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                {line1}
+              </text>
+            );
+          }
+
+          let textAnchor: 'start' | 'middle' | 'end' = 'middle';
+          let labelX = p.x;
+          if (idx === 0) {
+            textAnchor = 'start';
+            labelX = Math.max(paddingLeft, p.x - 3);
+          } else if (idx === points.length - 1) {
+            textAnchor = 'end';
+            labelX = Math.min(width - paddingRight, p.x + 3);
+          }
+
           return (
-            <g key={point.dateKey || `pt-${idx}`}>
-              <title>{`${point.label}: ${point.value}%`}</title>
-              <circle cx={point.x} cy={point.y} r="4" fill={color} stroke="#FFFFFF" strokeWidth="2" />
-              <text x={point.x} y={height - 8} textAnchor={textAnchor} className="fill-slate-500 dark:fill-slate-400 font-bold text-[9px] xs:text-[10px]">{formattedLabel}</text>
-            </g>
+            <text
+              key={`label-${idx}`}
+              x={labelX}
+              y={height - 5}
+              className="fill-slate-500 dark:fill-slate-400 font-semibold text-[10px] select-none"
+              textAnchor={textAnchor}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              {p.label}
+            </text>
           );
         })}
+
+        {/* Trend Line & Area */}
+        {points.length > 0 && (
+          <>
+            <path d={areaD} fill={`url(#${gradientId})`} />
+            <path d={pathD} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.28" filter={`url(#${filterId})`} />
+            <path d={pathD} fill="none" stroke={color} strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        )}
+
+        {/* Data point markers */}
+        {points.map((p, idx) => (
+          <circle key={`data-dot-${idx}`} cx={p.x} cy={p.y} r="3.5" fill={color} stroke="#B6D4F8" strokeWidth="1.5" />
+        ))}
+
+        {/* Hover vertical guide line & dots */}
         {hoveredIdx !== null && points[hoveredIdx] && (
           <g>
-            <line x1={points[hoveredIdx].x} y1={paddingTop} x2={points[hoveredIdx].x} y2={paddingTop + chartHeight} stroke={color} strokeWidth="1.5" opacity="0.7" />
-            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill={color} stroke="#FFFFFF" strokeWidth="2" />
+            <line x1={points[hoveredIdx].x} y1={paddingTop} x2={points[hoveredIdx].x} y2={paddingTop + chartH} stroke={color} strokeWidth="1.5" opacity="0.7" />
+            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill={color} />
             <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="8" fill={color} opacity="0.25" />
           </g>
         )}
-        {points.map((point, index) => {
-          const step = chartWidth / (data.length - 1 || 1);
-          const xStart = index === 0 ? paddingLeft : point.x - step / 2;
-          const xEnd = index === data.length - 1 ? width - paddingRight : point.x + step / 2;
+
+        {/* Hover hit test regions */}
+        {points.map((p, idx) => {
+          const barW = chartW / (data.length - 1 || 1);
+          const xStart = idx === 0 ? paddingLeft : p.x - barW / 2;
+          const xEnd = idx === data.length - 1 ? width - paddingRight : p.x + barW / 2;
           return (
             <rect
-              key={`hover-${point.dateKey || index}`}
+              key={idx}
               x={xStart}
               y={paddingTop}
               width={xEnd - xStart}
-              height={chartHeight}
+              height={chartH + paddingBottom}
               fill="transparent"
               className="cursor-pointer"
-              onMouseEnter={() => setHoveredIdx(index)}
+              onMouseEnter={() => setHoveredIdx(idx)}
               onMouseLeave={() => setHoveredIdx(null)}
-              onTouchStart={(e) => { e.preventDefault(); setHoveredIdx(index); }}
-              onClick={() => setHoveredIdx(hoveredIdx === index ? null : index)}
+              onTouchStart={() => setHoveredIdx(idx)}
+              onClick={() => setHoveredIdx(hoveredIdx === idx ? null : idx)}
             />
           );
         })}
       </svg>
+
+      {/* Floating Tooltip (Guaranteed zero-overflow, matching TutorHome) */}
       {hoveredIdx !== null && points[hoveredIdx] && (() => {
         const p = points[hoveredIdx];
-        const percentX = (p.x / width) * 100;
-        const isRightHalf = percentX > 50;
+        const isRightHalf = p.x > width * 0.5;
+        const maxTooltipWidth = Math.min(230, Math.max(160, width - 24));
+
+        let tooltipStyle: React.CSSProperties;
+
+        if (isMobile) {
+          const leftPos = Math.max(10, Math.min(width - maxTooltipWidth - 10, p.x - maxTooltipWidth / 2));
+          tooltipStyle = {
+            left: `${leftPos}px`,
+            top: '8px',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        } else if (isRightHalf) {
+          tooltipStyle = {
+            right: `${Math.max(10, width - p.x + 12)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        } else {
+          tooltipStyle = {
+            left: `${Math.max(10, p.x + 12)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        }
 
         return (
           <div
-            className="pointer-events-none absolute z-10 w-max rounded-xl border border-slate-200 dark:border-zinc-700/50 bg-white/95 dark:bg-zinc-900/95 p-3 text-left text-[11px] leading-normal text-slate-800 dark:text-white shadow-xl shadow-slate-900/10 dark:shadow-black/60 overflow-hidden backdrop-blur-md"
-            style={{
-              left: `${percentX}%`,
-              top: '12%',
-              transform: isRightHalf ? 'translate(-105%, 0)' : 'translate(5%, 0)',
-              maxWidth: '240px',
-            }}
+            className="pointer-events-none absolute z-20 w-max rounded-xl border border-slate-200 dark:border-zinc-700/60 bg-white/95 dark:bg-zinc-900/95 p-3 text-left text-[11px] leading-normal text-slate-800 dark:text-white shadow-xl shadow-slate-900/10 dark:shadow-black/60 overflow-hidden backdrop-blur-md"
+            style={tooltipStyle}
           >
             <div className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-zinc-400 break-words">{p.label}</div>
             <div className="mt-1 flex items-baseline gap-1.5 flex-wrap">
@@ -604,15 +674,44 @@ const DesktopRiskTrendChart: React.FC<{
   isSingleStudent: boolean;
   studentName?: string;
 }> = ({ data, total, isSingleStudent, studentName }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(800);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const width = 800;
-  const height = 160;
+
+  useEffect(() => {
+    setHoveredIdx(null);
+  }, [data]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        if (rect.width > 0) setContainerWidth(Math.round(rect.width));
+      }
+    };
+    updateSize();
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0) {
+          setContainerWidth(Math.round(entry.contentRect.width));
+        }
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [data.length]);
+
+  const width = Math.max(300, containerWidth);
+  const height = 208;
   const paddingLeft = 48;
-  const paddingRight = 6;
-  const paddingTop = 15;
+  const paddingRight = 16;
+  const paddingTop = 16;
   const paddingBottom = 28;
-  const chartWidth = width - paddingLeft - paddingRight;
-  const chartHeight = height - paddingTop - paddingBottom;
+  const chartWidth = Math.max(10, width - paddingLeft - paddingRight);
+  const chartHeight = Math.max(10, height - paddingTop - paddingBottom);
   const { maxValue, axisSteps } = useMemo(() => {
     if (isSingleStudent) {
       return { maxValue: 1, axisSteps: [0, 1] };
@@ -655,15 +754,18 @@ const DesktopRiskTrendChart: React.FC<{
     { key: 'low' as const, color: '#22C55E', label: 'Low Risk' },
   ];
   const barWidth = Math.max(14, Math.min(34, (chartWidth / (data.length || 1)) * 0.35));
-  const getBarX = (index: number) =>
-    paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1 || 1);
+  const getBarX = (index: number) => {
+    if (data.length <= 1) {
+      return paddingLeft + chartWidth / 2;
+    }
+    return paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1);
+  };
 
   return (
-    <div className="relative overflow-hidden">
+    <div ref={containerRef} className="relative w-full overflow-hidden">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
-        className="h-52 w-full overflow-visible"
+        className="h-52 w-full overflow-visible select-none"
         role="img"
         aria-label="Risk level trend chart"
       >
@@ -683,9 +785,9 @@ const DesktopRiskTrendChart: React.FC<{
               />
               <text
                 x={paddingLeft - 12}
-                y={y + 3}
+                y={y + 3.5}
                 textAnchor="end"
-                className="fill-slate-400 font-semibold text-[8px]"
+                className="fill-slate-400 font-semibold text-[10px]"
               >
                 {value}
               </text>
@@ -721,9 +823,9 @@ const DesktopRiskTrendChart: React.FC<{
             >
               <text
                 x={x}
-                y={height - 4}
+                y={height - 6}
                 textAnchor="middle"
-                className="fill-slate-500 font-semibold text-[8px]"
+                className="fill-slate-500 font-semibold text-[10px]"
               >
                 {point.label}
               </text>
@@ -805,23 +907,71 @@ const MobileRiskTrendChart: React.FC<{
   total: number;
   isSingleStudent: boolean;
   studentName?: string;
-}> = ({ data, total, isSingleStudent, studentName }) => {
+  trendFilter: TrendFilter;
+}> = ({ data, total, isSingleStudent, studentName, trendFilter }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(320);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-  // Compact bar slot and responsive margins so bars and labels fit comfortably on mobile
-  const minBarSlot = 44;
-  const paddingLeft = 38;
-  const paddingRight = 24;
-  const paddingTop = 20;
-  const paddingBottom = 48;
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        if (rect.width > 0) setContainerWidth(Math.round(rect.width));
+      }
+    };
+    updateSize();
 
-  const width = Math.max(300, data.length * minBarSlot + paddingLeft + paddingRight);
-  const height = 240;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0) {
+          setContainerWidth(Math.round(entry.contentRect.width));
+        }
+      }
+    });
 
-  const chartWidth = width - paddingLeft - paddingRight;
-  const chartHeight = height - paddingTop - paddingBottom;
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
-  const axisSteps = isSingleStudent ? [0, 1] : [0, 25, 50, 75, 100];
+  const width = containerWidth;
+  const height = 196;
+  const paddingLeft = isSingleStudent ? 24 : 32;
+  const paddingRight = 16;
+  const paddingTop = 14;
+  const paddingBottom = trendFilter === 'month' ? 24 : 34;
+
+  const chartWidth = Math.max(10, width - paddingLeft - paddingRight);
+  const chartHeight = Math.max(10, height - paddingTop - paddingBottom);
+
+  const { maxValue, axisSteps } = useMemo(() => {
+    if (isSingleStudent) {
+      return { maxValue: 1, axisSteps: [0, 1] };
+    }
+    const safeTotal = Math.max(1, total);
+    let step = 5;
+    if (safeTotal <= 10) {
+      step = 2;
+    } else if (safeTotal <= 35) {
+      step = 5;
+    } else if (safeTotal <= 70) {
+      step = 10;
+    } else if (safeTotal <= 120) {
+      step = 20;
+    } else if (safeTotal <= 250) {
+      step = 50;
+    } else {
+      step = 100;
+    }
+
+    const calculatedMax = Math.max(step, Math.ceil(safeTotal / step) * step);
+    const steps: number[] = [];
+    for (let val = 0; val <= calculatedMax; val += step) {
+      steps.push(val);
+    }
+    return { maxValue: calculatedMax, axisSteps: steps };
+  }, [total, isSingleStudent]);
 
   const series = [
     { key: 'high' as const, color: '#EF4444', label: 'High Risk' },
@@ -829,165 +979,179 @@ const MobileRiskTrendChart: React.FC<{
     { key: 'low' as const, color: '#22C55E', label: 'Low Risk' },
   ];
 
-  // Dynamic bar width: 12px to 18px (clean, proportionate, non-bulky)
-  const barWidth = Math.max(12, Math.min(18, (chartWidth / (data.length || 1)) * 0.38));
+  const barWidth = Math.max(10, Math.min(18, (chartWidth / (data.length || 1)) * 0.42));
   const getBarX = (index: number) =>
     paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1 || 1);
 
+  const getLabelLines = (label: string): [string, string?] => {
+    if (trendFilter === 'week') {
+      const parts = label.split(/\s*[–—\-]\s*/);
+      if (parts.length === 2) {
+        return [parts[0].trim(), `–${parts[1].trim()}`];
+      }
+      return [label];
+    }
+    if (trendFilter === 'day') {
+      const parts = label.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return [parts[0], parts.slice(1).join(' ')];
+      }
+      return [label];
+    }
+    if (trendFilter === 'month') {
+      return [label.split(' ')[0] || label];
+    }
+    return [label];
+  };
+
   return (
-    <div className="relative select-none w-full max-w-full min-w-0 overflow-hidden">
-      {/* Mobile Swipe / Tap hint */}
-      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400 pb-1.5 px-1 font-medium">
-        <span>Tap bar for details</span>
-        <span className="text-[11px] text-gray-400">Swipe to view history &rarr;</span>
-      </div>
+    <div ref={containerRef} className="relative select-none w-full max-w-full min-w-0 h-[196px] overflow-hidden">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-full block"
+        role="img"
+        aria-label="Risk level trend chart"
+      >
+        {/* Horizontal Grid lines and Y-axis labels */}
+        {axisSteps.map((value) => {
+          const y = paddingTop + chartHeight - (value / maxValue) * chartHeight;
+          return (
+            <g key={value}>
+              <line
+                x1={paddingLeft}
+                y1={y}
+                x2={width - paddingRight}
+                y2={y}
+                stroke="var(--slate-200, #E2E8F0)"
+                strokeWidth="0.75"
+                strokeDasharray="3 3"
+                className="opacity-70 dark:opacity-20"
+              />
+              <text
+                x={paddingLeft - 6}
+                y={y + 3}
+                textAnchor="end"
+                className="fill-slate-400 dark:fill-slate-400 font-semibold text-[9px]"
+              >
+                {value}
+              </text>
+            </g>
+          );
+        })}
 
-      <div className="w-full max-w-full min-w-0 overflow-x-auto mobile-scroll-table overscroll-x-contain -mx-1 px-1 rounded-md">
-        <div style={{ minWidth: `${width}px`, width: `${width}px` }}>
-          <svg
-            viewBox={`0 0 ${width} ${height}`}
-            className="w-full h-[240px] block"
-            role="img"
-            aria-label="Risk level trend chart"
-          >
-            {/* Horizontal Grid lines and crisp Y-axis labels (0, 25, 50, 75, 100) */}
-            {axisSteps.map((value) => {
-              const y = paddingTop + chartHeight - (isSingleStudent ? value * chartHeight : (value / 100) * chartHeight);
-              return (
-                <g key={value}>
-                  <line
-                    x1={paddingLeft}
-                    y1={y}
-                    x2={width - paddingRight}
-                    y2={y}
-                    stroke="var(--slate-200, #E2E8F0)"
-                    strokeWidth="1"
-                    strokeDasharray="4 4"
-                    className="opacity-70 dark:opacity-20"
-                  />
-                  <text
-                    x={paddingLeft - 8}
-                    y={y + 3.5}
-                    textAnchor="end"
-                    className="fill-slate-500 dark:fill-slate-400 font-semibold"
-                    style={{ fontSize: '10px' }}
-                  >
-                    {value}
-                  </text>
-                </g>
-              );
-            })}
+        {/* Bars and X-axis Labels */}
+        {data.map((point, index) => {
+          const x = getBarX(index);
+          const [line1, line2] = getLabelLines(point.label);
 
-            {/* Bars and X-axis Labels */}
-            {data.map((point, index) => {
-              const x = getBarX(index);
-              const shouldShowLabel = data.length <= 6 || index % 2 === 0 || index === data.length - 1;
-              const shortLabel = formatShortDateRange(point.label);
+          const highCount = point.high || 0;
+          const medCount = point.medium || 0;
+          const lowCount = point.low || 0;
+          const pointTotal = isSingleStudent ? 1 : (highCount + medCount + lowCount);
 
-              const highCount = point.high || 0;
-              const medCount = point.medium || 0;
-              const lowCount = point.low || 0;
-              const pointTotal = isSingleStudent ? 1 : (highCount + medCount + lowCount || 1);
+          const lowH = (lowCount / maxValue) * chartHeight;
+          const medH = (medCount / maxValue) * chartHeight;
+          const highH = (highCount / maxValue) * chartHeight;
+          const totalBarH = lowH + medH + highH;
 
-              const lowPct = (lowCount / pointTotal) * 100;
-              const medPct = (medCount / pointTotal) * 100;
-              const highPct = (highCount / pointTotal) * 100;
+          const segments = [
+            { key: 'low', color: '#22C55E', height: lowH, count: lowCount },
+            { key: 'medium', color: '#F59E0B', height: medH, count: medCount },
+            { key: 'high', color: '#EF4444', height: highH, count: highCount },
+          ];
 
-              const lowH = (lowPct / 100) * chartHeight;
-              const medH = (medPct / 100) * chartHeight;
-              const highH = (highPct / 100) * chartHeight;
+          let currentY = paddingTop + chartHeight;
+          const isHovered = hoveredIdx === index;
 
-              const segments = [
-                { key: 'low', color: '#22C55E', height: lowH, count: lowCount, pct: lowPct },
-                { key: 'medium', color: '#F59E0B', height: medH, count: medCount, pct: medPct },
-                { key: 'high', color: '#EF4444', height: highH, count: highCount, pct: highPct },
-              ];
-
-              let currentY = paddingTop + chartHeight;
-              const isHovered = hoveredIdx === index;
-
-              return (
-                <g
-                  key={point.dateKey}
-                  onMouseEnter={() => setHoveredIdx(index)}
-                  onMouseLeave={() => setHoveredIdx(null)}
-                  onTouchStart={(e) => {
-                    e.preventDefault();
-                    setHoveredIdx(hoveredIdx === index ? null : index);
-                  }}
-                  onClick={() => setHoveredIdx(hoveredIdx === index ? null : index)}
-                  className="cursor-pointer"
-                >
-                  {/* Stacked Bar segments: green, orange, red */}
-                  {segments.map((seg) => {
-                    if (seg.height <= 0) return null;
-                    currentY -= seg.height;
-                    return (
-                      <rect
-                        key={seg.key}
-                        x={x - barWidth / 2}
-                        y={currentY}
-                        width={barWidth}
-                        height={seg.height}
-                        fill={seg.color}
-                        fillOpacity={isHovered ? 1 : 0.88}
-                        stroke="#FFFFFF"
-                        strokeWidth="1.2"
-                        rx={seg.key === 'high' || (seg.key === 'medium' && highH === 0) || (seg.key === 'low' && highH === 0 && medH === 0) ? 3 : 0}
-                      />
-                    );
-                  })}
-
-                  {/* Hover outline ring */}
-                  {isHovered && (
-                    <rect
-                      x={x - barWidth / 2 - 2}
-                      y={paddingTop + chartHeight - (lowH + medH + highH) - 2}
-                      width={barWidth + 4}
-                      height={lowH + medH + highH + 4}
-                      fill="none"
-                      stroke="#0052B7"
-                      strokeWidth="2"
-                      rx={4}
-                      className="pointer-events-none"
-                    />
-                  )}
-
-                  {/* X-Axis Rotated ~25° Date Label */}
-                  {shouldShowLabel && (
-                    <g transform={`translate(${x}, ${paddingTop + chartHeight + 10})`}>
-                      <text
-                        transform="rotate(-25)"
-                        textAnchor="end"
-                        className="fill-slate-600 dark:fill-slate-300 select-none font-semibold"
-                        style={{ fontSize: '10px' }}
-                      >
-                        {shortLabel}
-                      </text>
-                    </g>
-                  )}
-
-                  {/* Wide touch region */}
+          return (
+            <g
+              key={point.dateKey}
+              onMouseEnter={() => setHoveredIdx(index)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                setHoveredIdx(hoveredIdx === index ? null : index);
+              }}
+              onClick={() => setHoveredIdx(hoveredIdx === index ? null : index)}
+              className="cursor-pointer"
+            >
+              {/* Stacked Bar segments */}
+              {segments.map((seg) => {
+                if (seg.height <= 0) return null;
+                currentY -= seg.height;
+                return (
                   <rect
-                    x={x - Math.max(barWidth, 40) / 2}
-                    y={paddingTop}
-                    width={Math.max(barWidth, 40)}
-                    height={chartHeight + 40}
-                    fill="transparent"
+                    key={seg.key}
+                    x={x - barWidth / 2}
+                    y={currentY}
+                    width={barWidth}
+                    height={seg.height}
+                    fill={seg.color}
+                    fillOpacity={isHovered ? 1 : 0.88}
+                    stroke="#FFFFFF"
+                    strokeWidth="1.2"
+                    rx={seg.key === 'high' || (seg.key === 'medium' && highH === 0) || (seg.key === 'low' && highH === 0 && medH === 0) ? 3 : 0}
                   />
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-      </div>
+                );
+              })}
 
-      {/* Floating Mobile Tooltip */}
+              {/* Hover outline ring */}
+              {isHovered && totalBarH > 0 && (
+                <rect
+                  x={x - barWidth / 2 - 2}
+                  y={paddingTop + chartHeight - totalBarH - 2}
+                  width={barWidth + 4}
+                  height={totalBarH + 4}
+                  fill="none"
+                  stroke="#0052B7"
+                  strokeWidth="1.75"
+                  rx={4}
+                  className="pointer-events-none"
+                />
+              )}
+
+              {/* Complete X-Axis Date Labels Under Every Bar */}
+              {line2 ? (
+                <text
+                  x={x}
+                  y={paddingTop + chartHeight + 13}
+                  textAnchor="middle"
+                  className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[8.5px]"
+                >
+                  <tspan x={x} dy="0">{line1}</tspan>
+                  <tspan x={x} dy="10">{line2}</tspan>
+                </text>
+              ) : (
+                <text
+                  x={x}
+                  y={height - 6}
+                  textAnchor="middle"
+                  className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[9px]"
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  {line1}
+                </text>
+              )}
+
+              {/* Touch hit region */}
+              <rect
+                x={x - Math.max(barWidth, chartWidth / (data.length || 1)) / 2}
+                y={paddingTop}
+                width={Math.max(barWidth, chartWidth / (data.length || 1))}
+                height={chartHeight + paddingBottom}
+                fill="transparent"
+              />
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Floating Mobile Tooltip matching StudentAnalytics */}
       {hoveredIdx !== null && data[hoveredIdx] && (() => {
         const p = data[hoveredIdx];
         const barX = getBarX(hoveredIdx);
-        const barLeftPct = ((barX - barWidth / 2) / width) * 100;
-        const mobileLeftPct = Math.max(4, Math.min(60, barLeftPct - 15));
+        const maxTooltipWidth = Math.min(210, Math.max(150, width - 20));
+        const leftPos = Math.max(8, Math.min(width - maxTooltipWidth - 8, barX - maxTooltipWidth / 2));
 
         const highCount = p.high || 0;
         const medCount = p.medium || 0;
@@ -996,27 +1160,28 @@ const MobileRiskTrendChart: React.FC<{
 
         return (
           <div
-            className="pointer-events-none absolute z-20 min-w-[160px] max-w-[calc(100vw-3rem)] rounded-xl border border-slate-200 dark:border-zinc-700/60 bg-white/95 dark:bg-zinc-900/95 p-3 text-left text-xs leading-normal text-slate-800 dark:text-white shadow-xl dark:shadow-2xl shadow-slate-900/10 dark:shadow-black/60 backdrop-blur-sm"
+            className="pointer-events-none absolute z-20 w-max rounded-xl border border-slate-200 dark:border-zinc-700/60 bg-white/95 dark:bg-zinc-900/95 p-2.5 text-left text-[11px] leading-normal text-slate-800 dark:text-white shadow-xl dark:shadow-2xl shadow-slate-900/10 dark:shadow-black/60 backdrop-blur-sm"
             style={{
-              left: `${mobileLeftPct}%`,
-              top: '12px',
+              left: `${leftPos}px`,
+              top: '8px',
+              maxWidth: `${maxTooltipWidth}px`,
             }}
           >
-            <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-zinc-700/80 pb-1.5 mb-2">
-              <span className="text-xs font-bold uppercase text-slate-700 dark:text-zinc-200">{p.label}</span>
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-zinc-700/80 pb-1 mb-1.5">
+              <span className="text-[10px] font-bold uppercase text-slate-700 dark:text-zinc-200">{p.label}</span>
               {isSingleStudent && studentName && (
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 truncate max-w-[120px]" title={studentName}>
+                <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 truncate max-w-[100px]" title={studentName}>
                   {studentName}
                 </span>
               )}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {series.map((item) => {
                 const count = p[item.key] || 0;
                 const pct = pointTotal > 0 ? Math.round((count / pointTotal) * 100) : 0;
                 return (
-                  <div key={item.key} className="flex items-center justify-between gap-4 text-xs font-medium">
+                  <div key={item.key} className="flex items-center justify-between gap-4 text-[11px] font-medium">
                     <span className="flex items-center gap-1.5" style={{ color: item.color }}>
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                       {item.label}
@@ -1030,7 +1195,7 @@ const MobileRiskTrendChart: React.FC<{
             </div>
 
             {!isSingleStudent && (
-              <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-zinc-700/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 font-semibold">
+              <div className="mt-1.5 pt-1 border-t border-slate-100 dark:border-zinc-700/80 flex items-center justify-between text-[10px] text-slate-500 dark:text-zinc-400 font-semibold">
                 <span>Total evaluated</span>
                 <span className="text-slate-800 dark:text-white">{pointTotal} students</span>
               </div>
@@ -1048,7 +1213,8 @@ const RiskTrendChart: React.FC<{
   isSingleStudent: boolean;
   studentName?: string;
   emptyLabel?: string;
-}> = ({ data, total, isSingleStudent, studentName, emptyLabel = 'No recorded performance data' }) => {
+  trendFilter?: TrendFilter;
+}> = ({ data, total, isSingleStudent, studentName, emptyLabel = 'No recorded performance data', trendFilter = 'week' }) => {
   if (data.length === 0) {
     return (
       <div className="flex h-52 items-center justify-center text-xs font-medium text-gray-400 dark:text-slate-500">
@@ -1076,6 +1242,7 @@ const RiskTrendChart: React.FC<{
           total={total}
           isSingleStudent={isSingleStudent}
           studentName={studentName}
+          trendFilter={trendFilter}
         />
       </div>
     </>
@@ -1240,7 +1407,6 @@ export const TutorAnalytics: React.FC = () => {
   const [riskTrendFilter, setRiskTrendFilter] = useState<TrendFilter>('week');
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [scoreSearch, setScoreSearch] = useState('');
-  const [attendanceDescFilter, setAttendanceDescFilter] = useState<'all' | 'Intervention Activity' | 'milestone'>('all');
   const [scoreDescFilter, setScoreDescFilter] = useState<'all' | 'Intervention Activity' | 'milestone'>('all');
   const [sortField, setSortField] = useState<OverallSortField | null>(null);
   const [sortAsc, setSortAsc] = useState(true);
@@ -1576,7 +1742,6 @@ export const TutorAnalytics: React.FC = () => {
   }, [rows]);
   const attendanceDetails = useMemo(() => {
     const list: (ExtendedRiskRow & {
-      description: EntryDescriptionType;
       present: number;
       absent: number;
       attendanceAverage: number;
@@ -1584,37 +1749,19 @@ export const TutorAnalytics: React.FC = () => {
 
     rows.forEach((row) => {
       const rowStudentIds = buildStudentIdSet([row.student]);
-      const allStudentLogs = attendanceLogs.filter((log) => rowStudentIds.has(getLogUserId(log)));
-
-      const typesToGenerate: EntryDescriptionType[] = attendanceDescFilter === 'all'
-        ? ['Intervention Activity', assignedMilestone]
-        : attendanceDescFilter === 'milestone'
-        ? [assignedMilestone]
-        : ['Intervention Activity'];
-
-      typesToGenerate.forEach((desc) => {
-        const studentLogs = allStudentLogs.filter((log) => {
-          const logDesc = getAttendanceDescription(log);
-          if (desc === 'Intervention Activity') return logDesc === 'Intervention Activity';
-          return logDesc !== 'Intervention Activity';
-        });
-        if (attendanceDescFilter === 'all' && desc !== 'Intervention Activity' && studentLogs.length === 0) {
-          return;
-        }
-        const present = studentLogs.filter((log) => isAttendedStatus(log.status)).length;
-        const absent = studentLogs.filter((log) => isAbsentStatus(log.status)).length;
-        list.push({
-          ...row,
-          description: desc,
-          present,
-          absent,
-          attendanceAverage: studentLogs.length ? (present / studentLogs.length) * 100 : 0,
-        });
+      const studentLogs = attendanceLogs.filter((log) => rowStudentIds.has(getLogUserId(log)));
+      const present = studentLogs.filter((log) => isAttendedStatus(log.status)).length;
+      const absent = studentLogs.filter((log) => isAbsentStatus(log.status)).length;
+      list.push({
+        ...row,
+        present,
+        absent,
+        attendanceAverage: studentLogs.length ? (present / studentLogs.length) * 100 : 0,
       });
     });
 
     return list
-      .filter((row) => matchesSearch(attendanceSearch, row.student.full_name, row.student.first_name, row.student.last_name, row.student.lrn, row.description))
+      .filter((row) => matchesSearch(attendanceSearch, row.student.full_name, row.student.first_name, row.student.last_name, row.student.lrn))
       .sort((firstRow, secondRow) => {
         if (attendanceSortField === null) return 0;
         if (attendanceSortField === 'aralLevel') {
@@ -1627,20 +1774,14 @@ export const TutorAnalytics: React.FC = () => {
           const cmp = compareNamesByLastName(firstRow.student, secondRow.student);
           return attendanceSortAsc ? cmp : -cmp;
         }
-        const firstValue =
-          attendanceSortField === 'description'
-            ? firstRow.description
-            : (firstRow as unknown as Record<string, string | number>)[attendanceSortField];
-        const secondValue =
-          attendanceSortField === 'description'
-            ? secondRow.description
-            : (secondRow as unknown as Record<string, string | number>)[attendanceSortField];
+        const firstValue = (firstRow as unknown as Record<string, string | number>)[attendanceSortField];
+        const secondValue = (secondRow as unknown as Record<string, string | number>)[attendanceSortField];
         if (typeof firstValue === 'string' && typeof secondValue === 'string') {
           return attendanceSortAsc ? firstValue.localeCompare(secondValue) : secondValue.localeCompare(firstValue);
         }
         return attendanceSortAsc ? Number(firstValue) - Number(secondValue) : Number(secondValue) - Number(firstValue);
       });
-  }, [rows, attendanceLogs, attendanceSearch, attendanceDescFilter, attendanceSortField, attendanceSortAsc]);
+  }, [rows, attendanceLogs, attendanceSearch, attendanceSortField, attendanceSortAsc]);
 
   const hasMultipleAttendanceAralLevels = useMemo(() => {
     const distinct = new Set(attendanceDetails.map((r) => (r.student.aral_level || '').trim().toLowerCase()).filter(Boolean));
@@ -1944,7 +2085,7 @@ export const TutorAnalytics: React.FC = () => {
               </div>
 
               {/* ── Risk Level Trend Chart ── */}
-              <section className="rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]" aria-labelledby="risk-overview-heading">
+              <section className="rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]" aria-labelledby="risk-overview-heading">
                 <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
                     <h3 id="risk-overview-heading" className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">{riskLevelTrendTitle}</h3>
@@ -1968,12 +2109,13 @@ export const TutorAnalytics: React.FC = () => {
                   </div>
                 </div>
                 <div className="mt-4">
-                  <div className="relative rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+                  <div className="relative rounded-md border border-gray-100 bg-gray-50/60 p-2 sm:p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
                     <RiskTrendChart
                       data={riskTrend}
                       total={riskScopedRows.length}
                       isSingleStudent={riskScope !== 'all'}
                       studentName={selectedRiskStudent?.full_name}
+                      trendFilter={riskTrendFilter}
                       emptyLabel={riskTrendFilter === 'day' ? 'No recorded performance data today' : riskTrendFilter === 'week' ? 'No recorded performance data this week' : 'No recorded performance data this month'}
                     />
                   </div>
@@ -1986,19 +2128,19 @@ export const TutorAnalytics: React.FC = () => {
                   <RiskCalculationInfo />
                 </div>
                 <div className="bg-white rounded-md border border-gray-200 overflow-hidden dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-                  <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-                    <div className="min-w-0 flex-1 truncate">
-                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase truncate">STUDENT PERFORMANCE DETAILS</h3>
-                      <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">{filteredAndSortedRows.length} Students</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 px-3.5 sm:px-5 py-3 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+                    <div>
+                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT PERFORMANCE DETAILS</h3>
+                      <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400">{filteredAndSortedRows.length} Students</p>
                     </div>
-                    <div className="relative w-28 xs:w-36 sm:w-56 shrink-0">
+                    <div className="relative w-full sm:w-56 shrink-0">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                       <input
                         type="search"
                         placeholder="Search student..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="h-7.5 sm:h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-[11px] sm:text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200"
+                        className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200"
                       />
                     </div>
                   </div>
@@ -2010,8 +2152,184 @@ export const TutorAnalytics: React.FC = () => {
                       <p className="text-[11px] text-gray-400 dark:text-slate-500">Try adjusting your search criteria.</p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-[900px] divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal w-full" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                    <>
+                      {/* Mobile View (< 768px): Mobile-optimized table with sealed sticky student column */}
+                      <div className="md:hidden overflow-x-auto mobile-scroll-table rounded-b-md bg-white dark:bg-[#111111]">
+                        <table className="min-w-[680px] w-full border-separate border-spacing-0 text-xs" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                          <thead>
+                            <tr className="bg-gray-50 dark:bg-[#151515]">
+                              <th
+                                onClick={() => handleSort('student')}
+                                className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[26%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
+                              >
+                                <span className="inline-flex items-center gap-1">
+                                  STUDENT
+                                  {sortField === 'student' ? (
+                                    sortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                  ) : (
+                                    <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                  )}
+                                </span>
+                              </th>
+                              {hasMultipleOverallAralLevels ? (
+                                <th
+                                  onClick={() => handleSort('aralLevel')}
+                                  className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                                >
+                                  <span className="inline-flex items-center gap-1 justify-center">
+                                    ARAL LEVEL
+                                    {sortField === 'aralLevel' ? (
+                                      sortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                    ) : (
+                                      <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                    )}
+                                  </span>
+                                </th>
+                              ) : (
+                                <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
+                                  ARAL LEVEL
+                                </th>
+                              )}
+                              <th
+                                onClick={() => handleSort('riskTier')}
+                                className="min-w-[85px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                              >
+                                <span className="inline-flex items-center gap-1 justify-center">
+                                  RISK LEVEL
+                                  {sortField === 'riskTier' ? (
+                                    sortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                  ) : (
+                                    <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                  )}
+                                </span>
+                              </th>
+                              <th
+                                onClick={() => handleSort('compositeScore')}
+                                className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                              >
+                                <span className="inline-flex items-center gap-1 justify-center">
+                                  COMPOSITE
+                                  {sortField === 'compositeScore' ? (
+                                    sortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                  ) : (
+                                    <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                  )}
+                                </span>
+                              </th>
+                              <th
+                                onClick={() => handleSort('attendanceRate')}
+                                className="min-w-[85px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                              >
+                                <span className="inline-flex items-center gap-1 justify-center">
+                                  ATTENDANCE
+                                  {sortField === 'attendanceRate' ? (
+                                    sortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                  ) : (
+                                    <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                  )}
+                                </span>
+                              </th>
+                              <th
+                                onClick={() => handleSort('scoreAvg')}
+                                className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                              >
+                                <span className="inline-flex items-center gap-1 justify-center">
+                                  SCORE AVG
+                                  {sortField === 'scoreAvg' ? (
+                                    sortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                  ) : (
+                                    <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                  )}
+                                </span>
+                              </th>
+                              <th className="min-w-[190px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                                REMARKS
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white dark:bg-[#111111]">
+                            {filteredAndSortedRows.map((row) => (
+                              <tr key={`mobile-perf-${row.student.id}`} className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
+                                <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                                  <span className="block truncate max-w-[125px] text-xs font-semibold text-gray-800 dark:text-slate-100" title={row.student.full_name}>
+                                    {row.student.full_name}
+                                  </span>
+                                </td>
+                                <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                  {getAralBadge(row.student.aral_level)}
+                                </td>
+                                <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold border ${getTierCls(row.riskTier)}`}>
+                                    {row.riskTier}
+                                  </span>
+                                </td>
+                                <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                  <span className={`text-xs font-semibold ${getCompositeScoreCls(row.riskTier)}`}>
+                                    {smartPct(row.compositeScore)}%
+                                  </span>
+                                </td>
+                                <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                  <span className={`text-xs font-semibold ${getAttendanceRateCls(row.attendanceRate)}`}>
+                                    {smartPct(row.attendanceRate)}%
+                                  </span>
+                                </td>
+                                <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                  <span className={`text-xs font-semibold ${getScoreAvgCls(row.scoreAvg)}`}>
+                                    {smartPct(row.scoreAvg)}%
+                                  </span>
+                                </td>
+                                <td className="px-2.5 py-2 text-left border-b border-gray-100 dark:border-[#1A1A1A]">
+                                  {row.riskTier === 'High' ? (
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      {row.neededPresentAttendance > 0 && (
+                                        <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-300">
+                                          Need +{row.neededPresentAttendance} more Present records to improve risk level
+                                        </span>
+                                      )}
+                                      {row.neededPassedScores > 0 && (
+                                        <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300">
+                                          Need +{row.neededPassedScores} more Passed records to improve risk level
+                                        </span>
+                                      )}
+                                      {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
+                                        <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300">
+                                          Need +1 more Passed record to improve risk level
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : row.riskTier === 'Medium' ? (
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      {row.neededPresentAttendance > 0 && (
+                                        <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                          Need +{row.neededPresentAttendance} more Present records to improve risk level
+                                        </span>
+                                      )}
+                                      {row.neededPassedScores > 0 && (
+                                        <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                          Need +{row.neededPassedScores} more Passed records to improve risk level
+                                        </span>
+                                      )}
+                                      {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
+                                        <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                          Moderate Standing (On Track)
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="inline-flex items-center rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900/40 dark:text-emerald-300">
+                                      On Track (Safe Standing)
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Desktop View (>= 768px): Original full table */}
+                      <div className="hidden md:block overflow-x-auto mobile-scroll-table -mx-1 sm:mx-0 px-1 sm:px-0">
+                        <table className="min-w-[900px] divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal w-full" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                         <thead>
                           <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
                             <SortHeader field="student" className="w-[24%] min-w-[220px]">Student</SortHeader>
@@ -2105,6 +2423,7 @@ export const TutorAnalytics: React.FC = () => {
                         </tbody>
                       </table>
                     </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -2179,41 +2498,134 @@ export const TutorAnalytics: React.FC = () => {
               {/* Student Attendance Details Table */}
               <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
                 <div className="overflow-hidden">
-                  <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-                    <div className="min-w-0 flex-1 truncate">
-                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase truncate">STUDENT ATTENDANCE DETAILS</h3>
-                      <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">{attendanceDetails.length} Students</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 px-3.5 sm:px-5 py-3 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+                    <div className="min-w-0">
+                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">STUDENT ATTENDANCE DETAILS</h3>
+                      <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400">{attendanceDetails.length} Students</p>
                     </div>
-                    <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
-                      {/* Description Filter */}
-                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
-                        {([
-                          ['all', 'All'],
-                          ['Intervention Activity', 'Intervention'],
-                          ['milestone', assignedMilestone],
-                        ] as const).map(([val, label]) => (
-                          <button
-                            key={val}
-                            type="button"
-                            onClick={() => setAttendanceDescFilter(val)}
-                            className={`rounded-sm px-2 sm:px-2.5 py-1 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
-                              attendanceDescFilter === val
-                                ? 'bg-[var(--brand)] text-white'
-                                : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="relative w-28 xs:w-36 sm:w-48 shrink-0">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                        <input type="search" aria-label="Search attendance students" placeholder="Search student..." value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} className="h-7.5 sm:h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-[11px] sm:text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
-                      </div>
+                    <div className="relative w-full sm:w-56 shrink-0">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input type="search" aria-label="Search attendance students" placeholder="Search student..." value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
                     </div>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+
+                  {/* Mobile View (< 768px): Mobile-optimized table with sealed sticky student column */}
+                  <div className="md:hidden overflow-x-auto mobile-scroll-table rounded-b-md bg-white dark:bg-[#111111]">
+                    <table className="min-w-[460px] w-full border-separate border-spacing-0 text-xs" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                      <thead>
+                        <tr className="bg-gray-50 dark:bg-[#151515]">
+                          <th
+                            onClick={() => handleDetailSort('student' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
+                            className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[30%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              STUDENT
+                              {attendanceSortField === 'student' ? (
+                                attendanceSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                              )}
+                            </span>
+                          </th>
+                          {hasMultipleAttendanceAralLevels ? (
+                            <th
+                              onClick={() => handleDetailSort('aralLevel' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
+                              className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            >
+                              <span className="inline-flex items-center gap-1 justify-center">
+                                ARAL LEVEL
+                                {attendanceSortField === 'aralLevel' ? (
+                                  attendanceSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                ) : (
+                                  <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                )}
+                              </span>
+                            </th>
+                          ) : (
+                            <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
+                              ARAL LEVEL
+                            </th>
+                          )}
+                          <th
+                            onClick={() => handleDetailSort('present' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
+                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                          >
+                            <span className="inline-flex items-center gap-1 justify-center">
+                              PRESENT
+                              {attendanceSortField === 'present' ? (
+                                attendanceSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                              )}
+                            </span>
+                          </th>
+                          <th
+                            onClick={() => handleDetailSort('absent' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
+                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                          >
+                            <span className="inline-flex items-center gap-1 justify-center">
+                              ABSENT
+                              {attendanceSortField === 'absent' ? (
+                                attendanceSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                              )}
+                            </span>
+                          </th>
+                          <th
+                            onClick={() => handleDetailSort('attendanceAverage' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
+                            className="min-w-[90px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                          >
+                            <span className="inline-flex items-center gap-1 justify-center">
+                              AVG RATE
+                              {attendanceSortField === 'attendanceAverage' ? (
+                                attendanceSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                              )}
+                            </span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-[#111111]">
+                        {attendanceDetails.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-4 py-8 text-center text-xs text-gray-400 dark:text-slate-500">
+                              No students found
+                            </td>
+                          </tr>
+                        ) : (
+                          attendanceDetails.map((row, idx) => (
+                            <tr key={`mobile-att-${row.student.id}-${idx}`} className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
+                              <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                                <span className="block truncate max-w-[125px] text-xs font-semibold text-gray-800 dark:text-slate-100" title={row.student.full_name}>
+                                  {row.student.full_name}
+                                </span>
+                              </td>
+                              <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                {getAralBadge(row.student.aral_level)}
+                              </td>
+                              <td className="px-2 py-2 text-center font-normal text-emerald-600 dark:text-emerald-400 text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                {row.present}
+                              </td>
+                              <td className="px-2 py-2 text-center font-normal text-rose-600 dark:text-rose-400 text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                {row.absent}
+                              </td>
+                              <td className="px-2 py-2 text-center border-b border-gray-100 dark:border-[#1A1A1A]">
+                                <span className={`text-xs font-medium ${getAttendanceRateCls(row.attendanceAverage)}`}>
+                                  {smartPct(row.attendanceAverage)}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Desktop View (>= 768px): Original full table */}
+                  <div className="hidden md:block overflow-x-auto mobile-scroll-table -mx-1 sm:mx-0 px-1 sm:px-0">
+                    <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                       <thead>
                         <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
                           <SortHeader field="student" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Student</SortHeader>
@@ -2222,13 +2634,12 @@ export const TutorAnalytics: React.FC = () => {
                           ) : (
                             <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 select-none text-left">ARAL Level</th>
                           )}
-                          <SortHeader field="description" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>DESCRIPTION</SortHeader>
                           <SortHeader field="present" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Present</SortHeader>
                           <SortHeader field="absent" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Absent</SortHeader>
                           <SortHeader field="attendanceAverage" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Average Attendance Rate</SortHeader>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{attendanceDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : attendanceDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 text-left"><span className="text-xs font-semibold text-gray-700 dark:text-slate-300">{row.description}</span></td><td className="px-4 py-3 font-normal text-emerald-600 text-xs">{row.present}</td><td className="px-4 py-3 font-normal text-rose-600 text-xs">{row.absent}</td><td className="px-4 py-3 font-normal"><span className={`text-xs font-medium ${getAttendanceRateCls(row.attendanceAverage)}`}>{smartPct(row.attendanceAverage)}%</span></td></tr>)}</tbody>
+                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{attendanceDetails.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : attendanceDetails.map((row, idx) => <tr key={`${row.student.id}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 font-normal text-emerald-600 text-xs">{row.present}</td><td className="px-4 py-3 font-normal text-rose-600 text-xs">{row.absent}</td><td className="px-4 py-3 font-normal"><span className={`text-xs font-medium ${getAttendanceRateCls(row.attendanceAverage)}`}>{smartPct(row.attendanceAverage)}%</span></td></tr>)}</tbody>
                     </table>
                   </div>
                 </div>
@@ -2304,14 +2715,16 @@ export const TutorAnalytics: React.FC = () => {
               {/* Student Score Details Table */}
               <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
                 <div className="overflow-hidden">
-                  <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-                    <div className="min-w-0 flex-1 truncate">
-                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase truncate">STUDENT SCORE DETAILS</h3>
-                      <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate">{scoreDetails.length} Students</p>
+                  <div className="flex flex-col gap-2.5 px-3.5 sm:px-5 py-3 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">STUDENT SCORE DETAILS</h3>
+                        <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400">{scoreDetails.length} Students</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-x-auto no-scrollbar">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3 w-full">
                       {/* Description Filter */}
-                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
+                      <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 self-start sm:self-auto shrink-0 whitespace-nowrap overflow-x-auto no-scrollbar max-w-full">
                         {([
                           ['all', 'All'],
                           ['Intervention Activity', 'Intervention'],
@@ -2331,13 +2744,147 @@ export const TutorAnalytics: React.FC = () => {
                           </button>
                         ))}
                       </div>
-                      <div className="relative w-28 xs:w-36 sm:w-48 shrink-0">
+                      <div className="relative w-full sm:w-48 shrink-0">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                        <input type="search" aria-label="Search score students" placeholder="Search student..." value={scoreSearch} onChange={(event) => setScoreSearch(event.target.value)} className="h-7.5 sm:h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-[11px] sm:text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
+                        <input type="search" aria-label="Search score students" placeholder="Search student..." value={scoreSearch} onChange={(event) => setScoreSearch(event.target.value)} className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
                       </div>
                     </div>
                   </div>
-                  <div className="overflow-x-auto">
+
+                  {/* Mobile View (< 768px): Mobile-optimized table with sealed sticky student column */}
+                  <div className="md:hidden overflow-x-auto mobile-scroll-table rounded-b-md bg-white dark:bg-[#111111]">
+                    <table className="min-w-[560px] w-full border-separate border-spacing-0 text-xs" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                      <thead>
+                        <tr className="bg-gray-50 dark:bg-[#151515]">
+                          <th
+                            onClick={() => handleDetailSort('student' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
+                            className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[30%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              STUDENT
+                              {scoreSortField === 'student' ? (
+                                scoreSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                              )}
+                            </span>
+                          </th>
+                          {hasMultipleScoreAralLevels ? (
+                            <th
+                              onClick={() => handleDetailSort('aralLevel' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
+                              className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            >
+                              <span className="inline-flex items-center gap-1 justify-center">
+                                ARAL LEVEL
+                                {scoreSortField === 'aralLevel' ? (
+                                  scoreSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                ) : (
+                                  <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                )}
+                              </span>
+                            </th>
+                          ) : (
+                            <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
+                              ARAL LEVEL
+                            </th>
+                          )}
+                          <th
+                            onClick={() => handleDetailSort('description' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
+                            className="min-w-[110px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              DESCRIPTION
+                              {scoreSortField === 'description' ? (
+                                scoreSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                              )}
+                            </span>
+                          </th>
+                          <th
+                            onClick={() => handleDetailSort('passed' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
+                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                          >
+                            <span className="inline-flex items-center gap-1 justify-center">
+                              PASSED
+                              {scoreSortField === 'passed' ? (
+                                scoreSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                              )}
+                            </span>
+                          </th>
+                          <th
+                            onClick={() => handleDetailSort('failed' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
+                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                          >
+                            <span className="inline-flex items-center gap-1 justify-center">
+                              FAILED
+                              {scoreSortField === 'failed' ? (
+                                scoreSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                              )}
+                            </span>
+                          </th>
+                          <th
+                            onClick={() => handleDetailSort('scoreAverage' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
+                            className="min-w-[90px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                          >
+                            <span className="inline-flex items-center gap-1 justify-center">
+                              SCORE AVG
+                              {scoreSortField === 'scoreAverage' ? (
+                                scoreSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                              )}
+                            </span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-[#111111]">
+                        {scoreDetails.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-xs text-gray-400 dark:text-slate-500">
+                              No students found
+                            </td>
+                          </tr>
+                        ) : (
+                          scoreDetails.map((row, idx) => (
+                            <tr key={`mobile-score-${row.student.id}-${row.description}-${idx}`} className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
+                              <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                                <span className="block truncate max-w-[125px] text-xs font-semibold text-gray-800 dark:text-slate-100" title={row.student.full_name}>
+                                  {row.student.full_name}
+                                </span>
+                              </td>
+                              <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                {getAralBadge(row.student.aral_level)}
+                              </td>
+                              <td className="px-2 py-2 text-left border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 block truncate max-w-[110px]" title={row.description}>
+                                  {row.description}
+                                </span>
+                              </td>
+                              <td className="px-2 py-2 text-center font-normal text-emerald-600 dark:text-emerald-400 text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                {row.passed}
+                              </td>
+                              <td className="px-2 py-2 text-center font-normal text-rose-600 dark:text-rose-400 text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                {row.failed}
+                              </td>
+                              <td className="px-2 py-2 text-center border-b border-gray-100 dark:border-[#1A1A1A]">
+                                <span className={`text-xs font-medium ${getScoreAvgCls(row.scoreAverage)}`}>
+                                  {smartPct(row.scoreAverage)}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Desktop View (>= 768px): Original full table */}
+                  <div className="hidden md:block overflow-x-auto mobile-scroll-table -mx-1 sm:mx-0 px-1 sm:px-0">
                     <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                       <thead>
                         <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">

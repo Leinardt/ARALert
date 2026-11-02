@@ -66,6 +66,14 @@ const formatNumericDate = (d: Date | string): string => {
   return `${month}/${day}/${year}`;
 };
 
+const formatShortNumericDate = (dKey: string): string => {
+  const parts = dKey.split('-');
+  if (parts.length === 3) {
+    return `${Number(parts[1])}/${Number(parts[2])}`;
+  }
+  return dKey;
+};
+
 export const getAttendanceWeeksForMonth = (
   year: number,
   month: number // 0-indexed: 0 = Jan, 11 = Dec
@@ -410,8 +418,39 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
   const [confirmDownloadFormat, setConfirmDownloadFormat] = useState<'docx' | 'pdf' | 'excel' | null>(null);
 
   const printRef = useRef<HTMLDivElement>(null);
+  const previewWrapRef = useRef<HTMLDivElement>(null);
   const scrollBodyRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
+
+  const [sheetScale, setSheetScale] = useState<number>(1);
+  const [sheetHeight, setSheetHeight] = useState<number>(1056);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const updateScale = () => {
+      const wrapEl = previewWrapRef.current;
+      const sheetEl = printRef.current;
+      if (!wrapEl) return;
+      const style = window.getComputedStyle(wrapEl);
+      const padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+      const availW = Math.max(200, wrapEl.clientWidth - padX);
+      const targetW = parseInt(PAPER_CONFIG[paperSize].width, 10) || 816;
+      const nextScale = availW < targetW ? availW / targetW : 1;
+      setSheetScale(nextScale);
+      if (sheetEl) {
+        setSheetHeight(sheetEl.offsetHeight || parseInt(PAPER_CONFIG[paperSize].minHeight, 10) || 1056);
+      }
+    };
+    updateScale();
+    const ro = new ResizeObserver(updateScale);
+    if (previewWrapRef.current) ro.observe(previewWrapRef.current);
+    if (printRef.current) ro.observe(printRef.current);
+    window.addEventListener('resize', updateScale);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', updateScale);
+    };
+  }, [isOpen, paperSize]);
 
   const handleToggleSettings = () => {
     setShowSettings((prev) => {
@@ -592,35 +631,53 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
 
   const allDays = useMemo(() => weeks.flatMap((w) => w.days), [weeks]);
 
-  // Group all recorded sessions for the selected date to let tutor choose which to export
+  // Group all recorded sessions for the selected date or date range to let tutor choose which to export
   const availableSessions = useMemo(() => {
-    const targetDate = selectedDateKey || (weeks[0]?.days[0]?.dateKey) || new Date().toISOString().slice(0, 10);
-    const logsOnDate = attendanceLogs.filter((l) => {
-      const lKey = l.date?.length >= 10 ? l.date.slice(0, 10) : l.date;
-      return lKey === targetDate;
-    });
+    let logsInRange: Attendance[] = [];
 
-    const groups = groupAttendanceBySession(logsOnDate);
-    return groups.map((g) => ({
-      key: g.key,
-      label: g.label,
-      time: g.time,
-      count: g.rows.length,
-      orderTime: g.time,
-      rows: g.rows,
-    }));
-  }, [attendanceLogs, selectedDateKey, weeks]);
+    if (exportMode === 'daily') {
+      const targetDate = selectedDateKey || (weeks[0]?.days[0]?.dateKey) || new Date().toISOString().slice(0, 10);
+      logsInRange = attendanceLogs.filter((l) => {
+        const lKey = l.date?.length >= 10 ? l.date.slice(0, 10) : l.date;
+        return lKey === targetDate;
+      });
+    } else {
+      const inRangeDateKeys = new Set(allDays.map((d) => d.dateKey));
+      logsInRange = attendanceLogs.filter((l) => {
+        const lKey = l.date?.length >= 10 ? l.date.slice(0, 10) : l.date;
+        return inRangeDateKeys.has(lKey);
+      });
+    }
+
+    const groups = groupAttendanceBySession(logsInRange);
+    return groups.map((g) => {
+      const groupDateKey = g.rows[0]?.date?.slice(0, 10) || '';
+      return {
+        key: g.key,
+        label: g.label,
+        time: g.time,
+        dateKey: groupDateKey,
+        count: g.rows.length,
+        orderTime: g.time,
+        rows: g.rows,
+      };
+    });
+  }, [attendanceLogs, exportMode, selectedDateKey, weeks, allDays]);
 
   useEffect(() => {
     if (availableSessions.length > 0) {
       const exists = availableSessions.some((s) => s.key === selectedSessionKey);
-      if (!exists) {
-        setSelectedSessionKey(availableSessions[0].key);
+      if (!exists && selectedSessionKey !== 'all') {
+        if (exportMode !== 'daily' && availableSessions.length > 1) {
+          setSelectedSessionKey('all');
+        } else {
+          setSelectedSessionKey(availableSessions[0].key);
+        }
       }
     } else {
       setSelectedSessionKey('');
     }
-  }, [availableSessions, selectedSessionKey]);
+  }, [availableSessions, selectedSessionKey, exportMode]);
 
   const getAttendanceSessionKey = (l: Attendance): string => {
     const rawDesc = getAttendanceDescription(l);
@@ -691,12 +748,14 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
           (l) => String(l.user) === String(student.id) && l.date === day.dateKey
         );
         let dayLog = studentLogsOnDate[0];
-        if (selectedSessionKey && (exportMode === 'daily' || day.dateKey === selectedDateKey)) {
+        if (selectedSessionKey && selectedSessionKey !== 'all') {
           const selectedSession = availableSessions.find((s) => s.key === selectedSessionKey);
-          const matched = selectedSession
-            ? selectedSession.rows.find((l) => String(l.user) === String(student.id))
-            : studentLogsOnDate.find((l) => getAttendanceSessionKey(l) === selectedSessionKey);
-          if (matched) dayLog = matched;
+          if (exportMode === 'daily' || day.dateKey === selectedSession?.dateKey || day.dateKey === selectedDateKey) {
+            const matched = selectedSession
+              ? selectedSession.rows.find((l) => String(l.user) === String(student.id))
+              : studentLogsOnDate.find((l) => getAttendanceSessionKey(l) === selectedSessionKey);
+            if (matched) dayLog = matched;
+          }
         }
         if (dayLog) {
           if (dayLog.status === 'present') statusByDate[day.dateKey] = 'P';
@@ -977,9 +1036,9 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       SESSION ENTRY / TIME
                     </span>
-                    {availableSessions.length > 1 && (
+                    {availableSessions.length > 0 && (
                       <span className="text-[9.5px] font-bold text-[var(--brand)] dark:text-blue-400">
-                        {availableSessions.length} SESSIONS
+                        {availableSessions.length} {availableSessions.length === 1 ? 'SESSION' : 'SESSIONS'}
                       </span>
                     )}
                   </div>
@@ -990,13 +1049,30 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                     className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#141414] px-2.5 py-1.5 font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-[var(--brand)] text-[11px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition"
                   >
                     {availableSessions.length === 0 ? (
-                      <option value="">No recorded sessions for this date</option>
+                      <option value="">
+                        {exportMode === 'daily'
+                          ? 'No recorded sessions for this date'
+                          : exportMode === 'weekly'
+                          ? 'No recorded sessions for this week'
+                          : 'No recorded sessions for this month'}
+                      </option>
                     ) : (
-                      availableSessions.map((s) => (
-                        <option key={s.key} value={s.key}>
-                          {s.time ? `[${s.label}] [${s.time}]` : `[${s.label}]`}
-                        </option>
-                      ))
+                      <>
+                        {exportMode !== 'daily' && availableSessions.length > 1 && (
+                          <option value="all">
+                            All Recorded Sessions ({availableSessions.length} Sessions)
+                          </option>
+                        )}
+                        {availableSessions.map((s) => {
+                          const dateLabel = exportMode !== 'daily' && s.dateKey ? `${formatShortNumericDate(s.dateKey)} - ` : '';
+                          const timeLabel = s.time ? `[${s.label}] [${s.time}]` : `[${s.label}]`;
+                          return (
+                            <option key={s.key} value={s.key}>
+                              {dateLabel}{timeLabel}
+                            </option>
+                          );
+                        })}
+                      </>
                     )}
                   </select>
                 </div>
@@ -1071,7 +1147,6 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                   selectedMonthKey={selectedMonthKey}
                   onSelectDate={(dKey) => {
                     setSelectedDateKey(dKey);
-                    if (exportMode !== 'daily') setExportMode('daily');
                   }}
                   onSelectWeek={(wKey) => {
                     setSelectedWeekKey(wKey);
@@ -1117,29 +1192,49 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
             {/* Right Column: Physical Paper Sheet Preview (Full Width in Confirmation Mode) */}
             <div className={confirmDownloadFormat ? "col-span-12 flex flex-col items-center justify-center min-w-0 animate-fade-in" : "lg:col-span-8 xl:col-span-9 2xl:col-span-9 flex flex-col min-w-0"}>
               {/* Paper Workspace Canvas */}
-              <div className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-slate-100/90 dark:bg-[#111111] p-4 sm:p-6 overflow-x-auto flex flex-col items-center shadow-inner">
-                {/* Physical Sheet Card with Fixed Proportions */}
+              <div
+                ref={previewWrapRef}
+                className="rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-slate-100/90 dark:bg-[#111111] p-2.5 sm:p-6 overflow-x-auto flex flex-col items-center shadow-inner"
+              >
                 <div
-                  ref={printRef}
-                  data-print-container="true"
-                  style={{
-                    width: PAPER_CONFIG[paperSize].width,
-                    minHeight: PAPER_CONFIG[paperSize].minHeight,
-                    fontFamily: "'Times New Roman', Times, Georgia, serif",
-                    colorScheme: 'light',
-                    backgroundColor: '#ffffff',
-                    color: '#0f172a',
-                    ['--slate-50' as any]: '#F8FAFC',
-                    ['--slate-100' as any]: '#F1F5F9',
-                    ['--slate-200' as any]: '#E2E8F0',
-                    ['--slate-300' as any]: '#CBD5E1',
-                    ['--slate-400' as any]: '#94A3B8',
-                    ['--slate-500' as any]: '#64748B',
-                    ['--slate-600' as any]: '#475569',
-                    ['--slate-700' as any]: '#334155',
-                    ['--slate-800' as any]: '#1E293B',
-                    ['--slate-900' as any]: '#0F172A',
-                  }}
+                  style={
+                    sheetScale < 1
+                      ? {
+                          width: `${Math.round((parseInt(PAPER_CONFIG[paperSize].width, 10) || 816) * sheetScale)}px`,
+                          height: `${Math.round(sheetHeight * sheetScale)}px`,
+                          position: 'relative',
+                        }
+                      : undefined
+                  }
+                >
+                  {/* Physical Sheet Card with Fixed Proportions */}
+                  <div
+                    ref={printRef}
+                    data-print-container="true"
+                    style={{
+                      width: PAPER_CONFIG[paperSize].width,
+                      minHeight: PAPER_CONFIG[paperSize].minHeight,
+                      fontFamily: "'Times New Roman', Times, Georgia, serif",
+                      colorScheme: 'light',
+                      backgroundColor: '#ffffff',
+                      color: '#0f172a',
+                      ['--slate-50' as any]: '#F8FAFC',
+                      ['--slate-100' as any]: '#F1F5F9',
+                      ['--slate-200' as any]: '#E2E8F0',
+                      ['--slate-300' as any]: '#CBD5E1',
+                      ['--slate-400' as any]: '#94A3B8',
+                      ['--slate-500' as any]: '#64748B',
+                      ['--slate-600' as any]: '#475569',
+                      ['--slate-700' as any]: '#334155',
+                      ['--slate-800' as any]: '#1E293B',
+                      ['--slate-900' as any]: '#0F172A',
+                      ...(sheetScale < 1
+                        ? {
+                            transform: `scale(${sheetScale})`,
+                            transformOrigin: 'top left',
+                          }
+                        : {}),
+                    }}
                   className={`export-paper-sheet bg-white shadow-xl border border-slate-300 ${
                     isPreviewDense ? 'pt-8 pb-8' : isPreviewCompact ? 'pt-12 pb-12' : 'pt-20 pb-20'
                   } ${
@@ -1277,12 +1372,14 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                                   (l) => String(l.user) === String(student.id) && l.date === day.dateKey
                                 );
                                 let dayLog = studentLogsOnDate[0];
-                                if (selectedSessionKey && (exportMode === 'daily' || day.dateKey === selectedDateKey)) {
+                                if (selectedSessionKey && selectedSessionKey !== 'all') {
                                   const selectedSession = availableSessions.find((s) => s.key === selectedSessionKey);
-                                  const matched = selectedSession
-                                    ? selectedSession.rows.find((l) => String(l.user) === String(student.id))
-                                    : studentLogsOnDate.find((l) => getAttendanceSessionKey(l) === selectedSessionKey);
-                                  if (matched) dayLog = matched;
+                                  if (exportMode === 'daily' || day.dateKey === selectedSession?.dateKey || day.dateKey === selectedDateKey) {
+                                    const matched = selectedSession
+                                      ? selectedSession.rows.find((l) => String(l.user) === String(student.id))
+                                      : studentLogsOnDate.find((l) => getAttendanceSessionKey(l) === selectedSessionKey);
+                                    if (matched) dayLog = matched;
+                                  }
                                 }
                                 let mark = '';
                                 let colorClass = '';
@@ -1372,6 +1469,7 @@ export const ExportAttendanceModal: React.FC<ExportAttendanceModalProps> = ({
                     </div>
                   </div>
                 </div>
+              </div>
               </div>
             </div>
           </div>

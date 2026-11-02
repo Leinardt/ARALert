@@ -184,6 +184,17 @@ const formatDateStr = (dateStr: string) => {
   return `${month} ${day}, ${year} | ${weekday}`;
 };
 
+const formatShortDateStr = (dateStr: string) => {
+  const d = new Date(dateStr + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return dateStr;
+
+  const month = d.toLocaleDateString('en-US', { month: 'short' });
+  const day = d.toLocaleDateString('en-US', { day: 'numeric' });
+  const year = d.toLocaleDateString('en-US', { year: 'numeric' });
+
+  return `${month} ${day}, ${year}`;
+};
+
 const formatTimeStr = (dateStr: string | null | undefined) => {
   if (!dateStr) return '—';
   const normalized = dateStr.includes(' ') && !dateStr.includes('T') ? dateStr.replace(' ', 'T') : dateStr;
@@ -256,7 +267,8 @@ const ScoreCalendarDropdown: React.FC<{
   className?: string;
   style?: React.CSSProperties;
   align?: 'left' | 'right' | 'center';
-}> = ({ selectedDate, onSelectDate, onClear, onClose, loggedDates, className, style, align = 'center' }) => {
+  anchorRef?: React.RefObject<HTMLElement | null>;
+}> = ({ selectedDate, onSelectDate, onClear, onClose, loggedDates, className, style, align = 'center', anchorRef }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [viewDate, setViewDate] = useState(() => {
     if (selectedDate) {
@@ -268,11 +280,17 @@ const ScoreCalendarDropdown: React.FC<{
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) onClose();
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        (!anchorRef?.current || !anchorRef.current.contains(event.target as Node))
+      ) {
+        onClose();
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
+  }, [onClose, anchorRef]);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -297,7 +315,7 @@ const ScoreCalendarDropdown: React.FC<{
   return (
     <div
       ref={dropdownRef}
-      className={`${className || 'absolute right-0 top-full mt-2'} z-[70] w-72 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans select-none text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150 ${alignmentClass}`}
+      className={`${className || 'absolute right-0 top-full mt-2'} z-[70] w-72 max-w-[calc(100vw-24px)] rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans select-none text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150 ${alignmentClass}`}
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif", ...style }}
     >
       {/* Top Header Label */}
@@ -731,85 +749,69 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
         </table>
       </div>
 
-      {/* Mobile Card View (< 768px) */}
-      <div className="md:hidden space-y-3">
-        {sortedRows.map((grade) => {
-          const isEditing = editingGradeId === grade.id;
-          const isLastSaved = grade.batch_id === lastSavedBatchId;
-          const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
-          const scoreNum = Number(grade.score);
-          const totalNum = Number(grade.total_score);
-          const validTotal = !isNaN(totalNum) && totalNum > 0 ? totalNum : 100;
-          const validScore = !isNaN(scoreNum) ? scoreNum : 0;
-          const scorePercentage = (validScore / validTotal) * 100;
-          const descriptionVal = getScoreDescription(grade);
+      {/* ── Mobile View (< 768px): Mobile-optimized table with sealed sticky student column ── */}
+      <div className="md:hidden overflow-x-auto mobile-scroll-table rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111]">
+        <table className="min-w-[700px] w-full border-separate border-spacing-0 text-xs">
+          <thead>
+            <tr className="bg-gray-50 dark:bg-[#151515]">
+              <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[26%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                <SortableScoreHeader label="STUDENT" sortKey="student" />
+              </th>
+              <th className="w-[18%] min-w-[110px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                <SortableScoreHeader label="DESCRIPTION" sortKey="description" />
+              </th>
+              <th className="w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                <SortableScoreHeader label="SCORE" sortKey="score" />
+              </th>
+              <th className="w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                <SortableScoreHeader label="REMARK" sortKey="remark" />
+              </th>
+              <th className="w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                <SortableScoreHeader label="STATUS" sortKey="status" />
+              </th>
+              <th className="w-[14%] min-w-[95px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                <SortableScoreHeader label="DATE" sortKey="date" />
+              </th>
+              <th className="w-[10%] min-w-[70px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                <SortableScoreHeader label="TIME" sortKey="time" />
+              </th>
+              <th className="w-[8%] min-w-[60px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                ACTIONS
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white dark:bg-[#111111]">
+            {sortedRows.map((grade) => {
+              const isEditing = editingGradeId === grade.id;
+              const isLastSaved = grade.batch_id === lastSavedBatchId;
+              const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
+              const scoreNum = Number(grade.score);
+              const totalNum = Number(grade.total_score);
+              const validTotal = !isNaN(totalNum) && totalNum > 0 ? totalNum : 100;
+              const validScore = !isNaN(scoreNum) ? scoreNum : 0;
+              const scorePercentage = (validScore / validTotal) * 100;
+              const descriptionVal = getScoreDescription(grade);
 
-          return (
-            <div
-              key={`mobile-row-${grade.id}`}
-              ref={isLastSaved ? (lastRowRef as any) : undefined}
-              className={`rounded-xl border p-4 space-y-3 transition-colors ${isLastSaved
-                  ? 'border-[var(--brand)] bg-[var(--brand-light)] dark:bg-slate-800'
-                  : 'border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900'
-                }`}
-            >
-              {/* Header: Student Name + Action */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-bold text-sm text-gray-900 dark:text-slate-100 truncate">
-                    {grade.student_name || 'Unknown student'}
-                  </p>
-                  <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-0.5">
-                    {formatDateStr(grade.date_logged)}
-                  </p>
-                </div>
-
-                {!isEditing && (
-                  <button
-                    type="button"
-                    onClick={() => startEditingGrade(grade)}
-                    className="h-8 px-2.5 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-semibold text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 inline-flex items-center gap-1.5 cursor-pointer shrink-0"
-                    aria-label={`Edit score for ${grade.student_name}`}
-                  >
-                    <Edit3 className="h-3.5 w-3.5" />
-                    <span>Edit</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Badges: Description & Status */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">
-                  {descriptionVal}
-                </span>
-
-                <span
-                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${isNotTaken
-                      ? 'border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'
-                      : scorePercentage >= 70
-                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                        : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-                    }`}
+              return (
+                <tr
+                  key={`mobile-row-${grade.id}`}
+                  ref={isLastSaved ? (lastRowRef as any) : undefined}
+                  className={`group transition-colors ${
+                    isLastSaved ? 'bg-[var(--brand-light)] hover:bg-[var(--brand-light)]' : 'hover:bg-gray-50/80 dark:hover:bg-[#151515]'
+                  }`}
                 >
-                  {isNotTaken ? 'Not Taken' : scorePercentage >= 70 ? 'Passed' : 'Failed'}
-                </span>
-
-                <span
-                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize ${isNotTaken
-                      ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
-                      : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                    }`}
-                >
-                  {isNotTaken ? 'Not Taken' : 'Taken'}
-                </span>
-              </div>
-
-              {/* Content area: Editing vs Viewing */}
-              {isEditing ? (
-                <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-slate-800">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Score</label>
+                  <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                    <span className="block truncate max-w-[120px] text-xs font-semibold text-gray-800 dark:text-slate-100" title={grade.student_name || 'Unknown student'}>
+                      {grade.student_name || 'Unknown student'}
+                    </span>
+                  </td>
+                  <td className="px-2 py-2 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <span className="block truncate max-w-[110px] text-xs font-semibold text-gray-700 dark:text-slate-300" title={descriptionVal}>
+                      {descriptionVal}
+                    </span>
+                  </td>
+                  <td className="px-2 py-2 text-center text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    {isEditing ? (
                       <input
                         type="text"
                         inputMode="numeric"
@@ -817,177 +819,204 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                         disabled={editStatus === 'Not'}
                         onKeyDown={blockSymbolKeys}
                         onChange={(event) => setEditScore(sanitizeScoreInput(event.target.value, Number(grade.total_score)))}
-                        className={`w-full h-9 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-sm font-bold text-gray-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] ${editStatus === 'Not' ? 'bg-gray-100 dark:bg-slate-800/60 cursor-not-allowed opacity-60' : ''}`}
-                        placeholder={`0–${grade.total_score}`}
+                        className={`w-16 h-7.5 rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-1 text-center text-xs font-bold text-gray-900 dark:text-slate-100 outline-none focus:border-[var(--brand)] ${
+                          editStatus === 'Not' ? 'bg-gray-100 dark:bg-slate-800/60 opacity-60' : ''
+                        }`}
                       />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Status</label>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center">
+                        <span className="font-bold text-xs text-gray-900 dark:text-slate-100 whitespace-nowrap">
+                          {grade.score} / {grade.total_score}
+                        </span>
+                        <span className={`text-[10px] font-extrabold ${scoreColor(scorePercentage)}`}>
+                          {isNotTaken ? '0%' : `${smartPct(scorePercentage)}%`}
+                        </span>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap ${
+                        isNotTaken
+                          ? 'border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                          : scorePercentage >= 70
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                            : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                      }`}
+                    >
+                      {isNotTaken ? 'Not Taken' : scorePercentage >= 70 ? 'Passed' : 'Failed'}
+                    </span>
+                  </td>
+                  <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    {isEditing ? (
                       <select
                         value={editStatus}
                         onChange={(event) => {
                           const val = event.target.value as 'Taken' | 'Not';
                           setEditStatus(val);
-                          if (val === 'Not') {
-                            setEditScore(0);
-                          }
+                          if (val === 'Not') setEditScore(0);
                         }}
-                        className="w-full h-9 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs text-gray-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+                        className="h-7.5 rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-1 text-[11px] text-gray-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
                       >
                         <option value="Taken">Taken</option>
                         <option value="Not">Not Taken</option>
                       </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Date</label>
-                      <button
-                        type="button"
-                        onClick={(event) => toggleEditPicker('date', event)}
-                        className="w-full h-9 rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 text-left flex items-center justify-between"
-                        style={{ color: editDate ? '#1f2937' : '#9ca3af' }}
+                    ) : (
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium capitalize whitespace-nowrap ${
+                          isNotTaken
+                            ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                        }`}
                       >
-                        <span className="truncate">{editDate || 'Select date'}</span>
-                        <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-1" />
-                      </button>
-                      {openEditPicker === 'date' && createPortal(
-                        <ScoreCalendarDropdown
-                          selectedDate={editDate}
-                          onSelectDate={setEditDate}
-                          onClear={() => setEditDate('')}
-                          onClose={() => setOpenEditPicker(null)}
-                          loggedDates={new Set(grades.map((entry) => entry.date_logged))}
-                          className="fixed"
-                          style={{ position: 'fixed', top: editPickerPosition.top, left: editPickerPosition.left, marginTop: 0 }}
-                        />,
-                        document.body
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Time</label>
-                      <button
-                        type="button"
-                        onClick={(event) => toggleEditPicker('time', event)}
-                        className="w-full h-9 rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 text-left flex items-center justify-between"
-                        style={{ color: editTime ? '#1f2937' : '#9ca3af' }}
-                      >
-                        <span className="truncate">{formatEditTime(editTime)}</span>
-                      </button>
-                      {openEditPicker === 'time' && createPortal(
-                        <div
-                          ref={editTimePickerRef}
-                          className="fixed z-[70] w-64 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150"
-                          style={{ top: editPickerPosition.top, left: editPickerPosition.left, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
-                        >
-                          <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Set time</p>
-                            <button
-                              type="button"
-                              onClick={() => setOpenEditPicker(null)}
-                              className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                              aria-label="Close time picker"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2">
-                            <select
-                              value={String(Number(editTime ? editTime.split(':')[0] : 0) % 12 || 12)}
-                              onChange={(event) => setEditTime(updateEditTimePart(editTime, 'hour', event.target.value))}
-                              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
-                            >
-                              {Array.from({ length: 12 }, (_, index) => (
-                                <option key={index + 1} value={index + 1}>{index + 1}</option>
-                              ))}
-                            </select>
-                            <select
-                              value={String(Number(editTime ? editTime.split(':')[1] : 0)).padStart(2, '0')}
-                              onChange={(event) => setEditTime(updateEditTimePart(editTime, 'minute', event.target.value))}
-                              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
-                            >
-                              {Array.from({ length: 60 }, (_, index) => (
-                                <option key={index} value={String(index).padStart(2, '0')}>{String(index).padStart(2, '0')}</option>
-                              ))}
-                            </select>
-                            <select
-                              value={editTime && Number(editTime.split(':')[0]) >= 12 ? 'PM' : 'AM'}
-                              onChange={(event) => setEditTime(updateEditTimePart(editTime, 'period', event.target.value))}
-                              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
-                            >
-                              <option value="AM">AM</option>
-                              <option value="PM">PM</option>
-                            </select>
-                          </div>
-                          <div className="mt-3 flex items-center justify-end border-t border-gray-100 dark:border-[#1A1A1A] pt-2 text-[11px] font-semibold">
-                            <button
-                              type="button"
-                              onClick={() => setOpenEditPicker(null)}
-                              className="text-[var(--brand)] transition hover:underline cursor-pointer font-bold"
-                            >
-                              Done
-                            </button>
-                          </div>
-                        </div>,
-                        document.body
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={cancelEditingGrade}
-                      disabled={isEditingGrade}
-                      className="h-9 px-3 rounded-lg border border-gray-200 dark:border-slate-700 text-xs font-semibold text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={saveEditingGrade}
-                      disabled={isEditingGrade}
-                      className="h-9 px-4 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs"
-                    >
-                      <Check className="h-4 w-4" />
-                      Save
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50/80 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-800">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-                      Score
-                    </span>
-                    <p className="text-xl font-extrabold text-gray-900 dark:text-slate-100">
-                      {grade.score}{' '}
-                      <span className="text-xs font-semibold text-gray-400 dark:text-slate-500">
-                        / {grade.total_score}
+                        {isNotTaken ? 'Not Taken' : 'Taken'}
                       </span>
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-                      Result
-                    </span>
-                    <p className={`text-xl font-black ${scoreColor(scorePercentage)}`}>
-                      {isNotTaken ? '0%' : `${smartPct(scorePercentage)}%`}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Timestamp footer */}
-              <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-slate-500 pt-0.5">
-                <span className="truncate">{formatDateStr(grade.date_logged)}</span>
-                <span>{formatTimeStr(grade.created_at)}</span>
-              </div>
-            </div>
-          );
-        })}
+                    )}
+                  </td>
+                  <td className="px-2 py-2 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    {isEditing ? (
+                      <div className="relative inline-block">
+                        <button
+                          type="button"
+                          onClick={(event) => toggleEditPicker('date', event)}
+                          className="h-7.5 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700"
+                          style={{ color: editDate ? '#1f2937' : '#9ca3af' }}
+                        >
+                          {editDate || 'Select date'}
+                        </button>
+                        {openEditPicker === 'date' &&
+                          createPortal(
+                            <ScoreCalendarDropdown
+                              selectedDate={editDate}
+                              onSelectDate={setEditDate}
+                              onClear={() => setEditDate('')}
+                              onClose={() => setOpenEditPicker(null)}
+                              loggedDates={new Set(grades.map((entry) => entry.date_logged))}
+                              className="fixed"
+                              style={{ position: 'fixed', top: editPickerPosition.top, left: editPickerPosition.left, marginTop: 0 }}
+                            />,
+                            document.body
+                          )}
+                      </div>
+                    ) : (
+                      formatShortDateStr(grade.date_logged)
+                    )}
+                  </td>
+                  <td className="px-2 py-2 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-mono border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    {isEditing ? (
+                      <div className="relative inline-block">
+                        <button
+                          type="button"
+                          onClick={(event) => toggleEditPicker('time', event)}
+                          className="h-7.5 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700"
+                          style={{ color: editTime ? '#1f2937' : '#9ca3af' }}
+                        >
+                          {formatEditTime(editTime)}
+                        </button>
+                        {openEditPicker === 'time' &&
+                          createPortal(
+                            <div
+                              ref={editTimePickerRef}
+                              className="fixed z-[70] w-64 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150"
+                              style={{ top: editPickerPosition.top, left: editPickerPosition.left, fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+                            >
+                              <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Set time</p>
+                                <button
+                                  type="button"
+                                  onClick={() => setOpenEditPicker(null)}
+                                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                                  aria-label="Close time picker"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-3 gap-2">
+                                <select
+                                  value={String(Number(editTime ? editTime.split(':')[0] : 0) % 12 || 12)}
+                                  onChange={(event) => setEditTime(updateEditTimePart(editTime, 'hour', event.target.value))}
+                                  className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+                                >
+                                  {Array.from({ length: 12 }, (_, index) => (
+                                    <option key={index + 1} value={index + 1}>{index + 1}</option>
+                                  ))}
+                                </select>
+                                <select
+                                  value={String(Number(editTime ? editTime.split(':')[1] : 0)).padStart(2, '0')}
+                                  onChange={(event) => setEditTime(updateEditTimePart(editTime, 'minute', event.target.value))}
+                                  className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+                                >
+                                  {Array.from({ length: 60 }, (_, index) => (
+                                    <option key={index} value={String(index).padStart(2, '0')}>{String(index).padStart(2, '0')}</option>
+                                  ))}
+                                </select>
+                                <select
+                                  value={editTime && Number(editTime.split(':')[0]) >= 12 ? 'PM' : 'AM'}
+                                  onChange={(event) => setEditTime(updateEditTimePart(editTime, 'period', event.target.value))}
+                                  className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+                                >
+                                  <option value="AM">AM</option>
+                                  <option value="PM">PM</option>
+                                </select>
+                              </div>
+                              <div className="mt-3 flex items-center justify-end border-t border-gray-100 dark:border-[#1A1A1A] pt-2 text-[11px] font-semibold">
+                                <button
+                                  type="button"
+                                  onClick={() => setOpenEditPicker(null)}
+                                  className="text-[var(--brand)] transition hover:underline cursor-pointer font-bold"
+                                >
+                                  Done
+                                </button>
+                              </div>
+                            </div>,
+                            document.body
+                          )}
+                      </div>
+                    ) : (
+                      formatTimeStr(grade.created_at)
+                    )}
+                  </td>
+                  <td className="px-2 py-2 text-center whitespace-nowrap border-b border-gray-100 dark:border-[#1A1A1A]">
+                    {isEditing ? (
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={saveEditingGrade}
+                          disabled={isEditingGrade}
+                          className="rounded-md p-1 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50 cursor-pointer"
+                          aria-label="Save score changes"
+                          title="Save score changes"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditingGrade}
+                          disabled={isEditingGrade}
+                          className="rounded-md p-1 text-gray-400 hover:bg-gray-100 disabled:opacity-50 cursor-pointer"
+                          aria-label="Cancel score changes"
+                          title="Cancel score changes"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startEditingGrade(grade)}
+                        className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 cursor-pointer"
+                        aria-label={`Edit score for ${grade.student_name}`}
+                        title="Edit score"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </>
   );
@@ -1130,14 +1159,14 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 py-0.5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-1 pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-2 py-0.5 shrink-0">
             <span className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-slate-100 select-none">
               {tableGroup.title}
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className={`flex items-center gap-1 sm:gap-1.5 py-0.5 max-w-full ${tableGroup.isMonthGroup ? 'overflow-x-auto no-scrollbar' : 'w-full'}`}>
             {groupDates.map((dateStr) => {
               const hasRecord = datesWithRecords.has(dateStr);
               const isSelected = selectedDate === dateStr;
@@ -1147,12 +1176,12 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
               const hasMilestone = dateGrades.some((g) => getScoreDescription(g) !== 'Intervention Activity');
               const isDayEditMode = editDayModeDate === dateStr;
               return (
-                <div key={dateStr} className="inline-flex items-center gap-1">
+                <div key={dateStr} className={`inline-flex items-center gap-1 ${tableGroup.isMonthGroup ? 'shrink-0' : 'flex-1 min-w-0 sm:flex-initial'}`}>
                   <button
                     type="button"
                     disabled={!hasRecord}
                     onClick={() => onSelectDate(dateStr)}
-                    className={`h-7.5 whitespace-nowrap rounded-md px-3 text-[11px] font-bold uppercase transition-all inline-flex items-center gap-1.5 ${hasRecord
+                    className={`w-full sm:w-auto h-7.5 whitespace-nowrap rounded-md px-1 sm:px-3 text-[10px] min-[360px]:text-[10.5px] sm:text-[11px] font-bold uppercase transition-all inline-flex items-center justify-center gap-1 ${hasRecord
                         ? isTrashed
                           ? isSelected
                             ? 'bg-gray-500 text-white shadow-xs font-bold border border-gray-500 cursor-pointer'
@@ -1176,10 +1205,10 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
                     aria-label={label}
                   >
                     {hasMilestone && !isTrashed && (
-                      <span className={`h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-[#38BDF8]' : 'bg-[#0284C7] dark:bg-[#38BDF8]'}`} />
+                      <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${isSelected ? 'bg-[#38BDF8]' : 'bg-[#0284C7] dark:bg-[#38BDF8]'}`} />
                     )}
                     {isTrashed && (
-                      <Trash2 className="w-3 h-3 text-gray-400" />
+                      <Trash2 className="w-3 h-3 text-gray-400 shrink-0" />
                     )}
                     {label}
                   </button>
@@ -1457,6 +1486,8 @@ export const TutorScores: React.FC = () => {
   const [jumpDate, setJumpDate] = useState<string | null>(null);
   const [showCalendarPopover, setShowCalendarPopover] = useState(false);
   const [showEntryCalendarPopover, setShowEntryCalendarPopover] = useState(false);
+  const [entryPickerPosition, setEntryPickerPosition] = useState({ top: 0, left: 0 });
+  const entryPickerAnchorRef = useRef<HTMLButtonElement | null>(null);
   const [studentSortDirection, setStudentSortDirection] = useState<'asc' | 'desc'>('asc');
   const [studentSortActive, setStudentSortActive] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
@@ -1842,6 +1873,31 @@ export const TutorScores: React.FC = () => {
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [openEditPicker]);
+
+  const toggleEntryCalendar = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (showEntryCalendarPopover) {
+      setShowEntryCalendarPopover(false);
+      return;
+    }
+    entryPickerAnchorRef.current = event.currentTarget;
+    setEntryPickerPosition(calculatePickerPosition('date', event.currentTarget));
+    setShowEntryCalendarPopover(true);
+  };
+
+  useEffect(() => {
+    if (!showEntryCalendarPopover) return;
+    const updatePosition = () => {
+      const anchor = entryPickerAnchorRef.current;
+      if (!anchor) return;
+      setEntryPickerPosition(calculatePickerPosition('date', anchor));
+    };
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [showEntryCalendarPopover]);
 
   const saveEditingGrade = async () => {
     if (editingGradeId === null || (editScore === '' && editStatus !== 'Not') || !editDate) return;
@@ -2284,21 +2340,21 @@ export const TutorScores: React.FC = () => {
                 {entryKind === 'daily' ? 'Add Intervention Activity Scores' : levelEntry.title}
               </h3>
             </div>
-            <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
+            <div className="grid grid-cols-2 sm:flex sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => handleOpenAddEntry('daily')}
-                className={`inline-flex min-h-[44px] sm:min-h-0 sm:h-8 w-full sm:w-auto shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-xs font-bold transition ${entryKind === 'daily' ? 'border-[var(--brand)] bg-[var(--brand)] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[var(--brand-border)] hover:text-[var(--brand)] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}
+                className={`inline-flex min-h-[38px] sm:min-h-0 sm:h-8 w-full sm:w-auto shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 sm:px-3 text-[11px] sm:text-xs font-bold transition ${entryKind === 'daily' ? 'border-[var(--brand)] bg-[var(--brand)] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[var(--brand-border)] hover:text-[var(--brand)] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}
               >
-                <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                Add Intervention Score
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Intervention Score</span>
               </button>
               <button
                 type="button"
                 onClick={handleMilestoneEntryClick}
                 disabled={!isWindowOpen}
                 title={!isWindowOpen ? `The ${assignedPeriod} assessment window is closed by administration.` : undefined}
-                className={`inline-flex min-h-[44px] sm:min-h-0 sm:h-8 w-full sm:w-auto shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-xs font-bold transition ${!isWindowOpen
+                className={`inline-flex min-h-[38px] sm:min-h-0 sm:h-8 w-full sm:w-auto shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 sm:px-3 text-[11px] sm:text-xs font-bold transition ${!isWindowOpen
                     ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-500'
                     : entryKind !== 'daily'
                       ? 'border-[var(--brand)] bg-[var(--brand-light)] text-[var(--brand-dark)] cursor-pointer'
@@ -2306,42 +2362,55 @@ export const TutorScores: React.FC = () => {
                   }`}
               >
                 {!isWindowOpen ? (
-                  <Lock className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                  <Lock className="w-3.5 h-3.5" />
                 ) : (
-                  <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                  <Plus className="w-3.5 h-3.5" />
                 )}
-                {assignedPeriod === 'ARAL Summer Assessment' ? 'Add ARAL Summer Assessment' : `Add ${assignedPeriod} Score`}
+                <span className="truncate">{assignedPeriod === 'ARAL Summer Assessment' ? 'ARAL Summer Assessment' : `Add ${assignedPeriod} Score`}</span>
               </button>
             </div>
           </div>
 
-          <div className="flex-1 p-4 sm:p-5 flex flex-col gap-4 sm:min-h-0 sm:overflow-hidden">
-            <div className="shrink-0 flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(0,1.8fr)_auto] sm:items-end relative z-30">
+          <div className="flex-1 p-3.5 sm:p-5 flex flex-col gap-3 sm:gap-4 sm:min-h-0 sm:overflow-hidden">
+            <div className="shrink-0 flex flex-col gap-2.5 sm:gap-3 sm:grid sm:grid-cols-[minmax(0,1.8fr)_auto] sm:items-end relative z-30">
               <div className="min-w-0 w-full">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,260px)_160px]">
+                <div className="grid grid-cols-[1fr_84px] xs:grid-cols-[1fr_96px] sm:grid-cols-[minmax(0,260px)_160px] gap-2.5 sm:gap-3">
                   <div className="w-full relative z-30">
                     <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1.5">
                       SESSION DATE
                     </label>
                     <div className="relative w-full z-30">
                       <button
+                        ref={entryPickerAnchorRef}
                         type="button"
-                        onClick={() => setShowEntryCalendarPopover((previous) => !previous)}
-                        className="flex w-full min-h-[44px] sm:min-h-0 sm:h-9 items-center justify-between rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 sm:py-1.5 text-left text-xs font-semibold text-gray-900 dark:text-slate-100 transition hover:bg-gray-50 dark:hover:bg-slate-700/50 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] cursor-pointer"
+                        onClick={toggleEntryCalendar}
+                        className="flex w-full min-h-[38px] sm:min-h-0 sm:h-9 items-center justify-between rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-left text-xs font-semibold text-gray-900 dark:text-slate-100 transition hover:bg-gray-50 dark:hover:bg-slate-700/50 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] cursor-pointer"
                         aria-label="Select score date"
                       >
-                        <span>{logDate ? formatDateStr(logDate) : 'Select date'}</span>
-                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <span className="truncate">
+                          <span className="sm:hidden">{logDate ? formatShortDateStr(logDate) : 'Select date'}</span>
+                          <span className="hidden sm:inline">{logDate ? formatDateStr(logDate) : 'Select date'}</span>
+                        </span>
+                        <Calendar className="h-4 w-4 text-gray-400 shrink-0 ml-1.5" />
                       </button>
-                      {showEntryCalendarPopover && (
+                      {showEntryCalendarPopover && createPortal(
                         <ScoreCalendarDropdown
                           selectedDate={logDate || null}
-                          onSelectDate={setLogDate}
-                          onClear={() => setLogDate('')}
+                          onSelectDate={(date) => {
+                            setLogDate(date);
+                            setShowEntryCalendarPopover(false);
+                          }}
+                          onClear={() => {
+                            setLogDate('');
+                            setShowEntryCalendarPopover(false);
+                          }}
                           onClose={() => setShowEntryCalendarPopover(false)}
                           loggedDates={new Set<string>()}
-                          align="center"
-                        />
+                          anchorRef={entryPickerAnchorRef}
+                          className="fixed"
+                          style={{ position: 'fixed', top: entryPickerPosition.top, left: entryPickerPosition.left, marginTop: 0 }}
+                        />,
+                        document.body
                       )}
                     </div>
                   </div>
@@ -2354,7 +2423,7 @@ export const TutorScores: React.FC = () => {
                       value={totalScore}
                       onKeyDown={blockSymbolKeys}
                       onChange={(e) => setTotalScore(sanitizeScoreInput(e.target.value))}
-                      className="w-full min-h-[44px] sm:min-h-0 sm:h-9 rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 sm:py-1.5 text-xs font-bold text-gray-900 dark:text-slate-100 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] [appearance:textfield]"
+                      className="w-full min-h-[38px] sm:min-h-0 sm:h-9 rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 sm:px-3.5 py-1.5 text-center sm:text-left text-xs font-bold text-gray-900 dark:text-slate-100 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] [appearance:textfield]"
                     />
                   </div>
                 </div>
@@ -2366,7 +2435,7 @@ export const TutorScores: React.FC = () => {
                   onClick={handleSaveScoresClick}
                   disabled={isSaving}
                   title={hasMissingScores ? `Cannot save: ${missingScoreStudents.length} student(s) marked as Taken have no inputted scores.` : undefined}
-                  className={`w-full sm:w-auto min-h-[44px] sm:min-h-0 sm:h-9 inline-flex items-center justify-center gap-2 rounded-md px-5 py-2 text-xs font-bold text-white transition shadow-sm ${isSaving
+                  className={`w-full sm:w-auto min-h-[38px] sm:min-h-0 sm:h-9 inline-flex items-center justify-center gap-2 rounded-md px-4 sm:px-5 py-2 text-xs font-bold text-white transition shadow-sm ${isSaving
                       ? 'bg-[var(--brand)] opacity-60 cursor-not-allowed'
                       : 'bg-[var(--brand)] hover:bg-[var(--brand-dark)] cursor-pointer'
                     }`}
@@ -2524,61 +2593,77 @@ export const TutorScores: React.FC = () => {
                     </tbody>
                   </table>
 
-                  {/* Mobile Card Entry View (< 640px) - always strictly alphabetical order (A to Z) */}
-                  <div className="sm:hidden p-3 space-y-3">
-                    {mobileAlphabeticalStudents.length === 0 ? (
-                      <p className="text-center py-6 text-xs text-gray-400">No students found matching "{studentSearch}".</p>
-                    ) : (
-                      mobileAlphabeticalStudents.map((student) => {
-                        const status = entryStatus[student.id] || 'Taken';
-                        const isNotTaken = status === 'Not';
-                        const isTaken = status === 'Taken';
-                        const rawScore = entryScores[student.id];
-                        const hasNoScore = isTaken && (rawScore === '' || rawScore === undefined || rawScore === null);
-                        const activeTotal = Number(totalScore) || 0;
-                        const hasValidScore = rawScore !== '' && rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore));
-                        const pct = isNotTaken
-                          ? 0
-                          : (hasValidScore && activeTotal > 0
-                            ? Math.round((Number(rawScore) / activeTotal) * 100 * 10) / 10
-                            : null);
-                        const isPassingMilestone = entryKind !== 'daily' && pct !== null && !isNaN(pct) && pct >= 70;
+                  {/* Mobile Responsive Score Table (< 640px) with sealed sticky student column */}
+                  <div className="sm:hidden overflow-x-auto mobile-scroll-table rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111]">
+                    <table className="min-w-[390px] w-full border-separate border-spacing-0 text-xs">
+                      <thead>
+                        <tr className="bg-gray-50 dark:bg-[#151515]">
+                          <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[40%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStudentSortActive(true);
+                                setStudentSortDirection((direction) => direction === 'desc' ? 'asc' : 'desc');
+                              }}
+                              className="inline-flex items-center gap-1 text-left transition-colors hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer"
+                            >
+                              STUDENT
+                              {studentSortActive
+                                ? studentSortDirection === 'desc'
+                                  ? <ChevronDown className="h-3 w-3 text-gray-400" />
+                                  : <ChevronUp className="h-3 w-3 text-gray-400" />
+                                : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                            </button>
+                          </th>
+                          <th className="w-[24%] min-w-[80px] px-1.5 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            SCORE ({totalScore || 0})
+                          </th>
+                          <th className="w-[16%] min-w-[55px] px-1 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            PREVIEW
+                          </th>
+                          <th className="w-[20%] min-w-[75px] px-1.5 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                            STATUS
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-[#111111]">
+                        {sortedStudents.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="text-center py-6 text-xs text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                              No students found matching "{studentSearch}".
+                            </td>
+                          </tr>
+                        ) : (
+                          sortedStudents.map((student) => {
+                            const status = entryStatus[student.id] || 'Taken';
+                            const isNotTaken = status === 'Not';
+                            const isTaken = status === 'Taken';
+                            const rawScore = entryScores[student.id];
+                            const hasNoScore = isTaken && (rawScore === '' || rawScore === undefined || rawScore === null);
+                            const activeTotal = Number(totalScore) || 0;
+                            const hasValidScore = rawScore !== '' && rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore));
+                            const pct = isNotTaken
+                              ? 0
+                              : (hasValidScore && activeTotal > 0
+                                ? Math.round((Number(rawScore) / activeTotal) * 100 * 10) / 10
+                                : null);
+                            const isPassingMilestone = entryKind !== 'daily' && pct !== null && !isNaN(pct) && pct >= 70;
 
-                        return (
-                          <div
-                            key={`mobile-entry-${student.id}`}
-                            className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3 shadow-xs"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0 flex-1">
-                                <p className="font-bold text-base text-gray-900 dark:text-slate-100 break-words">
-                                  {student.full_name}
-                                </p>
-                              </div>
-                              <div className="shrink-0">
-                                <select
-                                  value={status}
-                                  onChange={(e) => {
-                                    const newStatus = e.target.value as 'Taken' | 'Not';
-                                    setEntryStatus((prev) => ({ ...prev, [student.id]: newStatus }));
-                                    if (newStatus === 'Not') setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
-                                  }}
-                                  className="min-h-[44px] rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-slate-200 focus:border-[var(--brand)] focus:outline-none cursor-pointer"
-                                >
-                                  <option value="Taken">Taken</option>
-                                  <option value="Not">Not Taken</option>
-                                </select>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-between gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
-                              <div className="flex flex-col">
-                                <div className="flex items-center gap-2">
-                                  <label htmlFor={`score-input-${student.id}`} className="text-xs font-bold text-gray-600 dark:text-slate-400 shrink-0">
-                                    Score:
-                                  </label>
+                            return (
+                              <tr key={`mobile-entry-${student.id}`} className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
+                                <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                                  <span className="block truncate max-w-[120px] text-xs font-semibold text-gray-800 dark:text-slate-100" title={student.full_name}>
+                                    {student.full_name}
+                                  </span>
+                                  {hasNoScore && hasAttemptedSave && (
+                                    <p className="text-[9.5px] font-semibold text-amber-500 dark:text-amber-400 flex items-center gap-0.5 mt-0.5 whitespace-nowrap">
+                                      <AlertCircle className="w-2.5 h-2.5 shrink-0" />
+                                      Required
+                                    </p>
+                                  )}
+                                </td>
+                                <td className="px-1.5 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                                   <input
-                                    id={`score-input-${student.id}`}
                                     type="text"
                                     inputMode="numeric"
                                     value={isNotTaken ? 0 : (entryScores[student.id] ?? '')}
@@ -2589,40 +2674,46 @@ export const TutorScores: React.FC = () => {
                                     }}
                                     placeholder={`0–${activeTotal}`}
                                     disabled={isNotTaken}
-                                    className={`w-24 min-h-[44px] rounded-lg border bg-white dark:bg-slate-800 px-3 text-center text-sm font-bold text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60 ${hasNoScore && hasAttemptedSave
+                                    className={`w-full max-w-[64px] h-8 rounded-md border bg-white dark:bg-slate-800 px-1 text-center text-xs font-bold text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-1 disabled:bg-gray-100 dark:disabled:bg-slate-800/50 disabled:opacity-60 ${hasNoScore && hasAttemptedSave
                                         ? 'border-amber-400 dark:border-amber-500/80 bg-amber-50/20 dark:bg-amber-950/20 focus:border-amber-500 focus:ring-amber-500'
                                         : 'border-gray-200 dark:border-slate-700 focus:border-[var(--brand)] focus:ring-[var(--brand)]'
                                       }`}
                                   />
-                                  <span className="text-xs font-semibold text-gray-400 shrink-0">/ {activeTotal}</span>
-                                </div>
-                                {hasNoScore && hasAttemptedSave && (
-                                  <p className="mt-1 text-[10px] font-semibold text-amber-500 dark:text-amber-400 flex items-center gap-1">
-                                    <AlertCircle className="w-3 h-3 shrink-0" />
-                                    No inputted score
-                                  </p>
-                                )}
-                              </div>
-
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="text-xs font-medium text-gray-400">Preview:</span>
-                                {pct !== null && !isNaN(pct) ? (
-                                  <div className="flex items-center gap-1">
-                                    <span className={`text-sm font-black ${scoreColor(pct)}`}>{pct}%</span>
-                                    {entryKind !== 'daily' && (
-                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isPassingMilestone ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400'}`}>
-                                        {isPassingMilestone ? 'Pass' : 'Fail'}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-gray-400 font-semibold">0%</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }))}
+                                </td>
+                                <td className="px-1 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                  {pct !== null && !isNaN(pct) ? (
+                                    <div className="flex flex-col items-center justify-center">
+                                      <span className={`text-xs font-extrabold ${scoreColor(pct)}`}>{pct}%</span>
+                                      {entryKind !== 'daily' && (
+                                        <span className={`text-[9px] font-bold ${isPassingMilestone ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+                                          {isPassingMilestone ? 'Pass' : 'Fail'}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-gray-300 dark:text-slate-600 font-semibold">0%</span>
+                                  )}
+                                </td>
+                                <td className="px-1.5 py-2 text-center border-b border-gray-100 dark:border-[#1A1A1A]">
+                                  <select
+                                    value={status}
+                                    onChange={(e) => {
+                                      const newStatus = e.target.value as 'Taken' | 'Not';
+                                      setEntryStatus((prev) => ({ ...prev, [student.id]: newStatus }));
+                                      if (newStatus === 'Not') setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
+                                    }}
+                                    className="w-full max-w-[70px] h-8 rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-1 text-[11px] font-semibold text-gray-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                                  >
+                                    <option value="Taken">Taken</option>
+                                    <option value="Not">Not</option>
+                                  </select>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
