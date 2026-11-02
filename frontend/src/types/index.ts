@@ -303,6 +303,7 @@ export interface SchoolYear {
   current_semester?: '1st' | '2nd' | 'summer';
   current_period?: string;
   active_milestone?: 'MOSY' | 'EOSY' | 'ARAL Summer Assessment';
+  is_assessment_window_open?: boolean;
   start_date: string | null;
   end_date: string | null;
   created_at: string;

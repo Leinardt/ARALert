@@ -375,6 +375,14 @@ export const academicService = {
     return response.data;
   },
 
+  toggleAssessmentWindow: async (isOpen: boolean, semester?: string): Promise<{ status: string; is_assessment_window_open: boolean; semester: string; message: string }> => {
+    const response = await api.post<{ status: string; is_assessment_window_open: boolean; semester: string; message: string }>('/academics/evaluations/toggle-window/', {
+      is_open: isOpen,
+      semester: semester || '2nd',
+    });
+    return response.data;
+  },
+
   // MOSY Evaluation & Assignments
   getMosyMonitoring: async (): Promise<MosyMonitoringData> => {
     const response = await api.get<MosyMonitoringData>('/academics/evaluations/mosy-monitoring/');

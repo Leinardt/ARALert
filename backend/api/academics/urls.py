@@ -25,6 +25,7 @@ from .views import (
 from .evaluation_views import (
     SchoolYearListView,
     CurrentSchoolYearView,
+    AssessmentWindowToggleView,
     MosyMonitoringView,
     MosyProcessView,
     MosyAssignmentsView,
@@ -79,6 +80,7 @@ urlpatterns = [
     # School Year Management
     path('school-years/', SchoolYearListView.as_view(), name='school-year-list'),
     path('school-years/current/', CurrentSchoolYearView.as_view(), name='current-school-year'),
+    path('evaluations/toggle-window/', AssessmentWindowToggleView.as_view(), name='toggle-assessment-window'),
 
     # MOSY Evaluation & Tutor Assignment
     path('evaluations/mosy-monitoring/', MosyMonitoringView.as_view(), name='mosy-monitoring'),

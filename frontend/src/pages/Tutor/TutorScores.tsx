@@ -17,6 +17,7 @@ import {
   getActiveSystemSemester,
   setActiveSystemSemester,
   isAssessmentWindowOpen,
+  setAssessmentWindowOpen,
   formatSessionLabel,
   formatSessionTime,
   type SemesterType,
@@ -2038,7 +2039,12 @@ export const TutorScores: React.FC = () => {
         const sem = sy.current_semester as any;
         setActiveSystemSemester(sem);
         setActiveSystemSem(sem);
-        setIsWindowOpen(isAssessmentWindowOpen(sem));
+        if (typeof (sy as any).is_assessment_window_open === 'boolean') {
+          setAssessmentWindowOpen((sy as any).is_assessment_window_open, sem);
+          setIsWindowOpen((sy as any).is_assessment_window_open);
+        } else {
+          setIsWindowOpen(isAssessmentWindowOpen(sem));
+        }
       }
     }).catch(() => { });
 

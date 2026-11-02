@@ -390,10 +390,15 @@ export const AdminEvaluationHub: React.FC = () => {
     return () => window.removeEventListener('assessment_window_changed', handleWindowChange);
   }, [currentActiveSemester]);
 
-  const handleToggleAssessmentWindow = () => {
+  const handleToggleAssessmentWindow = async () => {
     const nextState = !isWindowOpen;
     setAssessmentWindowOpen(nextState, currentActiveSemester);
     setIsWindowOpen(nextState);
+    try {
+      await academicService.toggleAssessmentWindow(nextState, currentActiveSemester);
+    } catch (err) {
+      console.warn('Failed to sync assessment window toggle to server:', err);
+    }
   };
 
   useEffect(() => {
@@ -427,6 +432,10 @@ export const AdminEvaluationHub: React.FC = () => {
       if (sy?.current_semester) {
         setActiveSystemSemester(sy.current_semester as any);
         setActiveSystemSem(sy.current_semester as any);
+      }
+      if (typeof sy?.is_assessment_window_open === 'boolean') {
+        setAssessmentWindowOpen(sy.is_assessment_window_open, sy.current_semester as any);
+        setIsWindowOpen(sy.is_assessment_window_open);
       }
       if (sy?.current_semester === '2nd') {
         setActiveTab('eosy');

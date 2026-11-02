@@ -108,6 +108,21 @@ class CurrentSchoolYearView(APIView):
         data['current_semester'] = active_semester
         data['current_period'] = active_semester
         data['active_milestone'] = 'EOSY' if active_semester == '2nd' else ('MOSY' if active_semester == '1st' else 'ARAL Summer Assessment')
+
+        # Check if an explicit assessment window toggle was logged for this school year and semester
+        last_window_log = AuditLog.objects.filter(
+            action='ASSESSMENT_WINDOW_TOGGLED'
+        ).order_by('-timestamp').first()
+        is_window_open = True
+        if (
+            last_window_log
+            and isinstance(last_window_log.details, dict)
+            and last_window_log.details.get('school_year') == sy.school_year
+            and last_window_log.details.get('semester') == active_semester
+        ):
+            is_window_open = bool(last_window_log.details.get('is_open', True))
+
+        data['is_assessment_window_open'] = is_window_open
         return Response(data, status=status.HTTP_200_OK)
 
     def post(self, request):
@@ -139,6 +154,45 @@ class CurrentSchoolYearView(APIView):
             'active_milestone': milestone,
             'message': f'Active semester updated to {semester} semester ({milestone}).'
         }, status=status.HTTP_200_OK)
+
+
+class AssessmentWindowToggleView(APIView):
+    """
+    POST /api/academics/evaluations/toggle-window/
+    Toggle assessment window open/closed for current semester (Admin/Principal/Superadmin).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role not in ('admin', 'principal') and not request.user.is_superuser:
+            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+
+        is_open = request.data.get('is_open')
+        if is_open is None:
+            return Response({'error': 'is_open boolean is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        sy = SchoolYear.objects.filter(is_active=True).first()
+        school_year_str = sy.school_year if sy else '2026-2027'
+        semester = request.data.get('semester') or '2nd'
+
+        log_audit_event(
+            'ASSESSMENT_WINDOW_TOGGLED',
+            user=request.user,
+            request=request,
+            details={
+                'school_year': school_year_str,
+                'semester': semester,
+                'is_open': bool(is_open),
+            }
+        )
+
+        return Response({
+            'status': 'SUCCESS',
+            'is_assessment_window_open': bool(is_open),
+            'semester': semester,
+            'message': f"Assessment window {'opened' if is_open else 'closed'} successfully."
+        }, status=status.HTTP_200_OK)
+
 
 
 # ---------------------------------------------------------------------------

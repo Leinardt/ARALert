@@ -539,7 +539,12 @@ export const AdminHome: React.FC = () => {
         if (sy && sy.current_semester) {
           setActiveSystemSemester(sy.current_semester as any);
           setActiveSystemSem(sy.current_semester as any);
-          setIsWindowOpen(isAssessmentWindowOpen(sy.current_semester as any));
+          if (typeof sy.is_assessment_window_open === 'boolean') {
+            setAssessmentWindowOpen(sy.is_assessment_window_open, sy.current_semester as any);
+            setIsWindowOpen(sy.is_assessment_window_open);
+          } else {
+            setIsWindowOpen(isAssessmentWindowOpen(sy.current_semester as any));
+          }
         }
       })
       .catch(() => {});
@@ -570,10 +575,15 @@ export const AdminHome: React.FC = () => {
     return getActiveSystemMilestone();
   }, [activeSystemSem]);
 
-  const handleToggleAssessmentWindow = () => {
+  const handleToggleAssessmentWindow = async () => {
     const nextState = !isWindowOpen;
     setIsWindowOpen(nextState);
     setAssessmentWindowOpen(nextState, activeSystemSem);
+    try {
+      await academicService.toggleAssessmentWindow(nextState, activeSystemSem);
+    } catch (err) {
+      console.warn('Failed to sync assessment window toggle to server:', err);
+    }
   };
 
   const selectedTutorObj = useMemo(() => {
