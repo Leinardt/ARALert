@@ -1310,7 +1310,7 @@ export const DashboardLayout: React.FC = () => {
 
         {/* ── Top Bar ── */}
         <header
-          className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 z-30"
+          className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 z-40"
           style={{
             background: 'var(--glass-bg)',
             backdropFilter: 'blur(12px)',

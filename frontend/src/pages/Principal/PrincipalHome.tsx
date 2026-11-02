@@ -11,6 +11,7 @@ import {
   Search,
   CheckCircle2,
   Users,
+  ChevronDown,
 } from 'lucide-react';
 import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
 import {
@@ -22,6 +23,7 @@ import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
 import {
   getChartAvailableClasses,
   isStudentMatchingChartFilters,
+  parseStudentGradeAndSection,
 } from '../../utils/tutorCohortHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
 
@@ -41,10 +43,12 @@ const formatShortDateRange = (label: string): string => {
   const match = label.match(/^([A-Za-z]+)\s+(\d+)\s*[–—\-]\s*([A-Za-z]+)\s+(\d+)$/);
   if (match) {
     const [, m1, d1, m2, d2] = match;
-    if (m1.toLowerCase() === m2.toLowerCase()) {
-      return `${m1} ${d1}–${d2}`;
+    const shortM1 = m1.slice(0, 3);
+    const shortM2 = m2.slice(0, 3);
+    if (shortM1.toLowerCase() === shortM2.toLowerCase()) {
+      return `${shortM1} ${d1}–${d2}`;
     }
-    return `${m1} ${d1}–${m2} ${d2}`;
+    return `${shortM1} ${d1}–${shortM2} ${d2}`;
   }
   return label;
 };
@@ -64,10 +68,11 @@ const InteractivePrincipalPerformanceChart: React.FC<{
     const updateSize = () => {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
+      if (rect.width > 0) {
+        const minH = rect.width < 520 ? 196 : 220;
         setDimensions({
           width: Math.round(rect.width),
-          height: Math.round(rect.height),
+          height: Math.max(minH, Math.round(rect.height)),
         });
       }
     };
@@ -77,10 +82,11 @@ const InteractivePrincipalPerformanceChart: React.FC<{
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
-        if (width > 0 && height > 0) {
+        if (width > 0) {
+          const minH = width < 520 ? 196 : 220;
           setDimensions({
             width: Math.round(width),
-            height: Math.round(height),
+            height: Math.max(minH, Math.round(height)),
           });
         }
       }
@@ -92,11 +98,10 @@ const InteractivePrincipalPerformanceChart: React.FC<{
 
   const { width, height } = dimensions;
   const isMobile = width < 520;
-  const isSmallMobile = width < 380;
-  const paddingLeft = isMobile ? 44 : 50;
-  const paddingRight = isMobile ? 20 : 14;
-  const paddingTop = isMobile ? 18 : 20;
-  const paddingBottom = isMobile ? 26 : 24;
+  const paddingLeft = isMobile ? 38 : 50;
+  const paddingRight = isMobile ? 18 : 14;
+  const paddingTop = isMobile ? 16 : 20;
+  const paddingBottom = isMobile ? (trendFilter === 'month' ? 24 : 34) : 24;
 
   const chartW = Math.max(10, width - paddingLeft - paddingRight);
   const chartH = Math.max(10, height - paddingTop - paddingBottom);
@@ -126,66 +131,30 @@ const InteractivePrincipalPerformanceChart: React.FC<{
       ? `${pathD} L ${points[points.length - 1].x} ${paddingTop + chartH} L ${points[0].x} ${paddingTop + chartH} Z`
       : '';
 
-  // Dynamic tick density to prevent label overlap
-  const visibleIndices = useMemo(() => {
-    const total = data.length;
-    if (total <= 1) return new Set([0]);
-    if (!isMobile) {
-      return new Set(Array.from({ length: total }, (_, i) => i));
+  const getMobileLabelLines = (label: string): [string, string?] => {
+    if (trendFilter === 'week') {
+      const parts = label.split(/\s*[–—\-]\s*/);
+      if (parts.length === 2) {
+        return [parts[0].trim(), `–${parts[1].trim()}`];
+      }
+      return [label];
+    }
+    if (trendFilter === 'day') {
+      const parts = label.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return [parts[0], parts.slice(1).join(' ')];
+      }
+      return [label];
     }
     if (trendFilter === 'month') {
-      if (width < 380) {
-        return new Set([0, 2, 4, total - 1]);
-      }
-      return new Set(Array.from({ length: total }, (_, i) => i));
+      return [label.split(' ')[0] || label];
     }
-    if (trendFilter === 'week') {
-      if (width < 430) {
-        return new Set([0, 2, 4, total - 1]);
-      }
-      return new Set(Array.from({ length: total }, (_, i) => i));
-    }
-    // Day mode
-    const step = isSmallMobile ? 3 : 2;
-    const indices: number[] = [];
-    for (let i = 0; i < total; i += step) {
-      indices.push(i);
-    }
-    const lastIdx = total - 1;
-    const prevIdx = indices[indices.length - 1];
-    if (lastIdx - prevIdx >= 2) {
-      indices.push(lastIdx);
-    } else if (indices.length > 1) {
-      indices[indices.length - 1] = lastIdx;
-    }
-    const set = new Set(indices);
-    data.forEach((p, idx) => {
-      if (p.assessmentLabels.length > 0 && !set.has(idx - 1) && !set.has(idx + 1)) {
-        set.add(idx);
-      }
-    });
-    return set;
-  }, [data, isMobile, isSmallMobile, trendFilter, width]);
-
-  const getFormattedLabel = (p: PrincipalChartPoint) => {
-    if (!isMobile) return p.label;
-    if (trendFilter === 'week') {
-      return formatShortDateRange(p.label);
-    }
-    if (trendFilter === 'month') {
-      if (width < 400) {
-        return p.label.split(' ')[0] || p.label;
-      }
-      return p.label.replace(/\s+20(\d\d)/, " '$1");
-    }
-    return p.label;
+    return [label];
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-full select-none min-w-0 overflow-hidden">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-full block"
+    <div ref={containerRef} className="relative flex-1 w-full h-full min-h-[196px] sm:min-h-[220px] select-none min-w-0 overflow-hidden">
+      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full h-full min-h-[196px] sm:min-h-[220px] block"
         role="img"
         aria-label="Performance Trend Chart"
       >
@@ -218,9 +187,9 @@ const InteractivePrincipalPerformanceChart: React.FC<{
                 opacity="0.6"
               />
               <text
-                x={paddingLeft - 8}
+                x={paddingLeft - 6}
                 y={y + 3}
-                className="fill-slate-400 font-semibold text-[9px] xs:text-[10px]"
+                className="fill-slate-400 font-semibold text-[8.5px] xs:text-[9.5px] sm:text-[10px]"
                 textAnchor="end"
               >
                 {val}%
@@ -249,9 +218,37 @@ const InteractivePrincipalPerformanceChart: React.FC<{
           );
         })}
 
-        {/* X-axis date labels */}
+        {/* X-axis date labels (complete dates for every point matching Student/Tutor Home) */}
         {points.map((p, idx) => {
-          if (!visibleIndices.has(idx)) return null;
+          if (isMobile) {
+            const [line1, line2] = getMobileLabelLines(p.label);
+            if (line2) {
+              return (
+                <text
+                  key={`label-${idx}`}
+                  x={p.x}
+                  y={paddingTop + chartH + 13}
+                  className="fill-slate-500 dark:fill-slate-400 font-semibold text-[8.5px] select-none"
+                  textAnchor="middle"
+                >
+                  <tspan x={p.x} dy="0">{line1}</tspan>
+                  <tspan x={p.x} dy="10">{line2}</tspan>
+                </text>
+              );
+            }
+            return (
+              <text
+                key={`label-${idx}`}
+                x={p.x}
+                y={height - 6}
+                className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px] select-none"
+                textAnchor="middle"
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                {line1}
+              </text>
+            );
+          }
 
           let textAnchor: 'start' | 'middle' | 'end' = 'middle';
           let labelX = p.x;
@@ -267,12 +264,12 @@ const InteractivePrincipalPerformanceChart: React.FC<{
             <text
               key={`label-${idx}`}
               x={labelX}
-              y={height - (isMobile ? 6 : 5)}
-              className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px] xs:text-[10px]"
+              y={height - 5}
+              className="fill-slate-500 dark:fill-slate-400 font-semibold text-[10px] select-none"
               textAnchor={textAnchor}
               style={{ whiteSpace: 'nowrap' }}
             >
-              {getFormattedLabel(p)}
+              {p.label}
             </text>
           );
         })}
@@ -457,6 +454,10 @@ export const PrincipalHome: React.FC = () => {
   const [trendFilter, setTrendFilter] = useState<TrendFilter>('week');
   const [selectedTutorId, setSelectedTutorId] = useState<string>('all');
   const [selectedClass, setSelectedClass] = useState<string>('all');
+  const [isTutorMenuOpen, setIsTutorMenuOpen] = useState(false);
+  const [isClassMenuOpen, setIsClassMenuOpen] = useState(false);
+  const tutorDropdownRef = useRef<HTMLDivElement>(null);
+  const classDropdownRef = useRef<HTMLDivElement>(null);
   const [activeSystemSem, setActiveSystemSem] = useState<SemesterType>(() => getActiveSystemSemester());
   const [leftColHeight, setLeftColHeight] = useState<number | null>(null);
   const [isDesktop, setIsDesktop] = useState<boolean>(() => (typeof window !== 'undefined' ? window.innerWidth >= 1024 : true));
@@ -520,6 +521,25 @@ export const PrincipalHome: React.FC = () => {
   };
 
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (tutorDropdownRef.current && !tutorDropdownRef.current.contains(target)) {
+        setIsTutorMenuOpen(false);
+      }
+      if (classDropdownRef.current && !classDropdownRef.current.contains(target)) {
+        setIsClassMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
     loadDashboard();
   }, []);
 
@@ -565,7 +585,9 @@ export const PrincipalHome: React.FC = () => {
         if (id && name && !map.has(id)) map.set(id, name);
       }
     });
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [dashboardData, tutorsList, attendance]);
 
   const selectedTutorObj = useMemo(() => {
@@ -577,6 +599,17 @@ export const PrincipalHome: React.FC = () => {
     if (selectedTutorId === 'all') return null;
     return tutorsList.find((t) => String(t.id) === String(selectedTutorId)) || null;
   }, [tutorsList, selectedTutorId]);
+
+  const selectedTutorLabel = useMemo(() => {
+    if (selectedTutorId === 'all') return 'ALL TUTORS';
+    const tutor = tutors.find((t) => String(t.id) === String(selectedTutorId));
+    return tutor ? tutor.name.toUpperCase() : 'ALL TUTORS';
+  }, [selectedTutorId, tutors]);
+
+  const selectedClassLabel = useMemo(() => {
+    if (selectedClass === 'all') return 'ALL CLASSES';
+    return selectedClass;
+  }, [selectedClass]);
 
   // Classes handled by the selected tutor (empty if all tutors selected, defaulting to all students)
   const chartClasses = useMemo(() => {
@@ -679,10 +712,44 @@ export const PrincipalHome: React.FC = () => {
         (tutor as any).username ||
         'Unknown Tutor';
 
+      // Determine the class(es) handled by this tutor
+      const tutorUser = tutorsList.find((tl) => String(tl.id) === tutorIdStr);
+      const classesSet = new Set<string>();
+
+      // 1. From assigned students
+      assignedStudents.forEach((r) => {
+        const { grade, section } = parseStudentGradeAndSection(r.student);
+        if (grade && section) {
+          classesSet.add(`${grade} - ${section}`);
+        } else if (grade) {
+          classesSet.add(grade);
+        } else if (section) {
+          classesSet.add(section);
+        }
+      });
+
+      // 2. Fallback to tutorUser metadata if no students assigned yet
+      if (classesSet.size === 0 && tutorUser) {
+        const available = getChartAvailableClasses(tutorUser, students);
+        available.forEach((c) => classesSet.add(c));
+        if (classesSet.size === 0 && tutorUser.grade_level) {
+          tutorUser.grade_level.split(',').forEach((c) => {
+            const trimmed = c.trim();
+            if (trimmed) classesSet.add(trimmed);
+          });
+        }
+      }
+
+      const classesHandled =
+        classesSet.size > 0
+          ? Array.from(classesSet).sort().join(', ')
+          : 'No Class Assigned';
+
       return {
         tutorId: tutorIdStr,
         tutorName,
         studentCount,
+        classesHandled,
         compositeScore,
         attendanceRate,
         averageScore,
@@ -709,7 +776,7 @@ export const PrincipalHome: React.FC = () => {
   const filteredRankedTutors = useMemo(() => {
     if (!tutorSearch.trim()) return rankedTutorClasses;
     return rankedTutorClasses.filter((t) =>
-      matchesSearch(tutorSearch, t.tutorName)
+      matchesSearch(tutorSearch, t.tutorName) || matchesSearch(tutorSearch, t.classesHandled)
     );
   }, [rankedTutorClasses, tutorSearch]);
 
@@ -959,41 +1026,24 @@ export const PrincipalHome: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex flex-col gap-3 data-loaded-content w-full min-w-0 max-w-full">
-        {/* Row 1 Skeleton: 3 Multi-Layer Top KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0">
-          {/* Card 1 Skeleton: 2 layers (Total Students & High Risk) */}
-          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-2xs">
-            {[1, 2].map((i) => (
-              <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-2">
-                <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-5 w-12 rounded bg-gray-200 dark:bg-gray-800" />
-              </div>
-            ))}
-          </div>
-          {/* Card 2 Skeleton: 2 layers (Tutors, Faculty) */}
-          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-2xs">
-            {[1, 2].map((i) => (
-              <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-2">
-                <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-5 w-8 rounded bg-gray-200 dark:bg-gray-800" />
-              </div>
-            ))}
-          </div>
-          {/* Card 3 Skeleton: 3 layers (Attendance, Score, Composite) */}
-          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-2xs">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-1.5">
-                <div className="h-2.5 w-28 rounded bg-gray-200 dark:bg-gray-800" />
-                <div className="h-4 w-10 rounded bg-gray-200 dark:bg-gray-800" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Row 2 Skeleton: Main Section */}
+        {/* Unified 12-Column Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
           <div className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3">
-            {/* Chart 1 Skeleton: Performance Trend */}
+            {/* 2 Top KPI Card Skeletons (3 layers each) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
+              {[1, 2].map((card) => (
+                <div key={card} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-2xs">
+                  {[1, 2, 3].map((row) => (
+                    <div key={row} className="flex-1 flex items-center justify-between px-3.5 py-1.5">
+                      <div className="h-2.5 w-28 rounded bg-gray-200 dark:bg-gray-800" />
+                      <div className="h-4 w-10 rounded bg-gray-200 dark:bg-gray-800" />
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {/* Chart Skeleton: Performance Trend */}
             <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-2xs flex flex-col justify-between">
               <div className="h-4 w-56 rounded bg-gray-200 dark:bg-gray-800" />
               <div className="my-4 flex-1 bg-gray-50/60 dark:bg-[#111111] rounded-lg min-h-[200px]" />
@@ -1004,11 +1054,13 @@ export const PrincipalHome: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Right Column Skeleton: Top Performing Classes (Full Height) */}
           <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3">
-            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-2xs">
+            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[500px] shadow-2xs flex-1">
               <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-800 mb-3" />
               <div className="space-y-2">
-                {[1, 2, 3, 4, 5].map((k) => (
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((k) => (
                   <div key={k} className="h-10 rounded bg-gray-50 dark:bg-[#111111]" />
                 ))}
               </div>
@@ -1043,103 +1095,98 @@ export const PrincipalHome: React.FC = () => {
   // ─── Main Render ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-3 data-loaded-content w-full min-w-0 max-w-full">
-      {/* ── 1. Top Summary KPI Cards (3 Multi-Layer Containers) ─────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 w-full min-w-0 max-w-full">
-        {/* Container 1: TOTAL STUDENTS & OVERALL HIGH RISK STUDENTS (2 Layers) */}
-        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
-          <div className="flex-1 flex items-center justify-between px-3.5 py-2 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
-              TOTAL STUDENTS
-            </p>
-            <p className="text-base sm:text-lg font-extrabold tracking-tight text-gray-900 dark:text-slate-100 shrink-0">
-              {totalStudentsCount.toLocaleString()}
-            </p>
-          </div>
-          <div className="flex-1 flex items-center justify-between px-3.5 py-2 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
-              OVERALL HIGH RISK STUDENTS
-            </p>
-            <p className="text-base sm:text-lg font-extrabold text-risk-high shrink-0">
-              {highRiskStudentsCount.toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        {/* Container 2: TUTORS & FACULTY (2 Layers — Admin, Superadmin & Principal removed) */}
-        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
-          <div className="flex-1 flex items-center justify-between px-3.5 py-2 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
-              TUTORS
-            </p>
-            <p className="text-base sm:text-lg font-extrabold tracking-tight text-gray-900 dark:text-slate-100 shrink-0">
-              {totalTutorsCount.toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        {/* Container 3: OVERALL AVERAGE ATTENDANCE, OVERALL AVERAGE SCORE, OVERALL COMPOSITE SCORE (3 Layers) */}
-        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
-          <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
-              OVERALL AVERAGE ATTENDANCE
-            </p>
-            <p
-              className={`text-xs sm:text-sm font-extrabold shrink-0 ${
-                !hasAttendanceData
-                  ? 'text-gray-400 dark:text-slate-500'
-                  : overallAttendanceRate >= 81
-                  ? 'text-risk-low'
-                  : overallAttendanceRate >= 75
-                  ? 'text-risk-medium'
-                  : 'text-risk-high'
-              }`}
-            >
-              {!hasAttendanceData ? '—' : `${overallAttendanceRate}%`}
-            </p>
-          </div>
-          <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
-              OVERALL AVERAGE SCORE
-            </p>
-            <p
-              className={`text-xs sm:text-sm font-extrabold shrink-0 ${
-                !hasScoreData
-                  ? 'text-gray-400 dark:text-slate-500'
-                  : overallAvgScore >= 81
-                  ? 'text-risk-low'
-                  : overallAvgScore >= 75
-                  ? 'text-risk-medium'
-                  : 'text-risk-high'
-              }`}
-            >
-              {!hasScoreData ? '—' : `${overallAvgScore}%`}
-            </p>
-          </div>
-          <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
-              OVERALL COMPOSITE SCORE
-            </p>
-            <p
-              className={`text-xs sm:text-sm font-extrabold shrink-0 ${
-                !hasAttendanceData && !hasScoreData
-                  ? 'text-gray-400 dark:text-slate-500'
-                  : overallCompositeScore >= 81
-                  ? 'text-risk-low'
-                  : overallCompositeScore >= 75
-                  ? 'text-risk-medium'
-                  : 'text-risk-high'
-              }`}
-            >
-              {!hasAttendanceData && !hasScoreData ? '—' : `${overallCompositeScore}%`}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 2. Main Section: Trend Chart (Left) & Top Performing Classes (Right) ── */}
+      {/* ── Main Section: KPI Cards + Trend Chart (Left) & Top Performing Classes (Right) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch w-full min-w-0 max-w-full">
-        {/* ── Left Column (9 cols on lg & xl: ~75% width): Performance Trend Chart ── */}
+        {/* ── Left Column (9 cols on lg & xl: ~75% width): 2 Top KPI Cards & Trend Chart ── */}
         <div ref={leftColRef} className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3 w-full min-w-0 max-w-full">
+          {/* Top 2 KPI Summary Containers (Each has exactly 3 balanced layers) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0 w-full min-w-0 max-w-full">
+            {/* Container 1: OVERALL HIGH RISK STUDENTS, TOTAL STUDENTS, & TUTORS (3 Layers) */}
+            <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+              <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+                  OVERALL HIGH RISK STUDENTS
+                </p>
+                <p className="text-xs sm:text-sm font-extrabold text-risk-high shrink-0">
+                  {highRiskStudentsCount.toLocaleString()}
+                </p>
+              </div>
+              <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+                  TOTAL STUDENTS
+                </p>
+                <p className="text-xs sm:text-sm font-extrabold tracking-tight text-gray-900 dark:text-slate-100 shrink-0">
+                  {totalStudentsCount.toLocaleString()}
+                </p>
+              </div>
+              <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+                  TUTORS
+                </p>
+                <p className="text-xs sm:text-sm font-extrabold tracking-tight text-gray-900 dark:text-slate-100 shrink-0">
+                  {totalTutorsCount.toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            {/* Container 2: OVERALL AVERAGE ATTENDANCE, OVERALL AVERAGE SCORE, OVERALL COMPOSITE SCORE (3 Layers) */}
+            <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+              <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+                  OVERALL AVERAGE ATTENDANCE
+                </p>
+                <p
+                  className={`text-xs sm:text-sm font-extrabold shrink-0 ${
+                    !hasAttendanceData
+                      ? 'text-gray-400 dark:text-slate-500'
+                      : overallAttendanceRate >= 81
+                      ? 'text-risk-low'
+                      : overallAttendanceRate >= 75
+                      ? 'text-risk-medium'
+                      : 'text-risk-high'
+                  }`}
+                >
+                  {!hasAttendanceData ? '—' : `${overallAttendanceRate}%`}
+                </p>
+              </div>
+              <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+                  OVERALL AVERAGE SCORE
+                </p>
+                <p
+                  className={`text-xs sm:text-sm font-extrabold shrink-0 ${
+                    !hasScoreData
+                      ? 'text-gray-400 dark:text-slate-500'
+                      : overallAvgScore >= 81
+                      ? 'text-risk-low'
+                      : overallAvgScore >= 75
+                      ? 'text-risk-medium'
+                      : 'text-risk-high'
+                  }`}
+                >
+                  {!hasScoreData ? '—' : `${overallAvgScore}%`}
+                </p>
+              </div>
+              <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
+                  OVERALL COMPOSITE SCORE
+                </p>
+                <p
+                  className={`text-xs sm:text-sm font-extrabold shrink-0 ${
+                    !hasAttendanceData && !hasScoreData
+                      ? 'text-gray-400 dark:text-slate-500'
+                      : overallCompositeScore >= 81
+                      ? 'text-risk-low'
+                      : overallCompositeScore >= 75
+                      ? 'text-risk-medium'
+                      : 'text-risk-high'
+                  }`}
+                >
+                  {!hasAttendanceData && !hasScoreData ? '—' : `${overallCompositeScore}%`}
+                </p>
+              </div>
+            </div>
+          </div>
           <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full min-w-0 max-w-full shadow-2xs">
             {/* ── Row 1: Card Title & Period Toggles (Full width, never truncates title) ── */}
             <div className="flex items-center justify-between gap-3 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
@@ -1171,38 +1218,134 @@ export const PrincipalHome: React.FC = () => {
             </div>
 
             {/* ── Row 2: Filter Controls Bar (Tutor Dropdown and Handled Classes Dropdown) ── */}
-            <div className="flex items-center gap-2 pt-2.5 pb-1 flex-wrap w-full">
+            <div className="flex items-center gap-2 pt-2.5 pb-1 flex-wrap w-full relative z-30">
               {/* Tutor Filter Dropdown */}
-              <select
-                aria-label="Filter by Tutor"
-                value={selectedTutorId}
-                onChange={(e) => setSelectedTutorId(e.target.value)}
-                className="h-8 px-2.5 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[140px] flex-1 max-w-[220px]"
-              >
-                <option value="all">ALL TUTORS</option>
-                {[...tutors]
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((tutor) => (
-                    <option key={tutor.id} value={tutor.id}>
-                      {tutor.name.toUpperCase()}
-                    </option>
-                  ))}
-              </select>
+              <div className={`relative min-w-[130px] flex-1 max-w-[220px] ${isTutorMenuOpen ? 'z-50' : 'z-20'}`} ref={tutorDropdownRef}>
+                <button
+                  type="button"
+                  aria-label="Filter by Tutor"
+                  aria-haspopup="listbox"
+                  aria-expanded={isTutorMenuOpen}
+                  onClick={() => {
+                    setIsTutorMenuOpen((prev) => !prev);
+                    setIsClassMenuOpen(false);
+                  }}
+                  className="flex h-8 w-full items-center justify-between gap-1.5 sm:gap-2 rounded-xl border border-gray-200 bg-gray-50 dark:border-[#1A1A1A] dark:bg-[#111111] px-2.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-normal text-gray-700 dark:text-slate-200 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-2xs"
+                >
+                  <span className="truncate">{selectedTutorLabel}</span>
+                  <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform ${isTutorMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isTutorMenuOpen && (
+                  <div
+                    className="absolute left-0 top-full z-50 mt-1 max-h-60 w-56 sm:w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl"
+                    role="listbox"
+                  >
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={selectedTutorId === 'all'}
+                      onClick={() => {
+                        setSelectedTutorId('all');
+                        setIsTutorMenuOpen(false);
+                      }}
+                      className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                        selectedTutorId === 'all'
+                          ? 'bg-[var(--brand)] text-white'
+                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                      }`}
+                    >
+                      ALL TUTORS
+                    </button>
+                    {[...tutors]
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((tutor) => {
+                        const isSel = String(selectedTutorId) === String(tutor.id);
+                        return (
+                          <button
+                            key={tutor.id}
+                            type="button"
+                            role="option"
+                            aria-selected={isSel}
+                            onClick={() => {
+                              setSelectedTutorId(String(tutor.id));
+                              setIsTutorMenuOpen(false);
+                            }}
+                            className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                              isSel
+                                ? 'bg-[var(--brand)] text-white'
+                                : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                            }`}
+                          >
+                            {tutor.name.toUpperCase()}
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
 
-              {/* Class Filter Dropdown (defaults to ALL STUDENTS, filled with tutor's classes once selected) */}
-              <select
-                aria-label="Filter by Class"
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-                className="h-8 px-2.5 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[140px] flex-1 max-w-[220px]"
-              >
-                <option value="all">ALL STUDENTS</option>
-                {chartClasses.map((cls) => (
-                  <option key={cls} value={cls}>
-                    {cls}
-                  </option>
-                ))}
-              </select>
+              {/* Class Filter Dropdown (defaults to ALL CLASSES, filled with tutor's classes once selected) */}
+              <div className={`relative min-w-[130px] flex-1 max-w-[220px] ${isClassMenuOpen ? 'z-50' : 'z-20'}`} ref={classDropdownRef}>
+                <button
+                  type="button"
+                  aria-label="Filter by Class"
+                  aria-haspopup="listbox"
+                  aria-expanded={isClassMenuOpen}
+                  onClick={() => {
+                    setIsClassMenuOpen((prev) => !prev);
+                    setIsTutorMenuOpen(false);
+                  }}
+                  className="flex h-8 w-full items-center justify-between gap-1.5 sm:gap-2 rounded-xl border border-gray-200 bg-gray-50 dark:border-[#1A1A1A] dark:bg-[#111111] px-2.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-normal text-gray-700 dark:text-slate-200 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-2xs"
+                >
+                  <span className="truncate">{selectedClassLabel}</span>
+                  <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform ${isClassMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isClassMenuOpen && (
+                  <div
+                    className="absolute right-0 sm:left-0 top-full z-50 mt-1 max-h-60 w-56 sm:w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl"
+                    role="listbox"
+                  >
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={selectedClass === 'all'}
+                      onClick={() => {
+                        setSelectedClass('all');
+                        setIsClassMenuOpen(false);
+                      }}
+                      className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                        selectedClass === 'all'
+                          ? 'bg-[var(--brand)] text-white'
+                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                      }`}
+                    >
+                      ALL CLASSES
+                    </button>
+                    {chartClasses.map((cls) => {
+                      const isSel = selectedClass === cls;
+                      return (
+                        <button
+                          key={cls}
+                          type="button"
+                          role="option"
+                          aria-selected={isSel}
+                          onClick={() => {
+                            setSelectedClass(cls);
+                            setIsClassMenuOpen(false);
+                          }}
+                          className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                            isSel
+                              ? 'bg-[var(--brand)] text-white'
+                              : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                          }`}
+                        >
+                          {cls}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Chart Canvas */}
@@ -1329,7 +1472,7 @@ export const PrincipalHome: React.FC = () => {
                 type="text"
                 value={tutorSearch}
                 onChange={(e) => setTutorSearch(e.target.value)}
-                placeholder="Search Tutor Name"
+                placeholder="Search Tutor or Class Name"
                 className="w-full h-7.5 pl-8 pr-2.5 rounded-sm bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-xs text-gray-800 dark:text-slate-200 placeholder-gray-400 focus:outline-none focus:border-[var(--brand)]"
               />
             </div>
@@ -1353,11 +1496,12 @@ export const PrincipalHome: React.FC = () => {
                         <p className="text-xs font-bold text-gray-900 dark:text-slate-100 group-hover:text-[var(--brand)] transition-colors truncate">
                           {item.tutorName}
                         </p>
-                        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-400 dark:text-slate-500 truncate">
-                          <span>{item.studentCount} stu</span>
-                          <span>•</span>
-                          <span>Att: {item.attendanceRate}%</span>
-                        </div>
+                        <p
+                          className="text-[10px] font-medium text-gray-400 dark:text-slate-500 truncate mt-0.5"
+                          title={item.classesHandled}
+                        >
+                          {item.classesHandled}
+                        </p>
                       </div>
 
                       {/* Composite Score Pill */}

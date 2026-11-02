@@ -516,8 +516,9 @@ const TrendChart: React.FC<{
 
         {/* X-axis date labels */}
         {points.map((p, idx) => {
+          const rawFormatted = formatShortDateRange(p.label);
           if (isMobile) {
-            const [line1, line2] = getMobileLabelLines(p.label);
+            const [line1, line2] = getMobileLabelLines(rawFormatted);
             if (line2) {
               return (
                 <text
@@ -1325,6 +1326,7 @@ const getStudentDisplayName = (student?: User | null): string => {
 
 const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; onChange: (value: RiskScope) => void }> = ({ rows, value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuAlign, setMenuAlign] = useState<'left' | 'right'>('left');
   const filterRef = useRef<HTMLDivElement>(null);
   const selectedRow = rows.find((row) => String(row.student.id) === value);
   const selectedLabel = value === 'all' ? 'ALL STUDENTS' : (selectedRow ? getStudentDisplayName(selectedRow.student) : 'ALL STUDENTS');
@@ -1337,12 +1339,29 @@ const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; o
     });
   }, [rows]);
 
+  const handleToggle = () => {
+    if (!isOpen && filterRef.current) {
+      const rect = filterRef.current.getBoundingClientRect();
+      const screenW = window.innerWidth || document.documentElement.clientWidth;
+      if (rect.left + 210 > screenW - 16) {
+        setMenuAlign('right');
+      } else {
+        setMenuAlign('left');
+      }
+    }
+    setIsOpen((open) => !open);
+  };
+
   useEffect(() => {
-    const closeMenu = (event: MouseEvent) => {
+    const closeMenu = (event: MouseEvent | TouchEvent) => {
       if (filterRef.current && !filterRef.current.contains(event.target as Node)) setIsOpen(false);
     };
     document.addEventListener('mousedown', closeMenu);
-    return () => document.removeEventListener('mousedown', closeMenu);
+    document.addEventListener('touchstart', closeMenu);
+    return () => {
+      document.removeEventListener('mousedown', closeMenu);
+      document.removeEventListener('touchstart', closeMenu);
+    };
   }, []);
 
   return (
@@ -1352,15 +1371,15 @@ const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; o
         aria-label="Filter chart by student"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        onClick={() => setIsOpen((open) => !open)}
-        className="flex h-9 min-w-40 items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-semibold tracking-normal text-gray-700 transition hover:border-gray-300 hover:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shrink-0"
+        onClick={handleToggle}
+        className="flex h-8 sm:h-9 min-w-[130px] max-w-[180px] sm:min-w-40 items-center justify-between gap-1.5 sm:gap-3 rounded-xl border border-gray-200 bg-gray-50 px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold tracking-normal text-gray-700 transition hover:border-gray-300 hover:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shrink-0"
         style={{ fontFamily: 'var(--font-body)' }}
       >
         <span className="truncate">{selectedLabel}</span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       {isOpen && (
-        <div className="absolute right-0 sm:left-0 top-full z-50 mt-2 max-h-60 min-w-[200px] sm:min-w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl" role="listbox" aria-label="Students">
+        <div className={`absolute ${menuAlign === 'right' ? 'right-0' : 'left-0'} top-full z-50 mt-2 max-h-60 min-w-[200px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl`} role="listbox" aria-label="Students">
           <button type="button" role="option" aria-selected={value === 'all'} onClick={() => { onChange('all'); setIsOpen(false); }} className={`block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold transition hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer ${value === 'all' ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700'}`} style={{ fontFamily: 'var(--font-body)' }}>
             ALL STUDENTS
           </button>

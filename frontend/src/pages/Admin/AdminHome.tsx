@@ -15,6 +15,7 @@ import {
   Clock,
   ChevronRight,
   Filter,
+  ChevronDown,
 } from 'lucide-react';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
 import { getRecentSchoolWeekdays, compareNamesByLastName } from '../../utils/studentFormatters';
@@ -48,10 +49,12 @@ const formatShortDateRange = (label: string): string => {
   const match = label.match(/^([A-Za-z]+)\s+(\d+)\s*[–—\-]\s*([A-Za-z]+)\s+(\d+)$/);
   if (match) {
     const [, m1, d1, m2, d2] = match;
-    if (m1.toLowerCase() === m2.toLowerCase()) {
-      return `${m1} ${d1}–${d2}`;
+    const shortM1 = m1.slice(0, 3);
+    const shortM2 = m2.slice(0, 3);
+    if (shortM1.toLowerCase() === shortM2.toLowerCase()) {
+      return `${shortM1} ${d1}–${d2}`;
     }
-    return `${m1} ${d1}–${m2} ${d2}`;
+    return `${shortM1} ${d1}–${shortM2} ${d2}`;
   }
   return label;
 };
@@ -68,10 +71,11 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
     const updateSize = () => {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
+      if (rect.width > 0) {
+        const minH = rect.width < 520 ? 196 : 220;
         setDimensions({
           width: Math.round(rect.width),
-          height: Math.round(rect.height),
+          height: Math.max(minH, Math.round(rect.height)),
         });
       }
     };
@@ -81,10 +85,11 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
-        if (width > 0 && height > 0) {
+        if (width > 0) {
+          const minH = width < 520 ? 196 : 220;
           setDimensions({
             width: Math.round(width),
-            height: Math.round(height),
+            height: Math.max(minH, Math.round(height)),
           });
         }
       }
@@ -96,11 +101,10 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
 
   const { width, height } = dimensions;
   const isMobile = width < 520;
-  const isSmallMobile = width < 380;
-  const paddingLeft = isMobile ? 44 : 50;
-  const paddingRight = isMobile ? 20 : 14;
-  const paddingTop = isMobile ? 18 : 20;
-  const paddingBottom = isMobile ? 26 : 24;
+  const paddingLeft = isMobile ? 38 : 50;
+  const paddingRight = isMobile ? 18 : 14;
+  const paddingTop = isMobile ? 16 : 20;
+  const paddingBottom = isMobile ? (trendFilter === 'month' ? 24 : 34) : 24;
 
   const chartW = Math.max(10, width - paddingLeft - paddingRight);
   const chartH = Math.max(10, height - paddingTop - paddingBottom);
@@ -129,64 +133,30 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
     ? `${pathD} L ${points[points.length - 1].x} ${paddingTop + chartH} L ${points[0].x} ${paddingTop + chartH} Z`
     : '';
 
-  // Dynamic tick density to prevent label overlap
-  const visibleIndices = useMemo(() => {
-    const total = data.length;
-    if (total <= 1) return new Set([0]);
-    if (!isMobile) {
-      return new Set(Array.from({ length: total }, (_, i) => i));
+  const getMobileLabelLines = (label: string): [string, string?] => {
+    if (trendFilter === 'week') {
+      const parts = label.split(/\s*[–—\-]\s*/);
+      if (parts.length === 2) {
+        return [parts[0].trim(), `–${parts[1].trim()}`];
+      }
+      return [label];
+    }
+    if (trendFilter === 'day') {
+      const parts = label.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return [parts[0], parts.slice(1).join(' ')];
+      }
+      return [label];
     }
     if (trendFilter === 'month') {
-      if (width < 380) {
-        return new Set([0, 2, 4, total - 1]);
-      }
-      return new Set(Array.from({ length: total }, (_, i) => i));
+      return [label.split(' ')[0] || label];
     }
-    if (trendFilter === 'week') {
-      if (width < 430) {
-        return new Set([0, 2, 4, total - 1]);
-      }
-      return new Set(Array.from({ length: total }, (_, i) => i));
-    }
-    // Day mode (10 school days)
-    const step = isSmallMobile ? 3 : 2;
-    const indices: number[] = [];
-    for (let i = 0; i < total; i += step) {
-      indices.push(i);
-    }
-    const lastIdx = total - 1;
-    const prevIdx = indices[indices.length - 1];
-    if (lastIdx - prevIdx >= 2) {
-      indices.push(lastIdx);
-    } else if (indices.length > 1) {
-      indices[indices.length - 1] = lastIdx;
-    }
-    const set = new Set(indices);
-    data.forEach((p, idx) => {
-      if (p.assessmentLabels.length > 0 && !set.has(idx - 1) && !set.has(idx + 1)) {
-        set.add(idx);
-      }
-    });
-    return set;
-  }, [data, isMobile, isSmallMobile, trendFilter, width]);
-
-  const getFormattedLabel = (p: AdminChartPoint) => {
-    if (!isMobile) return p.label;
-    if (trendFilter === 'week') {
-      return formatShortDateRange(p.label);
-    }
-    if (trendFilter === 'month') {
-      if (width < 400) {
-        return p.label.split(' ')[0] || p.label;
-      }
-      return p.label.replace(/\s+20(\d\d)/, " '$1");
-    }
-    return p.label;
+    return [label];
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-full select-none min-w-0 overflow-hidden">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full block" role="img" aria-label="Performance Trend Chart">
+    <div ref={containerRef} className="relative flex-1 w-full h-full min-h-[196px] sm:min-h-[220px] select-none min-w-0 overflow-hidden">
+      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full h-full min-h-[196px] sm:min-h-[220px] block" role="img" aria-label="Performance Trend Chart">
         <defs>
           <linearGradient id="adminChartFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.22" />
@@ -215,7 +185,7 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
                 strokeDasharray="3 3"
                 opacity="0.6"
               />
-              <text x={paddingLeft - 8} y={y + 3} className="fill-slate-400 font-semibold text-[9px] xs:text-[10px]" textAnchor="end">
+              <text x={paddingLeft - 6} y={y + 3} className="fill-slate-400 font-semibold text-[8.5px] xs:text-[9.5px] sm:text-[10px]" textAnchor="end">
                 {val}%
               </text>
             </g>
@@ -242,9 +212,37 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
           );
         })}
 
-        {/* X-axis date labels */}
+        {/* X-axis date labels (complete dates for every point matching Student/Tutor Home) */}
         {points.map((p, idx) => {
-          if (!visibleIndices.has(idx)) return null;
+          if (isMobile) {
+            const [line1, line2] = getMobileLabelLines(p.label);
+            if (line2) {
+              return (
+                <text
+                  key={`label-${idx}`}
+                  x={p.x}
+                  y={paddingTop + chartH + 13}
+                  className="fill-slate-500 dark:fill-slate-400 font-semibold text-[8.5px] select-none"
+                  textAnchor="middle"
+                >
+                  <tspan x={p.x} dy="0">{line1}</tspan>
+                  <tspan x={p.x} dy="10">{line2}</tspan>
+                </text>
+              );
+            }
+            return (
+              <text
+                key={`label-${idx}`}
+                x={p.x}
+                y={height - 6}
+                className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px] select-none"
+                textAnchor="middle"
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                {line1}
+              </text>
+            );
+          }
 
           let textAnchor: 'start' | 'middle' | 'end' = 'middle';
           let labelX = p.x;
@@ -260,12 +258,12 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
             <text
               key={`label-${idx}`}
               x={labelX}
-              y={height - (isMobile ? 6 : 5)}
-              className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px] xs:text-[10px]"
+              y={height - 5}
+              className="fill-slate-500 dark:fill-slate-400 font-semibold text-[10px] select-none"
               textAnchor={textAnchor}
               style={{ whiteSpace: 'nowrap' }}
             >
-              {getFormattedLabel(p)}
+              {p.label}
             </text>
           );
         })}
@@ -453,6 +451,10 @@ export const AdminHome: React.FC = () => {
   const [trendFilter, setTrendFilter] = useState<TrendFilter>('week');
   const [selectedTutorId, setSelectedTutorId] = useState<string>('all');
   const [selectedClass, setSelectedClass] = useState<string>('all');
+  const [isTutorMenuOpen, setIsTutorMenuOpen] = useState(false);
+  const [isClassMenuOpen, setIsClassMenuOpen] = useState(false);
+  const tutorDropdownRef = useRef<HTMLDivElement>(null);
+  const classDropdownRef = useRef<HTMLDivElement>(null);
   const [activeSystemSem, setActiveSystemSem] = useState<SemesterType>(() => getActiveSystemSemester());
   const [isWindowOpen, setIsWindowOpen] = useState<boolean>(() => isAssessmentWindowOpen());
   const [tutorSearch, setTutorSearch] = useState<string>('');
@@ -488,6 +490,25 @@ export const AdminHome: React.FC = () => {
       window.removeEventListener('resize', updateSize);
     };
   }, [isLoading]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (tutorDropdownRef.current && !tutorDropdownRef.current.contains(target)) {
+        setIsTutorMenuOpen(false);
+      }
+      if (classDropdownRef.current && !classDropdownRef.current.contains(target)) {
+        setIsClassMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -590,6 +611,18 @@ export const AdminHome: React.FC = () => {
     if (selectedTutorId === 'all') return null;
     return tutors.find((t) => String(t.id) === String(selectedTutorId)) || null;
   }, [tutors, selectedTutorId]);
+
+  const selectedTutorLabel = useMemo(() => {
+    if (selectedTutorId === 'all') return 'ALL TUTORS';
+    const tutor = tutors.find((t) => String(t.id) === String(selectedTutorId));
+    if (!tutor) return 'ALL TUTORS';
+    return (tutor.full_name || `${tutor.first_name} ${tutor.last_name}`).trim().toUpperCase() || 'ALL TUTORS';
+  }, [selectedTutorId, tutors]);
+
+  const selectedClassLabel = useMemo(() => {
+    if (selectedClass === 'all') return 'ALL CLASSES';
+    return selectedClass;
+  }, [selectedClass]);
 
   // Classes handled by the selected tutor (empty if all tutors selected, defaulting to all students)
   const chartClasses = useMemo(() => {
@@ -1243,45 +1276,139 @@ export const AdminHome: React.FC = () => {
             </div>
 
             {/* ── Row 2: Filter Controls Bar (Tutor Dropdown and Handled Classes Dropdown) ── */}
-            <div className="flex items-center gap-2 pt-2.5 pb-1 flex-wrap w-full">
+            <div className="flex items-center gap-2 pt-2.5 pb-1 flex-wrap w-full relative z-30">
               {/* Tutor Filter Dropdown */}
-              <select
-                aria-label="Filter by Tutor"
-                value={selectedTutorId}
-                onChange={(e) => setSelectedTutorId(e.target.value)}
-                className="h-8 px-2.5 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[140px] flex-1 max-w-[220px]"
-              >
-                <option value="all">ALL TUTORS</option>
-                {[...tutors]
-                  .sort((a, b) => {
-                    const nameA = (a.full_name || `${a.first_name} ${a.last_name}`).trim().toUpperCase();
-                    const nameB = (b.full_name || `${b.first_name} ${b.last_name}`).trim().toUpperCase();
-                    return nameA.localeCompare(nameB);
-                  })
-                  .map((tutor) => {
-                    const fullName = (tutor.full_name || `${tutor.first_name} ${tutor.last_name}`).trim().toUpperCase();
-                    return (
-                      <option key={tutor.id} value={tutor.id}>
-                        {fullName}
-                      </option>
-                    );
-                  })}
-              </select>
+              <div className={`relative min-w-[130px] flex-1 max-w-[220px] ${isTutorMenuOpen ? 'z-50' : 'z-20'}`} ref={tutorDropdownRef}>
+                <button
+                  type="button"
+                  aria-label="Filter by Tutor"
+                  aria-haspopup="listbox"
+                  aria-expanded={isTutorMenuOpen}
+                  onClick={() => {
+                    setIsTutorMenuOpen((prev) => !prev);
+                    setIsClassMenuOpen(false);
+                  }}
+                  className="flex h-8 w-full items-center justify-between gap-1.5 sm:gap-2 rounded-xl border border-gray-200 bg-gray-50 dark:border-[#1A1A1A] dark:bg-[#111111] px-2.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-normal text-gray-700 dark:text-slate-200 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-2xs"
+                >
+                  <span className="truncate">{selectedTutorLabel}</span>
+                  <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform ${isTutorMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isTutorMenuOpen && (
+                  <div
+                    className="absolute left-0 top-full z-50 mt-1 max-h-60 w-56 sm:w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl"
+                    role="listbox"
+                  >
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={selectedTutorId === 'all'}
+                      onClick={() => {
+                        setSelectedTutorId('all');
+                        setIsTutorMenuOpen(false);
+                      }}
+                      className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                        selectedTutorId === 'all'
+                          ? 'bg-[var(--brand)] text-white'
+                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                      }`}
+                    >
+                      ALL TUTORS
+                    </button>
+                    {[...tutors]
+                      .sort((a, b) => {
+                        const nameA = (a.full_name || `${a.first_name} ${a.last_name}`).trim().toUpperCase();
+                        const nameB = (b.full_name || `${b.first_name} ${b.last_name}`).trim().toUpperCase();
+                        return nameA.localeCompare(nameB);
+                      })
+                      .map((tutor) => {
+                        const isSel = String(selectedTutorId) === String(tutor.id);
+                        const fullName = (tutor.full_name || `${tutor.first_name} ${tutor.last_name}`).trim().toUpperCase();
+                        return (
+                          <button
+                            key={tutor.id}
+                            type="button"
+                            role="option"
+                            aria-selected={isSel}
+                            onClick={() => {
+                              setSelectedTutorId(String(tutor.id));
+                              setIsTutorMenuOpen(false);
+                            }}
+                            className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                              isSel
+                                ? 'bg-[var(--brand)] text-white'
+                                : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                            }`}
+                          >
+                            {fullName}
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
 
-              {/* Class Filter Dropdown (defaults to ALL STUDENTS, filled with tutor's classes once selected) */}
-              <select
-                aria-label="Filter by Class"
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-                className="h-8 px-2.5 rounded-md text-[10px] sm:text-[11px] font-bold uppercase bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 cursor-pointer outline-none focus:border-[var(--brand)] min-w-[140px] flex-1 max-w-[220px]"
-              >
-                <option value="all">ALL STUDENTS</option>
-                {chartClasses.map((cls) => (
-                  <option key={cls} value={cls}>
-                    {cls}
-                  </option>
-                ))}
-              </select>
+              {/* Class Filter Dropdown (defaults to ALL CLASSES, filled with tutor's classes once selected) */}
+              <div className={`relative min-w-[130px] flex-1 max-w-[220px] ${isClassMenuOpen ? 'z-50' : 'z-20'}`} ref={classDropdownRef}>
+                <button
+                  type="button"
+                  aria-label="Filter by Class"
+                  aria-haspopup="listbox"
+                  aria-expanded={isClassMenuOpen}
+                  onClick={() => {
+                    setIsClassMenuOpen((prev) => !prev);
+                    setIsTutorMenuOpen(false);
+                  }}
+                  className="flex h-8 w-full items-center justify-between gap-1.5 sm:gap-2 rounded-xl border border-gray-200 bg-gray-50 dark:border-[#1A1A1A] dark:bg-[#111111] px-2.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-normal text-gray-700 dark:text-slate-200 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-2xs"
+                >
+                  <span className="truncate">{selectedClassLabel}</span>
+                  <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform ${isClassMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isClassMenuOpen && (
+                  <div
+                    className="absolute right-0 sm:left-0 top-full z-50 mt-1 max-h-60 w-56 sm:w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl"
+                    role="listbox"
+                  >
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={selectedClass === 'all'}
+                      onClick={() => {
+                        setSelectedClass('all');
+                        setIsClassMenuOpen(false);
+                      }}
+                      className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                        selectedClass === 'all'
+                          ? 'bg-[var(--brand)] text-white'
+                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                      }`}
+                    >
+                      ALL CLASSES
+                    </button>
+                    {chartClasses.map((cls) => {
+                      const isSel = selectedClass === cls;
+                      return (
+                        <button
+                          key={cls}
+                          type="button"
+                          role="option"
+                          aria-selected={isSel}
+                          onClick={() => {
+                            setSelectedClass(cls);
+                            setIsClassMenuOpen(false);
+                          }}
+                          className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
+                            isSel
+                              ? 'bg-[var(--brand)] text-white'
+                              : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                          }`}
+                        >
+                          {cls}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Chart Canvas */}

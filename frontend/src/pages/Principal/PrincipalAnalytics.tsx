@@ -11,7 +11,6 @@ import {
   Users,
   Info,
   X,
-  Filter,
 } from 'lucide-react';
 import type { Attendance, Grade, User } from '../../types';
 import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
@@ -366,24 +365,26 @@ const formatShortDateRange = (label?: string | null): string => {
   const match = label.match(/^([A-Za-z]+)\s+(\d+)\s*[–—\-]\s*([A-Za-z]+)\s+(\d+)$/);
   if (match) {
     const [, m1, d1, m2, d2] = match;
-    if (m1.toLowerCase() === m2.toLowerCase()) {
-      return `${m1} ${d1}–${d2}`;
+    const shortM1 = m1.slice(0, 3);
+    const shortM2 = m2.slice(0, 3);
+    if (shortM1.toLowerCase() === shortM2.toLowerCase()) {
+      return `${shortM1} ${d1}–${d2}`;
     }
-    return `${m1} ${d1} – ${m2} ${d2}`;
+    return `${shortM1} ${d1}–${shortM2} ${d2}`;
   }
   return label;
 };
 
 const TrendChart: React.FC<{
   data: TrendPoint[];
-  color: string;
+  color?: string;
   emptyLabel: string;
   valueLabel?: string;
   trendFilter?: TrendFilter;
-}> = ({ data, color, emptyLabel, valueLabel = 'Class Average', trendFilter = 'week' }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 240 });
+}> = ({ data, color = '#0052B7', emptyLabel, valueLabel = 'Class Average', trendFilter = 'week' }) => {
+  const containerRef = React.useRef<HTMLDivElement>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 260 });
 
   useEffect(() => {
     setHoveredIdx(null);
@@ -392,23 +393,27 @@ const TrendChart: React.FC<{
   useEffect(() => {
     if (!containerRef.current) return;
     const updateSize = () => {
-      if (containerRef.current) {
-        const { clientWidth, clientHeight } = containerRef.current;
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      if (rect.width > 0) {
+        const minH = rect.width < 520 ? 196 : 220;
         setDimensions({
-          width: Math.max(300, Math.round(clientWidth || 800)),
-          height: Math.max(180, Math.round(clientHeight || 240)),
+          width: Math.round(rect.width),
+          height: Math.max(minH, Math.round(rect.height)),
         });
       }
     };
+
     updateSize();
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
-        if (width > 0 && height > 0) {
+        if (width > 0) {
+          const minH = width < 520 ? 196 : 220;
           setDimensions({
             width: Math.round(width),
-            height: Math.round(height),
+            height: Math.max(minH, Math.round(height)),
           });
         }
       }
@@ -416,101 +421,85 @@ const TrendChart: React.FC<{
 
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [data.length]);
 
   const { width, height } = dimensions;
   const isMobile = width < 520;
-  const isSmallMobile = width < 380;
-  const paddingLeft = isMobile ? 44 : 50;
-  const paddingRight = isMobile ? 18 : 20;
-  const paddingTop = 20;
-  const paddingBottom = isMobile ? 32 : 30;
+  const paddingLeft = isMobile ? 38 : 50;
+  const paddingRight = isMobile ? 18 : 14;
+  const paddingTop = isMobile ? 16 : 20;
+  const paddingBottom = isMobile ? (trendFilter === 'month' ? 24 : 34) : 24;
 
-  const chartWidth = Math.max(10, width - paddingLeft - paddingRight);
-  const chartHeight = Math.max(10, height - paddingTop - paddingBottom);
+  const chartW = Math.max(10, width - paddingLeft - paddingRight);
+  const chartH = Math.max(10, height - paddingTop - paddingBottom);
 
-  const colorId = color.replace(/[^a-zA-Z0-9]/g, '');
-  const gradientId = `trendChartFill_${colorId}`;
-  const filterId = `trendChartGlow_${colorId}`;
+  const points = data.map((d, idx) => {
+    const val = typeof d.value === 'number' && !isNaN(d.value) ? d.value : 0;
+    const x = paddingLeft + (idx * chartW) / (data.length - 1 || 1);
+    const y = paddingTop + chartH - (val / 100) * chartH;
+    return { x, y, ...d, value: val };
+  });
 
-  const visibleIndices = useMemo(() => {
-    const total = data.length;
-    if (total <= 1) return new Set([0]);
-    if (!isMobile) {
-      return new Set(Array.from({ length: total }, (_, i) => i));
+  let pathD = '';
+  if (points.length > 0) {
+    pathD = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      const p0 = points[i - 1];
+      const p1 = points[i];
+      const cp1x = p0.x + (p1.x - p0.x) / 3;
+      const cp1y = p0.y;
+      const cp2x = p1.x - (p1.x - p0.x) / 3;
+      const cp2y = p1.y;
+      pathD += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p1.x} ${p1.y}`;
+    }
+  }
+
+  const areaD = points.length > 0
+    ? `${pathD} L ${points[points.length - 1].x} ${paddingTop + chartH} L ${points[0].x} ${paddingTop + chartH} Z`
+    : '';
+
+  const getMobileLabelLines = (label: string): [string, string?] => {
+    if (trendFilter === 'week') {
+      const parts = label.split(/\s*[–—\-]\s*/);
+      if (parts.length === 2) {
+        return [parts[0].trim(), `–${parts[1].trim()}`];
+      }
+      return [label];
+    }
+    if (trendFilter === 'day') {
+      const parts = label.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return [parts[0], parts.slice(1).join(' ')];
+      }
+      return [label];
     }
     if (trendFilter === 'month') {
-      if (width < 380) return new Set([0, 2, 4, total - 1]);
-      return new Set(Array.from({ length: total }, (_, i) => i));
+      return [label.split(' ')[0] || label];
     }
-    if (trendFilter === 'week') {
-      if (width < 430) return new Set([0, 2, 4, total - 1]);
-      return new Set(Array.from({ length: total }, (_, i) => i));
-    }
-    const step = isSmallMobile ? 3 : 2;
-    const indices: number[] = [];
-    for (let i = 0; i < total; i += step) {
-      indices.push(i);
-    }
-    const lastIdx = total - 1;
-    const prevIdx = indices[indices.length - 1];
-    if (lastIdx - prevIdx >= 2) {
-      indices.push(lastIdx);
-    } else if (indices.length > 1) {
-      indices[indices.length - 1] = lastIdx;
-    }
-    return new Set(indices);
-  }, [data.length, isMobile, isSmallMobile, trendFilter, width]);
-
-  const getFormattedLabel = (label?: string | null) => {
-    if (!label) return '';
-    if (trendFilter === 'week') return formatShortDateRange(label);
-    if (trendFilter === 'month' && isSmallMobile) {
-      return label.split(' ')[0] || label;
-    }
-    return label;
+    return [label];
   };
 
   if (data.length === 0) {
     return (
-      <div className="flex h-full w-full items-center justify-center text-xs font-medium text-gray-400 dark:text-slate-500">
+      <div ref={containerRef} className="flex h-full w-full items-center justify-center text-xs font-medium text-gray-400 dark:text-slate-500">
         {emptyLabel}
       </div>
     );
   }
 
-  const points = data.map((point, index) => {
-    const val = typeof point.value === 'number' && !isNaN(point.value) ? point.value : 0;
-    return {
-      ...point,
-      value: val,
-      x: paddingLeft + (index * chartWidth) / (data.length - 1 || 1),
-      y: paddingTop + chartHeight - (val / 100) * chartHeight,
-    };
-  });
-
-  let path = '';
-  if (points.length === 1) {
-    path = `M ${paddingLeft} ${points[0].y} L ${width - paddingRight} ${points[0].y}`;
-  } else if (points.length > 1) {
-    path = `M ${points[0].x} ${points[0].y}`;
-    for (let index = 1; index < points.length; index += 1) {
-      const previous = points[index - 1];
-      const current = points[index];
-      const controlOffset = (current.x - previous.x) / 3;
-      path += ` C ${previous.x + controlOffset} ${previous.y}, ${current.x - controlOffset} ${current.y}, ${current.x} ${current.y}`;
-    }
-  }
-
-  const areaPath = points.length === 1
-    ? `M ${paddingLeft} ${points[0].y} L ${width - paddingRight} ${points[0].y} L ${width - paddingRight} ${paddingTop + chartHeight} L ${paddingLeft} ${paddingTop + chartHeight} Z`
-    : points.length > 1
-    ? `${path} L ${points[points.length - 1].x} ${paddingTop + chartHeight} L ${points[0].x} ${paddingTop + chartHeight} Z`
-    : '';
+  const colorId = color.replace(/[^a-zA-Z0-9]/g, '') || 'brand';
+  const gradientId = `trendChartFill_${colorId}`;
+  const filterId = `trendChartGlow_${colorId}`;
 
   return (
-    <div ref={containerRef} className="relative w-full h-full select-none min-w-0 overflow-hidden">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full block" role="img" aria-label="Trend chart">
+    <div ref={containerRef} className="relative flex-1 w-full h-full min-h-[196px] sm:min-h-[220px] select-none min-w-0 overflow-hidden">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+        className="w-full h-full min-h-[196px] sm:min-h-[220px] block"
+        role="img"
+        aria-label="Trend chart"
+      >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity="0.22" />
@@ -524,71 +513,171 @@ const TrendChart: React.FC<{
             </feMerge>
           </filter>
         </defs>
-        {[0, 25, 50, 75, 100].map((value) => {
-          const y = paddingTop + chartHeight - (value / 100) * chartHeight;
+
+        {[0, 25, 50, 75, 100].map((val) => {
+          const y = paddingTop + chartH - (val / 100) * chartH;
           return (
-            <g key={value}>
-              <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="var(--slate-200)" strokeWidth="0.5" strokeDasharray="3 3" opacity="0.6" />
-              <text x={paddingLeft - 8} y={y + 3.5} textAnchor="end" className="fill-slate-400 font-bold text-[9px] xs:text-[10px]">{value}%</text>
+            <g key={val}>
+              <line
+                x1={paddingLeft}
+                y1={y}
+                x2={width - paddingRight}
+                y2={y}
+                stroke="var(--slate-200)"
+                strokeWidth="0.5"
+                strokeDasharray="3 3"
+                opacity="0.6"
+              />
+              <text
+                x={paddingLeft - 8}
+                y={y + 3.5}
+                textAnchor="end"
+                className="fill-slate-400 font-bold text-[9px] xs:text-[10px]"
+              >
+                {val}%
+              </text>
             </g>
           );
         })}
-        {areaPath && <path d={areaPath} fill={`url(#${gradientId})`} />}
-        {path && <path d={path} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.28" filter={`url(#${filterId})`} />}
-        {path && <path d={path} fill="none" stroke={color} strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />}
-        {points.map((point, idx) => {
-          if (!visibleIndices.has(idx)) return null;
-          const formattedLabel = getFormattedLabel(point.label);
+
+        {/* X-axis date labels */}
+        {points.map((p, idx) => {
+          const rawFormatted = formatShortDateRange(p.label);
+          if (isMobile) {
+            const [line1, line2] = getMobileLabelLines(rawFormatted);
+            if (line2) {
+              return (
+                <text
+                  key={`label-${idx}`}
+                  x={p.x}
+                  y={paddingTop + chartH + 13}
+                  className="fill-slate-500 dark:fill-slate-400 font-semibold text-[8.5px] select-none"
+                  textAnchor="middle"
+                >
+                  <tspan x={p.x} dy="0">{line1}</tspan>
+                  <tspan x={p.x} dy="10">{line2}</tspan>
+                </text>
+              );
+            }
+            return (
+              <text
+                key={`label-${idx}`}
+                x={p.x}
+                y={height - 6}
+                className="fill-slate-500 dark:fill-slate-400 font-semibold text-[9px] select-none"
+                textAnchor="middle"
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                {line1}
+              </text>
+            );
+          }
+
+          let textAnchor: 'start' | 'middle' | 'end' = 'middle';
+          let labelX = p.x;
+          if (idx === 0) {
+            textAnchor = 'start';
+            labelX = Math.max(paddingLeft, p.x - 3);
+          } else if (idx === points.length - 1) {
+            textAnchor = 'end';
+            labelX = Math.min(width - paddingRight, p.x + 3);
+          }
+
           return (
-            <g key={point.dateKey || `pt-${idx}`}>
-              <title>{`${point.label}: ${point.value}%`}</title>
-              <circle cx={point.x} cy={point.y} r="4" fill={color} stroke="#FFFFFF" strokeWidth="2" />
-              <text x={point.x} y={height - 8} textAnchor="middle" className="fill-slate-500 dark:fill-slate-400 font-bold text-[9px] xs:text-[10px]">{formattedLabel}</text>
-            </g>
+            <text
+              key={`label-${idx}`}
+              x={labelX}
+              y={height - 5}
+              className="fill-slate-500 dark:fill-slate-400 font-semibold text-[10px] select-none"
+              textAnchor={textAnchor}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              {rawFormatted}
+            </text>
           );
         })}
+
+        {/* Trend Line & Area */}
+        {points.length > 0 && (
+          <>
+            <path d={areaD} fill={`url(#${gradientId})`} />
+            <path d={pathD} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.28" filter={`url(#${filterId})`} />
+            <path d={pathD} fill="none" stroke={color} strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        )}
+
+        {/* Data point markers */}
+        {points.map((p, idx) => (
+          <circle key={`data-dot-${idx}`} cx={p.x} cy={p.y} r="3.5" fill={color} stroke="#FFFFFF" strokeWidth="1.5" />
+        ))}
+
+        {/* Hover vertical guide line & dots */}
         {hoveredIdx !== null && points[hoveredIdx] && (
           <g>
-            <line x1={points[hoveredIdx].x} y1={paddingTop} x2={points[hoveredIdx].x} y2={paddingTop + chartHeight} stroke={color} strokeWidth="1.5" opacity="0.7" />
-            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill={color} stroke="#FFFFFF" strokeWidth="2" />
+            <line x1={points[hoveredIdx].x} y1={paddingTop} x2={points[hoveredIdx].x} y2={paddingTop + chartH} stroke={color} strokeWidth="1.5" opacity="0.7" />
+            <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="4.5" fill={color} />
             <circle cx={points[hoveredIdx].x} cy={points[hoveredIdx].y} r="8" fill={color} opacity="0.25" />
           </g>
         )}
-        {points.map((point, index) => {
-          const step = chartWidth / (data.length - 1 || 1);
-          const xStart = index === 0 ? paddingLeft : point.x - step / 2;
-          const xEnd = index === data.length - 1 ? width - paddingRight : point.x + step / 2;
+
+        {/* Hover hit test regions */}
+        {points.map((p, idx) => {
+          const barW = chartW / (data.length - 1 || 1);
+          const xStart = idx === 0 ? paddingLeft : p.x - barW / 2;
+          const xEnd = idx === data.length - 1 ? width - paddingRight : p.x + barW / 2;
           return (
             <rect
-              key={`hover-${point.dateKey || index}`}
+              key={idx}
               x={xStart}
               y={paddingTop}
               width={xEnd - xStart}
-              height={chartHeight}
+              height={chartH + paddingBottom}
               fill="transparent"
               className="cursor-pointer"
-              onMouseEnter={() => setHoveredIdx(index)}
+              onMouseEnter={() => setHoveredIdx(idx)}
               onMouseLeave={() => setHoveredIdx(null)}
-              onTouchStart={(e) => { e.preventDefault(); setHoveredIdx(index); }}
-              onClick={() => setHoveredIdx(hoveredIdx === index ? null : index)}
+              onTouchStart={() => setHoveredIdx(idx)}
+              onClick={() => setHoveredIdx(hoveredIdx === idx ? null : idx)}
             />
           );
         })}
       </svg>
+
+      {/* Floating Tooltip */}
       {hoveredIdx !== null && points[hoveredIdx] && (() => {
         const p = points[hoveredIdx];
-        const percentX = (p.x / width) * 100;
-        const isRightHalf = percentX > 50;
+        const isRightHalf = p.x > width * 0.5;
+        const maxTooltipWidth = Math.min(230, Math.max(160, width - 24));
+
+        let tooltipStyle: React.CSSProperties;
+
+        if (isMobile) {
+          const leftPos = Math.max(10, Math.min(width - maxTooltipWidth - 10, p.x - maxTooltipWidth / 2));
+          tooltipStyle = {
+            left: `${leftPos}px`,
+            top: '8px',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        } else if (isRightHalf) {
+          tooltipStyle = {
+            right: `${Math.max(10, width - p.x + 12)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        } else {
+          tooltipStyle = {
+            left: `${Math.max(10, p.x + 12)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        }
 
         return (
           <div
-            className="pointer-events-none absolute z-10 w-max rounded-xl border border-slate-200 dark:border-zinc-700/50 bg-white/95 dark:bg-zinc-900/95 p-3 text-left text-[11px] leading-normal text-slate-800 dark:text-white shadow-xl shadow-slate-900/10 dark:shadow-black/60 overflow-hidden backdrop-blur-md"
-            style={{
-              left: `${percentX}%`,
-              top: '12%',
-              transform: isRightHalf ? 'translate(-105%, 0)' : 'translate(5%, 0)',
-              maxWidth: '240px',
-            }}
+            className="pointer-events-none absolute z-20 w-max rounded-xl border border-slate-200 dark:border-zinc-700/60 bg-white/95 dark:bg-zinc-900/95 p-3 text-left text-[11px] leading-normal text-slate-800 dark:text-white shadow-xl shadow-slate-900/10 dark:shadow-black/60 overflow-hidden backdrop-blur-md"
+            style={tooltipStyle}
           >
             <div className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-zinc-400 break-words">{p.label}</div>
             <div className="mt-1 flex items-baseline gap-1.5 flex-wrap">
@@ -602,22 +691,50 @@ const TrendChart: React.FC<{
   );
 };
 
-const RiskTrendChart: React.FC<{
+const DesktopRiskTrendChart: React.FC<{
   data: RiskTrendPoint[];
   total: number;
   isSingleStudent: boolean;
   studentName?: string;
-  emptyLabel: string;
-}> = ({ data, total, isSingleStudent, studentName, emptyLabel }) => {
+}> = ({ data, total, isSingleStudent, studentName }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(800);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const width = 800;
-  const height = 160;
+
+  useEffect(() => {
+    setHoveredIdx(null);
+  }, [data]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        if (rect.width > 0) setContainerWidth(Math.round(rect.width));
+      }
+    };
+    updateSize();
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0) {
+          setContainerWidth(Math.round(entry.contentRect.width));
+        }
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [data.length]);
+
+  const width = Math.max(300, containerWidth);
+  const height = 208;
   const paddingLeft = 48;
-  const paddingRight = 6;
-  const paddingTop = 15;
+  const paddingRight = 16;
+  const paddingTop = 16;
   const paddingBottom = 28;
-  const chartWidth = width - paddingLeft - paddingRight;
-  const chartHeight = height - paddingTop - paddingBottom;
+  const chartWidth = Math.max(10, width - paddingLeft - paddingRight);
+  const chartHeight = Math.max(10, height - paddingTop - paddingBottom);
   const { maxValue, axisSteps } = useMemo(() => {
     if (isSingleStudent) {
       return { maxValue: 1, axisSteps: [0, 1] };
@@ -660,90 +777,147 @@ const RiskTrendChart: React.FC<{
     { key: 'low' as const, color: '#22C55E', label: 'Low Risk' },
   ];
   const barWidth = Math.max(14, Math.min(34, (chartWidth / (data.length || 1)) * 0.35));
-  const getBarX = (index: number) => paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1 || 1);
-
-  if (total === 0 || data.length === 0) {
-    return (
-      <div className="flex h-52 w-full flex-col items-center justify-center gap-1.5 text-center">
-        <Users className="h-6 w-6 text-gray-300 dark:text-zinc-600" />
-        <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500">{emptyLabel}</p>
-      </div>
-    );
-  }
+  const getBarX = (index: number) => {
+    if (data.length <= 1) {
+      return paddingLeft + chartWidth / 2;
+    }
+    return paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1);
+  };
 
   return (
-    <div className="relative overflow-hidden">
-      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="h-52 w-full overflow-visible">
+    <div ref={containerRef} className="relative w-full overflow-hidden">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="h-52 w-full overflow-visible select-none"
+        role="img"
+        aria-label="Risk level trend chart"
+      >
         {axisSteps.map((value) => {
           const y = paddingTop + chartHeight - (value / maxValue) * chartHeight;
           return (
             <g key={value}>
-              <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="var(--slate-200)" strokeWidth="0.5" strokeDasharray="3 3" opacity="0.6" />
-              <text x={paddingLeft - 12} y={y + 3} textAnchor="end" className="fill-slate-400 font-semibold text-[8px]">{value}</text>
+              <line
+                x1={paddingLeft}
+                y1={y}
+                x2={width - paddingRight}
+                y2={y}
+                stroke="var(--slate-200)"
+                strokeWidth="0.5"
+                strokeDasharray="3 3"
+                opacity="0.6"
+              />
+              <text
+                x={paddingLeft - 12}
+                y={y + 3.5}
+                textAnchor="end"
+                className="fill-slate-400 font-semibold text-[10px]"
+              >
+                {value}
+              </text>
             </g>
           );
         })}
         {data.map((point, index) => {
           const x = getBarX(index);
-          let currentY = paddingTop + chartHeight;
+          let currentBottom = paddingTop + chartHeight;
+          const bars = [...series].reverse().map((item) => {
+            const barHeight = (point[item.key] / maxValue) * chartHeight;
+            currentBottom -= barHeight;
+            return (
+              <rect
+                key={item.key}
+                x={x - barWidth / 2}
+                y={currentBottom}
+                width={barWidth}
+                height={barHeight}
+                fill={item.color}
+                fillOpacity="0.82"
+                stroke="white"
+                strokeWidth="1.25"
+                strokeOpacity="0.8"
+              />
+            );
+          });
           return (
-            <g key={point.dateKey} className="cursor-pointer" onMouseEnter={() => setHoveredIdx(index)} onMouseLeave={() => setHoveredIdx(null)}>
-              {series.map((item) => {
-                const count = point[item.key];
-                if (count <= 0) return null;
-                const segmentHeight = (count / maxValue) * chartHeight;
-                currentY -= segmentHeight;
-                return (
-                  <rect
-                    key={item.key}
-                    x={x - barWidth / 2}
-                    y={currentY}
-                    width={barWidth}
-                    height={segmentHeight}
-                    fill={item.color}
-                    rx="1.5"
-                    className="transition-opacity hover:opacity-85"
-                  />
-                );
-              })}
-              <text x={x} y={height - 8} textAnchor="middle" className="fill-slate-400 font-semibold text-[8px]">{point.label}</text>
+            <g
+              key={point.dateKey}
+              onMouseEnter={() => setHoveredIdx(index)}
+              onMouseLeave={() => setHoveredIdx(null)}
+            >
+              <text
+                x={x}
+                y={height - 6}
+                textAnchor="middle"
+                className="fill-slate-500 font-semibold text-[10px]"
+              >
+                {point.label}
+              </text>
+              {bars}
+              <rect
+                x={x - barWidth / 2}
+                y={paddingTop}
+                width={barWidth}
+                height={chartHeight}
+                fill="transparent"
+                className="cursor-pointer"
+              />
             </g>
           );
         })}
+        {hoveredIdx !== null && data[hoveredIdx] && (
+          <rect
+            x={getBarX(hoveredIdx) - barWidth / 2}
+            y={paddingTop}
+            width={barWidth}
+            height={chartHeight}
+            fill="none"
+            stroke="#0052B7"
+            strokeWidth="1.5"
+            opacity="0.8"
+          />
+        )}
       </svg>
       {hoveredIdx !== null && data[hoveredIdx] && (() => {
-        const point = data[hoveredIdx];
         const barX = getBarX(hoveredIdx);
-        const percentX = (barX / width) * 100;
-        const isRightHalf = percentX > 50;
+        const isRightHalf = barX > width * 0.5;
+        const maxTooltipWidth = Math.min(240, Math.max(150, width - 24));
+
+        let tooltipStyle: React.CSSProperties;
+        if (isRightHalf) {
+          tooltipStyle = {
+            right: `${Math.max(10, width - (barX - barWidth / 2) + 14)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        } else {
+          tooltipStyle = {
+            left: `${Math.max(10, barX + barWidth / 2 + 14)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: `${maxTooltipWidth}px`,
+          };
+        }
+
         return (
           <div
             className="pointer-events-none absolute z-10 w-max rounded-xl border border-slate-200 dark:border-zinc-700/50 bg-white/95 dark:bg-zinc-900/95 p-3 text-left text-[11px] leading-normal text-slate-800 dark:text-white shadow-xl shadow-slate-900/10 dark:shadow-black/60 overflow-hidden backdrop-blur-md"
-            style={{
-              left: `${percentX}%`,
-              top: '12%',
-              transform: isRightHalf ? 'translate(-105%, 0)' : 'translate(5%, 0)',
-              maxWidth: '240px',
-            }}
+            style={tooltipStyle}
           >
-            <div className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-zinc-400">{point.label}</div>
-            {isSingleStudent && studentName && (
-              <div className="mt-0.5 text-xs font-bold text-slate-700 dark:text-zinc-200">{studentName}</div>
-            )}
-            <div className="mt-1.5 space-y-1">
-              <div className="flex items-center justify-between gap-3 text-rose-600 dark:text-rose-400">
-                <span className="flex items-center gap-1.5 text-[10px]"><span className="h-2 w-2 rounded-full bg-rose-500" />High Risk:</span>
-                <span className="font-mono font-bold text-[11px]">{point.high}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 text-amber-600 dark:text-amber-400">
-                <span className="flex items-center gap-1.5 text-[10px]"><span className="h-2 w-2 rounded-full bg-amber-500" />Medium Risk:</span>
-                <span className="font-mono font-bold text-[11px]">{point.medium}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 text-emerald-600 dark:text-emerald-400">
-                <span className="flex items-center gap-1.5 text-[10px]"><span className="h-2 w-2 rounded-full bg-emerald-500" />Low Risk:</span>
-                <span className="font-mono font-bold text-[11px]">{point.low}</span>
-              </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-zinc-400 break-words">{data[hoveredIdx].label}</span>
+              {isSingleStudent && studentName && (
+                <span className="text-[9.5px] font-semibold text-slate-500 dark:text-zinc-400 truncate max-w-[140px]" title={studentName}>
+                  {studentName}
+                </span>
+              )}
             </div>
+            {series.map((item) => (
+              <div key={item.key} className="mt-1 flex items-center justify-between gap-4">
+                <span style={{ color: item.color }}>{item.label}</span>
+                <span className="font-bold text-slate-800 dark:text-white">{data[hoveredIdx][item.key]}</span>
+              </div>
+            ))}
           </div>
         );
       })()}
@@ -751,7 +925,352 @@ const RiskTrendChart: React.FC<{
   );
 };
 
+const MobileRiskTrendChart: React.FC<{
+  data: RiskTrendPoint[];
+  total: number;
+  isSingleStudent: boolean;
+  studentName?: string;
+  trendFilter: TrendFilter;
+}> = ({ data, total, isSingleStudent, studentName, trendFilter }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(320);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        if (rect.width > 0) setContainerWidth(Math.round(rect.width));
+      }
+    };
+    updateSize();
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0) {
+          setContainerWidth(Math.round(entry.contentRect.width));
+        }
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const width = containerWidth;
+  const height = 196;
+  const paddingLeft = isSingleStudent ? 24 : 32;
+  const paddingRight = 16;
+  const paddingTop = 14;
+  const paddingBottom = trendFilter === 'month' ? 24 : 34;
+
+  const chartWidth = Math.max(10, width - paddingLeft - paddingRight);
+  const chartHeight = Math.max(10, height - paddingTop - paddingBottom);
+
+  const { maxValue, axisSteps } = useMemo(() => {
+    if (isSingleStudent) {
+      return { maxValue: 1, axisSteps: [0, 1] };
+    }
+    const safeTotal = Math.max(1, total);
+    let step = 5;
+    if (safeTotal <= 10) {
+      step = 2;
+    } else if (safeTotal <= 35) {
+      step = 5;
+    } else if (safeTotal <= 70) {
+      step = 10;
+    } else if (safeTotal <= 120) {
+      step = 20;
+    } else if (safeTotal <= 250) {
+      step = 50;
+    } else {
+      step = 100;
+    }
+
+    const calculatedMax = Math.max(step, Math.ceil(safeTotal / step) * step);
+    const steps: number[] = [];
+    for (let val = 0; val <= calculatedMax; val += step) {
+      steps.push(val);
+    }
+    return { maxValue: calculatedMax, axisSteps: steps };
+  }, [total, isSingleStudent]);
+
+  const series = [
+    { key: 'high' as const, color: '#EF4444', label: 'High Risk' },
+    { key: 'medium' as const, color: '#F59E0B', label: 'Medium Risk' },
+    { key: 'low' as const, color: '#22C55E', label: 'Low Risk' },
+  ];
+
+  const barWidth = Math.max(10, Math.min(18, (chartWidth / (data.length || 1)) * 0.42));
+  const getBarX = (index: number) =>
+    paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1 || 1);
+
+  const getLabelLines = (label: string): [string, string?] => {
+    if (trendFilter === 'week') {
+      const parts = label.split(/\s*[–—\-]\s*/);
+      if (parts.length === 2) {
+        return [parts[0].trim(), `–${parts[1].trim()}`];
+      }
+      return [label];
+    }
+    if (trendFilter === 'day') {
+      const parts = label.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return [parts[0], parts.slice(1).join(' ')];
+      }
+      return [label];
+    }
+    if (trendFilter === 'month') {
+      return [label.split(' ')[0] || label];
+    }
+    return [label];
+  };
+
+  return (
+    <div ref={containerRef} className="relative select-none w-full max-w-full min-w-0 h-[196px] overflow-hidden">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-full block"
+        role="img"
+        aria-label="Risk level trend chart"
+      >
+        {/* Horizontal Grid lines and Y-axis labels */}
+        {axisSteps.map((value) => {
+          const y = paddingTop + chartHeight - (value / maxValue) * chartHeight;
+          return (
+            <g key={value}>
+              <line
+                x1={paddingLeft}
+                y1={y}
+                x2={width - paddingRight}
+                y2={y}
+                stroke="var(--slate-200, #E2E8F0)"
+                strokeWidth="0.75"
+                strokeDasharray="3 3"
+                className="opacity-70 dark:opacity-20"
+              />
+              <text
+                x={paddingLeft - 6}
+                y={y + 3}
+                textAnchor="end"
+                className="fill-slate-400 dark:fill-slate-400 font-semibold text-[9px]"
+              >
+                {value}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Bars and X-axis Labels */}
+        {data.map((point, index) => {
+          const x = getBarX(index);
+          const [line1, line2] = getLabelLines(point.label);
+
+          const highCount = point.high || 0;
+          const medCount = point.medium || 0;
+          const lowCount = point.low || 0;
+          const pointTotal = isSingleStudent ? 1 : (highCount + medCount + lowCount);
+
+          const lowH = (lowCount / maxValue) * chartHeight;
+          const medH = (medCount / maxValue) * chartHeight;
+          const highH = (highCount / maxValue) * chartHeight;
+          const totalBarH = lowH + medH + highH;
+
+          const segments = [
+            { key: 'low', color: '#22C55E', height: lowH, count: lowCount },
+            { key: 'medium', color: '#F59E0B', height: medH, count: medCount },
+            { key: 'high', color: '#EF4444', height: highH, count: highCount },
+          ];
+
+          let currentY = paddingTop + chartHeight;
+          const isHovered = hoveredIdx === index;
+
+          return (
+            <g
+              key={point.dateKey}
+              onMouseEnter={() => setHoveredIdx(index)}
+              onMouseLeave={() => setHoveredIdx(null)}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                setHoveredIdx(hoveredIdx === index ? null : index);
+              }}
+              onClick={() => setHoveredIdx(hoveredIdx === index ? null : index)}
+              className="cursor-pointer"
+            >
+              {/* Stacked Bar segments */}
+              {segments.map((seg) => {
+                if (seg.height <= 0) return null;
+                currentY -= seg.height;
+                return (
+                  <rect
+                    key={seg.key}
+                    x={x - barWidth / 2}
+                    y={currentY}
+                    width={barWidth}
+                    height={seg.height}
+                    fill={seg.color}
+                    fillOpacity={isHovered ? 1 : 0.88}
+                    stroke="#FFFFFF"
+                    strokeWidth="1.2"
+                    rx={seg.key === 'high' || (seg.key === 'medium' && highH === 0) || (seg.key === 'low' && highH === 0 && medH === 0) ? 3 : 0}
+                  />
+                );
+              })}
+
+              {/* Hover outline ring */}
+              {isHovered && totalBarH > 0 && (
+                <rect
+                  x={x - barWidth / 2 - 2}
+                  y={paddingTop + chartHeight - totalBarH - 2}
+                  width={barWidth + 4}
+                  height={totalBarH + 4}
+                  fill="none"
+                  stroke="#0052B7"
+                  strokeWidth="1.75"
+                  rx={4}
+                  className="pointer-events-none"
+                />
+              )}
+
+              {/* Complete X-Axis Date Labels Under Every Bar */}
+              {line2 ? (
+                <text
+                  x={x}
+                  y={paddingTop + chartHeight + 13}
+                  textAnchor="middle"
+                  className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[8.5px]"
+                >
+                  <tspan x={x} dy="0">{line1}</tspan>
+                  <tspan x={x} dy="10">{line2}</tspan>
+                </text>
+              ) : (
+                <text
+                  x={x}
+                  y={height - 6}
+                  textAnchor="middle"
+                  className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[9px]"
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  {line1}
+                </text>
+              )}
+
+              {/* Touch hit region */}
+              <rect
+                x={x - Math.max(barWidth, chartWidth / (data.length || 1)) / 2}
+                y={paddingTop}
+                width={Math.max(barWidth, chartWidth / (data.length || 1))}
+                height={chartHeight + paddingBottom}
+                fill="transparent"
+              />
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Floating Mobile Tooltip matching StudentAnalytics */}
+      {hoveredIdx !== null && data[hoveredIdx] && (() => {
+        const p = data[hoveredIdx];
+        const barX = getBarX(hoveredIdx);
+        const maxTooltipWidth = Math.min(210, Math.max(150, width - 20));
+        const leftPos = Math.max(8, Math.min(width - maxTooltipWidth - 8, barX - maxTooltipWidth / 2));
+
+        const highCount = p.high || 0;
+        const medCount = p.medium || 0;
+        const lowCount = p.low || 0;
+        const pointTotal = isSingleStudent ? 1 : (highCount + medCount + lowCount);
+
+        return (
+          <div
+            className="pointer-events-none absolute z-20 w-max rounded-xl border border-slate-200 dark:border-zinc-700/60 bg-white/95 dark:bg-zinc-900/95 p-2.5 text-left text-[11px] leading-normal text-slate-800 dark:text-white shadow-xl dark:shadow-2xl shadow-slate-900/10 dark:shadow-black/60 backdrop-blur-sm"
+            style={{
+              left: `${leftPos}px`,
+              top: '8px',
+              maxWidth: `${maxTooltipWidth}px`,
+            }}
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-zinc-700/80 pb-1 mb-1.5">
+              <span className="text-[10px] font-bold uppercase text-slate-700 dark:text-zinc-200">{p.label}</span>
+              {isSingleStudent && studentName && (
+                <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 truncate max-w-[100px]" title={studentName}>
+                  {studentName}
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              {series.map((item) => {
+                const count = p[item.key] || 0;
+                const pct = pointTotal > 0 ? Math.round((count / pointTotal) * 100) : 0;
+                return (
+                  <div key={item.key} className="flex items-center justify-between gap-4 text-[11px] font-medium">
+                    <span className="flex items-center gap-1.5" style={{ color: item.color }}>
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                      {item.label}
+                    </span>
+                    <span className="font-bold text-slate-800 dark:text-white">
+                      {isSingleStudent ? (count > 0 ? 'Active' : 'No') : `${count} (${pct}%)`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {!isSingleStudent && (
+              <div className="mt-1.5 pt-1 border-t border-slate-100 dark:border-zinc-700/80 flex items-center justify-between text-[10px] text-slate-500 dark:text-zinc-400 font-semibold">
+                <span>Total evaluated</span>
+                <span className="text-slate-800 dark:text-white">{pointTotal} students</span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+    </div>
+  );
+};
+
+const RiskTrendChart: React.FC<{
+  data: RiskTrendPoint[];
+  total: number;
+  isSingleStudent: boolean;
+  studentName?: string;
+  emptyLabel?: string;
+  trendFilter?: TrendFilter;
+}> = ({ data, total, isSingleStudent, studentName, emptyLabel = 'No recorded performance data', trendFilter = 'week' }) => {
+  if (data.length === 0) {
+    return (
+      <div className="flex h-52 items-center justify-center text-xs font-medium text-gray-400 dark:text-slate-500">
+        {emptyLabel}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* ── DESKTOP VIEW (Preserves original desktop layout exactly) ── */}
+      <div className="hidden sm:block">
+        <DesktopRiskTrendChart
+          data={data}
+          total={total}
+          isSingleStudent={isSingleStudent}
+          studentName={studentName}
+        />
+      </div>
+
+      {/* ── MOBILE VIEW (Phone-specific responsive layout, readable labels, no clipping) ── */}
+      <div className="block sm:hidden">
+        <MobileRiskTrendChart
+          data={data}
+          total={total}
+          isSingleStudent={isSingleStudent}
+          studentName={studentName}
+          trendFilter={trendFilter}
+        />
+      </div>
+    </>
+  );
+};
 
 const smartPct = (n: number): string => parseFloat(n.toFixed(2)).toString();
 
@@ -800,6 +1319,7 @@ const getStudentDisplayName = (student?: User | null): string => {
 
 const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; onChange: (value: RiskScope) => void }> = ({ rows, value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuAlign, setMenuAlign] = useState<'left' | 'right'>('left');
   const filterRef = useRef<HTMLDivElement>(null);
   const selectedRow = rows.find((row) => String(row.student.id) === value);
   const selectedLabel = value === 'all' ? 'ALL STUDENTS' : (selectedRow ? getStudentDisplayName(selectedRow.student) : 'ALL STUDENTS');
@@ -812,12 +1332,29 @@ const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; o
     });
   }, [rows]);
 
+  const handleToggle = () => {
+    if (!isOpen && filterRef.current) {
+      const rect = filterRef.current.getBoundingClientRect();
+      const screenW = window.innerWidth || document.documentElement.clientWidth;
+      if (rect.left + 210 > screenW - 16) {
+        setMenuAlign('right');
+      } else {
+        setMenuAlign('left');
+      }
+    }
+    setIsOpen((open) => !open);
+  };
+
   useEffect(() => {
-    const closeMenu = (event: MouseEvent) => {
+    const closeMenu = (event: MouseEvent | TouchEvent) => {
       if (filterRef.current && !filterRef.current.contains(event.target as Node)) setIsOpen(false);
     };
     document.addEventListener('mousedown', closeMenu);
-    return () => document.removeEventListener('mousedown', closeMenu);
+    document.addEventListener('touchstart', closeMenu);
+    return () => {
+      document.removeEventListener('mousedown', closeMenu);
+      document.removeEventListener('touchstart', closeMenu);
+    };
   }, []);
 
   return (
@@ -827,15 +1364,15 @@ const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; o
         aria-label="Filter chart by student"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        onClick={() => setIsOpen((open) => !open)}
-        className="flex h-8 sm:h-9 w-28 xs:w-36 sm:min-w-40 items-center justify-between gap-1.5 sm:gap-3 rounded-xl border border-gray-200 bg-gray-50 dark:border-[#1A1A1A] dark:bg-[#111111] px-2 sm:px-3 text-[11px] sm:text-xs font-semibold tracking-normal text-gray-700 dark:text-slate-200 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shrink-0"
+        onClick={handleToggle}
+        className="flex h-8 sm:h-9 min-w-[130px] max-w-[180px] sm:min-w-40 items-center justify-between gap-1.5 sm:gap-3 rounded-xl border border-gray-200 bg-gray-50 dark:border-[#1A1A1A] dark:bg-[#111111] px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold tracking-normal text-gray-700 dark:text-slate-200 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shrink-0"
         style={{ fontFamily: 'var(--font-body)' }}
       >
         <span className="truncate">{selectedLabel}</span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       {isOpen && (
-        <div className="absolute right-0 sm:left-0 top-full z-50 mt-2 max-h-60 min-w-[200px] sm:min-w-full overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl" role="listbox">
+        <div className={`absolute ${menuAlign === 'right' ? 'right-0' : 'left-0'} top-full z-50 mt-2 max-h-60 min-w-[200px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl`} role="listbox">
           <button
             type="button"
             role="option"
@@ -882,6 +1419,7 @@ export const PrincipalAnalytics: React.FC = () => {
     return requestedTutor || 'all';
   });
   const [isTutorDropdownOpen, setIsTutorDropdownOpen] = useState(false);
+  const [tutorMenuAlign, setTutorMenuAlign] = useState<'left' | 'right'>('left');
   const tutorDropdownRef = useRef<HTMLDivElement>(null);
 
   // Class Filter state (select which class of tutor to see)
@@ -889,7 +1427,36 @@ export const PrincipalAnalytics: React.FC = () => {
     return new URLSearchParams(window.location.search).get('class') || 'all';
   });
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
+  const [classMenuAlign, setClassMenuAlign] = useState<'left' | 'right'>('left');
   const classDropdownRef = useRef<HTMLDivElement>(null);
+
+  const handleToggleTutorDropdown = () => {
+    if (!isTutorDropdownOpen && tutorDropdownRef.current) {
+      const rect = tutorDropdownRef.current.getBoundingClientRect();
+      const screenW = window.innerWidth || document.documentElement.clientWidth;
+      if (rect.left + 260 > screenW - 16) {
+        setTutorMenuAlign('right');
+      } else {
+        setTutorMenuAlign('left');
+      }
+    }
+    setIsTutorDropdownOpen((prev) => !prev);
+    setIsClassDropdownOpen(false);
+  };
+
+  const handleToggleClassDropdown = () => {
+    if (!isClassDropdownOpen && classDropdownRef.current) {
+      const rect = classDropdownRef.current.getBoundingClientRect();
+      const screenW = window.innerWidth || document.documentElement.clientWidth;
+      if (rect.left + 260 > screenW - 16) {
+        setClassMenuAlign('right');
+      } else {
+        setClassMenuAlign('left');
+      }
+    }
+    setIsClassDropdownOpen((prev) => !prev);
+    setIsTutorDropdownOpen(false);
+  };
 
   // Raw data from API
   const [allStudents, setAllStudents] = useState<User[]>([]);
@@ -918,7 +1485,7 @@ export const PrincipalAnalytics: React.FC = () => {
 
   // Close dropdowns when clicked outside
   useEffect(() => {
-    const closeDropdown = (e: MouseEvent) => {
+    const closeDropdown = (e: MouseEvent | TouchEvent) => {
       if (tutorDropdownRef.current && !tutorDropdownRef.current.contains(e.target as Node)) {
         setIsTutorDropdownOpen(false);
       }
@@ -927,7 +1494,11 @@ export const PrincipalAnalytics: React.FC = () => {
       }
     };
     document.addEventListener('mousedown', closeDropdown);
-    return () => document.removeEventListener('mousedown', closeDropdown);
+    document.addEventListener('touchstart', closeDropdown);
+    return () => {
+      document.removeEventListener('mousedown', closeDropdown);
+      document.removeEventListener('touchstart', closeDropdown);
+    };
   }, []);
 
   useEffect(() => {
@@ -1017,6 +1588,7 @@ export const PrincipalAnalytics: React.FC = () => {
         parsedTutors = Array.from(tutorMap.entries()).map(([id, name]) => ({ id, name }));
       }
 
+      parsedTutors.sort((a, b) => a.name.localeCompare(b.name));
       setTutors(parsedTutors);
       setAllStudents(Array.isArray(studentsData) ? studentsData : []);
       setAllGrades(Array.isArray(gradesData) ? gradesData : []);
@@ -1478,25 +2050,20 @@ export const PrincipalAnalytics: React.FC = () => {
   return (
     <div className="space-y-4 data-loaded-content w-full min-w-0 max-w-full" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
       {/* ── Filter Dropdowns (Tutor & Class) ── */}
-      <div className="relative z-40 flex flex-wrap items-center justify-between gap-2.5 min-w-0">
+      <div className={`relative flex flex-wrap items-center justify-between gap-2.5 min-w-0 ${isTutorDropdownOpen || isClassDropdownOpen ? 'z-30' : 'z-10'}`}>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0 flex-1">
           {/* Tutor Filter */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 shrink-0 flex items-center gap-1">
-              <Filter className="w-3.5 h-3.5 opacity-70" />
-              <span className="hidden xs:inline">FILTER BY TUTOR:</span>
-              <span className="xs:hidden">TUTOR:</span>
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 shrink-0">
+              TUTOR:
             </span>
-            <div className="relative z-50 shrink-0" ref={tutorDropdownRef}>
+            <div className={`relative shrink-0 ${isTutorDropdownOpen ? 'z-50' : 'z-20'}`} ref={tutorDropdownRef}>
               <button
                 type="button"
                 aria-label="Filter by Tutor"
                 aria-haspopup="listbox"
                 aria-expanded={isTutorDropdownOpen}
-                onClick={() => {
-                  setIsTutorDropdownOpen((prev) => !prev);
-                  setIsClassDropdownOpen(false);
-                }}
+                onClick={handleToggleTutorDropdown}
                 className="flex h-8 sm:h-9 min-w-36 xs:min-w-44 sm:min-w-48 items-center justify-between gap-2 sm:gap-3 rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold tracking-normal text-gray-900 dark:text-slate-100 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-2xs"
               >
                 <span className="truncate">{selectedTutorLabel}</span>
@@ -1504,7 +2071,7 @@ export const PrincipalAnalytics: React.FC = () => {
               </button>
               {isTutorDropdownOpen && (
                 <div
-                  className="absolute left-0 top-full z-50 mt-1 max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1 shadow-2xl"
+                  className={`absolute ${tutorMenuAlign === 'right' ? 'right-0' : 'left-0'} top-full z-50 mt-1 max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1 shadow-2xl`}
                   role="listbox"
                 >
                   <button
@@ -1520,7 +2087,9 @@ export const PrincipalAnalytics: React.FC = () => {
                   >
                     ALL TUTORS
                   </button>
-                  {tutors.map((t) => {
+                  {[...tutors]
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((t) => {
                     const isSel = selectedTutorId === t.id;
                     return (
                       <button
@@ -1549,16 +2118,13 @@ export const PrincipalAnalytics: React.FC = () => {
             <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 shrink-0">
               CLASS:
             </span>
-            <div className="relative z-50 shrink-0" ref={classDropdownRef}>
+            <div className={`relative shrink-0 ${isClassDropdownOpen ? 'z-50' : 'z-20'}`} ref={classDropdownRef}>
               <button
                 type="button"
                 aria-label="Filter by Class"
                 aria-haspopup="listbox"
                 aria-expanded={isClassDropdownOpen}
-                onClick={() => {
-                  setIsClassDropdownOpen((prev) => !prev);
-                  setIsTutorDropdownOpen(false);
-                }}
+                onClick={handleToggleClassDropdown}
                 className="flex h-8 sm:h-9 min-w-36 xs:min-w-44 sm:min-w-48 items-center justify-between gap-2 sm:gap-3 rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] px-2.5 sm:px-3 text-[11px] sm:text-xs font-semibold tracking-normal text-gray-900 dark:text-slate-100 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-2xs"
               >
                 <span className="truncate">{selectedClassLabel}</span>
@@ -1566,7 +2132,7 @@ export const PrincipalAnalytics: React.FC = () => {
               </button>
               {isClassDropdownOpen && (
                 <div
-                  className="absolute left-0 top-full z-50 mt-1 max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1 shadow-2xl"
+                  className={`absolute ${classMenuAlign === 'right' ? 'right-0' : 'left-0'} top-full z-50 mt-1 max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1 shadow-2xl`}
                   role="listbox"
                 >
                   <button
@@ -1617,13 +2183,6 @@ export const PrincipalAnalytics: React.FC = () => {
           </div>
         </div>
 
-        {/* Subtitle / Counter */}
-        <div className="text-[10px] sm:text-[11px] font-medium text-gray-400 dark:text-slate-500 shrink-0 truncate">
-          <span className="hidden sm:inline">
-            Showing {selectedTutorLabel} {selectedClassId !== 'all' ? `• ${selectedClassLabel}` : ''}{' '}
-          </span>
-          ({activeStudents.length} {activeStudents.length === 1 ? 'Student' : 'Students'})
-        </div>
       </div>
 
       {/* ── Main Tab Switcher ── */}
@@ -1700,13 +2259,15 @@ export const PrincipalAnalytics: React.FC = () => {
           </div>
 
           {/* ── Risk Level Trend Chart ── */}
-          <section className="rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]" aria-labelledby="risk-overview-heading">
-            <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
-              <div className="min-w-0 flex-1 truncate">
-                <h3 id="risk-overview-heading" className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">{riskLevelTrendTitle}</h3>
+          <section className="rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]" aria-labelledby="risk-overview-heading">
+            <div className="flex flex-col gap-2.5 sm:gap-3 border-b border-gray-100 pb-3 sm:pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+              <div>
+                <h3 id="risk-overview-heading" className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100">
+                  {riskLevelTrendTitle}
+                </h3>
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-visible relative">
-                <div className="hidden xs:flex items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#EF4444' }} />High Risk</span>
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#F59E0B' }} />Medium Risk</span>
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#22C55E' }} />Low Risk</span>
@@ -1720,7 +2281,7 @@ export const PrincipalAnalytics: React.FC = () => {
                       key={filter}
                       type="button"
                       onClick={() => setRiskTrendFilter(filter)}
-                      className={`cursor-pointer rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all whitespace-nowrap ${
+                      className={`cursor-pointer rounded-sm px-2.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all whitespace-nowrap ${
                         riskTrendFilter === filter
                           ? 'bg-[var(--brand)] text-white shadow-xs'
                           : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
@@ -1733,12 +2294,13 @@ export const PrincipalAnalytics: React.FC = () => {
               </div>
             </div>
             <div className="mt-4">
-              <div className="relative rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+              <div className="relative rounded-md border border-gray-100 bg-gray-50/60 p-2 sm:p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
                 <RiskTrendChart
                   data={riskTrend}
                   total={riskScopedRows.length}
                   isSingleStudent={riskScope !== 'all'}
                   studentName={selectedRiskStudent?.full_name}
+                  trendFilter={riskTrendFilter}
                   emptyLabel={
                     riskTrendFilter === 'day'
                       ? 'No recorded performance data today'
@@ -1811,13 +2373,15 @@ export const PrincipalAnalytics: React.FC = () => {
           </div>
 
           {/* Attendance Trend Chart */}
-          <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-            <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
-              <div className="min-w-0 flex-1 truncate">
-                <h3 className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">{attendanceTrendTitle}</h3>
+          <div className="w-full rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+            <div className="flex flex-col gap-2.5 sm:gap-3 border-b border-gray-100 pb-3 sm:pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+              <div>
+                <h3 className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100">
+                  {attendanceTrendTitle}
+                </h3>
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-visible relative">
-                <div className="hidden xs:flex items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0">
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Attendance Rate</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0 relative">
@@ -1829,7 +2393,7 @@ export const PrincipalAnalytics: React.FC = () => {
                       key={filter}
                       type="button"
                       onClick={() => setAttendanceFilter(filter)}
-                      className={`rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
+                      className={`rounded-sm px-2.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                         attendanceFilter === filter
                           ? 'bg-[var(--brand)] text-white shadow-xs'
                           : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
@@ -1917,13 +2481,15 @@ export const PrincipalAnalytics: React.FC = () => {
           </div>
 
           {/* Score Trend Chart */}
-          <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
-            <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
-              <div className="min-w-0 flex-1 truncate">
-                <h3 className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100 truncate">{scoreTrendTitle}</h3>
+          <div className="w-full rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+            <div className="flex flex-col gap-2.5 sm:gap-3 border-b border-gray-100 pb-3 sm:pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+              <div>
+                <h3 className="text-xs sm:text-sm font-bold uppercase text-gray-900 dark:text-slate-100">
+                  {scoreTrendTitle}
+                </h3>
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap overflow-visible relative">
-                <div className="hidden xs:flex items-center gap-2 sm:gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0 whitespace-nowrap">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-slate-300 shrink-0">
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Average Score</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 shrink-0 relative">
@@ -1935,7 +2501,7 @@ export const PrincipalAnalytics: React.FC = () => {
                       key={filter}
                       type="button"
                       onClick={() => setScoreFilter(filter)}
-                      className={`rounded-sm px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
+                      className={`rounded-sm px-2.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
                         scoreFilter === filter
                           ? 'bg-[var(--brand)] text-white shadow-xs'
                           : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
