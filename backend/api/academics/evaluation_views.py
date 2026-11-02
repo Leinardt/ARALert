@@ -93,17 +93,19 @@ class CurrentSchoolYearView(APIView):
 
         data = SchoolYearSerializer(sy).data
 
-        # Check if an explicit semester transition was logged for this school year, otherwise default to 2nd Semester (EOSY)
-        last_sem_log = AuditLog.objects.filter(action='SEMESTER_TRANSITION_SET').order_by('-timestamp').first()
-        if (
-            last_sem_log
-            and isinstance(last_sem_log.details, dict)
-            and last_sem_log.details.get('school_year') == sy.school_year
-            and last_sem_log.details.get('semester') in ('1st', '2nd', 'summer')
-        ):
-            active_semester = last_sem_log.details.get('semester')
-        else:
-            active_semester = '2nd'
+        # Determine active semester: prefer SchoolYear.current_semester, fallback to audit log or '2nd'
+        active_semester = getattr(sy, 'current_semester', None)
+        if not active_semester:
+            last_sem_log = AuditLog.objects.filter(action='SEMESTER_TRANSITION_SET').order_by('-timestamp').first()
+            if (
+                last_sem_log
+                and isinstance(last_sem_log.details, dict)
+                and last_sem_log.details.get('school_year') == sy.school_year
+                and last_sem_log.details.get('semester') in ('1st', '2nd', 'summer')
+            ):
+                active_semester = last_sem_log.details.get('semester')
+            else:
+                active_semester = '2nd'
 
         data['current_semester'] = active_semester
         data['current_period'] = active_semester
@@ -134,6 +136,10 @@ class CurrentSchoolYearView(APIView):
             return Response({'error': 'Invalid semester. Allowed: 1st, 2nd, summer.'}, status=status.HTTP_400_BAD_REQUEST)
 
         sy = SchoolYear.objects.filter(is_active=True).first()
+        if sy and hasattr(sy, 'current_semester'):
+            sy.current_semester = semester
+            sy.save(update_fields=['current_semester'])
+
         milestone = 'MOSY' if semester == '1st' else ('EOSY' if semester == '2nd' else 'ARAL Summer Assessment')
         
         log_audit_event(

@@ -311,9 +311,15 @@ class SchoolYear(models.Model):
         ACTIVE   = 'ACTIVE',   'Active'
         ARCHIVED = 'ARCHIVED', 'Archived'
 
-    school_year = models.CharField(max_length=20, unique=True, verbose_name='School Year')
-    status      = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
-    is_active   = models.BooleanField(default=True)
+    class Semester(models.TextChoices):
+        FIRST  = '1st',    '1st'
+        SECOND = '2nd',    '2nd'
+        SUMMER = 'summer', 'summer'
+
+    school_year      = models.CharField(max_length=20, unique=True, verbose_name='School Year')
+    status           = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    current_semester = models.CharField(max_length=10, choices=Semester.choices, default=Semester.SECOND, verbose_name='Current Semester')
+    is_active        = models.BooleanField(default=True)
     start_date  = models.DateField(null=True, blank=True)
     end_date    = models.DateField(null=True, blank=True)
     created_at  = models.DateTimeField(default=timezone.now)
@@ -937,6 +943,13 @@ try:
                 if _cols and 'created_at' not in _cols:
                     _cur.execute("ALTER TABLE api_grade ADD COLUMN created_at datetime")
                     _cur.execute("UPDATE api_grade SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
+    if 'api_attendance' in connection.introspection.table_names():
+        with connection.cursor() as _cur:
+            if connection.vendor == 'sqlite':
+                _cur.execute("PRAGMA table_info(api_attendance)")
+                _cols = [row[1] for row in _cur.fetchall()]
+                if _cols and 'school_year_id' not in _cols:
+                    _cur.execute("ALTER TABLE api_attendance ADD COLUMN school_year_id integer REFERENCES school_year(id)")
 except Exception:
     pass
 
@@ -1051,6 +1064,11 @@ class ApiAttendance(models.Model):
         ApiAralActivity, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='api_attendances',
         db_column='aral_activity_id',
+    )
+    school_year   = models.ForeignKey(
+        SchoolYear, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='api_attendance_records',
+        db_column='school_year_id',
     )
     role         = models.CharField(max_length=20)
     date         = models.DateField()

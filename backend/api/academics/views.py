@@ -20,6 +20,7 @@ from apps.academics.models import (
     ApiAttendance,
     ApiAttendanceSession,
     ApiGrade,
+    SchoolYear,
 )
 from apps.accounts.models import User
 from utilities.audit import log_audit_event
@@ -789,6 +790,7 @@ def finalize_session_attendance(session, target_student_ids=None):
         .values_list('user_id', flat=True)
     )
 
+    active_sy = SchoolYear.objects.filter(is_active=True).first()
     absent_records = []
     for student in assigned_students:
         if student.id not in existing_student_ids:
@@ -797,6 +799,7 @@ def finalize_session_attendance(session, target_student_ids=None):
                     user=student,
                     tutor=tutor,
                     session=session,
+                    school_year=active_sy,
                     role='student',
                     date=today,
                     status='absent',
@@ -966,6 +969,7 @@ class AttendanceScanView(APIView):
                         'attendance': AttendanceSerializer(existing_att).data,
                     }, status=status.HTTP_400_BAD_REQUEST)
 
+                active_sy = SchoolYear.objects.filter(is_active=True).first()
                 attendance = ApiAttendance.objects.create(
                     user          = student_candidate,
                     role          = 'student',
@@ -975,6 +979,7 @@ class AttendanceScanView(APIView):
                     tutor         = active_session.creator,
                     aral_activity = active_session.aral_activity,
                     session       = active_session,
+                    school_year   = active_sy,
                 )
 
                 log_audit_event(
@@ -1068,6 +1073,7 @@ class AttendanceScanView(APIView):
             if ApiAttendance.objects.filter(user=user, session=session).exists():
                 return Response({'error': f"{user.get_full_name()} is already marked PRESENT for this session."}, status=status.HTTP_400_BAD_REQUEST)
 
+            active_sy = SchoolYear.objects.filter(is_active=True).first()
             attendance = ApiAttendance.objects.create(
                 user          = user,
                 role          = 'student',
@@ -1077,6 +1083,7 @@ class AttendanceScanView(APIView):
                 tutor         = session.creator,
                 aral_activity = session.aral_activity,
                 session       = session,
+                school_year   = active_sy,
             )
 
             log_audit_event(
@@ -1118,13 +1125,15 @@ class AttendanceScanView(APIView):
             if action == 'time_in':
                 if ApiAttendance.objects.filter(user=user, date=today).exists():
                     return Response({'error': 'Already clocked in today.'}, status=status.HTTP_400_BAD_REQUEST)
+                active_sy = SchoolYear.objects.filter(is_active=True).first()
                 attendance = ApiAttendance.objects.create(
-                    user    = user,
-                    role    = user.role,
-                    date    = today,
-                    time_in = current_time,
-                    status  = 'present',
-                    session = session,
+                    user        = user,
+                    role        = user.role,
+                    date        = today,
+                    time_in     = current_time,
+                    status      = 'present',
+                    session     = session,
+                    school_year = active_sy,
                 )
 
                 log_audit_event(
@@ -1225,6 +1234,7 @@ class AttendanceManualLogView(APIView):
         if aral_activity_id:
             aral_activity = get_object_or_404(ApiAralActivity, id=aral_activity_id)
 
+        active_sy = SchoolYear.objects.filter(is_active=True).first()
         attendance, created = ApiAttendance.objects.get_or_create(
             user = student,
             date = log_date,
@@ -1234,13 +1244,18 @@ class AttendanceManualLogView(APIView):
                 'status':        status_val,
                 'tutor':         user,
                 'aral_activity': aral_activity,
+                'school_year':   active_sy,
             },
         )
         if not created:
             attendance.status = status_val
             if aral_activity:
                 attendance.aral_activity = aral_activity
-            attendance.save(update_fields=['status', 'aral_activity'])
+            if not attendance.school_year and active_sy:
+                attendance.school_year = active_sy
+                attendance.save(update_fields=['status', 'aral_activity', 'school_year'])
+            else:
+                attendance.save(update_fields=['status', 'aral_activity'])
 
         log_audit_event(
             'ATTENDANCE_MANUAL_LOGGED',
@@ -1281,6 +1296,9 @@ class AttendanceHistoryView(generics.ListAPIView):
         role_param    = self.request.query_params.get('role')
         status_param  = self.request.query_params.get('status')
         user_id_param = self.request.query_params.get('user_id')
+        sy_param      = self.request.query_params.get('school_year')
+        if sy_param:
+            qs = qs.filter(school_year_id=sy_param)
 
         if date_param:
             qs = qs.filter(date=date_param)
@@ -1481,7 +1499,10 @@ class StudentAcademicProfileView(APIView):
         gpa = round(sum(overall_scores) / len(overall_scores), 2) if overall_scores else None
 
         # Attendance
+        active_sy    = SchoolYear.objects.filter(is_active=True).first()
         att_logs     = ApiAttendance.objects.filter(user=student)
+        if active_sy:
+            att_logs = att_logs.filter(Q(school_year=active_sy) | Q(school_year__isnull=True))
         total_days   = att_logs.count()
         present_days = att_logs.filter(status='present').count()
         absent_days  = att_logs.filter(status='absent').count()

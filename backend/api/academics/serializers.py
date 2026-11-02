@@ -147,11 +147,12 @@ class AttendanceSerializer(serializers.ModelSerializer):
             'tutor', 'tutor_name',
             'aral_activity', 'aral_activity_title',
             'session',
+            'school_year',
         ]
         read_only_fields = [
             'id', 'user', 'role', 'tutor', 'session', 'aral_activity',
             'user_name', 'user_lrn', 'tutor_name',
-            'aral_activity_title', 'status_display',
+            'aral_activity_title', 'status_display', 'school_year',
         ]
 
     def validate(self, attrs):
@@ -188,7 +189,7 @@ class AttendanceSerializer(serializers.ModelSerializer):
 class SchoolYearSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchoolYear
-        fields = ['id', 'school_year', 'status', 'is_active', 'start_date', 'end_date', 'created_at', 'archived_at']
+        fields = ['id', 'school_year', 'status', 'is_active', 'current_semester', 'start_date', 'end_date', 'created_at', 'archived_at']
 
 
 class StudentEnrollmentSerializer(serializers.ModelSerializer):
