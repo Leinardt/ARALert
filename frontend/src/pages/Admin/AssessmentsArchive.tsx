@@ -365,7 +365,7 @@ export const AssessmentsArchive: React.FC = () => {
       return ['mosy', 'eosy', 'summer'];
     }
 
-    const curSem = currentSchoolYear?.current_semester || '1st';
+    const curSem = currentSchoolYear?.current_semester || '2nd';
     if (curSem === '2nd') {
       return ['mosy'];
     }
@@ -532,7 +532,8 @@ export const AssessmentsArchive: React.FC = () => {
       let retainedCount = 0;
       let pendingCount = 0;
 
-      const studentMetrics: StudentArchiveMetric[] = tutorStudents.map((st) => {
+      const studentMetrics: StudentArchiveMetric[] = [];
+      for (const st of tutorStudents) {
         // Filter student grades strictly to the selected concluded semester
         const sGrades = grades.filter((g) => {
           const sid = typeof g.student === 'object' && g.student !== null ? (g.student as any).id : g.student;
@@ -649,12 +650,20 @@ export const AssessmentsArchive: React.FC = () => {
           assessmentScoreStr = 'Passed';
         }
 
+        // Only archive students who actually have an evaluation grade or completed record in this concluded period
+        const hasEvaluatedRecord = Boolean(evalGrade && evalGrade.remarks?.toLowerCase() !== 'not taken') ||
+          (rawLevel === 'graduated' && (activeTab === 'eosy' || activeTab === 'summer'));
+
+        if (!hasEvaluatedRecord) {
+          continue;
+        }
+
         if (status === 'GRADUATED') graduatedCount++;
         else if (status === 'MOVED_UP') movedUpCount++;
         else if (status === 'RETAINED') retainedCount++;
         else pendingCount++;
 
-        return {
+        studentMetrics.push({
           id: String(st.id),
           name: st.full_name || `${st.first_name} ${st.last_name}`,
           lrn: st.lrn || '—',
@@ -665,8 +674,8 @@ export const AssessmentsArchive: React.FC = () => {
           compositeScore,
           status,
           rawStudent: st,
-        };
-      });
+        });
+      }
 
       const tutorAralLevel = normalizeAralLevel(tutor.tutor_type || tutor.aral_level);
       const rawSubj = (tutor.subject || '').trim();
@@ -681,7 +690,7 @@ export const AssessmentsArchive: React.FC = () => {
         section,
         subject: effectiveSubject,
         aralLevel: tutorAralLevel,
-        totalStudents: tutorStudents.length,
+        totalStudents: studentMetrics.length,
         movedUpCount,
         graduatedCount,
         retainedCount,
@@ -689,7 +698,7 @@ export const AssessmentsArchive: React.FC = () => {
         students: studentMetrics,
         tutorUser: tutor,
       };
-    });
+    }).filter((r) => r.totalStudents > 0);
   }, [tutors, students, grades, attendance, activeTab]);
 
   // 6. Filter and Sort Rows
@@ -928,12 +937,17 @@ export const AssessmentsArchive: React.FC = () => {
                 No Concluded Semester Records Found
               </p>
               <p className="mt-1.5 text-xs text-slate-500 dark:text-zinc-400 max-w-md">
-                School Year {selectedSchoolYear || '2026-2027'} is currently in progress (1st Semester / MOSY). Concluded evaluation records will be archived here once a semester ends.
+                School Year {selectedSchoolYear || '2026-2027'} has no concluded semesters. Evaluation records will be archived here once a semester concludes.
               </p>
             </div>
           ) : sortedAndFilteredRows.length === 0 ? (
-            <div className="p-12 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A]">
-              {tutorArchiveRows.length === 0 ? 'No tutor records found for this period.' : 'No tutors matching search filter.'}
+            <div className="flex flex-col items-center justify-center p-12 sm:p-16 text-center bg-white dark:bg-[#0A0A0A]">
+              <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">
+                No Concluded Evaluation Records Found
+              </p>
+              <p className="mt-1.5 text-xs text-slate-500 dark:text-zinc-400 max-w-md">
+                No evaluations were recorded or concluded for {activeTab === 'mosy' ? 'MOSY (Q1 & Q2)' : activeTab === 'eosy' ? 'EOSY (Q3 & Q4)' : 'Summer'} in School Year {selectedSchoolYear || '2026-2027'}. Concluded evaluation records will appear here once recorded.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">

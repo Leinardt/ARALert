@@ -452,7 +452,7 @@ export const TutorArchive: React.FC = () => {
       ];
     }
 
-    const curSem = currentSchoolYear?.current_semester || '1st';
+    const curSem = currentSchoolYear?.current_semester || '2nd';
     if (curSem === '2nd') {
       return [{ id: '1st', label: '1st Semester (MOSY)' }];
     }
