@@ -719,9 +719,6 @@ export const DashboardLayout: React.FC = () => {
               <AuditLogNavIcon active={isActivePrefix('/admin/audit-logs')} theme={theme} />
               {!collapsed && <span className="truncate">Audit Log</span>}
             </Link>
-
-            <div style={{ height: '1px', background: 'var(--slate-100)', margin: '0.5rem 0' }} />
-
           </>
         )}
 

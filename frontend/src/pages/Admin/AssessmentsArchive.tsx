@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Search, ChevronUp, ChevronDown, ChevronRight, ArrowUpDown, Users, AlertCircle, Edit, GraduationCap, CheckCircle2
@@ -218,98 +218,297 @@ const ArchiveClassSectionTable: React.FC<ArchiveClassSectionTableProps> = ({
           No students assigned to this class for this semester.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
-          <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
-            <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
-              <tr>
-                <th className="w-10 px-3 py-2 text-center whitespace-nowrap">#</th>
-                <th className="px-3 py-2 text-left whitespace-nowrap">
-                  <SortableSubHeader label="STUDENT NAME" field="name" align="left" />
-                </th>
-                <th className="px-3 py-2 text-left whitespace-nowrap">
-                  <SortableSubHeader label="LRN" field="lrn" align="left" />
-                </th>
-                <th className="px-3 py-2 text-center whitespace-nowrap">
-                  <SortableSubHeader label="FINAL AVG ATTENDANCE RATE" field="attendanceRate" align="center" />
-                </th>
-                <th className="px-3 py-2 text-center whitespace-nowrap">
-                  <SortableSubHeader label="FINAL AVG SCORE" field="avgScore" align="center" />
-                </th>
-                <th className="px-3 py-2 text-center whitespace-nowrap">
-                  <SortableSubHeader label="FINAL AVG COMPOSITE" field="compositeScore" align="center" />
-                </th>
-                <th className="px-3 py-2 text-center whitespace-nowrap">
-                  <SortableSubHeader
-                    label={activeTab === 'mosy' ? 'MOSY ASSESSMENT' : activeTab === 'eosy' ? 'EOSY ASSESSMENT' : 'SUMMER ASSESSMENT'}
-                    field="assessmentScore"
-                    align="center"
-                  />
-                </th>
-                <th className="px-3 py-2 text-center whitespace-nowrap">
-                  <SortableSubHeader label="STATUS" field="status" align="center" />
-                </th>
-                <th className="px-3 py-2 text-center whitespace-nowrap">ACTION</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
-              {sortedStudents.map((st, idx) => (
-                <tr
-                  key={st.id}
-                  className="divide-x divide-gray-100 dark:divide-[#1A1A1A] hover:bg-gray-50/70 dark:hover:bg-white/[0.02] transition-colors"
-                >
-                  <td className="px-3 py-2.5 text-center text-slate-400 font-medium whitespace-nowrap">{idx + 1}</td>
-                  <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
-                    {st.name}
-                  </td>
-                  <td className="px-3 py-2.5 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                    {st.lrn}
-                  </td>
-                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                    {st.attendanceRate.toFixed(1)}%
-                  </td>
-                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                    {st.avgScore.toFixed(1)}%
-                  </td>
-                  <td className="px-3 py-2.5 text-center font-bold text-slate-900 dark:text-white whitespace-nowrap">
-                    {st.compositeScore.toFixed(1)}%
-                  </td>
-                  <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                    {st.assessmentScoreStr}
-                  </td>
-                  <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                    {st.status === 'GRADUATED' ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-[var(--brand-light)] text-[var(--brand)] border-[var(--brand-border)] dark:bg-[var(--brand)]/15 dark:text-blue-300 dark:border-[var(--brand)]/50">
-                        <GraduationCap className="w-3.5 h-3.5" />
-                        Graduated
-                      </span>
-                    ) : st.status === 'MOVED_UP' ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60">
-                        Moved Up ARAL Level
-                      </span>
-                    ) : st.status === 'RETAINED' ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60">
-                        Retained ARAL Level
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
-                        {isWindowOpen ? 'Pending Evaluation' : 'Closed'}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                    <Link
-                      to={`${isSuperAdmin ? '/superadmin' : '/admin'}/students/edit/${st.id}`}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-200 hover:text-[var(--brand)] hover:border-[var(--brand)] transition shadow-2xs"
-                      title="Edit / Revert Level"
-                    >
-                      <Edit className="w-3 h-3" />
-                      <span>Edit</span>
-                    </Link>
-                  </td>
+        <>
+          {/* Mobile View (< 768px): Pinned Sticky Student Name Column */}
+          <div className="md:hidden overflow-x-auto table-scroll-container mobile-scroll-table rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
+            <table className="min-w-[640px] w-full text-left text-xs border-separate border-spacing-0">
+              <thead className="bg-gray-50 dark:bg-[#111111] font-bold text-[10px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                <tr>
+                  <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#111111] px-2.5 py-2 text-left whitespace-nowrap min-w-[130px] border-b border-r border-gray-200 dark:border-[#1A1A1A] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                    <SortableSubHeader label="STUDENT NAME" field="name" align="left" />
+                  </th>
+                  <th className="px-2.5 py-2 text-left whitespace-nowrap min-w-[90px] border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <SortableSubHeader label="LRN" field="lrn" align="left" />
+                  </th>
+                  <th className="px-2 py-2 text-center whitespace-nowrap min-w-[70px] border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <SortableSubHeader label="ATTENDANCE" field="attendanceRate" align="center" />
+                  </th>
+                  <th className="px-2 py-2 text-center whitespace-nowrap min-w-[65px] border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <SortableSubHeader label="AVG SCORE" field="avgScore" align="center" />
+                  </th>
+                  <th className="px-2 py-2 text-center whitespace-nowrap min-w-[75px] border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <SortableSubHeader label="COMPOSITE" field="compositeScore" align="center" />
+                  </th>
+                  <th className="px-2 py-2 text-center whitespace-nowrap min-w-[85px] border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <SortableSubHeader
+                      label={activeTab === 'mosy' ? 'MOSY' : activeTab === 'eosy' ? 'EOSY' : 'SUMMER'}
+                      field="assessmentScore"
+                      align="center"
+                    />
+                  </th>
+                  <th className="px-2.5 py-2 text-center whitespace-nowrap min-w-[100px] border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                    <SortableSubHeader label="STATUS" field="status" align="center" />
+                  </th>
+                  <th className="px-2.5 py-2 text-center whitespace-nowrap min-w-[60px] border-b border-gray-100 dark:border-[#1A1A1A]">
+                    ACTION
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white dark:bg-[#0A0A0A]">
+                {sortedStudents.map((st, idx) => (
+                  <tr
+                    key={st.id}
+                    className="hover:bg-gray-50/70 dark:hover:bg-white/[0.02] transition-colors"
+                  >
+                    <td className="sticky left-0 z-10 bg-white dark:bg-[#0A0A0A] px-2.5 py-2 font-semibold text-slate-900 dark:text-white whitespace-nowrap border-b border-r border-gray-200 dark:border-[#1A1A1A] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-[10px] text-slate-400 font-mono w-4 shrink-0 text-center">{idx + 1}</span>
+                        <span className="truncate max-w-[110px]">{st.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-2.5 py-2 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      {st.lrn}
+                    </td>
+                    <td className="px-2 py-2 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      {st.attendanceRate.toFixed(1)}%
+                    </td>
+                    <td className="px-2 py-2 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      {st.avgScore.toFixed(1)}%
+                    </td>
+                    <td className="px-2 py-2 text-center font-bold text-slate-900 dark:text-white whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      {st.compositeScore.toFixed(1)}%
+                    </td>
+                    <td className="px-2 py-2 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      {st.assessmentScoreStr}
+                    </td>
+                    <td className="px-2.5 py-2 text-center whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      {st.status === 'GRADUATED' ? (
+                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-[var(--brand-light)] text-[var(--brand)] border-[var(--brand-border)] dark:bg-[var(--brand)]/15 dark:text-blue-300 dark:border-[var(--brand)]/50">
+                          <GraduationCap className="w-3 h-3" />
+                          Graduated
+                        </span>
+                      ) : st.status === 'MOVED_UP' ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60">
+                          Moved Up
+                        </span>
+                      ) : st.status === 'RETAINED' ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60">
+                          Retained
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
+                          {isWindowOpen ? 'Pending' : 'Closed'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2 text-center whitespace-nowrap border-b border-gray-100 dark:border-[#1A1A1A]">
+                      <Link
+                        to={`${isSuperAdmin ? '/superadmin' : '/admin'}/students/edit/${st.id}`}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-200 hover:text-[var(--brand)] hover:border-[var(--brand)] transition shadow-2xs"
+                        title="Edit / Revert Level"
+                      >
+                        <Edit className="w-2.5 h-2.5" />
+                        <span>Edit</span>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Desktop View (>= 768px): Original Full Table */}
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A]">
+            <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+              <thead className="bg-gray-50 dark:bg-[#111111] divide-x divide-gray-100 dark:divide-[#1A1A1A] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                <tr>
+                  <th className="w-10 px-3 py-2 text-center whitespace-nowrap">#</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">
+                    <SortableSubHeader label="STUDENT NAME" field="name" align="left" />
+                  </th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">
+                    <SortableSubHeader label="LRN" field="lrn" align="left" />
+                  </th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap">
+                    <SortableSubHeader label="FINAL AVG ATTENDANCE RATE" field="attendanceRate" align="center" />
+                  </th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap">
+                    <SortableSubHeader label="FINAL AVG SCORE" field="avgScore" align="center" />
+                  </th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap">
+                    <SortableSubHeader label="FINAL AVG COMPOSITE" field="compositeScore" align="center" />
+                  </th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap">
+                    <SortableSubHeader
+                      label={activeTab === 'mosy' ? 'MOSY ASSESSMENT' : activeTab === 'eosy' ? 'EOSY ASSESSMENT' : 'SUMMER ASSESSMENT'}
+                      field="assessmentScore"
+                      align="center"
+                    />
+                  </th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap">
+                    <SortableSubHeader label="STATUS" field="status" align="center" />
+                  </th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap">ACTION</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+                {sortedStudents.map((st, idx) => (
+                  <tr
+                    key={st.id}
+                    className="divide-x divide-gray-100 dark:divide-[#1A1A1A] hover:bg-gray-50/70 dark:hover:bg-white/[0.02] transition-colors"
+                  >
+                    <td className="px-3 py-2.5 text-center text-slate-400 font-medium whitespace-nowrap">{idx + 1}</td>
+                    <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
+                      {st.name}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                      {st.lrn}
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                      {st.attendanceRate.toFixed(1)}%
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                      {st.avgScore.toFixed(1)}%
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                      {st.compositeScore.toFixed(1)}%
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                      {st.assessmentScoreStr}
+                    </td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                      {st.status === 'GRADUATED' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-[var(--brand-light)] text-[var(--brand)] border-[var(--brand-border)] dark:bg-[var(--brand)]/15 dark:text-blue-300 dark:border-[var(--brand)]/50">
+                          <GraduationCap className="w-3.5 h-3.5" />
+                          Graduated
+                        </span>
+                      ) : st.status === 'MOVED_UP' ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60">
+                          Moved Up ARAL Level
+                        </span>
+                      ) : st.status === 'RETAINED' ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60">
+                          Retained ARAL Level
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
+                          {isWindowOpen ? 'Pending Evaluation' : 'Closed'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                      <Link
+                        to={`${isSuperAdmin ? '/superadmin' : '/admin'}/students/edit/${st.id}`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-200 hover:text-[var(--brand)] hover:border-[var(--brand)] transition shadow-2xs"
+                        title="Edit / Revert Level"
+                      >
+                        <Edit className="w-3 h-3" />
+                        <span>Edit</span>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+interface SchoolYearOption {
+  value: string;
+  label: string;
+}
+
+const SchoolYearDropdown: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+  options: SchoolYearOption[];
+}> = ({ value, onChange, options }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [menuAlign, setMenuAlign] = useState<'left' | 'right'>('left');
+
+  const selectedOpt = options.find((o) => o.value === value) || options[0];
+
+  const handleToggle = () => {
+    if (!isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const screenW = window.innerWidth || document.documentElement.clientWidth;
+      if (rect.left + 220 > screenW - 16) {
+        setMenuAlign('right');
+      } else {
+        setMenuAlign('left');
+      }
+    }
+    setIsOpen((prev) => !prev);
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [isOpen]);
+
+  return (
+    <div ref={containerRef} className={`relative inline-flex items-center shrink-0 ${isOpen ? 'z-50' : 'z-20'}`}>
+      <button
+        type="button"
+        aria-label="Select School Year"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        onClick={handleToggle}
+        className="flex h-8 sm:h-9 items-center justify-between gap-1.5 sm:gap-2 rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#111111] px-2.5 sm:px-3 text-xs sm:text-sm font-bold text-gray-800 dark:text-slate-100 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-2xs"
+      >
+        <span>{selectedOpt?.label || `SY ${value}`}</span>
+        <ChevronDown
+          className={`h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-zinc-500 transition-transform duration-200 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          className={`absolute ${
+            menuAlign === 'right' ? 'right-0' : 'left-0'
+          } top-full z-50 mt-1 max-h-60 w-44 sm:w-48 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl`}
+          role="listbox"
+          aria-label="Select School Year"
+        >
+          {options.map((opt) => {
+            const isSel = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="option"
+                aria-selected={isSel}
+                onClick={() => {
+                  onChange(opt.value);
+                  setIsOpen(false);
+                }}
+                className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase transition cursor-pointer ${
+                  isSel
+                    ? 'bg-[var(--brand)] text-white'
+                    : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -324,6 +523,16 @@ export const AssessmentsArchive: React.FC = () => {
   const [currentSchoolYear, setCurrentSchoolYear] = useState<SchoolYear | null>(null);
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('2026-2027');
   const [activeTab, setActiveTab] = useState<'mosy' | 'eosy' | 'summer'>('mosy');
+
+  const schoolYearOptions = useMemo<SchoolYearOption[]>(() => {
+    if (archivedYears.length === 0) {
+      return [{ value: '2026-2027', label: 'SY 2026–2027' }];
+    }
+    return archivedYears.map((ay) => ({
+      value: ay.school_year,
+      label: `SY ${ay.school_year}`,
+    }));
+  }, [archivedYears]);
 
   const [tutors, setTutors] = useState<User[]>([]);
   const [students, setStudents] = useState<User[]>([]);
@@ -478,33 +687,43 @@ export const AssessmentsArchive: React.FC = () => {
     }
   };
 
-  const SortableHeader: React.FC<{ label: string; field: string; align?: 'left' | 'center' | 'right' }> = ({
-    label,
-    field,
-    align = 'left',
-  }) => {
+  const SortableHeader: React.FC<{
+    label: string;
+    shortLabel?: string;
+    field: string;
+    align?: 'left' | 'center' | 'right';
+  }> = ({ label, shortLabel, field, align = 'left' }) => {
     const isActive = sortField === field;
 
     return (
       <button
         type="button"
         onClick={() => handleSort(field)}
-        className={`inline-flex items-center gap-1.5 whitespace-nowrap ${
+        className={`inline-flex items-center gap-1 sm:gap-1.5 whitespace-nowrap ${
           align === 'center' ? 'justify-center text-center' : align === 'right' ? 'justify-end text-right' : 'justify-start text-left'
-        } transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
+        } transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[10px] sm:text-[11px] font-bold uppercase tracking-wider ${
           isActive ? 'text-gray-700 dark:text-slate-200' : 'text-gray-400 dark:text-slate-400'
         } cursor-pointer`}
         aria-label={`Sort by ${label}`}
       >
-        <span className="whitespace-nowrap">{label}</span>
+        <span className="whitespace-nowrap">
+          {shortLabel ? (
+            <>
+              <span className="sm:hidden">{shortLabel}</span>
+              <span className="hidden sm:inline">{label}</span>
+            </>
+          ) : (
+            label
+          )}
+        </span>
         {isActive ? (
           sortOrder === 'asc' ? (
-            <ChevronUp className="w-3.5 h-3.5 shrink-0" />
+            <ChevronUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
           ) : (
-            <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+            <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
           )
         ) : (
-          <ArrowUpDown className="w-3.5 h-3.5 opacity-40 shrink-0" />
+          <ArrowUpDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-40 shrink-0" />
         )}
       </button>
     );
@@ -793,37 +1012,26 @@ export const AssessmentsArchive: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-5 p-4 sm:p-6 max-w-7xl mx-auto w-full" style={{ fontFamily: 'var(--font-body)' }}>
-      {/* ── Top Bar: School Year & Period Switcher Tabs Only ── */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-zinc-800">
-        <div className="flex flex-wrap items-center gap-3">
+      {/* ── Top Bar: School Year & Period Switcher Tabs ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-slate-200 dark:border-zinc-800 w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
           {/* School Year Dropdown / Selector */}
           <div className="flex items-center gap-2">
-            <select
+            <SchoolYearDropdown
               value={selectedSchoolYear}
-              onChange={(e) => setSelectedSchoolYear(e.target.value)}
-              className="font-bold text-sm sm:text-base bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl px-3 py-1 text-slate-900 dark:text-white shadow-2xs focus:outline-none cursor-pointer"
-            >
-              {archivedYears.length === 0 ? (
-                <option value="2026-2027">SY 2026–2027</option>
-              ) : (
-                archivedYears.map((ay) => (
-                  <option key={ay.id || ay.school_year} value={ay.school_year}>
-                    SY {ay.school_year}
-                  </option>
-                ))
-              )}
-            </select>
+              onChange={(val) => setSelectedSchoolYear(val)}
+              options={schoolYearOptions}
+            />
+            <span className="hidden sm:inline text-slate-300 dark:text-zinc-700 font-bold text-base select-none">&bull;</span>
           </div>
 
-          <span className="text-slate-300 dark:text-zinc-700 font-bold text-base select-none">&bull;</span>
-
-          {/* Phase Switcher Tabs — Concluded Semesters Only */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 overflow-x-auto">
+          {/* Phase Switcher Tabs — Full width on mobile, distributed flex-1 */}
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setActiveTab('mosy')}
               disabled={!concludedTabsForSelectedYear.includes('mosy')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 !concludedTabsForSelectedYear.includes('mosy')
                   ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-zinc-600'
                   : activeTab === 'mosy'
@@ -832,9 +1040,12 @@ export const AssessmentsArchive: React.FC = () => {
               }`}
               title={!concludedTabsForSelectedYear.includes('mosy') ? '1st Semester not yet concluded' : 'Concluded 1st Semester'}
             >
-              <span>MOSY (Q1 & Q2)</span>
+              <span>MOSY<span className="hidden sm:inline"> (Q1 & Q2)</span></span>
               {currentSchoolYear?.current_semester === '1st' && (
-                <span className="text-[10px] font-normal text-slate-400 dark:text-zinc-500">(In Progress)</span>
+                <span className="text-[9px] sm:text-[10px] font-normal text-slate-400 dark:text-zinc-500">
+                  <span className="sm:hidden">(Active)</span>
+                  <span className="hidden sm:inline">(In Progress)</span>
+                </span>
               )}
             </button>
 
@@ -842,7 +1053,7 @@ export const AssessmentsArchive: React.FC = () => {
               type="button"
               onClick={() => setActiveTab('eosy')}
               disabled={!concludedTabsForSelectedYear.includes('eosy')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 !concludedTabsForSelectedYear.includes('eosy')
                   ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-zinc-600'
                   : activeTab === 'eosy'
@@ -851,9 +1062,12 @@ export const AssessmentsArchive: React.FC = () => {
               }`}
               title={!concludedTabsForSelectedYear.includes('eosy') ? '2nd Semester not yet concluded' : 'Concluded 2nd Semester'}
             >
-              <span>EOSY (Q3 & Q4)</span>
+              <span>EOSY<span className="hidden sm:inline"> (Q3 & Q4)</span></span>
               {currentSchoolYear?.current_semester === '2nd' && (
-                <span className="text-[10px] font-normal text-slate-400 dark:text-zinc-500">(In Progress)</span>
+                <span className="text-[9px] sm:text-[10px] font-normal text-slate-400 dark:text-zinc-500">
+                  <span className="sm:hidden">(Active)</span>
+                  <span className="hidden sm:inline">(In Progress)</span>
+                </span>
               )}
             </button>
 
@@ -861,7 +1075,7 @@ export const AssessmentsArchive: React.FC = () => {
               type="button"
               onClick={() => setActiveTab('summer')}
               disabled={!concludedTabsForSelectedYear.includes('summer')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+              className={`px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 sm:gap-2 whitespace-nowrap flex-1 sm:flex-initial justify-center ${
                 !concludedTabsForSelectedYear.includes('summer')
                   ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-zinc-600'
                   : activeTab === 'summer'
@@ -870,9 +1084,12 @@ export const AssessmentsArchive: React.FC = () => {
               }`}
               title={!concludedTabsForSelectedYear.includes('summer') ? 'Summer period not concluded' : 'Concluded Summer'}
             >
-              <span>SUMMER (Midyear)</span>
+              <span>SUMMER<span className="hidden sm:inline"> (Midyear)</span></span>
               {currentSchoolYear?.current_semester === 'summer' && (
-                <span className="text-[10px] font-normal text-slate-400 dark:text-zinc-500">(In Progress)</span>
+                <span className="text-[9px] sm:text-[10px] font-normal text-slate-400 dark:text-zinc-500">
+                  <span className="sm:hidden">(Active)</span>
+                  <span className="hidden sm:inline">(In Progress)</span>
+                </span>
               )}
             </button>
           </div>
@@ -895,10 +1112,11 @@ export const AssessmentsArchive: React.FC = () => {
       ) : (
         <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs overflow-hidden">
           {/* Table Header / Search Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 sm:px-5 py-3 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="space-y-1">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
-                ARCHIVED TUTOR EVALUATION ROSTER ({sortedAndFilteredRows.length})
+              <div className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300 whitespace-nowrap">
+                <span className="hidden sm:inline">ARCHIVED TUTOR EVALUATION ROSTER</span>
+                <span className="sm:hidden">ARCHIVED EVALUATIONS</span> ({sortedAndFilteredRows.length})
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs pt-0.5">
                 <span className="text-slate-500 dark:text-zinc-400 font-medium">
@@ -937,18 +1155,20 @@ export const AssessmentsArchive: React.FC = () => {
           </div>
 
           {concludedTabsForSelectedYear.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 sm:p-16 text-center bg-white dark:bg-[#0A0A0A]">
-              <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">
-                No Concluded Semester Records Found
+            <div className="flex flex-col items-center justify-center p-8 sm:p-16 text-center bg-white dark:bg-[#0A0A0A]">
+              <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-zinc-200 whitespace-nowrap">
+                <span className="sm:hidden">No Concluded Semesters</span>
+                <span className="hidden sm:inline">No Concluded Semester Records Found</span>
               </p>
               <p className="mt-1.5 text-xs text-slate-500 dark:text-zinc-400 max-w-md">
                 School Year {selectedSchoolYear || '2026-2027'} has no concluded semesters. Evaluation records will be archived here once a semester concludes.
               </p>
             </div>
           ) : sortedAndFilteredRows.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 sm:p-16 text-center bg-white dark:bg-[#0A0A0A]">
-              <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">
-                No Concluded Evaluation Records Found
+            <div className="flex flex-col items-center justify-center p-8 sm:p-16 text-center bg-white dark:bg-[#0A0A0A]">
+              <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-zinc-200 whitespace-nowrap">
+                <span className="sm:hidden">No Concluded Records Found</span>
+                <span className="hidden sm:inline">No Concluded Evaluation Records Found</span>
               </p>
               <p className="mt-1.5 text-xs text-slate-500 dark:text-zinc-400 max-w-md">
                 No evaluations were recorded or concluded for {activeTab === 'mosy' ? 'MOSY (Q1 & Q2)' : activeTab === 'eosy' ? 'EOSY (Q3 & Q4)' : 'Summer'} in School Year {selectedSchoolYear || '2026-2027'}. Concluded evaluation records will appear here once recorded.
@@ -956,17 +1176,17 @@ export const AssessmentsArchive: React.FC = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
+              <table className="w-full md:min-w-[760px] divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
                 <thead>
                   <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
-                    <th className="px-4 py-2.5 text-left whitespace-nowrap">
+                    <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left w-[44%] sm:w-auto">
                       <SortableHeader label="TUTOR NAME" field="tutorName" />
                     </th>
-                    <th className="px-4 py-2.5 text-center whitespace-nowrap">
-                      <SortableHeader label="TOTAL STUDENTS" field="totalStudents" align="center" />
+                    <th className="px-1.5 sm:px-4 py-2 sm:py-2.5 text-center w-[26%] sm:w-auto">
+                      <SortableHeader label="TOTAL STUDENTS" shortLabel="STUDENTS" field="totalStudents" align="center" />
                     </th>
-                    <th className="px-4 py-2.5 text-center whitespace-nowrap">
-                      <SortableHeader label="OUTCOME SUMMARY" field="outcomeSummary" align="center" />
+                    <th className="px-1.5 sm:px-4 py-2 sm:py-2.5 text-center w-[30%] sm:w-auto">
+                      <SortableHeader label="OUTCOME SUMMARY" shortLabel="OUTCOMES" field="outcomeSummary" align="center" />
                     </th>
                   </tr>
                 </thead>
@@ -985,44 +1205,44 @@ export const AssessmentsArchive: React.FC = () => {
                               : 'hover:bg-gray-50/80 dark:hover:bg-white/[0.02]'
                           }`}
                         >
-                          <td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
+                          <td className="px-2.5 sm:px-4 py-2 sm:py-3 font-semibold text-gray-900 dark:text-slate-100">
+                            <div className="flex items-center gap-1 sm:gap-2 min-w-0">
                               {isExpanded ? (
-                                <ChevronDown className="w-4 h-4 text-[var(--brand)] shrink-0 transition-transform" />
+                                <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--brand)] shrink-0 transition-transform" />
                               ) : (
-                                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:text-zinc-500 shrink-0 transition-transform" />
+                                <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 group-hover:text-gray-600 dark:text-zinc-500 shrink-0 transition-transform" />
                               )}
-                              <span>{row.tutorName}</span>
+                              <span className="truncate text-xs sm:text-sm">{row.tutorName}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-center text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
-                            {row.totalStudents} Students
+                          <td className="px-1.5 sm:px-4 py-2 sm:py-3 text-center text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
+                            {row.totalStudents} <span className="hidden sm:inline">Students</span>
                           </td>
-                          <td className="px-4 py-3 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          <td className="px-1.5 sm:px-4 py-2 sm:py-3 text-center">
+                            <div className="flex items-center justify-center gap-1 sm:gap-1.5 flex-wrap">
                               {row.graduatedCount > 0 && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-[var(--brand-light)] text-[var(--brand)] border-[var(--brand-border)] dark:bg-[var(--brand)]/15 dark:text-blue-300 dark:border-[var(--brand)]/50">
+                                <span className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold border bg-[var(--brand-light)] text-[var(--brand)] border-[var(--brand-border)] dark:bg-[var(--brand)]/15 dark:text-blue-300 dark:border-[var(--brand)]/50">
                                   <GraduationCap className="w-3 h-3" />
-                                  {row.graduatedCount} Graduated
+                                  {row.graduatedCount} <span className="hidden sm:inline">Graduated</span>
                                 </span>
                               )}
                               {row.movedUpCount > 0 && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60">
-                                  {row.movedUpCount} Moved Up
+                                <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60">
+                                  {row.movedUpCount} <span className="hidden sm:inline">Moved Up</span>
                                 </span>
                               )}
                               {row.retainedCount > 0 && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60">
-                                  {row.retainedCount} Retained
+                                <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/60">
+                                  {row.retainedCount} <span className="hidden sm:inline">Retained</span>
                                 </span>
                               )}
                               {row.pendingCount > 0 && row.graduatedCount === 0 && row.movedUpCount === 0 && row.retainedCount === 0 && (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
-                                  {isWindowOpen ? 'Pending Evaluation' : 'Closed'}
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
+                                  {isWindowOpen ? 'Pending' : 'Closed'}
                                 </span>
                               )}
                               {row.pendingCount > 0 && (row.graduatedCount > 0 || row.movedUpCount > 0 || row.retainedCount > 0) && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
+                                <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">
                                   {row.pendingCount} {isWindowOpen ? 'Pending' : 'Closed'}
                                 </span>
                               )}
@@ -1037,7 +1257,7 @@ export const AssessmentsArchive: React.FC = () => {
                         {isExpanded && (
                           <tr className="bg-slate-50/40 dark:bg-zinc-950/40">
                             <td colSpan={3} className="p-0 max-w-0">
-                              <div className="p-4 sm:p-5 border-y border-slate-200 dark:border-zinc-800 space-y-5 w-full min-w-0 overflow-hidden">
+                              <div className="p-2.5 sm:p-5 border-y border-slate-200 dark:border-zinc-800 space-y-4 sm:space-y-5 w-full min-w-0 overflow-hidden">
                                 {row.students.length === 0 ? (
                                   <div className="p-4 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A] rounded-xl border border-slate-200 dark:border-zinc-800">
                                     No students assigned to this tutor for this school year.

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Search, AlertTriangle, Download, Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Search, AlertTriangle, Download, Calendar, ChevronLeft, ChevronRight, ChevronDown, X } from 'lucide-react';
 import api from '../../api/axios';
 import { TablePagination } from '../../components/TablePagination';
 import { useAuth } from '../../hooks/useAuth';
@@ -81,13 +81,17 @@ const CustomCalendarDropdown: React.FC<{
   });
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         onClose();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, [onClose]);
 
   const year = viewDate.getFullYear();
@@ -108,7 +112,7 @@ const CustomCalendarDropdown: React.FC<{
   return (
     <div
       ref={dropdownRef}
-      className={`${className || 'absolute left-0 sm:right-0 sm:left-auto top-full mt-2'} z-[60] w-72 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 shadow-2xl select-none text-slate-800 dark:text-slate-100`}
+      className={`${className || 'absolute left-0 sm:right-0 sm:left-auto top-full mt-2'} z-[60] w-[calc(100vw-48px)] max-w-[280px] sm:w-72 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 sm:p-3.5 shadow-2xl select-none text-slate-800 dark:text-slate-100`}
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       <div className="flex items-center justify-between pb-2.5 border-b border-gray-100 dark:border-zinc-800">
@@ -190,6 +194,217 @@ const CustomCalendarDropdown: React.FC<{
   );
 };
 
+// ── Event Categories & Custom Filter Dropdown ───────────────────────────────
+interface EventFilterOption {
+  value: string;
+  label: string;
+}
+
+interface EventCategoryGroup {
+  category: string;
+  options: EventFilterOption[];
+}
+
+const EVENT_CATEGORIES: EventCategoryGroup[] = [
+  {
+    category: 'Authentication & Security',
+    options: [
+      { value: 'LOGIN_SUCCESS', label: 'Login Success' },
+      { value: 'GOOGLE_LOGIN_SUCCESS', label: 'Google Login (Staff)' },
+      { value: 'STUDENT_LOGIN_SUCCESS', label: 'Student Portal Login' },
+      { value: 'LOGOUT_SUCCESS', label: 'Logout Success' },
+      { value: 'LOGIN_FAILED', label: 'Login Failed / Unauthorized' },
+      { value: 'LOGIN_RATE_LIMITED', label: 'Login Rate Limited' },
+    ],
+  },
+  {
+    category: 'Academic Grades & Scores',
+    options: [
+      { value: 'GRADE_RECORDED', label: 'Academic Grade Recorded' },
+      { value: 'GRADE_UPDATED', label: 'Academic Grade Updated' },
+      { value: 'GRADE_DELETED', label: 'Academic Grade Deleted' },
+    ],
+  },
+  {
+    category: 'Attendance & DTR Operations',
+    options: [
+      { value: 'ATTENDANCE_QR_SCANNED', label: 'Student QR Attendance Scanned' },
+      { value: 'ATTENDANCE_MANUAL_LOGGED', label: 'Manual Attendance Logged' },
+      { value: 'ATTENDANCE_SESSION_CREATED', label: 'Attendance QR Session Generated' },
+      { value: 'ATTENDANCE_SESSION_CLOSED', label: 'Attendance QR Session Closed' },
+      { value: 'ATTENDANCE_STAFF_CLOCK_IN', label: 'Staff DTR Clock In Scanned' },
+      { value: 'ATTENDANCE_STAFF_CLOCK_OUT', label: 'Staff DTR Clock Out Scanned' },
+    ],
+  },
+  {
+    category: 'Risk Assessment & Interventions',
+    options: [
+      { value: 'STUDENT_INTERVENTION_ACKNOWLEDGED', label: 'Student Acknowledged High Risk Alert' },
+    ],
+  },
+  {
+    category: 'Learner & Account Lifecycle',
+    options: [
+      { value: 'USER_CREATED', label: 'User Enrolled / Created' },
+      { value: 'USER_UPDATED', label: 'User Profile Updated' },
+      { value: 'USER_ACTIVATED_BY_SUPERADMIN', label: 'Account Activated by SuperAdmin' },
+      { value: 'USER_ACTIVATED_BY_ADMIN', label: 'Account Activated by Admin' },
+      { value: 'USER_DEACTIVATED_BY_SUPERADMIN', label: 'Account Deactivated by SuperAdmin' },
+      { value: 'USER_DEACTIVATED_BY_ADMIN', label: 'Account Deactivated by Admin' },
+      { value: 'TUTOR_ASSIGNED', label: 'Tutor Assigned to Student' },
+      { value: 'BULK_TUTOR_ASSIGNED', label: 'Bulk Cohort Assigned to Tutor' },
+      { value: 'STUDENT_EDIT_REQUEST_SUBMITTED', label: 'Student Record Correction Submitted' },
+      { value: 'STUDENT_EDIT_REQUEST_APPROVED', label: 'Student Record Correction Approved' },
+      { value: 'STUDENT_EDIT_REQUEST_REJECTED', label: 'Student Record Correction Rejected' },
+      { value: 'ALLOWED_EMAIL_ADDED', label: 'Allowed Email Added' },
+      { value: 'ALLOWED_EMAIL_REMOVED', label: 'Allowed Email Removed' },
+    ],
+  },
+  {
+    category: 'Evaluations & Transitions',
+    options: [
+      { value: 'MOSY_FINALIZED', label: 'MOSY Evaluation Finalized' },
+      { value: 'SEMESTER_TRANSITION_SET', label: 'Semester Milestone Set' },
+      { value: 'SCHOOL_YEAR_TRANSITION', label: 'School Year Transition Executed' },
+      { value: 'SUMMER_REMEDIATION_STARTED', label: 'Summer Remediation Started' },
+      { value: 'SUMMER_EVALUATION_RECORDED', label: 'Summer Evaluation Recorded' },
+    ],
+  },
+];
+
+const getEventLabel = (val: string): string => {
+  if (!val) return 'ALL EVENTS';
+  for (const group of EVENT_CATEGORIES) {
+    const found = group.options.find((o) => o.value === val);
+    if (found) return found.label;
+  }
+  return val.replace(/_/g, ' ');
+};
+
+const EventFilterDropdown: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+}> = ({ value, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [menuAlign, setMenuAlign] = useState<'left' | 'right'>('left');
+
+  const handleToggle = () => {
+    if (!isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const screenW = window.innerWidth || document.documentElement.clientWidth;
+      if (rect.left + 280 > screenW - 16) {
+        setMenuAlign('right');
+      } else {
+        setMenuAlign('left');
+      }
+    }
+    setIsOpen((prev) => !prev);
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [isOpen]);
+
+  const currentLabel = getEventLabel(value);
+
+  return (
+    <div ref={containerRef} className={`relative w-full ${isOpen ? 'z-50' : 'z-20'}`}>
+      <button
+        type="button"
+        aria-label="Filter by Event"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        onClick={handleToggle}
+        className={`w-full h-9 px-3 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition cursor-pointer shadow-2xs ${
+          value
+            ? 'border-[var(--brand)] bg-[var(--brand-light)] text-[var(--brand)] dark:bg-[var(--brand)]/15 dark:text-blue-300 dark:border-[var(--brand)]/50 font-bold'
+            : 'border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] text-gray-700 dark:text-slate-200 hover:border-gray-300 dark:hover:border-[#262626]'
+        }`}
+      >
+        <span className="truncate">{currentLabel}</span>
+        <ChevronDown
+          className={`h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-zinc-500 transition-transform duration-200 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          className={`absolute ${
+            menuAlign === 'right' ? 'right-0' : 'left-0'
+          } top-full z-50 mt-1 max-h-72 w-full sm:w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl`}
+          role="listbox"
+          aria-label="Filter by Event"
+        >
+          {/* ALL EVENTS option */}
+          <button
+            type="button"
+            role="option"
+            aria-selected={value === ''}
+            onClick={() => {
+              onChange('');
+              setIsOpen(false);
+            }}
+            className={`block w-full truncate rounded-lg px-3 py-1.5 text-left text-xs font-bold transition cursor-pointer ${
+              value === ''
+                ? 'bg-[var(--brand)] text-white'
+                : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+            }`}
+          >
+            ALL EVENTS
+          </button>
+
+          {/* Grouped Categories */}
+          {EVENT_CATEGORIES.map((group) => (
+            <div key={group.category} className="mt-2 pt-1 border-t border-gray-100 dark:border-[#1A1A1A]">
+              <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 select-none">
+                {group.category}
+              </div>
+              <div className="space-y-0.5">
+                {group.options.map((opt) => {
+                  const isSel = opt.value === value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="option"
+                      aria-selected={isSel}
+                      onClick={() => {
+                        onChange(opt.value);
+                        setIsOpen(false);
+                      }}
+                      className={`block w-full truncate rounded-lg px-3 py-1.5 text-left text-xs font-semibold transition cursor-pointer ${
+                        isSel
+                          ? 'bg-[var(--brand)] text-white'
+                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export const AuditLog: React.FC = () => {
   const { user } = useAuth();
@@ -240,83 +455,25 @@ export const AuditLog: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-5 p-3.5 sm:p-6 max-w-7xl mx-auto w-full" style={{ fontFamily: 'var(--font-body)' }}>
+    <div className="flex flex-col gap-3.5 sm:gap-5 p-3 sm:p-6 max-w-7xl mx-auto w-full" style={{ fontFamily: 'var(--font-body)' }}>
 
       {/* ── Filters Bar ── */}
       <form
         onSubmit={handleSearch}
-        className="p-3.5 sm:p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs flex flex-wrap items-end gap-3"
+        className="p-3 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs flex flex-wrap items-end gap-2.5 sm:gap-3"
       >
         {/* Filter by Event */}
         <div className="flex flex-col gap-1.5 w-full sm:flex-1 sm:min-w-[200px]">
           <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
             Filter by Event
           </label>
-          <div className="relative">
-            <select
-              value={eventFilter}
-              onChange={(e) => {
-                setEventFilter(e.target.value);
-                setPage(1);
-              }}
-              aria-label="Filter by Event"
-              className="w-full h-9 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-3 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
-            >
-              <option value="">ALL EVENTS</option>
-              
-              <optgroup label="Authentication & Security">
-                <option value="LOGIN_SUCCESS">Login Success</option>
-                <option value="GOOGLE_LOGIN_SUCCESS">Google Login (Staff)</option>
-                <option value="STUDENT_LOGIN_SUCCESS">Student Portal Login</option>
-                <option value="LOGOUT_SUCCESS">Logout Success</option>
-                <option value="LOGIN_FAILED">Login Failed / Unauthorized</option>
-                <option value="LOGIN_RATE_LIMITED">Login Rate Limited</option>
-              </optgroup>
-
-              <optgroup label="Academic Grades & Scores">
-                <option value="GRADE_RECORDED">Academic Grade Recorded</option>
-                <option value="GRADE_UPDATED">Academic Grade Updated</option>
-                <option value="GRADE_DELETED">Academic Grade Deleted</option>
-              </optgroup>
-
-              <optgroup label="Attendance & DTR Operations">
-                <option value="ATTENDANCE_QR_SCANNED">Student QR Attendance Scanned</option>
-                <option value="ATTENDANCE_MANUAL_LOGGED">Manual Attendance Logged</option>
-                <option value="ATTENDANCE_SESSION_CREATED">Attendance QR Session Generated</option>
-                <option value="ATTENDANCE_SESSION_CLOSED">Attendance QR Session Closed</option>
-                <option value="ATTENDANCE_STAFF_CLOCK_IN">Staff DTR Clock In Scanned</option>
-                <option value="ATTENDANCE_STAFF_CLOCK_OUT">Staff DTR Clock Out Scanned</option>
-              </optgroup>
-
-              <optgroup label="Risk Assessment & Interventions">
-                <option value="STUDENT_INTERVENTION_ACKNOWLEDGED">Student Acknowledged High Risk Alert</option>
-              </optgroup>
-
-              <optgroup label="Learner & Account Lifecycle">
-                <option value="USER_CREATED">User Enrolled / Created</option>
-                <option value="USER_UPDATED">User Profile Updated</option>
-                <option value="USER_ACTIVATED_BY_SUPERADMIN">Account Activated by SuperAdmin</option>
-                <option value="USER_ACTIVATED_BY_ADMIN">Account Activated by Admin</option>
-                <option value="USER_DEACTIVATED_BY_SUPERADMIN">Account Deactivated by SuperAdmin</option>
-                <option value="USER_DEACTIVATED_BY_ADMIN">Account Deactivated by Admin</option>
-                <option value="TUTOR_ASSIGNED">Tutor Assigned to Student</option>
-                <option value="BULK_TUTOR_ASSIGNED">Bulk Cohort Assigned to Tutor</option>
-                <option value="STUDENT_EDIT_REQUEST_SUBMITTED">Student Record Correction Submitted</option>
-                <option value="STUDENT_EDIT_REQUEST_APPROVED">Student Record Correction Approved</option>
-                <option value="STUDENT_EDIT_REQUEST_REJECTED">Student Record Correction Rejected</option>
-                <option value="ALLOWED_EMAIL_ADDED">Allowed Email Added</option>
-                <option value="ALLOWED_EMAIL_REMOVED">Allowed Email Removed</option>
-              </optgroup>
-
-              <optgroup label="Evaluations & Transitions">
-                <option value="MOSY_FINALIZED">MOSY Evaluation Finalized</option>
-                <option value="SEMESTER_TRANSITION_SET">Semester Milestone Set</option>
-                <option value="SCHOOL_YEAR_TRANSITION">School Year Transition Executed</option>
-                <option value="SUMMER_REMEDIATION_STARTED">Summer Remediation Started</option>
-                <option value="SUMMER_EVALUATION_RECORDED">Summer Evaluation Recorded</option>
-              </optgroup>
-            </select>
-          </div>
+          <EventFilterDropdown
+            value={eventFilter}
+            onChange={(val) => {
+              setEventFilter(val);
+              setPage(1);
+            }}
+          />
         </div>
 
         {/* Filter by Date */}
@@ -329,10 +486,10 @@ export const AuditLog: React.FC = () => {
               type="button"
               id="audit-log-calendar-btn"
               onClick={() => setShowCalendarPopover((prev) => !prev)}
-              className={`w-full h-9 px-3 rounded-md border text-xs font-semibold flex items-center justify-between gap-2 transition cursor-pointer ${
+              className={`w-full h-9 px-3 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition cursor-pointer shadow-2xs ${
                 dateFilter
                   ? 'bg-[var(--brand)] text-white border-[var(--brand)] font-bold'
-                  : 'border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1a1a1a]'
+                  : 'border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] text-gray-700 dark:text-slate-200 hover:border-gray-300 dark:hover:border-[#262626]'
               }`}
               title="Filter audit logs by specific date"
             >
@@ -396,7 +553,7 @@ export const AuditLog: React.FC = () => {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search name, email, or LRN…"
-              className="w-full h-9 pl-9 pr-3 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] text-xs font-semibold text-gray-700 dark:text-slate-200 placeholder:text-slate-400 placeholder:font-normal outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A]"
+              className="w-full h-9 pl-9 pr-3 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] text-xs font-semibold text-gray-700 dark:text-slate-200 placeholder:text-slate-400 placeholder:font-normal outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 shadow-2xs"
             />
           </div>
         </div>
@@ -407,7 +564,7 @@ export const AuditLog: React.FC = () => {
             <button
               type="button"
               onClick={handleClear}
-              className="h-9 px-3.5 flex-1 sm:flex-initial rounded-md text-xs font-bold text-slate-600 dark:text-zinc-400 bg-gray-100 hover:bg-gray-200 dark:bg-[#111111] dark:hover:bg-[#1a1a1a] border border-gray-200 dark:border-[#1A1A1A] transition cursor-pointer"
+              className="h-9 px-3.5 flex-1 sm:flex-initial rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-400 bg-gray-100 hover:bg-gray-200 dark:bg-[#111111] dark:hover:bg-[#1a1a1a] border border-gray-200 dark:border-[#1A1A1A] transition cursor-pointer shadow-2xs"
             >
               Clear
             </button>
@@ -416,10 +573,10 @@ export const AuditLog: React.FC = () => {
             type="button"
             onClick={() => setShowExportModal(true)}
             title="Export Audit Logs"
-            className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[var(--brand)] px-3 sm:px-3.5 py-2 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer flex-1 sm:flex-initial shrink-0 whitespace-nowrap shadow-xs h-9"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--brand)] px-2.5 sm:px-3.5 py-2 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer flex-1 sm:flex-initial shrink-0 whitespace-nowrap shadow-xs h-9"
           >
             <Download className="w-3.5 h-3.5 text-white" />
-            <span>Export Audit Log</span>
+            <span>Export<span className="hidden sm:inline"> Audit Log</span></span>
           </button>
         </div>
       </form>
@@ -429,7 +586,7 @@ export const AuditLog: React.FC = () => {
         
         {/* Active Filters (if any) */}
         {(eventFilter || dateFilter || searchFilter) && (
-          <div className="px-5 py-2.5 border-b border-gray-100 dark:border-[#1A1A1A] flex flex-wrap items-center gap-2 bg-gray-50/50 dark:bg-[#111111]">
+          <div className="px-3.5 sm:px-5 py-2 sm:py-2.5 border-b border-gray-100 dark:border-[#1A1A1A] flex flex-wrap items-center gap-1.5 sm:gap-2 bg-gray-50/50 dark:bg-[#111111]">
             <span className="text-[11px] font-semibold text-slate-400">Active Filters:</span>
             {eventFilter && (
               <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 flex items-center gap-1.5">
@@ -503,7 +660,94 @@ export const AuditLog: React.FC = () => {
             No audit events match your filters.
           </div>
         ) : (
-          <div className="overflow-x-auto mobile-scroll-table">
+          <>
+            {/* ── Mobile View (< 768px): Sticky Event & Timestamp with Horizontal Scrolling Details ── */}
+          <div className="md:hidden overflow-x-auto table-scroll-container mobile-scroll-table w-full">
+            <table className="w-full text-left text-xs divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+              <thead className="bg-gray-50 dark:bg-[#111111] font-bold text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                <tr>
+                  <th className="sticky left-0 z-10 bg-gray-50 dark:bg-[#111111] w-[135px] min-w-[135px] max-w-[135px] px-3 py-2 text-left whitespace-nowrap shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] border-r border-gray-100 dark:border-[#1A1A1A]">
+                    EVENT & TIME
+                  </th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap min-w-[120px]">
+                    TARGET
+                  </th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap min-w-[120px]">
+                    ACTOR
+                  </th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap min-w-[80px]">
+                    ROLE
+                  </th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap min-w-[140px]">
+                    EMAIL
+                  </th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap min-w-[110px]">
+                    LRN
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+                {data.results.map((log) => {
+                  return (
+                    <tr
+                      key={log.id}
+                      className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-white/[0.02]"
+                    >
+                      {/* Pinned Sticky Column: Event Name + Timestamp underneath */}
+                      <td className="sticky left-0 z-10 bg-white dark:bg-[#0A0A0A] w-[135px] min-w-[135px] max-w-[135px] px-3 py-2.5 shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] border-r border-gray-100 dark:border-[#1A1A1A]">
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-bold text-[11px] text-gray-900 dark:text-slate-100 truncate leading-snug" title={log.action.replace(/_/g, ' ')}>
+                            {log.action.replace(/_/g, ' ')}
+                          </span>
+                          <span className="text-[10px] font-mono text-gray-400 dark:text-slate-500 truncate mt-0.5">
+                            {log.timestamp}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* TARGET */}
+                      <td className="px-3 py-2.5 text-xs whitespace-nowrap max-w-[140px] truncate" title={getTargetDisplay(log) !== '—' ? getTargetDisplay(log) : undefined}>
+                        {(() => {
+                          const target = getTargetDisplay(log);
+                          if (target === '—') return <span className="text-gray-400 dark:text-slate-500">—</span>;
+                          return (
+                            <span className="font-semibold text-gray-900 dark:text-slate-100">
+                              {target}
+                            </span>
+                          );
+                        })()}
+                      </td>
+
+                      {/* ACTOR NAME */}
+                      <td className="px-3 py-2.5 font-semibold text-gray-900 dark:text-slate-100 whitespace-nowrap text-xs">
+                        {log.name || 'System'}
+                      </td>
+
+                      {/* ROLE */}
+                      <td className="px-3 py-2.5 text-center whitespace-nowrap text-[11px] font-medium text-gray-700 dark:text-slate-300">
+                        {log.role || '—'}
+                      </td>
+
+                      {/* EMAIL */}
+                      <td className="px-3 py-2.5 text-xs text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                        {log.role?.toLowerCase() === 'student' || log.email?.includes('@aralert.local') || log.email?.startsWith('student-')
+                          ? '—'
+                          : (log.email || '—')}
+                      </td>
+
+                      {/* LRN */}
+                      <td className="px-3 py-2.5 text-center text-xs font-mono text-gray-700 dark:text-slate-300 whitespace-nowrap">
+                        {log.lrn || '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── Desktop View (>= 768px): Original Full-Width Table ── */}
+          <div className="hidden md:block overflow-x-auto mobile-scroll-table">
             <table className="min-w-[760px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal">
               <thead>
                 <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
@@ -587,6 +831,7 @@ export const AuditLog: React.FC = () => {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {/* ── Pagination Footer ── */}

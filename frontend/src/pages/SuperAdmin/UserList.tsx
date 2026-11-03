@@ -120,40 +120,73 @@ const getTutorDisplaySubjects = (user: User) => {
 
 type AccountTab = 'student' | 'tutor' | 'principal' | 'admin' | 'superadmin';
 
+export const cleanSectionName = (raw?: string | null): string => {
+  if (!raw) return '';
+  let s = raw.trim();
+  // Strip any leading Grade prefixes repeatedly (e.g. "GRADE 8 - LANSONES", "Grade 8 – Lansones", "8 - Lansones")
+  while (/^(?:GRADE\s*\d+|\d+)\s*[-–—:\s]\s*/i.test(s)) {
+    s = s.replace(/^(?:GRADE\s*\d+|\d+)\s*[-–—:\s]\s*/i, '').trim();
+  }
+  // Strip leading and trailing dashes, colons, or whitespace
+  s = s.replace(/^[-–—:\s]+|[-–—:\s]+$/g, '').trim();
+  // If the remnant is just a grade tag like "GRADE 8" or purely numeric or placeholder dash, ignore it
+  if (/^(?:GRADE\s*\d+|\d+)$/i.test(s) || s === '—') {
+    return '';
+  }
+  return s.toUpperCase();
+};
+
 const getGradeAndSection = (gradeLevel?: string | null, fallbackSection?: string | null) => {
+  const cleanFallback = cleanSectionName(fallbackSection);
   if (!gradeLevel) {
     return {
       grade: '—',
-      section: fallbackSection ? fallbackSection.toUpperCase().trim() : '—',
+      section: cleanFallback || '—',
     };
   }
-  if (gradeLevel.includes(' - ')) {
-    const parts = gradeLevel.split(' - ');
-    const g = parts[0].trim().replace(/grade\s*/i, '');
-    const s = parts.slice(1).join(' - ').trim();
+
+  const normalized = gradeLevel.replace(/[–—]/g, '-').trim();
+
+  if (normalized.includes(' - ') || /GRADE\s*\d+\s*-\s*[A-Z]/i.test(normalized)) {
+    const parts = normalized.split(/\s*-\s*/).map((p) => p.trim()).filter(Boolean);
+    const gMatch = normalized.match(/GRADE\s*(\d+)/i) || normalized.match(/\b(\d{1,2})\b/);
+    const g = gMatch ? gMatch[1] : parts[0].replace(/grade\s*/i, '').trim();
+    const rawSection = parts.slice(1).join(' - ').trim();
+    const cleanSec = cleanSectionName(rawSection) || cleanFallback || '—';
     return {
       grade: g || '—',
-      section: (s || fallbackSection || '—').toUpperCase().trim(),
+      section: cleanSec,
     };
   }
-  const clean = gradeLevel.replace(/grade\s*/i, '').trim();
+
+  const gMatch = normalized.match(/GRADE\s*(\d+)/i);
+  if (gMatch) {
+    return {
+      grade: gMatch[1],
+      section: cleanFallback || '—',
+    };
+  }
+
+  const clean = normalized.replace(/grade\s*/i, '').trim();
   if (/^[a-zA-Z\s]+$/.test(clean)) {
     return {
       grade: '—',
-      section: clean.toUpperCase().trim(),
+      section: cleanSectionName(clean) || cleanFallback || '—',
     };
   }
+
   return {
     grade: clean || '—',
-    section: (fallbackSection || '—').toUpperCase().trim(),
+    section: cleanFallback || '—',
   };
 };
 
 const getTutorDisplayCohorts = (gradeLevel?: string | null, section?: string | null) => {
+  const cleanFallback = cleanSectionName(section);
   if (!gradeLevel) {
     return {
       grade: '—',
-      section: section ? section.toUpperCase().trim() : '—',
+      section: cleanFallback || '—',
     };
   }
 
@@ -164,37 +197,47 @@ const getTutorDisplayCohorts = (gradeLevel?: string | null, section?: string | n
   const commaChunks = raw.split(',').map((c) => c.trim()).filter(Boolean);
 
   commaChunks.forEach((chunk) => {
-    if (chunk.includes(' - ')) {
-      const parts = chunk.split(' - ').map((p) => p.trim());
+    const normalizedChunk = chunk.replace(/[–—]/g, '-').trim();
+    if (normalizedChunk.includes('-')) {
+      const parts = normalizedChunk.split(/\s*-\s*/).map((p) => p.trim()).filter(Boolean);
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i].toUpperCase();
-        const gradeMatch = part.match(/GRADE\s*(\d+)/i);
+        const gradeMatch = part.match(/GRADE\s*(\d+)/i) || part.match(/^(\d{1,2})$/);
         if (gradeMatch) {
           const gLabel = `Grade ${gradeMatch[1]}`;
           if (!grades.includes(gLabel)) grades.push(gLabel);
-          if (i + 1 < parts.length && !parts[i + 1].toUpperCase().match(/GRADE\s*(\d+)/i)) {
-            const sLabel = parts[i + 1].trim().toUpperCase();
-            if (sLabel && !sections.includes(sLabel)) sections.push(sLabel);
-            i++;
+          if (i + 1 < parts.length) {
+            const nextPart = parts[i + 1].toUpperCase();
+            if (!nextPart.match(/GRADE\s*(\d+)/i) && !nextPart.match(/^(\d{1,2})$/)) {
+              const sLabel = cleanSectionName(nextPart);
+              if (sLabel && !sections.includes(sLabel)) sections.push(sLabel);
+              i++;
+            }
           }
-        } else if (part && !sections.includes(part)) {
-          sections.push(part);
+        } else {
+          const sLabel = cleanSectionName(part);
+          if (sLabel && !sections.includes(sLabel)) {
+            sections.push(sLabel);
+          }
         }
       }
     } else {
-      const part = chunk.toUpperCase();
-      const gradeMatch = part.match(/GRADE\s*(\d+)/i);
+      const part = normalizedChunk.toUpperCase();
+      const gradeMatch = part.match(/GRADE\s*(\d+)/i) || part.match(/^(\d{1,2})$/);
       if (gradeMatch) {
         const gLabel = `Grade ${gradeMatch[1]}`;
         if (!grades.includes(gLabel)) grades.push(gLabel);
-      } else if (part && !sections.includes(part)) {
-        sections.push(part);
+      } else {
+        const sLabel = cleanSectionName(part);
+        if (sLabel && !sections.includes(sLabel)) {
+          sections.push(sLabel);
+        }
       }
     }
   });
 
-  if (sections.length === 0 && section) {
-    sections.push(section.toUpperCase().trim());
+  if (sections.length === 0 && cleanFallback) {
+    sections.push(cleanFallback);
   }
 
   if (grades.length === 0) {
@@ -202,7 +245,11 @@ const getTutorDisplayCohorts = (gradeLevel?: string | null, section?: string | n
     if (allGradeMatches.length > 0) {
       grades.push(...allGradeMatches);
     } else {
-      grades.push(raw);
+      const cleanG = raw.trim();
+      const cleanUpper = cleanG.toUpperCase();
+      if (!sections.includes(cleanUpper) && cleanSectionName(cleanG) !== cleanUpper) {
+        grades.push(cleanG);
+      }
     }
   }
 
@@ -210,6 +257,124 @@ const getTutorDisplayCohorts = (gradeLevel?: string | null, section?: string | n
     grade: grades.join(', ') || '—',
     section: sections.join(', ') || '—',
   };
+};
+
+interface DirectoryFilterOption {
+  value: string;
+  label: string;
+}
+
+const DirectoryFilterDropdown: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+  options: DirectoryFilterOption[];
+  ariaLabel: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  minWidthClass?: string;
+  menuWidthClass?: string;
+}> = ({
+  value,
+  onChange,
+  options,
+  ariaLabel,
+  isOpen,
+  onToggle,
+  onClose,
+  minWidthClass = 'min-w-[100px]',
+  menuWidthClass = 'w-48 sm:w-56',
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [menuAlign, setMenuAlign] = useState<'left' | 'right'>('left');
+
+  const selectedOpt = options.find((o) => o.value === value) || options[0];
+
+  const handleToggle = () => {
+    if (!isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const screenW = window.innerWidth || document.documentElement.clientWidth;
+      if (rect.left + 220 > screenW - 16) {
+        setMenuAlign('right');
+      } else {
+        setMenuAlign('left');
+      }
+    }
+    onToggle();
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [isOpen, onClose]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`relative inline-flex items-center shrink-0 flex-1 sm:flex-initial ${minWidthClass} sm:min-w-0 ${
+        isOpen ? 'z-50' : 'z-20'
+      }`}
+    >
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        onClick={handleToggle}
+        className="flex h-8 w-full sm:w-auto items-center justify-between gap-1.5 sm:gap-2 rounded-xl border border-gray-200 bg-gray-50 dark:border-[#1A1A1A] dark:bg-[#111111] px-2.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-normal text-gray-700 dark:text-slate-200 transition hover:border-gray-300 dark:hover:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer shadow-2xs"
+      >
+        <span className="truncate">{selectedOpt?.label || ''}</span>
+        <ChevronDown
+          className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform duration-200 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          className={`absolute ${
+            menuAlign === 'right' ? 'right-0' : 'left-0'
+          } top-full z-50 mt-1 max-h-60 ${menuWidthClass} max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] p-1.5 shadow-xl`}
+          role="listbox"
+          aria-label={ariaLabel}
+        >
+          {options.map((opt) => {
+            const isSel = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="option"
+                aria-selected={isSel}
+                onClick={() => {
+                  onChange(opt.value);
+                  onClose();
+                }}
+                className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase transition cursor-pointer ${
+                  isSel
+                    ? 'bg-[var(--brand)] text-white'
+                    : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 };
 
 export const UserList: React.FC = () => {
@@ -243,6 +408,11 @@ export const UserList: React.FC = () => {
   const [sectionFilter, setSectionFilter] = useState('');
   const [ordering, setOrdering] = useState('last_name');
   const [page, setPage] = useState(1);
+  const [openFilterDropdown, setOpenFilterDropdown] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOpenFilterDropdown(null);
+  }, [activeTab]);
 
   // Multi-select state for students (Bulk assign)
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -444,7 +614,14 @@ export const UserList: React.FC = () => {
   const fetchTutorsList = async () => {
     try {
       const list = await userService.getTutors();
-      setTutors(list);
+      const sorted = Array.isArray(list)
+        ? [...list].sort((a, b) => {
+            const nameA = a.full_name || `${a.first_name || ''} ${a.last_name || ''}`.trim() || a.username;
+            const nameB = b.full_name || `${b.first_name || ''} ${b.last_name || ''}`.trim() || b.username;
+            return nameA.localeCompare(nameB);
+          })
+        : [];
+      setTutors(sorted);
     } catch (err) {
       console.error('Failed to fetch tutors list', err);
     }
@@ -604,12 +781,14 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
     let isMounted = true;
     userService.getExistingSections(gradeLevelFilter).then((apiSections) => {
       if (!isMounted) return;
-      const sorted = Array.isArray(apiSections) ? [...apiSections].sort((a, b) => a.localeCompare(b)) : [];
+      const sorted = Array.isArray(apiSections)
+        ? Array.from(new Set(apiSections.map(cleanSectionName).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+        : [];
       setKnownSections((prev) => {
         const combined = new Set([...sorted, ...prev]);
         return Array.from(combined).sort((a, b) => a.localeCompare(b));
       });
-      if (sectionFilter && sorted.length > 0 && !sorted.includes(sectionFilter.toUpperCase())) {
+      if (sectionFilter && sorted.length > 0 && !sorted.includes(cleanSectionName(sectionFilter))) {
         setSectionFilter('');
       }
     });
@@ -626,8 +805,8 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
           : getGradeAndSection(u.grade_level, u.section).section;
         if (sec && sec !== '—') {
           sec.split(',').forEach((s) => {
-            const trimmed = s.trim().toUpperCase();
-            if (trimmed && trimmed !== '—') nextSet.add(trimmed);
+            const cleaned = cleanSectionName(s);
+            if (cleaned && cleaned !== '—') nextSet.add(cleaned);
           });
         }
       });
@@ -658,7 +837,8 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
         }
         if (sectionFilter) {
           const { section } = getGradeAndSection(u.grade_level, u.section);
-          if (section.toUpperCase() !== sectionFilter.toUpperCase()) return false;
+          const target = cleanSectionName(sectionFilter);
+          if (cleanSectionName(section) !== target) return false;
         }
       } else if (activeTab === 'tutor') {
         if (aralLevelFilter) {
@@ -687,8 +867,9 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
         }
         if (sectionFilter) {
           const { section } = getTutorDisplayCohorts(u.grade_level, u.section);
-          const secTokens = section.split(',').map((s) => s.trim().toUpperCase());
-          if (!secTokens.includes(sectionFilter.toUpperCase())) return false;
+          const target = cleanSectionName(sectionFilter);
+          const secTokens = section.split(',').map(cleanSectionName);
+          if (!secTokens.includes(target)) return false;
         }
       }
       return true;
@@ -710,9 +891,9 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
     const getSectionStr = (u: User) => {
       if (u.role === 'tutor') {
-        return (getTutorDisplayCohorts(u.grade_level, (u as any).section).section || '').toUpperCase();
+        return cleanSectionName(getTutorDisplayCohorts(u.grade_level, (u as any).section).section);
       }
-      return (getGradeAndSection(u.grade_level, (u as any).section).section || '').toUpperCase();
+      return cleanSectionName(getGradeAndSection(u.grade_level, (u as any).section).section);
     };
 
     return list.sort((a, b) => {
@@ -864,10 +1045,16 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
     });
   };
 
-  const SortableHeader: React.FC<{ label: string; field: string; align?: 'left' | 'center' | 'right' }> = ({
+  const SortableHeader: React.FC<{
+    label: string;
+    field: string;
+    align?: 'left' | 'center' | 'right';
+    className?: string;
+  }> = ({
     label,
     field,
     align = 'left',
+    className = '',
   }) => {
     const isActive = ordering === field || ordering === `-${field}`;
     const isAscending = ordering === field;
@@ -878,7 +1065,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
         onClick={() => handleSort(field)}
         className={`inline-flex items-center gap-1.5 whitespace-nowrap text-${align} transition-colors hover:text-gray-700 dark:hover:text-slate-200 select-none text-[11px] font-bold uppercase tracking-wider ${
           isActive ? 'text-gray-700 dark:text-slate-200' : 'text-gray-400 dark:text-slate-400'
-        } cursor-pointer`}
+        } cursor-pointer ${className}`}
         aria-label={`Sort by ${label}`}
       >
         <span className="whitespace-nowrap">{label}</span>
@@ -952,7 +1139,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
       {/* ── Main Integrated Directory Table Card ──────────────────────── */}
       <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
         {/* Table Toolbar (Section Title + Action Buttons & Filters) */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 px-3 sm:px-4 py-2.5 border-b border-gray-100 dark:border-[#1A1A1A] overflow-x-auto no-scrollbar">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 px-3 sm:px-4 py-2.5 border-b border-gray-100 dark:border-[#1A1A1A] overflow-visible">
           {/* Left: Title & Counter */}
           <div className="shrink-0 flex items-center justify-between lg:justify-start gap-2">
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase tracking-wide whitespace-nowrap">
@@ -977,135 +1164,151 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
           <div className="flex flex-wrap lg:flex-nowrap items-center gap-1.5 w-full lg:w-auto shrink-0">
             {/* Tutor Assignment Filter (Student Tab) */}
             {activeTab === 'student' && (
-              <div className="relative inline-flex items-center shrink-0 flex-1 sm:flex-initial min-w-[120px] sm:min-w-0">
-                <select
-                  value={assignedTutorFilter}
-                  onChange={(e) => {
-                    setAssignedTutorFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  aria-label="Filter by Assigned Tutor"
-                  className="h-8 w-full sm:w-auto rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
-                >
-                  <option value="">All Tutors</option>
-                  <option value="none">TBA (Unassigned)</option>
-                  {tutors.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.full_name || `${t.first_name} ${t.last_name}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <DirectoryFilterDropdown
+                value={assignedTutorFilter}
+                onChange={(val) => {
+                  setAssignedTutorFilter(val);
+                  setPage(1);
+                }}
+                options={[
+                  { value: '', label: 'ALL TUTORS' },
+                  { value: 'none', label: 'TBA (UNASSIGNED)' },
+                  ...tutors.map((t) => ({
+                    value: String(t.id),
+                    label: (t.full_name || `${t.first_name} ${t.last_name}`).toUpperCase(),
+                  })),
+                ]}
+                ariaLabel="Filter by Assigned Tutor"
+                isOpen={openFilterDropdown === 'tutor'}
+                onToggle={() => setOpenFilterDropdown((prev) => (prev === 'tutor' ? null : 'tutor'))}
+                onClose={() => setOpenFilterDropdown(null)}
+                minWidthClass="min-w-[120px]"
+                menuWidthClass="w-56 sm:w-64"
+              />
             )}
 
             {/* ARAL Level Filter (Student Tab) */}
             {activeTab === 'student' && (
-              <div className="relative inline-flex items-center shrink-0 flex-1 sm:flex-initial min-w-[100px] sm:min-w-0">
-                <select
-                  value={aralLevelFilter}
-                  onChange={(e) => {
-                    setAralLevelFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  aria-label="Filter by ARAL Level"
-                  className="h-8 w-full sm:w-auto rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
-                >
-                  <option value="">All Levels</option>
-                  <option value="basic">Basic</option>
-                  <option value="plus">Plus</option>
-                  <option value="summer">Summer</option>
-                </select>
-              </div>
+              <DirectoryFilterDropdown
+                value={aralLevelFilter}
+                onChange={(val) => {
+                  setAralLevelFilter(val);
+                  setPage(1);
+                }}
+                options={[
+                  { value: '', label: 'ALL LEVELS' },
+                  { value: 'basic', label: 'BASIC' },
+                  { value: 'plus', label: 'PLUS' },
+                  { value: 'summer', label: 'SUMMER' },
+                ]}
+                ariaLabel="Filter by ARAL Level"
+                isOpen={openFilterDropdown === 'aralLevelStudent'}
+                onToggle={() => setOpenFilterDropdown((prev) => (prev === 'aralLevelStudent' ? null : 'aralLevelStudent'))}
+                onClose={() => setOpenFilterDropdown(null)}
+                minWidthClass="min-w-[100px]"
+                menuWidthClass="w-44 sm:w-48"
+              />
             )}
 
             {/* ARAL Level Filter (Tutor Tab) */}
             {activeTab === 'tutor' && (
-              <div className="relative inline-flex items-center shrink-0 flex-1 sm:flex-initial min-w-[100px] sm:min-w-0">
-                <select
-                  value={aralLevelFilter}
-                  onChange={(e) => {
-                    setAralLevelFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  aria-label="Filter by ARAL Level"
-                  className="h-8 w-full sm:w-auto rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
-                >
-                  <option value="">All Levels</option>
-                  <option value="basic">Basic</option>
-                  <option value="plus">Plus</option>
-                  <option value="summer">Summer</option>
-                </select>
-              </div>
+              <DirectoryFilterDropdown
+                value={aralLevelFilter}
+                onChange={(val) => {
+                  setAralLevelFilter(val);
+                  setPage(1);
+                }}
+                options={[
+                  { value: '', label: 'ALL LEVELS' },
+                  { value: 'basic', label: 'BASIC' },
+                  { value: 'plus', label: 'PLUS' },
+                  { value: 'summer', label: 'SUMMER' },
+                ]}
+                ariaLabel="Filter by ARAL Level"
+                isOpen={openFilterDropdown === 'aralLevelTutor'}
+                onToggle={() => setOpenFilterDropdown((prev) => (prev === 'aralLevelTutor' ? null : 'aralLevelTutor'))}
+                onClose={() => setOpenFilterDropdown(null)}
+                minWidthClass="min-w-[100px]"
+                menuWidthClass="w-44 sm:w-48"
+              />
             )}
 
             {/* Subject Filter (Student & Tutor Tabs) */}
             {(activeTab === 'student' || activeTab === 'tutor') && (
-              <div className="relative inline-flex items-center shrink-0 flex-1 sm:flex-initial min-w-[110px] sm:min-w-0">
-                <select
-                  value={subjectFilter}
-                  onChange={(e) => {
-                    setSubjectFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  aria-label="Filter by Subject"
-                  className="h-8 w-full sm:w-auto rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
-                >
-                  <option value="">All Subjects</option>
-                  <option value="Filipino">Filipino</option>
-                  <option value="English">English</option>
-                  <option value="Science">Science</option>
-                  <option value="Math">Math</option>
-                </select>
-              </div>
+              <DirectoryFilterDropdown
+                value={subjectFilter}
+                onChange={(val) => {
+                  setSubjectFilter(val);
+                  setPage(1);
+                }}
+                options={[
+                  { value: '', label: 'ALL SUBJECTS' },
+                  { value: 'Filipino', label: 'FILIPINO' },
+                  { value: 'English', label: 'ENGLISH' },
+                  { value: 'Science', label: 'SCIENCE' },
+                  { value: 'Math', label: 'MATH' },
+                ]}
+                ariaLabel="Filter by Subject"
+                isOpen={openFilterDropdown === 'subject'}
+                onToggle={() => setOpenFilterDropdown((prev) => (prev === 'subject' ? null : 'subject'))}
+                onClose={() => setOpenFilterDropdown(null)}
+                minWidthClass="min-w-[110px]"
+                menuWidthClass="w-44 sm:w-48"
+              />
             )}
 
             {/* Grade Level Filter (Student & Tutor Tabs) */}
             {(activeTab === 'student' || activeTab === 'tutor') && (
-              <div className="relative inline-flex items-center shrink-0 flex-1 sm:flex-initial min-w-[100px] sm:min-w-0">
-                <select
-                  value={gradeLevelFilter}
-                  onChange={(e) => {
-                    setGradeLevelFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  aria-label="Filter by Grade Level"
-                  className="h-8 w-full sm:w-auto rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer"
-                >
-                  <option value="">All Grades</option>
-                  <option value="7">Grade 7</option>
-                  <option value="8">Grade 8</option>
-                  <option value="9">Grade 9</option>
-                  <option value="10">Grade 10</option>
-                  <option value="11">Grade 11</option>
-                  <option value="12">Grade 12</option>
-                </select>
-              </div>
+              <DirectoryFilterDropdown
+                value={gradeLevelFilter}
+                onChange={(val) => {
+                  setGradeLevelFilter(val);
+                  setPage(1);
+                }}
+                options={[
+                  { value: '', label: 'ALL GRADES' },
+                  { value: '7', label: 'GRADE 7' },
+                  { value: '8', label: 'GRADE 8' },
+                  { value: '9', label: 'GRADE 9' },
+                  { value: '10', label: 'GRADE 10' },
+                  { value: '11', label: 'GRADE 11' },
+                  { value: '12', label: 'GRADE 12' },
+                ]}
+                ariaLabel="Filter by Grade Level"
+                isOpen={openFilterDropdown === 'gradeLevel'}
+                onToggle={() => setOpenFilterDropdown((prev) => (prev === 'gradeLevel' ? null : 'gradeLevel'))}
+                onClose={() => setOpenFilterDropdown(null)}
+                minWidthClass="min-w-[100px]"
+                menuWidthClass="w-44 sm:w-48"
+              />
             )}
 
             {/* Section Filter (Student & Tutor Tabs) */}
             {(activeTab === 'student' || activeTab === 'tutor') && (
-              <div className="relative inline-flex items-center shrink-0 flex-1 sm:flex-initial min-w-[110px] sm:min-w-0">
-                <select
-                  value={sectionFilter}
-                  onChange={(e) => {
-                    setSectionFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  aria-label="Filter by Section"
-                  className="h-8 w-full sm:w-auto rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#111111] px-2 text-[11px] font-semibold text-gray-700 dark:text-slate-200 outline-none transition focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#0A0A0A] cursor-pointer uppercase"
-                >
-                  <option value="">All Sections</option>
-                  {knownSections.map((sec) => (
-                    <option key={sec} value={sec}>
-                      {sec}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <DirectoryFilterDropdown
+                value={sectionFilter}
+                onChange={(val) => {
+                  setSectionFilter(val);
+                  setPage(1);
+                }}
+                options={[
+                  { value: '', label: 'ALL SECTIONS' },
+                  ...knownSections.map((sec) => ({
+                    value: sec,
+                    label: sec.toUpperCase(),
+                  })),
+                ]}
+                ariaLabel="Filter by Section"
+                isOpen={openFilterDropdown === 'section'}
+                onToggle={() => setOpenFilterDropdown((prev) => (prev === 'section' ? null : 'section'))}
+                onClose={() => setOpenFilterDropdown(null)}
+                minWidthClass="min-w-[110px]"
+                menuWidthClass="w-48 sm:w-56"
+              />
             )}
 
             {/* Search Input Bar */}
-            <form onSubmit={handleSearchSubmit} className="relative flex w-full sm:w-auto flex-1 sm:flex-initial min-w-0 items-center shrink-0">
+            <form onSubmit={handleSearchSubmit} className="relative flex w-full sm:w-auto order-first sm:order-none min-w-0 items-center shrink-0">
               <Search className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-gray-400" />
               <input
                 type="search"
@@ -1206,8 +1409,467 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
         </div>
 
         {/* ── Table Content ────────────────────────────────────────── */}
-        <div className="overflow-x-auto mobile-scroll-table w-full">
-          <table className={`${activeTab === 'student' ? 'min-w-[1100px]' : activeTab === 'tutor' ? 'min-w-[920px]' : 'min-w-[760px]'} w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal`}>
+        {/* ── Mobile View (< 768px): Pinned Sticky Name Column Table ── */}
+        <div className="md:hidden overflow-x-auto table-scroll-container mobile-scroll-table w-full">
+          <table className={`${activeTab === 'student' ? 'min-w-[860px]' : activeTab === 'tutor' ? 'min-w-[700px]' : 'min-w-[460px]'} w-full border-separate border-spacing-0 text-xs text-left font-normal`}>
+            <thead>
+              <tr className="bg-gray-50 dark:bg-[#151515]">
+                {/* Sticky User Name Column */}
+                <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] min-w-[155px] max-w-[170px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                  {activeTab === 'student' ? (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={toggleSelectAll}
+                        className="text-gray-500 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer shrink-0"
+                        title="Select All Students"
+                      >
+                        {selectedIds.length === sortedAndFilteredUsers.length && sortedAndFilteredUsers.length > 0 ? (
+                          <CheckSquare className="w-3.5 h-3.5 text-[var(--brand)]" />
+                        ) : (
+                          <Square className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                      <SortableHeader label="STUDENT" field="last_name" />
+                    </div>
+                  ) : (
+                    <SortableHeader
+                      label={
+                        activeTab === 'tutor' ? 'TUTOR' :
+                        activeTab === 'principal' ? 'PRINCIPAL' :
+                        activeTab === 'admin' ? 'ADMIN' :
+                        activeTab === 'superadmin' ? 'SUPER ADMIN' : 'STAFF'
+                      }
+                      field="last_name"
+                    />
+                  )}
+                </th>
+
+                {activeTab === 'student' ? (
+                  <>
+                    <th className="min-w-[95px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="LRN" field="lrn" align="center" />
+                    </th>
+                    <th className="min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="ARAL LEVEL" field="aral_level" align="center" />
+                    </th>
+                    <th className="min-w-[125px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="ASSIGNED TUTOR" field="assigned_tutor" />
+                    </th>
+                    <th className="min-w-[90px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="SUBJECT" field="subject" align="center" />
+                    </th>
+                    <th className="min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="GRADE" field="grade_level" align="center" />
+                    </th>
+                    <th className="min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="SECTION" field="section" align="center" />
+                    </th>
+                    <th className="min-w-[125px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="PARENT / GUARDIAN" field="parent_guardian_name" />
+                    </th>
+                    <th className="min-w-[105px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="CONTACT NO." field="contact_number" align="center" />
+                    </th>
+                    <th className="min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="STATUS" field="status" align="center" />
+                    </th>
+                    <th className="w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                      ACTION
+                    </th>
+                  </>
+                ) : activeTab === 'tutor' ? (
+                  <>
+                    <th className="min-w-[130px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="EMAIL" field="email" />
+                    </th>
+                    <th className="min-w-[105px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="ARAL SUBJECT" field="subject" align="center" />
+                    </th>
+                    <th className="min-w-[95px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="ARAL LEVEL" field="aral_level" align="center" />
+                    </th>
+                    <th className="min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="GRADE LEVEL" field="grade_level" align="center" />
+                    </th>
+                    <th className="min-w-[85px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="SECTION" field="section" align="center" />
+                    </th>
+                    <th className="min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="STATUS" field="status" align="center" />
+                    </th>
+                    <th className="w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                      ACTION
+                    </th>
+                  </>
+                ) : (
+                  <>
+                    <th className="min-w-[140px] px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="EMAIL" field="email" />
+                    </th>
+                    <th className="min-w-[80px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                      <SortableHeader label="STATUS" field="status" align="center" />
+                    </th>
+                    <th className="w-16 min-w-[70px] px-2 py-2.5 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                      ACTION
+                    </th>
+                  </>
+                )}
+              </tr>
+            </thead>
+
+            <tbody className="bg-white dark:bg-[#0A0A0A]">
+              {isLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={`mob-skel-${i}`} className="animate-pulse">
+                    <td className="sticky left-0 z-10 bg-white dark:bg-[#0A0A0A] px-2.5 py-3 border-b border-r border-gray-200 dark:border-[#222222]">
+                      <div className="h-3.5 w-28 rounded bg-gray-200 dark:bg-gray-800" />
+                    </td>
+                    {activeTab === 'student' ? (
+                      <>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-3.5 w-16 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-3.5 w-14 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-3.5 w-20 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-3.5 w-14 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-3.5 w-12 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-3.5 w-14 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-3.5 w-20 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-3.5 w-16 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-4 w-12 mx-auto rounded-full bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-gray-100 dark:border-[#1A1A1A]"><div className="h-4 w-10 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                      </>
+                    ) : activeTab === 'tutor' ? (
+                      <>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-3.5 w-24 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-3.5 w-16 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-3.5 w-14 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-3.5 w-12 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-3.5 w-14 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-4 w-12 mx-auto rounded-full bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-gray-100 dark:border-[#1A1A1A]"><div className="h-4 w-10 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-3.5 w-28 rounded bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-r border-gray-100 dark:border-[#1A1A1A]"><div className="h-4 w-12 mx-auto rounded-full bg-gray-200 dark:bg-gray-800" /></td>
+                        <td className="px-2.5 py-3 border-b border-gray-100 dark:border-[#1A1A1A]"><div className="h-4 w-10 mx-auto rounded bg-gray-200 dark:bg-gray-800" /></td>
+                      </>
+                    )}
+                  </tr>
+                ))
+              ) : error ? (
+                <tr>
+                  <td
+                    colSpan={activeTab === 'student' ? 11 : activeTab === 'tutor' ? 8 : 4}
+                    className="p-8 text-center text-red-600 dark:text-red-400 bg-red-50/50 dark:bg-red-950/20"
+                  >
+                    <p className="text-xs font-semibold">{error}</p>
+                    <button
+                      type="button"
+                      onClick={fetchUsers}
+                      className="mt-2 px-3 py-1 bg-[var(--brand)] text-white rounded-md text-xs font-bold cursor-pointer hover:bg-[var(--brand-dark)] transition"
+                    >
+                      Retry
+                    </button>
+                  </td>
+                </tr>
+              ) : sortedAndFilteredUsers.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={activeTab === 'student' ? 11 : activeTab === 'tutor' ? 8 : 4}
+                    className="py-12 text-center text-gray-400 dark:text-slate-500"
+                  >
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Users className="w-8 h-8 text-gray-300 dark:text-gray-700 stroke-[1.5]" />
+                      <p className="text-xs font-semibold text-gray-600 dark:text-slate-300">
+                        No {activeTab} accounts found
+                      </p>
+                      <p className="text-[11px] text-gray-400 dark:text-slate-500 max-w-xs">
+                        Try adjusting your search query, filters, or enroll a new account.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                sortedAndFilteredUsers.map((u, index) => {
+                  const isSelected = selectedIds.includes(u.id);
+                  const isStudentRow = u.role === 'student';
+
+                  return (
+                    <tr
+                      key={`mob-user-${u.id}`}
+                      className={`group transition-colors hover:bg-gray-50/80 dark:hover:bg-white/[0.02] ${
+                        isSelected ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
+                      }`}
+                    >
+                      {/* Sticky User Column */}
+                      <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#0A0A0A] dark:group-hover:bg-[#151515] px-2.5 py-2.5 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {activeTab === 'student' && isStudentRow && (
+                            <button
+                              type="button"
+                              onClick={() => toggleSelectRow(u.id)}
+                              className="text-gray-500 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer shrink-0"
+                            >
+                              {isSelected ? (
+                                <CheckSquare className="w-3.5 h-3.5 text-[var(--brand)]" />
+                              ) : (
+                                <Square className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          )}
+                          <span className="text-[10px] text-gray-400 dark:text-slate-500 font-mono shrink-0 w-4 text-right">
+                            {(page - 1) * 30 + index + 1}.
+                          </span>
+                          <span
+                            className="truncate max-w-[110px] text-xs font-semibold text-gray-900 dark:text-slate-100"
+                            title={u.full_name || `${u.first_name} ${u.last_name}`}
+                          >
+                            {u.full_name || `${u.first_name} ${u.last_name}`}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Student Mobile Columns */}
+                      {activeTab === 'student' && (
+                        <>
+                          <td className="px-2 py-2.5 text-center text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs font-mono border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {u.lrn || 'N/A'}
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {getAralBadge(u.aral_level)}
+                          </td>
+                          <td className="px-2.5 py-2.5 whitespace-nowrap text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {u.assigned_tutor_name && u.assigned_tutor_name !== 'TBA' ? (
+                              <span className="font-semibold text-gray-800 dark:text-slate-200">
+                                {u.assigned_tutor_name}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 dark:text-slate-500 font-medium text-xs">
+                                - TBA -
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {getSubjectBadge(u.subject, u.aral_level)}
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap text-xs text-gray-700 dark:text-slate-300 font-medium border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {getGradeAndSection(u.grade_level).grade}
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap text-xs text-gray-700 dark:text-slate-300 font-medium uppercase border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {getGradeAndSection(u.grade_level, u.section).section}
+                          </td>
+                          <td className="px-2.5 py-2.5 whitespace-nowrap text-xs text-gray-700 dark:text-slate-300 font-medium uppercase border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            <span className="block truncate max-w-[120px]" title={u.parent_guardian_name || '—'}>
+                              {u.parent_guardian_name || '—'}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap text-xs text-gray-700 dark:text-slate-300 font-mono border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {u.contact_number || '—'}
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                              u.is_active
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
+                                : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/60'
+                            }`}>
+                              {u.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap space-x-1 border-b border-gray-100 dark:border-[#1A1A1A]">
+                            <Link
+                              to={
+                                currentUser?.is_superuser
+                                  ? `/superadmin/users/edit/${u.id}`
+                                  : `/admin/students/edit/${u.id}`
+                              }
+                              className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] hover:bg-gray-100 dark:hover:bg-white/[0.05] rounded-md transition-colors p-1.5 touch-manipulation cursor-pointer"
+                              title="Edit User"
+                              aria-label={`Edit ${u.full_name || u.first_name}`}
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </Link>
+                            {isRootSuperAdmin(u) ? (
+                              <span
+                                className="inline-flex items-center justify-center p-1.5 text-emerald-600 dark:text-emerald-400 cursor-not-allowed opacity-90"
+                                title={`Primary Root SuperAdmin (${ROOT_SUPERADMIN_EMAIL}) - Immune from deactivation`}
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                              </span>
+                            ) : isSelfUser(u, currentUser) ? (
+                              <span
+                                className="inline-flex items-center justify-center p-1.5 text-gray-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
+                                title="You cannot deactivate your own account"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleStatusClick(u)}
+                                className={`inline-flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.05] touch-manipulation cursor-pointer transition-colors ${
+                                  u.is_active
+                                    ? 'text-gray-400 hover:text-red-600'
+                                    : 'text-gray-400 hover:text-emerald-600'
+                                }`}
+                                title={u.is_active ? 'Deactivate Account' : 'Activate Account'}
+                                aria-label={u.is_active ? 'Deactivate Account' : 'Activate Account'}
+                              >
+                                {u.is_active ? <ShieldAlert className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                              </button>
+                            )}
+                          </td>
+                        </>
+                      )}
+
+                      {/* Tutor Mobile Columns */}
+                      {activeTab === 'tutor' && (
+                        <>
+                          <td className="px-2.5 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs font-medium border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {u.email}
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {getTutorDisplaySubjects(u)}
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {getAralBadge(u.aral_level)}
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap text-xs text-gray-700 dark:text-slate-300 font-medium border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {getTutorDisplayCohorts(u.grade_level, u.section).grade}
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap text-xs text-gray-700 dark:text-slate-300 font-medium uppercase border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {getTutorDisplayCohorts(u.grade_level, u.section).section}
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                              u.is_active
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
+                                : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/60'
+                            }`}>
+                              {u.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap space-x-1 border-b border-gray-100 dark:border-[#1A1A1A]">
+                            <Link
+                              to={
+                                currentUser?.is_superuser
+                                  ? `/superadmin/users/edit/${u.id}`
+                                  : `/admin/tutors/edit/${u.id}`
+                              }
+                              className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] hover:bg-gray-100 dark:hover:bg-white/[0.05] rounded-md transition-colors p-1.5 touch-manipulation cursor-pointer"
+                              title="Edit User"
+                              aria-label={`Edit ${u.full_name || u.first_name}`}
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </Link>
+                            {isRootSuperAdmin(u) ? (
+                              <span
+                                className="inline-flex items-center justify-center p-1.5 text-emerald-600 dark:text-emerald-400 cursor-not-allowed opacity-90"
+                                title={`Primary Root SuperAdmin (${ROOT_SUPERADMIN_EMAIL}) - Immune from deactivation`}
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                              </span>
+                            ) : isSelfUser(u, currentUser) ? (
+                              <span
+                                className="inline-flex items-center justify-center p-1.5 text-gray-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
+                                title="You cannot deactivate your own account"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleStatusClick(u)}
+                                className={`inline-flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.05] touch-manipulation cursor-pointer transition-colors ${
+                                  u.is_active
+                                    ? 'text-gray-400 hover:text-red-600'
+                                    : 'text-gray-400 hover:text-emerald-600'
+                                }`}
+                                title={u.is_active ? 'Deactivate Account' : 'Activate Account'}
+                                aria-label={u.is_active ? 'Deactivate Account' : 'Activate Account'}
+                              >
+                                {u.is_active ? <ShieldAlert className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                              </button>
+                            )}
+                          </td>
+                        </>
+                      )}
+
+                      {/* Principal / Admin Mobile Columns */}
+                      {(activeTab === 'principal' || activeTab === 'admin' || activeTab === 'superadmin') && (
+                        <>
+                          <td className="px-2.5 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs font-medium border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            {u.email}
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                              u.is_active
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/60'
+                                : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/60'
+                            }`}>
+                              {u.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2.5 text-center whitespace-nowrap space-x-1 border-b border-gray-100 dark:border-[#1A1A1A]">
+                            <Link
+                              to={
+                                currentUser?.is_superuser
+                                  ? `/superadmin/users/edit/${u.id}`
+                                  : activeTab === 'admin'
+                                  ? `/admin/admins/edit/${u.id}`
+                                  : activeTab === 'principal'
+                                  ? `/admin/principals/edit/${u.id}`
+                                  : `/admin/principals/edit/${u.id}`
+                              }
+                              className="inline-flex items-center justify-center text-gray-400 hover:text-[var(--brand)] hover:bg-gray-100 dark:hover:bg-white/[0.05] rounded-md transition-colors p-1.5 touch-manipulation cursor-pointer"
+                              title="Edit User"
+                              aria-label={`Edit ${u.full_name || u.first_name}`}
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </Link>
+                            {isRootSuperAdmin(u) ? (
+                              <span
+                                className="inline-flex items-center justify-center p-1.5 text-emerald-600 dark:text-emerald-400 cursor-not-allowed opacity-90"
+                                title={`Primary Root SuperAdmin (${ROOT_SUPERADMIN_EMAIL}) - Immune from deactivation`}
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                              </span>
+                            ) : isSelfUser(u, currentUser) ? (
+                              <span
+                                className="inline-flex items-center justify-center p-1.5 text-gray-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
+                                title="You cannot deactivate your own account"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleStatusClick(u)}
+                                className={`inline-flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.05] touch-manipulation cursor-pointer transition-colors ${
+                                  u.is_active
+                                    ? 'text-gray-400 hover:text-red-600'
+                                    : 'text-gray-400 hover:text-emerald-600'
+                                }`}
+                                title={u.is_active ? 'Deactivate Account' : 'Activate Account'}
+                                aria-label={u.is_active ? 'Deactivate Account' : 'Activate Account'}
+                              >
+                                {u.is_active ? <ShieldAlert className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                              </button>
+                            )}
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ── Desktop View (>= 768px): Original Full Table ── */}
+        <div className="hidden md:block overflow-x-auto table-scroll-container mobile-scroll-table w-full">
+<table className={`${activeTab === 'student' ? 'min-w-[1100px]' : activeTab === 'tutor' ? 'min-w-[920px]' : 'min-w-[760px]'} w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-left text-sm font-normal`}>
             <thead>
                 <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
                   {/* Select All Checkbox (Students) */}
@@ -1430,7 +2092,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
                         {/* Row number */}
                         <td className="px-3 py-3 text-center text-xs font-normal text-gray-400 dark:text-slate-500 whitespace-nowrap">
-                          {(page - 1) * 10 + index + 1}
+                          {(page - 1) * 30 + index + 1}
                         </td>
 
                         {/* Full Name */}
