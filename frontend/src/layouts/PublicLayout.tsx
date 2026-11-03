@@ -120,22 +120,22 @@ export const PublicLayout: React.FC = () => {
     >
       {/* ── Dynamic Navbar ── */}
       <div
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 pointer-events-none ${
-          isScrolled ? 'pt-3 sm:pt-4 px-3 sm:px-6' : 'pt-0 px-4 sm:px-8 lg:px-12'
+        className={`fixed top-0 left-0 right-0 z-50 transition-[padding] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] pointer-events-none ${
+          isScrolled ? 'pt-3 sm:pt-4 px-3 sm:px-6' : 'pt-2 sm:pt-3 px-4 sm:px-8 lg:px-12'
         }`}
       >
         <header
-          className={`pointer-events-auto mx-auto transition-all duration-300 flex justify-between transform-gpu ${
+          className={`pointer-events-auto mx-auto w-full flex items-center justify-between rounded-2xl border transform-gpu transition-[max-width,height,padding,background-color,border-color,box-shadow,backdrop-filter] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isScrolled
-              ? 'w-full max-w-5xl bg-white/65 dark:bg-neutral-900/45 backdrop-blur-2xl backdrop-saturate-[190%] border border-white/80 dark:border-white/15 rounded-2xl px-4 sm:px-6 h-14 items-center shadow-[0_16px_40px_-6px_rgba(15,23,42,0.12),0_4px_12px_rgba(15,23,42,0.04),inset_0_1px_1px_0_rgba(255,255,255,0.95),inset_0_-1px_1px_0_rgba(0,0,0,0.03)] dark:shadow-[0_20px_50px_-8px_rgba(0,0,0,0.7),inset_0_1px_1px_0_rgba(255,255,255,0.22),inset_0_0_20px_0_rgba(255,255,255,0.02)] text-slate-800 dark:text-white'
-              : 'w-full max-w-6xl px-0 h-[70px] items-end pb-0 bg-transparent border-transparent shadow-none text-slate-900 dark:text-white'
+              ? 'max-w-5xl h-14 px-4 sm:px-6 bg-white/70 dark:bg-neutral-900/55 backdrop-blur-2xl backdrop-saturate-[190%] border-white/85 dark:border-white/15 shadow-[0_16px_40px_-6px_rgba(15,23,42,0.12),0_4px_12px_rgba(15,23,42,0.04),inset_0_1px_1px_0_rgba(255,255,255,0.95),inset_0_-1px_1px_0_rgba(0,0,0,0.03)] dark:shadow-[0_20px_50px_-8px_rgba(0,0,0,0.7),inset_0_1px_1px_0_rgba(255,255,255,0.22),inset_0_0_20px_0_rgba(255,255,255,0.02)] text-slate-800 dark:text-white'
+              : 'max-w-6xl h-16 px-2 sm:px-3 bg-transparent backdrop-blur-none border-transparent shadow-none text-slate-900 dark:text-white'
           }`}
         >
           {/* Left: Logo & Brand + Navigation links */}
-          <div className={`flex gap-4 sm:gap-6 ${isScrolled ? 'items-center' : 'items-end pb-0'}`}>
+          <div className="flex items-center gap-4 sm:gap-6">
             <Link
               to="/"
-              className={`landing-brand-link flex transition-all duration-200 ${isScrolled ? 'items-center py-1.5' : 'items-end pb-0'}`}
+              className="landing-brand-link group flex items-center py-1.5 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
               onClick={(e) => handleNavClick(e, 'home')}
               aria-label="ARALert Home"
             >
@@ -146,7 +146,7 @@ export const PublicLayout: React.FC = () => {
                 height={34}
                 loading="eager"
                 decoding="async"
-                className="w-8 h-8 sm:w-8.5 sm:h-8.5 object-contain transition-transform duration-200 group-hover:scale-105"
+                className="w-8 h-8 sm:w-8.5 sm:h-8.5 object-contain transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-108"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).style.display = 'none';
                 }}
@@ -156,7 +156,7 @@ export const PublicLayout: React.FC = () => {
             {/* Navigation links (Desktop & Tablet landscape) */}
             <nav
               aria-label="Main Navigation"
-              className={`hidden md:flex gap-6 ${isScrolled ? 'items-center pb-0' : 'items-end pb-[7px]'}`}
+              className="hidden md:flex items-center gap-6"
             >
               {NAV_LINKS.map((item) => {
                 const isActive = location.pathname === '/' && activeSection === item.id;
@@ -166,7 +166,7 @@ export const PublicLayout: React.FC = () => {
                     href={item.to}
                     onClick={(e) => handleNavClick(e, item.id)}
                     aria-current={isActive ? 'page' : undefined}
-                    className={`landing-nav-link pen-trigger text-sm font-semibold transition-colors duration-200 cursor-pointer ${
+                    className={`landing-nav-link pen-trigger text-sm font-semibold transition-colors duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
                       isActive
                         ? 'text-[#0052B7] dark:text-blue-400 is-active'
                         : 'text-slate-600 dark:text-slate-300 hover:text-[#0052B7] dark:hover:text-blue-400'
@@ -180,7 +180,7 @@ export const PublicLayout: React.FC = () => {
           </div>
 
           {/* Right: Dark mode toggle + Sign In / Dashboard button + Mobile Menu Button */}
-          <div className={`flex gap-2 sm:gap-3 ${isScrolled ? 'items-center' : 'items-end pb-0'}`}>
+          <div className="flex items-center gap-2 sm:gap-3">
             <ThemeToggle className="w-8 h-8 sm:w-9 sm:h-9" size={15} />
 
             {(!isLoginPage || isAuthenticated) && (
