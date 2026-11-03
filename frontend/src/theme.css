@@ -129,300 +129,96 @@
   --sidebar-active-glow: 0 0 10px rgba(56, 189, 248, 0.12);
 }
 
-/* ── 📐 Notebook Grid Tokens (shared by the landing page AND the public navbar) ── */
-:root {
-  --notebook-grid: 40px;
-  /* Vertical position of the ruled line inside each 40px row. Text set with a
-     40px line-height has its baseline ~27px into the row, so a rule at 30px
-     makes every line of text sit directly on a ruled line. */
-  --nb-rule-offset: 30px;
-  /* Horizontal gutter: x of the vertical margin rule, and x where text begins */
-  --nb-margin-x: 0.5rem;    /* 8px mobile (prevents cramping on 360px phones) */
-  --nb-content-x: 0.5rem;   /* 8px mobile */
-}
-
-@media (min-width: 640px) {
-  :root {
-    --nb-margin-x: 3.25rem;   /* 52px tablet */
-    --nb-content-x: 4.5rem;   /* 72px tablet */
-  }
-}
-
-@media (min-width: 1024px) {
-  :root {
-    --nb-margin-x: 4.25rem;   /* 68px desktop */
-    --nb-content-x: 5.75rem;  /* 92px desktop */
-  }
-}
-
-/* ── 📓 Authentic Paper Texture & Defined Horizontal Notebook Rules ──────────────── */
-.notebook-paper {
-  background-color: #FAF8F5;
+/* ── Landing Page Smooth Atmospheric Canvas (Light & Dark Mode) ── */
+.landing-canvas {
+  background-color: #F8FAFE;
   background-image:
-    /* Defined solid horizontal notebook rule lines (40px rhythm, 2px thickness) */
-    linear-gradient(to bottom, rgba(62, 92, 142, 0.22) 2px, transparent 2px),
-    /* Tactile organic paper grain & pulp fiber texture (seamless, variance-driven alpha) */
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='paperGrain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch' result='noise'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.24  0 0 0 0 0.20  0 0 0 0 0.16  0.038 0.038 0.038 0 0.012'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23paperGrain)'/%3E%3C/svg%3E");
-  background-size: 100% 40px, 240px 240px;
-  background-repeat: repeat, repeat;
-  /* Shift the rules down so they act as baselines for 40px text rows */
-  background-position: 0 var(--nb-rule-offset), 0 0;
+    radial-gradient(ellipse 62% 55% at 10% 15%, rgba(186, 212, 250, 0.55) 0%, transparent 70%),
+    radial-gradient(ellipse 58% 52% at 90% 82%, rgba(253, 218, 192, 0.52) 0%, transparent 70%),
+    radial-gradient(ellipse 70% 60% at 50% 45%, rgba(255, 255, 255, 0.85) 0%, transparent 100%),
+    linear-gradient(135deg, #E8F0FC 0%, #F9FBFF 48%, #FDF3EB 100%);
+  background-attachment: fixed;
 }
 
-/* ── ✨ Dark Mode Luxury Starlight Roof (Tiny Blinking Fiber-Optic Dots) ── */
-.dark .notebook-paper {
-  background-color: #000000;
-  position: relative;
-  /* Steady ambient constellation of tiny starlight pinpoints */
-  background-image: url('./assets/starlight-roof-base.svg') !important;
-  background-size: 700px 700px !important;
-  background-repeat: repeat !important;
-  background-position: 0 0 !important;
+.dark .landing-canvas,
+:where(.dark, .dark *) .landing-canvas {
+  background-color: #03060C;
+  background-image:
+    radial-gradient(ellipse 62% 55% at 12% 16%, rgba(0, 82, 183, 0.22) 0%, transparent 70%),
+    radial-gradient(ellipse 55% 50% at 88% 82%, rgba(245, 158, 11, 0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 70% 55% at 50% 45%, rgba(10, 20, 42, 0.5) 0%, transparent 100%),
+    linear-gradient(135deg, #040914 0%, #020409 52%, #080606 100%);
+  background-attachment: fixed;
 }
 
-/* Blinking Tiny Starlight Dots - Group 1 */
-.dark .notebook-paper::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  background-image: url('./assets/starlight-roof-blink1.svg');
-  background-size: 800px 800px;
-  background-repeat: repeat;
-  animation: starlightBlinkPhaseA 9s ease-in-out infinite;
+/* Section anchor offset for smooth scroll alignment */
+.landing-section-anchor {
+  scroll-margin-top: 24px;
 }
 
-/* Blinking Tiny Starlight Dots - Group 2 (Offset Tempo & Phase) */
-.dark .notebook-paper::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  background-image: url('./assets/starlight-roof-blink2.svg');
-  background-size: 850px 850px;
-  background-repeat: repeat;
-  animation: starlightBlinkPhaseB 13s ease-in-out infinite;
+/* Subtle entrance reveal for landing sections */
+.landing-reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
 }
 
-@keyframes starlightBlinkPhaseA {
+.landing-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.landing-reveal.revealed.reveal-delay-100 {
+  transition-delay: 90ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* ── Hero 3D Logo Levitation & Synchronized Floor Shadow ── */
+@keyframes heroLogoFloat {
   0%, 100% {
-    opacity: 0.08;
-  }
-  25% {
-    opacity: 0.95;
-  }
-  40% {
-    opacity: 0.3;
-  }
-  60% {
-    opacity: 0.85;
-  }
-  80% {
-    opacity: 0.15;
-  }
-}
-
-@keyframes starlightBlinkPhaseB {
-  0%, 100% {
-    opacity: 0.85;
-  }
-  30% {
-    opacity: 0.1;
+    transform: translateY(0px) rotate(0deg);
   }
   50% {
-    opacity: 0.95;
-  }
-  75% {
-    opacity: 0.2;
-  }
-  90% {
-    opacity: 0.75;
+    transform: translateY(-14px) rotate(-1.5deg);
   }
 }
 
-/* ── 📐 Typographic Baseline Alignment & Notebook Grid Rhythm (40px Unit) ──── */
-.notebook-paper {
-  --line-height-grid: 40px;
-}
-
-/* Dedicated Full-Screen Page Alignment: Sections snap directly to viewport top */
-.landing-section-anchor {
-  scroll-margin-top: 0px;
-}
-
-/* Paper ink protection: prevents background rule lines from colliding with or striking through letterforms */
-.notebook-paper .notebook-snap-p,
-.notebook-paper .notebook-snap-sm,
-.notebook-paper .notebook-snap-xs,
-.notebook-paper .notebook-snap-h3,
-.notebook-paper .notebook-snap-h2,
-.notebook-paper .notebook-snap-h1 {
-  text-shadow: 
-    0 1px 1px #FAF8F5,
-    0 -1px 1px #FAF8F5,
-    1px 0 1px #FAF8F5,
-    -1px 0 1px #FAF8F5;
-}
-
-.dark .notebook-paper .notebook-snap-p,
-.dark .notebook-paper .notebook-snap-sm,
-.dark .notebook-paper .notebook-snap-xs,
-.dark .notebook-paper .notebook-snap-h3,
-.dark .notebook-paper .notebook-snap-h2,
-.dark .notebook-paper .notebook-snap-h1 {
-  text-shadow: none !important;
-}
-
-/* Text rows locked to the 40px rhythm. Kept in the `components` layer so that
-   Tailwind spacing utilities (mt-10, mb-10…) can still add whole grid rows. */
-@layer components {
-  .notebook-snap-p {
-    font-size: 0.9375rem; /* 15px on phones so lines don't cramp */
-    line-height: 40px !important;
-    margin: 0;
+@keyframes heroLogoShadow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.24;
   }
-
-  @media (min-width: 640px) {
-    .notebook-snap-p {
-      font-size: 1.0625rem; /* 17px tablet & desktop */
-    }
-  }
-
-  .notebook-snap-lead {
-    font-size: 0.875rem; /* 14px on 360px phones for generous side breathing room */
-    line-height: 40px !important;
-    margin: 0;
-  }
-
-  @media (min-width: 640px) {
-    .notebook-snap-lead {
-      font-size: 1.125rem; /* 18px tablet */
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .notebook-snap-lead {
-      font-size: 1.25rem; /* 20px desktop */
-    }
-  }
-
-  .notebook-snap-sm {
-    font-size: 0.9375rem; /* 15px */
-    line-height: 40px !important;
-    margin: 0;
-  }
-
-  .notebook-snap-xs {
-    font-size: 0.8125rem; /* 13px */
-    line-height: 40px !important;
-    margin: 0;
-  }
-
-  .notebook-snap-h3 {
-    font-size: 1.125rem; /* 18px mobile */
-    line-height: 40px !important;
-    margin: 0;
-  }
-
-  @media (min-width: 640px) {
-    .notebook-snap-h3 {
-      font-size: 1.25rem; /* 20px tablet & desktop */
-    }
-  }
-
-  .notebook-snap-h2 {
-    font-size: 1.5rem; /* 24px */
-    line-height: 40px !important; /* 1 ruled line per text row */
-    margin: 0;
-  }
-
-  @media (max-width: 640px) {
-    .notebook-snap-h2 {
-      font-size: 1.25rem; /* 20px on 360px phones */
-      line-height: 40px !important;
-    }
-  }
-
-  .notebook-snap-h1 {
-    font-size: clamp(2.25rem, 5.5vw, 4rem);
-    line-height: 80px !important;
-    margin: 0;
+  50% {
+    transform: scale(0.8);
+    opacity: 0.11;
   }
 }
 
-/* Notebook grid-aligned button: exactly 2 rows tall (80px) and nudged up so its
-   top and bottom borders sit precisely ON ruled lines instead of between them.
-   The paper fill hides the rule that would otherwise run through the label. */
-.notebook-btn-2line {
-  position: relative;
-  top: calc(var(--nb-rule-offset) - var(--notebook-grid));
-  height: 80px !important;
-  box-sizing: border-box !important;
-  background-color: #FAF8F5;
+.hero-logo-float {
+  animation: heroLogoFloat 5.5s ease-in-out infinite;
+  will-change: transform;
 }
 
-.notebook-btn-2line#hero-portal-cta:hover {
-  background-color: #0052B7 !important;
-  border-color: #0052B7 !important;
-  color: #ffffff !important;
+.hero-logo-shadow {
+  animation: heroLogoShadow 5.5s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
-.dark .notebook-btn-2line {
-  background-color: #000000;
-}
-
-.dark .notebook-btn-2line#hero-portal-cta:hover {
-  background-color: #0052B7 !important;
-  border-color: #0052B7 !important;
-  color: #ffffff !important;
-}
-
-/* ── 📏 Blue Vertical Margin Line (Authentic Loose-Leaf Notebook Paper) ─────── */
-.notebook-page-container {
-  position: relative;
-  padding-left: var(--nb-content-x);
-}
-
-/* Symmetric variant for centered content (hero) so it clears the margin rule */
-.notebook-page-container--centered {
-  padding-right: var(--nb-content-x);
-}
-
-/* One continuous margin rule for the whole page (starts at the navbar's bottom rule) */
-.notebook-red-margin-line {
-  display: none !important;
-}
-
-.dark .notebook-red-margin-line {
-  display: none !important;
-}
-
-/* Margin annotations (PART I, Q01…): right-aligned in the gutter, on the row's rule */
-.notebook-gutter-label {
-  position: absolute;
-  left: 0;
-  width: calc(var(--nb-margin-x) - 0.625rem);
-  text-align: right;
-  white-space: nowrap;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.6875rem; /* 11px */
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  line-height: 40px;
-  color: rgba(26, 93, 173, 0.85);
-  pointer-events: none;
-  user-select: none;
-}
-
-/* Same label, positioned from inside an already-indented content block */
-.notebook-gutter-label--nested {
-  left: calc(-1 * var(--nb-content-x));
-}
-
-.dark .notebook-gutter-label {
-  color: rgba(96, 165, 250, 0.8);
+@media (prefers-reduced-motion: reduce) {
+  .hero-logo-float,
+  .hero-logo-shadow {
+    animation: none !important;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
