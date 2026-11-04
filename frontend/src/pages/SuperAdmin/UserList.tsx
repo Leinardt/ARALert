@@ -563,15 +563,15 @@ export const UserList: React.FC = () => {
     }
   };
 
-  const availableTabs = useMemo<[AccountTab, string][]>(() => {
-    const tabs: [AccountTab, string][] = [
-      ['student', 'STUDENTS'],
-      ['tutor', 'TUTORS'],
-      ['principal', 'PRINCIPALS'],
+  const availableTabs = useMemo<{ id: AccountTab; label: string; shortLabel?: string }[]>(() => {
+    const tabs: { id: AccountTab; label: string; shortLabel?: string }[] = [
+      { id: 'student', label: 'STUDENTS' },
+      { id: 'tutor', label: 'TUTORS' },
+      { id: 'principal', label: 'PRINCIPALS' },
     ];
     if (isSuperUser) {
-      tabs.push(['admin', 'ADMINS']);
-      tabs.push(['superadmin', 'SUPER ADMINS']);
+      tabs.push({ id: 'admin', label: 'ADMINS' });
+      tabs.push({ id: 'superadmin', label: 'SUPER ADMINS', shortLabel: 'SUPERADMIN' });
     }
     return tabs;
   }, [isSuperUser]);
@@ -1114,25 +1114,36 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
     <div className="space-y-4 sm:space-y-6" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
       {/* ── Top Navigation Tabs (Pill Switcher) ────────────────────────── */}
       <div
-        className="flex w-full rounded-md bg-gray-100 p-1 gap-1 dark:bg-[#111111] overflow-x-auto no-scrollbar"
+        className="flex w-full rounded-xl bg-gray-100 p-0.5 sm:p-1 gap-0.5 sm:gap-1 dark:bg-[#111111] overflow-x-auto no-scrollbar"
         role="tablist"
         aria-label="User account management tabs"
       >
-        {availableTabs.map(([tabRole, label]) => (
-          <button
-            key={tabRole}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tabRole}
-            onClick={() => handleTabChange(tabRole)}
-            className={`flex-1 min-w-[70px] h-9 rounded-sm px-2.5 sm:px-4 flex items-center justify-center text-[11px] sm:text-xs font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${activeTab === tabRole
-              ? 'bg-[var(--brand)] text-white'
-              : 'text-gray-400 opacity-60 hover:bg-white/60 hover:text-gray-600 hover:opacity-100 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-slate-300'
+        {availableTabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => handleTabChange(tab.id)}
+              className={`flex-1 min-w-0 sm:min-w-[70px] h-8 sm:h-9 rounded-lg sm:rounded-md px-1 sm:px-4 flex items-center justify-center text-[10px] sm:text-xs font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? 'bg-[var(--brand)] text-white shadow-xs'
+                  : 'text-gray-400 opacity-60 hover:bg-white/60 hover:text-gray-600 hover:opacity-100 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-slate-300'
               }`}
-          >
-            {label}
-          </button>
-        ))}
+            >
+              {tab.shortLabel ? (
+                <>
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.shortLabel}</span>
+                </>
+              ) : (
+                tab.label
+              )}
+            </button>
+          );
+        })}
       </div>
 
 
