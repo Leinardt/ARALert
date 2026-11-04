@@ -1313,7 +1313,8 @@ export const DashboardLayout: React.FC = () => {
               onClick={() => {
                 setShowRiskList(false);
                 setShowTutorNotifications(false);
-                setShowAdminNotifications(false);
+                setShowStudentEditRequests(false);
+                setShowEditRequestsModal(false);
                 setProfileMenuOpen(false);
                 setIsMobileDrawerOpen(true);
               }}
