@@ -352,7 +352,7 @@ export const DashboardLayout: React.FC = () => {
       p.includes('/superadmin/users') ||
       p.includes('/superadmin/students') ||
       p.includes('/superadmin/tutors') ||
-            p.includes('/superadmin/principals') ||
+      p.includes('/superadmin/principals') ||
       p.includes('/superadmin/admins') ||
       p.includes('/superadmin/superadmins')
     ) return 'User Management';
@@ -602,7 +602,7 @@ export const DashboardLayout: React.FC = () => {
                 isActivePrefix('/superadmin/users') ||
                 isActivePrefix('/superadmin/students') ||
                 isActivePrefix('/superadmin/tutors') ||
-                                isActivePrefix('/superadmin/principals') ||
+                isActivePrefix('/superadmin/principals') ||
                 isActivePrefix('/superadmin/admins') ||
                 isActivePrefix('/superadmin/superadmins'),
                 collapsed
@@ -618,7 +618,7 @@ export const DashboardLayout: React.FC = () => {
                   isActivePrefix('/superadmin/users') ||
                   isActivePrefix('/superadmin/students') ||
                   isActivePrefix('/superadmin/tutors') ||
-                                    isActivePrefix('/superadmin/principals') ||
+                  isActivePrefix('/superadmin/principals') ||
                   isActivePrefix('/superadmin/admins') ||
                   isActivePrefix('/superadmin/superadmins')
                 }
@@ -1064,28 +1064,26 @@ export const DashboardLayout: React.FC = () => {
               aria-haspopup="menu"
               aria-label="Profile and account menu"
               className={`sidebar-item ${isProfileActive ? 'active' : ''} w-10 h-10 mx-auto !p-0 justify-center rounded-xl flex items-center border transition-all duration-150 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${profileMenuOpen
-                  ? 'border-slate-300 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 shadow-xs'
-                  : isProfileActive
-                    ? ''
-                    : 'border-transparent hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-slate-300'
+                ? 'border-slate-300 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 shadow-xs'
+                : isProfileActive
+                  ? ''
+                  : 'border-transparent hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-slate-300'
                 }`}
             >
               {user?.avatar ? (
                 <img
                   src={user.avatar}
                   alt={getDisplayName()}
-                  className={`w-7 h-7 rounded-full object-cover border transition-colors ${
-                    isProfileActive
+                  className={`w-7 h-7 rounded-full object-cover border transition-colors ${isProfileActive
                       ? 'border-[var(--brand)] ring-1 ring-[var(--brand)]/30'
                       : 'border-slate-200 dark:border-zinc-700'
-                  }`}
+                    }`}
                 />
               ) : (
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center font-medium text-xs border transition-colors ${
-                  isProfileActive
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center font-medium text-xs border transition-colors ${isProfileActive
                     ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] border-[var(--sidebar-active-border)]'
                     : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700'
-                }`}>
+                  }`}>
                   <UserIcon size={14} strokeWidth={isProfileActive ? 2.2 : 1.8} />
                 </div>
               )}
@@ -1099,37 +1097,34 @@ export const DashboardLayout: React.FC = () => {
               aria-haspopup="menu"
               aria-label="Profile and account menu"
               className={`sidebar-item ${isProfileActive ? 'active' : ''} w-full flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${profileMenuOpen
-                  ? 'border-slate-300 dark:border-zinc-700 bg-slate-100/90 dark:bg-zinc-800/80 shadow-xs'
-                  : isProfileActive
-                    ? ''
-                    : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
+                ? 'border-slate-300 dark:border-zinc-700 bg-slate-100/90 dark:bg-zinc-800/80 shadow-xs'
+                : isProfileActive
+                  ? ''
+                  : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
                 }`}
             >
               {user?.avatar ? (
                 <img
                   src={user.avatar}
                   alt={getDisplayName()}
-                  className={`w-8 h-8 rounded-full object-cover border shrink-0 transition-colors ${
-                    isProfileActive
+                  className={`w-8 h-8 rounded-full object-cover border shrink-0 transition-colors ${isProfileActive
                       ? 'border-[var(--brand)] ring-1 ring-[var(--brand)]/30'
                       : 'border-slate-200/80 dark:border-zinc-700'
-                  }`}
+                    }`}
                 />
               ) : (
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-xs border shrink-0 transition-colors ${
-                  isProfileActive
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-xs border shrink-0 transition-colors ${isProfileActive
                     ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] border-[var(--sidebar-active-border)]'
                     : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border-slate-200/80 dark:border-zinc-700'
-                }`}>
+                  }`}>
                   <UserIcon size={15} strokeWidth={isProfileActive ? 2.2 : 1.8} />
                 </div>
               )}
               <div className="flex-1 min-w-0 flex flex-col justify-center">
-                <span className={`text-xs truncate leading-tight transition-colors ${
-                  isProfileActive
+                <span className={`text-xs truncate leading-tight transition-colors ${isProfileActive
                     ? 'font-bold text-[var(--sidebar-active-text)]'
                     : 'font-semibold text-slate-800 dark:text-slate-200'
-                }`}>
+                  }`}>
                   {getDisplayName()}
                 </span>
               </div>
@@ -1264,37 +1259,34 @@ export const DashboardLayout: React.FC = () => {
             aria-haspopup="menu"
             aria-label="Profile and account menu"
             className={`sidebar-item ${isProfileActive ? 'active' : ''} w-full flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-150 cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] ${profileMenuOpen
-                ? 'border-slate-300 dark:border-zinc-700 bg-slate-100/90 dark:bg-zinc-800/80 shadow-xs'
-                : isProfileActive
-                  ? ''
-                  : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
+              ? 'border-slate-300 dark:border-zinc-700 bg-slate-100/90 dark:bg-zinc-800/80 shadow-xs'
+              : isProfileActive
+                ? ''
+                : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800/60'
               }`}
           >
             {user?.avatar ? (
               <img
                 src={user.avatar}
                 alt={getDisplayName()}
-                className={`w-8 h-8 rounded-full object-cover border shrink-0 transition-colors ${
-                  isProfileActive
+                className={`w-8 h-8 rounded-full object-cover border shrink-0 transition-colors ${isProfileActive
                     ? 'border-[var(--brand)] ring-1 ring-[var(--brand)]/30'
                     : 'border-slate-200/80 dark:border-zinc-700'
-                }`}
+                  }`}
               />
             ) : (
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-xs border shrink-0 transition-colors ${
-                isProfileActive
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-xs border shrink-0 transition-colors ${isProfileActive
                   ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] border-[var(--sidebar-active-border)]'
                   : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 border-slate-200/80 dark:border-zinc-700'
-              }`}>
+                }`}>
                 <UserIcon size={15} strokeWidth={isProfileActive ? 2.2 : 1.8} />
               </div>
             )}
             <div className="flex-1 min-w-0 flex flex-col justify-center">
-              <span className={`text-xs truncate leading-tight transition-colors ${
-                isProfileActive
+              <span className={`text-xs truncate leading-tight transition-colors ${isProfileActive
                   ? 'font-bold text-[var(--sidebar-active-text)]'
                   : 'font-semibold text-slate-800 dark:text-slate-200'
-              }`}>
+                }`}>
                 {getDisplayName()}
               </span>
             </div>
@@ -1307,7 +1299,7 @@ export const DashboardLayout: React.FC = () => {
 
         {/* ── Top Bar ── */}
         <header
-          className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 z-40"
+          className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 z-30"
           style={{
             background: 'var(--glass-bg)',
             backdropFilter: 'blur(12px)',
@@ -1318,7 +1310,13 @@ export const DashboardLayout: React.FC = () => {
           <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
             <button
               type="button"
-              onClick={() => setIsMobileDrawerOpen(true)}
+              onClick={() => {
+                setShowRiskList(false);
+                setShowTutorNotifications(false);
+                setShowAdminNotifications(false);
+                setProfileMenuOpen(false);
+                setIsMobileDrawerOpen(true);
+              }}
               className="lg:hidden p-2 -ml-1 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0"
               title="Open Navigation"
               aria-label="Open Navigation"
@@ -1516,11 +1514,10 @@ export const DashboardLayout: React.FC = () => {
                                     setSelectedAlertClass('all');
                                     setIsAlertClassDropdownOpen(false);
                                   }}
-                                  className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${
-                                    selectedAlertClass === 'all'
+                                  className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${selectedAlertClass === 'all'
                                       ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-[var(--brand-dark)]/20 dark:text-[var(--brand-light)]'
                                       : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
-                                  }`}
+                                    }`}
                                   title={`ALL CLASSES (${tutorClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)`}
                                 >
                                   <span className="truncate">ALL CLASSES ({tutorClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)</span>
@@ -1538,11 +1535,10 @@ export const DashboardLayout: React.FC = () => {
                                         setSelectedAlertClass(cls.key);
                                         setIsAlertClassDropdownOpen(false);
                                       }}
-                                      className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${
-                                        isSelected
+                                      className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${isSelected
                                           ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-[var(--brand-dark)]/20 dark:text-[var(--brand-light)]'
                                           : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
-                                      }`}
+                                        }`}
                                       title={`${cls.label} (${cls.students.length})`}
                                     >
                                       <span className="truncate">{cls.label} ({cls.students.length})</span>
@@ -2471,21 +2467,19 @@ export const DashboardLayout: React.FC = () => {
                   setIsMobileDrawerOpen(false);
                   navigate(getProfilePath());
                 }}
-                className={`group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-150 text-left cursor-pointer ${
-                  isProfileActive
+                className={`group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-150 text-left cursor-pointer ${isProfileActive
                     ? 'bg-[var(--brand)]/10 text-[var(--sidebar-active-text)] font-bold'
                     : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-900 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
                 role="menuitem"
               >
                 <UserIcon
                   size={16}
                   strokeWidth={isProfileActive ? 2.2 : 2}
-                  className={`transition-colors shrink-0 ${
-                    isProfileActive
+                  className={`transition-colors shrink-0 ${isProfileActive
                       ? 'text-[var(--sidebar-active-text)]'
                       : 'text-slate-400 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-white'
-                  }`}
+                    }`}
                 />
                 <span>Profile</span>
               </button>
