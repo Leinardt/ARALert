@@ -90,7 +90,8 @@ export interface UserStats {
   };
   risk_summary?: {
     low: number;
-    medium: number;
+    moderate?: number;
+    medium?: number;
     high: number;
     resolved: number;
   };
@@ -133,7 +134,7 @@ export interface AcademicRisk {
   id: number;
   student: string;
   student_name: string;
-  risk_level: 'low' | 'medium' | 'high';
+  risk_level: 'low' | 'moderate' | 'medium' | 'high';
   risk_level_display: string;
   details: string;
   date_created: string;
@@ -161,7 +162,8 @@ export interface PrincipalDashboardResponse {
   };
   risk_summary: {
     low: number;
-    medium: number;
+    moderate?: number;
+    medium?: number;
     high: number;
   };
   class_performance_trend: PrincipalDashboardTrendPoint[];
@@ -252,7 +254,7 @@ export interface StudentAcademicProfile {
     stats: Record<string, number>;
   };
   academic_risks: AcademicRisk[];
-  computed_risk_level?: 'low' | 'medium' | 'high';
+  computed_risk_level?: 'low' | 'moderate' | 'medium' | 'high';
 }
 
 export interface StudentEditRequest {

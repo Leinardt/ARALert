@@ -132,7 +132,7 @@ export const PrivacyPolicy: React.FC = () => {
             </p>
             <div className="pl-3 sm:pl-4 border-l-2 border-slate-300 dark:border-neutral-700 space-y-1.5 text-xs sm:text-sm">
               <p>&bull; Identifying learners requiring immediate literacy and numeracy remediation.</p>
-              <p>&bull; Generating early warning academic risk cohort classifications (Low, Medium, and High Risk).</p>
+              <p>&bull; Generating early warning academic risk cohort classifications (Low, Moderate, and High Risk).</p>
               <p>&bull; Computing weighted performance metrics under DepEd validated standards (30% Formative Assessments, 50% Tasks, and 20% Attendance Rate).</p>
               <p>&bull; Evaluating student readiness for cohort graduation or progression to advanced ARAL tiers.</p>
               <p>&bull; Formulating mandatory institutional performance and accomplishment reports for the Division of Masbate and DepEd Regional Office V.</p>

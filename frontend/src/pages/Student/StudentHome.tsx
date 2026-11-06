@@ -530,7 +530,7 @@ export const StudentHome: React.FC = () => {
         setActiveSystemSemester(sy.current_semester as any);
         setActiveSystemSem(sy.current_semester as any);
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
     const handleSemChange = (e: any) => {
       const newSem = e?.detail?.semester || getActiveSystemSemester();
@@ -547,7 +547,7 @@ export const StudentHome: React.FC = () => {
   }, [activeSystemSem]);
 
   // Student Risk Tier
-  const studentRiskTier = studentStat?.riskTier || (profile?.computed_risk_level === 'high' ? 'High' : profile?.computed_risk_level === 'medium' ? 'Medium' : 'Low');
+  const studentRiskTier = studentStat?.riskTier || (profile?.computed_risk_level === 'high' ? 'High' : (profile?.computed_risk_level === 'moderate' || profile?.computed_risk_level === 'medium') ? 'Moderate' : 'Low');
 
   // ── Performance Trend Data (10 days / 6 weeks / 6 months) ───────────────────
   const last4WeeksData = useMemo(() => {
@@ -807,15 +807,14 @@ export const StudentHome: React.FC = () => {
               Composite Rating
             </p>
             <p
-              className={`text-3xl sm:text-4xl lg:text-5xl font-extrabold mt-1.5 sm:mt-2 tracking-tight ${
-                !hasCompositeData
+              className={`text-3xl sm:text-4xl lg:text-5xl font-extrabold mt-1.5 sm:mt-2 tracking-tight ${!hasCompositeData
                   ? 'text-gray-400 dark:text-slate-500'
                   : compositeRating >= 81
-                  ? 'text-risk-low'
-                  : compositeRating >= 70
-                  ? 'text-risk-medium'
-                  : 'text-risk-high'
-              }`}
+                    ? 'text-risk-low'
+                    : compositeRating >= 70
+                      ? 'text-risk-moderate'
+                      : 'text-risk-high'
+                }`}
             >
               {!hasCompositeData ? '—' : `${compositeRating.toFixed(1)}%`}
             </p>
@@ -835,15 +834,14 @@ export const StudentHome: React.FC = () => {
               Average Attendance
             </p>
             <p
-              className={`text-base sm:text-xl font-extrabold shrink-0 ${
-                currentStudentAttendance.length === 0
+              className={`text-base sm:text-xl font-extrabold shrink-0 ${currentStudentAttendance.length === 0
                   ? 'text-gray-400 dark:text-slate-500'
                   : avgAttendance >= 81
-                  ? 'text-risk-low'
-                  : avgAttendance >= 75
-                  ? 'text-risk-medium'
-                  : 'text-risk-high'
-              }`}
+                    ? 'text-risk-low'
+                    : avgAttendance >= 75
+                      ? 'text-risk-moderate'
+                      : 'text-risk-high'
+                }`}
             >
               {currentStudentAttendance.length === 0 ? '—' : `${avgAttendance}%`}
             </p>
@@ -857,15 +855,14 @@ export const StudentHome: React.FC = () => {
               Average Scores
             </p>
             <p
-              className={`text-base sm:text-xl font-extrabold shrink-0 ${
-                !hasScoreData
+              className={`text-base sm:text-xl font-extrabold shrink-0 ${!hasScoreData
                   ? 'text-gray-400 dark:text-slate-500'
                   : avgScore >= 81
-                  ? 'text-risk-low'
-                  : avgScore >= 75
-                  ? 'text-risk-medium'
-                  : 'text-risk-high'
-              }`}
+                    ? 'text-risk-low'
+                    : avgScore >= 75
+                      ? 'text-risk-moderate'
+                      : 'text-risk-high'
+                }`}
             >
               {!hasScoreData ? '—' : `${avgScore}%`}
             </p>
@@ -879,15 +876,14 @@ export const StudentHome: React.FC = () => {
               Risk Level
             </p>
             <p
-              className={`text-sm sm:text-lg font-extrabold shrink-0 ${
-                studentRiskTier === 'High'
+              className={`text-sm sm:text-lg font-extrabold shrink-0 ${studentRiskTier === 'High'
                   ? 'text-risk-high'
-                  : studentRiskTier === 'Medium'
-                  ? 'text-risk-medium'
-                  : 'text-risk-low'
-              }`}
+                  : (studentRiskTier === 'Moderate' || studentRiskTier === 'Medium')
+                    ? 'text-risk-moderate'
+                    : 'text-risk-low'
+                }`}
             >
-              {studentRiskTier ? `${studentRiskTier.toUpperCase()} RISK` : 'LOW RISK'}
+              {studentRiskTier ? `${studentRiskTier === 'Medium' ? 'MODERATE' : studentRiskTier.toUpperCase()} RISK` : 'LOW RISK'}
             </p>
           </Link>
         </div>
@@ -921,11 +917,10 @@ export const StudentHome: React.FC = () => {
                       key={filter}
                       type="button"
                       onClick={() => setTrendFilter(filter)}
-                      className={`rounded-sm px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
-                        trendFilter === filter
+                      className={`rounded-sm px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${trendFilter === filter
                           ? 'bg-[var(--brand)] text-white shadow-xs'
                           : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                      }`}
+                        }`}
                     >
                       {filter}
                     </button>
@@ -974,10 +969,10 @@ export const StudentHome: React.FC = () => {
                     last4WeeksData.length === 0
                       ? 'text-gray-400 dark:text-slate-500'
                       : highestScore >= 81
-                      ? 'text-risk-low'
-                      : highestScore >= 75
-                      ? 'text-risk-medium'
-                      : 'text-risk-high',
+                        ? 'text-risk-low'
+                        : highestScore >= 75
+                          ? 'text-risk-moderate'
+                          : 'text-risk-high',
                 },
                 {
                   label: 'Lowest',
@@ -986,10 +981,10 @@ export const StudentHome: React.FC = () => {
                     last4WeeksData.length === 0
                       ? 'text-gray-400 dark:text-slate-500'
                       : lowestScore >= 81
-                      ? 'text-risk-low'
-                      : lowestScore >= 75
-                      ? 'text-risk-medium'
-                      : 'text-risk-high',
+                        ? 'text-risk-low'
+                        : lowestScore >= 75
+                          ? 'text-risk-moderate'
+                          : 'text-risk-high',
                 },
               ].map((stat) => (
                 <div

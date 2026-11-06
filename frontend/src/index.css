@@ -1548,25 +1548,25 @@ tbody > tr:nth-child(6) [class*="dark:bg-gray-"] { animation-delay: 2.20s !impor
 
 .badge-green, .badge-risk-low    { background: var(--risk-low-badge-bg); color: var(--risk-low-text); border: 1px solid var(--risk-low-border); }
 .badge-red, .badge-risk-high     { background: var(--risk-high-badge-bg); color: var(--risk-high-text); border: 1px solid var(--risk-high-border); }
-.badge-amber, .badge-risk-medium { background: var(--risk-medium-badge-bg); color: var(--risk-medium-text); border: 1px solid var(--risk-medium-border); }
+.badge-amber, .badge-risk-medium, .badge-risk-moderate { background: var(--risk-medium-badge-bg); color: var(--risk-medium-text); border: 1px solid var(--risk-medium-border); }
 .badge-blue                      { background: var(--color-info-bg); color: var(--brand); border: 1px solid var(--color-info-border); }
 .badge-slate                     { background: var(--slate-100); color: var(--slate-600); border: 1px solid var(--slate-200); }
 
 /* Reusable Global Risk Utilities */
 .risk-card-low    { background-color: var(--risk-low-bg) !important; border-color: var(--risk-low-border) !important; }
-.risk-card-medium { background-color: var(--risk-medium-bg) !important; border-color: var(--risk-medium-border) !important; }
+.risk-card-medium, .risk-card-moderate { background-color: var(--risk-medium-bg) !important; border-color: var(--risk-medium-border) !important; }
 .risk-card-high   { background-color: var(--risk-high-bg) !important; border-color: var(--risk-high-border) !important; }
 
 .risk-badge-low    { background-color: var(--risk-low-badge-bg) !important; color: var(--risk-low-text) !important; border: 1px solid var(--risk-low-border) !important; }
-.risk-badge-medium { background-color: var(--risk-medium-badge-bg) !important; color: var(--risk-medium-text) !important; border: 1px solid var(--risk-medium-border) !important; }
+.risk-badge-medium, .risk-badge-moderate { background-color: var(--risk-medium-badge-bg) !important; color: var(--risk-medium-text) !important; border: 1px solid var(--risk-medium-border) !important; }
 .risk-badge-high   { background-color: var(--risk-high-badge-bg) !important; color: var(--risk-high-text) !important; border: 1px solid var(--risk-high-border) !important; }
 
 .risk-avatar-low    { background-color: var(--risk-low-bg) !important; color: var(--risk-low-text) !important; border: 1px solid var(--risk-low-border) !important; }
-.risk-avatar-medium { background-color: var(--risk-medium-bg) !important; color: var(--risk-medium-text) !important; border: 1px solid var(--risk-medium-border) !important; }
+.risk-avatar-medium, .risk-avatar-moderate { background-color: var(--risk-medium-bg) !important; color: var(--risk-medium-text) !important; border: 1px solid var(--risk-medium-border) !important; }
 .risk-avatar-high   { background-color: var(--risk-high-bg) !important; color: var(--risk-high-text) !important; border: 1px solid var(--risk-high-border) !important; }
 
 .text-risk-low    { color: var(--risk-low-text) !important; }
-.text-risk-medium { color: var(--risk-medium-text) !important; }
+.text-risk-medium, .text-risk-moderate { color: var(--risk-medium-text) !important; }
 .text-risk-high   { color: var(--risk-high-text) !important; }
 
 /* ═══════════════════════════════════════════════════════════════

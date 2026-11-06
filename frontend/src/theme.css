@@ -63,7 +63,7 @@
   /* ── 🎯 SYSTEM RISK & PERFORMANCE PALETTE ──────────────────────────────────
      Master tokens for Risk Levels, Average Scores, and Attendance indicators:
        - Low Risk / Good:     #22C55E (Green)
-       - Medium Risk / Fair:  #F59E0B (Amber/Orange)
+       - Moderate Risk / Fair: #F59E0B (Amber/Orange)
        - High Risk / Urgent:  #EF4444 (Red)
      ─────────────────────────────────────────────────────────────────────────── */
   --risk-low:            #22C55E;
@@ -73,10 +73,15 @@
   --risk-low-badge-bg:   color-mix(in srgb, var(--risk-low) 22%, #FFFFFF);
 
   --risk-medium:         #F59E0B;
+  --risk-moderate:       #F59E0B;
   --risk-medium-bg:      color-mix(in srgb, var(--risk-medium) 14%, #FFFFFF);
+  --risk-moderate-bg:    color-mix(in srgb, var(--risk-medium) 14%, #FFFFFF);
   --risk-medium-border:  color-mix(in srgb, var(--risk-medium) 38%, #FFFFFF);
+  --risk-moderate-border: color-mix(in srgb, var(--risk-medium) 38%, #FFFFFF);
   --risk-medium-text:    color-mix(in srgb, var(--risk-medium) 65%, #78350F);
+  --risk-moderate-text:  color-mix(in srgb, var(--risk-medium) 65%, #78350F);
   --risk-medium-badge-bg:color-mix(in srgb, var(--risk-medium) 22%, #FFFFFF);
+  --risk-moderate-badge-bg: color-mix(in srgb, var(--risk-medium) 22%, #FFFFFF);
 
   --risk-high:           #EF4444;
   --risk-high-bg:        color-mix(in srgb, var(--risk-high) 14%, #FFFFFF);
@@ -114,9 +119,13 @@
   --risk-low-badge-bg:   rgba(52, 211, 153, 0.20);
 
   --risk-medium-bg:      rgba(251, 191, 36, 0.14);
+  --risk-moderate-bg:    rgba(251, 191, 36, 0.14);
   --risk-medium-border:  rgba(251, 191, 36, 0.40);
+  --risk-moderate-border: rgba(251, 191, 36, 0.40);
   --risk-medium-text:    #FBBF24;
+  --risk-moderate-text:  #FBBF24;
   --risk-medium-badge-bg:rgba(251, 191, 36, 0.20);
+  --risk-moderate-badge-bg: rgba(251, 191, 36, 0.20);
 
   --risk-high-bg:        rgba(251, 113, 133, 0.14);
   --risk-high-border:    rgba(251, 113, 133, 0.40);
@@ -245,9 +254,13 @@
   --color-risk-low-text: var(--risk-low-text);
 
   --color-risk-medium: var(--risk-medium);
+  --color-risk-moderate: var(--risk-medium);
   --color-risk-medium-bg: var(--risk-medium-bg);
+  --color-risk-moderate-bg: var(--risk-medium-bg);
   --color-risk-medium-border: var(--risk-medium-border);
+  --color-risk-moderate-border: var(--risk-medium-border);
   --color-risk-medium-text: var(--risk-medium-text);
+  --color-risk-moderate-text: var(--risk-medium-text);
 
   --color-risk-high: var(--risk-high);
   --color-risk-high-bg: var(--risk-high-bg);

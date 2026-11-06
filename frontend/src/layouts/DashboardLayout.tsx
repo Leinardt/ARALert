@@ -275,9 +275,9 @@ export const DashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const hasGreetingPending = useMemo(() => {
+  const [hasGreetingPending, setHasGreetingPending] = useState<boolean>(() => {
     return checkGreetingEligibility(user).show;
-  }, [user]);
+  });
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     try {
@@ -295,6 +295,7 @@ export const DashboardLayout: React.FC = () => {
       } catch { }
       return next;
     });
+    setHasGreetingPending(false);
   };
 
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState<boolean>(false);
@@ -424,7 +425,7 @@ export const DashboardLayout: React.FC = () => {
 
       const rows = computeStudentRiskRows(students, grades, attendanceLogs);
       const highRiskRows = rows.filter((r) => r.riskTier === 'High').sort((a, b) => b.compositeScore - a.compositeScore);
-      const moderateRiskRows = rows.filter((r) => r.riskTier === 'Medium').sort((a, b) => b.compositeScore - a.compositeScore).slice(0, 5);
+      const moderateRiskRows = rows.filter((r) => r.riskTier === 'Moderate' || r.riskTier === 'Medium').sort((a, b) => b.compositeScore - a.compositeScore).slice(0, 5);
 
       const latestResolvedRiskByStudent = (riskRecords as AcademicRisk[])
         .filter((risk: AcademicRisk) => risk.resolved)
@@ -486,7 +487,7 @@ export const DashboardLayout: React.FC = () => {
     const existingRiskId = acknowledgedRiskIds[row.student.id];
     const studentRiskLevel: AcademicRisk['risk_level'] =
       row.riskTier === 'High' ? 'high'
-        : row.riskTier === 'Medium' ? 'medium'
+        : (row.riskTier === 'Moderate' || row.riskTier === 'Medium') ? 'moderate'
           : 'low';
     try {
       const detailsMsg = `High risk alert acknowledged by ${user?.first_name || 'tutor'}.`;
@@ -913,6 +914,7 @@ export const DashboardLayout: React.FC = () => {
         user={user}
         sidebarLogoId="sidebar-brand-logo"
         sidebarTextId="sidebar-brand-text"
+        onComplete={() => setHasGreetingPending(false)}
       />
 
       {/* ── Desktop Sidebar (Collapsible & Minimizable, hidden on <1024px) ───────────────────────── */}
@@ -950,7 +952,7 @@ export const DashboardLayout: React.FC = () => {
             <div className="relative w-10 h-10 flex items-center justify-center">
               {/* ARALert logo image (shown when collapsed) */}
               <div
-                id="sidebar-brand-logo"
+                id="sidebar-brand-logo-collapsed"
                 className="w-8 h-8 flex items-center justify-center select-none transition-all duration-200 ease-in-out opacity-100 scale-100 group-hover/header:opacity-0 group-hover/header:scale-75 pointer-events-none"
               >
                 <img

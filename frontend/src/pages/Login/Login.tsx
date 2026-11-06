@@ -349,7 +349,7 @@ export const Login: React.FC = () => {
                   <button
                     type="button"
                     disabled={googleLoading}
-                    className="group w-full h-full flex items-center justify-center gap-2.5 px-4 rounded-xl font-semibold text-sm cursor-pointer select-none transition-all duration-200 bg-white hover:bg-slate-50 dark:bg-neutral-900 dark:hover:bg-neutral-800 text-slate-800 dark:text-white border-2 border-slate-300 hover:border-[#0052B7] dark:border-neutral-700 dark:hover:border-blue-500 shadow-xs hover:shadow-md hover:-translate-y-0.5"
+                    className="group w-full h-full flex items-center justify-center gap-2.5 px-4 rounded-xl font-semibold text-sm select-none transition-all duration-200 bg-white hover:bg-slate-50 dark:bg-neutral-900 dark:hover:bg-neutral-800 text-slate-800 dark:text-white border-2 border-slate-300 hover:border-[#0052B7] dark:border-neutral-700 dark:hover:border-blue-500 shadow-xs hover:shadow-md hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:translate-y-0 disabled:hover:shadow-xs disabled:border-slate-300 dark:disabled:border-neutral-700 cursor-pointer"
                   >
                     <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                       <path
@@ -373,7 +373,7 @@ export const Login: React.FC = () => {
                   </button>
                   <div
                     ref={googleBtnRef}
-                    className="absolute inset-0 w-full h-full opacity-[0.001] overflow-hidden cursor-pointer flex items-center justify-center z-10"
+                    className={`absolute inset-0 w-full h-full opacity-[0.001] overflow-hidden flex items-center justify-center z-10 ${googleLoading ? 'pointer-events-none' : 'cursor-pointer'}`}
                     title="Continue with Google"
                   />
                 </div>
@@ -395,7 +395,7 @@ export const Login: React.FC = () => {
                     htmlFor="lrn"
                     className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5"
                   >
-                    Learner Reference Number (LRN) <span className="text-red-500">*</span>
+                    Learner Reference Number (LRN)
                   </label>
                   <input
                     id="lrn"
@@ -414,9 +414,6 @@ export const Login: React.FC = () => {
                       {studentForm.formState.errors.lrn.message}
                     </p>
                   )}
-                  <p className="mt-1.5 text-[11px] text-slate-400 dark:text-neutral-500 leading-relaxed">
-                    Official 12-digit number issued by the Department of Education.
-                  </p>
                 </div>
 
                 <button

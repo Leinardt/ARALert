@@ -1296,7 +1296,7 @@ export const AdminEvaluationHub: React.FC = () => {
               </div>
 
               {sortedAndFilteredTutorRows.length === 0 ? (
-                <div className="p-12 text-center text-xs text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A]">
+                <div className="p-12 text-center text-xs font-semibold text-slate-500 dark:text-zinc-400 bg-white dark:bg-[#0A0A0A]">
                   {tutors.length === 0 ? 'No tutors enrolled in ARAL Program' : 'No tutors matching search filter'}
                 </div>
               ) : (

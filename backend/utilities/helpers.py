@@ -21,16 +21,16 @@ def compute_student_risk_level(attendance_rate, score_avg):
     if composite_score >= 85:
         base_tier = 'low'
     elif composite_score >= 70:
-        base_tier = 'medium'
+        base_tier = 'moderate'
     else:
         base_tier = 'high'
 
     if attendance_rate >= 90:
         return base_tier
     if attendance_rate >= 80:
-        return 'medium' if base_tier == 'low' else base_tier
+        return 'moderate' if base_tier == 'low' else base_tier
     if base_tier == 'low':
-        return 'medium'
+        return 'moderate'
     return 'high'
 
 

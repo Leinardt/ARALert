@@ -476,7 +476,7 @@ export const TutorHome: React.FC = () => {
 
   const atRiskStudents = useMemo(
     () => studentStats
-      .filter((s) => s.riskTier === 'High' || s.riskTier === 'Medium')
+      .filter((s) => s.riskTier === 'High' || s.riskTier === 'Moderate' || s.riskTier === 'Medium')
       .sort((a, b) => {
         const tierOrder = (tier: string) => tier === 'High' ? 0 : 1;
         return tierOrder(a.riskTier) - tierOrder(b.riskTier) || a.compositeScore - b.compositeScore;
@@ -488,10 +488,11 @@ export const TutorHome: React.FC = () => {
     () => studentStats.filter((s) => s.riskTier === 'High'),
     [studentStats]
   );
-  const mediumRiskStudents = useMemo(
-    () => studentStats.filter((s) => s.riskTier === 'Medium'),
+  const moderateRiskStudents = useMemo(
+    () => studentStats.filter((s) => s.riskTier === 'Moderate' || s.riskTier === 'Medium'),
     [studentStats]
   );
+  const mediumRiskStudents = moderateRiskStudents;
   const lowRiskStudents = useMemo(
     () => studentStats.filter((s) => s.riskTier === 'Low'),
     [studentStats]
@@ -890,8 +891,8 @@ export const TutorHome: React.FC = () => {
               to="/tutor/analytics"
               className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
             >
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">Medium Risk</p>
-              <p className="text-xs sm:text-sm font-extrabold text-risk-medium shrink-0">{mediumRiskStudents.length}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">Moderate Risk</p>
+              <p className="text-xs sm:text-sm font-extrabold text-risk-medium shrink-0">{moderateRiskStudents.length}</p>
             </Link>
             <Link
               to="/tutor/analytics"
@@ -1030,7 +1031,7 @@ export const TutorHome: React.FC = () => {
               <div className="flex flex-col items-center justify-center text-center py-12 px-4 gap-2">
                 <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                 <p className="text-sm font-semibold text-gray-700 dark:text-slate-300">All students on track</p>
-                <p className="text-xs text-gray-400 dark:text-slate-500">No high or medium risk students.</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">No high or moderate risk students.</p>
               </div>
             ) : (
               atRiskStudents.map((s) => (

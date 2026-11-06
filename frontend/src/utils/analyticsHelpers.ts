@@ -17,7 +17,7 @@ export interface StudentRiskRow {
 
 export const getRiskTier = (score: number) => {
   if (score >= 86) return 'Low';
-  if (score >= 70) return 'Medium';
+  if (score >= 70) return 'Moderate';
   return 'High';
 };
 

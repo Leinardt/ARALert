@@ -18,7 +18,8 @@ interface RiskTrendPoint {
   dateKey: string;
   label: string;
   high: number;
-  medium: number;
+  moderate: number;
+  medium?: number;
   low: number;
 }
 
@@ -40,8 +41,9 @@ const getTierCls = (tier: string) => {
   switch (tier) {
     case 'Low':
       return 'badge-risk-low';
+    case 'Moderate':
     case 'Medium':
-      return 'badge-risk-medium';
+      return 'badge-risk-moderate';
     default:
       return 'badge-risk-high';
   }
@@ -50,19 +52,19 @@ const getTierCls = (tier: string) => {
 
 const getAttendanceRateCls = (rate: number) => {
   if (rate >= 81) return 'text-risk-low text-emerald-600 dark:text-emerald-400 font-semibold';
-  if (rate >= 75) return 'text-risk-medium text-amber-600 dark:text-amber-400 font-semibold';
+  if (rate >= 75) return 'text-risk-moderate text-amber-600 dark:text-amber-400 font-semibold';
   return 'text-risk-high text-rose-600 dark:text-rose-400 font-semibold';
 };
 
 const getScoreAvgCls = (score: number) => {
   if (score >= 81) return 'text-risk-low text-emerald-600 dark:text-emerald-400 font-semibold';
-  if (score >= 70) return 'text-risk-medium text-amber-600 dark:text-amber-400 font-semibold';
+  if (score >= 70) return 'text-risk-moderate text-amber-600 dark:text-amber-400 font-semibold';
   return 'text-risk-high text-rose-600 dark:text-rose-400 font-semibold';
 };
 
 const getCompositeScoreCls = (tier: string) => {
   if (tier === 'High') return 'text-risk-high text-rose-600 dark:text-rose-400 font-semibold';
-  if (tier === 'Medium') return 'text-risk-medium text-amber-600 dark:text-amber-400 font-semibold';
+  if (tier === 'Moderate' || tier === 'Medium') return 'text-risk-moderate text-amber-600 dark:text-amber-400 font-semibold';
   return 'text-risk-low text-emerald-600 dark:text-emerald-400 font-semibold';
 };
 
@@ -168,7 +170,8 @@ const buildRiskTrendPoints = (
         dateKey: period.dateKey,
         label: period.label,
         high: snapshot.filter((row) => row.riskTier === 'High').length,
-        medium: snapshot.filter((row) => row.riskTier === 'Medium').length,
+        moderate: snapshot.filter((row) => row.riskTier === 'Moderate' || row.riskTier === 'Medium').length,
+        medium: snapshot.filter((row) => row.riskTier === 'Moderate' || row.riskTier === 'Medium').length,
         low: snapshot.filter((row) => row.riskTier === 'Low').length,
       },
     };
@@ -179,7 +182,8 @@ const buildRiskTrendPoints = (
     const snapshot = computeStudentRiskRows(students, [], []);
     const defaultPoint = {
       high: snapshot.filter((row) => row.riskTier === 'High').length,
-      medium: snapshot.filter((row) => row.riskTier === 'Medium').length,
+      moderate: snapshot.filter((row) => row.riskTier === 'Moderate' || row.riskTier === 'Medium').length,
+      medium: snapshot.filter((row) => row.riskTier === 'Moderate' || row.riskTier === 'Medium').length,
       low: snapshot.filter((row) => row.riskTier === 'Low').length,
     };
     return periods.map((period) => ({
@@ -194,7 +198,7 @@ const buildRiskTrendPoints = (
       lastPoint = point;
       return point;
     }
-    return { dateKey: period.dateKey, label: period.label, high: lastPoint.high, medium: lastPoint.medium, low: lastPoint.low };
+    return { dateKey: period.dateKey, label: period.label, high: lastPoint.high, moderate: lastPoint.moderate ?? lastPoint.medium ?? 0, medium: lastPoint.medium ?? lastPoint.moderate ?? 0, low: lastPoint.low };
   });
 };
 
@@ -231,7 +235,7 @@ const DesktopRiskTrendChart: React.FC<{
     : Array.from({ length: maxValue / 5 + 1 }, (_, index) => index * 5);
   const series = [
     { key: 'high' as const, color: '#EF4444', label: 'High Risk' },
-    { key: 'medium' as const, color: '#F59E0B', label: 'Medium Risk' },
+    { key: 'moderate' as const, color: '#F59E0B', label: 'Moderate Risk' },
     { key: 'low' as const, color: '#22C55E', label: 'Low Risk' },
   ];
   const barWidth = Math.max(14, Math.min(34, (chartWidth / (data.length || 1)) * 0.35));
@@ -434,7 +438,7 @@ const MobileRiskTrendChart: React.FC<{
 
   const series = [
     { key: 'high' as const, color: '#EF4444', label: 'High Risk' },
-    { key: 'medium' as const, color: '#F59E0B', label: 'Medium Risk' },
+    { key: 'moderate' as const, color: '#F59E0B', label: 'Moderate Risk' },
     { key: 'low' as const, color: '#22C55E', label: 'Low Risk' },
   ];
 
@@ -505,7 +509,7 @@ const MobileRiskTrendChart: React.FC<{
           const [line1, line2] = getLabelLines(point.label);
 
           const highCount = point.high || 0;
-          const medCount = point.medium || 0;
+          const medCount = point.moderate ?? point.medium ?? 0;
           const lowCount = point.low || 0;
           const pointTotal = isSingleStudent ? 1 : (highCount + medCount + lowCount || 1);
 
@@ -519,7 +523,7 @@ const MobileRiskTrendChart: React.FC<{
 
           const segments = [
             { key: 'low', color: '#22C55E', height: lowH, count: lowCount, pct: lowPct },
-            { key: 'medium', color: '#F59E0B', height: medH, count: medCount, pct: medPct },
+            { key: 'moderate', color: '#F59E0B', height: medH, count: medCount, pct: medPct },
             { key: 'high', color: '#EF4444', height: highH, count: highCount, pct: highPct },
           ];
 
@@ -550,7 +554,7 @@ const MobileRiskTrendChart: React.FC<{
                     fillOpacity={isHovered ? 1 : 0.88}
                     stroke="#FFFFFF"
                     strokeWidth="1.2"
-                    rx={seg.key === 'high' || (seg.key === 'medium' && highH === 0) || (seg.key === 'low' && highH === 0 && medH === 0) ? 3 : 0}
+                    rx={seg.key === 'high' || ((seg.key === 'moderate' || seg.key === 'medium') && highH === 0) || (seg.key === 'low' && highH === 0 && medH === 0) ? 3 : 0}
                   />
                 );
               })}
@@ -614,7 +618,7 @@ const MobileRiskTrendChart: React.FC<{
         const leftPos = Math.max(8, Math.min(width - maxTooltipWidth - 8, barX - maxTooltipWidth / 2));
 
         const highCount = p.high || 0;
-        const medCount = p.medium || 0;
+        const medCount = p.moderate ?? p.medium ?? 0;
         const lowCount = p.low || 0;
         const pointTotal = isSingleStudent ? 1 : (highCount + medCount + lowCount);
 
@@ -900,11 +904,11 @@ export const StudentAnalytics: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. MEDIUM RISK CARD */}
+        {/* 2. MODERATE RISK CARD */}
         <div
           className={`relative rounded-md border p-4 min-h-[100px] flex flex-col justify-center transition-all duration-200 ${
-            studentRiskTier === 'Medium'
-              ? 'risk-card-medium'
+            (studentRiskTier === 'Moderate' || studentRiskTier === 'Medium')
+              ? 'risk-card-moderate'
               : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#0A0A0A] opacity-60'
           }`}
         >
@@ -912,19 +916,19 @@ export const StudentAnalytics: React.FC = () => {
             <RiskRangeInfo range="Composite score is between 70% to 85%" />
           </div>
           <div className="min-w-0">
-            {studentRiskTier === 'Medium' && (
+            {(studentRiskTier === 'Moderate' || studentRiskTier === 'Medium') && (
               <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-white truncate">
                 {studentFirstName}'S RISK LEVEL
               </p>
             )}
             <p
               className={`text-xl font-extrabold mt-0.5 ${
-                studentRiskTier === 'Medium'
-                  ? 'text-risk-medium'
+                (studentRiskTier === 'Moderate' || studentRiskTier === 'Medium')
+                  ? 'text-risk-moderate'
                   : 'text-gray-400 dark:text-slate-500'
               }`}
             >
-              MEDIUM RISK
+              MODERATE RISK
             </p>
             <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">
               Students requiring monitoring
@@ -989,7 +993,7 @@ export const StudentAnalytics: React.FC = () => {
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#F59E0B' }} />
-                  Medium Risk
+                  Moderate Risk
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#22C55E' }} />
@@ -1027,7 +1031,7 @@ export const StudentAnalytics: React.FC = () => {
             </span>
             <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
               <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: '#F59E0B' }} />
-              Medium Risk
+              Moderate Risk
             </span>
             <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
               <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: '#22C55E' }} />
@@ -1127,7 +1131,7 @@ export const StudentAnalytics: React.FC = () => {
                               </span>
                             )}
                           </div>
-                        ) : row.riskTier === 'Medium' ? (
+                        ) : (row.riskTier === 'Moderate' || row.riskTier === 'Medium') ? (
                           <div className="flex flex-wrap items-center gap-1.5">
                             {row.neededPresentAttendance > 0 && (
                               <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">

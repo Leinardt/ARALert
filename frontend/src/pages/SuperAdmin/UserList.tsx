@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { TablePagination } from '../../components/TablePagination';
+import { isTutorEligibleForStudent } from '../../utils/tutorCohortHelpers';
 
 /* ─── ARAL Badge Helper (Clean typography without pill container) ─── */
 const getAralBadge = (level?: string | null) => {
@@ -421,6 +422,28 @@ export const UserList: React.FC = () => {
   const bulkButtonRef = useRef<HTMLButtonElement>(null);
   const bulkDropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; right: number } | null>(null);
+
+  // Selected student user objects from active user list
+  const selectedStudents = useMemo(() => {
+    if (selectedIds.length === 0) return [];
+    return users.filter((u) => selectedIds.includes(u.id));
+  }, [users, selectedIds]);
+
+  // Filter tutors eligible to teach ALL currently selected students
+  const eligibleTutors = useMemo(() => {
+    if (selectedStudents.length === 0) return tutors;
+    return tutors.filter((tutor) =>
+      selectedStudents.every((student) => {
+        const { grade, section } = getGradeAndSection(student.grade_level, (student as any).section);
+        return isTutorEligibleForStudent(tutor, {
+          grade: grade !== '—' ? grade : student.grade_level,
+          section: section !== '—' ? section : (student as any).section,
+          aral_level: student.aral_level,
+          subject: student.subject,
+        });
+      })
+    );
+  }, [tutors, selectedStudents]);
 
   const toggleBulkDropdown = () => {
     if (!isBulkDropdownOpen && bulkButtonRef.current) {
@@ -1372,13 +1395,22 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                       <span className="text-gray-500 dark:text-zinc-400 italic">-- TBA (Unassign Tutor) --</span>
                     </button>
 
-                    {/* Tutor List */}
+                    {/* Tutor List (Filtered by compatibility with selected students) */}
                     {tutors.length === 0 ? (
                       <div className="px-3 py-3 text-xs text-gray-400 text-center">
                         No active tutors found
                       </div>
+                    ) : eligibleTutors.length === 0 ? (
+                      <div className="px-3 py-4 text-center select-none">
+                        <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                          No compatible tutors found
+                        </p>
+                        <p className="text-[10px] text-gray-500 dark:text-zinc-400 mt-1 leading-normal max-w-xs mx-auto">
+                          Selected students have mixed subjects, grades, or ARAL levels. Please use the filters above to select students within the same cohort.
+                        </p>
+                      </div>
                     ) : (
-                      tutors.map((tutor) => {
+                      eligibleTutors.map((tutor) => {
                         const tutorLevelDisplay = getTutorLevelDisplay(tutor);
                         return (
                           <button
@@ -1395,9 +1427,10 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                                 {tutorLevelDisplay}
                               </span>
                             </div>
-                            <span className="text-[11px] text-gray-400 dark:text-zinc-500 font-mono truncate">
-                              {tutor.email}
-                            </span>
+                            <div className="flex items-center justify-between gap-2 text-[11px] text-gray-400 dark:text-zinc-500">
+                              <span className="truncate font-medium">{tutor.subject || 'All Subjects'}</span>
+                              <span className="font-mono text-[10px] shrink-0">{tutor.email}</span>
+                            </div>
                           </button>
                         );
                       })
