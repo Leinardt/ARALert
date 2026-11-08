@@ -28,6 +28,7 @@ import {
   setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
 import {
   useTutorCohortFilter,
@@ -41,13 +42,13 @@ interface ExtendedRiskRow extends StudentRiskRow {
   absentCount: number;
 }
 
-interface TrendPoint {
+export interface TrendPoint {
   dateKey: string;
   label: string;
   value: number;
 }
 
-type TrendFilter = 'day' | 'week' | 'month';
+export type TrendFilter = 'day' | 'week' | 'month';
 type AnalyticsTab = 'overall' | 'attendance' | 'score';
 type RiskScope = 'all' | string;
 type OverallSortField = keyof ExtendedRiskRow | 'student' | 'aralLevel';
@@ -64,7 +65,7 @@ const aralLevelRank: Record<string, number> = {
   advanced: 3,
 };
 
-interface RiskTrendPoint {
+export interface RiskTrendPoint {
   dateKey: string;
   label: string;
   high: number;
@@ -195,7 +196,7 @@ const buildTrendPeriods = (
   });
 };
 
-const buildTrendPoints = (
+export const buildTrendPoints = (
   students: User[],
   grades: Grade[],
   attendanceLogs: Attendance[],
@@ -284,7 +285,7 @@ const buildTrendPoints = (
   });
 };
 
-const buildRiskTrendPoints = (
+export const buildRiskTrendPoints = (
   students: User[],
   grades: Grade[],
   attendanceLogs: Attendance[],
@@ -367,7 +368,7 @@ const formatShortDateRange = (label?: string | null): string => {
   return label;
 };
 
-const TrendChart: React.FC<{
+export const TrendChart: React.FC<{
   data: TrendPoint[];
   color?: string;
   emptyLabel: string;
@@ -482,6 +483,7 @@ const TrendChart: React.FC<{
   const colorId = color.replace(/[^a-zA-Z0-9]/g, '') || 'brand';
   const gradientId = `trendChartFill_${colorId}`;
   const filterId = `trendChartGlow_${colorId}`;
+  const chartAnimationKey = `${colorId}_${data.length}_${trendFilter}_${points.map((p) => p.value).join('-')}`;
 
   return (
     <div ref={containerRef} className="relative flex-1 w-full h-full min-h-[196px] sm:min-h-[220px] select-none min-w-0 overflow-hidden">
@@ -493,6 +495,65 @@ const TrendChart: React.FC<{
         aria-label="Trend chart"
       >
         <defs>
+          <style>{`
+            @keyframes traceLine {
+              0% {
+                stroke-dashoffset: 1000;
+              }
+              100% {
+                stroke-dashoffset: 0;
+              }
+            }
+            @keyframes revealArea {
+              0% {
+                opacity: 0;
+              }
+              30% {
+                opacity: 0;
+              }
+              100% {
+                opacity: 1;
+              }
+            }
+            @keyframes popMarker {
+              0% {
+                opacity: 0;
+                transform: scale(0);
+              }
+              70% {
+                opacity: 0.95;
+                transform: scale(1.3);
+              }
+              100% {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            .chart-line-trace {
+              stroke-dasharray: 1000;
+              stroke-dashoffset: 1000;
+              animation: traceLine 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            }
+            .chart-area-reveal {
+              animation: revealArea 1.7s ease-out forwards;
+            }
+            .chart-marker-pop {
+              transform-box: fill-box;
+              transform-origin: center;
+              animation: popMarker 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+              opacity: 0;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .chart-line-trace,
+              .chart-area-reveal,
+              .chart-marker-pop {
+                animation: none !important;
+                stroke-dashoffset: 0 !important;
+                opacity: 1 !important;
+                transform: none !important;
+              }
+            }
+          `}</style>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity="0.22" />
             <stop offset="100%" stopColor={color} stopOpacity="0.01" />
@@ -573,19 +634,56 @@ const TrendChart: React.FC<{
           );
         })}
 
-        {/* Trend Line & Area */}
-        {points.length > 0 && (
-          <>
-            <path d={areaD} fill={`url(#${gradientId})`} />
-            <path d={pathD} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.28" filter={`url(#${filterId})`} />
-            <path d={pathD} fill="none" stroke={color} strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />
-          </>
-        )}
+        {/* Animated Trend Line & Area */}
+        <g key={chartAnimationKey}>
+          {points.length > 0 && (
+            <>
+              <path d={areaD} fill={`url(#${gradientId})`} className="chart-area-reveal" />
+              <path
+                pathLength={1000}
+                d={pathD}
+                fill="none"
+                stroke={color}
+                strokeWidth="5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.28"
+                filter={`url(#${filterId})`}
+                className="chart-line-trace"
+              />
+              <path
+                pathLength={1000}
+                d={pathD}
+                fill="none"
+                stroke={color}
+                strokeWidth="2.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="chart-line-trace"
+              />
+            </>
+          )}
 
-        {/* Data point markers */}
-        {points.map((p, idx) => (
-          <circle key={`data-dot-${idx}`} cx={p.x} cy={p.y} r="3.5" fill={color} stroke="#B6D4F8" strokeWidth="1.5" />
-        ))}
+          {/* Data point markers */}
+          {points.map((p, idx) => {
+            const markerDelay = points.length > 1
+              ? ((idx / (points.length - 1)) * 1.1).toFixed(2)
+              : '0';
+            return (
+              <circle
+                key={`data-dot-${idx}`}
+                cx={p.x}
+                cy={p.y}
+                r="3.5"
+                fill={color}
+                stroke="#B6D4F8"
+                strokeWidth="1.5"
+                className="chart-marker-pop"
+                style={{ animationDelay: `${markerDelay}s` }}
+              />
+            );
+          })}
+        </g>
 
         {/* Hover vertical guide line & dots */}
         {hoveredIdx !== null && points[hoveredIdx] && (
@@ -764,6 +862,8 @@ const DesktopRiskTrendChart: React.FC<{
     return paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1);
   };
 
+  const desktopAnimationKey = `desktop_bars_${data.length}_${isSingleStudent}_${studentName || 'all'}_${data.map((d) => `${d.high}-${d.moderate ?? d.medium ?? 0}-${d.low}`).join('_')}`;
+
   return (
     <div ref={containerRef} className="relative w-full overflow-hidden">
       <svg
@@ -772,6 +872,31 @@ const DesktopRiskTrendChart: React.FC<{
         role="img"
         aria-label="Risk level trend chart"
       >
+        <defs>
+          <style>{`
+            @keyframes growBar {
+              0% {
+                transform: scaleY(0);
+                opacity: 0.2;
+              }
+              100% {
+                transform: scaleY(1);
+                opacity: 1;
+              }
+            }
+            .chart-bar-grow {
+              transform-box: view-box;
+              animation: growBar 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .chart-bar-grow {
+                animation: none !important;
+                transform: none !important;
+                opacity: 1 !important;
+              }
+            }
+          `}</style>
+        </defs>
         {axisSteps.map((value) => {
           const y = paddingTop + chartHeight - (value / maxValue) * chartHeight;
           return (
@@ -797,53 +922,63 @@ const DesktopRiskTrendChart: React.FC<{
             </g>
           );
         })}
-        {data.map((point, index) => {
-          const x = getBarX(index);
-          let currentBottom = paddingTop + chartHeight;
-          const bars = [...series].reverse().map((item) => {
-            const barHeight = (point[item.key] / maxValue) * chartHeight;
-            currentBottom -= barHeight;
+        <g key={desktopAnimationKey}>
+          {data.map((point, index) => {
+            const x = getBarX(index);
+            let currentBottom = paddingTop + chartHeight;
+            const bars = [...series].reverse().map((item) => {
+              const barHeight = (point[item.key] / maxValue) * chartHeight;
+              currentBottom -= barHeight;
+              return (
+                <rect
+                  key={item.key}
+                  x={x - barWidth / 2}
+                  y={currentBottom}
+                  width={barWidth}
+                  height={barHeight}
+                  fill={item.color}
+                  fillOpacity="0.82"
+                  stroke="white"
+                  strokeWidth="1.25"
+                  strokeOpacity="0.8"
+                />
+              );
+            });
             return (
-              <rect
-                key={item.key}
-                x={x - barWidth / 2}
-                y={currentBottom}
-                width={barWidth}
-                height={barHeight}
-                fill={item.color}
-                fillOpacity="0.82"
-                stroke="white"
-                strokeWidth="1.25"
-                strokeOpacity="0.8"
-              />
-            );
-          });
-          return (
-            <g
-              key={point.dateKey}
-              onMouseEnter={() => setHoveredIdx(index)}
-              onMouseLeave={() => setHoveredIdx(null)}
-            >
-              <text
-                x={x}
-                y={height - 6}
-                textAnchor="middle"
-                className="fill-slate-500 font-semibold text-[10px]"
+              <g
+                key={point.dateKey}
+                onMouseEnter={() => setHoveredIdx(index)}
+                onMouseLeave={() => setHoveredIdx(null)}
               >
-                {point.label}
-              </text>
-              {bars}
-              <rect
-                x={x - barWidth / 2}
-                y={paddingTop}
-                width={barWidth}
-                height={chartHeight}
-                fill="transparent"
-                className="cursor-pointer"
-              />
-            </g>
-          );
-        })}
+                <text
+                  x={x}
+                  y={height - 6}
+                  textAnchor="middle"
+                  className="fill-slate-500 font-semibold text-[10px]"
+                >
+                  {point.label}
+                </text>
+                <g
+                  className="chart-bar-grow"
+                  style={{
+                    transformOrigin: `${x}px ${paddingTop + chartHeight}px`,
+                    animationDelay: `${(index * 0.05).toFixed(2)}s`,
+                  }}
+                >
+                  {bars}
+                </g>
+                <rect
+                  x={x - barWidth / 2}
+                  y={paddingTop}
+                  width={barWidth}
+                  height={chartHeight}
+                  fill="transparent"
+                  className="cursor-pointer"
+                />
+              </g>
+            );
+          })}
+        </g>
         {hoveredIdx !== null && data[hoveredIdx] && (
           <rect
             x={getBarX(hoveredIdx) - barWidth / 2}
@@ -1007,6 +1142,8 @@ const MobileRiskTrendChart: React.FC<{
     return [label];
   };
 
+  const mobileAnimationKey = `mobile_bars_${data.length}_${isSingleStudent}_${studentName || 'all'}_${data.map((d) => `${d.high}-${d.moderate ?? d.medium ?? 0}-${d.low}`).join('_')}`;
+
   return (
     <div ref={containerRef} className="relative select-none w-full max-w-full min-w-0 h-[196px] overflow-hidden">
       <svg
@@ -1015,6 +1152,31 @@ const MobileRiskTrendChart: React.FC<{
         role="img"
         aria-label="Risk level trend chart"
       >
+        <defs>
+          <style>{`
+            @keyframes growBar {
+              0% {
+                transform: scaleY(0);
+                opacity: 0.2;
+              }
+              100% {
+                transform: scaleY(1);
+                opacity: 1;
+              }
+            }
+            .chart-bar-grow {
+              transform-box: view-box;
+              animation: growBar 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .chart-bar-grow {
+                animation: none !important;
+                transform: none !important;
+                opacity: 1 !important;
+              }
+            }
+          `}</style>
+        </defs>
         {/* Horizontal Grid lines and Y-axis labels */}
         {axisSteps.map((value) => {
           const y = paddingTop + chartHeight - (value / maxValue) * chartHeight;
@@ -1043,7 +1205,8 @@ const MobileRiskTrendChart: React.FC<{
         })}
 
         {/* Bars and X-axis Labels */}
-        {data.map((point, index) => {
+        <g key={mobileAnimationKey}>
+          {data.map((point, index) => {
           const x = getBarX(index);
           const [line1, line2] = getLabelLines(point.label);
 
@@ -1078,25 +1241,33 @@ const MobileRiskTrendChart: React.FC<{
               onClick={() => setHoveredIdx(hoveredIdx === index ? null : index)}
               className="cursor-pointer"
             >
-              {/* Stacked Bar segments */}
-              {segments.map((seg) => {
-                if (seg.height <= 0) return null;
-                currentY -= seg.height;
-                return (
-                  <rect
-                    key={seg.key}
-                    x={x - barWidth / 2}
-                    y={currentY}
-                    width={barWidth}
-                    height={seg.height}
-                    fill={seg.color}
-                    fillOpacity={isHovered ? 1 : 0.88}
-                    stroke="#FFFFFF"
-                    strokeWidth="1.2"
-                    rx={seg.key === 'high' || ((seg.key === 'moderate' || seg.key === 'medium') && highH === 0) || (seg.key === 'low' && highH === 0 && medH === 0) ? 3 : 0}
-                  />
-                );
-              })}
+              {/* Stacked Bar segments - Animated as a single unified column */}
+              <g
+                className="chart-bar-grow"
+                style={{
+                  transformOrigin: `${x}px ${paddingTop + chartHeight}px`,
+                  animationDelay: `${(index * 0.05).toFixed(2)}s`,
+                }}
+              >
+                {segments.map((seg) => {
+                  if (seg.height <= 0) return null;
+                  currentY -= seg.height;
+                  return (
+                    <rect
+                      key={seg.key}
+                      x={x - barWidth / 2}
+                      y={currentY}
+                      width={barWidth}
+                      height={seg.height}
+                      fill={seg.color}
+                      fillOpacity={isHovered ? 1 : 0.88}
+                      stroke="#FFFFFF"
+                      strokeWidth="1.2"
+                      rx={seg.key === 'high' || ((seg.key === 'moderate' || seg.key === 'medium') && highH === 0) || (seg.key === 'low' && highH === 0 && medH === 0) ? 3 : 0}
+                    />
+                  );
+                })}
+              </g>
 
               {/* Hover outline ring */}
               {isHovered && totalBarH > 0 && (
@@ -1147,6 +1318,7 @@ const MobileRiskTrendChart: React.FC<{
             </g>
           );
         })}
+        </g>
       </svg>
 
       {/* Floating Mobile Tooltip matching StudentAnalytics */}
@@ -1210,7 +1382,7 @@ const MobileRiskTrendChart: React.FC<{
   );
 };
 
-const RiskTrendChart: React.FC<{
+export const RiskTrendChart: React.FC<{
   data: RiskTrendPoint[];
   total: number;
   isSingleStudent: boolean;
@@ -1261,22 +1433,22 @@ const getTierCls = (tier: string) => {
   }
 };
 
-const getCompositeScoreCls = (tier: string) => {
-  if (tier === 'High') return 'text-risk-high font-semibold';
-  if (tier === 'Moderate' || tier === 'Medium') return 'text-risk-moderate font-semibold';
-  return 'text-risk-low font-semibold';
+export const getCompositeScoreCls = (tier: string) => {
+  if (tier === 'High') return 'text-risk-high font-mono font-bold';
+  if (tier === 'Moderate' || tier === 'Medium') return 'text-risk-moderate font-mono font-bold';
+  return 'text-risk-low font-mono font-bold';
 };
 
-const getAttendanceRateCls = (rate: number) => {
-  if (rate >= 81) return 'text-risk-low font-semibold';
-  if (rate >= 75) return 'text-risk-moderate font-semibold';
-  return 'text-risk-high font-semibold';
+export const getAttendanceRateCls = (rate: number) => {
+  if (rate >= 81) return 'text-risk-low font-mono font-bold';
+  if (rate >= 75) return 'text-risk-moderate font-mono font-bold';
+  return 'text-risk-high font-mono font-bold';
 };
 
-const getScoreAvgCls = (score: number) => {
-  if (score >= 81) return 'text-risk-low font-semibold';
-  if (score >= 75) return 'text-risk-moderate font-semibold';
-  return 'text-risk-high font-semibold';
+export const getScoreAvgCls = (score: number) => {
+  if (score >= 81) return 'text-risk-low font-mono font-bold';
+  if (score >= 75) return 'text-risk-moderate font-mono font-bold';
+  return 'text-risk-high font-mono font-bold';
 };
 
 const riskTierOrder: Record<string, number> = { High: 0, Moderate: 1, Medium: 1, Low: 2 };
@@ -1368,7 +1540,7 @@ const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; o
   }, []);
 
   return (
-    <div ref={filterRef} className="relative z-30">
+    <div ref={filterRef} className={`relative ${isOpen ? 'z-20' : 'z-0'}`}>
       <button
         type="button"
         aria-label="Filter chart by student"
@@ -1405,7 +1577,7 @@ const StudentRiskFilter: React.FC<{ rows: ExtendedRiskRow[]; value: RiskScope; o
 const getAralBadge = (level?: string | null) => {
   const formatted = level ? level.toUpperCase() : 'BASIC';
   return (
-    <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase">
+    <span className="text-[11px] font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wide">
       {formatted}
     </span>
   );
@@ -1894,14 +2066,14 @@ export const TutorAnalytics: React.FC = () => {
   const SortHeader: React.FC<{ field: string; children: React.ReactNode; align?: string; className?: string; activeField?: string | null; ascending?: boolean; onSort?: (field: string) => void }> = ({ field, children, align = 'left', className = '', activeField = sortField, ascending = sortAsc, onSort = (value) => handleSort(value as OverallSortField) }) => (
     <th
       onClick={() => onSort(field)}
-      className={`px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 cursor-pointer hover:text-gray-600 transition-colors select-none text-${align} ${className}`.trim()}
+      className={`px-4 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors select-none text-${align} ${className}`.trim()}
     >
       <span className="inline-flex items-center gap-1">
         {children}
         {activeField === field ? (
-          ascending ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+          ascending ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
         ) : (
-          <ArrowUpDown className="w-3 h-3 opacity-40" />
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
         )}
       </span>
     </th>
@@ -1922,7 +2094,7 @@ export const TutorAnalytics: React.FC = () => {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 min-h-[100px] flex items-center gap-3.5 animate-pulse"
+              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 min-h-[100px] flex items-center gap-3.5 animate-pulse shadow-sm"
             >
               <div className="w-10 h-10 rounded-md bg-gray-200 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 shrink-0" />
               <div className="flex-1 min-w-0">
@@ -1935,7 +2107,7 @@ export const TutorAnalytics: React.FC = () => {
         </div>
 
         {/* ── Chart Card Skeleton ── */}
-        <div className="w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 animate-pulse skeleton-row-2">
+        <div className="w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 animate-pulse skeleton-row-2 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="space-y-1.5">
               <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800" />
@@ -1954,7 +2126,7 @@ export const TutorAnalytics: React.FC = () => {
 
         {/* ── Table Card Skeleton ── */}
         <div className="space-y-2 skeleton-row-3">
-          <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] animate-pulse">
+          <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] animate-pulse shadow-sm">
             {/* Table toolbar */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div className="space-y-1">
@@ -2051,10 +2223,10 @@ export const TutorAnalytics: React.FC = () => {
             role="tab"
             aria-selected={activeAnalyticsTab === tab}
             onClick={() => setActiveAnalyticsTab(tab)}
-            className={`flex-1 h-8 rounded-sm px-4 flex items-center justify-center text-xs font-bold uppercase transition-all ${
+            className={`flex-1 h-8 rounded-sm px-4 flex items-center justify-center text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
               activeAnalyticsTab === tab
-                ? 'bg-[var(--brand)] text-white'
-                : 'text-gray-400 opacity-60 hover:bg-white/60 hover:text-gray-600 hover:opacity-100 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-slate-300'
+                ? 'bg-[var(--brand)] text-white font-extrabold shadow-sm'
+                : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-white/5'
             }`}
           >
             {label}
@@ -2066,48 +2238,48 @@ export const TutorAnalytics: React.FC = () => {
             <>
               {/* ── Risk Summary Cards ─────────────────────────────────────── */}
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="relative rounded-md border risk-card-high p-4 min-h-[100px] flex flex-col justify-center">
+                <div className="relative rounded-md border risk-card-high p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
                   <div className="absolute right-3 top-3">
                     <RiskRangeInfo range="Composite score is 69% and below" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-high">
-                      <p className="text-[10px] font-bold uppercase tracking-wider">High Risk</p>
+                      <p className="text-[10.5px] font-bold uppercase tracking-wider">High Risk</p>
                     </div>
-                    <p className="text-2xl font-extrabold text-risk-high mt-0.5">{riskCounts.high}</p>
-                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students needing immediate intervention</p>
+                    <p className="text-2xl sm:text-3xl font-black text-risk-high tracking-tight mt-0.5"><AnimatedCounter value={riskCounts.high} /></p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Students needing immediate intervention</p>
                   </div>
                 </div>
 
-                <div className="relative rounded-md border risk-card-moderate p-4 min-h-[100px] flex flex-col justify-center">
+                <div className="relative rounded-md border risk-card-moderate p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
                   <div className="absolute right-3 top-3">
                     <RiskRangeInfo range="Composite score is between 70% to 85%" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-moderate">
-                      <p className="text-[10px] font-bold uppercase tracking-wider">Moderate Risk</p>
+                      <p className="text-[10.5px] font-bold uppercase tracking-wider">Moderate Risk</p>
                     </div>
-                    <p className="text-2xl font-extrabold text-risk-moderate mt-0.5">{riskCounts.moderate}</p>
-                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students requiring monitoring</p>
+                    <p className="text-2xl sm:text-3xl font-black text-risk-moderate tracking-tight mt-0.5"><AnimatedCounter value={riskCounts.moderate} /></p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Students requiring monitoring</p>
                   </div>
                 </div>
 
-                <div className="relative rounded-md border risk-card-low p-4 min-h-[100px] flex flex-col justify-center">
+                <div className="relative rounded-md border risk-card-low p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
                   <div className="absolute right-3 top-3">
                     <RiskRangeInfo range="Composite score is between 86% to 100%" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-low">
-                      <p className="text-[10px] font-bold uppercase tracking-wider">Low Risk</p>
+                      <p className="text-[10.5px] font-bold uppercase tracking-wider">Low Risk</p>
                     </div>
-                    <p className="text-2xl font-extrabold text-risk-low mt-0.5">{riskCounts.low}</p>
-                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students performing well</p>
+                    <p className="text-2xl sm:text-3xl font-black text-risk-low tracking-tight mt-0.5"><AnimatedCounter value={riskCounts.low} /></p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Students performing well</p>
                   </div>
                 </div>
               </div>
 
               {/* ── Risk Level Trend Chart ── */}
-              <section className="rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]" aria-labelledby="risk-overview-heading">
+              <section className="rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-sm" aria-labelledby="risk-overview-heading">
                 <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
                     <h3 id="risk-overview-heading" className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">{riskLevelTrendTitle}</h3>
@@ -2123,7 +2295,7 @@ export const TutorAnalytics: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Filter risk chart by time period">
                       {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button key={filter} type="button" onClick={() => setRiskTrendFilter(filter)} className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${riskTrendFilter === filter ? 'bg-[var(--brand)] text-white' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
+                        <button key={filter} type="button" onClick={() => setRiskTrendFilter(filter)} className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${riskTrendFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}>
                           {filter}
                         </button>
                       ))}
@@ -2149,11 +2321,11 @@ export const TutorAnalytics: React.FC = () => {
                 <div className="flex items-center gap-2 px-1 text-xs text-gray-500" style={{ fontFamily: 'var(--font-body)' }}>
                   <RiskCalculationInfo />
                 </div>
-                <div className="bg-white rounded-md border border-gray-200 overflow-hidden dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                <div className="bg-white rounded-md border border-gray-200 overflow-hidden dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-sm">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 px-3.5 sm:px-5 py-3 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
                     <div>
-                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT PERFORMANCE DETAILS</h3>
-                      <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400">{filteredAndSortedRows.length} Students</p>
+                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">STUDENT PERFORMANCE DETAILS</h3>
+                      <p className="mt-0.5 text-[10px] sm:text-xs text-gray-500 dark:text-slate-400"><span className="font-bold text-gray-800 dark:text-slate-200">{filteredAndSortedRows.length}</span> Students</p>
                     </div>
                     <div className="relative w-full sm:w-56 shrink-0">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
@@ -2162,7 +2334,7 @@ export const TutorAnalytics: React.FC = () => {
                         placeholder="Search student..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200"
+                        className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-xs font-semibold text-gray-800 outline-none transition placeholder:text-gray-400 placeholder:font-normal focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#222222] dark:bg-[#141414] dark:text-slate-200"
                       />
                     </div>
                   </div>
@@ -2182,89 +2354,89 @@ export const TutorAnalytics: React.FC = () => {
                             <tr className="bg-gray-50 dark:bg-[#151515]">
                               <th
                                 onClick={() => handleSort('student')}
-                                className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[26%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
+                                className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[26%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
                               >
                                 <span className="inline-flex items-center gap-1">
                                   STUDENT
                                   {sortField === 'student' ? (
-                                    sortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                    sortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                                   ) : (
-                                    <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                    <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                                   )}
                                 </span>
                               </th>
                               {hasMultipleOverallAralLevels ? (
                                 <th
                                   onClick={() => handleSort('aralLevel')}
-                                  className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                                  className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                                 >
                                   <span className="inline-flex items-center gap-1 justify-center">
                                     ARAL LEVEL
                                     {sortField === 'aralLevel' ? (
-                                      sortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                      sortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                                     ) : (
-                                      <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                      <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                                     )}
                                   </span>
                                 </th>
                               ) : (
-                                <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
+                                <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
                                   ARAL LEVEL
                                 </th>
                               )}
                               <th
                                 onClick={() => handleSort('riskTier')}
-                                className="min-w-[85px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                                className="min-w-[85px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                               >
                                 <span className="inline-flex items-center gap-1 justify-center">
                                   RISK LEVEL
                                   {sortField === 'riskTier' ? (
-                                    sortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                    sortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                                   ) : (
-                                    <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                    <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                                   )}
                                 </span>
                               </th>
                               <th
                                 onClick={() => handleSort('compositeScore')}
-                                className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                                className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                               >
                                 <span className="inline-flex items-center gap-1 justify-center">
                                   COMPOSITE
                                   {sortField === 'compositeScore' ? (
-                                    sortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                    sortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                                   ) : (
-                                    <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                    <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                                   )}
                                 </span>
                               </th>
                               <th
                                 onClick={() => handleSort('attendanceRate')}
-                                className="min-w-[85px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                                className="min-w-[85px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                               >
                                 <span className="inline-flex items-center gap-1 justify-center">
                                   ATTENDANCE
                                   {sortField === 'attendanceRate' ? (
-                                    sortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                    sortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                                   ) : (
-                                    <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                    <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                                   )}
                                 </span>
                               </th>
                               <th
                                 onClick={() => handleSort('scoreAvg')}
-                                className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                                className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                               >
                                 <span className="inline-flex items-center gap-1 justify-center">
                                   SCORE AVG
                                   {sortField === 'scoreAvg' ? (
-                                    sortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                    sortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                                   ) : (
-                                    <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                    <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                                   )}
                                 </span>
                               </th>
-                              <th className="min-w-[190px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                              <th className="min-w-[190px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                                 REMARKS
                               </th>
                             </tr>
@@ -2272,8 +2444,8 @@ export const TutorAnalytics: React.FC = () => {
                           <tbody className="bg-white dark:bg-[#111111]">
                             {filteredAndSortedRows.map((row) => (
                               <tr key={`mobile-perf-${row.student.id}`} className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
-                                <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
-                                  <span className="block truncate max-w-[125px] text-xs font-semibold text-gray-800 dark:text-slate-100" title={row.student.full_name}>
+                                <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-bold text-gray-900 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                                  <span className="block truncate max-w-[125px] text-xs font-bold text-gray-900 dark:text-slate-100 tracking-tight" title={row.student.full_name}>
                                     {row.student.full_name}
                                   </span>
                                 </td>
@@ -2281,22 +2453,22 @@ export const TutorAnalytics: React.FC = () => {
                                   {getAralBadge(row.student.aral_level)}
                                 </td>
                                 <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
-                                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold border ${getTierCls(row.riskTier)}`}>
+                                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wider border ${getTierCls(row.riskTier)}`}>
                                     {row.riskTier}
                                   </span>
                                 </td>
                                 <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
-                                  <span className={`text-xs font-semibold ${getCompositeScoreCls(row.riskTier)}`}>
+                                  <span className={`text-xs ${getCompositeScoreCls(row.riskTier)}`}>
                                     {smartPct(row.compositeScore)}%
                                   </span>
                                 </td>
                                 <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
-                                  <span className={`text-xs font-semibold ${getAttendanceRateCls(row.attendanceRate)}`}>
+                                  <span className={`text-xs ${getAttendanceRateCls(row.attendanceRate)}`}>
                                     {smartPct(row.attendanceRate)}%
                                   </span>
                                 </td>
                                 <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
-                                  <span className={`text-xs font-semibold ${getScoreAvgCls(row.scoreAvg)}`}>
+                                  <span className={`text-xs ${getScoreAvgCls(row.scoreAvg)}`}>
                                     {smartPct(row.scoreAvg)}%
                                   </span>
                                 </td>
@@ -2304,17 +2476,17 @@ export const TutorAnalytics: React.FC = () => {
                                   {row.riskTier === 'High' ? (
                                     <div className="flex flex-wrap items-center gap-1.5">
                                       {row.neededPresentAttendance > 0 && (
-                                        <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-300">
+                                        <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-300 uppercase tracking-tight">
                                           Need +{row.neededPresentAttendance} more Present records to improve risk level
                                         </span>
                                       )}
                                       {row.neededPassedScores > 0 && (
-                                        <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300">
+                                        <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300 uppercase tracking-tight">
                                           Need +{row.neededPassedScores} more Passed records to improve risk level
                                         </span>
                                       )}
                                       {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
-                                        <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300">
+                                        <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300 uppercase tracking-tight">
                                           Need +1 more Passed record to improve risk level
                                         </span>
                                       )}
@@ -2322,23 +2494,23 @@ export const TutorAnalytics: React.FC = () => {
                                   ) : (row.riskTier === 'Moderate' || row.riskTier === 'Medium') ? (
                                     <div className="flex flex-wrap items-center gap-1.5">
                                       {row.neededPresentAttendance > 0 && (
-                                        <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                        <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300 uppercase tracking-tight">
                                           Need +{row.neededPresentAttendance} more Present records to improve risk level
                                         </span>
                                       )}
                                       {row.neededPassedScores > 0 && (
-                                        <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                        <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300 uppercase tracking-tight">
                                           Need +{row.neededPassedScores} more Passed records to improve risk level
                                         </span>
                                       )}
                                       {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
-                                        <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                        <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300 uppercase tracking-tight">
                                           Moderate Standing (On Track)
                                         </span>
                                       )}
                                     </div>
                                   ) : (
-                                    <span className="inline-flex items-center rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900/40 dark:text-emerald-300">
+                                    <span className="inline-flex items-center rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900/40 dark:text-emerald-300 uppercase tracking-tight">
                                       On Track (Safe Standing)
                                     </span>
                                   )}
@@ -2358,13 +2530,13 @@ export const TutorAnalytics: React.FC = () => {
                             {hasMultipleOverallAralLevels ? (
                               <SortHeader field="aralLevel">ARAL Level</SortHeader>
                             ) : (
-                              <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 select-none">ARAL Level</th>
+                              <th className="px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 select-none">ARAL Level</th>
                             )}
                             <SortHeader field="attendanceRate">Average Attendance Rate</SortHeader>
                             <SortHeader field="scoreAvg">Average Score</SortHeader>
                             <SortHeader field="compositeScore">COMPOSITE SCORE</SortHeader>
                             <SortHeader field="riskTier">Risk Level</SortHeader>
-                            <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">RISK LEVEL REMARKS</th>
+                            <th className="px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">RISK LEVEL REMARKS</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
@@ -2372,28 +2544,27 @@ export const TutorAnalytics: React.FC = () => {
                             <tr key={row.student.id} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5">
                               <td className="px-4 py-3 align-middle">
                                 <div>
-                                  <div className="font-bold text-gray-900 dark:text-slate-100 text-sm whitespace-nowrap">{row.student.full_name}</div>
-
+                                  <div className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-[13px] tracking-tight whitespace-nowrap">{row.student.full_name}</div>
                                 </div>
                               </td>
                               <td className="px-4 py-3 align-middle">{getAralBadge(row.student.aral_level)}</td>
                               <td className="px-4 py-3 align-middle">
-                                <span className={`text-xs font-medium ${getAttendanceRateCls(row.attendanceRate)}`}>
+                                <span className={`text-xs ${getAttendanceRateCls(row.attendanceRate)}`}>
                                   {smartPct(row.attendanceRate)}%
                                 </span>
                               </td>
                               <td className="px-4 py-3 align-middle">
-                                <span className={`text-xs font-medium ${getScoreAvgCls(row.scoreAvg)}`}>
+                                <span className={`text-xs ${getScoreAvgCls(row.scoreAvg)}`}>
                                   {smartPct(row.scoreAvg)}%
                                 </span>
                               </td>
                               <td className="px-4 py-3 align-middle">
-                                <span className={`text-xs font-medium ${getCompositeScoreCls(row.riskTier)}`}>
+                                <span className={`text-xs ${getCompositeScoreCls(row.riskTier)}`}>
                                   {smartPct(row.compositeScore)}%
                                 </span>
                               </td>
                               <td className="px-4 py-3 align-middle">
-                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold border ${getTierCls(row.riskTier)}`}>
+                                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wider border ${getTierCls(row.riskTier)}`}>
                                   {row.riskTier}
                                 </span>
                               </td>
@@ -2401,17 +2572,17 @@ export const TutorAnalytics: React.FC = () => {
                                 {row.riskTier === 'High' ? (
                                   <div className="flex flex-wrap items-center gap-1.5">
                                     {row.neededPresentAttendance > 0 && (
-                                      <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-300">
+                                      <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10.5px] font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-300 uppercase tracking-tight">
                                         Need +{row.neededPresentAttendance} more Present records to improve risk level
                                       </span>
                                     )}
                                     {row.neededPassedScores > 0 && (
-                                      <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300">
+                                      <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[10.5px] font-bold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300 uppercase tracking-tight">
                                         Need +{row.neededPassedScores} more Passed records to improve risk level
                                       </span>
                                     )}
                                     {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
-                                      <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300">
+                                      <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[10.5px] font-bold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50 dark:text-rose-300 uppercase tracking-tight">
                                         Need +1 more Passed record to improve risk level
                                       </span>
                                     )}
@@ -2419,23 +2590,23 @@ export const TutorAnalytics: React.FC = () => {
                                 ) : (row.riskTier === 'Moderate' || row.riskTier === 'Medium') ? (
                                   <div className="flex flex-wrap items-center gap-1.5">
                                     {row.neededPresentAttendance > 0 && (
-                                      <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                      <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10.5px] font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300 uppercase tracking-tight">
                                         Need +{row.neededPresentAttendance} more Present records to improve risk level
                                       </span>
                                     )}
                                     {row.neededPassedScores > 0 && (
-                                      <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                      <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10.5px] font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300 uppercase tracking-tight">
                                         Need +{row.neededPassedScores} more Passed records to improve risk level
                                       </span>
                                     )}
                                     {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
-                                      <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300">
+                                      <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10.5px] font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-300 uppercase tracking-tight">
                                         Moderate Standing (On Track)
                                       </span>
                                     )}
                                   </div>
                                 ) : (
-                                  <span className="inline-flex items-center rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900/40 dark:text-emerald-300">
+                                  <span className="inline-flex items-center rounded bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900/40 dark:text-emerald-300 uppercase tracking-tight">
                                     On Track (Safe Standing)
                                   </span>
                                 )}
@@ -2457,35 +2628,35 @@ export const TutorAnalytics: React.FC = () => {
             <>
               {/* 3 Attendance Summary Cards */}
               <div className="grid w-full gap-3 sm:grid-cols-3">
-                <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+                <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A] shadow-sm">
                   <Check className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Present Today</p>
-                    <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{attendanceSummary.present}</p>
-                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students marked present today</p>
+                    <p className="text-[10.5px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Present Today</p>
+                    <p className="text-2xl sm:text-3xl font-black text-emerald-900 dark:text-emerald-100 tracking-tight mt-0.5"><AnimatedCounter value={attendanceSummary.present} /></p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Students marked present today</p>
                   </div>
                 </div>
-                <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+                <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A] shadow-sm">
                   <X className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Absent Today</p>
-                    <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{attendanceSummary.absent}</p>
-                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Students marked absent today</p>
+                    <p className="text-[10.5px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Absent Today</p>
+                    <p className="text-2xl sm:text-3xl font-black text-rose-900 dark:text-rose-100 tracking-tight mt-0.5"><AnimatedCounter value={attendanceSummary.absent} /></p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Students marked absent today</p>
                   </div>
                 </div>
-                <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-sm">
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Attendance</p>
-                    <p className={`text-2xl font-extrabold mt-0.5 ${attendanceLogs.length === 0 ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-moderate' : 'text-risk-high'}`}>
-                      {attendanceLogs.length === 0 ? '—' : `${smartPct(avgAttendance)}%`}
+                    <p className="text-[10.5px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Attendance</p>
+                    <p className={`text-2xl sm:text-3xl font-black tracking-tight mt-0.5 ${attendanceLogs.length === 0 ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-moderate' : 'text-risk-high'}`}>
+                      {attendanceLogs.length === 0 ? '—' : <AnimatedCounter value={avgAttendance} decimals={avgAttendance % 1 !== 0 ? 1 : 0} suffix="%" />}
                     </p>
-                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Class average attendance rate</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Class average attendance rate</p>
                   </div>
                 </div>
               </div>
 
               {/* Attendance Trend Chart */}
-              <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+              <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-sm">
                 <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
                     <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">{attendanceTrendTitle}</h3>
@@ -2499,7 +2670,7 @@ export const TutorAnalytics: React.FC = () => {
                     </div>
                     <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Attendance trend period">
                       {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button key={filter} type="button" onClick={() => setAttendanceFilter(filter)} className={`rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${attendanceFilter === filter ? 'bg-[var(--brand)] text-white' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
+                        <button key={filter} type="button" onClick={() => setAttendanceFilter(filter)} className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${attendanceFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}>
                           {filter}
                         </button>
                       ))}
@@ -2518,16 +2689,16 @@ export const TutorAnalytics: React.FC = () => {
               </div>
 
               {/* Student Attendance Details Table */}
-              <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+              <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-sm">
                 <div className="overflow-hidden">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 px-3.5 sm:px-5 py-3 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
                     <div className="min-w-0">
                       <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">STUDENT ATTENDANCE DETAILS</h3>
-                      <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400">{attendanceDetails.length} Students</p>
+                      <p className="mt-0.5 text-[10px] sm:text-xs text-gray-500 dark:text-slate-400"><span className="font-bold text-gray-800 dark:text-slate-200">{attendanceDetails.length}</span> Students</p>
                     </div>
                     <div className="relative w-full sm:w-56 shrink-0">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                      <input type="search" aria-label="Search attendance students" placeholder="Search student..." value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
+                      <input type="search" aria-label="Search attendance students" placeholder="Search student..." value={attendanceSearch} onChange={(event) => setAttendanceSearch(event.target.value)} className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-xs font-semibold text-gray-800 outline-none transition placeholder:text-gray-400 placeholder:font-normal focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#222222] dark:bg-[#141414] dark:text-slate-200" />
                     </div>
                   </div>
 
@@ -2538,72 +2709,72 @@ export const TutorAnalytics: React.FC = () => {
                         <tr className="bg-gray-50 dark:bg-[#151515]">
                           <th
                             onClick={() => handleDetailSort('student' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
-                            className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[30%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
+                            className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[30%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1">
                               STUDENT
                               {attendanceSortField === 'student' ? (
-                                attendanceSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                attendanceSortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                               ) : (
-                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                               )}
                             </span>
                           </th>
                           {hasMultipleAttendanceAralLevels ? (
                             <th
                               onClick={() => handleDetailSort('aralLevel' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
-                              className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                              className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                             >
                               <span className="inline-flex items-center gap-1 justify-center">
                                 ARAL LEVEL
                                 {attendanceSortField === 'aralLevel' ? (
-                                  attendanceSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                  attendanceSortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                                 ) : (
-                                  <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                  <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                                 )}
                               </span>
                             </th>
                           ) : (
-                            <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
+                            <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
                               ARAL LEVEL
                             </th>
                           )}
                           <th
                             onClick={() => handleDetailSort('present' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
-                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1 justify-center">
                               PRESENT
                               {attendanceSortField === 'present' ? (
-                                attendanceSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                attendanceSortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                               ) : (
-                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                               )}
                             </span>
                           </th>
                           <th
                             onClick={() => handleDetailSort('absent' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
-                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1 justify-center">
                               ABSENT
                               {attendanceSortField === 'absent' ? (
-                                attendanceSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                attendanceSortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                               ) : (
-                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                               )}
                             </span>
                           </th>
                           <th
                             onClick={() => handleDetailSort('attendanceAverage' as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}
-                            className="min-w-[90px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            className="min-w-[90px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1 justify-center">
                               AVG RATE
                               {attendanceSortField === 'attendanceAverage' ? (
-                                attendanceSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                attendanceSortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                               ) : (
-                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                               )}
                             </span>
                           </th>
@@ -2619,22 +2790,22 @@ export const TutorAnalytics: React.FC = () => {
                         ) : (
                           attendanceDetails.map((row, idx) => (
                             <tr key={`mobile-att-${row.student.id}-${idx}`} className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
-                              <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
-                                <span className="block truncate max-w-[125px] text-xs font-semibold text-gray-800 dark:text-slate-100" title={row.student.full_name}>
+                              <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-bold text-gray-900 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                                <span className="block truncate max-w-[125px] text-xs font-bold text-gray-900 dark:text-slate-100 tracking-tight" title={row.student.full_name}>
                                   {row.student.full_name}
                                 </span>
                               </td>
                               <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                                 {getAralBadge(row.student.aral_level)}
                               </td>
-                              <td className="px-2 py-2 text-center font-normal text-emerald-600 dark:text-emerald-400 text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                              <td className="px-2 py-2 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                                 {row.present}
                               </td>
-                              <td className="px-2 py-2 text-center font-normal text-rose-600 dark:text-rose-400 text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                              <td className="px-2 py-2 text-center font-mono font-bold text-rose-600 dark:text-rose-400 text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                                 {row.absent}
                               </td>
                               <td className="px-2 py-2 text-center border-b border-gray-100 dark:border-[#1A1A1A]">
-                                <span className={`text-xs font-medium ${getAttendanceRateCls(row.attendanceAverage)}`}>
+                                <span className={`text-xs ${getAttendanceRateCls(row.attendanceAverage)}`}>
                                   {smartPct(row.attendanceAverage)}%
                                 </span>
                               </td>
@@ -2654,14 +2825,14 @@ export const TutorAnalytics: React.FC = () => {
                           {hasMultipleAttendanceAralLevels ? (
                             <SortHeader field="aralLevel" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>ARAL Level</SortHeader>
                           ) : (
-                            <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 select-none text-left">ARAL Level</th>
+                            <th className="px-4 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 select-none text-left">ARAL Level</th>
                           )}
                           <SortHeader field="present" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Present</SortHeader>
                           <SortHeader field="absent" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Total Absent</SortHeader>
                           <SortHeader field="attendanceAverage" activeField={attendanceSortField} ascending={attendanceSortAsc} onSort={(field) => handleDetailSort(field as AttendanceDetailSortField, attendanceSortField, setAttendanceSortField, setAttendanceSortAsc, attendanceSortAsc)}>Average Attendance Rate</SortHeader>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{attendanceDetails.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : attendanceDetails.map((row, idx) => <tr key={`${row.student.id}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 font-normal text-emerald-600 text-xs">{row.present}</td><td className="px-4 py-3 font-normal text-rose-600 text-xs">{row.absent}</td><td className="px-4 py-3 font-normal"><span className={`text-xs font-medium ${getAttendanceRateCls(row.attendanceAverage)}`}>{smartPct(row.attendanceAverage)}%</span></td></tr>)}</tbody>
+                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{attendanceDetails.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : attendanceDetails.map((row, idx) => <tr key={`${row.student.id}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-[13px] tracking-tight">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs">{row.present}</td><td className="px-4 py-3 font-mono font-bold text-rose-600 dark:text-rose-400 text-xs">{row.absent}</td><td className="px-4 py-3 font-normal"><span className={`text-xs ${getAttendanceRateCls(row.attendanceAverage)}`}>{smartPct(row.attendanceAverage)}%</span></td></tr>)}</tbody>
                     </table>
                   </div>
                 </div>
@@ -2674,35 +2845,35 @@ export const TutorAnalytics: React.FC = () => {
             <>
               {/* 3 Score Summary Cards */}
               <div className="grid w-full gap-3 sm:grid-cols-3">
-                <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+                <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A] shadow-sm">
                   <Check className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Passed Today</p>
-                    <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{scoreSummary.passed}</p>
-                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Assessments scored ≥ 70% today</p>
+                    <p className="text-[10.5px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Passed Today</p>
+                    <p className="text-2xl sm:text-3xl font-black text-emerald-900 dark:text-emerald-100 tracking-tight mt-0.5"><AnimatedCounter value={scoreSummary.passed} /></p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Assessments scored ≥ 70% today</p>
                   </div>
                 </div>
-                <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+                <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A] shadow-sm">
                   <X className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Failed Today</p>
-                    <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{scoreSummary.failed}</p>
-                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Assessments scored ≤ 69% today</p>
+                    <p className="text-[10.5px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Failed Today</p>
+                    <p className="text-2xl sm:text-3xl font-black text-rose-900 dark:text-rose-100 tracking-tight mt-0.5"><AnimatedCounter value={scoreSummary.failed} /></p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Assessments scored ≤ 69% today</p>
                   </div>
                 </div>
-                <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+                <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-sm">
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Score</p>
-                    <p className={`text-2xl font-extrabold mt-0.5 ${grades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-moderate' : 'text-risk-high'}`}>
-                      {grades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? '—' : `${smartPct(avgScore)}%`}
+                    <p className="text-[10.5px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Score</p>
+                    <p className={`text-2xl sm:text-3xl font-black tracking-tight mt-0.5 ${grades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-moderate' : 'text-risk-high'}`}>
+                      {grades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? '—' : <AnimatedCounter value={avgScore} decimals={avgScore % 1 !== 0 ? 1 : 0} suffix="%" />}
                     </p>
-                    <p className="mt-0.5 text-[11px] font-normal text-gray-500 dark:text-slate-400">Class average score rate</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-slate-400">Class average score rate</p>
                   </div>
                 </div>
               </div>
 
               {/* Score Trend Chart */}
-              <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+              <div className="w-full rounded-md border border-gray-200 bg-white p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-sm">
                 <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
                   <div>
                     <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">{scoreTrendTitle}</h3>
@@ -2716,7 +2887,7 @@ export const TutorAnalytics: React.FC = () => {
                     </div>
                     <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Score trend period">
                       {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button key={filter} type="button" onClick={() => setScoreFilter(filter)} className={`rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase transition-all ${scoreFilter === filter ? 'bg-[var(--brand)] text-white' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}>
+                        <button key={filter} type="button" onClick={() => setScoreFilter(filter)} className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${scoreFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}>
                           {filter}
                         </button>
                       ))}
@@ -2735,13 +2906,13 @@ export const TutorAnalytics: React.FC = () => {
               </div>
 
               {/* Student Score Details Table */}
-              <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+              <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-white dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-sm">
                 <div className="overflow-hidden">
                   <div className="flex flex-col gap-2.5 px-3.5 sm:px-5 py-3 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
                     <div className="flex items-center justify-between">
                       <div className="min-w-0">
                         <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight">STUDENT SCORE DETAILS</h3>
-                        <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400">{scoreDetails.length} Students</p>
+                        <p className="mt-0.5 text-[10px] sm:text-xs text-gray-500 dark:text-slate-400"><span className="font-bold text-gray-800 dark:text-slate-200">{scoreDetails.length}</span> Students</p>
                       </div>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3 w-full">
@@ -2756,10 +2927,10 @@ export const TutorAnalytics: React.FC = () => {
                             key={val}
                             type="button"
                             onClick={() => setScoreDescFilter(val)}
-                            className={`rounded-sm px-2 sm:px-2.5 py-1 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
+                            className={`rounded-sm px-2 sm:px-2.5 py-1 text-[9px] sm:text-[10px] uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
                               scoreDescFilter === val
-                                ? 'bg-[var(--brand)] text-white'
-                                : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                                ? 'bg-[var(--brand)] text-white font-black shadow-sm'
+                                : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'
                             }`}
                           >
                             {label}
@@ -2768,7 +2939,7 @@ export const TutorAnalytics: React.FC = () => {
                       </div>
                       <div className="relative w-full sm:w-48 shrink-0">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                        <input type="search" aria-label="Search score students" placeholder="Search student..." value={scoreSearch} onChange={(event) => setScoreSearch(event.target.value)} className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
+                        <input type="search" aria-label="Search score students" placeholder="Search student..." value={scoreSearch} onChange={(event) => setScoreSearch(event.target.value)} className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-8 pr-2.5 text-xs font-semibold text-gray-800 outline-none transition placeholder:text-gray-400 placeholder:font-normal focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)] dark:border-[#262626] dark:bg-[#111111] dark:text-slate-200" />
                       </div>
                     </div>
                   </div>
@@ -2780,85 +2951,85 @@ export const TutorAnalytics: React.FC = () => {
                         <tr className="bg-gray-50 dark:bg-[#151515]">
                           <th
                             onClick={() => handleDetailSort('student' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
-                            className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[30%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
+                            className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[30%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1">
                               STUDENT
                               {scoreSortField === 'student' ? (
-                                scoreSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                scoreSortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                               ) : (
-                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                               )}
                             </span>
                           </th>
                           {hasMultipleScoreAralLevels ? (
                             <th
                               onClick={() => handleDetailSort('aralLevel' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
-                              className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                              className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                             >
                               <span className="inline-flex items-center gap-1 justify-center">
                                 ARAL LEVEL
                                 {scoreSortField === 'aralLevel' ? (
-                                  scoreSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                  scoreSortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                                 ) : (
-                                  <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                  <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                                 )}
                               </span>
                             </th>
                           ) : (
-                            <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
+                            <th className="min-w-[80px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] select-none">
                               ARAL LEVEL
                             </th>
                           )}
                           <th
                             onClick={() => handleDetailSort('description' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
-                            className="min-w-[110px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            className="min-w-[110px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1">
                               DESCRIPTION
                               {scoreSortField === 'description' ? (
-                                scoreSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                scoreSortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                               ) : (
-                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                               )}
                             </span>
                           </th>
                           <th
                             onClick={() => handleDetailSort('passed' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
-                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1 justify-center">
                               PASSED
                               {scoreSortField === 'passed' ? (
-                                scoreSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                scoreSortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                               ) : (
-                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                               )}
                             </span>
                           </th>
                           <th
                             onClick={() => handleDetailSort('failed' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
-                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            className="min-w-[65px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1 justify-center">
                               FAILED
                               {scoreSortField === 'failed' ? (
-                                scoreSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                scoreSortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                               ) : (
-                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                               )}
                             </span>
                           </th>
                           <th
                             onClick={() => handleDetailSort('scoreAverage' as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}
-                            className="min-w-[90px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
+                            className="min-w-[90px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A] cursor-pointer select-none"
                           >
                             <span className="inline-flex items-center gap-1 justify-center">
                               SCORE AVG
                               {scoreSortField === 'scoreAverage' ? (
-                                scoreSortAsc ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />
+                                scoreSortAsc ? <ChevronUp className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-700 dark:text-slate-200" />
                               ) : (
-                                <ArrowUpDown className="w-3 h-3 opacity-40" />
+                                <ArrowUpDown className="w-3.5 h-3.5 opacity-40 text-gray-500" />
                               )}
                             </span>
                           </th>
@@ -2874,8 +3045,8 @@ export const TutorAnalytics: React.FC = () => {
                         ) : (
                           scoreDetails.map((row, idx) => (
                             <tr key={`mobile-score-${row.student.id}-${row.description}-${idx}`} className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
-                              <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
-                                <span className="block truncate max-w-[125px] text-xs font-semibold text-gray-800 dark:text-slate-100" title={row.student.full_name}>
+                              <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-bold text-gray-900 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                                <span className="block truncate max-w-[125px] text-xs font-bold text-gray-900 dark:text-slate-100 tracking-tight" title={row.student.full_name}>
                                   {row.student.full_name}
                                 </span>
                               </td>
@@ -2887,14 +3058,14 @@ export const TutorAnalytics: React.FC = () => {
                                   {row.description}
                                 </span>
                               </td>
-                              <td className="px-2 py-2 text-center font-normal text-emerald-600 dark:text-emerald-400 text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                              <td className="px-2 py-2 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                                 {row.passed}
                               </td>
-                              <td className="px-2 py-2 text-center font-normal text-rose-600 dark:text-rose-400 text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                              <td className="px-2 py-2 text-center font-mono font-bold text-rose-600 dark:text-rose-400 text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                                 {row.failed}
                               </td>
                               <td className="px-2 py-2 text-center border-b border-gray-100 dark:border-[#1A1A1A]">
-                                <span className={`text-xs font-medium ${getScoreAvgCls(row.scoreAverage)}`}>
+                                <span className={`text-xs ${getScoreAvgCls(row.scoreAverage)}`}>
                                   {smartPct(row.scoreAverage)}%
                                 </span>
                               </td>
@@ -2914,7 +3085,7 @@ export const TutorAnalytics: React.FC = () => {
                           {hasMultipleScoreAralLevels ? (
                             <SortHeader field="aralLevel" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>ARAL Level</SortHeader>
                           ) : (
-                            <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 select-none text-left">ARAL Level</th>
+                            <th className="px-4 py-3 text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 select-none text-left">ARAL Level</th>
                           )}
                           <SortHeader field="description" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>DESCRIPTION</SortHeader>
                           <SortHeader field="passed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Passed</SortHeader>
@@ -2922,7 +3093,7 @@ export const TutorAnalytics: React.FC = () => {
                           <SortHeader field="scoreAverage" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Average Score</SortHeader>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{scoreDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : scoreDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-100 text-xs">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 text-left"><span className="text-xs font-semibold text-gray-700 dark:text-slate-300">{row.description}</span></td><td className="px-4 py-3 font-normal text-emerald-600 text-xs">{row.passed}</td><td className="px-4 py-3 font-normal text-rose-600 text-xs">{row.failed}</td><td className="px-4 py-3 font-normal"><span className={`text-xs font-medium ${getScoreAvgCls(row.scoreAverage)}`}>{smartPct(row.scoreAverage)}%</span></td></tr>)}</tbody>
+                      <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{scoreDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : scoreDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-[13px] tracking-tight">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 text-left"><span className="text-xs font-semibold text-gray-700 dark:text-slate-300">{row.description}</span></td><td className="px-4 py-3 font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs">{row.passed}</td><td className="px-4 py-3 font-mono font-bold text-rose-600 dark:text-rose-400 text-xs">{row.failed}</td><td className="px-4 py-3 font-normal"><span className={`text-xs ${getScoreAvgCls(row.scoreAverage)}`}>{smartPct(row.scoreAverage)}%</span></td></tr>)}</tbody>
                     </table>
                   </div>
                 </div>

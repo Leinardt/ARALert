@@ -399,23 +399,25 @@ export const Profile: React.FC = () => {
 
   const readonlyStyle: React.CSSProperties = {
     width: '100%',
-    padding: '0.45rem 0.75rem',
-    borderRadius: 'var(--radius-md)',
+    padding: '0.55rem 0.85rem',
+    borderRadius: '6px',
     border: '1px solid var(--slate-200)',
     background: 'var(--surface-muted)',
     backgroundColor: 'var(--surface-muted)',
     fontSize: '0.8125rem',
-    color: 'var(--text-muted)',
-    cursor: 'not-allowed',
+    fontWeight: 700,
+    color: 'var(--text-primary)',
+    cursor: 'default',
   };
 
   const editableStyle: React.CSSProperties = {
     width: '100%',
-    padding: '0.45rem 0.75rem',
-    borderRadius: 'var(--radius-md)',
+    padding: '0.55rem 0.85rem',
+    borderRadius: '6px',
     border: '1.5px solid var(--brand)',
     background: 'var(--surface-card)',
     fontSize: '0.8125rem',
+    fontWeight: 700,
     color: 'var(--text-primary)',
     outline: 'none',
     transition: 'border-color 0.2s',
@@ -425,41 +427,41 @@ export const Profile: React.FC = () => {
     <div className="max-w-[900px] mx-auto flex flex-col gap-3.5 sm:gap-6 w-full min-w-0">
 
       {/* ── User Overview Header ── */}
-      <div className="p-3.5 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-2xs">
+      <div className="p-4 sm:p-6 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex flex-row items-center gap-3 sm:gap-5 text-left w-full sm:w-auto min-w-0">
             <div
-              className="flex items-center justify-center shrink-0 overflow-hidden rounded-xl sm:rounded-2xl bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 w-12 h-12 sm:w-16 sm:h-16 md:w-[76px] md:h-[76px]"
+              className="flex items-center justify-center shrink-0 overflow-hidden rounded-full bg-blue-50 text-[var(--brand)] border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900 w-14 h-14 sm:w-16 sm:h-16 md:w-[72px] md:h-[72px]"
             >
               {localUser.avatar ? (
                 <img src={localUser.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                <UserIcon className="w-6 h-6 sm:w-8 sm:h-8 md:w-[38px] md:h-[38px]" />
+                <UserIcon className="w-6 h-6 sm:w-8 sm:h-8 md:w-[34px] md:h-[34px]" />
               )}
             </div>
 
             <div className="min-w-0 flex-1">
               {/* Displayed in uppercase with middle initial only across the system */}
               <h1
-                className="text-sm sm:text-lg md:text-[1.4rem] font-extrabold leading-tight break-words text-gray-900 dark:text-white tracking-wide"
+                className="text-lg sm:text-2xl font-black leading-tight break-words text-gray-900 dark:text-slate-100 tracking-tight"
                 style={{ margin: 0, fontFamily: 'var(--font-heading)' }}
               >
                 {formatSystemDisplayName(localUser)}
               </h1>
               {localUser.role === 'student' ? (
-                <p className="mt-0.5 text-xs sm:text-[0.85rem] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                  <span className="font-bold text-[10px] sm:text-xs text-slate-400 dark:text-slate-500">LRN:</span>
-                  <span className="font-mono font-semibold">{localUser.lrn || '—'}</span>
+                <p className="mt-1 text-xs sm:text-[0.85rem] font-bold text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <span className="font-extrabold text-[10.5px] sm:text-xs text-gray-400 dark:text-slate-500">LRN:</span>
+                  <span className="font-mono font-bold text-gray-900 dark:text-slate-100">{localUser.lrn || '—'}</span>
                 </p>
               ) : (
-                <p className="mt-0.5 text-xs sm:text-[0.85rem] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 min-w-0">
-                  <Mail size={13} className="shrink-0 text-slate-400" />
+                <p className="mt-1 text-xs sm:text-[0.85rem] font-bold text-gray-500 dark:text-slate-400 flex items-center gap-1.5 min-w-0">
+                  <Mail size={13} className="shrink-0 text-gray-400" />
                   <span className="truncate sm:break-normal" title={localUser.email}>{localUser.email}</span>
                 </p>
               )}
-              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <span
-                  className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-zinc-700 text-[10px] sm:text-xs font-extrabold uppercase px-2.5 py-0.5 rounded-full"
+                  className="bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 text-[10.5px] sm:text-xs font-extrabold uppercase px-2.5 py-0.5 rounded-full tracking-wider"
                 >
                   {localUser.is_superuser ? 'SuperAdmin' : localUser.role?.toUpperCase() || 'USER'}
                 </span>
@@ -471,7 +473,7 @@ export const Profile: React.FC = () => {
 
       {/* ── Pending Edit Request Notification Banner (All non-superadmin roles) ── */}
       {!localUser.is_superuser && pendingEditRequest && (
-        <div className="bg-amber-50/80 dark:bg-amber-950/20 border-2 border-amber-500 dark:border-amber-500 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4">
+        <div className="bg-amber-50/80 dark:bg-amber-950/20 border-2 border-amber-500 dark:border-amber-500 rounded-3xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4">
           <div className="flex items-start gap-3 sm:gap-3.5">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-500/40 flex items-center justify-center shrink-0">
               <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 dark:text-amber-400" />
@@ -517,11 +519,11 @@ export const Profile: React.FC = () => {
       )}
 
       {/* ── Profile Details Section ── */}
-      <div className="p-3.5 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-2xs">
+      <div className="p-4 sm:p-6 md:p-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm">
 
         {/* Card header row */}
         <div className="flex items-center justify-between gap-2 mb-3.5 sm:mb-6">
-          <h2 className="text-xs sm:text-base md:text-[1.1rem] font-bold text-gray-900 dark:text-white uppercase tracking-tight truncate">
+          <h2 className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-slate-100 uppercase tracking-wider truncate">
             PROFILE INFORMATION
           </h2>
 
@@ -530,7 +532,7 @@ export const Profile: React.FC = () => {
               <button
                 type="button"
                 onClick={handleEditOpen}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] rounded-lg cursor-pointer whitespace-nowrap transition-colors shrink-0 shadow-2xs"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] rounded-md cursor-pointer whitespace-nowrap transition-colors shrink-0 shadow-xs"
               >
                 <Edit3 size={13} className="shrink-0" />
                 <span><span className="hidden xs:inline">Request </span>Update</span>
@@ -540,7 +542,7 @@ export const Profile: React.FC = () => {
             <button
               type="button"
               onClick={handleEditOpen}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] rounded-lg cursor-pointer whitespace-nowrap transition-colors shrink-0 shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] rounded-md cursor-pointer whitespace-nowrap transition-colors shrink-0 shadow-xs"
             >
               <Edit3 size={13} className="shrink-0" />
               <span>Edit</span>
@@ -550,7 +552,7 @@ export const Profile: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCancel}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 rounded-lg cursor-pointer transition-colors"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 rounded-md cursor-pointer transition-colors"
               >
                 <X size={13} />
                 <span>Cancel</span>
@@ -559,7 +561,7 @@ export const Profile: React.FC = () => {
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving}
-                className="inline-flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] rounded-lg cursor-pointer transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] rounded-md cursor-pointer transition-colors disabled:opacity-50"
               >
                 <Save size={13} />
                 <span>{isSaving ? 'Saving…' : 'Save'}</span>
@@ -584,7 +586,7 @@ export const Profile: React.FC = () => {
           {/* First Name / Middle Name / Last Name (Normal Typography) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4">
             <div className="flex flex-col gap-1 sm:gap-1.5">
-              <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wide">First Name</label>
+              <label className="text-[10px] sm:text-[10.5px] font-extrabold text-gray-500 dark:text-slate-400 uppercase tracking-wider">First Name</label>
               {isEditing && localUser.role !== 'student' ? (
                 <input
                   value={editFirst}
@@ -598,7 +600,7 @@ export const Profile: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-1 sm:gap-1.5">
-              <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Middle Name</label>
+              <label className="text-[10px] sm:text-[10.5px] font-extrabold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Middle Name</label>
               {isEditing && localUser.role !== 'student' ? (
                 <input
                   value={editMiddle}
@@ -612,7 +614,7 @@ export const Profile: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-1 sm:gap-1.5">
-              <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Last Name</label>
+              <label className="text-[10px] sm:text-[10.5px] font-extrabold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Last Name</label>
               {isEditing && localUser.role !== 'student' ? (
                 <input
                   value={editLast}
@@ -629,7 +631,7 @@ export const Profile: React.FC = () => {
           {/* Email (or LRN for students) / Member Since */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
             <div className="flex flex-col gap-1 sm:gap-1.5">
-              <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wide">
+              <label className="text-[10px] sm:text-[10.5px] font-extrabold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                 {localUser.role === 'student' ? 'Learner Reference Number (LRN)' : 'Email Address'}
               </label>
               <div
@@ -645,7 +647,7 @@ export const Profile: React.FC = () => {
                   disabled
                   tabIndex={-1}
                   style={readonlyStyle}
-                  className="w-full pointer-events-none select-none"
+                  className="w-full pointer-events-none select-none font-bold"
                 />
 
                 {localUser.role !== 'student' && (
@@ -659,7 +661,7 @@ export const Profile: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-1 sm:gap-1.5">
-              <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wide">
+              <label className="text-[10px] sm:text-[10.5px] font-extrabold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                 Member Since
               </label>
               <input
@@ -673,10 +675,10 @@ export const Profile: React.FC = () => {
 
           {/* Tutor Role Details & Handled Classes */}
           {localUser.role === 'tutor' && (
-            <div className="mt-2 pt-3.5 sm:pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-2.5 sm:space-y-3.5">
+            <div className="mt-2 pt-3.5 sm:pt-4 border-t border-gray-100 dark:border-[#1A1A1A] space-y-2.5 sm:space-y-3.5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                  <h3 className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-slate-100 uppercase tracking-wider">
                     ASSIGNED CLASSES {tutorAssignedClasses.length > 0 && `(${tutorAssignedClasses.length})`}
                   </h3>
                 </div>
@@ -687,42 +689,40 @@ export const Profile: React.FC = () => {
                   return (
                     <div
                       key={cls.key || idx}
-                      className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/40 p-3 sm:p-4 space-y-2.5 sm:space-y-3 shadow-xs"
+                      className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:p-4 space-y-2.5 shadow-sm"
                     >
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-zinc-800/80">
-                        <span className="text-[10.5px] sm:text-[11px] font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
+                      <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
+                        <span className="text-[11px] font-extrabold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
                           Class #{idx + 1}
                         </span>
-                        <span
-                          className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-zinc-700 text-[9.5px] sm:text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider"
-                        >
+                        <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-slate-200 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-slate-200">
                           {cls.aralLevel.toUpperCase()}
                         </span>
                       </div>
 
                       <div className="space-y-1.5 text-xs">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
+                          <span className="text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
                             Subject
                           </span>
-                          <span className="font-semibold text-gray-800 dark:text-slate-200 text-right truncate">
+                          <span className="font-bold text-gray-900 dark:text-slate-100 text-right truncate text-xs sm:text-[13px]">
                             {cls.subject}
                           </span>
                         </div>
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
+                          <span className="text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
                             Grade & Section
                           </span>
-                          <span className="font-semibold text-gray-800 dark:text-slate-200 text-right truncate">
+                          <span className="font-bold text-gray-900 dark:text-slate-100 text-right truncate text-xs sm:text-[13px]">
                             {cls.cohort}
                           </span>
                         </div>
                         {cls.students && cls.students.length > 0 && (
-                          <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-200/50 dark:border-zinc-800/60 text-[11px]">
-                            <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
+                          <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-gray-100 dark:border-[#1A1A1A] text-[11px]">
+                            <span className="text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
                               Assigned Students
                             </span>
-                            <span className="font-bold text-gray-800 dark:text-slate-200">
+                            <span className="font-mono font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-[13px]">
                               {cls.students.length}
                             </span>
                           </div>
@@ -740,7 +740,7 @@ export const Profile: React.FC = () => {
 
       {/* ── ARAL PROGRAM DETAILS (Student Profile) ── */}
       {localUser.role === 'student' && (
-        <div className="p-4 sm:p-6 md:p-8" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-xs)' }}>
+        <div className="p-4 sm:p-6 md:p-8" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--slate-200)', boxShadow: 'var(--shadow-sm)' }}>
           <div className="flex items-center justify-between flex-wrap gap-2.5 mb-5 sm:mb-6">
             <h2 className="text-sm sm:text-[1.1rem] font-bold m-0" style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>
               ARAL PROGRAM DETAILS
@@ -828,7 +828,7 @@ export const Profile: React.FC = () => {
       )}
 
       {localUser.role !== 'student' && (
-        <section className="p-3.5 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-xs">
+        <section className="p-3.5 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] shadow-sm">
           <h2 className="text-xs sm:text-sm md:text-base font-bold uppercase tracking-wider text-gray-900 dark:text-white mb-3 sm:mb-4">
             ACCOUNT SECURITY
           </h2>

@@ -39,6 +39,19 @@ import {
 } from '../../utils/studentQrExportService';
 import { ExportStudentQrModal } from '../../components/ExportStudentQrModal';
 import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
+import {
+  TrendChart,
+  RiskTrendChart,
+  buildTrendPoints,
+  buildRiskTrendPoints,
+  getCompositeScoreCls,
+  getAttendanceRateCls,
+  getScoreAvgCls,
+  type TrendPoint,
+  type RiskTrendPoint,
+  type TrendFilter,
+} from './TutorAnalytics';
 import {
   formatSessionLabel,
   formatSessionTime,
@@ -94,7 +107,7 @@ const formatTimeString = (value: string | null | undefined): string => {
 const getAralBadge = (level?: string | null) => {
   const formatted = level ? level.toUpperCase() : 'BASIC';
   return (
-    <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase">
+    <span className="text-[11px] font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wide">
       {formatted}
     </span>
   );
@@ -178,39 +191,131 @@ export const TutorStudentProfile: React.FC = () => {
   }, [profile]);
 
   const [studentGrades, setStudentGrades] = useState<Grade[]>([]);
+  const [studentAttendance, setStudentAttendance] = useState<Attendance[]>([]);
+  const [riskTrendFilter, setRiskTrendFilter] = useState<TrendFilter>('week');
+  const [attendanceTrendFilter, setAttendanceTrendFilter] = useState<TrendFilter>('week');
+  const [scoreTrendFilter, setScoreTrendFilter] = useState<TrendFilter>('week');
+
+  const studentForTrend = useMemo<UserType[]>(() => {
+    const studentIdStr = id || profile?.student?.id || (studentUser?.id ? String(studentUser.id) : '');
+    if (studentUser) {
+      return [{
+        ...studentUser,
+        id: studentIdStr || studentUser.id,
+        full_name: studentUser.full_name || (profile?.student?.name ?? ''),
+        lrn: studentUser.lrn || profile?.student?.lrn || '',
+      } as UserType];
+    }
+    if (profile?.student) {
+      return [{
+        id: studentIdStr,
+        email: profile.student.email || '',
+        username: profile.student.username || '',
+        first_name: profile.student.first_name || '',
+        middle_name: profile.student.middle_name || '',
+        last_name: profile.student.last_name || '',
+        full_name: profile.student.name || `${profile.student.first_name || ''} ${profile.student.last_name || ''}`.trim(),
+        lrn: profile.student.lrn || '',
+        role: 'student',
+        aral_level: profile.student.aral_level || 'basic',
+        grade_level: '',
+        section: '',
+        avatar: null,
+        is_active: true,
+        is_superuser: false,
+        date_joined: '',
+        last_login: null,
+        assigned_tutor: null,
+        assigned_tutor_name: null,
+        assessment_weight: 40,
+        weekly_tasks_weight: 0,
+        attendance_weight: 60,
+      } as unknown as UserType];
+    }
+    return [];
+  }, [studentUser, profile, id]);
+
+  const riskTrend = useMemo(() => {
+    if (studentForTrend.length === 0) return [];
+    return buildRiskTrendPoints(studentForTrend as any, studentGrades, studentAttendance, riskTrendFilter);
+  }, [studentForTrend, studentGrades, studentAttendance, riskTrendFilter]);
+
+  const attendanceTrend = useMemo(() => {
+    if (studentForTrend.length === 0) return [];
+    return buildTrendPoints(studentForTrend as any, studentGrades, studentAttendance, 'attendance', attendanceTrendFilter);
+  }, [studentForTrend, studentGrades, studentAttendance, attendanceTrendFilter]);
+
+  const scoreTrend = useMemo(() => {
+    if (studentForTrend.length === 0) return [];
+    return buildTrendPoints(studentForTrend as any, studentGrades, studentAttendance, 'score', scoreTrendFilter);
+  }, [studentForTrend, studentGrades, studentAttendance, scoreTrendFilter]);
+
   const studentFirstName = profile?.student?.first_name || profile?.student?.name?.trim().split(' ')[0] || 'Student';
 
+  const relevantGrades = useMemo(() => {
+    return studentGrades.filter((g) => {
+      if (g.component_type === 'attendance') return false;
+      const remarks = String(g.remarks || '').trim().toLowerCase();
+      if (remarks === 'not taken') return false;
+      const score = Number(g.score);
+      const total = Number(g.total_score);
+      return !isNaN(score) && score !== null && !isNaN(total) && total > 0;
+    });
+  }, [studentGrades]);
+
   const { passedCount, failedCount, calculatedAvgScore } = useMemo(() => {
-    if (studentGrades.length === 0) {
-      return { passedCount: 0, failedCount: 0, calculatedAvgScore: scoreAvg };
+    if (relevantGrades.length === 0) {
+      const fallbackScore = (scoreAvg !== null && !isNaN(scoreAvg) && scoreAvg > 0) ? scoreAvg : 100;
+      return { passedCount: 0, failedCount: 0, calculatedAvgScore: fallbackScore };
     }
-    const takenGrades = studentGrades.filter(
-      (g) => g.remarks?.trim().toLowerCase() !== 'not taken'
-    );
-    const passed = takenGrades.filter((g) => {
-      const total = Number(g.total_score) || 100;
+    const passed = relevantGrades.filter((g) => {
+      const total = Number(g.total_score) > 0 ? Number(g.total_score) : 100;
       return (Number(g.score) / total) >= 0.7;
     }).length;
-    const failed = takenGrades.filter((g) => {
-      const total = Number(g.total_score) || 100;
+    const failed = relevantGrades.filter((g) => {
+      const total = Number(g.total_score) > 0 ? Number(g.total_score) : 100;
       return (Number(g.score) / total) < 0.7;
     }).length;
-    const avg = takenGrades.length > 0
-      ? Number((takenGrades.reduce((sum, g) => sum + ((Number(g.score) / (Number(g.total_score) || 100)) * 100), 0) / takenGrades.length).toFixed(2))
-      : scoreAvg;
+    const totalPercent = relevantGrades.reduce((sum, g) => {
+      const total = Number(g.total_score) > 0 ? Number(g.total_score) : 100;
+      const score = Number(g.score) || 0;
+      return sum + ((score / total) * 100);
+    }, 0);
+    const avg = Number((totalPercent / relevantGrades.length).toFixed(2));
     return {
       passedCount: passed,
       failedCount: failed,
-      calculatedAvgScore: avg,
+      calculatedAvgScore: !isNaN(avg) ? avg : 100,
     };
-  }, [studentGrades, scoreAvg]);
+  }, [relevantGrades, scoreAvg]);
 
   const hasScoreData = useMemo(() => {
-    const takenGrades = studentGrades.filter(
-      (g) => g.remarks?.trim().toLowerCase() !== 'not taken'
-    );
-    return takenGrades.length > 0 || (profile?.grade_details && profile.grade_details.length > 0);
-  }, [studentGrades, profile]);
+    return relevantGrades.length > 0;
+  }, [relevantGrades]);
+
+  const effectiveScoreAvg = useMemo(() => {
+    if (hasScoreData) return calculatedAvgScore;
+    if (scoreAvg !== null && !isNaN(scoreAvg) && scoreAvg > 0) return scoreAvg;
+    return 100;
+  }, [hasScoreData, calculatedAvgScore, scoreAvg]);
+
+  const effectiveAttendanceRate = useMemo(() => {
+    if (attendanceRate !== null && !isNaN(attendanceRate) && attendanceRate >= 0) {
+      return attendanceRate;
+    }
+    return 100;
+  }, [attendanceRate]);
+
+  const effectiveCompositeScore = useMemo(() => {
+    const comp = Number(((effectiveAttendanceRate * 0.4) + (effectiveScoreAvg * 0.6)).toFixed(2));
+    return !isNaN(comp) ? comp : 100;
+  }, [effectiveAttendanceRate, effectiveScoreAvg]);
+
+  const effectiveRiskTier = useMemo(() => {
+    if (effectiveCompositeScore >= 86) return 'Low';
+    if (effectiveCompositeScore >= 70) return 'Moderate';
+    return 'High';
+  }, [effectiveCompositeScore]);
 
   const scoreMood = useMemo(() => {
     // No-data state: neutral grey — not orange, which would imply a known medium risk
@@ -368,15 +473,17 @@ export const TutorStudentProfile: React.FC = () => {
   const fetchProfile = async () => {
     if (!id) return;
     try {
-      const [data, gradesData, editReqData, userData] = await Promise.all([
+      const [data, gradesData, attData, editReqData, userData] = await Promise.all([
         academicService.getStudentProfile(id),
         academicService.getGrades({ student_id: id }).catch(() => [] as Grade[]),
+        academicService.getAttendanceHistory({ user_id: id }).catch(() => [] as Attendance[]),
         userService.getStudentEditRequests({ student_id: id, status: 'pending' }).catch(() => ({ results: [] })),
         userService.getUser(id).catch(() => null as UserType | null),
       ]);
       setProfile(data);
       setStudentUser(userData);
       setStudentGrades(gradesData);
+      setStudentAttendance(Array.isArray(attData) && attData.length > 0 ? attData : (data?.attendance?.logs || []));
       setPendingEditRequest(editReqData.results && editReqData.results.length > 0 ? editReqData.results[0] : null);
       setStudentForm({
         first_name: data.student.first_name || '',
@@ -556,50 +663,61 @@ export const TutorStudentProfile: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-6xl mx-auto skeleton-container animate-pulse" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <div className="space-y-4 sm:space-y-6 max-w-6xl mx-auto skeleton-container animate-pulse" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
         {/* Back button skeleton */}
-        <div className="h-5 w-44 rounded-xl bg-gray-200 dark:bg-gray-700" />
-        {/* Header card skeleton */}
-        <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-6 skeleton-row-1">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
-            <div className="space-y-2.5 flex-1">
-              <div className="h-6 w-48 rounded bg-gray-200 dark:bg-gray-700" />
-              <div className="h-3.5 w-32 rounded bg-gray-100 dark:bg-gray-800" />
+        <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-800" />
+
+        {/* Student Header Card 1:1 Skeleton */}
+        <div className="bg-white dark:bg-[#111111] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-4 sm:space-y-5 shadow-sm">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:gap-5">
+            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gray-200 dark:bg-gray-800 shrink-0" />
+              <div className="space-y-2 min-w-0">
+                <div className="h-6 w-52 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-3 w-40 rounded bg-gray-100 dark:bg-gray-800" />
+                <div className="h-2.5 w-28 rounded bg-gray-100 dark:bg-gray-800" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="h-9 w-36 rounded-md bg-gray-200 dark:bg-gray-800" />
+              <div className="h-9 w-32 rounded-md bg-gray-100 dark:bg-gray-800" />
             </div>
           </div>
         </div>
+
         {/* Tab nav skeleton */}
-        <div className="flex w-full rounded-2xl bg-gray-100 dark:bg-[#141414] p-1 gap-1">
+        <div className="flex w-full rounded-md bg-gray-100 dark:bg-[#141414] p-1 gap-1">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex-1 h-9 rounded-xl bg-gray-200 dark:bg-gray-700" />
+            <div key={i} className="flex-1 h-9 rounded-sm bg-gray-200 dark:bg-gray-800" />
           ))}
         </div>
-        {/* KPI containers skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 skeleton-row-2">
+
+        {/* KPI containers skeleton (1:1 with rounded-md) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-3xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 shadow-sm flex items-center gap-4">
-              <div className="w-11 h-11 rounded-2xl bg-gray-200 dark:bg-gray-700 shrink-0" />
+            <div key={i} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 sm:p-5 shadow-sm flex items-center gap-4">
+              <div className="w-11 h-11 rounded-md bg-gray-200 dark:bg-gray-800 shrink-0" />
               <div className="space-y-2 flex-1">
-                <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-700" />
-                <div className="h-7 w-16 rounded bg-gray-200 dark:bg-gray-700" />
+                <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-7 w-16 rounded bg-gray-200 dark:bg-gray-800" />
                 <div className="h-2.5 w-36 rounded bg-gray-100 dark:bg-gray-800" />
               </div>
             </div>
           ))}
         </div>
-        {/* Table card skeleton */}
-        <div className="bg-white dark:bg-[#0A0A0A] rounded-3xl border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-6 space-y-4 skeleton-row-3">
-          <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
+
+        {/* Table card skeleton (1:1 with rounded-md) */}
+        <div className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] shadow-sm p-4 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="space-y-1.5">
-              <div className="h-4 w-40 rounded bg-gray-200 dark:bg-gray-700" />
+              <div className="h-4 w-40 rounded bg-gray-200 dark:bg-gray-800" />
               <div className="h-3 w-24 rounded bg-gray-100 dark:bg-gray-800" />
             </div>
-            <div className="h-8 w-28 rounded-xl bg-gray-200 dark:bg-gray-700" />
+            <div className="h-8 w-28 rounded-md bg-gray-200 dark:bg-gray-800" />
           </div>
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-4 py-1 border-b border-gray-50 dark:border-gray-900/50">
-              <div className="h-4 w-28 rounded bg-gray-200 dark:bg-gray-700" />
+            <div key={i} className="flex items-center gap-4 py-2 border-b border-gray-50 dark:border-gray-900/50">
+              <div className="h-4 w-28 rounded bg-gray-200 dark:bg-gray-800" />
               <div className="h-4 w-16 rounded bg-gray-100 dark:bg-gray-800" />
               <div className="h-4 w-20 rounded bg-gray-100 dark:bg-gray-800" />
               <div className="h-4 flex-1 rounded bg-gray-100 dark:bg-gray-800" />
@@ -639,23 +757,23 @@ export const TutorStudentProfile: React.FC = () => {
       </div>
 
       {/* ── Student Header Card ──────────────────────────────────── */}
-      <div className="bg-white dark:bg-[#111111] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-4 sm:space-y-5">
+      <div className="bg-white dark:bg-[#111111] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-4 sm:space-y-5 shadow-sm">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:gap-5">
           <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
             <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center shrink-0 ${avatarColor(profile.student.name)}`}>
               <User className="w-6 h-6 sm:w-7 sm:h-7" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-slate-100 truncate">{profile.student.name}</h1>
-              <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1 text-[11px] sm:text-xs font-semibold uppercase text-gray-500 dark:text-slate-400">
-                <span className="font-bold text-gray-500 dark:text-slate-400">{studentCohortInfo.aralLevel}</span>
+              <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-slate-100 tracking-tight truncate">{profile.student.name}</h1>
+              <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1 text-[11px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                <span className="font-extrabold text-gray-700 dark:text-slate-300">{studentCohortInfo.aralLevel}</span>
                 <span className="text-gray-300 dark:text-zinc-600">•</span>
                 <span>{studentCohortInfo.subject}</span>
                 <span className="text-gray-300 dark:text-zinc-600">•</span>
                 <span>{studentCohortInfo.gradeLevel} - {studentCohortInfo.section}</span>
               </div>
-              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-slate-400 font-medium mt-0.5 sm:mt-1">
-                LRN: <span className="font-mono font-bold text-gray-700 dark:text-slate-300">{profile.student.lrn || 'N/A'}</span>
+              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-slate-400 font-bold uppercase tracking-wider mt-0.5 sm:mt-1">
+                LRN: <span className="font-mono font-bold text-gray-800 dark:text-slate-200">{profile.student.lrn || 'N/A'}</span>
               </p>
             </div>
           </div>
@@ -691,7 +809,7 @@ export const TutorStudentProfile: React.FC = () => {
                   setIsEditingStudent(true);
                   setStudentEditError(null);
                 }}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-md text-xs font-bold border border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:bg-[var(--brand-light)] dark:hover:bg-[#161616] text-gray-700 dark:text-slate-300 hover:text-[var(--brand-dark)] transition cursor-pointer whitespace-nowrap"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-md text-xs font-bold border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#161616] hover:border-[var(--brand)] hover:bg-[var(--brand-light)] dark:hover:bg-[#1a1a1a] text-gray-700 dark:text-slate-200 hover:text-[var(--brand-dark)] transition cursor-pointer whitespace-nowrap shadow-xs"
               >
                 <Edit3 className="w-3.5 h-3.5 shrink-0" />
                 <span>Edit Student Details</span>
@@ -701,7 +819,7 @@ export const TutorStudentProfile: React.FC = () => {
                 type="button"
                 disabled={!profile}
                 onClick={() => setShowExportQrModal(true)}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-2.5 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer whitespace-nowrap shadow-xs disabled:opacity-60"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-md bg-[var(--brand)] px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-white transition-all hover:bg-[var(--brand-hover)] cursor-pointer whitespace-nowrap shadow-xs disabled:opacity-60"
                 title="Export Student Attendance QR Code"
               >
                 <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white shrink-0" />
@@ -732,9 +850,9 @@ export const TutorStudentProfile: React.FC = () => {
               role="tab"
               aria-selected={isActive}
               onClick={() => setActiveTab(tabKey)}
-              className={`flex-1 rounded-sm py-1.5 sm:py-2 px-2 sm:px-3 text-[11px] sm:text-xs font-bold uppercase flex items-center justify-center transition-all cursor-pointer ${isActive
-                ? 'bg-[var(--brand)] text-white'
-                : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+              className={`flex-1 rounded-sm py-2 px-2 sm:px-3 text-xs uppercase tracking-wider flex items-center justify-center transition-all cursor-pointer ${isActive
+                ? 'bg-[var(--brand)] text-white font-extrabold shadow-sm'
+                : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 font-bold'
                 }`}
             >
               <span>{label}</span>
@@ -751,46 +869,95 @@ export const TutorStudentProfile: React.FC = () => {
           <div className="space-y-4 sm:space-y-6">
             {/* KPI Containers */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-4">
-              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex flex-col justify-center col-span-1">
-                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-black dark:text-white truncate">COMPOSITE SCORE</p>
-                <p className={`text-xl sm:text-2xl font-extrabold mt-0.5 ${riskTier === 'High' ? 'text-risk-high' : (riskTier === 'Moderate' || riskTier === 'Medium') ? 'text-risk-moderate' : 'text-risk-low'}`}>
-                  {smartPct(compositeScore)}%
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex flex-col justify-center col-span-1 shadow-sm">
+                <p className="text-[10.5px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 truncate">COMPOSITE SCORE</p>
+                <p className={`text-2xl sm:text-3xl font-black mt-1 tracking-tight ${effectiveRiskTier === 'High' ? 'text-risk-high' : effectiveRiskTier === 'Moderate' ? 'text-risk-moderate' : 'text-risk-low'}`}>
+                  <AnimatedCounter value={effectiveCompositeScore} suffix="%" duration={600} decimals={effectiveCompositeScore % 1 !== 0 ? 1 : 0} />
                 </p>
               </div>
 
-              <div className={`rounded-md border p-3.5 sm:p-5 flex flex-col justify-center col-span-1 md:col-span-2 ${riskTier === 'High'
+              <div className={`rounded-md border p-3.5 sm:p-5 flex flex-col justify-center col-span-1 md:col-span-2 shadow-sm ${effectiveRiskTier === 'High'
                 ? 'risk-card-high'
-                : (riskTier === 'Moderate' || riskTier === 'Medium')
+                : effectiveRiskTier === 'Moderate'
                   ? 'risk-card-moderate'
                   : 'risk-card-low'
                 }`}>
-                <p className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate ${riskTier === 'High'
+                <p className={`text-[10.5px] font-bold uppercase tracking-wider truncate ${effectiveRiskTier === 'High'
                   ? 'text-risk-high'
-                  : (riskTier === 'Moderate' || riskTier === 'Medium')
+                  : effectiveRiskTier === 'Moderate'
                     ? 'text-risk-moderate'
                     : 'text-risk-low'
                   }`}>RISK LEVEL</p>
-                <p className={`text-xl sm:text-2xl font-extrabold mt-0.5 truncate ${riskTier === 'High'
+                <p className={`text-2xl sm:text-3xl font-black mt-1 tracking-tight truncate ${effectiveRiskTier === 'High'
                   ? 'text-risk-high'
-                  : (riskTier === 'Moderate' || riskTier === 'Medium')
+                  : effectiveRiskTier === 'Moderate'
                     ? 'text-risk-moderate'
                     : 'text-risk-low'
                   }`}>
-                  {riskTier === 'Medium' ? 'Moderate' : riskTier}
+                  {effectiveRiskTier}
                 </p>
               </div>
             </div>
 
+            {/* ── Risk Level Trend Chart ── */}
+            <section className="rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm" aria-labelledby="student-risk-trend-heading">
+              <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+                <div>
+                  <h3 id="student-risk-trend-heading" className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-gray-900 dark:text-slate-100">
+                    RISK LEVEL TREND CHART
+                  </h3>
+                  <p className="mt-0.5 text-[11px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">
+                    {profile.student.name}&apos;s Risk Progression
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+                    <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#EF4444' }} />High Risk</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#F59E0B' }} />Moderate Risk</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#22C55E' }} />Low Risk</span>
+                  </div>
+                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Risk trend period">
+                    {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
+                      <button
+                        key={filter}
+                        type="button"
+                        onClick={() => setRiskTrendFilter(filter)}
+                        className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] sm:text-[10.5px] uppercase tracking-wider transition-all ${
+                          riskTrendFilter === filter
+                            ? 'bg-[var(--brand)] text-white font-black shadow-sm'
+                            : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'
+                        }`}
+                      >
+                        {filter}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4">
+                <div className="relative rounded-md border border-gray-100 bg-gray-50/60 p-2 sm:p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+                  <RiskTrendChart
+                    data={riskTrend}
+                    total={1}
+                    isSingleStudent={true}
+                    studentName={profile.student.name}
+                    emptyLabel={riskTrendFilter === 'day' ? 'No recorded performance data today' : riskTrendFilter === 'week' ? 'No recorded performance data this week' : 'No recorded performance data this month'}
+                    trendFilter={riskTrendFilter}
+                  />
+                </div>
+              </div>
+            </section>
+
             {/* Performance Summary Table */}
-            <div className="overflow-hidden rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111]">
+            <div className="overflow-hidden rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm">
               <div className="border-b border-gray-100 dark:border-[#1A1A1A] px-4 sm:px-6 py-3 sm:py-4">
-                <h3 className="text-xs sm:text-base font-bold text-gray-900 dark:text-slate-100 uppercase">STUDENT PERFORMANCE SUMMARY</h3>
-                <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400">Overview of the calculation</p>
+                <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-gray-900 dark:text-slate-100">STUDENT PERFORMANCE SUMMARY</h3>
+                <p className="mt-0.5 text-[11px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">Overview of the calculation</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-xs sm:text-sm font-normal" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                   <thead className="bg-gray-50 dark:bg-[#151515]">
-                    <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] text-left text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                    <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                       <th className="px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">AVERAGE ATTENDANCE RATE</th>
                       <th className="px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">AVERAGE SCORE</th>
                       <th className="px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">COMPOSITE SCORE</th>
@@ -798,14 +965,14 @@ export const TutorStudentProfile: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
                     <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515] text-center">
-                      <td className={`px-2 sm:px-6 py-2.5 sm:py-3.5 font-semibold ${attendanceRate >= 81 ? 'text-risk-low' : attendanceRate >= 75 ? 'text-risk-moderate' : 'text-risk-high'}`}>
+                      <td className={`px-2 sm:px-6 py-2.5 sm:py-3.5 text-xs sm:text-sm ${getAttendanceRateCls(attendanceRate)}`}>
                         {smartPct(attendanceRate)}%
                       </td>
-                      <td className={`px-2 sm:px-6 py-2.5 sm:py-3.5 font-semibold ${calculatedAvgScore >= 81 ? 'text-risk-low' : calculatedAvgScore >= 75 ? 'text-risk-moderate' : 'text-risk-high'}`}>
-                        {smartPct(calculatedAvgScore)}%
+                      <td className={`px-2 sm:px-6 py-2.5 sm:py-3.5 text-xs sm:text-sm ${getScoreAvgCls(effectiveScoreAvg)}`}>
+                        {smartPct(effectiveScoreAvg)}%
                       </td>
-                      <td className="px-2 sm:px-6 py-2.5 sm:py-3.5 font-semibold text-indigo-600 dark:text-indigo-400">
-                        {smartPct(compositeScore)}%
+                      <td className={`px-2 sm:px-6 py-2.5 sm:py-3.5 text-xs sm:text-sm ${getCompositeScoreCls(effectiveRiskTier)}`}>
+                        {smartPct(effectiveCompositeScore)}%
                       </td>
                     </tr>
                   </tbody>
@@ -820,45 +987,99 @@ export const TutorStudentProfile: React.FC = () => {
           <div className="space-y-4">
             {/* Stat Containers */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
-              <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4 col-span-1">
+              <div className="rounded-md border border-emerald-500/30 dark:border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/20 p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4 col-span-1 shadow-sm">
                 <Check className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
                 <div className="min-w-0">
-                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 truncate">TOTAL PRESENT</p>
-                  <p className="text-xl sm:text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{profile.attendance.present}</p>
-                  <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s total present records</p>
+                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 truncate">TOTAL PRESENT</p>
+                  <p className="text-2xl sm:text-3xl font-black text-emerald-900 dark:text-emerald-100 mt-1 tracking-tight">
+                    <AnimatedCounter value={profile.attendance.present} duration={600} />
+                  </p>
+                  <p className="mt-0.5 text-[10.5px] font-medium text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s total present records</p>
                 </div>
               </div>
-              <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4 col-span-1">
+              <div className="rounded-md border border-rose-500/30 dark:border-rose-500/30 bg-rose-50/40 dark:bg-rose-950/20 p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4 col-span-1 shadow-sm">
                 <X className="w-5 h-5 sm:w-6 sm:h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
                 <div className="min-w-0">
-                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 truncate">TOTAL ABSENT</p>
-                  <p className="text-xl sm:text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{profile.attendance.absent}</p>
-                  <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s total absent records</p>
+                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 truncate">TOTAL ABSENT</p>
+                  <p className="text-2xl sm:text-3xl font-black text-rose-900 dark:text-rose-100 mt-1 tracking-tight">
+                    <AnimatedCounter value={profile.attendance.absent} duration={600} />
+                  </p>
+                  <p className="mt-0.5 text-[10.5px] font-medium text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s total absent records</p>
                 </div>
               </div>
-              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex flex-col justify-center col-span-2 sm:col-span-1">
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex flex-col justify-center col-span-2 sm:col-span-1 shadow-sm">
                 <div className="min-w-0">
-                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100 truncate">AVG ATTENDANCE RATE</p>
+                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 truncate">AVG ATTENDANCE RATE</p>
                   <p
-                    className={`text-xl sm:text-2xl font-extrabold mt-0.5 ${
-                      !hasAttendanceData
-                        ? 'text-gray-900 dark:text-slate-100'
-                        : attendanceRate >= 81
-                        ? 'text-risk-low text-emerald-600 dark:text-emerald-400'
+                    className={`text-2xl sm:text-3xl font-black mt-1 tracking-tight ${!hasAttendanceData
+                      ? 'text-gray-900 dark:text-slate-100'
+                      : attendanceRate >= 81
+                        ? 'text-emerald-600 dark:text-emerald-400'
                         : attendanceRate >= 75
-                        ? 'text-risk-moderate text-amber-600 dark:text-amber-400'
-                        : 'text-risk-high text-rose-600 dark:text-rose-400'
-                    }`}
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-rose-600 dark:text-rose-400'
+                      }`}
                   >
-                    {hasAttendanceData ? `${smartPct(attendanceRate)}%` : '—'}
+                    {hasAttendanceData ? (
+                      <AnimatedCounter value={attendanceRate} suffix="%" duration={600} decimals={attendanceRate % 1 !== 0 ? 1 : 0} />
+                    ) : '—'}
                   </p>
-                  <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s average attendance rate</p>
+                  <p className="mt-0.5 text-[10.5px] font-medium text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s average attendance rate</p>
                 </div>
               </div>
             </div>
 
+            {/* ── Attendance Rate Trend Chart ── */}
+            <section className="w-full rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm" aria-labelledby="student-attendance-trend-heading">
+              <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+                <div>
+                  <h3 id="student-attendance-trend-heading" className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-gray-900 dark:text-slate-100">
+                    ATTENDANCE RATE TREND CHART
+                  </h3>
+                  <p className="mt-0.5 text-[11px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">
+                    {profile.student.name}&apos;s Attendance Progression
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+                    <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Attendance Rate</span>
+                  </div>
+                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Attendance trend period">
+                    {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
+                      <button
+                        key={filter}
+                        type="button"
+                        onClick={() => setAttendanceTrendFilter(filter)}
+                        className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] sm:text-[10.5px] uppercase tracking-wider transition-all ${
+                          attendanceTrendFilter === filter
+                            ? 'bg-[var(--brand)] text-white font-black shadow-sm'
+                            : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'
+                        }`}
+                      >
+                        {filter}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="relative mt-4 h-64 sm:h-72 w-full rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+                <TrendChart
+                  data={attendanceTrend}
+                  color="#0052B7"
+                  emptyLabel={attendanceTrendFilter === 'day' ? 'No recorded attendance today' : attendanceTrendFilter === 'week' ? 'No recorded attendance this week' : 'No recorded attendance this month'}
+                  valueLabel={`${profile.student.name}'s Attendance Rate`}
+                  trendFilter={attendanceTrendFilter}
+                />
+              </div>
+            </section>
+
             {/* Student Attendance History */}
-            <AttendanceHistoryList studentId={id!} reloadTrigger={profile} aralLevel={profile.student.aral_level} />
+            <AttendanceHistoryList
+              studentId={id!}
+              reloadTrigger={profile}
+              aralLevel={profile.student.aral_level}
+              onAttendanceLoaded={(loadedLogs) => setStudentAttendance(loadedLogs)}
+            />
           </div>
         )}
 
@@ -867,42 +1088,91 @@ export const TutorStudentProfile: React.FC = () => {
           <div className="space-y-4">
             {/* Stat Containers */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
-              <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4 col-span-1">
+              <div className="rounded-md border border-emerald-500/30 dark:border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/20 p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4 col-span-1 shadow-sm">
                 <Check className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
                 <div className="min-w-0">
-                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 truncate">TOTAL PASSED</p>
-                  <p className="text-xl sm:text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{passedCount}</p>
-                  <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s total passed score records</p>
+                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 truncate">TOTAL PASSED</p>
+                  <p className="text-2xl sm:text-3xl font-black text-emerald-900 dark:text-emerald-100 mt-1 tracking-tight">
+                    <AnimatedCounter value={passedCount} duration={600} />
+                  </p>
+                  <p className="mt-0.5 text-[10.5px] font-medium text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s total passed score records</p>
                 </div>
               </div>
-              <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4 col-span-1">
+              <div className="rounded-md border border-rose-500/30 dark:border-rose-500/30 bg-rose-50/40 dark:bg-rose-950/20 p-3.5 sm:p-5 flex items-center gap-2.5 sm:gap-4 col-span-1 shadow-sm">
                 <X className="w-5 h-5 sm:w-6 sm:h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
                 <div className="min-w-0">
-                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 truncate">TOTAL FAILED</p>
-                  <p className="text-xl sm:text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{failedCount}</p>
-                  <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s total failed score records</p>
+                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 truncate">TOTAL FAILED</p>
+                  <p className="text-2xl sm:text-3xl font-black text-rose-900 dark:text-rose-100 mt-1 tracking-tight">
+                    <AnimatedCounter value={failedCount} duration={600} />
+                  </p>
+                  <p className="mt-0.5 text-[10.5px] font-medium text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s total failed score records</p>
                 </div>
               </div>
-              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex flex-col justify-center col-span-2 sm:col-span-1">
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex flex-col justify-center col-span-2 sm:col-span-1 shadow-sm">
                 <div className="min-w-0">
-                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100 truncate">AVERAGE SCORE</p>
+                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 truncate">AVERAGE SCORE</p>
                   <p
-                    className={`text-xl sm:text-2xl font-extrabold mt-0.5 ${
-                      !hasScoreData
-                        ? 'text-gray-900 dark:text-slate-100'
-                        : calculatedAvgScore >= 81
-                        ? 'text-risk-low text-emerald-600 dark:text-emerald-400'
+                    className={`text-2xl sm:text-3xl font-black mt-1 tracking-tight ${!hasScoreData
+                      ? 'text-gray-900 dark:text-slate-100'
+                      : calculatedAvgScore >= 81
+                        ? 'text-emerald-600 dark:text-emerald-400'
                         : calculatedAvgScore >= 70
-                        ? 'text-risk-moderate text-amber-600 dark:text-amber-400'
-                        : 'text-risk-high text-rose-600 dark:text-rose-400'
-                    }`}
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-rose-600 dark:text-rose-400'
+                      }`}
                   >
-                    {hasScoreData ? `${smartPct(calculatedAvgScore)}%` : '—'}
+                    {hasScoreData ? (
+                      <AnimatedCounter value={calculatedAvgScore} suffix="%" duration={600} decimals={calculatedAvgScore % 1 !== 0 ? 1 : 0} />
+                    ) : '—'}
                   </p>
-                  <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s average score</p>
+                  <p className="mt-0.5 text-[10.5px] font-medium text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s average score</p>
                 </div>
               </div>
             </div>
+
+            {/* ── Score Trend Chart ── */}
+            <section className="w-full rounded-md border border-gray-200 bg-white p-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm" aria-labelledby="student-score-trend-heading">
+              <div className="flex flex-col gap-3 border-b border-gray-100 pb-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-[#1A1A1A]">
+                <div>
+                  <h3 id="student-score-trend-heading" className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-gray-900 dark:text-slate-100">
+                    SCORE TREND CHART
+                  </h3>
+                  <p className="mt-0.5 text-[11px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">
+                    {profile.student.name}&apos;s Score Progression
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
+                    <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Average Score</span>
+                  </div>
+                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Score trend period">
+                    {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
+                      <button
+                        key={filter}
+                        type="button"
+                        onClick={() => setScoreTrendFilter(filter)}
+                        className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] sm:text-[10.5px] uppercase tracking-wider transition-all ${
+                          scoreTrendFilter === filter
+                            ? 'bg-[var(--brand)] text-white font-black shadow-sm'
+                            : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'
+                        }`}
+                      >
+                        {filter}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="relative mt-4 h-64 sm:h-72 w-full rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
+                <TrendChart
+                  data={scoreTrend}
+                  color="#0052B7"
+                  emptyLabel={scoreTrendFilter === 'day' ? 'No recorded score today' : scoreTrendFilter === 'week' ? 'No recorded score this week' : 'No recorded score this month'}
+                  valueLabel={`${profile.student.name}'s Average Score`}
+                  trendFilter={scoreTrendFilter}
+                />
+              </div>
+            </section>
 
             {/* Student Score History */}
             <ScoreHistoryList
@@ -1277,7 +1547,7 @@ export const TutorStudentProfile: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500 dark:text-gray-400 font-medium">ARAL Level:</span>
-                <span className="font-bold text-[var(--brand)] uppercase">
+                <span className="font-bold text-gray-900 dark:text-slate-100 uppercase">
                   {studentForm.aral_level}
                 </span>
               </div>
@@ -1350,7 +1620,7 @@ export const TutorStudentProfile: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-gray-400 block text-[10px]">Proposed Level:</span>
-                    <span className="font-bold text-indigo-600 dark:text-indigo-400 capitalize">{pendingEditRequest.proposed_aral_level}</span>
+                    <span className="font-bold text-gray-900 dark:text-slate-100 capitalize">{pendingEditRequest.proposed_aral_level}</span>
                   </div>
                 </div>
               </div>
@@ -1757,14 +2027,14 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
       <button
         type="button"
         onClick={() => toggleSort(sortKey)}
-        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-700"
+        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-900 dark:hover:text-slate-100 cursor-pointer select-none"
         aria-label={`Sort by ${label}`}
       >
-        {label}
+        <span className={isActive ? 'text-[var(--brand)] font-extrabold' : ''}>{label}</span>
         {isActive ? (
-          sortConfig.direction === 'asc' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />
+          sortConfig.direction === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
         ) : (
-          <ArrowUpDown className="w-3.5 h-3.5 opacity-50" />
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-40 hover:opacity-75 shrink-0" />
         )}
       </button>
     );
@@ -1772,27 +2042,27 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
 
   const renderTable = (records: Grade[]) => (
     <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-[#1A1A1A]">
-      <table className="min-w-full divide-y divide-gray-100 text-xs sm:text-sm">
+      <table className="min-w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-xs sm:text-sm">
         <thead>
-          <tr className="divide-x divide-gray-100 bg-gray-50">
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
+          <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="SCORE" sortKey="score" />
             </th>
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="REMARKS" sortKey="remarks" />
             </th>
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="STATUS" sortKey="status" />
             </th>
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="DATE" sortKey="date" />
             </th>
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="TIME" sortKey="time" />
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100 bg-white">
+        <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
           {records.map((grade) => {
             const isNotTaken = grade.remarks?.trim().toLowerCase() === 'not taken';
             const totalScore = Number(grade.total_score) || 100;
@@ -1800,18 +2070,18 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
             const isPassed = !isNotTaken && scorePct >= 70;
 
             return (
-              <tr key={grade.id} className="group divide-x divide-gray-100 transition-colors hover:bg-gray-50/80">
-                <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 font-semibold text-gray-800 whitespace-nowrap text-xs">
-                  <span className="font-bold text-gray-900">{grade.score}</span>
-                  <span className="text-gray-400 font-normal"> / {grade.total_score || 100}</span>
+              <tr key={grade.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
+                <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 whitespace-nowrap text-xs">
+                  <span className="font-mono font-bold text-gray-900 dark:text-slate-100">{grade.score}</span>
+                  <span className="font-mono font-bold text-gray-400 dark:text-slate-500"> / {grade.total_score || 100}</span>
                 </td>
                 <td className="px-2.5 sm:px-4 py-2.5 sm:py-3">
                   <span
-                    className={`text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 rounded-full border uppercase ${isNotTaken
-                      ? 'bg-gray-50 text-gray-500 border-gray-200'
+                    className={`text-[10.5px] font-extrabold px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${isNotTaken
+                      ? 'bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-900 dark:text-gray-400 dark:border-gray-800'
                       : isPassed
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/60'
+                        : 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/60'
                       }`}
                   >
                     {isNotTaken ? 'Not Taken' : isPassed ? 'Passed' : 'Failed'}
@@ -1819,18 +2089,18 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
                 </td>
                 <td className="px-2.5 sm:px-4 py-2.5 sm:py-3">
                   <span
-                    className={`text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 rounded-full border uppercase ${isNotTaken
-                      ? 'bg-amber-50 text-amber-700 border-amber-200'
-                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    className={`text-[10.5px] font-extrabold px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${isNotTaken
+                      ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/60'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/60'
                       }`}
                   >
                     {isNotTaken ? 'Not Taken' : 'Taken'}
                   </span>
                 </td>
-                <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 font-semibold text-gray-800 whitespace-nowrap text-xs">
+                <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 font-bold text-gray-900 dark:text-slate-100 whitespace-nowrap text-xs">
                   {formatDateString(grade.date_logged)}
                 </td>
-                <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 text-gray-600 font-mono text-xs whitespace-nowrap">
+                <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 text-gray-700 dark:text-slate-300 font-mono font-bold text-xs whitespace-nowrap">
                   {grade.created_at ? formatTimeString(grade.created_at) : '—'}
                 </td>
               </tr>
@@ -1844,7 +2114,7 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
   if (isLoading) {
     return (
       <div
-        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4"
+        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4 shadow-sm"
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -1861,7 +2131,7 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
   if (grades.length === 0) {
     return (
       <div
-        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4"
+        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4 shadow-sm"
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -1881,14 +2151,14 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
 
   return (
     <div
-      className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4 relative"
+      className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4 shadow-sm relative"
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
         <div className="min-w-0 flex-1 truncate">
-          <h3 className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm uppercase truncate">SCORES HISTORY</h3>
-          <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-gray-400 truncate">
+          <h3 className="font-extrabold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase tracking-wider truncate">SCORES HISTORY</h3>
+          <p className="mt-0.5 text-[11px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider truncate">
             {jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length} Record
             {(jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length) !== 1 ? 's' : ''}
           </p>
@@ -1907,9 +2177,9 @@ const ScoreHistoryList: React.FC<ScoreProps> = ({ studentId, reloadTrigger, onGr
                   setViewMode(mode);
                   setJumpDate(null);
                 }}
-                className={`rounded-md sm:rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${viewMode === mode && !jumpDate
+                className={`rounded-md sm:rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${viewMode === mode && !jumpDate
                   ? 'bg-[var(--brand)] text-white shadow-sm'
-                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 font-bold'
                   }`}
               >
                 {mode}
@@ -2054,9 +2324,10 @@ interface AttendanceProps {
   studentId: string;
   reloadTrigger: any;
   aralLevel?: string | null;
+  onAttendanceLoaded?: (logs: Attendance[]) => void;
 }
 
-const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTrigger, aralLevel }) => {
+const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTrigger, aralLevel, onAttendanceLoaded }) => {
   const [logs, setLogs] = useState<Attendance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -2076,6 +2347,7 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
       try {
         const data = await academicService.getAttendanceHistory({ user_id: studentId });
         setLogs(data);
+        if (onAttendanceLoaded) onAttendanceLoaded(data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -2200,14 +2472,14 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
       <button
         type="button"
         onClick={() => toggleSort(sortKey)}
-        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-700"
+        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-900 dark:hover:text-slate-100 cursor-pointer select-none"
         aria-label={`Sort by ${label}`}
       >
-        {label}
+        <span className={isActive ? 'text-[var(--brand)] font-extrabold' : ''}>{label}</span>
         {isActive ? (
-          sortConfig.direction === 'asc' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />
+          sortConfig.direction === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--brand)] shrink-0" />
         ) : (
-          <ArrowUpDown className="w-3.5 h-3.5 opacity-50" />
+          <ArrowUpDown className="w-3.5 h-3.5 opacity-40 hover:opacity-75 shrink-0" />
         )}
       </button>
     );
@@ -2215,34 +2487,34 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
 
   const renderTable = (records: Attendance[]) => (
     <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-[#1A1A1A]">
-      <table className="min-w-full divide-y divide-gray-100 text-xs sm:text-sm">
+      <table className="min-w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-xs sm:text-sm">
         <thead>
-          <tr className="divide-x divide-gray-100 bg-gray-50">
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
+          <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="DATE" sortKey="date" />
             </th>
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="TIME" sortKey="time" />
             </th>
-            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <th className="px-2.5 sm:px-4 py-2 sm:py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
               <SortableHeader label="STATUS" sortKey="status" />
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100 bg-white">
+        <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
           {records.map((log) => (
-            <tr key={log.id} className="group divide-x divide-gray-100 transition-colors hover:bg-gray-50/80">
-              <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 font-semibold text-gray-800 whitespace-nowrap text-xs">
+            <tr key={log.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
+              <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 font-bold text-gray-900 dark:text-slate-100 whitespace-nowrap text-xs">
                 {formatDateString(log.date)}
               </td>
-              <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 text-gray-600 font-mono text-xs whitespace-nowrap">
+              <td className="px-2.5 sm:px-4 py-2.5 sm:py-3 text-gray-700 dark:text-slate-300 font-mono font-bold text-xs whitespace-nowrap">
                 {log.time_in ? formatTimeString(log.time_in) : '—'}
               </td>
               <td className="px-2.5 sm:px-4 py-2.5 sm:py-3">
                 <span
-                  className={`text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 rounded-full border uppercase ${log.status === 'present'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                  className={`text-[10.5px] font-extrabold px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${log.status === 'present'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/60'
+                    : 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/60'
                     }`}
                 >
                   {log.status_display || log.status}
@@ -2258,7 +2530,7 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
   if (isLoading) {
     return (
       <div
-        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4"
+        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4 shadow-sm"
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -2275,7 +2547,7 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
   if (logs.length === 0) {
     return (
       <div
-        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4"
+        className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4 shadow-sm"
         style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -2295,14 +2567,14 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
 
   return (
     <div
-      className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4 relative"
+      className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] p-4 sm:p-6 space-y-3 sm:space-y-4 shadow-sm relative"
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
         <div className="min-w-0 flex-1 truncate">
-          <h3 className="font-bold text-gray-900 dark:text-white text-xs sm:text-sm uppercase truncate">STUDENT ATTENDANCE HISTORY</h3>
-          <p className="mt-0.5 text-[10px] sm:text-xs font-normal text-gray-500 dark:text-gray-400 truncate">
+          <h3 className="font-extrabold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase tracking-wider truncate">STUDENT ATTENDANCE HISTORY</h3>
+          <p className="mt-0.5 text-[11px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider truncate">
             {jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length} Record
             {(jumpFiltered !== null ? jumpFiltered.length : sortedHistory.length) !== 1 ? 's' : ''}
           </p>
@@ -2321,9 +2593,9 @@ const AttendanceHistoryList: React.FC<AttendanceProps> = ({ studentId, reloadTri
                   setViewMode(mode);
                   setJumpDate(null);
                 }}
-                className={`rounded-md sm:rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${viewMode === mode && !jumpDate
+                className={`rounded-md sm:rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${viewMode === mode && !jumpDate
                   ? 'bg-[var(--brand)] text-white shadow-sm'
-                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 font-bold'
                   }`}
               >
                 {mode}
