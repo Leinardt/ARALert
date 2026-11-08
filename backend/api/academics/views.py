@@ -403,10 +403,24 @@ class GradeDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     serializer_class   = GradeSerializer
     permission_classes = [permissions.IsAuthenticated]
-    queryset           = ApiGrade.objects.select_related('student', 'tutor').all()
     lookup_field       = 'id'
 
+    def get_queryset(self):
+        user = self.request.user
+        qs = ApiGrade.objects.select_related('student', 'tutor').all()
+        if user.is_superuser or user.role in ('principal', 'admin', 'faculty'):
+            return qs
+        if user.role == 'tutor':
+            return qs.filter(Q(student__assigned_tutor=user) | Q(tutor=user))
+        if user.role == 'student':
+            return qs.filter(student=user)
+        return qs.none()
+
     def perform_update(self, serializer):
+        user = self.request.user
+        if not user.is_superuser and user.role not in ('tutor', 'admin'):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Only Tutors and Administrators are authorized to modify grades.')
         instance = self.get_object()
         old_score = float(instance.score) if instance.score is not None else 0
         old_total = float(instance.total_score) if instance.total_score else 40
@@ -431,6 +445,10 @@ class GradeDetailView(generics.RetrieveUpdateDestroyAPIView):
             )
 
     def perform_destroy(self, instance):
+        user = self.request.user
+        if not user.is_superuser and user.role not in ('tutor', 'admin'):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Only Tutors and Administrators are authorized to delete grades.')
         if instance.student:
             log_audit_event(
                 'GRADE_DELETED',
@@ -498,8 +516,32 @@ class AralActivityDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     serializer_class   = AralActivitySerializer
     permission_classes = [permissions.IsAuthenticated]
-    queryset           = ApiAralActivity.objects.select_related('student', 'tutor').all()
     lookup_field       = 'id'
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = ApiAralActivity.objects.select_related('student', 'tutor').all()
+        if user.is_superuser or user.role in ('principal', 'admin', 'faculty'):
+            return qs
+        if user.role == 'tutor':
+            return qs.filter(Q(student__assigned_tutor=user) | Q(tutor=user))
+        if user.role == 'student':
+            return qs.filter(student=user)
+        return qs.none()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if not user.is_superuser and user.role not in ('tutor', 'admin'):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Only Tutors and Administrators can update ARAL activities.')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if not user.is_superuser and user.role not in ('tutor', 'admin'):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Only Tutors and Administrators can delete ARAL activities.')
+        instance.delete()
 
 
 # ---------------------------------------------------------------------------
@@ -563,11 +605,30 @@ class AcademicRiskDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     serializer_class   = AcademicRiskSerializer
     permission_classes = [permissions.IsAuthenticated]
-    queryset           = ApiAcademicRisk.objects.select_related('student').all()
     lookup_field       = 'id'
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = ApiAcademicRisk.objects.select_related('student').all()
+        if user.is_superuser or user.role in ('principal', 'admin', 'faculty'):
+            return qs
+        if user.role == 'tutor':
+            return qs.filter(student__assigned_tutor=user)
+        if user.role == 'student':
+            return qs.filter(student=user)
+        return qs.none()
 
     def perform_update(self, serializer):
         user = self.request.user
+        from rest_framework.exceptions import PermissionDenied
+
+        if user.role == 'principal' and not user.is_superuser:
+            raise PermissionDenied('Principals have read-only access to academic risk alerts.')
+        if user.role == 'student' and not user.is_superuser:
+            disallowed_fields = [k for k in serializer.validated_data.keys() if k != 'student_acknowledged']
+            if disallowed_fields:
+                raise PermissionDenied('Students may only acknowledge academic risk alerts.')
+
         old_risk = self.get_object()
         risk = serializer.save()
 
@@ -586,6 +647,13 @@ class AcademicRiskDetailView(generics.RetrieveUpdateDestroyAPIView):
                     'details': risk.details,
                 }
             )
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if not user.is_superuser and user.role not in ('tutor', 'admin', 'faculty'):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Unauthorized to delete academic risk alerts.')
+        instance.delete()
 
 
 # ---------------------------------------------------------------------------
@@ -1375,19 +1443,20 @@ class AttendanceDetailView(generics.RetrieveUpdateDestroyAPIView):
         if user.is_superuser or user.role in ('principal', 'admin'):
             return qs
         if user.role == 'tutor':
-            assigned_ids = user.assigned_students.values_list('id', flat=True)
             return qs.filter(
-                Q(role__iexact='student') |
-                Q(user__role='student') |
+                Q(user__assigned_tutor=user) |
                 Q(tutor=user) |
-                Q(session__creator=user) |
-                Q(user_id__in=assigned_ids)
+                Q(session__creator=user)
             )
-        if user.role == 'faculty':
+        if user.role in ('faculty', 'student'):
             return qs.filter(user=user)
         return qs.none()
 
     def perform_update(self, serializer):
+        user = self.request.user
+        if not user.is_superuser and user.role not in ('tutor', 'admin'):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Only Tutors and Administrators can update attendance records.')
         instance = self.get_object()
         old_status = instance.status
         old_date = instance.date
@@ -1405,6 +1474,13 @@ class AttendanceDetailView(generics.RetrieveUpdateDestroyAPIView):
                 'previous_status': old_status,
             }
         )
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if not user.is_superuser and user.role not in ('tutor', 'admin'):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Only Tutors and Administrators can delete attendance records.')
+        instance.delete()
 
 
 # ---------------------------------------------------------------------------

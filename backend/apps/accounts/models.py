@@ -467,3 +467,130 @@ class StudentEditRequest(models.Model):
         target = self.student.get_full_name() if self.student else self.requested_by.get_full_name()
         return f'Edit Request for {target} ({self.status}) by {self.requested_by.get_full_name()}'
 
+
+class SupportTicket(models.Model):
+    """
+    Support Ticket / Problem Report Model for ARALert.
+    Enables users to track their submitted reports, and allows Super Admins
+    to triage, claim, and resolve issues with resolution notes.
+    """
+    class Status(models.TextChoices):
+        UNDER_REVIEW = 'UNDER_REVIEW', 'Under Review'
+        IN_PROGRESS  = 'IN_PROGRESS',  'In Progress'
+        RESOLVED     = 'RESOLVED',     'Resolved'
+        DISMISSED    = 'DISMISSED',    'Dismissed'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    ticket_id = models.CharField(max_length=32, unique=True, db_index=True, verbose_name='Ticket Reference ID')
+    submitter = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='submitted_support_tickets',
+        verbose_name='Submitter Account',
+    )
+    submitter_name = models.CharField(max_length=255, verbose_name='Submitter Name')
+    submitter_role = models.CharField(max_length=50, verbose_name='Submitter Role')
+    contact_email = models.EmailField(verbose_name='Contact Email')
+    description = models.TextField(verbose_name='Problem Description')
+
+    # Student-specific academic metadata captured at time of report
+    lrn = models.CharField(max_length=20, null=True, blank=True, verbose_name='Learner LRN')
+    grade_level = models.CharField(max_length=50, null=True, blank=True, verbose_name='Grade Level')
+    section = models.CharField(max_length=50, null=True, blank=True, verbose_name='Section')
+    tutor_name = models.CharField(max_length=255, null=True, blank=True, verbose_name='Assigned Tutor')
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.UNDER_REVIEW,
+        db_index=True,
+        verbose_name='Ticket Status',
+    )
+    admin_reply = models.TextField(blank=True, default='', verbose_name='Admin Resolution Note')
+    claimed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='claimed_support_tickets',
+        verbose_name='Claimed By Admin',
+    )
+    resolved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='resolved_support_tickets',
+        verbose_name='Resolved By Admin',
+    )
+    is_dismissed_by_user = models.BooleanField(default=False, db_index=True, verbose_name='Dismissed from Bell by Submitter')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'support_tickets'
+        ordering = ['-created_at']
+        verbose_name = 'Support Ticket'
+        verbose_name_plural = 'Support Tickets'
+
+    def __str__(self):
+        return f'{self.ticket_id} ({self.status}) - {self.submitter_name}'
+
+
+class SystemAnnouncement(models.Model):
+    """
+    Platform-wide announcements broadcasted directly into user notification bells.
+    Super Admins can publish, schedule, or deactivate announcements for system updates or maintenance.
+    """
+    class AnnouncementType(models.TextChoices):
+        INFO = 'INFO', 'Information'
+        UPDATE = 'UPDATE', 'Platform Update'
+        MAINTENANCE = 'MAINTENANCE', 'Scheduled Maintenance'
+
+    class TargetRole(models.TextChoices):
+        ALL = 'ALL', 'All Users'
+        TUTORS = 'TUTORS', 'Tutors & Faculty'
+        STUDENTS = 'STUDENTS', 'Students'
+        PRINCIPALS = 'PRINCIPALS', 'Principals'
+
+    title = models.CharField(max_length=200, verbose_name='Announcement Title')
+    message = models.TextField(verbose_name='Announcement Message')
+    announcement_type = models.CharField(
+        max_length=20,
+        choices=AnnouncementType.choices,
+        default=AnnouncementType.INFO,
+        db_index=True,
+        verbose_name='Type',
+    )
+    target_role = models.CharField(
+        max_length=20,
+        choices=TargetRole.choices,
+        default=TargetRole.ALL,
+        db_index=True,
+        verbose_name='Target Audience',
+    )
+    is_active = models.BooleanField(default=True, db_index=True, verbose_name='Is Active')
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_system_announcements',
+        verbose_name='Created By Super Admin',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name='Optional Expiration Date')
+
+    class Meta:
+        db_table = 'system_announcements'
+        ordering = ['-created_at']
+        verbose_name = 'System Announcement'
+        verbose_name_plural = 'System Announcements'
+
+    def __str__(self):
+        return f'[{self.announcement_type}] {self.title}'
+
+

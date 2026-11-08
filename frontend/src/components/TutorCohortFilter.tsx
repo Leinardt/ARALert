@@ -146,25 +146,21 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
 
   if (isLoading && classSections.length === 0) {
     return (
-      <div className="w-full rounded-xl border border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#0E0E0E] p-3 sm:px-4 sm:py-3.5 shadow-xs space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
-          {title || 'CURRENT CLASS FOR VIEW'}
-        </h4>
-        <div className="h-10 rounded-lg border border-gray-200 dark:border-[#222222] bg-gray-50/70 dark:bg-[#141414] px-3.5 flex items-center gap-2 animate-pulse">
-          <div className="w-3.5 h-3.5 rounded-full border-2 border-[var(--brand)] border-t-transparent animate-spin" />
-          <span className="text-xs font-semibold text-gray-400 dark:text-slate-500">
-            Loading handled classes...
-          </span>
+      <div className="w-full rounded-xl border border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#0E0E0E] p-3 sm:px-4 sm:py-3.5 shadow-sm space-y-2 animate-pulse">
+        <div className="h-3 w-36 rounded bg-gray-200 dark:bg-gray-800" />
+        <div className="w-full min-h-[44px] rounded-lg border border-gray-200 dark:border-[#222222] bg-gray-50/70 dark:bg-[#141414] px-3.5 py-2.5 flex items-center justify-between">
+          <div className="h-3.5 w-48 rounded bg-gray-200 dark:bg-gray-800" />
+          <div className="h-3 w-4 rounded bg-gray-200 dark:bg-gray-800" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`w-full rounded-xl border border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#0E0E0E] p-3 sm:px-4 sm:py-3.5 shadow-xs space-y-2 relative transition-all ${isOpen ? 'z-20' : 'z-0'}`}>
+    <div className={`w-full rounded-xl border border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#0E0E0E] p-3 sm:px-4 sm:py-3.5 shadow-sm space-y-2 relative transition-all ${isOpen ? 'z-20' : 'z-0'}`}>
       {/* ── Header: Title Only ── */}
-      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">
-        {title || 'CURRENT CLASS FOR VIEW'}
+      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+        {title || 'Current Class'}
       </h4>
 
       {/* ── Single Unified Class Dropdown (Constrained to container width) ── */}
@@ -176,7 +172,7 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
           aria-haspopup="listbox"
           aria-expanded={isOpen}
           aria-label="Select class to view or record"
-          className="w-full min-h-[44px] flex items-center justify-between rounded-lg border border-gray-200 dark:border-[#222222] bg-gray-50/70 dark:bg-[#141414] px-3.5 py-2.5 text-xs sm:text-sm font-bold text-gray-900 dark:text-white shadow-2xs focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 focus:outline-none transition-all cursor-pointer text-left"
+          className="w-full min-h-[44px] flex items-center justify-between rounded-lg border border-gray-200 dark:border-[#222222] bg-gray-50/70 dark:bg-[#141414] px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-gray-800 dark:text-slate-100 shadow-2xs focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 focus:outline-none transition-all cursor-pointer text-left"
         >
           <span className="truncate pr-2">{activeClassLabel}</span>
           <ChevronDown className={`shrink-0 w-4 h-4 text-gray-400 dark:text-slate-500 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} />
@@ -186,7 +182,7 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
           <div
             role="listbox"
             aria-label="Handled Classes"
-            className="absolute left-0 right-0 top-full mt-1.5 z-50 w-full max-w-full rounded-xl border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] p-1.5 shadow-xl max-h-64 overflow-y-auto no-scrollbar animate-in fade-in zoom-in-95 duration-100"
+            className="absolute left-0 right-0 top-full mt-1.5 z-30 w-full max-w-full rounded-xl border border-gray-200 dark:border-[#222222] bg-white dark:bg-[#111111] p-1.5 shadow-xl max-h-64 overflow-y-auto no-scrollbar animate-in fade-in zoom-in-95 duration-100"
           >
             {allowAll && (
               <button
@@ -199,13 +195,13 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
                 }}
                 className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-3 py-2.5 text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
                   activeClassKey === 'ALL'
-                    ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-[var(--brand-dark)]/20 dark:text-[var(--brand-light)]'
+                    ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
                     : 'text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
                 }`}
                 title="ALL HANDLED CLASSES (OVERALL VIEW)"
               >
                 <span className="truncate">ALL HANDLED CLASSES (OVERALL VIEW)</span>
-                {activeClassKey === 'ALL' && <Check className="w-4 h-4 shrink-0 text-[var(--brand)] ml-2" />}
+                {activeClassKey === 'ALL' && <Check className="w-4 h-4 shrink-0 text-[var(--brand)] dark:text-blue-400 ml-2" />}
               </button>
             )}
             {classSections.map((cls) => {
@@ -222,13 +218,13 @@ export const TutorCohortFilter: React.FC<TutorCohortFilterProps> = ({
                   }}
                   className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-3 py-2.5 text-xs sm:text-sm font-bold transition-colors cursor-pointer ${
                     isSelected
-                      ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-[var(--brand-dark)]/20 dark:text-[var(--brand-light)]'
+                      ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
                       : 'text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]'
                   }`}
                   title={cls.label}
                 >
                   <span className="truncate">{cls.label}</span>
-                  {isSelected && <Check className="w-4 h-4 shrink-0 text-[var(--brand)] ml-2" />}
+                  {isSelected && <Check className="w-4 h-4 shrink-0 text-[var(--brand)] dark:text-blue-400 ml-2" />}
                 </button>
               );
             })}

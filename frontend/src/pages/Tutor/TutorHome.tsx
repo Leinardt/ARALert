@@ -21,6 +21,7 @@ import {
   setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
 import { TutorCohortFilter } from '../../components/TutorCohortFilter';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { useTutorCohortFilter, isStudentInCohort, getTutorClassViewLabel, getCachedTutorStudents } from '../../utils/tutorCohortHelpers';
 
 interface TutorChartPoint {
@@ -138,6 +139,10 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[]; trendFilter: Tr
     return [label];
   };
 
+  const chartAnimationKey = useMemo(() => {
+    return `${trendFilter}-${points.map((p) => `${p.x.toFixed(0)},${p.y.toFixed(0)}`).join('-')}`;
+  }, [trendFilter, points]);
+
   return (
     <div ref={containerRef} className="relative flex-1 w-full h-full min-h-[196px] sm:min-h-[220px] select-none min-w-0 overflow-hidden">
       <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full h-full min-h-[196px] sm:min-h-[220px] block" role="img" aria-label="Students Performance Trend Chart">
@@ -153,6 +158,65 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[]; trendFilter: Tr
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          <style>{`
+            @keyframes traceLine {
+              0% {
+                stroke-dashoffset: 1000;
+              }
+              100% {
+                stroke-dashoffset: 0;
+              }
+            }
+            @keyframes revealArea {
+              0% {
+                opacity: 0;
+              }
+              30% {
+                opacity: 0;
+              }
+              100% {
+                opacity: 1;
+              }
+            }
+            @keyframes popMarker {
+              0% {
+                opacity: 0;
+                transform: scale(0);
+              }
+              70% {
+                opacity: 0.95;
+                transform: scale(1.3);
+              }
+              100% {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            .chart-line-trace {
+              stroke-dasharray: 1000;
+              stroke-dashoffset: 1000;
+              animation: traceLine 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            }
+            .chart-area-reveal {
+              animation: revealArea 1.8s ease-out forwards;
+            }
+            .chart-marker-pop {
+              transform-box: fill-box;
+              transform-origin: center;
+              animation: popMarker 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+              opacity: 0;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .chart-line-trace,
+              .chart-area-reveal,
+              .chart-marker-pop {
+                animation: none !important;
+                stroke-dashoffset: 0 !important;
+                opacity: 1 !important;
+                transform: none !important;
+              }
+            }
+          `}</style>
         </defs>
 
         {[0, 25, 50, 75, 100].map((val) => {
@@ -243,29 +307,75 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[]; trendFilter: Tr
           );
         })}
 
-        {/* Royal Blue Trend Line & Area (#0052B7) */}
-        {points.length > 0 && (
-          <>
-            <path d={areaD} fill="url(#tutorChartFill)" />
-            <path d={pathD} fill="none" stroke="var(--brand)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.28" filter="url(#tutorChartGlow)" />
-            <path d={pathD} fill="none" stroke="var(--brand)" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />
-          </>
-        )}
+        {/* Animated Group (traces left-to-right on mount or filter change) */}
+        <g key={chartAnimationKey}>
+          {/* Royal Blue Trend Line & Area (#0052B7) */}
+          {points.length > 0 && (
+            <>
+              <path d={areaD} fill="url(#tutorChartFill)" className="chart-area-reveal" />
+              <path
+                pathLength={1000}
+                d={pathD}
+                fill="none"
+                stroke="var(--brand)"
+                strokeWidth="5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.28"
+                filter="url(#tutorChartGlow)"
+                className="chart-line-trace"
+              />
+              <path
+                pathLength={1000}
+                d={pathD}
+                fill="none"
+                stroke="var(--brand)"
+                strokeWidth="2.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="chart-line-trace"
+              />
+            </>
+          )}
 
-        {/* Data point markers */}
-        {points.map((p, idx) => (
-          <circle key={`data-dot-${idx}`} cx={p.x} cy={p.y} r="3.5" fill="var(--brand)" stroke="#B6D4F8" strokeWidth="1.5" />
-        ))}
+          {/* Data point markers */}
+          {points.map((p, idx) => {
+            const markerDelay = points.length > 1
+              ? ((idx / (points.length - 1)) * 1.3).toFixed(2)
+              : '0';
+            return (
+              <circle
+                key={`data-dot-${idx}`}
+                cx={p.x}
+                cy={p.y}
+                r="3.5"
+                fill="var(--brand)"
+                stroke="#B6D4F8"
+                strokeWidth="1.5"
+                className="chart-marker-pop"
+                style={{ animationDelay: `${markerDelay}s` }}
+              />
+            );
+          })}
 
-        {/* Milestone assessment dots */}
-        {points.map((p, idx) => (
-          p.assessmentLabels.length > 0 && (
-            <g key={`milestone-dot-${idx}`}>
-              <circle cx={p.x} cy={p.y} r="8.5" fill="#38BDF8" opacity="0.45" filter="url(#tutorChartGlow)" />
-              <circle cx={p.x} cy={p.y} r="4.5" fill="#0284C7" stroke="#BAE6FD" strokeWidth="2" />
-            </g>
-          )
-        ))}
+          {/* Milestone assessment dots */}
+          {points.map((p, idx) => {
+            if (p.assessmentLabels.length === 0) return null;
+            const markerDelay = points.length > 1
+              ? ((idx / (points.length - 1)) * 1.3).toFixed(2)
+              : '0';
+            return (
+              <g
+                key={`milestone-dot-${idx}`}
+                className="chart-marker-pop"
+                style={{ animationDelay: `${markerDelay}s` }}
+              >
+                <circle cx={p.x} cy={p.y} r="8.5" fill="#38BDF8" opacity="0.45" filter="url(#tutorChartGlow)" />
+                <circle cx={p.x} cy={p.y} r="4.5" fill="#0284C7" stroke="#BAE6FD" strokeWidth="2" />
+              </g>
+            );
+          })}
+        </g>
 
         {/* Vertical line and dots on hover */}
         {hoveredIdx !== null && points[hoveredIdx] && (
@@ -530,25 +640,22 @@ export const TutorHome: React.FC = () => {
     });
   }, [user, selectedAralLevel, selectedSubject, selectedCohort]);
 
-  const performanceTrendTitle = useMemo(() => {
-    if (!classViewLabel) {
-      return 'STUDENTS PERFORMANCE TREND';
-    }
-    return `${classViewLabel}'S PERFORMANCE TREND`;
-  }, [classViewLabel]);
-
-  const topAtRiskTitle = useMemo(() => {
-    if (!classViewLabel) {
-      return 'ALL TOP AT-RISK STUDENTS';
-    }
-    return `${classViewLabel}'S TOP AT-RISK`;
-  }, [classViewLabel]);
+  const performanceTrendTitle = 'Class Performance Trend';
+  const topAtRiskTitle = 'Top At-Risk Students';
 
   const last4WeeksData = useMemo(() => {
     if (filteredStudents.length === 0 || grades.length === 0) return [];
     const studentIds = new Set(filteredStudents.map((s) => String(s.id)));
+    const isAllSubject = !selectedSubject || selectedSubject.toLowerCase() === 'all';
     const assessmentGrades = grades.filter((g) => {
       if (!studentIds.has(String(g.student)) || g.component_type !== 'assessment') return false;
+      if (!isAllSubject && g.subject) {
+        const gradeSubj = g.subject.toLowerCase().trim();
+        const selSubj = selectedSubject.toLowerCase().trim();
+        if (!gradeSubj.includes(selSubj) && !selSubj.includes(gradeSubj)) {
+          return false;
+        }
+      }
       return true;
     });
     if (assessmentGrades.length === 0) return [];
@@ -700,7 +807,7 @@ export const TutorHome: React.FC = () => {
         assessmentLabels: p.assessmentLabels,
       };
     });
-  }, [filteredStudents, grades, attendance, trendFilter]);
+  }, [filteredStudents, grades, attendance, trendFilter, selectedSubject, tutorMilestone]);
 
   const highestScore = useMemo(() => last4WeeksData.length === 0 ? 0 : Math.max(...last4WeeksData.map((d) => d.value)), [last4WeeksData]);
   const lowestScore = useMemo(() => last4WeeksData.length === 0 ? 0 : Math.min(...last4WeeksData.map((d) => d.value)), [last4WeeksData]);
@@ -720,84 +827,95 @@ export const TutorHome: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-4 lg:items-start gap-3 skeleton-container w-full min-w-0 max-w-full">
-        {/* Left Section skeleton: 3 top cards + Chart below */}
-        <div className="lg:col-span-3 flex flex-col gap-3 w-full min-w-0 max-w-full">
-          {/* 3 KPI Cards skeleton */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 skeleton-row-1">
-            <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3.5 h-[116px] sm:h-[120px] animate-pulse flex flex-col justify-between">
-              <div>
-                <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
-                <div className="h-7 w-14 rounded bg-gray-200 dark:bg-gray-800" />
-              </div>
-              <div className="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800" />
-            </div>
-            <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between">
-              {[1, 2].map((i) => (
-                <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-2">
-                  <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
-                  <div className="h-4 w-10 rounded bg-gray-200 dark:bg-gray-800" />
-                </div>
-              ))}
-            </div>
-            <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-1.5">
-                  <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800" />
-                  <div className="h-3.5 w-8 rounded bg-gray-200 dark:bg-gray-800" />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Chart card skeleton */}
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-3.5 sm:px-5 flex flex-col h-[372px] sm:h-[388px] overflow-hidden animate-pulse">
-            <div className="flex items-center justify-between gap-2 shrink-0 pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-              <div className="min-w-0 flex-1">
-                <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
-              </div>
-              <div className="flex items-center gap-2 shrink-0 flex-nowrap">
-                <div className="h-4 w-28 rounded bg-gray-100 dark:bg-gray-800 hidden sm:block" />
-                <div className="h-4 w-20 rounded bg-gray-100 dark:bg-gray-800 hidden sm:block" />
-                <div className="h-7 w-24 rounded-md bg-gray-100 dark:bg-gray-800" />
-              </div>
-            </div>
-
-            <div className="flex-1 flex flex-col min-h-0 gap-2.5 mt-3">
-              <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-sm" />
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 shrink-0">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1 skeleton-row-3">
-                  {[1, 2, 3, 4].map((j) => (
-                    <div key={j} className="bg-gray-50 dark:bg-[#111111] px-2 py-1.5 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
-                      <div className="h-2.5 w-12 rounded bg-gray-200 dark:bg-gray-800 mx-auto" />
-                      <div className="h-4 w-14 rounded bg-gray-200 dark:bg-gray-800 mx-auto mt-1" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+      <div className="space-y-3 w-full min-w-0 max-w-full skeleton-container animate-pulse">
+        {/* Top Class Selector 1:1 Skeleton */}
+        <div className="w-full rounded-xl border border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#0E0E0E] p-3 sm:px-4 sm:py-3.5 shadow-sm space-y-2">
+          <div className="h-3 w-36 rounded bg-gray-200 dark:bg-gray-800" />
+          <div className="w-full min-h-[44px] rounded-lg border border-gray-200 dark:border-[#222222] bg-gray-50/70 dark:bg-[#141414] px-3.5 py-2.5 flex items-center justify-between">
+            <div className="h-3.5 w-48 rounded bg-gray-200 dark:bg-gray-800" />
+            <div className="h-3 w-4 rounded bg-gray-200 dark:bg-gray-800" />
           </div>
         </div>
 
-        {/* At-Risk panel skeleton */}
-        <div className="lg:col-span-1 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md flex flex-col h-[420px] lg:h-[520px] overflow-hidden animate-pulse">
-          <div className="px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] flex items-center justify-between shrink-0">
-            <div className="h-4 w-36 rounded bg-gray-200 dark:bg-gray-800" />
-            <div className="h-5 w-7 rounded-full bg-rose-100 dark:bg-rose-950/40" />
-          </div>
-          <div className="p-2 space-y-1 flex-1 min-h-0 overflow-y-auto skeleton-row-3">
-            {[1, 2, 3, 4, 5, 6, 7].map((j) => (
-              <div key={j} className="px-3 py-2 rounded-sm border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111] flex flex-col justify-between">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="h-3 w-28 rounded bg-gray-200 dark:bg-gray-800" />
-                  <div className="h-3.5 w-10 rounded-full bg-rose-100 dark:bg-rose-950/50 shrink-0" />
+        <div className="grid grid-cols-1 lg:grid-cols-4 lg:items-start gap-3 w-full min-w-0 max-w-full">
+          {/* Left Section skeleton: 3 top cards + Chart below */}
+          <div className="lg:col-span-3 flex flex-col gap-3 w-full min-w-0 max-w-full">
+            {/* 3 KPI Cards skeleton */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0">
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3.5 h-[116px] sm:h-[120px] flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800 mb-2" />
+                  <div className="h-7 w-14 rounded bg-gray-200 dark:bg-gray-800" />
                 </div>
-                <div className="flex items-center justify-between gap-2 mt-1">
-                  <div className="h-2.5 w-20 rounded bg-gray-100 dark:bg-gray-800" />
-                  <div className="h-2.5 w-8 rounded bg-gray-200 dark:bg-gray-800" />
+                <div className="h-2.5 w-24 rounded bg-gray-100 dark:bg-gray-800" />
+              </div>
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-sm">
+                {[1, 2].map((i) => (
+                  <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-2">
+                    <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
+                    <div className="h-4 w-10 rounded bg-gray-200 dark:bg-gray-800" />
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-sm">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-1.5">
+                    <div className="h-2.5 w-20 rounded bg-gray-200 dark:bg-gray-800" />
+                    <div className="h-3.5 w-8 rounded bg-gray-200 dark:bg-gray-800" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Chart card skeleton */}
+            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-3.5 sm:px-5 flex flex-col h-[372px] sm:h-[388px] overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between gap-2 shrink-0 pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+                <div className="min-w-0 flex-1">
+                  <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
+                </div>
+                <div className="flex items-center gap-2 shrink-0 flex-nowrap">
+                  <div className="h-4 w-28 rounded bg-gray-100 dark:bg-gray-800 hidden sm:block" />
+                  <div className="h-4 w-20 rounded bg-gray-100 dark:bg-gray-800 hidden sm:block" />
+                  <div className="h-7 w-24 rounded-md bg-gray-100 dark:bg-gray-800" />
                 </div>
               </div>
-            ))}
+
+              <div className="flex-1 flex flex-col min-h-0 gap-2.5 mt-3">
+                <div className="relative flex-1 min-h-0 w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-sm" />
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 shrink-0">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
+                    {[1, 2, 3, 4].map((j) => (
+                      <div key={j} className="bg-gray-50 dark:bg-[#111111] px-2 py-1.5 rounded-sm border border-gray-100 dark:border-[#1A1A1A] text-center">
+                        <div className="h-2.5 w-12 rounded bg-gray-200 dark:bg-gray-800 mx-auto" />
+                        <div className="h-4 w-14 rounded bg-gray-200 dark:bg-gray-800 mx-auto mt-1" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* At-Risk panel skeleton */}
+          <div className="lg:col-span-1 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md flex flex-col h-[420px] lg:h-[520px] overflow-hidden shadow-sm">
+            <div className="px-4 py-3 border-b border-gray-100 dark:border-[#1A1A1A] flex items-center justify-between shrink-0">
+              <div className="h-4 w-36 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="h-5 w-7 rounded-full bg-rose-100 dark:bg-rose-950/40" />
+            </div>
+            <div className="p-2 space-y-1 flex-1 min-h-0 overflow-y-auto">
+              {[1, 2, 3, 4, 5, 6, 7].map((j) => (
+                <div key={j} className="px-3 py-2 rounded-sm border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111] flex flex-col justify-between">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="h-3 w-28 rounded bg-gray-200 dark:bg-gray-800" />
+                    <div className="h-3.5 w-10 rounded-full bg-rose-100 dark:bg-rose-950/50 shrink-0" />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <div className="h-2.5 w-20 rounded bg-gray-100 dark:bg-gray-800" />
+                    <div className="h-2.5 w-8 rounded bg-gray-200 dark:bg-gray-800" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -836,7 +954,7 @@ export const TutorHome: React.FC = () => {
           setSelectedCohortFilter({ aral_level: level, subject, cohort })
         }
         allowAll={true}
-        title="CURRENT CLASS FOR VIEW"
+        title="Current Class for View"
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 lg:items-start gap-3 w-full min-w-0 max-w-full">
@@ -847,69 +965,77 @@ export const TutorHome: React.FC = () => {
           {/* 1. My Students */}
           <Link
             to="/tutor/students"
-            className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3 sm:p-3.5 transition-colors hover:bg-gray-50/60 dark:hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] flex flex-col justify-between h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs"
+            className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3 sm:p-3.5 transition-all hover:bg-gray-50/60 dark:hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] flex flex-col justify-between h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm hover:shadow-md"
           >
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">My Students</p>
-              <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mt-0.5 sm:mt-1 tracking-tight text-gray-900 dark:text-slate-100">{totalStudents}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">My Students</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mt-0.5 sm:mt-1 tracking-tight text-gray-900 dark:text-slate-100">
+                <AnimatedCounter value={totalStudents} />
+              </p>
             </div>
             <p className="text-[11px] font-normal text-gray-400 dark:text-slate-500">Enrolled learners</p>
           </Link>
 
           {/* 2. Average Attendance & Average Scores */}
-          <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+          <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm">
             <Link
               to="/tutor/analytics?tab=attendance"
               className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
             >
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">AVERAGE ATTENDANCE</p>
-              <p className={`text-base sm:text-lg font-extrabold shrink-0 ${!hasAttendanceData ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
-                {!hasAttendanceData ? '—' : `${avgAttendance}%`}
+              <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">Average Attendance</p>
+              <p className={`text-base sm:text-lg font-bold shrink-0 ${!hasAttendanceData ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                {!hasAttendanceData ? '—' : <AnimatedCounter value={avgAttendance} suffix="%" />}
               </p>
             </Link>
             <Link
               to="/tutor/analytics?tab=score"
               className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
             >
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">AVERAGE SCORES</p>
-              <p className={`text-base sm:text-lg font-extrabold shrink-0 ${!hasScoreData ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
-                {!hasScoreData ? '—' : `${avgScore}%`}
+              <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">Average Scores</p>
+              <p className={`text-base sm:text-lg font-bold shrink-0 ${!hasScoreData ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                {!hasScoreData ? '—' : <AnimatedCounter value={avgScore} decimals={avgScore % 1 !== 0 ? 1 : 0} suffix="%" />}
               </p>
             </Link>
           </div>
 
           {/* 3. High / Medium / Low Risk Breakdown */}
-          <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+          <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm">
             <Link
               to="/tutor/analytics"
               className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
             >
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">High Risk</p>
-              <p className="text-xs sm:text-sm font-extrabold text-risk-high shrink-0">{highRiskStudents.length}</p>
+              <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">High Risk</p>
+              <p className="text-xs sm:text-sm font-bold text-risk-high shrink-0">
+                <AnimatedCounter value={highRiskStudents.length} />
+              </p>
             </Link>
             <Link
               to="/tutor/analytics"
               className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
             >
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">Moderate Risk</p>
-              <p className="text-xs sm:text-sm font-extrabold text-risk-medium shrink-0">{moderateRiskStudents.length}</p>
+              <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">Moderate Risk</p>
+              <p className="text-xs sm:text-sm font-bold text-risk-medium shrink-0">
+                <AnimatedCounter value={moderateRiskStudents.length} />
+              </p>
             </Link>
             <Link
               to="/tutor/analytics"
               className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
             >
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">Low Risk</p>
-              <p className="text-xs sm:text-sm font-extrabold text-risk-low shrink-0">{lowRiskStudents.length}</p>
+              <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">Low Risk</p>
+              <p className="text-xs sm:text-sm font-bold text-risk-low shrink-0">
+                <AnimatedCounter value={lowRiskStudents.length} />
+              </p>
             </Link>
           </div>
         </div>
 
         {/* Row 2: Performance Trend Chart */}
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3 sm:px-5 sm:py-3.5 flex flex-col sm:h-[388px] overflow-hidden w-full min-w-0 max-w-full shadow-2xs">
+        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3 sm:px-5 sm:py-3.5 flex flex-col sm:h-[388px] overflow-hidden w-full min-w-0 max-w-full shadow-sm">
           <div className="flex flex-col gap-1.5 shrink-0 pb-2 sm:pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
             <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0">
               <div className="min-w-0 flex-1">
-                <h3 className="text-[9.5px] xs:text-[10.5px] sm:text-sm font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate" title={performanceTrendTitle}>{performanceTrendTitle}</h3>
+                <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 tracking-tight whitespace-nowrap truncate" title={performanceTrendTitle}>{performanceTrendTitle}</h3>
               </div>
               <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap">
                 <div className="hidden sm:flex items-center gap-3 shrink-0 whitespace-nowrap">
@@ -967,44 +1093,55 @@ export const TutorHome: React.FC = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
+            <div
+              key={`trend-stats-${selectedAralLevel}-${selectedSubject}-${selectedCohort}-${trendFilter}`}
+              className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0"
+            >
               {[
                 {
                   label: 'Highest',
-                  value: last4WeeksData.length === 0 ? '—' : `${highestScore}%`,
+                  numValue: last4WeeksData.length === 0 ? null : highestScore,
                   color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : highestScore >= 81 ? 'text-risk-low' : highestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
                 },
                 {
                   label: 'Lowest',
-                  value: last4WeeksData.length === 0 ? '—' : `${lowestScore}%`,
+                  numValue: last4WeeksData.length === 0 ? null : lowestScore,
                   color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : lowestScore >= 81 ? 'text-risk-low' : lowestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
                 },
               ].map((stat) => (
                 <div key={stat.label} className="bg-gray-50/80 dark:bg-[#111111] px-2.5 py-1.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
-                  <p className="text-[9.5px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide leading-tight">{stat.label}</p>
-                  <p className={`text-sm sm:text-base font-extrabold mt-0.5 leading-tight ${stat.color}`}>{stat.value}</p>
+                  <p className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider leading-tight">{stat.label}</p>
+                  <p className={`text-sm sm:text-base font-bold mt-0.5 leading-tight ${stat.color}`}>
+                    <AnimatedCounter
+                      value={stat.numValue}
+                      duration={850}
+                      suffix="%"
+                      fallback="—"
+                      alwaysFromZero
+                    />
+                  </p>
                 </div>
               ))}
               <div className="bg-gray-50/80 dark:bg-[#111111] px-2.5 py-1.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
-                <p className="text-[9.5px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide leading-tight">Trend</p>
+                <p className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider leading-tight">Trend</p>
                 <div className="mt-0.5 leading-tight">
                   {last4WeeksData.length === 0 ? (
-                    <span className="text-sm sm:text-base font-extrabold text-gray-400 dark:text-slate-500">—</span>
+                    <span className="text-sm sm:text-base font-bold text-gray-400 dark:text-slate-500">—</span>
                   ) : tutorTrendDir === 'up' ? (
-                    <span className="text-sm sm:text-base font-extrabold text-risk-low">Improving</span>
+                    <span className="text-sm sm:text-base font-bold text-risk-low">Improving</span>
                   ) : tutorTrendDir === 'down' ? (
-                    <span className="text-sm sm:text-base font-extrabold text-risk-high">Declining</span>
+                    <span className="text-sm sm:text-base font-bold text-risk-high">Declining</span>
                   ) : (
-                    <span className="text-sm sm:text-base font-extrabold text-gray-500 dark:text-slate-400">Stable</span>
+                    <span className="text-sm sm:text-base font-bold text-gray-500 dark:text-slate-400">Stable</span>
                   )}
                 </div>
               </div>
               <Link
                 to="/tutor/analytics"
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--brand-border)] bg-[var(--brand-light)]/70 px-3 py-1.5 text-xs font-semibold text-[var(--brand)] dark:text-sky-400 transition hover:border-[var(--brand)] hover:bg-[var(--brand-light)] hover:text-[var(--brand-hover)] dark:hover:text-sky-300"
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 dark:border-[#222222] bg-gray-50 dark:bg-[#141414] px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1f1f1f] transition-all"
               >
-                <span>See More</span>
-                <span className="font-bold" aria-hidden="true">&gt;</span>
+                <span>See Analytics</span>
+                <span className="font-bold text-gray-400" aria-hidden="true">&gt;</span>
               </Link>
             </div>
           </div>
@@ -1013,57 +1150,72 @@ export const TutorHome: React.FC = () => {
 
       {/* ── Right 1-Column Section: Top At-Risk Panel (Fixed Height) ──── */}
       <div className="lg:col-span-1 min-h-0">
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-[420px] lg:h-[520px] flex flex-col shadow-2xs">
+        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-[420px] lg:h-[520px] flex flex-col shadow-sm">
           <div className="flex items-center justify-between gap-1.5 px-3 sm:px-3.5 py-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
             <h3
-              className="text-[9px] xs:text-[9.5px] sm:text-[10px] xl:text-[9.5px] 2xl:text-[11px] font-bold text-gray-900 dark:text-slate-100 uppercase tracking-tight whitespace-nowrap truncate min-w-0"
+              className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 tracking-tight whitespace-nowrap truncate min-w-0"
               title={topAtRiskTitle}
             >
               {topAtRiskTitle}
             </h3>
-            <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
-              {atRiskStudents.length}
+            <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-950/60 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300">
+              <AnimatedCounter value={atRiskStudents.length} />
             </span>
           </div>
 
-          <div className="p-2 space-y-1 flex-1 min-h-0 overflow-y-auto">
+          <div
+            key={`risk-list-${selectedAralLevel}-${selectedSubject}-${selectedCohort}`}
+            className="p-2 space-y-1 flex-1 min-h-0 overflow-y-auto"
+          >
             {atRiskStudents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center py-12 px-4 gap-2">
+              <div className="risk-card-cascade flex flex-col items-center justify-center text-center py-12 px-4 gap-2">
                 <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                 <p className="text-sm font-semibold text-gray-700 dark:text-slate-300">All students on track</p>
                 <p className="text-xs text-gray-400 dark:text-slate-500">No high or moderate risk students.</p>
               </div>
             ) : (
-              atRiskStudents.map((s) => (
-                <Link
-                  key={s.student.id}
-                  to={`/tutor/students/${s.student.id}`}
-                  state={{ from: 'dashboard' }}
-                  className={`block rounded-sm border px-3 py-2 min-h-[44px] flex flex-col justify-center transition-colors hover:opacity-90 ${s.riskTier === 'High'
-                    ? 'risk-card-high'
-                    : 'risk-card-medium'
-                    }`}
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center justify-between gap-1.5">
-                      <span className="font-semibold text-xs text-gray-800 dark:text-slate-200 truncate block leading-tight">
-                        {s.student.full_name}
-                      </span>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-bold shrink-0 border leading-none ${s.riskTier === 'High' ? 'risk-badge-high' : 'risk-badge-medium'}`}>
-                        {s.riskTier.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between gap-1">
-                      <span className="text-gray-500 dark:text-slate-400 text-[10.5px] font-normal leading-tight">
-                        Composite:
-                      </span>
-                      <span className="text-xs font-normal text-gray-900 dark:text-slate-100 leading-tight">
-                        {s.compositeScore.toFixed(1)}%
-                      </span>
-                    </div>
+              atRiskStudents.map((s, idx) => {
+                const cascadeDelay = Math.min(idx * 50, 500);
+                const isHighRisk = s.riskTier === 'High';
+                return (
+                  <div
+                    key={s.student.id}
+                    className="risk-card-cascade"
+                    style={{ animationDelay: `${cascadeDelay}ms` }}
+                  >
+                    <Link
+                      to={`/tutor/students/${s.student.id}`}
+                      state={{ from: 'dashboard' }}
+                      className={`group relative block rounded-sm border px-3 py-2 min-h-[44px] flex flex-col justify-center transition-all duration-150 ease-out cursor-pointer hover:z-10 hover:scale-[1.018] hover:-translate-y-0.5 hover:shadow-md ${
+                        isHighRisk ? 'risk-card-high' : 'risk-card-medium'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className="font-semibold text-xs text-gray-900 dark:text-slate-100 group-hover:text-black dark:group-hover:text-white truncate block leading-tight transition-colors">
+                            {s.student.full_name}
+                          </span>
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[8.5px] font-bold shrink-0 border leading-none transition-transform duration-150 group-hover:scale-105 ${
+                              isHighRisk ? 'risk-badge-high' : 'risk-badge-medium'
+                            }`}
+                          >
+                            {s.riskTier.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-1">
+                          <span className="text-gray-500 dark:text-slate-400 text-[11px] font-medium leading-tight">
+                            Composite:
+                          </span>
+                          <span className="text-xs font-bold text-gray-900 dark:text-slate-100 leading-tight">
+                            {s.compositeScore.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
                   </div>
-                </Link>
-              ))
+                );
+              })
             )}
           </div>
         </div>

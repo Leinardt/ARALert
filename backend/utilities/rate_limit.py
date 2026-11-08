@@ -79,3 +79,43 @@ def clear_otp_attempts(user_id: str) -> None:
     """Clear OTP counters on successful verification."""
     cache.delete(_otp_key(user_id))
     cache.delete(_otp_lock_key(user_id))
+
+
+# ── Ticket rate limiting ──────────────────────────────────────────────────────
+
+TICKET_COOLDOWN_SECONDS = 120  # 2 minutes cooldown between tickets per user/IP
+
+
+def is_ticket_rate_limited(user_id: str, ip: str = '') -> tuple[bool, int]:
+    """
+    Check if user or IP submitted a problem ticket within the last 2 minutes.
+    Returns (is_limited: bool, remaining_seconds: int).
+    """
+    import time
+    now_ts = time.time()
+
+    if user_id:
+        last_user_ts = cache.get(f"rl:ticket:user:{user_id}")
+        if last_user_ts:
+            elapsed = int(now_ts - last_user_ts)
+            if elapsed < TICKET_COOLDOWN_SECONDS:
+                return True, (TICKET_COOLDOWN_SECONDS - elapsed)
+
+    if ip:
+        last_ip_ts = cache.get(f"rl:ticket:ip:{ip}")
+        if last_ip_ts:
+            elapsed = int(now_ts - last_ip_ts)
+            if elapsed < TICKET_COOLDOWN_SECONDS:
+                return True, (TICKET_COOLDOWN_SECONDS - elapsed)
+
+    return False, 0
+
+
+def record_ticket_submission(user_id: str, ip: str = '') -> None:
+    """Record timestamp of ticket submission for 2-minute cooldown."""
+    import time
+    now_ts = time.time()
+    if user_id:
+        cache.set(f"rl:ticket:user:{user_id}", now_ts, TICKET_COOLDOWN_SECONDS)
+    if ip:
+        cache.set(f"rl:ticket:ip:{ip}", now_ts, TICKET_COOLDOWN_SECONDS)

@@ -5,8 +5,11 @@ and user login/logout activity history.
 """
 
 import json
+import logging
 import re
+import threading
 import uuid
+from django.db import transaction
 from django.db.models import Avg, Case, Count, IntegerField, Q, Value, When
 from django.db.models.functions import Lower
 from django.shortcuts import get_object_or_404
@@ -19,6 +22,28 @@ from apps.accounts.models import AuditLog, User, StudentEditRequest
 from permissions.role_permissions import IsAdmin, IsTutor, role_required
 from utilities.audit import log_audit_event
 from utilities.pagination import StandardResultsSetPagination
+
+logger = logging.getLogger(__name__)
+
+
+def _is_non_student_staff_with_email(user_obj) -> bool:
+    """Return True only when user_obj is a non-student staff account with a real email address."""
+    if not user_obj:
+        return False
+    is_super = bool(getattr(user_obj, 'is_superuser', False))
+    role = str(getattr(user_obj, 'role', '') or '').strip().lower()
+    if not is_super and role == 'student':
+        return False
+    email = str(getattr(user_obj, 'email', '') or '').strip().lower()
+    if not email or email.endswith('@aralert.local') or email.startswith('student-'):
+        return False
+    return True
+
+
+def _dispatch_staff_lifecycle_email(email_fn, *args) -> None:
+    """Schedule a non-blocking staff lifecycle email after the surrounding DB transaction commits."""
+    from services.email_service import dispatch_email_async
+    dispatch_email_async(email_fn, *args)
 
 from .serializers import (
     BulkAssignTutorSerializer,
@@ -376,8 +401,6 @@ class UserListCreateView(generics.ListCreateAPIView):
         try:
             user = serializer.save()
         except Exception as exc:
-            import logging
-            logger = logging.getLogger(__name__)
             logger.exception("Failed to save user in UserListCreateView: %s", exc)
             err_msg = str(exc)
             if 'duplicate key' in err_msg.lower() or 'unique constraint' in err_msg.lower():
@@ -417,6 +440,13 @@ class UserListCreateView(generics.ListCreateAPIView):
                 'lrn': user.lrn if user.role == 'student' else None,
             }
         )
+        # Send account welcome / creation email for non-student staff (non-blocking after DB commit)
+        if _is_non_student_staff_with_email(user):
+            from django.conf import settings
+            from services.email_service import send_account_invitation_email
+            frontend_url = (getattr(settings, 'FRONTEND_URL', 'http://localhost:5173') or 'http://localhost:5173').rstrip('/')
+            _dispatch_staff_lifecycle_email(send_account_invitation_email, user, f"{frontend_url}/login")
+
         return Response(
             UserListSerializer(user).data,
             status=status.HTTP_201_CREATED,
@@ -516,10 +546,23 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({'role': 'The Primary Root SuperAdmin role cannot be changed.'})
 
+        prev_is_active = target_user.is_active
         prev_level = (getattr(target_user, 'aral_level', '') or '').lower()
         prev_tutor = target_user.assigned_tutor
         updated_user = serializer.save()
         new_level = (getattr(updated_user, 'aral_level', '') or '').lower()
+
+        # Send activation/deactivation email if is_active changed on non-student staff (non-blocking after DB commit)
+        if (
+            'is_active' in serializer.validated_data
+            and updated_user.is_active != prev_is_active
+            and _is_non_student_staff_with_email(updated_user)
+        ):
+            from services.email_service import send_account_activated_email, send_account_deactivated_email
+            if updated_user.is_active:
+                _dispatch_staff_lifecycle_email(send_account_activated_email, updated_user)
+            else:
+                _dispatch_staff_lifecycle_email(send_account_deactivated_email, updated_user)
 
         # If ARAL level is changed from graduated back to basic/plus/summer (reverting a mistake)
         if updated_user.role == 'student' and prev_level == 'graduated' and new_level in ('basic', 'plus', 'summer'):
@@ -617,9 +660,17 @@ class UserActivateView(APIView):
             user = get_object_or_404(User, id=id)
         else:
             user = get_object_or_404(User, id=id, is_superuser=False)
+            if getattr(user, 'role', None) == 'admin':
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied('Only SuperAdmin can activate School Admin accounts.')
 
+        was_active = bool(user.is_active)
         user.is_active = True
         user.save(update_fields=['is_active'])
+
+        if not was_active and _is_non_student_staff_with_email(user):
+            from services.email_service import send_account_activated_email
+            _dispatch_staff_lifecycle_email(send_account_activated_email, user)
 
         actor_role = getattr(request.user, 'role', '')
         action = 'USER_ACTIVATED_BY_SUPERADMIN' if (actor_role == 'superadmin' or request.user.is_superuser) else 'USER_ACTIVATED_BY_ADMIN'
@@ -662,12 +713,14 @@ class UserDeactivateView(APIView):
     permission_classes = [IsAdmin]
 
     def patch(self, request, id):
+        from rest_framework.exceptions import PermissionDenied
+
         if request.user.is_superuser:
             user = get_object_or_404(User, id=id)
         else:
             user = get_object_or_404(User, id=id, is_superuser=False)
-
-        from rest_framework.exceptions import PermissionDenied
+            if getattr(user, 'role', None) == 'admin':
+                raise PermissionDenied('Only SuperAdmin can deactivate School Admin accounts.')
 
         # 1. Do not let admin or superadmin deactivate their own account
         if str(user.id) == str(request.user.id) or (
@@ -679,8 +732,13 @@ class UserDeactivateView(APIView):
         if is_root_superadmin(user):
             raise PermissionDenied(f'The Primary Root SuperAdmin account ({ROOT_SUPERADMIN_EMAIL}) is protected and cannot be deactivated.')
 
+        was_active = bool(user.is_active)
         user.is_active = False
         user.save(update_fields=['is_active'])
+
+        if was_active and _is_non_student_staff_with_email(user):
+            from services.email_service import send_account_deactivated_email
+            _dispatch_staff_lifecycle_email(send_account_deactivated_email, user)
 
         # Blacklist any outstanding JWT tokens so the user is forcibly logged out immediately
         try:

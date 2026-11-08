@@ -1,7 +1,10 @@
-import traceback
+import logging
+from django.conf import settings
 from rest_framework.views import exception_handler
 from rest_framework.response import Response
 from rest_framework import status
+
+logger = logging.getLogger(__name__)
 
 
 def custom_exception_handler(exc, context):
@@ -14,12 +17,14 @@ def custom_exception_handler(exc, context):
             errors = {'detail': errors['detail']}
         return Response(errors, status=response.status_code)
 
-    print("=== UNHANDLED EXCEPTION IN API VIEW ===")
-    traceback.print_exc()
-    print("========================================")
+    view_name = context.get('view', 'unknown') if context else 'unknown'
+    logger.exception("Unhandled API exception in %s: %s", view_name, exc)
 
-    err_msg = str(exc)
-    detail_text = f"An unexpected error occurred: {err_msg}" if err_msg else "An unexpected error occurred."
+    if settings.DEBUG:
+        err_msg = str(exc)
+        detail_text = f"An unexpected error occurred: {err_msg}" if err_msg else "An unexpected error occurred."
+    else:
+        detail_text = "An unexpected server error occurred. Please contact system support if the issue persists."
 
     return Response(
         {'detail': detail_text},

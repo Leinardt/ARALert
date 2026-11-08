@@ -59,7 +59,7 @@ def get_active_milestone_period() -> str:
     Defaults to 'EOSY' if in 2nd semester, 'MOSY' if in 1st, or 'SUMMER' if in summer.
     """
     try:
-        from apps.audit.models import AuditLog
+        from apps.accounts.models import AuditLog
         last_sem_log = AuditLog.objects.filter(action='SEMESTER_TRANSITION_SET').order_by('-timestamp').first()
         if (
             last_sem_log

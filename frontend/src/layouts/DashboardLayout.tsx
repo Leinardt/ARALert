@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, useRef, Suspense, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -6,7 +6,7 @@ import { useTheme } from '../hooks/useTheme';
 import {
   LayoutDashboard, Users, User as UserIcon, UserCheck, LogOut, QrCode, Scan,
   Award, Bell, ChevronDown, ChevronUp, Shield, BookOpen, X, FileText, Moon, Sun,
-  PanelLeftClose, PanelLeftOpen, Menu, AlertTriangle, Calendar, Check,
+  PanelLeftClose, PanelLeftOpen, Menu, AlertTriangle, Calendar, Check, HelpCircle,
   Clock, CheckCircle2, XCircle, AlertCircle, RefreshCw, Archive, History,
 } from 'lucide-react';
 import { userService } from '../services/userService';
@@ -19,6 +19,9 @@ import type { AcademicRisk, StudentEditRequest } from '../types';
 import { TutorGreetingIntro, checkGreetingEligibility } from '../components/TutorGreetingIntro';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { StudentEditRequestsModal } from '../components/StudentEditRequestsModal';
+import { ReportProblemModal } from '../components/ReportProblemModal';
+import { ticketService, SupportTicketItem } from '../services/ticketService';
+import { announcementService, SystemAnnouncementItem } from '../services/announcementService';
 import { SystemUpdateNotification, SYSTEM_UPDATES } from '../components/SystemUpdateNotification';
 import { PageFallback } from '../components/PageFallback';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -300,6 +303,7 @@ export const DashboardLayout: React.FC = () => {
 
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
+  const [showReportProblemModal, setShowReportProblemModal] = useState<boolean>(false);
 
   const handleLogout = async () => {
     await logout();
@@ -378,9 +382,93 @@ export const DashboardLayout: React.FC = () => {
   const [showRiskList, setShowRiskList] = useState(false);
   const [selectedAlertClass, setSelectedAlertClass] = useState<string>('all');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const profileMenuEnterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleProfileMouseEnter = () => {
+    if (profileMenuHoverTimerRef.current) {
+      clearTimeout(profileMenuHoverTimerRef.current);
+      profileMenuHoverTimerRef.current = null;
+    }
+    // Gentle 60ms debounce on enter to avoid accidental flicker when passing over
+    if (!profileMenuOpen && !profileMenuEnterTimerRef.current) {
+      profileMenuEnterTimerRef.current = setTimeout(() => {
+        setProfileMenuOpen(true);
+        profileMenuEnterTimerRef.current = null;
+      }, 60);
+    }
+  };
+
+  const handleProfileMouseLeave = () => {
+    if (profileMenuEnterTimerRef.current) {
+      clearTimeout(profileMenuEnterTimerRef.current);
+      profileMenuEnterTimerRef.current = null;
+    }
+    if (profileMenuHoverTimerRef.current) {
+      clearTimeout(profileMenuHoverTimerRef.current);
+    }
+    profileMenuHoverTimerRef.current = setTimeout(() => {
+      setProfileMenuOpen(false);
+    }, 240);
+  };
+
+  const handleProfileButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (profileMenuHoverTimerRef.current) {
+      clearTimeout(profileMenuHoverTimerRef.current);
+      profileMenuHoverTimerRef.current = null;
+    }
+    if (profileMenuEnterTimerRef.current) {
+      clearTimeout(profileMenuEnterTimerRef.current);
+      profileMenuEnterTimerRef.current = null;
+    }
+    setProfileMenuOpen(true);
+  };
+
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        !target.closest('#sidebar-profile-button') &&
+        !target.closest('#profile-dropdown-menu') &&
+        !target.closest('#mobile-drawer-profile-button')
+      ) {
+        setProfileMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [profileMenuOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (profileMenuHoverTimerRef.current) {
+        clearTimeout(profileMenuHoverTimerRef.current);
+      }
+      if (profileMenuEnterTimerRef.current) {
+        clearTimeout(profileMenuEnterTimerRef.current);
+      }
+    };
+  }, []);
   const [showStudentEditRequests, setShowStudentEditRequests] = useState(false);
   const [pendingEditRequestsCount, setPendingEditRequestsCount] = useState<number>(0);
-  const totalNotificationsCount = pendingEditRequestsCount + SYSTEM_UPDATES.length;
+  const [myTickets, setMyTickets] = useState<SupportTicketItem[]>([]);
+  const [pendingTicketsCount, setPendingTicketsCount] = useState<number>(0);
+  const [systemAnnouncements, setSystemAnnouncements] = useState<SystemAnnouncementItem[]>([]);
+  const [userNotificationFilter, setUserNotificationFilter] = useState<'all' | 'tickets' | 'edits' | 'updates'>('all');
+  const [isClearingResolved, setIsClearingResolved] = useState<boolean>(false);
+  const activeTicketNotificationCount = user?.is_superuser ? pendingTicketsCount : myTickets.length;
+  const totalNotificationsCount = pendingEditRequestsCount + activeTicketNotificationCount + systemAnnouncements.length + SYSTEM_UPDATES.length;
   const [myEditRequests, setMyEditRequests] = useState<StudentEditRequest[]>([]);
   const [isLoadingEditRequests, setIsLoadingEditRequests] = useState<boolean>(false);
   const [showEditRequestsModal, setShowEditRequestsModal] = useState<boolean>(false);
@@ -529,6 +617,231 @@ export const DashboardLayout: React.FC = () => {
     }
   };
 
+  const fetchTickets = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await ticketService.getTickets();
+      setMyTickets(data.results || []);
+      setPendingTicketsCount(data.pending_count || 0);
+    } catch (err) {
+      console.error('Failed to load tickets', err);
+    }
+  }, [user]);
+
+  const fetchAnnouncements = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await announcementService.getAnnouncements();
+      setSystemAnnouncements(data.results || []);
+    } catch (err) {
+      console.error('Failed to load system announcements', err);
+    }
+  }, [user]);
+
+  const handleDismissTicket = async (ticketId: string) => {
+    try {
+      await ticketService.dismissTicketForUser(ticketId);
+      await fetchTickets();
+    } catch (err) {
+      console.error('Failed to dismiss ticket', err);
+    }
+  };
+
+  const handleClearResolvedTickets = async () => {
+    const resolvedOrDismissed = myTickets.filter(
+      (t) => t.status === 'RESOLVED' || t.status === 'DISMISSED'
+    );
+    if (resolvedOrDismissed.length === 0) return;
+    setIsClearingResolved(true);
+    try {
+      await Promise.all(
+        resolvedOrDismissed.map((t) => ticketService.dismissTicketForUser(t.ticket_id))
+      );
+      await fetchTickets();
+    } catch (err) {
+      console.error('Failed to clear resolved tickets', err);
+    } finally {
+      setIsClearingResolved(false);
+    }
+  };
+
+  const renderSystemAnnouncementCard = (a: SystemAnnouncementItem) => {
+    const isMaintenance = a.announcement_type === 'MAINTENANCE';
+    const isUpdate = a.announcement_type === 'UPDATE';
+
+    const cardBg = isMaintenance
+      ? 'rgba(245, 158, 11, 0.05)'
+      : isUpdate
+        ? 'rgba(34, 197, 94, 0.05)'
+        : 'rgba(0, 82, 183, 0.05)';
+
+    const cardBorder = isMaintenance
+      ? 'rgba(245, 158, 11, 0.3)'
+      : isUpdate
+        ? 'rgba(34, 197, 94, 0.3)'
+        : 'rgba(0, 82, 183, 0.25)';
+
+    const badgeColor = isMaintenance ? '#D97706' : isUpdate ? '#16A34A' : '#0052B7';
+    const badgeBg = isMaintenance ? 'rgba(245, 158, 11, 0.15)' : isUpdate ? 'rgba(34, 197, 94, 0.15)' : 'rgba(0, 82, 183, 0.12)';
+
+    return (
+      <div
+        key={`ann-${a.id}`}
+        style={{
+          background: cardBg,
+          border: `1px solid ${cardBorder}`,
+          borderRadius: '10px',
+          padding: '0.75rem 0.85rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.35rem',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+          <div>
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              {a.title}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', background: badgeBg, color: badgeColor, fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                {a.announcement_type_display}
+              </span>
+            </div>
+          </div>
+          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            {new Date(a.created_at).toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </span>
+        </div>
+
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', background: 'var(--surface-muted)', borderRadius: '6px', padding: '6px 8px', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+          {a.message}
+        </div>
+      </div>
+    );
+  };
+
+  const renderTicketNotificationCard = (t: SupportTicketItem) => {
+    const isPending = t.status === 'UNDER_REVIEW';
+    const isInProgress = t.status === 'IN_PROGRESS';
+    const isResolved = t.status === 'RESOLVED';
+    const isDismissed = t.status === 'DISMISSED';
+
+    const cardBg = isPending
+      ? 'rgba(100, 116, 139, 0.05)'
+      : isInProgress
+        ? 'rgba(245, 158, 11, 0.05)'
+        : isResolved
+          ? 'rgba(34, 197, 94, 0.05)'
+          : 'rgba(100, 116, 139, 0.05)';
+
+    const cardBorder = isPending
+      ? 'rgba(100, 116, 139, 0.25)'
+      : isInProgress
+        ? 'rgba(245, 158, 11, 0.3)'
+        : isResolved
+          ? 'rgba(34, 197, 94, 0.3)'
+          : 'rgba(100, 116, 139, 0.3)';
+
+    return (
+      <div
+        key={`tkt-${t.id}`}
+        style={{
+          background: cardBg,
+          border: `1px solid ${cardBorder}`,
+          borderRadius: '10px',
+          padding: '0.75rem 0.85rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.35rem',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+          <div>
+            <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+              Ticket #{t.ticket_id}
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px', flexShrink: 0 }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              {new Date(t.created_at).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })} • {new Date(t.created_at).toLocaleTimeString(undefined, {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+            <div>
+              {isPending && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(100, 116, 139, 0.12)', color: '#475569', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                  Under Review
+                </span>
+              )}
+              {isInProgress && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                  In Progress
+                </span>
+              )}
+              {isResolved && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(34, 197, 94, 0.15)', color: '#16A34A', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                  Resolved
+                </span>
+              )}
+              {isDismissed && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(100, 116, 139, 0.15)', color: '#64748B', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
+                  Closed
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', background: 'var(--surface-muted)', borderRadius: '6px', padding: '6px 8px', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+          {t.description}
+        </div>
+
+        {isPending && (
+          <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+            Your problem report has been logged and is pending review by the Super Admin team.
+          </p>
+        )}
+
+        {isInProgress && (
+          <p style={{ margin: 0, fontSize: '0.7rem', color: '#D97706', fontWeight: 600 }}>
+            A Super Admin is actively investigating this report.{t.claimed_by_name ? ` (Handled by: ${t.claimed_by_name})` : ''}
+          </p>
+        )}
+
+        {isResolved && (
+          <div style={{ fontSize: '0.72rem', color: '#166534', background: 'rgba(34, 197, 94, 0.1)', padding: '6px 8px', borderRadius: '6px' }}>
+            <strong>Super Admin Response:</strong> {t.admin_reply}{t.resolved_by_name ? ` — by ${t.resolved_by_name}` : ''}
+          </div>
+        )}
+
+        {isDismissed && (
+          <div style={{ fontSize: '0.72rem', color: '#475569', background: 'rgba(100, 116, 139, 0.1)', padding: '6px 8px', borderRadius: '6px' }}>
+            <strong>Admin Note:</strong> {t.admin_reply}
+          </div>
+        )}
+
+        {(isResolved || isDismissed) && (
+          <button
+            type="button"
+            onClick={() => handleDismissTicket(t.ticket_id)}
+            className="text-[10px] font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 self-end mt-0.5 cursor-pointer"
+          >
+            Dismiss
+          </button>
+        )}
+      </div>
+    );
+  };
+
   // Auto-refresh high risk student alerts with a gentle 60s interval and event-driven updates
   useEffect(() => {
     fetchRiskStudents();
@@ -551,12 +864,19 @@ export const DashboardLayout: React.FC = () => {
 
   useEffect(() => { if (!showRiskList) return; fetchRiskStudents(); }, [showRiskList]);
 
-  useEffect(() => { fetchEditRequests(); }, [user, location.pathname]);
+  useEffect(() => {
+    fetchEditRequests();
+    fetchTickets();
+    fetchAnnouncements();
+  }, [user, location.pathname, fetchTickets, fetchAnnouncements]);
+
   useEffect(() => {
     if (showTutorNotifications || showStudentEditRequests || showEditRequestsModal) {
       fetchEditRequests();
+      fetchTickets();
+      fetchAnnouncements();
     }
-  }, [showTutorNotifications, showStudentEditRequests, showEditRequestsModal]);
+  }, [showTutorNotifications, showStudentEditRequests, showEditRequestsModal, fetchTickets, fetchAnnouncements]);
   useEffect(() => {
     setProfileMenuOpen(false);
     setIsMobileDrawerOpen(false);
@@ -1055,12 +1375,16 @@ export const DashboardLayout: React.FC = () => {
         </nav>
 
         {/* Sidebar Footer Profile */}
-        <div className="p-2 shrink-0 w-full">
+        <div
+          className="p-2 shrink-0 w-full relative after:content-[''] after:absolute after:-top-4 after:left-0 after:right-0 after:h-4 after:pointer-events-auto"
+          onMouseEnter={handleProfileMouseEnter}
+          onMouseLeave={handleProfileMouseLeave}
+        >
           {isSidebarCollapsed ? (
             <button
               type="button"
               id="sidebar-profile-button"
-              onClick={() => setProfileMenuOpen((prev) => !prev)}
+              onClick={handleProfileButtonClick}
               title={getDisplayName()}
               aria-expanded={profileMenuOpen}
               aria-haspopup="menu"
@@ -1094,7 +1418,7 @@ export const DashboardLayout: React.FC = () => {
             <button
               type="button"
               id="sidebar-profile-button"
-              onClick={() => setProfileMenuOpen((prev) => !prev)}
+              onClick={handleProfileButtonClick}
               aria-expanded={profileMenuOpen}
               aria-haspopup="menu"
               aria-label="Profile and account menu"
@@ -1256,7 +1580,7 @@ export const DashboardLayout: React.FC = () => {
           <button
             type="button"
             id="mobile-drawer-profile-button"
-            onClick={() => setProfileMenuOpen((prev) => !prev)}
+            onClick={handleProfileButtonClick}
             aria-expanded={profileMenuOpen}
             aria-haspopup="menu"
             aria-label="Profile and account menu"
@@ -1301,7 +1625,11 @@ export const DashboardLayout: React.FC = () => {
 
         {/* ── Top Bar ── */}
         <header
-          className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 z-30"
+          className={`h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 relative transition-all ${
+            showRiskList || showTutorNotifications || showStudentEditRequests || profileMenuOpen
+              ? 'z-[80]'
+              : 'z-40'
+          }`}
           style={{
             background: 'var(--glass-bg)',
             backdropFilter: 'blur(12px)',
@@ -1327,7 +1655,7 @@ export const DashboardLayout: React.FC = () => {
               <Menu size={20} />
             </button>
             <h1
-              className="truncate text-xs sm:text-sm md:text-base font-bold text-slate-900 dark:text-white uppercase tracking-tight"
+              className="truncate text-sm sm:text-base md:text-lg font-bold text-slate-900 dark:text-white tracking-tight"
               style={{
                 margin: 0,
                 fontFamily: 'var(--font-heading)',
@@ -1342,7 +1670,7 @@ export const DashboardLayout: React.FC = () => {
           <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 relative shrink-0">
             {/* High Risk Alert (Warning Triangle Icon - Tutor role) */}
             {user?.role === 'tutor' && (
-              <div style={{ position: 'relative' }}>
+              <div style={{ position: 'relative', zIndex: showRiskList ? 80 : 1 }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -1437,14 +1765,14 @@ export const DashboardLayout: React.FC = () => {
                   <>
                     {/* Mobile Backdrop */}
                     <div
-                      className="fixed inset-0 z-40 bg-transparent sm:hidden"
+                      className="fixed inset-0 z-[75] bg-transparent sm:hidden"
                       onClick={() => setShowRiskList(false)}
                       aria-hidden="true"
                     />
 
                     {/* Notification Panel */}
                     <div
-                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[380px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50"
+                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[380px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-[80]"
                     >
                       {/* Dropdown header */}
                       <div
@@ -1518,13 +1846,13 @@ export const DashboardLayout: React.FC = () => {
                                     setIsAlertClassDropdownOpen(false);
                                   }}
                                   className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${selectedAlertClass === 'all'
-                                      ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-[var(--brand-dark)]/20 dark:text-[var(--brand-light)]'
+                                      ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
                                       : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
                                     }`}
                                   title={`ALL CLASSES (${tutorClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)`}
                                 >
                                   <span className="truncate">ALL CLASSES ({tutorClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)</span>
-                                  {selectedAlertClass === 'all' && <Check className="w-3.5 h-3.5 shrink-0 text-[var(--brand)] ml-2" />}
+                                  {selectedAlertClass === 'all' && <Check className="w-3.5 h-3.5 shrink-0 text-[var(--brand)] dark:text-blue-400 ml-2" />}
                                 </button>
                                 {tutorClassSections.map((cls) => {
                                   const isSelected = selectedAlertClass === cls.key;
@@ -1539,13 +1867,13 @@ export const DashboardLayout: React.FC = () => {
                                         setIsAlertClassDropdownOpen(false);
                                       }}
                                       className={`w-full max-w-full flex items-center justify-between text-left rounded-lg px-2.5 py-2 text-xs font-bold transition-colors cursor-pointer ${isSelected
-                                          ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-[var(--brand-dark)]/20 dark:text-[var(--brand-light)]'
+                                          ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
                                           : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
                                         }`}
                                       title={`${cls.label} (${cls.students.length})`}
                                     >
                                       <span className="truncate">{cls.label} ({cls.students.length})</span>
-                                      {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-[var(--brand)] ml-2" />}
+                                      {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-[var(--brand)] dark:text-blue-400 ml-2" />}
                                     </button>
                                   );
                                 })}
@@ -1770,7 +2098,11 @@ export const DashboardLayout: React.FC = () => {
                   <StudentEditRequestsModal
                     isOpen={showEditRequestsModal}
                     onClose={() => setShowEditRequestsModal(false)}
-                    onRequestReviewed={fetchEditRequests}
+                    onRequestReviewed={() => {
+                      fetchEditRequests();
+                      fetchTickets();
+                      fetchAnnouncements();
+                    }}
                   />
                 )}
               </div>
@@ -1778,7 +2110,7 @@ export const DashboardLayout: React.FC = () => {
 
             {/* Universal Notification Bell (Tutor, Faculty, Principal) */}
             {(user?.role === 'tutor' || user?.role === 'principal') && (
-              <div style={{ position: 'relative' }}>
+              <div style={{ position: 'relative', zIndex: showTutorNotifications ? 80 : 1 }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -1872,14 +2204,14 @@ export const DashboardLayout: React.FC = () => {
                   <>
                     {/* Mobile Backdrop */}
                     <div
-                      className="fixed inset-0 z-40 bg-transparent sm:hidden"
+                      className="fixed inset-0 z-[75] bg-transparent sm:hidden"
                       onClick={() => setShowTutorNotifications(false)}
                       aria-hidden="true"
                     />
 
                     {/* Notification Panel */}
                     <div
-                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[420px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 overflow-hidden"
+                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[420px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-[80] overflow-hidden"
                     >
                       <div
                         style={{
@@ -1900,7 +2232,11 @@ export const DashboardLayout: React.FC = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                           <button
                             type="button"
-                            onClick={fetchEditRequests}
+                            onClick={() => {
+                              fetchEditRequests();
+                              fetchTickets();
+                              fetchAnnouncements();
+                            }}
                             title="Refresh status"
                             aria-label="Refresh status"
                             style={{
@@ -1944,6 +2280,88 @@ export const DashboardLayout: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Filter Tabs Bar */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.45rem 1rem',
+                          borderBottom: '1px solid var(--slate-200)',
+                          background: 'var(--surface)',
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setUserNotificationFilter('all')}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: userNotificationFilter === 'all' ? '#0052B7' : 'var(--slate-100)',
+                            color: userNotificationFilter === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          ALL ({myEditRequests.length + myTickets.length + systemAnnouncements.length + SYSTEM_UPDATES.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserNotificationFilter('tickets')}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: userNotificationFilter === 'tickets' ? '#0052B7' : 'var(--slate-100)',
+                            color: userNotificationFilter === 'tickets' ? '#FFFFFF' : 'var(--text-secondary)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          TICKETS ({myTickets.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserNotificationFilter('edits')}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: userNotificationFilter === 'edits' ? '#0052B7' : 'var(--slate-100)',
+                            color: userNotificationFilter === 'edits' ? '#FFFFFF' : 'var(--text-secondary)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          EDITS ({myEditRequests.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserNotificationFilter('updates')}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: userNotificationFilter === 'updates' ? '#0052B7' : 'var(--slate-100)',
+                            color: userNotificationFilter === 'updates' ? '#FFFFFF' : 'var(--text-secondary)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          UPDATES ({systemAnnouncements.length + SYSTEM_UPDATES.length})
+                        </button>
+                      </div>
+
                       {/* Notifications List Body - Unified Inbox */}
                       <div
                         style={{
@@ -1957,10 +2375,26 @@ export const DashboardLayout: React.FC = () => {
                         }}
                       >
                         {(() => {
-                          const compiledInbox = [
-                            ...SYSTEM_UPDATES.map((u) => ({ ...u, isSystem: true as const })),
-                            ...myEditRequests.map((req) => ({ ...req, isSystem: false as const })),
+                          type InboxItem =
+                            | ({ itemKind: 'system' } & (typeof SYSTEM_UPDATES)[number])
+                            | ({ itemKind: 'announcement' } & SystemAnnouncementItem)
+                            | ({ itemKind: 'edit' } & StudentEditRequest)
+                            | ({ itemKind: 'ticket' } & SupportTicketItem);
+
+                          const allInbox: InboxItem[] = [
+                            ...systemAnnouncements.map((a) => ({ ...a, itemKind: 'announcement' as const })),
+                            ...SYSTEM_UPDATES.map((u) => ({ ...u, itemKind: 'system' as const })),
+                            ...myEditRequests.map((req) => ({ ...req, itemKind: 'edit' as const })),
+                            ...myTickets.map((t) => ({ ...t, itemKind: 'ticket' as const })),
                           ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+                          const compiledInbox = allInbox.filter((item) => {
+                            if (userNotificationFilter === 'all') return true;
+                            if (userNotificationFilter === 'tickets') return item.itemKind === 'ticket';
+                            if (userNotificationFilter === 'edits') return item.itemKind === 'edit';
+                            if (userNotificationFilter === 'updates') return item.itemKind === 'announcement' || item.itemKind === 'system';
+                            return true;
+                          });
 
                           if (compiledInbox.length === 0) {
                             return (
@@ -1971,8 +2405,14 @@ export const DashboardLayout: React.FC = () => {
                           }
 
                           return compiledInbox.map((item) => {
-                            if (item.isSystem) {
+                            if (item.itemKind === 'announcement') {
+                              return renderSystemAnnouncementCard(item);
+                            }
+                            if (item.itemKind === 'system') {
                               return <SystemUpdateNotification key={item.id} update={item} />;
+                            }
+                            if (item.itemKind === 'ticket') {
+                              return renderTicketNotificationCard(item);
                             }
 
                             const req = item;
@@ -2090,6 +2530,35 @@ export const DashboardLayout: React.FC = () => {
                           });
                         })()}
                       </div>
+
+                      {/* Clear Resolved Action Footer */}
+                      {myTickets.some((t) => t.status === 'RESOLVED' || t.status === 'DISMISSED') && (
+                        <div
+                          style={{
+                            padding: '0.5rem 1rem',
+                            borderTop: '1px solid var(--slate-200)',
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            background: 'var(--surface-muted)',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            disabled={isClearingResolved}
+                            onClick={handleClearResolvedTickets}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              color: '#D97706',
+                              cursor: isClearingResolved ? 'default' : 'pointer',
+                            }}
+                          >
+                            {isClearingResolved ? 'Clearing...' : 'Clear Resolved Tickets'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -2098,7 +2567,7 @@ export const DashboardLayout: React.FC = () => {
 
             {/* Student Notifications (Bell Icon) */}
             {user?.role === 'student' && (
-              <div style={{ position: 'relative' }}>
+              <div style={{ position: 'relative', zIndex: showStudentEditRequests ? 80 : 1 }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -2190,14 +2659,14 @@ export const DashboardLayout: React.FC = () => {
                   <>
                     {/* Mobile Backdrop */}
                     <div
-                      className="fixed inset-0 z-40 bg-transparent sm:hidden"
+                      className="fixed inset-0 z-[75] bg-transparent sm:hidden"
                       onClick={() => setShowStudentEditRequests(false)}
                       aria-hidden="true"
                     />
 
                     {/* Notification Panel */}
                     <div
-                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[410px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-50 overflow-hidden"
+                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[410px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-[80] overflow-hidden"
                     >
                       <div
                         style={{
@@ -2218,7 +2687,11 @@ export const DashboardLayout: React.FC = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                           <button
                             type="button"
-                            onClick={fetchEditRequests}
+                            onClick={() => {
+                              fetchEditRequests();
+                              fetchTickets();
+                              fetchAnnouncements();
+                            }}
                             title="Refresh status"
                             aria-label="Refresh status"
                             style={{
@@ -2262,6 +2735,88 @@ export const DashboardLayout: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Filter Tabs Bar */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.45rem 1rem',
+                          borderBottom: '1px solid var(--slate-200)',
+                          background: 'var(--surface)',
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setUserNotificationFilter('all')}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: userNotificationFilter === 'all' ? '#0052B7' : 'var(--slate-100)',
+                            color: userNotificationFilter === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          ALL ({myEditRequests.length + myTickets.length + systemAnnouncements.length + SYSTEM_UPDATES.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserNotificationFilter('tickets')}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: userNotificationFilter === 'tickets' ? '#0052B7' : 'var(--slate-100)',
+                            color: userNotificationFilter === 'tickets' ? '#FFFFFF' : 'var(--text-secondary)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          TICKETS ({myTickets.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserNotificationFilter('edits')}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: userNotificationFilter === 'edits' ? '#0052B7' : 'var(--slate-100)',
+                            color: userNotificationFilter === 'edits' ? '#FFFFFF' : 'var(--text-secondary)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          EDITS ({myEditRequests.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUserNotificationFilter('updates')}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: userNotificationFilter === 'updates' ? '#0052B7' : 'var(--slate-100)',
+                            color: userNotificationFilter === 'updates' ? '#FFFFFF' : 'var(--text-secondary)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          UPDATES ({systemAnnouncements.length + SYSTEM_UPDATES.length})
+                        </button>
+                      </div>
+
                       {/* Notifications List Body - Unified Inbox */}
                       <div
                         style={{
@@ -2275,10 +2830,26 @@ export const DashboardLayout: React.FC = () => {
                         }}
                       >
                         {(() => {
-                          const compiledInbox = [
-                            ...SYSTEM_UPDATES.map((u) => ({ ...u, isSystem: true as const })),
-                            ...myEditRequests.map((req) => ({ ...req, isSystem: false as const })),
+                          type InboxItem =
+                            | ({ itemKind: 'system' } & (typeof SYSTEM_UPDATES)[number])
+                            | ({ itemKind: 'announcement' } & SystemAnnouncementItem)
+                            | ({ itemKind: 'edit' } & StudentEditRequest)
+                            | ({ itemKind: 'ticket' } & SupportTicketItem);
+
+                          const allInbox: InboxItem[] = [
+                            ...systemAnnouncements.map((a) => ({ ...a, itemKind: 'announcement' as const })),
+                            ...SYSTEM_UPDATES.map((u) => ({ ...u, itemKind: 'system' as const })),
+                            ...myEditRequests.map((req) => ({ ...req, itemKind: 'edit' as const })),
+                            ...myTickets.map((t) => ({ ...t, itemKind: 'ticket' as const })),
                           ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+                          const compiledInbox = allInbox.filter((item) => {
+                            if (userNotificationFilter === 'all') return true;
+                            if (userNotificationFilter === 'tickets') return item.itemKind === 'ticket';
+                            if (userNotificationFilter === 'edits') return item.itemKind === 'edit';
+                            if (userNotificationFilter === 'updates') return item.itemKind === 'announcement' || item.itemKind === 'system';
+                            return true;
+                          });
 
                           if (compiledInbox.length === 0) {
                             return (
@@ -2289,8 +2860,14 @@ export const DashboardLayout: React.FC = () => {
                           }
 
                           return compiledInbox.map((item) => {
-                            if (item.isSystem) {
+                            if (item.itemKind === 'announcement') {
+                              return renderSystemAnnouncementCard(item);
+                            }
+                            if (item.itemKind === 'system') {
                               return <SystemUpdateNotification key={item.id} update={item} />;
+                            }
+                            if (item.itemKind === 'ticket') {
+                              return renderTicketNotificationCard(item);
                             }
 
                             const req = item;
@@ -2404,6 +2981,35 @@ export const DashboardLayout: React.FC = () => {
                           });
                         })()}
                       </div>
+
+                      {/* Clear Resolved Action Footer */}
+                      {myTickets.some((t) => t.status === 'RESOLVED' || t.status === 'DISMISSED') && (
+                        <div
+                          style={{
+                            padding: '0.5rem 1rem',
+                            borderTop: '1px solid var(--slate-200)',
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            background: 'var(--surface-muted)',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            disabled={isClearingResolved}
+                            onClick={handleClearResolvedTickets}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              color: '#D97706',
+                              cursor: isClearingResolved ? 'default' : 'pointer',
+                            }}
+                          >
+                            {isClearingResolved ? 'Clearing...' : 'Clear Resolved Tickets'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -2416,7 +3022,7 @@ export const DashboardLayout: React.FC = () => {
         </header>
 
         {/* ── Content body ── */}
-        <main className="flex-1 w-full min-w-0 max-w-full overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 md:p-6 lg:p-8">
+        <main className="relative z-0 flex-1 w-full min-w-0 max-w-full overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 md:p-6 lg:p-8">
           <ErrorBoundary
             fallbackTitle="Dashboard View Error"
             fallbackMessage="An issue occurred while rendering this dashboard view. You can reload or navigate to another page using the sidebar."
@@ -2431,33 +3037,57 @@ export const DashboardLayout: React.FC = () => {
 
 
       {/* Modern Profile Dropdown Menu (Sidebar Triggered) */}
-      {profileMenuOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-black/10 dark:bg-black/25 lg:bg-transparent"
-            onClick={() => setProfileMenuOpen(false)}
-            aria-hidden="true"
-          />
-          <div
-            className="fixed z-50 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-neutral-800 shadow-xl dark:shadow-2xl overflow-hidden text-slate-700 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-150"
-            style={{
-              bottom: isSidebarCollapsed && !isMobileDrawerOpen ? '12px' : '64px',
-              left: isMobileDrawerOpen ? '12px' : isSidebarCollapsed ? '76px' : '12px',
-              width: isMobileDrawerOpen
-                ? 'min(264px, calc(85vw - 24px))'
-                : isSidebarCollapsed
-                  ? '224px'
-                  : '236px',
-            }}
-            role="menu"
-          >
+      {/* Mobile backdrop only; hidden on desktop so it never intercepts hover cursor */}
+      <div
+        className={`fixed inset-0 z-40 bg-black/10 dark:bg-black/25 lg:hidden transition-opacity duration-200 ${
+          profileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setProfileMenuOpen(false)}
+        aria-hidden="true"
+      />
+      <div
+        id="profile-dropdown-menu"
+        className={`fixed z-50 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-neutral-800 shadow-xl dark:shadow-2xl text-slate-700 dark:text-slate-200 before:content-[''] before:absolute ${
+          isSidebarCollapsed && !isMobileDrawerOpen
+            ? 'before:-left-4 before:top-0 before:bottom-0 before:w-4'
+            : 'before:-bottom-4 before:left-0 before:right-0 before:h-4'
+        } before:pointer-events-auto transition-all duration-200 ease-out origin-center ${
+          profileMenuOpen
+            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto visible'
+            : 'opacity-0 translate-y-2 scale-[0.96] pointer-events-none invisible'
+        }`}
+        style={{
+          bottom: isSidebarCollapsed && !isMobileDrawerOpen ? '16px' : '72px',
+          left: isMobileDrawerOpen ? '8px' : isSidebarCollapsed ? '76px' : '8px',
+          width: isMobileDrawerOpen
+            ? 'min(264px, calc(85vw - 24px))'
+            : isSidebarCollapsed
+              ? '224px'
+              : '244px',
+        }}
+        onMouseEnter={handleProfileMouseEnter}
+        onMouseLeave={handleProfileMouseLeave}
+        role="menu"
+        aria-hidden={!profileMenuOpen}
+      >
             {/* User summary header */}
             <div className="px-4 py-2.5 border-b border-slate-100 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/40">
               <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
                 {getDisplayName()}
               </p>
               <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate mt-0.5">
-                {user?.email || getRoleLabel()}
+                {user?.role === 'student' || user?.email?.endsWith('@aralert.local') ? (
+                  user?.lrn ? (
+                    <span>
+                      <span className="font-semibold text-slate-400 dark:text-zinc-500 mr-1">LRN:</span>
+                      <span className="font-mono">{user.lrn}</span>
+                    </span>
+                  ) : (
+                    getRoleLabel()
+                  )
+                ) : (
+                  user?.email || getRoleLabel()
+                )}
               </p>
             </div>
 
@@ -2486,6 +3116,26 @@ export const DashboardLayout: React.FC = () => {
                 />
                 <span>Profile</span>
               </button>
+
+              {!user?.is_superuser && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileMenuOpen(false);
+                    setIsMobileDrawerOpen(false);
+                    setShowReportProblemModal(true);
+                  }}
+                  className="group w-full flex items-center gap-3 px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-900 hover:text-slate-900 dark:hover:text-white transition-all duration-150 text-left cursor-pointer"
+                  role="menuitem"
+                >
+                  <HelpCircle
+                    size={16}
+                    strokeWidth={2}
+                    className="text-slate-400 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors shrink-0"
+                  />
+                  <span>Report a Problem</span>
+                </button>
+              )}
             </div>
 
             <div className="border-t border-slate-100 dark:border-neutral-800" />
@@ -2510,10 +3160,17 @@ export const DashboardLayout: React.FC = () => {
               </button>
             </div>
           </div>
-        </>
-      )}
 
 
+
+      {/* Report a Problem Modal */}
+      <ReportProblemModal
+        isOpen={showReportProblemModal}
+        onClose={() => {
+          setShowReportProblemModal(false);
+          fetchTickets();
+        }}
+      />
 
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm &&

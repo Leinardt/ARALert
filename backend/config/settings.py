@@ -20,7 +20,12 @@ SMTP_PORT = config('SMTP_PORT', default='587')
 SMTP_EMAIL = config('SMTP_EMAIL', default='')
 SMTP_PASSWORD = config('SMTP_PASSWORD', default='')
 SMTP_USE_TLS = config('SMTP_USE_TLS', default=True, cast=bool)
-SENDER_NAME = config('SENDER_NAME', default='ARALert')
+SENDER_NAME = config('SENDER_NAME', default='ARALert System')
+EMAIL_RELAY_URL = config('EMAIL_RELAY_URL', default='')
+EMAIL_RELAY_SECRET = config('EMAIL_RELAY_SECRET', default='')
+CRON_SECRET = config('CRON_SECRET', default='')
+TESTING_SUPERADMIN_RECIPIENT_EMAIL = config('TESTING_SUPERADMIN_RECIPIENT_EMAIL', default='')
+TESTING_DIGEST_RECIPIENT_EMAIL = config('TESTING_DIGEST_RECIPIENT_EMAIL', default='')
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
 TOKEN_EXPIRATION_TIME = config('TOKEN_EXPIRATION_TIME', default=60, cast=int)
 
@@ -243,6 +248,19 @@ CSRF_TRUSTED_ORIGINS = config(
 )
 
 # --------------------------------------------------------------------------
+# Production Transport & Header Security (Active only when DEBUG=False)
+# --------------------------------------------------------------------------
+
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000, cast=int)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+
+# --------------------------------------------------------------------------
 # Logging Configuration — Rotating File & Console Logger
 # --------------------------------------------------------------------------
 
@@ -277,6 +295,16 @@ LOGGING = {
             'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': True,
+        },
+        'services': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'api': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
         },
     },
 }
