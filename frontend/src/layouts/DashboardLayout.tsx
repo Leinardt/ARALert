@@ -1626,7 +1626,7 @@ export const DashboardLayout: React.FC = () => {
         {/* ── Top Bar ── */}
         <header
           className={`h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 relative transition-colors duration-150 ${
-            showRiskList || showTutorNotifications || showStudentEditRequests || profileMenuOpen
+            showRiskList || showTutorNotifications || showStudentEditRequests || (profileMenuOpen && !isMobileDrawerOpen)
               ? 'z-[80]'
               : 'z-30'
           }`}
