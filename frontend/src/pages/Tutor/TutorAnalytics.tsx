@@ -532,16 +532,17 @@ export const TrendChart: React.FC<{
             .chart-line-trace {
               stroke-dasharray: 1000;
               stroke-dashoffset: 1000;
-              animation: traceLine 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+              animation: traceLine 1.5s cubic-bezier(0.22, 1, 0.36, 1) both;
             }
             .chart-area-reveal {
-              animation: revealArea 1.7s ease-out forwards;
+              opacity: 0;
+              animation: revealArea 1.7s ease-out both;
             }
             .chart-marker-pop {
               transform-box: fill-box;
               transform-origin: center;
-              animation: popMarker 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
               opacity: 0;
+              animation: popMarker 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
             }
             @media (prefers-reduced-motion: reduce) {
               .chart-line-trace,
@@ -877,7 +878,7 @@ const DesktopRiskTrendChart: React.FC<{
             @keyframes growBar {
               0% {
                 transform: scaleY(0);
-                opacity: 0.2;
+                opacity: 0;
               }
               100% {
                 transform: scaleY(1);
@@ -886,7 +887,9 @@ const DesktopRiskTrendChart: React.FC<{
             }
             .chart-bar-grow {
               transform-box: view-box;
-              animation: growBar 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+              transform: scaleY(0);
+              opacity: 0;
+              animation: growBar 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
             }
             @media (prefers-reduced-motion: reduce) {
               .chart-bar-grow {
@@ -928,6 +931,7 @@ const DesktopRiskTrendChart: React.FC<{
             let currentBottom = paddingTop + chartHeight;
             const bars = [...series].reverse().map((item) => {
               const barHeight = (point[item.key] / maxValue) * chartHeight;
+              if (barHeight <= 0) return null;
               currentBottom -= barHeight;
               return (
                 <rect
@@ -962,7 +966,7 @@ const DesktopRiskTrendChart: React.FC<{
                   className="chart-bar-grow"
                   style={{
                     transformOrigin: `${x}px ${paddingTop + chartHeight}px`,
-                    animationDelay: `${(index * 0.05).toFixed(2)}s`,
+                    animationDelay: `${(index * 0.06).toFixed(2)}s`,
                   }}
                 >
                   {bars}
@@ -1157,7 +1161,7 @@ const MobileRiskTrendChart: React.FC<{
             @keyframes growBar {
               0% {
                 transform: scaleY(0);
-                opacity: 0.2;
+                opacity: 0;
               }
               100% {
                 transform: scaleY(1);
@@ -1166,7 +1170,9 @@ const MobileRiskTrendChart: React.FC<{
             }
             .chart-bar-grow {
               transform-box: view-box;
-              animation: growBar 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+              transform: scaleY(0);
+              opacity: 0;
+              animation: growBar 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
             }
             @media (prefers-reduced-motion: reduce) {
               .chart-bar-grow {
@@ -1246,7 +1252,7 @@ const MobileRiskTrendChart: React.FC<{
                 className="chart-bar-grow"
                 style={{
                   transformOrigin: `${x}px ${paddingTop + chartHeight}px`,
-                  animationDelay: `${(index * 0.05).toFixed(2)}s`,
+                  animationDelay: `${(index * 0.06).toFixed(2)}s`,
                 }}
               >
                 {segments.map((seg) => {

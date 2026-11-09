@@ -15,6 +15,7 @@ import {
 } from '../../utils/tutorCohortHelpers';
 import type { TutorCohortHistoryData, TutorHistoricalCohortRecord } from '../../types';
 import { getActiveSystemSemester } from '../../utils/sessionDescriptionHelpers';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 
 /* ─── Badge helpers (Clean typography without pill container) ─── */
 const getAralBadge = (level?: string | null) => {
@@ -464,7 +465,7 @@ const aralLevelRank: Record<string, number> = {
             <div className="min-w-0">
               <h3 className="font-extrabold text-gray-900 dark:text-slate-100 text-xs sm:text-sm uppercase tracking-wider">ASSIGNED STUDENTS DETAILS</h3>
               <p className="mt-0.5 text-[11px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">
-                {filteredAndSorted.length} Student{filteredAndSorted.length !== 1 ? 's' : ''}
+                <AnimatedCounter value={filteredAndSorted.length} /> Student{filteredAndSorted.length !== 1 ? 's' : ''}
               </p>
             </div>
 

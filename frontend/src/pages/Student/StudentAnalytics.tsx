@@ -242,6 +242,8 @@ const DesktopRiskTrendChart: React.FC<{
   const getBarX = (index: number) =>
     paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1 || 1);
 
+  const desktopAnimationKey = `student_desktop_bars_${data.length}_${isSingleStudent}_${studentName || 'all'}_${data.map((d) => `${d.high}-${d.moderate ?? d.medium ?? 0}-${d.low}`).join('_')}`;
+
   return (
     <div className="relative overflow-hidden">
       <svg
@@ -251,6 +253,33 @@ const DesktopRiskTrendChart: React.FC<{
         role="img"
         aria-label="Risk level trend chart"
       >
+        <defs>
+          <style>{`
+            @keyframes growBar {
+              0% {
+                transform: scaleY(0);
+                opacity: 0;
+              }
+              100% {
+                transform: scaleY(1);
+                opacity: 1;
+              }
+            }
+            .chart-bar-grow {
+              transform-box: view-box;
+              transform: scaleY(0);
+              opacity: 0;
+              animation: growBar 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .chart-bar-grow {
+                animation: none !important;
+                transform: none !important;
+                opacity: 1 !important;
+              }
+            }
+          `}</style>
+        </defs>
         {axisSteps.map((value) => {
           const y = paddingTop + chartHeight - (value / maxValue) * chartHeight;
           return (
@@ -276,53 +305,64 @@ const DesktopRiskTrendChart: React.FC<{
             </g>
           );
         })}
-        {data.map((point, index) => {
-          const x = getBarX(index);
-          let currentBottom = paddingTop + chartHeight;
-          const bars = [...series].reverse().map((item) => {
-            const barHeight = (point[item.key] / maxValue) * chartHeight;
-            currentBottom -= barHeight;
+        <g key={desktopAnimationKey}>
+          {data.map((point, index) => {
+            const x = getBarX(index);
+            let currentBottom = paddingTop + chartHeight;
+            const bars = [...series].reverse().map((item) => {
+              const barHeight = (point[item.key] / maxValue) * chartHeight;
+              if (barHeight <= 0) return null;
+              currentBottom -= barHeight;
+              return (
+                <rect
+                  key={item.key}
+                  x={x - barWidth / 2}
+                  y={currentBottom}
+                  width={barWidth}
+                  height={barHeight}
+                  fill={item.color}
+                  fillOpacity="0.82"
+                  stroke="white"
+                  strokeWidth="1.25"
+                  strokeOpacity="0.8"
+                />
+              );
+            });
             return (
-              <rect
-                key={item.key}
-                x={x - barWidth / 2}
-                y={currentBottom}
-                width={barWidth}
-                height={barHeight}
-                fill={item.color}
-                fillOpacity="0.82"
-                stroke="white"
-                strokeWidth="1.25"
-                strokeOpacity="0.8"
-              />
-            );
-          });
-          return (
-            <g
-              key={point.dateKey}
-              onMouseEnter={() => setHoveredIdx(index)}
-              onMouseLeave={() => setHoveredIdx(null)}
-            >
-              <text
-                x={x}
-                y={height - 4}
-                textAnchor="middle"
-                className="fill-slate-500 font-semibold text-[8px]"
+              <g
+                key={point.dateKey}
+                onMouseEnter={() => setHoveredIdx(index)}
+                onMouseLeave={() => setHoveredIdx(null)}
               >
-                {point.label}
-              </text>
-              {bars}
-              <rect
-                x={x - barWidth / 2}
-                y={paddingTop}
-                width={barWidth}
-                height={chartHeight}
-                fill="transparent"
-                className="cursor-pointer"
-              />
-            </g>
-          );
-        })}
+                <text
+                  x={x}
+                  y={height - 4}
+                  textAnchor="middle"
+                  className="fill-slate-500 font-semibold text-[8px]"
+                >
+                  {point.label}
+                </text>
+                <g
+                  className="chart-bar-grow"
+                  style={{
+                    transformOrigin: `${x}px ${paddingTop + chartHeight}px`,
+                    animationDelay: `${(index * 0.06).toFixed(2)}s`,
+                  }}
+                >
+                  {bars}
+                </g>
+                <rect
+                  x={x - barWidth / 2}
+                  y={paddingTop}
+                  width={barWidth}
+                  height={chartHeight}
+                  fill="transparent"
+                  className="cursor-pointer"
+                />
+              </g>
+            );
+          })}
+        </g>
         {hoveredIdx !== null && data[hoveredIdx] && (
           <rect
             x={getBarX(hoveredIdx) - barWidth / 2}
@@ -467,6 +507,8 @@ const MobileRiskTrendChart: React.FC<{
     return [label];
   };
 
+  const mobileAnimationKey = `student_mobile_bars_${data.length}_${isSingleStudent}_${studentName || 'all'}_${data.map((d) => `${d.high}-${d.moderate ?? d.medium ?? 0}-${d.low}`).join('_')}`;
+
   return (
     <div ref={containerRef} className="relative select-none w-full max-w-full min-w-0 h-[196px] overflow-hidden">
       <svg
@@ -476,6 +518,33 @@ const MobileRiskTrendChart: React.FC<{
         role="img"
         aria-label="Risk level trend chart"
       >
+        <defs>
+          <style>{`
+            @keyframes growBar {
+              0% {
+                transform: scaleY(0);
+                opacity: 0;
+              }
+              100% {
+                transform: scaleY(1);
+                opacity: 1;
+              }
+            }
+            .chart-bar-grow {
+              transform-box: view-box;
+              transform: scaleY(0);
+              opacity: 0;
+              animation: growBar 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .chart-bar-grow {
+                animation: none !important;
+                transform: none !important;
+                opacity: 1 !important;
+              }
+            }
+          `}</style>
+        </defs>
         {/* Horizontal Grid lines and Y-axis labels */}
         {axisSteps.map((value) => {
           const y = paddingTop + chartHeight - (isSingleStudent ? value * chartHeight : (value / 100) * chartHeight);
@@ -504,110 +573,120 @@ const MobileRiskTrendChart: React.FC<{
         })}
 
         {/* Bars and X-axis Labels */}
-        {data.map((point, index) => {
-          const x = getBarX(index);
-          const [line1, line2] = getLabelLines(point.label);
+        <g key={mobileAnimationKey}>
+          {data.map((point, index) => {
+            const x = getBarX(index);
+            const [line1, line2] = getLabelLines(point.label);
 
-          const highCount = point.high || 0;
-          const medCount = point.moderate ?? point.medium ?? 0;
-          const lowCount = point.low || 0;
-          const pointTotal = isSingleStudent ? 1 : (highCount + medCount + lowCount || 1);
+            const highCount = point.high || 0;
+            const medCount = point.moderate ?? point.medium ?? 0;
+            const lowCount = point.low || 0;
+            const pointTotal = isSingleStudent ? 1 : (highCount + medCount + lowCount || 1);
 
-          const lowPct = (lowCount / pointTotal) * 100;
-          const medPct = (medCount / pointTotal) * 100;
-          const highPct = (highCount / pointTotal) * 100;
+            const lowPct = (lowCount / pointTotal) * 100;
+            const medPct = (medCount / pointTotal) * 100;
+            const highPct = (highCount / pointTotal) * 100;
 
-          const lowH = (lowPct / 100) * chartHeight;
-          const medH = (medPct / 100) * chartHeight;
-          const highH = (highPct / 100) * chartHeight;
+            const lowH = (lowPct / 100) * chartHeight;
+            const medH = (medPct / 100) * chartHeight;
+            const highH = (highPct / 100) * chartHeight;
 
-          const segments = [
-            { key: 'low', color: '#22C55E', height: lowH, count: lowCount, pct: lowPct },
-            { key: 'moderate', color: '#F59E0B', height: medH, count: medCount, pct: medPct },
-            { key: 'high', color: '#EF4444', height: highH, count: highCount, pct: highPct },
-          ];
+            const segments = [
+              { key: 'low', color: '#22C55E', height: lowH, count: lowCount, pct: lowPct },
+              { key: 'moderate', color: '#F59E0B', height: medH, count: medCount, pct: medPct },
+              { key: 'high', color: '#EF4444', height: highH, count: highCount, pct: highPct },
+            ];
 
-          let currentY = paddingTop + chartHeight;
-          const isHovered = hoveredIdx === index;
+            let currentY = paddingTop + chartHeight;
+            const isHovered = hoveredIdx === index;
 
-          return (
-            <g
-              key={point.dateKey}
-              onMouseEnter={() => setHoveredIdx(index)}
-              onMouseLeave={() => setHoveredIdx(null)}
-              onTouchStart={() => setHoveredIdx(hoveredIdx === index ? null : index)}
-              onClick={() => setHoveredIdx(hoveredIdx === index ? null : index)}
-              className="cursor-pointer"
-            >
-              {/* Stacked Bar segments: green, orange, red */}
-              {segments.map((seg) => {
-                if (seg.height <= 0) return null;
-                currentY -= seg.height;
-                return (
+            return (
+              <g
+                key={point.dateKey}
+                onMouseEnter={() => setHoveredIdx(index)}
+                onMouseLeave={() => setHoveredIdx(null)}
+                onTouchStart={() => setHoveredIdx(hoveredIdx === index ? null : index)}
+                onClick={() => setHoveredIdx(hoveredIdx === index ? null : index)}
+                className="cursor-pointer"
+              >
+                {/* Stacked Bar segments: green, orange, red */}
+                <g
+                  className="chart-bar-grow"
+                  style={{
+                    transformOrigin: `${x}px ${paddingTop + chartHeight}px`,
+                    animationDelay: `${(index * 0.06).toFixed(2)}s`,
+                  }}
+                >
+                  {segments.map((seg) => {
+                    if (seg.height <= 0) return null;
+                    currentY -= seg.height;
+                    return (
+                      <rect
+                        key={seg.key}
+                        x={x - barWidth / 2}
+                        y={currentY}
+                        width={barWidth}
+                        height={seg.height}
+                        fill={seg.color}
+                        fillOpacity={isHovered ? 1 : 0.88}
+                        stroke="#FFFFFF"
+                        strokeWidth="1.2"
+                        rx={seg.key === 'high' || ((seg.key === 'moderate' || seg.key === 'medium') && highH === 0) || (seg.key === 'low' && highH === 0 && medH === 0) ? 3 : 0}
+                      />
+                    );
+                  })}
+                </g>
+
+                {/* Hover outline ring */}
+                {isHovered && (
                   <rect
-                    key={seg.key}
-                    x={x - barWidth / 2}
-                    y={currentY}
-                    width={barWidth}
-                    height={seg.height}
-                    fill={seg.color}
-                    fillOpacity={isHovered ? 1 : 0.88}
-                    stroke="#FFFFFF"
-                    strokeWidth="1.2"
-                    rx={seg.key === 'high' || ((seg.key === 'moderate' || seg.key === 'medium') && highH === 0) || (seg.key === 'low' && highH === 0 && medH === 0) ? 3 : 0}
+                    x={x - barWidth / 2 - 2}
+                    y={paddingTop + chartHeight - (lowH + medH + highH) - 2}
+                    width={barWidth + 4}
+                    height={lowH + medH + highH + 4}
+                    fill="none"
+                    stroke="#0052B7"
+                    strokeWidth="1.75"
+                    rx={4}
+                    className="pointer-events-none"
                   />
-                );
-              })}
+                )}
 
-              {/* Hover outline ring */}
-              {isHovered && (
+                {/* Complete X-Axis Date Labels Under Every Bar */}
+                {line2 ? (
+                  <text
+                    x={x}
+                    y={paddingTop + chartHeight + 13}
+                    textAnchor="middle"
+                    className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[8.5px]"
+                  >
+                    <tspan x={x} dy="0">{line1}</tspan>
+                    <tspan x={x} dy="10">{line2}</tspan>
+                  </text>
+                ) : (
+                  <text
+                    x={x}
+                    y={height - 6}
+                    textAnchor="middle"
+                    className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[9px]"
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    {line1}
+                  </text>
+                )}
+
+                {/* Hit region */}
                 <rect
-                  x={x - barWidth / 2 - 2}
-                  y={paddingTop + chartHeight - (lowH + medH + highH) - 2}
-                  width={barWidth + 4}
-                  height={lowH + medH + highH + 4}
-                  fill="none"
-                  stroke="#0052B7"
-                  strokeWidth="1.75"
-                  rx={4}
-                  className="pointer-events-none"
+                  x={x - Math.max(barWidth, chartWidth / (data.length || 1)) / 2}
+                  y={paddingTop}
+                  width={Math.max(barWidth, chartWidth / (data.length || 1))}
+                  height={chartHeight + paddingBottom}
+                  fill="transparent"
                 />
-              )}
-
-              {/* Complete X-Axis Date Labels Under Every Bar */}
-              {line2 ? (
-                <text
-                  x={x}
-                  y={paddingTop + chartHeight + 13}
-                  textAnchor="middle"
-                  className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[8.5px]"
-                >
-                  <tspan x={x} dy="0">{line1}</tspan>
-                  <tspan x={x} dy="10">{line2}</tspan>
-                </text>
-              ) : (
-                <text
-                  x={x}
-                  y={height - 6}
-                  textAnchor="middle"
-                  className="fill-slate-500 dark:fill-slate-400 select-none font-semibold text-[9px]"
-                  style={{ whiteSpace: 'nowrap' }}
-                >
-                  {line1}
-                </text>
-              )}
-
-              {/* Hit region */}
-              <rect
-                x={x - Math.max(barWidth, chartWidth / (data.length || 1)) / 2}
-                y={paddingTop}
-                width={Math.max(barWidth, chartWidth / (data.length || 1))}
-                height={chartHeight + paddingBottom}
-                fill="transparent"
-              />
-            </g>
-          );
-        })}
+              </g>
+            );
+          })}
+        </g>
       </svg>
 
       {/* Floating Mobile Tooltip */}
@@ -803,7 +882,7 @@ export const StudentAnalytics: React.FC = () => {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 min-h-[100px] flex items-center gap-3.5 animate-pulse"
+              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm p-4 min-h-[100px] flex items-center gap-3.5 animate-pulse"
             >
               <div className="w-10 h-10 rounded-md bg-gray-200 dark:bg-gray-800 shrink-0" />
               <div className="flex-1 min-w-0">
@@ -816,7 +895,7 @@ export const StudentAnalytics: React.FC = () => {
         </div>
 
         {/* Chart Card Skeleton */}
-        <div className="w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-5 animate-pulse skeleton-row-2">
+        <div className="w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm p-5 animate-pulse skeleton-row-2">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="space-y-1.5">
               <div className="h-4 w-52 rounded bg-gray-200 dark:bg-gray-800" />
@@ -832,7 +911,7 @@ export const StudentAnalytics: React.FC = () => {
         </div>
 
         {/* Bottom Table Skeleton */}
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-5 space-y-4 animate-pulse">
+        <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md shadow-sm p-5 space-y-4 animate-pulse">
           <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
           <div className="space-y-2 pt-2">
             {[1, 2, 3].map((k) => (
@@ -874,10 +953,10 @@ export const StudentAnalytics: React.FC = () => {
       <div className="grid gap-3 sm:grid-cols-3">
         {/* 1. HIGH RISK CARD */}
         <div
-          className={`relative rounded-md border p-4 min-h-[100px] flex flex-col justify-center transition-all duration-200 ${
+          className={`relative rounded-md border p-4 min-h-[100px] flex flex-col justify-center transition-all duration-200 shadow-sm ${
             studentRiskTier === 'High'
               ? 'risk-card-high'
-              : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#0A0A0A] opacity-60'
+              : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#111111] opacity-60'
           }`}
         >
           <div className="absolute right-3 top-3">
@@ -906,10 +985,10 @@ export const StudentAnalytics: React.FC = () => {
 
         {/* 2. MODERATE RISK CARD */}
         <div
-          className={`relative rounded-md border p-4 min-h-[100px] flex flex-col justify-center transition-all duration-200 ${
+          className={`relative rounded-md border p-4 min-h-[100px] flex flex-col justify-center transition-all duration-200 shadow-sm ${
             (studentRiskTier === 'Moderate' || studentRiskTier === 'Medium')
               ? 'risk-card-moderate'
-              : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#0A0A0A] opacity-60'
+              : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#111111] opacity-60'
           }`}
         >
           <div className="absolute right-3 top-3">
@@ -938,10 +1017,10 @@ export const StudentAnalytics: React.FC = () => {
 
         {/* 3. LOW RISK CARD */}
         <div
-          className={`relative rounded-md border p-4 min-h-[100px] flex flex-col justify-center transition-all duration-200 ${
+          className={`relative rounded-md border p-4 min-h-[100px] flex flex-col justify-center transition-all duration-200 shadow-sm ${
             studentRiskTier === 'Low'
               ? 'risk-card-low'
-              : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#0A0A0A] opacity-60'
+              : 'border-gray-200 bg-gray-50/70 dark:border-[#1A1A1A] dark:bg-[#111111] opacity-60'
           }`}
         >
           <div className="absolute right-3 top-3">
@@ -971,7 +1050,7 @@ export const StudentAnalytics: React.FC = () => {
 
       {/* ── Risk Level Trend Chart ── */}
       <section
-        className="rounded-md border border-gray-200 bg-white px-3 py-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#0A0A0A]"
+        className="rounded-md border border-gray-200 bg-white px-3 py-3.5 sm:p-5 dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm"
         aria-labelledby="risk-overview-heading"
       >
         <div className="flex flex-col gap-1.5 border-b border-gray-100 pb-2.5 sm:pb-3.5 dark:border-[#1A1A1A] min-w-0">
@@ -1058,7 +1137,7 @@ export const StudentAnalytics: React.FC = () => {
         <div className="flex items-center gap-2 px-1 text-xs text-gray-500" style={{ fontFamily: 'var(--font-body)' }}>
           <RiskCalculationInfo />
         </div>
-        <div className="bg-white rounded-md border border-gray-200 overflow-hidden dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+        <div className="bg-white rounded-md border border-gray-200 overflow-hidden dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm">
           <div className="px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
             <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">
               {studentFirstName}'s Performance Details
@@ -1083,7 +1162,7 @@ export const StudentAnalytics: React.FC = () => {
                     <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">RISK LEVEL REMARKS</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">
+                <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
                   {performanceRows.map((row) => (
                     <tr key={row.student.id} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5">
                       <td className="px-4 py-3 align-middle">

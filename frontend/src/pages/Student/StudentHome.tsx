@@ -15,6 +15,7 @@ import {
   getActiveSystemSemester,
   setActiveSystemSemester,
 } from '../../utils/sessionDescriptionHelpers';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 
 // ─── Chart Types & Interactive Bézier Chart ──────────────────────────────────
 
@@ -135,10 +136,72 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
     return [label];
   };
 
+  const chartAnimationKey = `studentHome_${trendFilter}_${points.length}_${points.map((p) => p.value).join('-')}`;
+
   return (
     <div ref={containerRef} className="relative flex-1 w-full h-full min-h-[196px] sm:min-h-[220px] select-none min-w-0 overflow-hidden">
       <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full h-full min-h-[196px] sm:min-h-[220px] block" role="img" aria-label="Student Performance Trend Chart">
         <defs>
+          <style>{`
+            @keyframes traceLine {
+              0% {
+                stroke-dashoffset: 1000;
+              }
+              100% {
+                stroke-dashoffset: 0;
+              }
+            }
+            @keyframes revealArea {
+              0% {
+                opacity: 0;
+              }
+              30% {
+                opacity: 0;
+              }
+              100% {
+                opacity: 1;
+              }
+            }
+            @keyframes popMarker {
+              0% {
+                opacity: 0;
+                transform: scale(0);
+              }
+              70% {
+                opacity: 0.95;
+                transform: scale(1.3);
+              }
+              100% {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            .chart-line-trace {
+              stroke-dasharray: 1000;
+              stroke-dashoffset: 1000;
+              animation: traceLine 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+            }
+            .chart-area-reveal {
+              opacity: 0;
+              animation: revealArea 1.8s ease-out both;
+            }
+            .chart-marker-pop {
+              transform-box: fill-box;
+              transform-origin: center;
+              opacity: 0;
+              animation: popMarker 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .chart-line-trace,
+              .chart-area-reveal,
+              .chart-marker-pop {
+                animation: none !important;
+                stroke-dashoffset: 0 !important;
+                opacity: 1 !important;
+                transform: none !important;
+              }
+            }
+          `}</style>
           <linearGradient id="studentHomeChartFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.22" />
             <stop offset="100%" stopColor="var(--brand)" stopOpacity="0.01" />
@@ -255,43 +318,51 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
           );
         })}
 
-        {/* Brand Royal Blue Trend Line & Shaded Area */}
-        {points.length > 0 && (
-          <>
-            <path d={areaD} fill="url(#studentHomeChartFill)" />
-            <path
-              d={pathD}
-              fill="none"
-              stroke="var(--brand)"
-              strokeWidth="5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.28"
-              filter="url(#studentHomeChartGlow)"
-            />
-            <path
-              d={pathD}
-              fill="none"
-              stroke="var(--brand)"
-              strokeWidth="2.75"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </>
-        )}
+        {/* Animated Brand Royal Blue Trend Line & Shaded Area */}
+        <g key={chartAnimationKey}>
+          {points.length > 0 && (
+            <>
+              <path d={areaD} fill="url(#studentHomeChartFill)" className="chart-area-reveal" />
+              <path
+                pathLength={1000}
+                d={pathD}
+                fill="none"
+                stroke="var(--brand)"
+                strokeWidth="5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.28"
+                filter="url(#studentHomeChartGlow)"
+                className="chart-line-trace"
+              />
+              <path
+                pathLength={1000}
+                d={pathD}
+                fill="none"
+                stroke="var(--brand)"
+                strokeWidth="2.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="chart-line-trace"
+              />
+            </>
+          )}
 
-        {/* Data point markers */}
-        {points.map((p, idx) => (
-          <circle
-            key={`data-dot-${idx}`}
-            cx={p.x}
-            cy={p.y}
-            r="3.5"
-            fill="var(--brand)"
-            stroke="#B6D4F8"
-            strokeWidth="1.5"
-          />
-        ))}
+          {/* Animated data point markers */}
+          {points.map((p, idx) => (
+            <circle
+              key={`data-dot-${idx}`}
+              cx={p.x}
+              cy={p.y}
+              r="3.5"
+              fill="var(--brand)"
+              stroke="#B6D4F8"
+              strokeWidth="1.5"
+              className="chart-marker-pop"
+              style={{ animationDelay: `${Math.min(1.2, 0.4 + idx * 0.08)}s` }}
+            />
+          ))}
+        </g>
 
         {/* Milestone assessment dots */}
         {points.map((p, idx) =>
@@ -549,6 +620,20 @@ export const StudentHome: React.FC = () => {
   // Student Risk Tier
   const studentRiskTier = studentStat?.riskTier || (profile?.computed_risk_level === 'high' ? 'High' : (profile?.computed_risk_level === 'moderate' || profile?.computed_risk_level === 'medium') ? 'Moderate' : 'Low');
 
+  // Student Risk Level Remark
+  const studentRiskRemark = useMemo(() => {
+    switch (studentRiskTier?.toLowerCase()) {
+      case 'high':
+        return 'Needs Immediate Intervention';
+      case 'moderate':
+      case 'medium':
+        return 'Moderate Standing (Needs Monitoring)';
+      case 'low':
+      default:
+        return 'On Track (Safe Standing)';
+    }
+  }, [studentRiskTier]);
+
   // ── Performance Trend Data (10 days / 6 weeks / 6 months) ───────────────────
   const last4WeeksData = useMemo(() => {
     const assessmentGrades = currentStudentGrades.filter((g) => g.component_type === 'assessment');
@@ -721,11 +806,11 @@ export const StudentHome: React.FC = () => {
       <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3 skeleton-container">
         {/* KPI Cards skeleton — hero + stacked */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-3 shrink-0 skeleton-row-1">
-          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 animate-pulse">
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-4 animate-pulse shadow-sm">
             <div className="h-2.5 w-28 rounded bg-gray-200 dark:bg-gray-800 mb-3" />
             <div className="h-12 w-24 rounded bg-gray-200 dark:bg-gray-800" />
           </div>
-          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A]">
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] shadow-sm">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex items-center justify-between px-4 py-3">
                 <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
@@ -738,7 +823,7 @@ export const StudentHome: React.FC = () => {
         {/* Content row skeleton (Chart fills space) */}
         <div className="flex-1 flex flex-col min-h-0 skeleton-row-2">
           {/* Chart card skeleton */}
-          <div className="w-full bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-5 flex flex-col h-full min-h-0 animate-pulse">
+          <div className="w-full bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-4 py-4 sm:px-5 flex flex-col h-full min-h-0 animate-pulse shadow-sm">
             <div className="flex items-center justify-between gap-2 shrink-0 pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
               <div className="min-w-0 flex-1">
                 <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
@@ -797,35 +882,40 @@ export const StudentHome: React.FC = () => {
     <div className="flex flex-col lg:h-[calc(100vh-8.5rem)] lg:min-h-[30rem] gap-3 data-loaded-content w-full min-w-0 max-w-full">
       {/* ── KPI Cards — hero left, 3 secondaries stacked right ──────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3 shrink-0 w-full min-w-0 max-w-full">
-        {/* Hero: Composite Rating */}
+        {/* Hero: Risk Level (Swapped with Composite Rating, dynamically themed like Data Analytics) */}
         <Link
           to="/student/analytics"
-          className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 transition-colors hover:bg-gray-50/60 dark:hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] flex flex-col justify-between w-full min-w-0 max-w-full"
+          className={`rounded-md border p-4 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] flex flex-col justify-between w-full min-w-0 max-w-full shadow-sm hover:opacity-95 ${
+            studentRiskTier === 'High'
+              ? 'risk-card-high'
+              : (studentRiskTier === 'Moderate' || studentRiskTier === 'Medium')
+                ? 'risk-card-moderate'
+                : 'risk-card-low'
+          }`}
         >
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500">
-              Composite Rating
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-900/70 dark:text-white/70">
+              {studentFirstName}'s Risk Level
             </p>
             <p
-              className={`text-3xl sm:text-4xl lg:text-5xl font-extrabold mt-1.5 sm:mt-2 tracking-tight ${!hasCompositeData
-                  ? 'text-gray-400 dark:text-slate-500'
-                  : compositeRating >= 81
-                    ? 'text-risk-low'
-                    : compositeRating >= 70
-                      ? 'text-risk-moderate'
-                      : 'text-risk-high'
-                }`}
+              className={`text-2xl sm:text-3xl lg:text-4xl font-black mt-1.5 sm:mt-2 tracking-tight ${
+                studentRiskTier === 'High'
+                  ? 'text-risk-high'
+                  : (studentRiskTier === 'Moderate' || studentRiskTier === 'Medium')
+                    ? 'text-risk-moderate'
+                    : 'text-risk-low'
+              }`}
             >
-              {!hasCompositeData ? '—' : `${compositeRating.toFixed(1)}%`}
+              {studentRiskTier ? `${studentRiskTier === 'Medium' ? 'MODERATE' : studentRiskTier.toUpperCase()} RISK` : 'LOW RISK'}
             </p>
           </div>
-          <p className="mt-2 text-[11px] text-gray-400 dark:text-slate-500">
-            Overall performance standing
+          <p className="mt-2 text-[11px] font-semibold text-gray-600 dark:text-slate-300">
+            {studentRiskRemark}
           </p>
         </Link>
 
         {/* 3 Secondary metrics stacked */}
-        <div className="flex flex-col divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden w-full min-w-0 max-w-full">
+        <div className="flex flex-col divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden w-full min-w-0 max-w-full shadow-sm">
           <Link
             to="/student/attendance"
             className="flex items-center justify-between px-3.5 sm:px-4 py-3 min-h-[44px] hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
@@ -834,7 +924,7 @@ export const StudentHome: React.FC = () => {
               Average Attendance
             </p>
             <p
-              className={`text-base sm:text-xl font-extrabold shrink-0 ${currentStudentAttendance.length === 0
+              className={`text-base sm:text-xl font-black shrink-0 tracking-tight ${currentStudentAttendance.length === 0
                   ? 'text-gray-400 dark:text-slate-500'
                   : avgAttendance >= 81
                     ? 'text-risk-low'
@@ -843,7 +933,7 @@ export const StudentHome: React.FC = () => {
                       : 'text-risk-high'
                 }`}
             >
-              {currentStudentAttendance.length === 0 ? '—' : `${avgAttendance}%`}
+              {currentStudentAttendance.length === 0 ? '—' : <AnimatedCounter value={avgAttendance} suffix="%" />}
             </p>
           </Link>
 
@@ -855,7 +945,7 @@ export const StudentHome: React.FC = () => {
               Average Scores
             </p>
             <p
-              className={`text-base sm:text-xl font-extrabold shrink-0 ${!hasScoreData
+              className={`text-base sm:text-xl font-black shrink-0 tracking-tight ${!hasScoreData
                   ? 'text-gray-400 dark:text-slate-500'
                   : avgScore >= 81
                     ? 'text-risk-low'
@@ -864,7 +954,7 @@ export const StudentHome: React.FC = () => {
                       : 'text-risk-high'
                 }`}
             >
-              {!hasScoreData ? '—' : `${avgScore}%`}
+              {!hasScoreData ? '—' : <AnimatedCounter value={avgScore} decimals={avgScore % 1 !== 0 ? 1 : 0} suffix="%" />}
             </p>
           </Link>
 
@@ -873,17 +963,19 @@ export const StudentHome: React.FC = () => {
             className="flex items-center justify-between px-3.5 sm:px-4 py-3 min-h-[44px] hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
           >
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
-              Risk Level
+              Composite Rating
             </p>
             <p
-              className={`text-sm sm:text-lg font-extrabold shrink-0 ${studentRiskTier === 'High'
-                  ? 'text-risk-high'
-                  : (studentRiskTier === 'Moderate' || studentRiskTier === 'Medium')
-                    ? 'text-risk-moderate'
-                    : 'text-risk-low'
+              className={`text-base sm:text-xl font-black shrink-0 tracking-tight ${!hasCompositeData
+                  ? 'text-gray-400 dark:text-slate-500'
+                  : compositeRating >= 81
+                    ? 'text-risk-low'
+                    : compositeRating >= 70
+                      ? 'text-risk-moderate'
+                      : 'text-risk-high'
                 }`}
             >
-              {studentRiskTier ? `${studentRiskTier === 'Medium' ? 'MODERATE' : studentRiskTier.toUpperCase()} RISK` : 'LOW RISK'}
+              {!hasCompositeData ? '—' : <AnimatedCounter value={compositeRating} decimals={1} suffix="%" />}
             </p>
           </Link>
         </div>
@@ -891,7 +983,7 @@ export const StudentHome: React.FC = () => {
 
       {/* ── Main Performance Trend (Full Width) ── */}
       <div className="flex-1 flex flex-col min-h-0 w-full min-w-0 max-w-full">
-        <div className="w-full max-w-full min-w-0 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3 py-3.5 sm:px-5 flex flex-col h-full min-h-0">
+        <div className="w-full max-w-full min-w-0 bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3 py-3.5 sm:px-5 flex flex-col h-full min-h-0 shadow-sm">
           {/* Chart Header */}
           <div className="flex flex-col gap-1.5 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
             <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0">

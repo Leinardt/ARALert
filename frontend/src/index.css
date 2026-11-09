@@ -1735,7 +1735,7 @@ table.divide-y > tbody > tr:first-child > td {
 :root:not(.dark) .bg-white.rounded-xl:not(.border):not(.shadow-sm),
 :root:not(.dark) [role="dialog"].bg-white,
 :root:not(.dark) .modal-card,
-:root:not(.dark) [class*="z-[60]"],
+:root:not(.dark) .bg-white[class*="z-[60]"],
 :root:not(.dark) [class*="z-50"].shadow-2xl,
 :root:not(.dark) [class*="z-50"].shadow-xl,
 :root:not(.dark) .dropdown-menu,

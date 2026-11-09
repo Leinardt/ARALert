@@ -26,6 +26,7 @@ import {
   parseStudentGradeAndSection,
 } from '../../utils/tutorCohortHelpers';
 import { matchesSearch } from '../../utils/searchHelpers';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 
 // ─── Chart Types & Interactive Chart Component ─────────────────────────────────
 
@@ -152,6 +153,8 @@ const InteractivePrincipalPerformanceChart: React.FC<{
     return [label];
   };
 
+  const chartAnimationKey = `principalHome_${trendFilter}_${points.length}_${points.map((p) => p.value).join('-')}`;
+
   return (
     <div ref={containerRef} className="relative flex-1 w-full h-full min-h-[196px] sm:min-h-[220px] select-none min-w-0 overflow-hidden">
       <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full h-full min-h-[196px] sm:min-h-[220px] block"
@@ -159,6 +162,66 @@ const InteractivePrincipalPerformanceChart: React.FC<{
         aria-label="Performance Trend Chart"
       >
         <defs>
+          <style>{`
+            @keyframes traceLine {
+              0% {
+                stroke-dashoffset: 1000;
+              }
+              100% {
+                stroke-dashoffset: 0;
+              }
+            }
+            @keyframes revealArea {
+              0% {
+                opacity: 0;
+              }
+              30% {
+                opacity: 0;
+              }
+              100% {
+                opacity: 1;
+              }
+            }
+            @keyframes popMarker {
+              0% {
+                opacity: 0;
+                transform: scale(0);
+              }
+              70% {
+                opacity: 0.95;
+                transform: scale(1.3);
+              }
+              100% {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            .chart-line-trace {
+              stroke-dasharray: 1000;
+              stroke-dashoffset: 1000;
+              animation: traceLine 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+            }
+            .chart-area-reveal {
+              opacity: 0;
+              animation: revealArea 1.8s ease-out both;
+            }
+            .chart-marker-pop {
+              transform-box: fill-box;
+              transform-origin: center;
+              opacity: 0;
+              animation: popMarker 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .chart-line-trace,
+              .chart-area-reveal,
+              .chart-marker-pop {
+                animation: none !important;
+                stroke-dashoffset: 0 !important;
+                opacity: 1 !important;
+                transform: none !important;
+              }
+            }
+          `}</style>
           <linearGradient id="principalChartFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.22" />
             <stop offset="100%" stopColor="var(--brand)" stopOpacity="0.01" />
@@ -274,43 +337,51 @@ const InteractivePrincipalPerformanceChart: React.FC<{
           );
         })}
 
-        {/* Brand Trend Line & Area */}
-        {points.length > 0 && (
-          <>
-            <path d={areaD} fill="url(#principalChartFill)" />
-            <path
-              d={pathD}
-              fill="none"
-              stroke="var(--brand)"
-              strokeWidth="5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.28"
-              filter="url(#principalChartGlow)"
-            />
-            <path
-              d={pathD}
-              fill="none"
-              stroke="var(--brand)"
-              strokeWidth="2.75"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </>
-        )}
+        {/* Animated Brand Trend Line & Area */}
+        <g key={chartAnimationKey}>
+          {points.length > 0 && (
+            <>
+              <path d={areaD} fill="url(#principalChartFill)" className="chart-area-reveal" />
+              <path
+                pathLength={1000}
+                d={pathD}
+                fill="none"
+                stroke="var(--brand)"
+                strokeWidth="5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.28"
+                filter="url(#principalChartGlow)"
+                className="chart-line-trace"
+              />
+              <path
+                pathLength={1000}
+                d={pathD}
+                fill="none"
+                stroke="var(--brand)"
+                strokeWidth="2.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="chart-line-trace"
+              />
+            </>
+          )}
 
-        {/* Data point markers */}
-        {points.map((p, idx) => (
-          <circle
-            key={`data-dot-${idx}`}
-            cx={p.x}
-            cy={p.y}
-            r="3.5"
-            fill="var(--brand)"
-            stroke="#B6D4F8"
-            strokeWidth="1.5"
-          />
-        ))}
+          {/* Animated data point markers */}
+          {points.map((p, idx) => (
+            <circle
+              key={`data-dot-${idx}`}
+              cx={p.x}
+              cy={p.y}
+              r="3.5"
+              fill="var(--brand)"
+              stroke="#B6D4F8"
+              strokeWidth="1.5"
+              className="chart-marker-pop"
+              style={{ animationDelay: `${Math.min(1.2, 0.4 + idx * 0.08)}s` }}
+            />
+          ))}
+        </g>
 
         {/* Milestone assessment dots */}
         {points.map((p, idx) =>
@@ -1032,7 +1103,7 @@ export const PrincipalHome: React.FC = () => {
             {/* 2 Top KPI Card Skeletons (3 layers each) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
               {[1, 2].map((card) => (
-                <div key={card} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-2xs">
+                <div key={card} className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-sm">
                   {[1, 2, 3].map((row) => (
                     <div key={row} className="flex-1 flex items-center justify-between px-3.5 py-1.5">
                       <div className="h-2.5 w-28 rounded bg-gray-200 dark:bg-gray-800" />
@@ -1044,7 +1115,7 @@ export const PrincipalHome: React.FC = () => {
             </div>
 
             {/* Chart Skeleton: Performance Trend */}
-            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-2xs flex flex-col justify-between">
+            <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-sm flex flex-col justify-between">
               <div className="h-4 w-56 rounded bg-gray-200 dark:bg-gray-800" />
               <div className="my-4 flex-1 bg-gray-50/60 dark:bg-[#111111] rounded-lg min-h-[200px]" />
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -1057,7 +1128,7 @@ export const PrincipalHome: React.FC = () => {
 
           {/* Right Column Skeleton: Top Performing Classes (Full Height) */}
           <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3">
-            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[500px] shadow-2xs flex-1">
+            <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[500px] shadow-sm flex-1">
               <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-800 mb-3" />
               <div className="space-y-2">
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((k) => (
@@ -1102,13 +1173,13 @@ export const PrincipalHome: React.FC = () => {
           {/* Top 2 KPI Summary Containers (Each has exactly 3 balanced layers) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0 w-full min-w-0 max-w-full">
             {/* Container 1: OVERALL HIGH RISK STUDENTS, TOTAL STUDENTS, & TUTORS (3 Layers) */}
-            <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+            <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm">
               <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
                   OVERALL HIGH RISK STUDENTS
                 </p>
                 <p className="text-xs sm:text-sm font-extrabold text-risk-high shrink-0">
-                  {highRiskStudentsCount.toLocaleString()}
+                  <AnimatedCounter value={highRiskStudentsCount} />
                 </p>
               </div>
               <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
@@ -1116,7 +1187,7 @@ export const PrincipalHome: React.FC = () => {
                   TOTAL STUDENTS
                 </p>
                 <p className="text-xs sm:text-sm font-extrabold tracking-tight text-gray-900 dark:text-slate-100 shrink-0">
-                  {totalStudentsCount.toLocaleString()}
+                  <AnimatedCounter value={totalStudentsCount} />
                 </p>
               </div>
               <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
@@ -1124,13 +1195,13 @@ export const PrincipalHome: React.FC = () => {
                   TUTORS
                 </p>
                 <p className="text-xs sm:text-sm font-extrabold tracking-tight text-gray-900 dark:text-slate-100 shrink-0">
-                  {totalTutorsCount.toLocaleString()}
+                  <AnimatedCounter value={totalTutorsCount} />
                 </p>
               </div>
             </div>
 
             {/* Container 2: OVERALL AVERAGE ATTENDANCE, OVERALL AVERAGE SCORE, OVERALL COMPOSITE SCORE (3 Layers) */}
-            <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+            <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm">
               <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
                   OVERALL AVERAGE ATTENDANCE
@@ -1146,7 +1217,7 @@ export const PrincipalHome: React.FC = () => {
                       : 'text-risk-high'
                   }`}
                 >
-                  {!hasAttendanceData ? '—' : `${overallAttendanceRate}%`}
+                  {!hasAttendanceData ? '—' : <AnimatedCounter value={overallAttendanceRate} suffix="%" />}
                 </p>
               </div>
               <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
@@ -1164,7 +1235,7 @@ export const PrincipalHome: React.FC = () => {
                       : 'text-risk-high'
                   }`}
                 >
-                  {!hasScoreData ? '—' : `${overallAvgScore}%`}
+                  {!hasScoreData ? '—' : <AnimatedCounter value={overallAvgScore} decimals={overallAvgScore % 1 !== 0 ? 1 : 0} suffix="%" />}
                 </p>
               </div>
               <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
@@ -1182,12 +1253,12 @@ export const PrincipalHome: React.FC = () => {
                       : 'text-risk-high'
                   }`}
                 >
-                  {!hasAttendanceData && !hasScoreData ? '—' : `${overallCompositeScore}%`}
+                  {!hasAttendanceData && !hasScoreData ? '—' : <AnimatedCounter value={overallCompositeScore} decimals={overallCompositeScore % 1 !== 0 ? 1 : 0} suffix="%" />}
                 </p>
               </div>
             </div>
           </div>
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full min-w-0 max-w-full shadow-2xs">
+          <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full min-w-0 max-w-full shadow-sm">
             {/* ── Row 1: Card Title & Period Toggles (Full width, never truncates title) ── */}
             <div className="flex items-center justify-between gap-3 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
               <div className="min-w-0">
@@ -1453,7 +1524,7 @@ export const PrincipalHome: React.FC = () => {
                 ? { height: `${leftColHeight}px`, maxHeight: `${leftColHeight}px` }
                 : undefined
             }
-            className="lg:absolute lg:inset-0 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full max-h-[500px] lg:max-h-none shadow-2xs overflow-hidden"
+            className="lg:absolute lg:inset-0 bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full max-h-[500px] lg:max-h-none shadow-sm overflow-hidden"
           >
             {/* Header */}
             <div className="pb-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0 flex items-center justify-between gap-2">
@@ -1496,7 +1567,7 @@ export const PrincipalHome: React.FC = () => {
                   <div
                     key={item.tutorId}
                     onClick={() => navigate(`/principal/analytics?tutorId=${item.tutorId}`)}
-                    className="block p-2.5 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111]/70 hover:bg-gray-100/60 dark:hover:bg-white/[0.03] hover:border-gray-300 dark:hover:border-zinc-700 transition-colors group cursor-pointer shadow-2xs"
+                    className="block p-2.5 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111]/70 hover:bg-gray-100/60 dark:hover:bg-white/[0.03] hover:border-gray-300 dark:hover:border-zinc-700 transition-colors group cursor-pointer shadow-xs"
                     title={`Click to view data analytics for ${item.tutorName}`}
                   >
                     <div className="flex items-center justify-between gap-2.5">

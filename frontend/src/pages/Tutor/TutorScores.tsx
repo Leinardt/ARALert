@@ -23,6 +23,7 @@ import {
   type SemesterType,
 } from '../../utils/sessionDescriptionHelpers';
 import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { matchesSearch } from '../../utils/searchHelpers';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
 import {
@@ -2792,7 +2793,9 @@ export const TutorScores: React.FC = () => {
           <div className="min-w-0">
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase tracking-tight">STUDENTS SCORES HISTORY</h3>
             <p className="mt-0.5 text-[11px] sm:text-xs font-normal text-gray-500 dark:text-slate-400">
-              <span className="font-bold text-gray-800 dark:text-slate-200">{visibleScoreRows.length}</span> Record{visibleScoreRows.length !== 1 ? 's' : ''}
+              <span className="font-bold text-gray-800 dark:text-slate-200">
+                <AnimatedCounter value={visibleScoreRows.length} />
+              </span> Record{visibleScoreRows.length !== 1 ? 's' : ''}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">

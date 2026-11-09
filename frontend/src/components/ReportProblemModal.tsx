@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ticketService } from '../services/ticketService';
 
@@ -98,9 +99,9 @@ export const ReportProblemModal: React.FC<ReportProblemModalProps> = ({ isOpen, 
     }
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm animate-in fade-in duration-150"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
@@ -259,6 +260,7 @@ export const ReportProblemModal: React.FC<ReportProblemModalProps> = ({ isOpen, 
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

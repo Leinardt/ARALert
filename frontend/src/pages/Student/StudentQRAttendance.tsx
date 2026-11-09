@@ -38,6 +38,7 @@ import {
   getAttendanceSessionStartTime,
   groupAttendanceBySession,
 } from '../../utils/sessionDescriptionHelpers';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 
@@ -721,10 +722,10 @@ export const StudentQRAttendance: React.FC = () => {
       style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
     >
       {/* ── Main Grid ───────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
         {/* ── LEFT: Student Permanent QR Code Card ── */}
-        <div className="lg:col-span-7">
-          <div className="h-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden flex flex-col justify-between">
+        <div className="lg:col-span-7 flex flex-col">
+          <div className="h-full flex-1 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm overflow-hidden flex flex-col justify-between">
             {/* Card Header */}
             <div className="h-[52px] shrink-0 flex items-center justify-between px-5 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
@@ -800,8 +801,8 @@ export const StudentQRAttendance: React.FC = () => {
         </div>
 
         {/* ── RIGHT: Student Attendance Feed ── */}
-        <div className="lg:col-span-5">
-          <div className="flex h-[240px] sm:h-[260px] lg:h-[480px] flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden">
+        <div className="lg:col-span-5 flex flex-col">
+          <div className="flex flex-1 h-full min-h-[340px] sm:min-h-[400px] flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm overflow-hidden">
             {/* Feed Header */}
             <div className="h-[52px] shrink-0 flex items-center justify-between px-4 sm:px-5 border-b border-gray-100 dark:border-[#1A1A1A]">
               <div>
@@ -874,31 +875,35 @@ export const StudentQRAttendance: React.FC = () => {
       {/* ── Attendance Stat Containers ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* TOTAL PRESENT */}
-        <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+        <div className="rounded-md border border-emerald-500/30 dark:border-emerald-500/40 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#111111] shadow-sm">
           <Check className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">TOTAL PRESENT</p>
-            <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{totalPresent}</p>
+            <p className="text-2xl sm:text-3xl font-black text-emerald-900 dark:text-emerald-100 mt-0.5 tracking-tight">
+              <AnimatedCounter value={totalPresent} />
+            </p>
             <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s total present records</p>
           </div>
         </div>
 
         {/* TOTAL ABSENT */}
-        <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+        <div className="rounded-md border border-rose-500/30 dark:border-rose-500/40 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#111111] shadow-sm">
           <X className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">TOTAL ABSENT</p>
-            <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{totalAbsent}</p>
+            <p className="text-2xl sm:text-3xl font-black text-rose-900 dark:text-rose-100 mt-0.5 tracking-tight">
+              <AnimatedCounter value={totalAbsent} />
+            </p>
             <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s total absent records</p>
           </div>
         </div>
 
         {/* AVERAGE ATTENDANCE RATE */}
-        <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+        <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE ATTENDANCE RATE</p>
             <p
-              className={`text-2xl font-extrabold mt-0.5 ${
+              className={`text-2xl sm:text-3xl font-black mt-0.5 tracking-tight ${
                 !hasAttendanceData
                   ? 'text-gray-900 dark:text-slate-100'
                   : attendanceRate >= 81
@@ -908,7 +913,7 @@ export const StudentQRAttendance: React.FC = () => {
                   : 'text-risk-high text-rose-600 dark:text-rose-400'
               }`}
             >
-              {hasAttendanceData ? `${smartPct(attendanceRate)}%` : '—'}
+              {hasAttendanceData ? <AnimatedCounter value={attendanceRate} decimals={attendanceRate % 1 !== 0 ? 1 : 0} suffix="%" /> : '—'}
             </p>
             <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s average attendance rate</p>
           </div>
@@ -916,7 +921,7 @@ export const StudentQRAttendance: React.FC = () => {
       </div>
 
       {/* ── Attendance History ──── */}
-      <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
+      <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm relative">
         {/* Section Header with Pills and Calendar */}
         <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
           <div className="min-w-0 flex-1 truncate">
@@ -924,7 +929,7 @@ export const StudentQRAttendance: React.FC = () => {
               {studentFirstName}'S ATTENDANCE HISTORY
             </h3>
             <p className="mt-0.5 text-[10px] sm:text-xs font-medium text-gray-500 dark:text-slate-400 truncate">
-              {currentRecordsCount} Record{currentRecordsCount !== 1 ? 's' : ''}
+              <AnimatedCounter value={currentRecordsCount} /> Record{currentRecordsCount !== 1 ? 's' : ''}
             </p>
           </div>
 

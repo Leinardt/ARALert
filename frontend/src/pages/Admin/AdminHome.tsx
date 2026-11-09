@@ -21,6 +21,7 @@ import {
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
 import { getRecentSchoolWeekdays, compareNamesByLastName } from '../../utils/studentFormatters';
 import { matchesSearch } from '../../utils/searchHelpers';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 import {
   getActiveSystemMilestone,
   getActiveSystemSemester,
@@ -155,10 +156,72 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
     return [label];
   };
 
+  const chartAnimationKey = `adminHome_${trendFilter}_${points.length}_${points.map((p) => p.value).join('-')}`;
+
   return (
     <div ref={containerRef} className="relative flex-1 w-full h-full min-h-[196px] sm:min-h-[220px] select-none min-w-0 overflow-hidden">
       <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full h-full min-h-[196px] sm:min-h-[220px] block" role="img" aria-label="Performance Trend Chart">
         <defs>
+          <style>{`
+            @keyframes traceLine {
+              0% {
+                stroke-dashoffset: 1000;
+              }
+              100% {
+                stroke-dashoffset: 0;
+              }
+            }
+            @keyframes revealArea {
+              0% {
+                opacity: 0;
+              }
+              30% {
+                opacity: 0;
+              }
+              100% {
+                opacity: 1;
+              }
+            }
+            @keyframes popMarker {
+              0% {
+                opacity: 0;
+                transform: scale(0);
+              }
+              70% {
+                opacity: 0.95;
+                transform: scale(1.3);
+              }
+              100% {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            .chart-line-trace {
+              stroke-dasharray: 1000;
+              stroke-dashoffset: 1000;
+              animation: traceLine 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+            }
+            .chart-area-reveal {
+              opacity: 0;
+              animation: revealArea 1.8s ease-out both;
+            }
+            .chart-marker-pop {
+              transform-box: fill-box;
+              transform-origin: center;
+              opacity: 0;
+              animation: popMarker 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .chart-line-trace,
+              .chart-area-reveal,
+              .chart-marker-pop {
+                animation: none !important;
+                stroke-dashoffset: 0 !important;
+                opacity: 1 !important;
+                transform: none !important;
+              }
+            }
+          `}</style>
           <linearGradient id="adminChartFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.22" />
             <stop offset="100%" stopColor="var(--brand)" stopOpacity="0.01" />
@@ -269,43 +332,51 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
           );
         })}
 
-        {/* Brand Trend Line & Area */}
-        {points.length > 0 && (
-          <>
-            <path d={areaD} fill="url(#adminChartFill)" />
-            <path
-              d={pathD}
-              fill="none"
-              stroke="var(--brand)"
-              strokeWidth="5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.28"
-              filter="url(#adminChartGlow)"
-            />
-            <path
-              d={pathD}
-              fill="none"
-              stroke="var(--brand)"
-              strokeWidth="2.75"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </>
-        )}
+        {/* Animated Brand Trend Line & Area */}
+        <g key={chartAnimationKey}>
+          {points.length > 0 && (
+            <>
+              <path d={areaD} fill="url(#adminChartFill)" className="chart-area-reveal" />
+              <path
+                pathLength={1000}
+                d={pathD}
+                fill="none"
+                stroke="var(--brand)"
+                strokeWidth="5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.28"
+                filter="url(#adminChartGlow)"
+                className="chart-line-trace"
+              />
+              <path
+                pathLength={1000}
+                d={pathD}
+                fill="none"
+                stroke="var(--brand)"
+                strokeWidth="2.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="chart-line-trace"
+              />
+            </>
+          )}
 
-        {/* Data point markers */}
-        {points.map((p, idx) => (
-          <circle
-            key={`data-dot-${idx}`}
-            cx={p.x}
-            cy={p.y}
-            r="3.5"
-            fill="var(--brand)"
-            stroke="#B6D4F8"
-            strokeWidth="1.5"
-          />
-        ))}
+          {/* Animated data point markers */}
+          {points.map((p, idx) => (
+            <circle
+              key={`data-dot-${idx}`}
+              cx={p.x}
+              cy={p.y}
+              r="3.5"
+              fill="var(--brand)"
+              stroke="#B6D4F8"
+              strokeWidth="1.5"
+              className="chart-marker-pop"
+              style={{ animationDelay: `${Math.min(1.2, 0.4 + idx * 0.08)}s` }}
+            />
+          ))}
+        </g>
 
         {/* Milestone assessment dots */}
         {points.map((p, idx) =>
@@ -1032,7 +1103,7 @@ export const AdminHome: React.FC = () => {
         {/* Row 1 Skeleton: 3 Multi-Layer Top KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0">
           {/* Card 1 Skeleton: 2 layers (Total Students & High Risk) */}
-          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-2xs">
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-sm">
             {[1, 2].map((i) => (
               <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-2">
                 <div className="h-2.5 w-24 rounded bg-gray-200 dark:bg-gray-800" />
@@ -1041,7 +1112,7 @@ export const AdminHome: React.FC = () => {
             ))}
           </div>
           {/* Card 2 Skeleton: 4 layers (Tutors, Faculty, Principal, Admin) */}
-          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-2xs">
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-sm">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-1">
                 <div className="h-2 w-20 rounded bg-gray-200 dark:bg-gray-800" />
@@ -1050,7 +1121,7 @@ export const AdminHome: React.FC = () => {
             ))}
           </div>
           {/* Card 3 Skeleton: 3 layers (Attendance, Score, Composite) */}
-          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-2xs">
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden h-[116px] sm:h-[120px] animate-pulse divide-y divide-gray-100 dark:divide-[#1A1A1A] flex flex-col justify-between shadow-sm">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex-1 flex items-center justify-between px-3.5 py-1.5">
                 <div className="h-2.5 w-28 rounded bg-gray-200 dark:bg-gray-800" />
@@ -1063,7 +1134,7 @@ export const AdminHome: React.FC = () => {
         {/* Row 2 Skeleton: Main Section */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
           <div className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3">
-            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-2xs flex flex-col justify-between">
+            <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-sm flex flex-col justify-between">
               <div className="h-4 w-56 rounded bg-gray-200 dark:bg-gray-800" />
               <div className="my-4 flex-1 bg-gray-50/60 dark:bg-[#111111] rounded-lg min-h-[200px]" />
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -1074,7 +1145,7 @@ export const AdminHome: React.FC = () => {
             </div>
           </div>
           <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3">
-            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-2xs">
+            <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-4 animate-pulse min-h-[380px] shadow-sm">
               <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-800 mb-3" />
               <div className="space-y-2">
                 {[1, 2, 3, 4, 5].map((k) => (
@@ -1115,7 +1186,7 @@ export const AdminHome: React.FC = () => {
       {/* ── 1. Top Summary KPI Cards (3 Multi-Layer Containers) ─────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 w-full min-w-0 max-w-full">
         {/* Container 1: TOTAL STUDENTS & OVERALL HIGH RISK STUDENTS (2 Layers) */}
-        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm">
           <Link
             to={studentPath}
             className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
@@ -1124,7 +1195,7 @@ export const AdminHome: React.FC = () => {
               TOTAL STUDENTS
             </p>
             <p className="text-base sm:text-lg font-extrabold tracking-tight text-gray-900 dark:text-slate-100 shrink-0">
-              {totalStudentsCount.toLocaleString()}
+              <AnimatedCounter value={totalStudentsCount} />
             </p>
           </Link>
           <Link
@@ -1135,13 +1206,13 @@ export const AdminHome: React.FC = () => {
               OVERALL HIGH RISK STUDENTS
             </p>
             <p className="text-base sm:text-lg font-extrabold text-risk-high shrink-0">
-              {highRiskStudents.length.toLocaleString()}
+              <AnimatedCounter value={highRiskStudents.length} />
             </p>
           </Link>
         </div>
 
         {/* Container 2: TUTORS, FACULTY, PRINCIPAL, & ADMIN (4 Layers) */}
-        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm">
           <Link
             to={user?.is_superuser ? "/superadmin/tutors" : "/admin/tutors"}
             className="flex-1 flex items-center justify-between px-3.5 py-1 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
@@ -1150,7 +1221,7 @@ export const AdminHome: React.FC = () => {
               TUTORS
             </p>
             <p className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-slate-100 shrink-0">
-              {totalTutorsCount.toLocaleString()}
+              <AnimatedCounter value={totalTutorsCount} />
             </p>
           </Link>
           <Link
@@ -1161,7 +1232,7 @@ export const AdminHome: React.FC = () => {
               PRINCIPAL
             </p>
             <p className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-slate-100 shrink-0">
-              {totalPrincipalsCount.toLocaleString()}
+              <AnimatedCounter value={totalPrincipalsCount} />
             </p>
           </Link>
           <Link
@@ -1172,13 +1243,13 @@ export const AdminHome: React.FC = () => {
               ADMIN
             </p>
             <p className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-slate-100 shrink-0">
-              {totalAdminsCount.toLocaleString()}
+              <AnimatedCounter value={totalAdminsCount} />
             </p>
           </Link>
         </div>
 
         {/* Container 3: OVERALL AVERAGE ATTENDANCE, OVERALL AVERAGE SCORE, OVERALL COMPOSITE SCORE (3 Layers) */}
-        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-2xs">
+        <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm">
           <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
               OVERALL AVERAGE ATTENDANCE
@@ -1194,7 +1265,7 @@ export const AdminHome: React.FC = () => {
                   : 'text-risk-high'
               }`}
             >
-              {!hasAttendanceData ? '—' : `${overallAttendanceRate}%`}
+              {!hasAttendanceData ? '—' : <AnimatedCounter value={overallAttendanceRate} suffix="%" />}
             </p>
           </div>
           <Link
@@ -1215,7 +1286,7 @@ export const AdminHome: React.FC = () => {
                   : 'text-risk-high'
               }`}
             >
-              {!hasScoreData ? '—' : `${overallAvgScore}%`}
+              {!hasScoreData ? '—' : <AnimatedCounter value={overallAvgScore} decimals={overallAvgScore % 1 !== 0 ? 1 : 0} suffix="%" />}
             </p>
           </Link>
           <Link
@@ -1236,7 +1307,7 @@ export const AdminHome: React.FC = () => {
                   : 'text-risk-high'
               }`}
             >
-              {overallCompositeScore > 0 ? `${overallCompositeScore}%` : '—'}
+              {overallCompositeScore > 0 ? <AnimatedCounter value={overallCompositeScore} decimals={overallCompositeScore % 1 !== 0 ? 1 : 0} suffix="%" /> : '—'}
             </p>
           </Link>
         </div>
@@ -1246,7 +1317,7 @@ export const AdminHome: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch w-full min-w-0 max-w-full">
         {/* ── Left Column (9 cols on lg & xl: ~75% width): PNAHS ARAL PERFORMANCE TREND CHART ── */}
         <div ref={leftColRef} className="lg:col-span-9 xl:col-span-9 flex flex-col gap-3 w-full min-w-0 max-w-full">
-          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full min-w-0 max-w-full shadow-2xs">
+          <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full min-w-0 max-w-full shadow-sm">
             {/* ── Row 1: Card Title & Period Toggles (Full width, never truncates title) ── */}
             <div className="flex items-center justify-between gap-3 shrink-0 pb-2.5 sm:pb-3 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
               <div className="min-w-0">
@@ -1482,7 +1553,7 @@ export const AdminHome: React.FC = () => {
                 ? { height: `${leftColHeight}px`, maxHeight: `${leftColHeight}px` }
                 : undefined
             }
-            className="lg:absolute lg:inset-0 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full max-h-[500px] lg:max-h-none shadow-2xs overflow-hidden"
+            className="lg:absolute lg:inset-0 bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] rounded-md p-3.5 sm:p-4 flex flex-col w-full max-h-[500px] lg:max-h-none shadow-sm overflow-hidden"
           >
             {/* Header */}
             <div className="pb-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
@@ -1530,7 +1601,7 @@ export const AdminHome: React.FC = () => {
                     <Link
                       key={item.tutor.id}
                       to={evaluationPath}
-                      className="block p-2.5 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111]/70 hover:bg-gray-100/60 dark:hover:bg-white/[0.03] hover:border-gray-300 dark:hover:border-zinc-700 transition-colors group cursor-pointer shadow-2xs"
+                      className="block p-2.5 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111]/70 hover:bg-gray-100/60 dark:hover:bg-white/[0.03] hover:border-gray-300 dark:hover:border-zinc-700 transition-colors group cursor-pointer shadow-xs"
                       title={`View evaluation management for ${tutorName}`}
                     >
                       <div className="flex items-start justify-between gap-2">

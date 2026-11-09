@@ -195,16 +195,17 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[]; trendFilter: Tr
             .chart-line-trace {
               stroke-dasharray: 1000;
               stroke-dashoffset: 1000;
-              animation: traceLine 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+              animation: traceLine 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
             }
             .chart-area-reveal {
-              animation: revealArea 1.8s ease-out forwards;
+              opacity: 0;
+              animation: revealArea 1.8s ease-out both;
             }
             .chart-marker-pop {
               transform-box: fill-box;
               transform-origin: center;
-              animation: popMarker 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
               opacity: 0;
+              animation: popMarker 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
             }
             @media (prefers-reduced-motion: reduce) {
               .chart-line-trace,

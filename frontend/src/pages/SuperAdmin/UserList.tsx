@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { TablePagination } from '../../components/TablePagination';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { isTutorEligibleForStudent } from '../../utils/tutorCohortHelpers';
 
 /* ─── ARAL Badge Helper (Clean typography without pill container) ─── */
@@ -1171,7 +1172,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
 
       {/* ── Main Integrated Directory Table Card ──────────────────────── */}
-      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
+      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative shadow-sm">
         {/* Table Toolbar (Section Title + Action Buttons & Filters) */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 px-3 sm:px-4 py-2.5 border-b border-gray-100 dark:border-[#1A1A1A] overflow-visible">
           {/* Left: Title & Counter */}
@@ -1190,7 +1191,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                           : 'USER DIRECTORY'}
             </h3>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-[#1A1A1A] text-slate-600 dark:text-slate-300 whitespace-nowrap">
-              {totalCount} {totalCount === 1 ? 'user' : 'users'}
+              <AnimatedCounter value={totalCount} /> {totalCount === 1 ? 'user' : 'users'}
             </span>
           </div>
 

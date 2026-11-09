@@ -1462,7 +1462,7 @@ export const DashboardLayout: React.FC = () => {
       {/* ── Mobile Sidebar Drawer (< 1024px) ───────────────────────── */}
       {isMobileDrawerOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs lg:hidden animate-fade-in"
+          className="fixed inset-0 z-40 bg-black/25 lg:hidden animate-fade-in"
           onClick={() => setIsMobileDrawerOpen(false)}
           aria-hidden="true"
         />
@@ -1625,10 +1625,10 @@ export const DashboardLayout: React.FC = () => {
 
         {/* ── Top Bar ── */}
         <header
-          className={`h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 relative transition-all ${
+          className={`h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 relative transition-colors duration-150 ${
             showRiskList || showTutorNotifications || showStudentEditRequests || profileMenuOpen
               ? 'z-[80]'
-              : 'z-40'
+              : 'z-30'
           }`}
           style={{
             background: 'var(--glass-bg)',
@@ -3039,7 +3039,7 @@ export const DashboardLayout: React.FC = () => {
       {/* Modern Profile Dropdown Menu (Sidebar Triggered) */}
       {/* Mobile backdrop only; hidden on desktop so it never intercepts hover cursor */}
       <div
-        className={`fixed inset-0 z-40 bg-black/10 dark:bg-black/25 lg:hidden transition-opacity duration-200 ${
+        className={`fixed inset-0 z-[75] bg-black/10 dark:bg-black/25 lg:hidden transition-opacity duration-200 ${
           profileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => setProfileMenuOpen(false)}
@@ -3047,7 +3047,7 @@ export const DashboardLayout: React.FC = () => {
       />
       <div
         id="profile-dropdown-menu"
-        className={`fixed z-50 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-neutral-800 shadow-xl dark:shadow-2xl text-slate-700 dark:text-slate-200 before:content-[''] before:absolute ${
+        className={`fixed z-[80] rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-neutral-800 shadow-xl dark:shadow-2xl text-slate-700 dark:text-slate-200 before:content-[''] before:absolute ${
           isSidebarCollapsed && !isMobileDrawerOpen
             ? 'before:-left-4 before:top-0 before:bottom-0 before:w-4'
             : 'before:-bottom-4 before:left-0 before:right-0 before:h-4'
