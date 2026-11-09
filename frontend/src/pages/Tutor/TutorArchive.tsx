@@ -830,11 +830,7 @@ export const TutorArchive: React.FC = () => {
   return (
     <div className="flex flex-col gap-3.5 sm:gap-5 p-2.5 sm:p-6 max-w-7xl mx-auto w-full" style={{ fontFamily: 'var(--font-body)' }}>
       {/* ── Concluded Cohort Selection Card ── */}
-      <div className="w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:px-4 sm:py-3.5 shadow-sm space-y-2">
-        <h4 className="text-[10.5px] font-extrabold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-          CONCLUDED COHORT SELECTION
-        </h4>
-
+      <div className="w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:px-4 sm:py-3.5 shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
           {/* 1. School Year Selector */}
           <div className="flex flex-col gap-1">
@@ -946,13 +942,13 @@ export const TutorArchive: React.FC = () => {
 
         {/* Sub-filter for Score Records: ALL / INTERVENTION ACTIVITY / (MOSY/EOSY/SUMMER) */}
         {recordType === 'scores' && (
-          <div className="w-full sm:w-auto flex items-center gap-0.5 bg-gray-100 dark:bg-[#1A1A1A] p-0.5 rounded-md border border-gray-200 dark:border-[#222222] sm:inline-flex shadow-sm">
+          <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-0.5 bg-gray-100 dark:bg-[#1A1A1A] p-0.5 rounded-md border border-gray-200 dark:border-[#222222] sm:inline-flex shadow-sm">
             <button
               type="button"
               onClick={() => setActivityFilter('all')}
-              className={`shrink-0 px-3 py-1.5 rounded-sm text-[10.5px] font-extrabold uppercase tracking-wider transition-all cursor-pointer text-center whitespace-nowrap ${
+              className={`px-3 sm:px-3.5 py-1.5 rounded-sm text-[11px] sm:text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer text-center whitespace-nowrap shrink-0 ${
                 activityFilter === 'all'
-                  ? 'bg-white dark:bg-[#111111] text-gray-900 dark:text-slate-100 shadow-xs'
+                  ? 'bg-[var(--brand)] text-white shadow-xs'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 font-bold'
               }`}
             >
@@ -961,28 +957,28 @@ export const TutorArchive: React.FC = () => {
             <button
               type="button"
               onClick={() => setActivityFilter('intervention')}
-              className={`flex-1 min-w-0 px-3 py-1.5 rounded-sm text-[10.5px] font-extrabold uppercase tracking-wider transition-all cursor-pointer text-center whitespace-nowrap ${
+              className={`px-3 sm:px-3.5 py-1.5 rounded-sm text-[11px] sm:text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer text-center whitespace-nowrap shrink-0 ${
                 activityFilter === 'intervention'
-                  ? 'bg-white dark:bg-[#111111] text-gray-900 dark:text-slate-100 shadow-xs'
+                  ? 'bg-[var(--brand)] text-white shadow-xs'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 font-bold'
               }`}
               title="Intervention Activity"
             >
-              <span className="hidden min-[350px]:inline">INTERVENTION ACTIVITY</span>
-              <span className="min-[350px]:hidden">INTERVENTION</span>
+              <span className="hidden min-[400px]:inline">INTERVENTION ACTIVITY</span>
+              <span className="min-[400px]:hidden">INTERVENTION</span>
             </button>
             <button
               type="button"
               onClick={() => setActivityFilter('assessment')}
-              className={`flex-1 min-w-0 px-3 py-1.5 rounded-sm text-[10.5px] font-extrabold uppercase tracking-wider transition-all cursor-pointer text-center whitespace-nowrap ${
+              className={`px-3 sm:px-3.5 py-1.5 rounded-sm text-[11px] sm:text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer text-center whitespace-nowrap shrink-0 ${
                 activityFilter === 'assessment'
-                  ? 'bg-white dark:bg-[#111111] text-gray-900 dark:text-slate-100 shadow-xs'
+                  ? 'bg-[var(--brand)] text-white shadow-xs'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 font-bold'
               }`}
               title={assessmentFilterName}
             >
-              <span className="hidden min-[350px]:inline">{assessmentFilterName}</span>
-              <span className="min-[350px]:hidden">{assessmentFilterName.replace(' ASSESSMENT', '')}</span>
+              <span className="hidden min-[400px]:inline">{assessmentFilterName}</span>
+              <span className="min-[400px]:hidden">{assessmentFilterName.replace(' ASSESSMENT', '')}</span>
             </button>
           </div>
         )}
