@@ -2551,7 +2551,7 @@ export const TutorScores: React.FC = () => {
                   <table className="hidden sm:table min-w-[680px] w-full divide-y divide-gray-100 dark:divide-slate-800 text-sm">
                     <thead className="bg-gray-50 dark:bg-slate-900">
                       <tr className="divide-x divide-gray-100 dark:divide-slate-800">
-                        <th aria-sort={studentSortActive ? (studentSortDirection === 'asc' ? 'ascending' : 'descending') : undefined} className="w-[42%] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
+                        <th aria-sort={studentSortActive ? (studentSortDirection === 'asc' ? 'ascending' : 'descending') : undefined} className="w-[38%] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                           <button
                             type="button"
                             onClick={() => {
@@ -2570,8 +2570,8 @@ export const TutorScores: React.FC = () => {
                           </button>
                         </th>
                         <th className="w-[22%] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">SCORE (OUT OF {totalScore || 0})</th>
-                        <th className="w-[18%] px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">PREVIEW %</th>
-                        <th className="w-[18%] px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">STATUS</th>
+                        <th className="w-[16%] px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">PREVIEW %</th>
+                        <th className="w-[24%] px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">STATUS</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
@@ -2635,19 +2635,38 @@ export const TutorScores: React.FC = () => {
                                 <span className="text-xs text-gray-300 dark:text-slate-600">0%</span>
                               )}
                             </td>
-                            <td className="px-4 py-2.5 text-center">
-                              <select
-                                value={status}
-                                onChange={(e) => {
-                                  const newStatus = e.target.value as 'Taken' | 'Not';
-                                  setEntryStatus((prev) => ({ ...prev, [student.id]: newStatus }));
-                                  if (newStatus === 'Not') setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
-                                }}
-                                className="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-semibold text-gray-700 dark:text-slate-200 focus:outline-none cursor-pointer"
-                              >
-                                <option value="Taken">Taken</option>
-                                <option value="Not">Not Taken</option>
-                              </select>
+                            <td className="px-4 py-2 text-center">
+                              <div className="inline-flex rounded-lg border border-gray-200 dark:border-neutral-800 p-0.5 bg-gray-50 dark:bg-[#161616]">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEntryStatus((prev) => ({ ...prev, [student.id]: 'Taken' }));
+                                  }}
+                                  aria-pressed={status === 'Taken'}
+                                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                                    status === 'Taken'
+                                      ? 'bg-emerald-600 text-white shadow-xs'
+                                      : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                                  }`}
+                                >
+                                  Taken
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEntryStatus((prev) => ({ ...prev, [student.id]: 'Not' }));
+                                    setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
+                                  }}
+                                  aria-pressed={status === 'Not'}
+                                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                                    status === 'Not'
+                                      ? 'bg-rose-600 text-white shadow-xs'
+                                      : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                                  }`}
+                                >
+                                  Not Taken
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -2657,7 +2676,7 @@ export const TutorScores: React.FC = () => {
 
                   {/* Mobile Responsive Score Table (< 640px) with sealed sticky student column */}
                   <div className="sm:hidden overflow-x-auto mobile-scroll-table rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111]">
-                    <table className="min-w-[390px] w-full border-separate border-spacing-0 text-xs">
+                    <table className="min-w-[430px] w-full border-separate border-spacing-0 text-xs">
                       <thead>
                         <tr className="bg-gray-50 dark:bg-[#151515]">
                           <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[40%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
@@ -2672,18 +2691,18 @@ export const TutorScores: React.FC = () => {
                               STUDENT
                               {studentSortActive
                                 ? studentSortDirection === 'desc'
-                                  ? <ChevronDown className="h-3 w-3 text-[var(--brand)]" />
-                                  : <ChevronUp className="h-3 w-3 text-[var(--brand)]" />
+                                ? <ChevronDown className="h-3 w-3 text-[var(--brand)]" />
+                                : <ChevronUp className="h-3 w-3 text-[var(--brand)]" />
                                 : <ArrowUpDown className="h-3 w-3 opacity-50" />}
                             </button>
                           </th>
-                          <th className="w-[24%] min-w-[80px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                          <th className="w-[22%] min-w-[80px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                             SCORE ({totalScore || 0})
                           </th>
-                          <th className="w-[16%] min-w-[55px] px-1 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                          <th className="w-[14%] min-w-[55px] px-1 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                             PREVIEW
                           </th>
-                          <th className="w-[20%] min-w-[75px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
+                          <th className="w-[24%] min-w-[130px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                             STATUS
                           </th>
                         </tr>
@@ -2757,18 +2776,37 @@ export const TutorScores: React.FC = () => {
                                   )}
                                 </td>
                                 <td className="px-1.5 py-2 text-center border-b border-gray-100 dark:border-[#1A1A1A]">
-                                  <select
-                                    value={status}
-                                    onChange={(e) => {
-                                      const newStatus = e.target.value as 'Taken' | 'Not';
-                                      setEntryStatus((prev) => ({ ...prev, [student.id]: newStatus }));
-                                      if (newStatus === 'Not') setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
-                                    }}
-                                    className="w-full max-w-[70px] h-8 rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-1 text-[11px] font-semibold text-gray-700 dark:text-slate-200 focus:outline-none cursor-pointer"
-                                  >
-                                    <option value="Taken">Taken</option>
-                                    <option value="Not">Not</option>
-                                  </select>
+                                  <div className="inline-flex rounded-lg border border-gray-200 dark:border-neutral-800 p-0.5 bg-gray-50 dark:bg-[#161616]">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEntryStatus((prev) => ({ ...prev, [student.id]: 'Taken' }));
+                                      }}
+                                      aria-pressed={status === 'Taken'}
+                                      className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                                        status === 'Taken'
+                                          ? 'bg-emerald-600 text-white shadow-xs'
+                                          : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                                      }`}
+                                    >
+                                      Taken
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEntryStatus((prev) => ({ ...prev, [student.id]: 'Not' }));
+                                        setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
+                                      }}
+                                      aria-pressed={status === 'Not'}
+                                      className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                                        status === 'Not'
+                                          ? 'bg-rose-600 text-white shadow-xs'
+                                          : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                                      }`}
+                                    >
+                                      Not Taken
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -3043,106 +3081,112 @@ export const TutorScores: React.FC = () => {
       )}
 
       {/* ── Saved Scores Floating Notification Toast ─────────────────────── */}
-      {showSuccessModal && (
-        <aside
-          aria-live="polite"
-          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
-        >
-          <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-white p-3.5 shadow-xl">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200">
-              <CheckCircle2 className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-bold text-gray-900">
-                  {successModalTitle || 'Scores Saved Successfully'}
-                </h3>
-                <button
-                  type="button"
-                  onClick={handleDismissSuccessModal}
-                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition cursor-pointer"
-                  aria-label="Close notification"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+      {showSuccessModal &&
+        createPortal(
+          <aside
+            aria-live="polite"
+            className="fixed top-20 right-4 sm:right-6 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+          >
+            <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-white dark:bg-[#111111] dark:border-emerald-800 p-3.5 shadow-xl">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400">
+                <CheckCircle2 className="h-4 w-4" />
               </div>
-              <p className="mt-1 text-xs text-gray-600 leading-relaxed">
-                {saveSuccessMsg || 'Intervention Activity scores saved and highlighted below.'}
-              </p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                    {successModalTitle || 'Scores Saved Successfully'}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={handleDismissSuccessModal}
+                    className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                    aria-label="Close notification"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                  {saveSuccessMsg || 'Intervention Activity scores saved and highlighted below.'}
+                </p>
+              </div>
             </div>
-          </div>
-        </aside>
-      )}
+          </aside>,
+          document.body
+        )}
 
       {/* ── Score Validation / Error Floating Notification Toast ─────────── */}
-      {validationToast && (
-        <aside
-          aria-live="assertive"
-          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
-        >
-          <div className={`flex items-start gap-3 rounded-lg border p-3.5 shadow-xl bg-white dark:bg-[#111111] ${validationToast.type === 'warning'
-              ? 'border-amber-300 dark:border-amber-700/80'
-              : 'border-rose-300 dark:border-rose-700/80'
-            }`}>
-            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${validationToast.type === 'warning'
-                ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
-                : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
+      {validationToast &&
+        createPortal(
+          <aside
+            aria-live="assertive"
+            className="fixed top-20 right-4 sm:right-6 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+          >
+            <div className={`flex items-start gap-3 rounded-lg border p-3.5 shadow-xl bg-white dark:bg-[#111111] ${validationToast.type === 'warning'
+                ? 'border-amber-300 dark:border-amber-700/80'
+                : 'border-rose-300 dark:border-rose-700/80'
               }`}>
-              <AlertCircle className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
-                  {validationToast.title}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setValidationToast(null)}
-                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                  aria-label="Close notification"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${validationToast.type === 'warning'
+                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
+                }`}>
+                <AlertCircle className="h-4 w-4" />
               </div>
-              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
-                {validationToast.message}
-              </p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                    {validationToast.title}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setValidationToast(null)}
+                    className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                    aria-label="Close notification"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                  {validationToast.message}
+                </p>
+              </div>
             </div>
-          </div>
-        </aside>
-      )}
+          </aside>,
+          document.body
+        )}
 
       {/* ── Trashbin Actions Floating Notification Toast ─────────────────── */}
-      {trashToast && (
-        <aside
-          aria-live="polite"
-          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
-        >
-          <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-white dark:bg-[#111111] dark:border-blue-800 p-3.5 shadow-xl">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-50 text-[var(--brand)] border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400">
-              <CheckCircle2 className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
-                  {trashToast.title}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setTrashToast(null)}
-                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                  aria-label="Close notification"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+      {trashToast &&
+        createPortal(
+          <aside
+            aria-live="polite"
+            className="fixed top-20 right-4 sm:right-6 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+          >
+            <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-white dark:bg-[#111111] dark:border-blue-800 p-3.5 shadow-xl">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-50 text-[var(--brand)] border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400">
+                <CheckCircle2 className="h-4 w-4" />
               </div>
-              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
-                {trashToast.message}
-              </p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                    {trashToast.title}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setTrashToast(null)}
+                    className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                    aria-label="Close notification"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                  {trashToast.message}
+                </p>
+              </div>
             </div>
-          </div>
-        </aside>
-      )}
+          </aside>,
+          document.body
+        )}
 
       {/* ── Delete Record Entry Confirmation Modal ───────────────────────── */}
       {confirmTrashModal && createPortal(

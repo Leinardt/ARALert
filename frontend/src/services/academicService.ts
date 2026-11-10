@@ -265,6 +265,22 @@ export const academicService = {
     aral_activity_id?: number;
   }): Promise<{ message: string; attendance: Attendance }> => {
     const response = await api.post<{ message: string; attendance: Attendance }>('/academics/attendance/manual/', data);
+    attendanceCache.clear();
+    return response.data;
+  },
+
+  logBatchManualAttendance: async (data: {
+    date: string;
+    records: Array<{ student_id: string | number; status: 'present' | 'absent'; time_in?: string }>;
+    aral_activity_id?: number;
+  }): Promise<{ message: string; saved_count: number; date: string; attendance: Attendance[] }> => {
+    const response = await api.post<{
+      message: string;
+      saved_count: number;
+      date: string;
+      attendance: Attendance[];
+    }>('/academics/attendance/manual/', data);
+    attendanceCache.clear();
     return response.data;
   },
 

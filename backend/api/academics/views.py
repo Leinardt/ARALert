@@ -1265,6 +1265,9 @@ class AttendanceManualLogView(APIView):
     """
     POST /api/academics/attendance/manual/
     Tutors manually log student attendance.
+    Supports:
+      - Batch mode: { date, records: [{ student_id, status }] }
+      - Single student mode: { student_id, date, status }
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1273,10 +1276,136 @@ class AttendanceManualLogView(APIView):
         if user.role != 'tutor' and not user.is_superuser:
             return Response({'error': 'Only tutors can submit manual attendance.'}, status=status.HTTP_403_FORBIDDEN)
 
-        student_id       = request.data.get('student_id')
+        records_data     = request.data.get('records')
         date_str         = request.data.get('date')
-        status_val       = request.data.get('status', 'present')
         aral_activity_id = request.data.get('aral_activity_id')
+
+        if date_str:
+            from datetime import datetime
+            try:
+                log_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            log_date = timezone.localdate()
+
+        if log_date > timezone.localdate():
+            return Response({'error': 'Cannot log attendance for a future date.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        aral_activity = None
+        if aral_activity_id:
+            aral_activity = get_object_or_404(ApiAralActivity, id=aral_activity_id)
+
+        active_sy = SchoolYear.objects.filter(is_active=True).first()
+
+        # ── Batch mode ────────────────────────────────────────────────────────
+        if isinstance(records_data, list):
+            if not records_data:
+                return Response({'error': 'records array cannot be empty.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            student_ids = [r.get('student_id') for r in records_data if r.get('student_id')]
+            if not student_ids:
+                return Response({'error': 'At least one valid student_id is required in records.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            students_qs = User.objects.filter(id__in=student_ids, role='student')
+            if not user.is_superuser:
+                students_qs = students_qs.filter(assigned_tutor=user)
+            students_map = {}
+            for s in students_qs:
+                students_map[s.id] = s
+                students_map[str(s.id)] = s
+
+            from django.db import transaction
+            saved_attendances = []
+            created_count = 0
+            updated_count = 0
+            present_count = 0
+            absent_count = 0
+
+            with transaction.atomic():
+                for r in records_data:
+                    sid = r.get('student_id')
+                    student = students_map.get(sid) or (students_map.get(str(sid)) if sid is not None else None)
+                    if not student:
+                        continue
+                    status_val = r.get('status', 'present')
+                    if status_val not in ['present', 'absent', 'late', 'excused']:
+                        status_val = 'present'
+
+                    if status_val == 'present':
+                        present_count += 1
+                    else:
+                        absent_count += 1
+
+                    record_time = None
+                    time_str = r.get('time_in') or r.get('time')
+                    if time_str:
+                        try:
+                            if len(time_str) >= 8:
+                                record_time = datetime.strptime(time_str[:8], '%H:%M:%S').time()
+                            elif len(time_str) >= 5:
+                                record_time = datetime.strptime(time_str[:5], '%H:%M').time()
+                        except (ValueError, TypeError):
+                            record_time = None
+
+                    attendance, created = ApiAttendance.objects.get_or_create(
+                        user = student,
+                        date = log_date,
+                        defaults={
+                            'role':          'student',
+                            'time_in':       record_time or timezone.localtime().time(),
+                            'status':        status_val,
+                            'tutor':         user,
+                            'aral_activity': aral_activity,
+                            'school_year':   active_sy,
+                        },
+                    )
+                    if created:
+                        created_count += 1
+                    else:
+                        updated_count += 1
+                        attendance.status = status_val
+                        update_fields = ['status']
+                        if aral_activity:
+                            attendance.aral_activity = aral_activity
+                            update_fields.append('aral_activity')
+                        if record_time:
+                            attendance.time_in = record_time
+                            update_fields.append('time_in')
+                        if not attendance.school_year and active_sy:
+                            attendance.school_year = active_sy
+                            update_fields.append('school_year')
+                        if attendance.tutor != user:
+                            attendance.tutor = user
+                            update_fields.append('tutor')
+                        attendance.save(update_fields=update_fields)
+
+                    saved_attendances.append(attendance)
+
+            log_audit_event(
+                'ATTENDANCE_MANUAL_SESSION_LOGGED',
+                user=user,
+                request=request,
+                details={
+                    'date': str(log_date),
+                    'total_logged': len(saved_attendances),
+                    'present_count': present_count,
+                    'absent_count': absent_count,
+                    'created_count': created_count,
+                    'updated_count': updated_count,
+                }
+            )
+
+            return Response({
+                'message': f'Attendance session logged for {log_date} ({present_count} present, {absent_count} absent).',
+                'saved_count': len(saved_attendances),
+                'date': str(log_date),
+                'attendance': AttendanceSerializer(saved_attendances, many=True).data,
+            }, status=status.HTTP_200_OK)
+
+        # ── Single student mode (backward compatible) ─────────────────────────
+        student_id = request.data.get('student_id')
+        status_val = request.data.get('status', 'present')
 
         if not student_id:
             return Response({'error': 'student_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1289,26 +1418,23 @@ class AttendanceManualLogView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if date_str:
-            from datetime import datetime
+        record_time = None
+        time_str = request.data.get('time_in') or request.data.get('time')
+        if time_str:
             try:
-                log_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            except ValueError:
-                return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            log_date = timezone.localdate()
+                if len(time_str) >= 8:
+                    record_time = datetime.strptime(time_str[:8], '%H:%M:%S').time()
+                elif len(time_str) >= 5:
+                    record_time = datetime.strptime(time_str[:5], '%H:%M').time()
+            except (ValueError, TypeError):
+                record_time = None
 
-        aral_activity = None
-        if aral_activity_id:
-            aral_activity = get_object_or_404(ApiAralActivity, id=aral_activity_id)
-
-        active_sy = SchoolYear.objects.filter(is_active=True).first()
         attendance, created = ApiAttendance.objects.get_or_create(
             user = student,
             date = log_date,
             defaults={
                 'role':          'student',
-                'time_in':       timezone.localtime().time(),
+                'time_in':       record_time or timezone.localtime().time(),
                 'status':        status_val,
                 'tutor':         user,
                 'aral_activity': aral_activity,
@@ -1317,13 +1443,17 @@ class AttendanceManualLogView(APIView):
         )
         if not created:
             attendance.status = status_val
+            update_fields = ['status']
             if aral_activity:
                 attendance.aral_activity = aral_activity
+                update_fields.append('aral_activity')
+            if record_time:
+                attendance.time_in = record_time
+                update_fields.append('time_in')
             if not attendance.school_year and active_sy:
                 attendance.school_year = active_sy
-                attendance.save(update_fields=['status', 'aral_activity', 'school_year'])
-            else:
-                attendance.save(update_fields=['status', 'aral_activity'])
+                update_fields.append('school_year')
+            attendance.save(update_fields=update_fields)
 
         log_audit_event(
             'ATTENDANCE_MANUAL_LOGGED',

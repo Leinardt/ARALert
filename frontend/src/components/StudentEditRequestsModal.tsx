@@ -373,28 +373,6 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
             <span className="font-mono font-bold text-sm text-slate-900 dark:text-slate-100">
               #{t.ticket_id}
             </span>
-            <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap shrink-0">
-              {new Date(t.created_at).toLocaleDateString(undefined, {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })} • {new Date(t.created_at).toLocaleTimeString(undefined, {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                {t.submitter_name}
-              </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                {t.submitter_role}
-              </span>
-            </div>
-
             <div className="shrink-0">
               {isPending && (
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
@@ -417,6 +395,28 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
                 </span>
               )}
             </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                {t.submitter_name}
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                {t.submitter_role}
+              </span>
+            </div>
+
+            <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap shrink-0">
+              {new Date(t.created_at).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })} • {new Date(t.created_at).toLocaleTimeString(undefined, {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
           </div>
 
           <p className="text-xs text-slate-500 dark:text-slate-400 font-mono break-all">
@@ -562,20 +562,10 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
             : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
         }`}
       >
-        <div className="flex items-start justify-between gap-2">
-          <span className="font-mono font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
-            Ticket #{t.ticket_id}
-          </span>
-          <div className="flex flex-col items-end gap-1 shrink-0">
-            <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap">
-              {new Date(t.created_at).toLocaleDateString(undefined, {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })} • {new Date(t.created_at).toLocaleTimeString(undefined, {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-mono font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
+              Ticket #{t.ticket_id}
             </span>
             <div>
               {isPending && (
@@ -600,6 +590,16 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
               )}
             </div>
           </div>
+          <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap">
+            {new Date(t.created_at).toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })} • {new Date(t.created_at).toLocaleTimeString(undefined, {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </span>
         </div>
 
         <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
@@ -667,18 +667,16 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/60 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wide">
-              NOTIFICATIONS
-            </h3>
-          </div>
+        <div className="flex items-center justify-between px-5 py-4 bg-white dark:bg-slate-900 flex-shrink-0">
+          <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+            Notifications
+          </p>
 
           <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition cursor-pointer"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
               aria-label="Close notifications"
             >
               <X className="w-4 h-4" />
@@ -687,38 +685,62 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
         </div>
 
         {/* Tab Selection */}
-        <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center gap-1.5 flex-shrink-0">
+        <div
+          className="no-scrollbar px-5 pb-2.5 bg-white dark:bg-slate-900 flex items-center gap-1 overflow-x-auto flex-nowrap flex-shrink-0"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           <button
             type="button"
             onClick={() => setActiveTab('all')}
-            className={`px-2.5 py-1.5 rounded-lg sm:rounded-xl text-[11px] font-bold tracking-tight transition cursor-pointer whitespace-nowrap ${
-              activeTab === 'all'
-                ? 'bg-[#0052B7] text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-            }`}
+            style={{
+              padding: '3px 7px',
+              borderRadius: '6px',
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
+              flexShrink: 0,
+              background: activeTab === 'all' ? '#0052B7' : 'var(--slate-100)',
+              color: activeTab === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
+              whiteSpace: 'nowrap',
+            }}
           >
             ALL ({allCount})
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('pending')}
-            className={`px-2.5 py-1.5 rounded-lg sm:rounded-xl text-[11px] font-bold tracking-tight transition cursor-pointer whitespace-nowrap ${
-              activeTab === 'pending'
-                ? 'bg-[#0052B7] text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-            }`}
+            style={{
+              padding: '3px 7px',
+              borderRadius: '6px',
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
+              flexShrink: 0,
+              background: activeTab === 'pending' ? '#0052B7' : 'var(--slate-100)',
+              color: activeTab === 'pending' ? '#FFFFFF' : 'var(--text-secondary)',
+              whiteSpace: 'nowrap',
+            }}
           >
-            <span className="hidden sm:inline">EDIT </span>REQUESTS ({pendingCount})
+            EDIT REQUESTS ({pendingCount})
           </button>
           {isSuperAdmin && (
             <button
               type="button"
               onClick={() => setActiveTab('tickets')}
-              className={`px-2.5 py-1.5 rounded-lg sm:rounded-xl text-[11px] font-bold tracking-tight transition cursor-pointer whitespace-nowrap ${
-                activeTab === 'tickets'
-                  ? 'bg-[#0052B7] text-white shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
+              style={{
+                padding: '3px 7px',
+                borderRadius: '6px',
+                fontSize: '0.68rem',
+                fontWeight: 700,
+                border: 'none',
+                cursor: 'pointer',
+                flexShrink: 0,
+                background: activeTab === 'tickets' ? '#0052B7' : 'var(--slate-100)',
+                color: activeTab === 'tickets' ? '#FFFFFF' : 'var(--text-secondary)',
+                whiteSpace: 'nowrap',
+              }}
             >
               TICKETS ({pendingTicketsCount})
             </button>
@@ -726,22 +748,36 @@ export const StudentEditRequestsModal: React.FC<StudentEditRequestsModalProps> =
           <button
             type="button"
             onClick={() => setActiveTab('announcements')}
-            className={`px-2.5 py-1.5 rounded-lg sm:rounded-xl text-[11px] font-bold tracking-tight transition cursor-pointer whitespace-nowrap ${
-              activeTab === 'announcements'
-                ? 'bg-[#0052B7] text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-            }`}
+            style={{
+              padding: '3px 7px',
+              borderRadius: '6px',
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
+              flexShrink: 0,
+              background: activeTab === 'announcements' ? '#0052B7' : 'var(--slate-100)',
+              color: activeTab === 'announcements' ? '#FFFFFF' : 'var(--text-secondary)',
+              whiteSpace: 'nowrap',
+            }}
           >
             ANNOUNCEMENTS ({announcements.length})
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            className={`px-2.5 py-1.5 rounded-lg sm:rounded-xl text-[11px] font-bold tracking-tight transition cursor-pointer whitespace-nowrap ${
-              activeTab === 'history'
-                ? 'bg-[#0052B7] text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-            }`}
+            style={{
+              padding: '3px 7px',
+              borderRadius: '6px',
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
+              flexShrink: 0,
+              background: activeTab === 'history' ? '#0052B7' : 'var(--slate-100)',
+              color: activeTab === 'history' ? '#FFFFFF' : 'var(--text-secondary)',
+              whiteSpace: 'nowrap',
+            }}
           >
             HISTORY ({historyCount})
           </button>

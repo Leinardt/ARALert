@@ -272,6 +272,42 @@ const AssetSidebarIcon: React.FC<{
     );
   };
 
+const SynchronizedPulseBadge: React.FC<{
+  count: number;
+}> = ({ count }) => {
+  const delayRef = useRef<string>(`-${Math.floor(Date.now() % 2000)}ms`);
+
+  return (
+    <span
+      className={`animate-badge-pulse transition-all duration-200 ${
+        count > 0 ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none'
+      }`}
+      style={{
+        position: 'absolute',
+        top: '-4px',
+        right: '-4px',
+        minWidth: '18px',
+        height: '18px',
+        padding: '0 4px',
+        borderRadius: '99px',
+        background: '#EF4444',
+        color: '#fff',
+        fontSize: '10px',
+        fontWeight: 800,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        border: '2px solid #fff',
+        animationDelay: delayRef.current,
+        transformOrigin: 'center center',
+      }}
+      aria-hidden={count <= 0}
+    >
+      {count > 0 ? count : ''}
+    </span>
+  );
+};
+
 export const DashboardLayout: React.FC = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -373,7 +409,15 @@ export const DashboardLayout: React.FC = () => {
   };
 
   const [highRiskStudents, setHighRiskStudents] = useState<StudentRiskRow[]>([]);
-  const [acknowledgedAlerts, setAcknowledgedAlerts] = useState<Record<string, boolean>>({});
+  const [acknowledgedAlerts, setAcknowledgedAlerts] = useState<Record<string, boolean>>(() => {
+    try {
+      const currentUserId = user?.id ? String(user.id) : (user?.username ? user.username : 'user');
+      const raw = localStorage.getItem(`aralert_ack_alerts_${currentUserId}`);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
   const [acknowledgedRiskIds, setAcknowledgedRiskIds] = useState<Record<string, number>>({});
   const highRiskCount = useMemo(() => {
     return highRiskStudents.filter((r) => !acknowledgedAlerts[r.student.id]).length;
@@ -480,6 +524,118 @@ export const DashboardLayout: React.FC = () => {
   const [isRiskShaking, setIsRiskShaking] = useState<boolean>(false);
   const [riskShakeKey, setRiskShakeKey] = useState<number>(0);
 
+  // Scoped to the authenticated user ID so view status and acknowledgments persist across logout, laptop restart, and page refresh
+  const userId = user?.id ? String(user.id) : (user?.username ? user.username : 'user');
+  const ackStorageKey = `aralert_ack_alerts_${userId}`;
+  const notifStorageKey = `aralert_seen_notif_ids_${userId}`;
+  const notifTimeStorageKey = `aralert_notif_last_seen_${userId}`;
+
+  // Set of notification item IDs already seen by this user
+  const [seenNotifItemIds, setSeenNotifItemIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(notifStorageKey);
+      if (!raw) return new Set();
+      const parsed = JSON.parse(raw);
+      return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+    } catch {
+      return new Set();
+    }
+  });
+
+  // Last timestamp when notifications drawer was opened
+  const [lastSeenNotifTimestamp, setLastSeenNotifTimestamp] = useState<string>(() => {
+    try {
+      return localStorage.getItem(notifTimeStorageKey) || '';
+    } catch {
+      return '';
+    }
+  });
+
+  // Re-sync on user switch
+  useEffect(() => {
+    try {
+      const rawAck = localStorage.getItem(ackStorageKey);
+      if (rawAck) {
+        setAcknowledgedAlerts(JSON.parse(rawAck));
+      }
+
+      const rawNotif = localStorage.getItem(notifStorageKey);
+      setSeenNotifItemIds(new Set(rawNotif ? JSON.parse(rawNotif).map(String) : []));
+
+      const rawTime = localStorage.getItem(notifTimeStorageKey);
+      setLastSeenNotifTimestamp(rawTime || '');
+    } catch {
+      // ignore
+    }
+  }, [ackStorageKey, notifStorageKey, notifTimeStorageKey]);
+
+  // Helper to get a stable unique ID for any notification item
+  const getInboxItemId = (item: { itemKind: string; id?: any; ticket_id?: any }) => {
+    if (item.itemKind === 'ticket') return `ticket_${item.ticket_id || item.id}`;
+    if (item.itemKind === 'edit') return `edit_${item.id}`;
+    if (item.itemKind === 'announcement') return `announcement_${item.id}`;
+    if (item.itemKind === 'system') return `system_${item.id}`;
+    return `item_${item.id}`;
+  };
+
+  // Mark all current notifications as seen (persisted in localStorage)
+  const markNotificationsAsSeen = useCallback(() => {
+    const nowIso = new Date().toISOString();
+    const items = [
+      ...systemAnnouncements.map((a) => ({ ...a, itemKind: 'announcement' as const })),
+      ...SYSTEM_UPDATES.map((u) => ({ ...u, itemKind: 'system' as const })),
+      ...myEditRequests.map((req) => ({ ...req, itemKind: 'edit' as const })),
+      ...myTickets.map((t) => ({ ...t, itemKind: 'ticket' as const })),
+    ];
+    const currentIds = items.map(getInboxItemId);
+    setSeenNotifItemIds((prev) => {
+      const updated = new Set([...prev, ...currentIds]);
+      try {
+        localStorage.setItem(notifStorageKey, JSON.stringify(Array.from(updated)));
+        localStorage.setItem(notifTimeStorageKey, nowIso);
+      } catch {}
+      return updated;
+    });
+    setLastSeenNotifTimestamp(nowIso);
+  }, [systemAnnouncements, myEditRequests, myTickets, notifStorageKey, notifTimeStorageKey]);
+
+  const isAnyNotificationOpen = showTutorNotifications || showEditRequestsModal || showStudentEditRequests;
+
+  // When any notification window is open, automatically mark currently loaded notifications as seen
+  useEffect(() => {
+    if (isAnyNotificationOpen) {
+      markNotificationsAsSeen();
+    }
+  }, [isAnyNotificationOpen, systemAnnouncements, myEditRequests, myTickets, markNotificationsAsSeen]);
+
+  // Notifications unread count: items NOT yet seen and created after the last view timestamp
+  const unreadNotificationsCount = useMemo(() => {
+    const items = [
+      ...systemAnnouncements.map((a) => ({ ...a, itemKind: 'announcement' as const })),
+      ...SYSTEM_UPDATES.map((u) => ({ ...u, itemKind: 'system' as const })),
+      ...myEditRequests.map((req) => ({ ...req, itemKind: 'edit' as const })),
+      ...myTickets.map((t) => ({ ...t, itemKind: 'ticket' as const })),
+    ];
+
+    if (items.length === 0) return 0;
+
+    const lastSeenTime = lastSeenNotifTimestamp ? new Date(lastSeenNotifTimestamp).getTime() : 0;
+
+    return items.filter((item) => {
+      const itemId = getInboxItemId(item);
+      if (seenNotifItemIds.has(itemId)) return false;
+      if (lastSeenTime > 0 && item.created_at) {
+        const itemTime = new Date(item.created_at).getTime();
+        if (itemTime <= lastSeenTime) return false;
+      }
+      return true;
+    }).length;
+  }, [systemAnnouncements, myEditRequests, myTickets, seenNotifItemIds, lastSeenNotifTimestamp]);
+
+  // Disappear instantly while open; keep count of unacknowledged alerts when closed
+  const displayRiskBadgeCount = showRiskList ? 0 : highRiskCount;
+  const displayNotifBadgeCount = isAnyNotificationOpen ? 0 : unreadNotificationsCount;
+
   const formatAralLevel = (level?: string) => {
     if (!level) return 'Unspecified';
     if (level === 'basic') return 'ARAL Basic';
@@ -527,7 +683,16 @@ export const DashboardLayout: React.FC = () => {
       setModerateRiskStudents([]);
       // The alert badge and High Risk section both represent every student
       // currently classified as High risk.
-      setAcknowledgedAlerts(Object.fromEntries(Object.keys(latestResolvedRiskByStudent).map((id) => [id, true])));
+      const backendResolvedMap = Object.fromEntries(
+        Object.keys(latestResolvedRiskByStudent).map((id) => [id, true])
+      );
+      setAcknowledgedAlerts((prev) => {
+        const merged = { ...prev, ...backendResolvedMap };
+        try {
+          localStorage.setItem(ackStorageKey, JSON.stringify(merged));
+        } catch {}
+        return merged;
+      });
       setAcknowledgedRiskIds(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.id])));
     } catch (error) {
       console.error('Failed to load tutor alerts', error);
@@ -590,7 +755,13 @@ export const DashboardLayout: React.FC = () => {
         });
         setAcknowledgedRiskIds((prev) => ({ ...prev, [row.student.id]: newRisk.id }));
       }
-      setAcknowledgedAlerts((prev) => ({ ...prev, [row.student.id]: true }));
+      setAcknowledgedAlerts((prev) => {
+        const updated = { ...prev, [row.student.id]: true };
+        try {
+          localStorage.setItem(ackStorageKey, JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
     } catch (error) {
       console.error('Failed to acknowledge risk alert', error);
     }
@@ -759,24 +930,12 @@ export const DashboardLayout: React.FC = () => {
           gap: '0.35rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-          <div>
-            <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+            <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               Ticket #{t.ticket_id}
             </p>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px', flexShrink: 0 }}>
-            <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              {new Date(t.created_at).toLocaleDateString(undefined, {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })} • {new Date(t.created_at).toLocaleTimeString(undefined, {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </span>
-            <div>
+            <div style={{ flexShrink: 0 }}>
               {isPending && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(100, 116, 139, 0.12)', color: '#475569', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
                   Under Review
@@ -799,6 +958,16 @@ export const DashboardLayout: React.FC = () => {
               )}
             </div>
           </div>
+          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            {new Date(t.created_at).toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })} • {new Date(t.created_at).toLocaleTimeString(undefined, {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </span>
         </div>
 
         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', background: 'var(--surface-muted)', borderRadius: '6px', padding: '6px 8px', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
@@ -1655,11 +1824,12 @@ export const DashboardLayout: React.FC = () => {
               <Menu size={20} />
             </button>
             <h1
-              className="truncate text-sm sm:text-base md:text-lg font-bold text-slate-900 dark:text-white tracking-tight"
+              className="truncate text-sm sm:text-base md:text-lg font-bold text-slate-900 dark:text-white tracking-tight py-1"
               style={{
                 margin: 0,
                 fontFamily: 'var(--font-heading)',
                 letterSpacing: '-0.02em',
+                lineHeight: 1.35,
               }}
             >
               {getPageTitle()}
@@ -1685,7 +1855,7 @@ export const DashboardLayout: React.FC = () => {
                   aria-label="High Risk Alerts"
                   title={
                     highRiskCount > 0
-                      ? `${highRiskCount} HIGH RISK Student(s) Alert`
+                      ? `${highRiskCount} High Risk Student(s) Alert`
                       : 'High Risk Students Alert'
                   }
                   style={{
@@ -1693,13 +1863,13 @@ export const DashboardLayout: React.FC = () => {
                     width: '38px',
                     height: '38px',
                     borderRadius: '10px',
-                    background: 'var(--surface-muted)',
-                    border: '1px solid var(--slate-200)',
+                    background: showRiskList ? 'var(--brand)' : 'var(--surface-muted)',
+                    border: `1px solid ${showRiskList ? 'var(--brand)' : 'var(--slate-200)'}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    color: 'var(--text-secondary)',
+                    color: showRiskList ? '#FFFFFF' : 'var(--text-secondary)',
                     transition: 'var(--transition-fast)',
                   }}
                   onMouseDown={(e) => {
@@ -1709,15 +1879,23 @@ export const DashboardLayout: React.FC = () => {
                     e.currentTarget.style.transform = 'scale(1)';
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--brand-light)';
-                    e.currentTarget.style.color = 'var(--brand-dark)';
-                    e.currentTarget.style.borderColor = 'var(--brand-border)';
+                    if (!showRiskList) {
+                      e.currentTarget.style.background = 'var(--brand-light)';
+                      e.currentTarget.style.color = 'var(--brand-dark)';
+                      e.currentTarget.style.borderColor = 'var(--brand-border)';
+                    }
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.background = 'var(--surface-muted)';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                    e.currentTarget.style.borderColor = 'var(--slate-200)';
+                    if (!showRiskList) {
+                      e.currentTarget.style.background = 'var(--surface-muted)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                      e.currentTarget.style.borderColor = 'var(--slate-200)';
+                    } else {
+                      e.currentTarget.style.background = 'var(--brand)';
+                      e.currentTarget.style.color = '#FFFFFF';
+                      e.currentTarget.style.borderColor = 'var(--brand)';
+                    }
                   }}
                 >
                   <span
@@ -1733,31 +1911,7 @@ export const DashboardLayout: React.FC = () => {
                   >
                     <AlertTriangle size={17} />
                   </span>
-                  {highRiskCount > 0 && (
-                    <span
-                      className="animate-badge-pulse"
-                      style={{
-                        position: 'absolute',
-                        top: '-4px',
-                        right: '-4px',
-                        minWidth: '18px',
-                        height: '18px',
-                        padding: '0 4px',
-                        borderRadius: '99px',
-                        background: '#EF4444',
-                        color: '#fff',
-                        fontSize: '10px',
-                        fontWeight: 800,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '2px solid #fff',
-                        boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)',
-                      }}
-                    >
-                      {highRiskCount}
-                    </span>
-                  )}
+                  <SynchronizedPulseBadge count={displayRiskBadgeCount} />
                 </button>
 
                 {/* Risk dropdown */}
@@ -1772,33 +1926,29 @@ export const DashboardLayout: React.FC = () => {
 
                     {/* Notification Panel */}
                     <div
-                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[380px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-[80]"
+                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[380px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-[80] overflow-hidden"
                     >
                       {/* Dropdown header */}
                       <div
                         className="rounded-t-2xl sm:rounded-t-xl"
                         style={{
-                          padding: '0.875rem 1.25rem',
-                          background: 'var(--surface-muted)',
-                          borderBottom: '1px solid var(--slate-200)',
+                          padding: '1rem 1.25rem 0.625rem',
+                          background: 'var(--surface-card)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <AlertTriangle size={15} className="text-slate-600 dark:text-slate-300" />
-                          <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                            HIGH RISK STUDENTS ALERT
-                          </p>
-                        </div>
+                        <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                          High Risk Students Alert
+                        </p>
                         <button
                           type="button"
                           onClick={() => setShowRiskList(false)}
                           aria-label="Close alerts"
                           style={{
-                            width: '32px',
-                            height: '32px',
+                            width: '28px',
+                            height: '28px',
                             borderRadius: '8px',
                             border: 'none',
                             background: 'transparent',
@@ -1808,7 +1958,7 @@ export const DashboardLayout: React.FC = () => {
                             cursor: 'pointer',
                             color: 'var(--text-muted)',
                           }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-100)'; }}
                           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                         >
                           <X size={16} />
@@ -1817,7 +1967,7 @@ export const DashboardLayout: React.FC = () => {
 
                       {/* Class filter dropdown */}
                       {tutorClassSections.length > 1 && (
-                        <div style={{ padding: '0.625rem 1rem 0.625rem', background: 'var(--surface-muted)', borderBottom: '1px solid var(--slate-200)' }}>
+                        <div style={{ padding: '0.25rem 1.25rem 0.625rem', background: 'var(--surface-card)' }}>
                           <div ref={alertClassDropdownRef} className="relative w-full max-w-full">
                             <button
                               type="button"
@@ -1889,8 +2039,8 @@ export const DashboardLayout: React.FC = () => {
                         style={{
                           maxHeight: 'min(420px, calc(100vh - 140px))',
                           overflowY: 'auto',
-                          background: 'var(--risk-high-bg)',
-                          padding: '0.875rem 1rem',
+                          background: 'var(--surface-card)',
+                          padding: '0.5rem 1.25rem 1rem',
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '0.75rem',
@@ -1900,101 +2050,112 @@ export const DashboardLayout: React.FC = () => {
                           const visibleSections = selectedAlertClass === 'all'
                             ? tutorClassSections
                             : tutorClassSections.filter((cls) => cls.key === selectedAlertClass);
-                          return visibleSections.map((cls) => (
-                            <div key={cls.key} className="flex flex-col gap-2">
-                              {/* Class label shown only in "all" view or when more than one section exists */}
-                              {(selectedAlertClass === 'all' && tutorClassSections.length > 1) && (
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.125rem' }}>
-                                  <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: 'var(--risk-high-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                    {cls.label}
-                                  </p>
-                                  <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.72rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid var(--risk-high-border)' }}>
-                                    {cls.students.length}
-                                  </span>
-                                </div>
-                              )}
+                          return visibleSections.map((cls) => {
+                            const sortedClassStudents = [...cls.students].sort((a, b) => {
+                              const aAck = Boolean(acknowledgedAlerts[a.student.id]);
+                              const bAck = Boolean(acknowledgedAlerts[b.student.id]);
+                              if (aAck !== bAck) {
+                                return aAck ? 1 : -1;
+                              }
+                              return 0;
+                            });
 
-                              {cls.students.length === 0 ? (
-                                <div style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
-                                  <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>
-                                    No high-risk students detected.
-                                  </p>
-                                </div>
-                              ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                                  {cls.students.map((row) => (
-                                    <div
-                                      key={`high-${cls.key}-${row.student.id}`}
-                                      className="rounded-xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#0A0A0A] p-3.5 space-y-2.5 shadow-2xs"
-                                    >
-                                      <div className="flex items-start justify-between gap-2">
-                                        <Link
-                                          to={`/tutor/students/${row.student.id}`}
-                                          state={{ from: 'dashboard' }}
-                                          onClick={() => setShowRiskList(false)}
-                                          className="group min-w-0 flex-1 no-underline"
-                                        >
-                                          <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-[var(--brand)] transition-colors truncate m-0">
-                                            {row.student.full_name}
-                                          </p>
-                                          <p className="text-[11px] text-slate-400 font-mono m-0 mt-0.5">
-                                            LRN: {row.student.lrn || 'N/A'}
-                                          </p>
-                                        </Link>
-                                        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
-                                          HIGH RISK
-                                        </span>
-                                      </div>
+                            return (
+                              <div key={cls.key} className="flex flex-col gap-2">
+                                {/* Class label shown only in "all" view or when more than one section exists */}
+                                {(selectedAlertClass === 'all' && tutorClassSections.length > 1) && (
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.125rem' }}>
+                                    <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 800, color: 'var(--risk-high-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                      {cls.label}
+                                    </p>
+                                    <span style={{ background: 'var(--risk-high-badge-bg)', color: 'var(--risk-high-text)', fontSize: '0.72rem', fontWeight: 800, borderRadius: '99px', padding: '2px 8px', border: '1px solid var(--risk-high-border)' }}>
+                                      {cls.students.length}
+                                    </span>
+                                  </div>
+                                )}
 
-                                      {/* Composite score */}
-                                      <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
-                                        <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Composite Score:</span>
-                                        <span className="font-extrabold text-rose-600 dark:text-rose-400">{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
-                                      </div>
-
-                                      {/* Recovery targets */}
-                                      <div className="flex flex-col gap-1.5 pt-0.5">
-                                        {row.neededPresentAttendance > 0 && (
-                                          <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50">
-                                            Need +{row.neededPresentAttendance} more Present records to improve risk level
-                                          </span>
-                                        )}
-                                        {row.neededPassedScores > 0 && (
-                                          <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
-                                            Need +{row.neededPassedScores} more Passed records to improve risk level
-                                          </span>
-                                        )}
-                                        {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
-                                          <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
-                                            Need +1 more Passed record to improve risk level
-                                          </span>
-                                        )}
-                                      </div>
-
-                                      {/* Direct Acknowledge Alert button */}
-                                      <div className="pt-2 border-t border-slate-100 dark:border-neutral-800">
-                                        {acknowledgedAlerts[row.student.id] ? (
-                                          <div className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-lg">
-                                            <Check size={14} className="stroke-[3]" />
-                                            <span>Alert Addressed</span>
-                                          </div>
-                                        ) : (
-                                          <button
-                                            type="button"
-                                            onClick={() => handleAcknowledgeAlert(row)}
-                                            className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                                {cls.students.length === 0 ? (
+                                  <div style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>
+                                      No high-risk students detected.
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                                    {sortedClassStudents.map((row) => (
+                                      <div
+                                        key={`high-${cls.key}-${row.student.id}`}
+                                        className="rounded-xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#0A0A0A] p-3.5 space-y-2.5 shadow-2xs"
+                                      >
+                                        <div className="flex items-start justify-between gap-2">
+                                          <Link
+                                            to={`/tutor/students/${row.student.id}`}
+                                            state={{ from: 'dashboard' }}
+                                            onClick={() => setShowRiskList(false)}
+                                            className="group min-w-0 flex-1 no-underline"
                                           >
-                                            <CheckCircle2 size={14} />
-                                            <span>Acknowledge Alert</span>
-                                          </button>
-                                        )}
+                                            <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-[var(--brand)] transition-colors truncate m-0">
+                                              {row.student.full_name}
+                                            </p>
+                                            <p className="text-[11px] text-slate-400 font-mono m-0 mt-0.5">
+                                              LRN: {row.student.lrn || 'N/A'}
+                                            </p>
+                                          </Link>
+                                          <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
+                                            HIGH RISK
+                                          </span>
+                                        </div>
+
+                                        {/* Composite score */}
+                                        <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
+                                          <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Composite Score:</span>
+                                          <span className="font-extrabold text-rose-600 dark:text-rose-400">{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
+                                        </div>
+
+                                        {/* Recovery targets */}
+                                        <div className="flex flex-col gap-1.5 pt-0.5">
+                                          {row.neededPresentAttendance > 0 && (
+                                            <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50">
+                                              Need +{row.neededPresentAttendance} more Present records to improve risk level
+                                            </span>
+                                          )}
+                                          {row.neededPassedScores > 0 && (
+                                            <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
+                                              Need +{row.neededPassedScores} more Passed records to improve risk level
+                                            </span>
+                                          )}
+                                          {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
+                                            <span className="inline-flex items-center rounded bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
+                                              Need +1 more Passed record to improve risk level
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {/* Direct Acknowledge Alert button */}
+                                        <div className="pt-2 border-t border-slate-100 dark:border-neutral-800">
+                                          {acknowledgedAlerts[row.student.id] ? (
+                                            <div className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-lg">
+                                              <Check size={14} className="stroke-[3]" />
+                                              <span>Alert Addressed</span>
+                                            </div>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleAcknowledgeAlert(row)}
+                                              className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                                            >
+                                              <CheckCircle2 size={14} />
+                                              <span>Acknowledge Alert</span>
+                                            </button>
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ));
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          });
                         })()}
                       </div>
                     </div>
@@ -2009,30 +2170,36 @@ export const DashboardLayout: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowEditRequestsModal((prev) => !prev);
+                    setShowEditRequestsModal((prev) => {
+                      const next = !prev;
+                      if (next) {
+                        markNotificationsAsSeen();
+                      }
+                      return next;
+                    });
                     setShowRiskList(false);
                     setProfileMenuOpen(false);
                     setIsEditBellRinging(true);
                     setEditBellRingKey((prev) => prev + 1);
                   }}
-                  aria-label="NOTIFICATIONS"
+                  aria-label="Notifications"
                   title={
-                    totalNotificationsCount > 0
-                      ? `${totalNotificationsCount} Notification(s) Pending Review`
-                      : 'NOTIFICATIONS'
+                    displayNotifBadgeCount > 0
+                      ? `${displayNotifBadgeCount} Notification(s) Pending Review`
+                      : 'Notifications'
                   }
                   style={{
                     position: 'relative',
                     width: '38px',
                     height: '38px',
                     borderRadius: '10px',
-                    background: 'var(--surface-muted)',
-                    border: '1px solid var(--slate-200)',
+                    background: showEditRequestsModal ? 'var(--brand)' : 'var(--surface-muted)',
+                    border: `1px solid ${showEditRequestsModal ? 'var(--brand)' : 'var(--slate-200)'}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    color: 'var(--text-secondary)',
+                    color: showEditRequestsModal ? '#FFFFFF' : 'var(--text-secondary)',
                     transition: 'var(--transition-fast)',
                   }}
                   onMouseDown={(e) => {
@@ -2042,15 +2209,23 @@ export const DashboardLayout: React.FC = () => {
                     e.currentTarget.style.transform = 'scale(1)';
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--brand-light)';
-                    e.currentTarget.style.color = 'var(--brand-dark)';
-                    e.currentTarget.style.borderColor = 'var(--brand-border)';
+                    if (!showEditRequestsModal) {
+                      e.currentTarget.style.background = 'var(--brand-light)';
+                      e.currentTarget.style.color = 'var(--brand-dark)';
+                      e.currentTarget.style.borderColor = 'var(--brand-border)';
+                    }
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.background = 'var(--surface-muted)';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                    e.currentTarget.style.borderColor = 'var(--slate-200)';
+                    if (!showEditRequestsModal) {
+                      e.currentTarget.style.background = 'var(--surface-muted)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                      e.currentTarget.style.borderColor = 'var(--slate-200)';
+                    } else {
+                      e.currentTarget.style.background = 'var(--brand)';
+                      e.currentTarget.style.color = '#FFFFFF';
+                      e.currentTarget.style.borderColor = 'var(--brand)';
+                    }
                   }}
                 >
                   <span
@@ -2066,31 +2241,7 @@ export const DashboardLayout: React.FC = () => {
                   >
                     <Bell size={17} />
                   </span>
-                  {totalNotificationsCount > 0 && (
-                    <span
-                      className="animate-badge-pulse"
-                      style={{
-                        position: 'absolute',
-                        top: '-4px',
-                        right: '-4px',
-                        minWidth: '18px',
-                        height: '18px',
-                        padding: '0 4px',
-                        borderRadius: '99px',
-                        background: '#EF4444',
-                        color: '#fff',
-                        fontSize: '10px',
-                        fontWeight: 800,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '2px solid #fff',
-                        boxShadow: '0 0 10px rgba(239, 68, 68, 0.5)',
-                      }}
-                    >
-                      {totalNotificationsCount}
-                    </span>
-                  )}
+                  <SynchronizedPulseBadge count={displayNotifBadgeCount} />
                 </button>
 
                 {/* Edit Request Notifications Dropdown Popup */}
@@ -2114,31 +2265,37 @@ export const DashboardLayout: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowTutorNotifications((prev) => !prev);
+                    setShowTutorNotifications((prev) => {
+                      const next = !prev;
+                      if (next) {
+                        markNotificationsAsSeen();
+                      }
+                      return next;
+                    });
                     setShowRiskList(false);
                     setShowStudentEditRequests(false);
                     setProfileMenuOpen(false);
                     setIsBellRinging(true);
                     setBellRingKey((prev) => prev + 1);
                   }}
-                  aria-label="NOTIFICATIONS"
+                  aria-label="Notifications"
                   title={
-                    totalNotificationsCount > 0
-                      ? `${totalNotificationsCount} Notification(s)`
-                      : 'NOTIFICATIONS'
+                    displayNotifBadgeCount > 0
+                      ? `${displayNotifBadgeCount} Notification(s)`
+                      : 'Notifications'
                   }
                   style={{
                     position: 'relative',
                     width: '38px',
                     height: '38px',
                     borderRadius: '10px',
-                    background: 'var(--surface-muted)',
-                    border: '1px solid var(--slate-200)',
+                    background: showTutorNotifications ? 'var(--brand)' : 'var(--surface-muted)',
+                    border: `1px solid ${showTutorNotifications ? 'var(--brand)' : 'var(--slate-200)'}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    color: 'var(--text-secondary)',
+                    color: showTutorNotifications ? '#FFFFFF' : 'var(--text-secondary)',
                     transition: 'var(--transition-fast)',
                   }}
                   onMouseDown={(e) => {
@@ -2148,15 +2305,23 @@ export const DashboardLayout: React.FC = () => {
                     e.currentTarget.style.transform = 'scale(1)';
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--brand-light)';
-                    e.currentTarget.style.color = 'var(--brand-dark)';
-                    e.currentTarget.style.borderColor = 'var(--brand-border)';
+                    if (!showTutorNotifications) {
+                      e.currentTarget.style.background = 'var(--brand-light)';
+                      e.currentTarget.style.color = 'var(--brand-dark)';
+                      e.currentTarget.style.borderColor = 'var(--brand-border)';
+                    }
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.background = 'var(--surface-muted)';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                    e.currentTarget.style.borderColor = 'var(--slate-200)';
+                    if (!showTutorNotifications) {
+                      e.currentTarget.style.background = 'var(--surface-muted)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                      e.currentTarget.style.borderColor = 'var(--slate-200)';
+                    } else {
+                      e.currentTarget.style.background = 'var(--brand)';
+                      e.currentTarget.style.color = '#FFFFFF';
+                      e.currentTarget.style.borderColor = 'var(--brand)';
+                    }
                   }}
                 >
                   <span
@@ -2172,31 +2337,7 @@ export const DashboardLayout: React.FC = () => {
                   >
                     <Bell size={17} />
                   </span>
-                  {totalNotificationsCount > 0 && (
-                    <span
-                      className="animate-badge-pulse"
-                      style={{
-                        position: 'absolute',
-                        top: '-4px',
-                        right: '-4px',
-                        minWidth: '18px',
-                        height: '18px',
-                        padding: '0 4px',
-                        borderRadius: '99px',
-                        background: '#EF4444',
-                        color: '#fff',
-                        fontSize: '10px',
-                        fontWeight: 800,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '2px solid #fff',
-                        boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)',
-                      }}
-                    >
-                      {totalNotificationsCount}
-                    </span>
-                  )}
+                  <SynchronizedPulseBadge count={displayNotifBadgeCount} />
                 </button>
 
                 {/* Notifications Dropdown */}
@@ -2215,93 +2356,64 @@ export const DashboardLayout: React.FC = () => {
                     >
                       <div
                         style={{
-                          padding: '0.875rem 1.25rem',
-                          background: 'var(--surface-muted)',
-                          borderBottom: '1px solid var(--slate-200)',
+                          padding: '1rem 1.25rem 0.625rem',
+                          background: 'var(--surface-card)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <Bell size={15} className="text-slate-600 dark:text-slate-300" />
-                          <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                            NOTIFICATIONS
-                          </p>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              fetchEditRequests();
-                              fetchTickets();
-                              fetchAnnouncements();
-                            }}
-                            title="Refresh status"
-                            aria-label="Refresh status"
-                            style={{
-                              width: '30px',
-                              height: '30px',
-                              borderRadius: '8px',
-                              border: 'none',
-                              background: 'transparent',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              color: 'var(--text-muted)',
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                          >
-                            <RefreshCw size={14} className={isLoadingEditRequests ? 'animate-spin' : ''} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowTutorNotifications(false)}
-                            aria-label="Close notifications"
-                            style={{
-                              width: '30px',
-                              height: '30px',
-                              borderRadius: '8px',
-                              border: 'none',
-                              background: 'transparent',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              color: 'var(--text-muted)',
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
+                        <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                          Notifications
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setShowTutorNotifications(false)}
+                          aria-label="Close notifications"
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: 'var(--text-muted)',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-100)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
 
                       {/* Filter Tabs Bar */}
                       <div
+                        className="no-scrollbar"
                         style={{
                           display: 'flex',
-                          flexWrap: 'wrap',
                           alignItems: 'center',
-                          gap: '0.35rem',
-                          padding: '0.45rem 1rem',
-                          borderBottom: '1px solid var(--slate-200)',
-                          background: 'var(--surface)',
+                          gap: '0.25rem',
+                          padding: '0.25rem 1.25rem 0.625rem',
+                          background: 'var(--surface-card)',
+                          overflowX: 'auto',
+                          flexWrap: 'nowrap',
+                          WebkitOverflowScrolling: 'touch',
                         }}
                       >
                         <button
                           type="button"
                           onClick={() => setUserNotificationFilter('all')}
                           style={{
-                            padding: '3px 8px',
+                            padding: '3px 7px',
                             borderRadius: '6px',
-                            fontSize: '0.7rem',
+                            fontSize: '0.68rem',
                             fontWeight: 700,
                             border: 'none',
                             cursor: 'pointer',
+                            flexShrink: 0,
                             background: userNotificationFilter === 'all' ? '#0052B7' : 'var(--slate-100)',
                             color: userNotificationFilter === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
                             whiteSpace: 'nowrap',
@@ -2313,12 +2425,13 @@ export const DashboardLayout: React.FC = () => {
                           type="button"
                           onClick={() => setUserNotificationFilter('tickets')}
                           style={{
-                            padding: '3px 8px',
+                            padding: '3px 7px',
                             borderRadius: '6px',
-                            fontSize: '0.7rem',
+                            fontSize: '0.68rem',
                             fontWeight: 700,
                             border: 'none',
                             cursor: 'pointer',
+                            flexShrink: 0,
                             background: userNotificationFilter === 'tickets' ? '#0052B7' : 'var(--slate-100)',
                             color: userNotificationFilter === 'tickets' ? '#FFFFFF' : 'var(--text-secondary)',
                             whiteSpace: 'nowrap',
@@ -2330,12 +2443,13 @@ export const DashboardLayout: React.FC = () => {
                           type="button"
                           onClick={() => setUserNotificationFilter('edits')}
                           style={{
-                            padding: '3px 8px',
+                            padding: '3px 7px',
                             borderRadius: '6px',
-                            fontSize: '0.7rem',
+                            fontSize: '0.68rem',
                             fontWeight: 700,
                             border: 'none',
                             cursor: 'pointer',
+                            flexShrink: 0,
                             background: userNotificationFilter === 'edits' ? '#0052B7' : 'var(--slate-100)',
                             color: userNotificationFilter === 'edits' ? '#FFFFFF' : 'var(--text-secondary)',
                             whiteSpace: 'nowrap',
@@ -2347,12 +2461,13 @@ export const DashboardLayout: React.FC = () => {
                           type="button"
                           onClick={() => setUserNotificationFilter('updates')}
                           style={{
-                            padding: '3px 8px',
+                            padding: '3px 7px',
                             borderRadius: '6px',
-                            fontSize: '0.7rem',
+                            fontSize: '0.68rem',
                             fontWeight: 700,
                             border: 'none',
                             cursor: 'pointer',
+                            flexShrink: 0,
                             background: userNotificationFilter === 'updates' ? '#0052B7' : 'var(--slate-100)',
                             color: userNotificationFilter === 'updates' ? '#FFFFFF' : 'var(--text-secondary)',
                             whiteSpace: 'nowrap',
@@ -2368,7 +2483,8 @@ export const DashboardLayout: React.FC = () => {
                           height: '420px',
                           maxHeight: 'calc(100vh - 140px)',
                           overflowY: 'auto',
-                          padding: '0.875rem 1rem',
+                          background: 'var(--surface-card)',
+                          padding: '0.5rem 1.25rem 1rem',
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '0.65rem',
@@ -2450,12 +2566,12 @@ export const DashboardLayout: React.FC = () => {
                                 }}
                               >
                                 {/* Header with Title, Status Badge, and Upper Right Date/Time */}
-                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                  <div>
-                                    <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                    <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                       {displayName}
                                     </p>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
+                                    <div style={{ flexShrink: 0 }}>
                                       {isPending && (
                                         <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
                                           Pending
@@ -2571,29 +2687,36 @@ export const DashboardLayout: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowStudentEditRequests((prev) => !prev);
+                    setShowStudentEditRequests((prev) => {
+                      const next = !prev;
+                      if (next) {
+                        markNotificationsAsSeen();
+                      }
+                      return next;
+                    });
+                    setShowRiskList(false);
                     setProfileMenuOpen(false);
                     setIsBellRinging(true);
                     setBellRingKey((prev) => prev + 1);
                   }}
-                  aria-label="NOTIFICATIONS"
+                  aria-label="Notifications"
                   title={
-                    totalNotificationsCount > 0
-                      ? `${totalNotificationsCount} Notification(s) Pending Review`
-                      : 'NOTIFICATIONS'
+                    displayNotifBadgeCount > 0
+                      ? `${displayNotifBadgeCount} Notification(s) Pending Review`
+                      : 'Notifications'
                   }
                   style={{
                     position: 'relative',
                     width: '38px',
                     height: '38px',
                     borderRadius: '10px',
-                    background: 'var(--surface-muted)',
-                    border: '1px solid var(--slate-200)',
+                    background: showStudentEditRequests ? 'var(--brand)' : 'var(--surface-muted)',
+                    border: `1px solid ${showStudentEditRequests ? 'var(--brand)' : 'var(--slate-200)'}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    color: 'var(--text-secondary)',
+                    color: showStudentEditRequests ? '#FFFFFF' : 'var(--text-secondary)',
                     transition: 'var(--transition-fast)',
                   }}
                   onMouseDown={(e) => {
@@ -2603,15 +2726,23 @@ export const DashboardLayout: React.FC = () => {
                     e.currentTarget.style.transform = 'scale(1)';
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--brand-light)';
-                    e.currentTarget.style.color = 'var(--brand-dark)';
-                    e.currentTarget.style.borderColor = 'var(--brand-border)';
+                    if (!showStudentEditRequests) {
+                      e.currentTarget.style.background = 'var(--brand-light)';
+                      e.currentTarget.style.color = 'var(--brand-dark)';
+                      e.currentTarget.style.borderColor = 'var(--brand-border)';
+                    }
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.background = 'var(--surface-muted)';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                    e.currentTarget.style.borderColor = 'var(--slate-200)';
+                    if (!showStudentEditRequests) {
+                      e.currentTarget.style.background = 'var(--surface-muted)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                      e.currentTarget.style.borderColor = 'var(--slate-200)';
+                    } else {
+                      e.currentTarget.style.background = 'var(--brand)';
+                      e.currentTarget.style.color = '#FFFFFF';
+                      e.currentTarget.style.borderColor = 'var(--brand)';
+                    }
                   }}
                 >
                   <span
@@ -2627,31 +2758,7 @@ export const DashboardLayout: React.FC = () => {
                   >
                     <Bell size={17} />
                   </span>
-                  {totalNotificationsCount > 0 && (
-                    <span
-                      className="animate-badge-pulse"
-                      style={{
-                        position: 'absolute',
-                        top: '-4px',
-                        right: '-4px',
-                        minWidth: '18px',
-                        height: '18px',
-                        padding: '0 4px',
-                        borderRadius: '99px',
-                        background: '#EF4444',
-                        color: '#fff',
-                        fontSize: '10px',
-                        fontWeight: 800,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '2px solid #fff',
-                        boxShadow: '0 0 8px rgba(239, 68, 68, 0.5)',
-                      }}
-                    >
-                      {totalNotificationsCount}
-                    </span>
-                  )}
+                  <SynchronizedPulseBadge count={displayNotifBadgeCount} />
                 </button>
 
                 {/* Student Notifications Dropdown */}
@@ -2670,93 +2777,64 @@ export const DashboardLayout: React.FC = () => {
                     >
                       <div
                         style={{
-                          padding: '0.875rem 1.25rem',
-                          background: 'var(--surface-muted)',
-                          borderBottom: '1px solid var(--slate-200)',
+                          padding: '1rem 1.25rem 0.625rem',
+                          background: 'var(--surface-card)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <Bell size={15} className="text-slate-600 dark:text-slate-300" />
-                          <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                            NOTIFICATIONS
-                          </p>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              fetchEditRequests();
-                              fetchTickets();
-                              fetchAnnouncements();
-                            }}
-                            title="Refresh status"
-                            aria-label="Refresh status"
-                            style={{
-                              width: '30px',
-                              height: '30px',
-                              borderRadius: '8px',
-                              border: 'none',
-                              background: 'transparent',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              color: 'var(--text-muted)',
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                          >
-                            <RefreshCw size={14} className={isLoadingEditRequests ? 'animate-spin' : ''} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowStudentEditRequests(false)}
-                            aria-label="Close notifications"
-                            style={{
-                              width: '30px',
-                              height: '30px',
-                              borderRadius: '8px',
-                              border: 'none',
-                              background: 'transparent',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              color: 'var(--text-muted)',
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-200)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
+                        <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                          Notifications
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setShowStudentEditRequests(false)}
+                          aria-label="Close notifications"
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: 'var(--text-muted)',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--slate-100)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
 
                       {/* Filter Tabs Bar */}
                       <div
+                        className="no-scrollbar"
                         style={{
                           display: 'flex',
-                          flexWrap: 'wrap',
                           alignItems: 'center',
-                          gap: '0.35rem',
-                          padding: '0.45rem 1rem',
-                          borderBottom: '1px solid var(--slate-200)',
-                          background: 'var(--surface)',
+                          gap: '0.25rem',
+                          padding: '0.25rem 1.25rem 0.625rem',
+                          background: 'var(--surface-card)',
+                          overflowX: 'auto',
+                          flexWrap: 'nowrap',
+                          WebkitOverflowScrolling: 'touch',
                         }}
                       >
                         <button
                           type="button"
                           onClick={() => setUserNotificationFilter('all')}
                           style={{
-                            padding: '3px 8px',
+                            padding: '3px 7px',
                             borderRadius: '6px',
-                            fontSize: '0.7rem',
+                            fontSize: '0.68rem',
                             fontWeight: 700,
                             border: 'none',
                             cursor: 'pointer',
+                            flexShrink: 0,
                             background: userNotificationFilter === 'all' ? '#0052B7' : 'var(--slate-100)',
                             color: userNotificationFilter === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
                             whiteSpace: 'nowrap',
@@ -2768,12 +2846,13 @@ export const DashboardLayout: React.FC = () => {
                           type="button"
                           onClick={() => setUserNotificationFilter('tickets')}
                           style={{
-                            padding: '3px 8px',
+                            padding: '3px 7px',
                             borderRadius: '6px',
-                            fontSize: '0.7rem',
+                            fontSize: '0.68rem',
                             fontWeight: 700,
                             border: 'none',
                             cursor: 'pointer',
+                            flexShrink: 0,
                             background: userNotificationFilter === 'tickets' ? '#0052B7' : 'var(--slate-100)',
                             color: userNotificationFilter === 'tickets' ? '#FFFFFF' : 'var(--text-secondary)',
                             whiteSpace: 'nowrap',
@@ -2785,12 +2864,13 @@ export const DashboardLayout: React.FC = () => {
                           type="button"
                           onClick={() => setUserNotificationFilter('edits')}
                           style={{
-                            padding: '3px 8px',
+                            padding: '3px 7px',
                             borderRadius: '6px',
-                            fontSize: '0.7rem',
+                            fontSize: '0.68rem',
                             fontWeight: 700,
                             border: 'none',
                             cursor: 'pointer',
+                            flexShrink: 0,
                             background: userNotificationFilter === 'edits' ? '#0052B7' : 'var(--slate-100)',
                             color: userNotificationFilter === 'edits' ? '#FFFFFF' : 'var(--text-secondary)',
                             whiteSpace: 'nowrap',
@@ -2802,12 +2882,13 @@ export const DashboardLayout: React.FC = () => {
                           type="button"
                           onClick={() => setUserNotificationFilter('updates')}
                           style={{
-                            padding: '3px 8px',
+                            padding: '3px 7px',
                             borderRadius: '6px',
-                            fontSize: '0.7rem',
+                            fontSize: '0.68rem',
                             fontWeight: 700,
                             border: 'none',
                             cursor: 'pointer',
+                            flexShrink: 0,
                             background: userNotificationFilter === 'updates' ? '#0052B7' : 'var(--slate-100)',
                             color: userNotificationFilter === 'updates' ? '#FFFFFF' : 'var(--text-secondary)',
                             whiteSpace: 'nowrap',
@@ -2823,7 +2904,8 @@ export const DashboardLayout: React.FC = () => {
                           height: '420px',
                           maxHeight: 'calc(100vh - 140px)',
                           overflowY: 'auto',
-                          padding: '0.875rem 1rem',
+                          background: 'var(--surface-card)',
+                          padding: '0.5rem 1.25rem 1rem',
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '0.65rem',
@@ -2901,12 +2983,12 @@ export const DashboardLayout: React.FC = () => {
                                 }}
                               >
                                 {/* Header with Title, Status Badge, and Upper Right Date/Time */}
-                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                  <div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                                     <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                                       Profile Details Update
                                     </p>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                       {isPending && (
                                         <span style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(245, 158, 11, 0.15)', color: '#D97706', fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', textTransform: 'uppercase' }}>
                                           Pending
