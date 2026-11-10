@@ -178,11 +178,7 @@ export const StudentProfileHistoryModal: React.FC<StudentProfileHistoryModalProp
                               {en.grade_level}
                             </span>
                             <span
-                              className={`text-[11px] font-bold px-2 py-0.5 rounded-md uppercase ${
-                                en.program.toLowerCase() === 'plus'
-                                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
-                                  : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
-                              }`}
+                              className="text-[11px] font-bold px-2 py-0.5 rounded-md uppercase border border-slate-200 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300"
                             >
                               {en.program}
                             </span>

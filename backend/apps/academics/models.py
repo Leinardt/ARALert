@@ -932,28 +932,6 @@ class ApiGrade(models.Model):
         return f'{self.student} – {self.subject} Q{self.quarter}: {self.score}'
 
 
-# Ensure unmanaged api_grade table has created_at column if missing (e.g. SQLite legacy DB)
-try:
-    from django.db import connection
-    if 'api_grade' in connection.introspection.table_names():
-        with connection.cursor() as _cur:
-            if connection.vendor == 'sqlite':
-                _cur.execute("PRAGMA table_info(api_grade)")
-                _cols = [row[1] for row in _cur.fetchall()]
-                if _cols and 'created_at' not in _cols:
-                    _cur.execute("ALTER TABLE api_grade ADD COLUMN created_at datetime")
-                    _cur.execute("UPDATE api_grade SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
-    if 'api_attendance' in connection.introspection.table_names():
-        with connection.cursor() as _cur:
-            if connection.vendor == 'sqlite':
-                _cur.execute("PRAGMA table_info(api_attendance)")
-                _cols = [row[1] for row in _cur.fetchall()]
-                if _cols and 'school_year_id' not in _cols:
-                    _cur.execute("ALTER TABLE api_attendance ADD COLUMN school_year_id integer REFERENCES school_year(id)")
-except Exception:
-    pass
-
-
 
 class ApiAralActivity(models.Model):
     """Maps to the api_aral_activity table."""

@@ -3,6 +3,7 @@ Evaluation, School Year Management, Archive, and Summer Remediation API Views.
 """
 
 import logging
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status
@@ -239,8 +240,9 @@ class MosyProcessView(APIView):
             return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.exception("Failed to process MOSY completion: %s", e)
+            err_msg = f'Failed to finalize MOSY: {str(e)}' if settings.DEBUG else 'Failed to finalize MOSY.'
             return Response(
-                {'error': f'Failed to finalize MOSY: {str(e)}'},
+                {'error': err_msg},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -255,8 +257,9 @@ class MosyAssignmentsView(APIView):
             return Response(data, status=status.HTTP_200_OK)
         except Exception as e:
             logger.exception("Failed to load MOSY assignments: %s", e)
+            err_msg = f'Failed to load MOSY assignments: {str(e)}' if settings.DEBUG else 'Failed to load MOSY assignments.'
             return Response(
-                {'error': f'Failed to load MOSY assignments: {str(e)}'},
+                {'error': err_msg},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -276,8 +279,9 @@ class AssignmentQueueView(APIView):
             return Response(data, status=status.HTTP_200_OK)
         except Exception as e:
             logger.exception("Failed to load assignment queue: %s", e)
+            err_msg = f'Failed to load assignment queue: {str(e)}' if settings.DEBUG else 'Failed to load assignment queue.'
             return Response(
-                {'error': f'Failed to load assignment queue: {str(e)}'},
+                {'error': err_msg},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -336,7 +340,9 @@ class StartNewSchoolYearView(APIView):
                 msg = str(e)
             return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'error': f'Transition failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("School year transition execution error: %s", e)
+            err_msg = f'Transition failed: {str(e)}' if settings.DEBUG else 'Transition failed.'
+            return Response({'error': err_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ---------------------------------------------------------------------------
@@ -551,6 +557,11 @@ class SchoolYearArchiveDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, school_year):
+        if request.user.role == 'student':
+            return Response(
+                {'error': 'Students are not authorized to view school year archives.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         sy = get_object_or_404(SchoolYear, school_year=school_year)
         enrollments = StudentEnrollment.objects.filter(school_year=sy).select_related(
             'student', 'assigned_tutor', 'school_year'
@@ -593,6 +604,11 @@ class StudentCompleteHistoryView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, student_id):
+        if request.user.role == 'student' and str(request.user.id) != str(student_id):
+            return Response(
+                {'error': 'You do not have permission to view another student\'s history.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         student = get_object_or_404(User, id=student_id, role='student')
 
         # Enrollments across all school years
@@ -680,6 +696,12 @@ class TutorCohortHistoryView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, tutor_id=None):
+        if request.user.role == 'student':
+            return Response(
+                {'error': 'Students are not authorized to view tutor cohort history.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         if tutor_id is None:
             if request.user.role == 'tutor':
                 tutor_id = str(request.user.id)
@@ -690,6 +712,11 @@ class TutorCohortHistoryView(APIView):
                         {'error': 'Tutor ID is required for non-tutor users.'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
+        elif request.user.role == 'tutor' and str(request.user.id) != str(tutor_id):
+            return Response(
+                {'error': 'You do not have permission to view another tutor\'s cohort history.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         sy = request.query_params.get('school_year')
         try:
@@ -699,4 +726,6 @@ class TutorCohortHistoryView(APIView):
             msg = e.message_dict if hasattr(e, 'message_dict') else str(e)
             return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("Error in TutorCohortHistoryView: %s", e)
+            err_msg = str(e) if settings.DEBUG else 'An unexpected error occurred while loading cohort history.'
+            return Response({'error': err_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -22,7 +22,7 @@ export const CardSkeleton: React.FC<{
 }> = ({ className = '', rows = 3 }) => {
   return (
     <div
-      className={`p-4 sm:p-5 rounded-xl border border-slate-200/80 dark:border-neutral-800 bg-white dark:bg-[#000000] animate-pulse space-y-3 ${className}`}
+      className={`p-4 sm:p-5 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] animate-pulse space-y-3 ${className}`}
     >
       <div className="flex items-center justify-between">
         <Skeleton className="h-3 w-28" />
@@ -51,7 +51,7 @@ export const StatsGridSkeleton: React.FC<{
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="p-4 rounded-xl border border-slate-200/80 dark:border-neutral-800 bg-white dark:bg-[#000000] animate-pulse space-y-2.5"
+          className="p-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] animate-pulse space-y-2.5"
         >
           <div className="flex items-center justify-between">
             <Skeleton className="h-2.5 w-20" />
@@ -72,13 +72,13 @@ export const TableSkeleton: React.FC<{
 }> = ({ rows = 5, cols = 4, className = '' }) => {
   return (
     <div
-      className={`rounded-xl border border-slate-200/80 dark:border-neutral-800 bg-white dark:bg-[#000000] overflow-hidden ${className}`}
+      className={`rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden ${className}`}
     >
-      <div className="p-4 border-b border-slate-100 dark:border-neutral-800/80 flex items-center justify-between animate-pulse">
+      <div className="p-4 border-b border-gray-100 dark:border-[#1A1A1A] flex items-center justify-between animate-pulse">
         <Skeleton className="h-4 w-36" />
         <Skeleton className="h-4 w-20" />
       </div>
-      <div className="divide-y divide-slate-100 dark:divide-neutral-800/60">
+      <div className="divide-y divide-gray-100 dark:divide-[#1A1A1A]">
         {Array.from({ length: rows }).map((_, r) => (
           <div key={r} className="p-3.5 flex items-center justify-between gap-4 animate-pulse">
             <div className="flex items-center gap-3 flex-1">

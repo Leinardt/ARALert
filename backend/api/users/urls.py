@@ -4,6 +4,14 @@ Users API URL configuration.
 
 from django.urls import path
 
+from .ticket_views import (
+    ReportProblemView,
+    SupportTicketListView,
+    SupportTicketActionView,
+    SupportTicketDismissView,
+    SystemAnnouncementListCreateView,
+    SystemAnnouncementDetailView,
+)
 from .views import (
     AuditLogListView,
     BulkAssignTutorView,
@@ -23,6 +31,12 @@ from .views import (
 
 urlpatterns = [
     path('check-lrns/', CheckExistingLrnsView.as_view(), name='check-lrns'),
+    path('report-problem/', ReportProblemView.as_view(), name='report-problem'),
+    path('tickets/', SupportTicketListView.as_view(), name='support-ticket-list'),
+    path('tickets/<str:ticket_id>/action/', SupportTicketActionView.as_view(), name='support-ticket-action'),
+    path('tickets/<str:ticket_id>/dismiss-user/', SupportTicketDismissView.as_view(), name='support-ticket-dismiss-user'),
+    path('announcements/', SystemAnnouncementListCreateView.as_view(), name='system-announcements-list-create'),
+    path('announcements/<int:id>/', SystemAnnouncementDetailView.as_view(), name='system-announcement-detail'),
     path('stats/', UserStatsView.as_view(), name='user-stats'),
     path('sections/', ExistingSectionsView.as_view(), name='existing-sections'),
     path('tutors/', TutorListView.as_view(), name='tutor-list'),

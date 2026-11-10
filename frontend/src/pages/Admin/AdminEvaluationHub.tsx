@@ -12,6 +12,7 @@ import { SemesterTransitionModal } from '../../components/SemesterTransitionModa
 import { EvaluateSummerModal } from '../../components/EvaluateSummerModal';
 import { StudentProfileHistoryModal } from '../../components/StudentProfileHistoryModal';
 import { TableSkeleton } from '../../components/SkeletonLoader';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { matchesSearch } from '../../utils/searchHelpers';
 import {
   MosyMonitoringData,
@@ -1132,7 +1133,7 @@ export const AdminEvaluationHub: React.FC = () => {
 
       {/* ── Main Loading Skeleton State ────────────────────────────────────────────── */}
       {isLoading ? (
-        <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 sm:p-6 space-y-5 shadow-xs animate-pulse">
+        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-4 sm:p-6 space-y-5 shadow-sm animate-pulse">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="h-6 w-52 bg-slate-200 dark:bg-zinc-800 rounded-md" />
             <div className="h-9 w-48 bg-slate-200 dark:bg-zinc-800 rounded-xl" />
@@ -1146,7 +1147,7 @@ export const AdminEvaluationHub: React.FC = () => {
       ) : (
         <div className="space-y-6">
           {/* ── Assessment Status Card Container ──────────────────────────────────── */}
-          <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 sm:p-6 space-y-4 sm:space-y-5 shadow-xs">
+          <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-4 sm:p-6 space-y-4 sm:space-y-5 shadow-sm">
             {/* 1. Header Row: Bold Evaluation Status Label on Left with Active Badge & Transition Button on Top Right */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
@@ -1268,7 +1269,7 @@ export const AdminEvaluationHub: React.FC = () => {
               {/* Numerical completion info */}
               <div className="flex items-center shrink-0 whitespace-nowrap">
                 <span className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">
-                  {completedTutorsCount}/{totalTutorsCount} Tutor Evaluations
+                  <AnimatedCounter value={completedTutorsCount} />/{totalTutorsCount} Tutor Evaluations
                 </span>
               </div>
             </div>
@@ -1276,7 +1277,7 @@ export const AdminEvaluationHub: React.FC = () => {
             {/* 3. Table with Column Division Lines, Sortable Headers, and Strict ARAL Level */}
             <div className="overflow-x-auto mobile-scroll-table w-full rounded-md border border-gray-200 dark:border-[#1A1A1A]">
               {/* Table Search Toolbar */}
-              <div className="p-3 border-b border-gray-200 dark:border-[#1A1A1A] flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-[#0A0A0A]">
+              <div className="p-3 border-b border-gray-200 dark:border-[#1A1A1A] flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-[#111111]">
                 <div className="flex items-center">
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
                     Tutors List ({sortedAndFilteredTutorRows.length})

@@ -1,0 +1,84 @@
+name: Weekly High Risk Summary Digest
+
+on:
+  schedule:
+    # Runs every Friday at 16:00 UTC = Saturday at 12:00 AM PHT (UTC+8)
+    - cron: '0 16 * * 5'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run only (compute counts without sending emails)'
+        required: false
+        default: false
+        type: boolean
+      scope:
+        description: 'Digest scope (all, tutors, or principal)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - tutors
+          - principal
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch-weekly-digest:
+    name: Trigger ARALert Saturday 12AM PHT Risk Digest
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Trigger Weekly Risk Digest Endpoint
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          INPUT_SCOPE: ${{ inputs.scope || 'all' }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BACKEND_URL}" ] || [ -z "${CRON_SECRET}" ]; then
+            MSG="Missing BACKEND_URL or CRON_SECRET in GitHub Actions Repository Secrets."
+            if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+              echo "::error::${MSG}"
+              exit 1
+            else
+              echo "::warning::${MSG} Skipping scheduled run until secrets are configured."
+              exit 0
+            fi
+          fi
+
+          BASE_URL="${BACKEND_URL%/}"
+          ENDPOINT="${BASE_URL}/api/academics/cron/weekly-risk-digest/"
+
+          echo "[INFO] Waking up ARALert backend (Render cold-start check)..."
+          curl -sS --max-time 75 "${BASE_URL}/" > /dev/null || true
+          sleep 3
+
+          PAYLOAD=$(printf '{"dry_run": %s, "scope": "%s"}' "${INPUT_DRY_RUN}" "${INPUT_SCOPE}")
+          echo "[INFO] Invoking ${ENDPOINT} with scope=${INPUT_SCOPE}, dry_run=${INPUT_DRY_RUN}..."
+
+          HTTP_CODE=$(curl -sS -o response.json -w "%{http_code}" \
+            --retry 3 \
+            --retry-delay 15 \
+            --retry-connrefused \
+            --max-time 120 \
+            -X POST "${ENDPOINT}" \
+            -H "Content-Type: application/json" \
+            -H "X-Cron-Key: ${CRON_SECRET}" \
+            -d "${PAYLOAD}")
+
+          echo "[INFO] Response HTTP ${HTTP_CODE}:"
+          cat response.json
+          echo ""
+
+          if [ "${HTTP_CODE}" -lt 200 ] || [ "${HTTP_CODE}" -ge 300 ]; then
+            echo "::error::Weekly risk digest failed with HTTP status ${HTTP_CODE}."
+            exit 1
+          fi
+
+          echo "[OK] Weekly High Risk Summary Digest completed."
+

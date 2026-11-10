@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Search, AlertTriangle, Download, Calendar, ChevronLeft, ChevronRight, ChevronDown, X } from 'lucide-react';
 import api from '../../api/axios';
 import { TablePagination } from '../../components/TablePagination';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { useAuth } from '../../hooks/useAuth';
 import { ExportAuditLogModal } from '../../components/ExportAuditLogModal';
 
@@ -460,7 +461,7 @@ export const AuditLog: React.FC = () => {
       {/* ── Filters Bar ── */}
       <form
         onSubmit={handleSearch}
-        className="p-3 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs flex flex-wrap items-end gap-2.5 sm:gap-3"
+        className="p-3 sm:p-5 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm flex flex-wrap items-end gap-2.5 sm:gap-3"
       >
         {/* Filter by Event */}
         <div className="flex flex-col gap-1.5 w-full sm:flex-1 sm:min-w-[200px]">
@@ -582,7 +583,7 @@ export const AuditLog: React.FC = () => {
       </form>
 
       {/* ── Log Table Container (30 records per page) ── */}
-      <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs overflow-hidden">
+      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm overflow-hidden">
         
         {/* Active Filters (if any) */}
         {(eventFilter || dateFilter || searchFilter) && (
@@ -845,7 +846,7 @@ export const AuditLog: React.FC = () => {
             customShowingText={
               <span>
                 Showing <strong className="font-semibold text-gray-800 dark:text-slate-200">{data.results.length}</strong> of{' '}
-                <strong className="font-semibold text-gray-800 dark:text-slate-200">{data.count}</strong> events (30 per page)
+                <strong className="font-semibold text-gray-800 dark:text-slate-200"><AnimatedCounter value={data.count} /></strong> events (30 per page)
               </span>
             }
           />

@@ -7,6 +7,17 @@ __pycache__/
 desktop.ini
 Thumbs.db
 
+# Virtual Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Logs
+*.log
+backend/logs/*.log
+!backend/logs/.gitkeep
+
 # Node / Frontend
 node_modules/
 node_modules*/

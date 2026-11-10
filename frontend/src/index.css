@@ -595,11 +595,17 @@ html, body, #root {
   background-color: #000000 !important;
 }
 
-.dark [role="dialog"],
+.dark [role="dialog"]:not(.fixed):not([class*="fixed"]):not([class*="inset-0"]),
 .dark .modal-content,
 .dark .modal-box {
   background-color: #000000 !important;
   border-color: #27272a !important;
+}
+
+/* Ensure modal backdrops with backdrop blur retain their translucent background in Dark Mode */
+.dark .fixed[class*="inset-0"][class*="backdrop-"],
+.dark [class*="fixed"][class*="inset-0"][class*="backdrop-"] {
+  background-color: rgba(0, 0, 0, 0.45) !important;
 }
 
 :root {
@@ -742,8 +748,12 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
 }
 
 @keyframes badge-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6); }
-  50%       { box-shadow: 0 0 0 5px rgba(239,68,68,0); }
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7), 0 0 4px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0), 0 0 4px rgba(239, 68, 68, 0.4);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -910,21 +920,9 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Facebook-Style Hollow Skeleton Loading System
-   (Instant Static Skeleton Display + Smooth Down-to-Up Real Data Arrival)
+   1:1 Instant Skeleton Loading System
+   (Instant Static Skeleton Display + Zero Upward Translation On Finish)
    ═══════════════════════════════════════════════════════════════ */
-
-/* ── Smooth Arrival for Real Data Containers (When Data Is Ready) ── */
-@keyframes data-container-arrive-up {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, 20px, 0);
-  }
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
 
 /* Skeletons are already there statically with zero entry animation */
 .skeleton-container,
@@ -944,6 +942,9 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
 [role="tablist"],
 .no-arrive-animation,
 .modal-backdrop-static,
+.data-loaded-content,
+.data-loaded-content > *,
+.content-arrive-up,
 .data-loaded-content > .fixed,
 .data-loaded-content > [role="dialog"],
 .data-loaded-content > [class*="fixed"] {
@@ -969,45 +970,13 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
   will-change: transform, opacity;
 }
 
-/* Real data content cards glide up smoothly ONLY when data is ready */
-.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):not(.modal-backdrop-static):not(.fixed):not([class*="fixed"]):not([role="dialog"]):not(.skeleton-container):not([class*="skeleton-row-"]):not([class*="animate-pulse"]),
-.content-arrive-up {
-  animation: data-container-arrive-up 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: transform, opacity;
-}
-
-/* Stagger real data tiers from top to bottom */
-.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):not(.modal-backdrop-static):not(.fixed):not([class*="fixed"]):not([role="dialog"]):nth-child(1) {
-  animation-delay: 0.04s;
-}
-.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):not(.modal-backdrop-static):not(.fixed):not([class*="fixed"]):not([role="dialog"]):nth-child(2) {
-  animation-delay: 0.14s;
-}
-.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):not(.modal-backdrop-static):not(.fixed):not([class*="fixed"]):not([role="dialog"]):nth-child(3) {
-  animation-delay: 0.24s;
-}
-.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):not(.modal-backdrop-static):not(.fixed):not([class*="fixed"]):not([role="dialog"]):nth-child(4) {
-  animation-delay: 0.34s;
-}
-.data-loaded-content > *:not([role="tablist"]):not(.no-arrive-animation):not(.modal-backdrop-static):not(.fixed):not([class*="fixed"]):not([role="dialog"]):nth-child(5) {
-  animation-delay: 0.44s;
-}
-
-.data-loaded-content .grid > *:nth-child(1) { animation-delay: 0.16s; }
-.data-loaded-content .grid > *:nth-child(2) { animation-delay: 0.22s; }
-.data-loaded-content .grid > *:nth-child(3) { animation-delay: 0.28s; }
-.data-loaded-content .grid > *:nth-child(4) { animation-delay: 0.34s; }
-
-/* ── True Top-to-Bottom Downward Hollow Wipe (Direct on Elements) ── */
-@keyframes fb-hollow-wipe-down {
+/* ── True Left-to-Right Horizontal Shimmer Wipe (Direct on Elements) ── */
+@keyframes skeleton-shimmer-ltr {
   0% {
-    background-position: 0% 100%;
+    background-position: 150% 0;
   }
-  26% {
-    background-position: 0% 0%;
-  }
-  26.001%, 100% {
-    background-position: 0% 100%;
+  100% {
+    background-position: -150% 0;
   }
 }
 
@@ -1026,7 +995,7 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
   display: none !important;
 }
 
-/* ── Base Hollow Skeleton Elements (Solid Cavity + Top-to-Bottom Diffuse Wash) ── */
+/* ── Base Hollow Skeleton Elements (Solid Cavity + Left-to-Right Shimmer) ── */
 .skeleton,
 .skeleton-box,
 [class*="animate-pulse"] [class*="bg-gray-"],
@@ -1036,18 +1005,20 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
 [class*="bg-slate-"].animate-pulse {
   background-color: #E4E6EB !important;
   background-image: linear-gradient(
-    180deg,
+    90deg,
     #E4E6EB 0%,
-    #E4E6EB 35%,
-    #FFFFFF 50%,
-    #E4E6EB 65%,
+    #E4E6EB 30%,
+    #F4F5F7 50%,
+    #FFFFFF 55%,
+    #F4F5F7 60%,
+    #E4E6EB 70%,
     #E4E6EB 100%
   ) !important;
-  background-size: 100% 400% !important;
+  background-size: 250% 100% !important;
   background-repeat: no-repeat !important;
-  box-shadow: inset 0 1.5px 2.5px rgba(0, 0, 0, 0.08), inset 0 -0.5px 1px rgba(255, 255, 255, 0.6) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06), inset 0 -0.5px 1px rgba(255, 255, 255, 0.6) !important;
   border-radius: var(--radius-md);
-  animation: fb-hollow-wipe-down 3.8s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+  animation: skeleton-shimmer-ltr 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
 }
 
 .dark .skeleton,
@@ -1069,255 +1040,56 @@ input::-ms-reveal, input::-ms-clear { display: none !important; }
 .dark [class*="dark:bg-slate-"].animate-pulse,
 :root.dark [class*="dark:bg-gray-"].animate-pulse,
 :root.dark [class*="dark:bg-slate-"].animate-pulse {
-  background-color: #242526 !important;
+  background-color: #1A1A1A !important;
   background-image: linear-gradient(
-    180deg,
-    #242526 0%,
-    #242526 35%,
-    #3E4044 50%,
-    #242526 65%,
-    #242526 100%
+    90deg,
+    #1A1A1A 0%,
+    #1A1A1A 30%,
+    #252525 50%,
+    #333333 55%,
+    #252525 60%,
+    #1A1A1A 70%,
+    #1A1A1A 100%
   ) !important;
-  background-size: 100% 400% !important;
+  background-size: 250% 100% !important;
   background-repeat: no-repeat !important;
-  box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.65), inset 0 -0.5px 1px rgba(255, 255, 255, 0.04) !important;
-  animation: fb-hollow-wipe-down 3.8s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.65), inset 0 -0.5px 1px rgba(255, 255, 255, 0.04) !important;
+  animation: skeleton-shimmer-ltr 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
 }
 
-/* ── Unified Top-to-Bottom Wave Across Rows (Cascading Descent) ── */
-
-/*
-  CRITICAL: skeleton-row-* classes are the source of truth for animation delay.
-  They must win over any auto nth-child cascade that fires on gap-3.5 / space-y-* parents.
-  Use !important to ensure specificity over the auto-cascade selectors below.
-*/
-
-/* Row 1: Header / Top Section (Starts first at 0.0s) — ALL descendants */
+/* Unified Left-to-Right Synchronized Timing (No Multi-Second Row Delays) */
 .skeleton-row-1 [class*="bg-gray-"],
 .skeleton-row-1 [class*="dark:bg-gray-"],
 .skeleton-row-1 [class*="bg-slate-"],
 .skeleton-row-1 .skeleton,
-/* Force every nth-child inside row-1 to 0s so inner gap-3.5 cards don't stagger */
-.skeleton-row-1 > *:nth-child(n) [class*="bg-gray-"],
-.skeleton-row-1 > *:nth-child(n) [class*="dark:bg-gray-"],
-.skeleton-row-1 > *:nth-child(n) [class*="bg-slate-"],
-.skeleton-row-1 > * [class*="bg-gray-"],
-.skeleton-row-1 > * [class*="dark:bg-gray-"],
-.skeleton-row-1 > * [class*="bg-slate-"],
-.space-y-5 > *:nth-child(1) [class*="bg-gray-"],
-.space-y-5 > *:nth-child(1) [class*="dark:bg-gray-"],
-.space-y-5 > *:nth-child(1) [class*="bg-slate-"],
-.space-y-5 > *:nth-child(1) .skeleton,
-.space-y-6 > *:nth-child(1):not([role="tablist"]) [class*="bg-gray-"],
-.space-y-6 > *:nth-child(1):not([role="tablist"]) [class*="dark:bg-gray-"],
-.space-y-6 > *:nth-child(1):not([role="tablist"]) [class*="bg-slate-"],
-.space-y-6 > *:nth-child(1):not([role="tablist"]) .skeleton,
-.space-y-6 > [role="tablist"] + *:nth-child(2) [class*="bg-gray-"],
-.space-y-6 > [role="tablist"] + *:nth-child(2) [class*="dark:bg-gray-"],
-.space-y-6 > [role="tablist"] + *:nth-child(2) [class*="bg-slate-"],
-.space-y-6 > [role="tablist"] + *:nth-child(2) .skeleton,
-.gap-3\.5 > *:nth-child(1) [class*="bg-gray-"],
-.gap-3\.5 > *:nth-child(1) [class*="dark:bg-gray-"],
-.gap-3\.5 > *:nth-child(1) [class*="bg-slate-"],
-.gap-3\.5 > *:nth-child(1) .skeleton {
-  animation-delay: 0s !important;
-}
-
-/* Row 2: Secondary / Content Section (Descends to Row 2 at 0.80s) */
 .skeleton-row-2 [class*="bg-gray-"],
 .skeleton-row-2 [class*="dark:bg-gray-"],
 .skeleton-row-2 [class*="bg-slate-"],
 .skeleton-row-2 .skeleton,
-.space-y-5 > *:nth-child(2) [class*="bg-gray-"],
-.space-y-5 > *:nth-child(2) [class*="dark:bg-gray-"],
-.space-y-5 > *:nth-child(2) [class*="bg-slate-"],
-.space-y-5 > *:nth-child(2) .skeleton,
-.space-y-6 > *:nth-child(2):not([role="tablist"]) [class*="bg-gray-"],
-.space-y-6 > *:nth-child(2):not([role="tablist"]) [class*="dark:bg-gray-"],
-.space-y-6 > *:nth-child(2):not([role="tablist"]) [class*="bg-slate-"],
-.space-y-6 > *:nth-child(2):not([role="tablist"]) .skeleton,
-.space-y-6 > [role="tablist"] ~ *:nth-child(3) [class*="bg-gray-"],
-.space-y-6 > [role="tablist"] ~ *:nth-child(3) [class*="dark:bg-gray-"],
-.space-y-6 > [role="tablist"] ~ *:nth-child(3) [class*="bg-slate-"],
-.space-y-6 > [role="tablist"] ~ *:nth-child(3) .skeleton,
-.gap-3\.5 > *:nth-child(2) [class*="bg-gray-"],
-.gap-3\.5 > *:nth-child(2) [class*="dark:bg-gray-"],
-.gap-3\.5 > *:nth-child(2) [class*="bg-slate-"],
-.gap-3\.5 > *:nth-child(2) .skeleton {
-  animation-delay: 0.80s !important;
-}
-
-/* Row 3: Lower Panels / Tables (Descends to Row 3 at 1.60s) */
 .skeleton-row-3 [class*="bg-gray-"],
 .skeleton-row-3 [class*="dark:bg-gray-"],
 .skeleton-row-3 [class*="bg-slate-"],
 .skeleton-row-3 .skeleton,
-.space-y-5 > *:nth-child(3) [class*="bg-gray-"],
-.space-y-5 > *:nth-child(3) [class*="dark:bg-gray-"],
-.space-y-5 > *:nth-child(3) [class*="bg-slate-"],
-.space-y-5 > *:nth-child(3) .skeleton,
-.space-y-6 > *:nth-child(3):not([role="tablist"]) [class*="bg-gray-"],
-.space-y-6 > *:nth-child(3):not([role="tablist"]) [class*="dark:bg-gray-"],
-.space-y-6 > *:nth-child(3):not([role="tablist"]) [class*="bg-slate-"],
-.space-y-6 > *:nth-child(3):not([role="tablist"]) .skeleton,
-.space-y-6 > [role="tablist"] ~ *:nth-child(4) [class*="bg-gray-"],
-.space-y-6 > [role="tablist"] ~ *:nth-child(4) [class*="dark:bg-gray-"],
-.space-y-6 > [role="tablist"] ~ *:nth-child(4) [class*="bg-slate-"],
-.space-y-6 > [role="tablist"] ~ *:nth-child(4) .skeleton,
-.gap-3\.5 > *:nth-child(3) [class*="bg-gray-"],
-.gap-3\.5 > *:nth-child(3) [class*="dark:bg-gray-"],
-.gap-3\.5 > *:nth-child(3) [class*="bg-slate-"],
-.gap-3\.5 > *:nth-child(3) .skeleton {
-  animation-delay: 1.60s !important;
-}
-
-/* Row 4: Bottom Footers / Sequential Sub-items (Descends at 2.20s) */
 .skeleton-row-4 [class*="bg-gray-"],
 .skeleton-row-4 [class*="dark:bg-gray-"],
 .skeleton-row-4 [class*="bg-slate-"],
-.skeleton-row-4 .skeleton,
-.space-y-5 > *:nth-child(4) [class*="bg-gray-"],
-.space-y-5 > *:nth-child(4) [class*="dark:bg-gray-"],
-.space-y-5 > *:nth-child(4) [class*="bg-slate-"],
-.space-y-5 > *:nth-child(4) .skeleton,
-.space-y-6 > *:nth-child(4):not([role="tablist"]) [class*="bg-gray-"],
-.space-y-6 > *:nth-child(4):not([role="tablist"]) [class*="dark:bg-gray-"],
-.space-y-6 > *:nth-child(4):not([role="tablist"]) [class*="bg-slate-"],
-.space-y-6 > *:nth-child(4):not([role="tablist"]) .skeleton,
-.space-y-6 > [role="tablist"] ~ *:nth-child(5) [class*="bg-gray-"],
-.space-y-6 > [role="tablist"] ~ *:nth-child(5) [class*="dark:bg-gray-"],
-.space-y-6 > [role="tablist"] ~ *:nth-child(5) [class*="bg-slate-"],
-.space-y-6 > [role="tablist"] ~ *:nth-child(5) .skeleton,
-.gap-3\.5 > *:nth-child(4) [class*="bg-gray-"],
-.gap-3\.5 > *:nth-child(4) [class*="dark:bg-gray-"],
-.gap-3\.5 > *:nth-child(4) [class*="bg-slate-"],
-.gap-3\.5 > *:nth-child(4) .skeleton {
-  animation-delay: 2.20s !important;
-}
-
-/* Explicit skeleton-row overrides that ALWAYS win over auto nth-child cascade */
-.skeleton-container .skeleton-row-1 [class*="bg-gray-"],
-.skeleton-container .skeleton-row-1 [class*="dark:bg-gray-"],
-.skeleton-container .skeleton-row-1 [class*="bg-slate-"],
-.skeleton-container .skeleton-row-1 [class*="dark:bg-slate-"],
-.skeleton-container .skeleton-row-1 .skeleton,
-.skeleton-row-1 [class*="bg-gray-"],
-.skeleton-row-1 [class*="dark:bg-gray-"],
-.skeleton-row-1 [class*="bg-slate-"],
-.skeleton-row-1 [class*="dark:bg-slate-"],
-.skeleton-row-1 .skeleton {
+.skeleton-row-4 .skeleton {
   animation-delay: 0s !important;
 }
 
-.skeleton-container .skeleton-row-2 [class*="bg-gray-"],
-.skeleton-container .skeleton-row-2 [class*="dark:bg-gray-"],
-.skeleton-container .skeleton-row-2 [class*="bg-slate-"],
-.skeleton-container .skeleton-row-2 [class*="dark:bg-slate-"],
-.skeleton-container .skeleton-row-2 .skeleton,
-.skeleton-row-2 [class*="bg-gray-"],
-.skeleton-row-2 [class*="dark:bg-gray-"],
-.skeleton-row-2 [class*="bg-slate-"],
-.skeleton-row-2 [class*="dark:bg-slate-"],
-.skeleton-row-2 .skeleton {
-  animation-delay: 0.80s !important;
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .skeleton-box,
+  [class*="animate-pulse"] [class*="bg-gray-"],
+  [class*="animate-pulse"] [class*="bg-slate-"],
+  [class*="animate-pulse"] [class*="bg-zinc-"],
+  [class*="animate-pulse"] [class*="dark:bg-gray-"],
+  [class*="animate-pulse"] [class*="dark:bg-slate-"],
+  [class*="animate-pulse"] [class*="dark:bg-zinc-"] {
+    animation: none !important;
+    background-image: none !important;
+  }
 }
-
-.skeleton-container .skeleton-row-3 [class*="bg-gray-"],
-.skeleton-container .skeleton-row-3 [class*="dark:bg-gray-"],
-.skeleton-container .skeleton-row-3 [class*="bg-slate-"],
-.skeleton-container .skeleton-row-3 [class*="dark:bg-slate-"],
-.skeleton-container .skeleton-row-3 .skeleton,
-.skeleton-row-3 [class*="bg-gray-"],
-.skeleton-row-3 [class*="dark:bg-gray-"],
-.skeleton-row-3 [class*="bg-slate-"],
-.skeleton-row-3 [class*="dark:bg-slate-"],
-.skeleton-row-3 .skeleton {
-  animation-delay: 1.60s !important;
-}
-
-.skeleton-container .skeleton-row-4 [class*="bg-gray-"],
-.skeleton-container .skeleton-row-4 [class*="dark:bg-gray-"],
-.skeleton-container .skeleton-row-4 [class*="bg-slate-"],
-.skeleton-container .skeleton-row-4 [class*="dark:bg-slate-"],
-.skeleton-container .skeleton-row-4 .skeleton,
-.skeleton-row-4 [class*="bg-gray-"],
-.skeleton-row-4 [class*="dark:bg-gray-"],
-.skeleton-row-4 [class*="bg-slate-"],
-.skeleton-row-4 [class*="dark:bg-slate-"],
-.skeleton-row-4 .skeleton {
-  animation-delay: 2.20s !important;
-}
-
-/* Sequential table and directory list rows (Cascading downward inside tables/cards) */
-.divide-y > *:nth-child(1) [class*="bg-gray-"],
-.divide-y > *:nth-child(1) [class*="dark:bg-gray-"],
-tbody > tr:nth-child(1) [class*="bg-gray-"],
-tbody > tr:nth-child(1) [class*="dark:bg-gray-"] { animation-delay: 1.80s !important; }
-
-.divide-y > *:nth-child(2) [class*="bg-gray-"],
-.divide-y > *:nth-child(2) [class*="dark:bg-gray-"],
-tbody > tr:nth-child(2) [class*="bg-gray-"],
-tbody > tr:nth-child(2) [class*="dark:bg-gray-"] { animation-delay: 1.88s !important; }
-
-.divide-y > *:nth-child(3) [class*="bg-gray-"],
-.divide-y > *:nth-child(3) [class*="dark:bg-gray-"],
-tbody > tr:nth-child(3) [class*="bg-gray-"],
-tbody > tr:nth-child(3) [class*="dark:bg-gray-"] { animation-delay: 1.96s !important; }
-
-.divide-y > *:nth-child(4) [class*="bg-gray-"],
-.divide-y > *:nth-child(4) [class*="dark:bg-gray-"],
-tbody > tr:nth-child(4) [class*="bg-gray-"],
-tbody > tr:nth-child(4) [class*="dark:bg-gray-"] { animation-delay: 2.04s !important; }
-
-.divide-y > *:nth-child(5) [class*="bg-gray-"],
-.divide-y > *:nth-child(5) [class*="dark:bg-gray-"],
-tbody > tr:nth-child(5) [class*="bg-gray-"],
-tbody > tr:nth-child(5) [class*="dark:bg-gray-"] { animation-delay: 2.12s !important; }
-
-.divide-y > *:nth-child(6) [class*="bg-gray-"],
-.divide-y > *:nth-child(6) [class*="dark:bg-gray-"],
-tbody > tr:nth-child(6) [class*="bg-gray-"],
-tbody > tr:nth-child(6) [class*="dark:bg-gray-"] { animation-delay: 2.20s !important; }
-
-/*
-  ── Final Override: skeleton-row-* Wins Over All Auto-Cascade Rules ──
-  These selectors are placed LAST so they beat any conflicting !important
-  from the auto nth-child gap-3.5 / space-y-* selectors above.
-  This is critical for layouts like TutorHome where the outer wrapper and
-  inner grid both use gap-3.5 — without this, inner KPI cards get staggered
-  at 0.8s/1.6s/2.2s instead of all starting at 0s.
-*/
-.skeleton-row-1 [class*="bg-gray-"],
-.skeleton-row-1 [class*="dark:bg-gray-"],
-.skeleton-row-1 [class*="bg-slate-"],
-.skeleton-row-1 > * [class*="bg-gray-"],
-.skeleton-row-1 > * [class*="dark:bg-gray-"],
-.skeleton-row-1 > * [class*="bg-slate-"],
-.skeleton-row-1 .skeleton { animation-delay: 0s !important; }
-
-.skeleton-row-2 [class*="bg-gray-"],
-.skeleton-row-2 [class*="dark:bg-gray-"],
-.skeleton-row-2 [class*="bg-slate-"],
-.skeleton-row-2 > * [class*="bg-gray-"],
-.skeleton-row-2 > * [class*="dark:bg-gray-"],
-.skeleton-row-2 > * [class*="bg-slate-"],
-.skeleton-row-2 .skeleton { animation-delay: 0.80s !important; }
-
-.skeleton-row-3 [class*="bg-gray-"],
-.skeleton-row-3 [class*="dark:bg-gray-"],
-.skeleton-row-3 [class*="bg-slate-"],
-.skeleton-row-3 > * [class*="bg-gray-"],
-.skeleton-row-3 > * [class*="dark:bg-gray-"],
-.skeleton-row-3 > * [class*="bg-slate-"],
-.skeleton-row-3 .skeleton { animation-delay: 1.60s !important; }
-
-.skeleton-row-4 [class*="bg-gray-"],
-.skeleton-row-4 [class*="dark:bg-gray-"],
-.skeleton-row-4 [class*="bg-slate-"],
-.skeleton-row-4 > * [class*="bg-gray-"],
-.skeleton-row-4 > * [class*="dark:bg-gray-"],
-.skeleton-row-4 > * [class*="bg-slate-"],
-.skeleton-row-4 .skeleton { animation-delay: 2.20s !important; }
 
 /* ═══════════════════════════════════════════════════════════════
    Button Utilities
@@ -1568,6 +1340,31 @@ tbody > tr:nth-child(6) [class*="dark:bg-gray-"] { animation-delay: 2.20s !impor
 .text-risk-low    { color: var(--risk-low-text) !important; }
 .text-risk-medium, .text-risk-moderate { color: var(--risk-medium-text) !important; }
 .text-risk-high   { color: var(--risk-high-text) !important; }
+
+/* Cascading Downward Entrance Animation for At-Risk Cards */
+@keyframes riskCardCascadeDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.risk-card-cascade {
+  animation: riskCardCascadeDown 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .risk-card-cascade {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════
    Alert / Banner Utilities
@@ -1942,7 +1739,7 @@ table.divide-y > tbody > tr:first-child > td {
 :root:not(.dark) .bg-white.rounded-xl:not(.border):not(.shadow-sm),
 :root:not(.dark) [role="dialog"].bg-white,
 :root:not(.dark) .modal-card,
-:root:not(.dark) [class*="z-[60]"],
+:root:not(.dark) .bg-white[class*="z-[60]"],
 :root:not(.dark) [class*="z-50"].shadow-2xl,
 :root:not(.dark) [class*="z-50"].shadow-xl,
 :root:not(.dark) .dropdown-menu,
@@ -2264,7 +2061,7 @@ table.divide-y > tbody > tr:first-child > td {
 }
 
 /* Modals, Dialogs, Dropdowns, Popovers & Menus */
-.dark [role="dialog"],
+.dark [role="dialog"]:not(.fixed):not([class*="fixed"]):not([class*="inset-0"]),
 .dark .modal-card,
 .dark [role="menu"],
 .dark [role="listbox"],

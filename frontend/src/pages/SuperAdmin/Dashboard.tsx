@@ -8,6 +8,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { StatsGridSkeleton, CardSkeleton } from '../../components/SkeletonLoader';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 
 interface AuditMiniEntry {
   id: string;
@@ -158,12 +159,12 @@ export const Dashboard: React.FC = () => {
           {/* ── 1. Top Metrics KPI Strip (Clean, Icon-Free, Generous Whitespace) ── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Metric 1: Total Accounts */}
-            <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
+            <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 sm:p-6 transition-colors shadow-sm">
               <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
                 Total Accounts
               </span>
-              <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
-                {(stats.total_users + 1).toLocaleString()}
+              <div className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white mt-2">
+                <AnimatedCounter value={stats.total_users + 1} />
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                 {stats.active_users.toLocaleString()} active • {stats.inactive_users.toLocaleString()} inactive ({activeRate}%)
@@ -171,12 +172,12 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Metric 2: Academic Staff */}
-            <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
+            <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 sm:p-6 transition-colors shadow-sm">
               <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
                 Academic Staff
               </span>
-              <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
-                {staffTotal.toLocaleString()}
+              <div className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white mt-2">
+                <AnimatedCounter value={staffTotal} />
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 truncate">
                 {stats.tutors} Tutors • {stats.admins} Admins
@@ -184,12 +185,12 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Metric 3: Enrolled Students */}
-            <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
+            <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 sm:p-6 transition-colors shadow-sm">
               <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
                 Enrolled Students
               </span>
-              <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-2">
-                {stats.students.toLocaleString()}
+              <div className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white mt-2">
+                <AnimatedCounter value={stats.students} />
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                 ARAL program participants with LRN SSO
@@ -197,11 +198,11 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Metric 4: System Status */}
-            <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
+            <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 sm:p-6 transition-colors shadow-sm">
               <span className="text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase block">
                 System Health
               </span>
-              <div className="text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 mt-2">
+              <div className="text-2xl sm:text-3xl font-black tracking-tight text-emerald-600 dark:text-emerald-400 mt-2">
                 Operational
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
@@ -215,8 +216,8 @@ export const Dashboard: React.FC = () => {
             {/* ── Left Column (7 cols): Role Distribution & Recent Audit Logs ── */}
             <div className="lg:col-span-7 space-y-4">
               {/* Account Distribution Card */}
-              <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-neutral-800">
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 sm:p-6 transition-colors shadow-sm">
+                <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
                   <div>
                     <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">
                       Account Distribution
@@ -234,7 +235,7 @@ export const Dashboard: React.FC = () => {
                   </Link>
                 </div>
 
-                <div className="divide-y divide-slate-100 dark:divide-neutral-800/80 mt-1">
+                <div className="divide-y divide-gray-100 dark:divide-[#1A1A1A] mt-1">
                   {rolesBreakdown.map((role) => {
                     const totalAccounts = (stats.total_users || 0) + 1;
                     const percentage = totalAccounts > 0
@@ -267,8 +268,8 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {/* Security & Audit Activity Card */}
-              <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-neutral-800">
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 sm:p-6 transition-colors shadow-sm">
+                <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
                   <div>
                     <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">
                       Recent Audit Activity
@@ -286,7 +287,7 @@ export const Dashboard: React.FC = () => {
                   </Link>
                 </div>
 
-                <div className="divide-y divide-slate-100 dark:divide-neutral-800/80 mt-1">
+                <div className="divide-y divide-gray-100 dark:divide-[#1A1A1A] mt-1">
                   {recentAudit.length === 0 ? (
                     <div className="py-8 text-center text-xs text-slate-400 dark:text-slate-500">
                       No recent audit events recorded.
@@ -326,14 +327,14 @@ export const Dashboard: React.FC = () => {
             {/* ── Right Column (5 cols): Core Administrative Controls & Recent Users ── */}
             <div className="lg:col-span-5 space-y-4">
               {/* Core Administrative Controls */}
-              <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight pb-4 border-b border-slate-100 dark:border-neutral-800">
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 sm:p-6 transition-colors shadow-sm">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
                   Administrative Actions
                 </h2>
                 <div className="grid grid-cols-2 gap-2.5 mt-4">
                   <Link
                     to="/superadmin/users/create"
-                    className="p-3.5 rounded-lg border border-slate-200 dark:border-neutral-800 hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors no-underline group"
+                    className="p-3.5 rounded-lg border border-gray-200 dark:border-[#1A1A1A] hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors no-underline group"
                   >
                     <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors">
                       New User
@@ -345,7 +346,7 @@ export const Dashboard: React.FC = () => {
 
                   <Link
                     to="/superadmin/users"
-                    className="p-3.5 rounded-lg border border-slate-200 dark:border-neutral-800 hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors no-underline group"
+                    className="p-3.5 rounded-lg border border-gray-200 dark:border-[#1A1A1A] hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors no-underline group"
                   >
                     <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors">
                       Directory
@@ -357,7 +358,7 @@ export const Dashboard: React.FC = () => {
 
                   <Link
                     to="/superadmin/audit-logs"
-                    className="p-3.5 rounded-lg border border-slate-200 dark:border-neutral-800 hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors no-underline group"
+                    className="p-3.5 rounded-lg border border-gray-200 dark:border-[#1A1A1A] hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors no-underline group"
                   >
                     <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors">
                       Audit Trail
@@ -369,7 +370,7 @@ export const Dashboard: React.FC = () => {
 
                   <Link
                     to="/superadmin/settings"
-                    className="p-3.5 rounded-lg border border-slate-200 dark:border-neutral-800 hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors no-underline group"
+                    className="p-3.5 rounded-lg border border-gray-200 dark:border-[#1A1A1A] hover:border-[#0052B7] dark:hover:border-blue-400 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors no-underline group"
                   >
                     <span className="text-xs font-bold text-slate-900 dark:text-white block group-hover:text-[#0052B7] dark:group-hover:text-blue-400 transition-colors">
                       Settings
@@ -382,8 +383,8 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {/* Recently Added Users */}
-              <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#000000] p-5 sm:p-6 transition-colors shadow-xs">
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-neutral-800">
+              <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-5 sm:p-6 transition-colors shadow-sm">
+                <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-[#1A1A1A]">
                   <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">
                     Recently Added Users
                   </h2>
@@ -392,7 +393,7 @@ export const Dashboard: React.FC = () => {
                   </Link>
                 </div>
 
-                <div className="divide-y divide-slate-100 dark:divide-neutral-800/80 mt-1">
+                <div className="divide-y divide-gray-100 dark:divide-[#1A1A1A] mt-1">
                   {recentUsers.length === 0 ? (
                     <div className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">
                       No recently created accounts.

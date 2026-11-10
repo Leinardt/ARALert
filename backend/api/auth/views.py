@@ -129,8 +129,9 @@ class GoogleLoginView(GenericAPIView):
 
         except Exception as exc:
             logger.exception("Unexpected error during Google login: %s", exc)
+            detail_msg = f'Server error during Google login: {str(exc)}' if settings.DEBUG else 'An unexpected server error occurred during Google login. Please try again.'
             return Response(
-                {'detail': f'Server error during Google login: {str(exc)}'},
+                {'detail': detail_msg},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

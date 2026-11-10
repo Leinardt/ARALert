@@ -23,6 +23,7 @@ import {
   type SemesterType,
 } from '../../utils/sessionDescriptionHelpers';
 import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { matchesSearch } from '../../utils/searchHelpers';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
 import {
@@ -535,12 +536,12 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
       <button
         type="button"
         onClick={() => toggleSort(sortKey)}
-        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-700 cursor-pointer"
+        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-900 dark:hover:text-white cursor-pointer"
         aria-label={`Sort by ${label}`}
       >
         {label}
         {isActive ? (
-          sortConfig.direction === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
+          sortConfig.direction === 'asc' ? <ChevronUp className="h-3.5 w-3.5 text-[var(--brand)]" /> : <ChevronDown className="h-3.5 w-3.5 text-[var(--brand)]" />
         ) : (
           <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
         )}
@@ -555,14 +556,14 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
         <table className="min-w-[900px] w-full divide-y divide-gray-100 dark:divide-slate-700 text-sm">
           <thead>
             <tr className="divide-x divide-gray-100 dark:divide-slate-700 bg-gray-50 dark:bg-slate-900">
-              <th className="w-[22%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="STUDENT" sortKey="student" /></th>
-              <th className="w-[18%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="DESCRIPTION" sortKey="description" /></th>
-              <th className="w-[10%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="SCORE" sortKey="score" /></th>
-              <th className="w-[12%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="REMARK" sortKey="remark" /></th>
-              <th className="w-[10%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="STATUS" sortKey="status" /></th>
-              <th className="w-[14%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="DATE" sortKey="date" /></th>
-              <th className="w-[8%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap"><SortableScoreHeader label="TIME" sortKey="time" /></th>
-              <th className="w-[6%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400 whitespace-nowrap">ACTIONS</th>
+              <th className="w-[22%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap"><SortableScoreHeader label="STUDENT" sortKey="student" /></th>
+              <th className="w-[18%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap"><SortableScoreHeader label="DESCRIPTION" sortKey="description" /></th>
+              <th className="w-[10%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap"><SortableScoreHeader label="SCORE" sortKey="score" /></th>
+              <th className="w-[12%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap"><SortableScoreHeader label="REMARK" sortKey="remark" /></th>
+              <th className="w-[10%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap"><SortableScoreHeader label="STATUS" sortKey="status" /></th>
+              <th className="w-[14%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap"><SortableScoreHeader label="DATE" sortKey="date" /></th>
+              <th className="w-[8%] px-4 py-3 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap"><SortableScoreHeader label="TIME" sortKey="time" /></th>
+              <th className="w-[6%] px-4 py-3 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 whitespace-nowrap">ACTIONS</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-700 dark:bg-slate-900">
@@ -582,7 +583,7 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                   ref={isLastSaved ? lastRowRef : undefined}
                   className={`group divide-x divide-gray-100 dark:divide-slate-700 border-t border-gray-100 dark:border-slate-700 text-left transition-colors ${isLastSaved ? 'bg-[var(--brand-light)] hover:bg-[var(--brand-light)]' : 'hover:bg-gray-50/80 dark:hover:bg-slate-800'}`}
                 >
-                  <td className="px-4 py-3 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
+                  <td className="px-4 py-3 font-bold text-gray-900 dark:text-slate-100 whitespace-nowrap text-xs sm:text-[13px] tracking-tight">
                     {grade.student_name || 'Unknown student'}
                   </td>
                   <td className="px-4 py-3 text-left whitespace-nowrap">
@@ -590,7 +591,7 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                       {descriptionVal}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-700 dark:text-slate-300 whitespace-nowrap">
+                  <td className="px-4 py-3 text-xs whitespace-nowrap">
                     {isEditing ? (
                       <input
                         type="text"
@@ -599,12 +600,24 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                         disabled={editStatus === 'Not'}
                         onKeyDown={blockSymbolKeys}
                         onChange={(event) => setEditScore(sanitizeScoreInput(event.target.value, Number(grade.total_score)))}
-                        className={`w-20 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-semibold outline-none focus:border-[var(--brand)] ${editStatus === 'Not' ? 'bg-gray-100 dark:bg-slate-800/60 cursor-not-allowed opacity-60' : ''}`}
+                        className={`w-20 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-bold outline-none focus:border-[var(--brand)] ${editStatus === 'Not' ? 'bg-gray-100 dark:bg-slate-800/60 cursor-not-allowed opacity-60' : ''}`}
                       />
-                    ) : `${grade.score} / ${grade.total_score}`}
+                    ) : (
+                      <span className="inline-flex items-center gap-1 font-mono">
+                        <span className="font-bold text-gray-900 dark:text-slate-100">{grade.score}</span>
+                        <span className="text-gray-400 dark:text-slate-500">/</span>
+                        <span className="font-medium text-gray-500 dark:text-slate-400">{grade.total_score}</span>
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-left whitespace-nowrap">
-                    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${isNotTaken ? 'border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400' : scorePercentage >= 70 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'}`}>
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider whitespace-nowrap ${
+                      isNotTaken
+                        ? 'border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
+                        : scorePercentage >= 70
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+                          : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-300'
+                    }`}>
                       {isNotTaken ? 'Not Taken' : scorePercentage >= 70 ? 'Passed' : 'Failed'}
                     </span>
                   </td>
@@ -619,13 +632,17 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                             setEditScore(0);
                           }
                         }}
-                        className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-gray-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+                        className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
                       >
                         <option value="Taken">Taken</option>
                         <option value="Not">Not Taken</option>
                       </select>
                     ) : (
-                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize whitespace-nowrap ${isNotTaken ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'}`}>
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider whitespace-nowrap ${
+                        isNotTaken
+                          ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+                      }`}>
                         {isNotTaken ? 'Not Taken' : 'Taken'}
                       </span>
                     )}
@@ -654,9 +671,22 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                           document.body
                         )}
                       </div>
-                    ) : formatDateStr(grade.date_logged)}
+                    ) : (() => {
+                      const formatted = formatDateStr(grade.date_logged);
+                      if (formatted && formatted.includes(' | ')) {
+                        const [datePart, dayPart] = formatted.split(' | ');
+                        return (
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="font-semibold text-gray-800 dark:text-slate-200">{datePart}</span>
+                            <span className="text-gray-300 dark:text-zinc-600">|</span>
+                            <span className="text-[11px] font-normal text-gray-400 dark:text-slate-400">{dayPart}</span>
+                          </span>
+                        );
+                      }
+                      return <span className="font-semibold text-gray-800 dark:text-slate-200">{formatted}</span>;
+                    })()}
                   </td>
-                  <td className="px-4 py-3 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
+                  <td className="px-4 py-3 whitespace-nowrap text-xs">
                     {isEditing ? (
                       <div className="relative inline-block">
                         <button
@@ -725,7 +755,13 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                           document.body
                         )}
                       </div>
-                    ) : formatTimeStr(grade.created_at)}
+                    ) : (() => {
+                      const formattedTime = formatTimeStr(grade.created_at);
+                      if (!formattedTime || formattedTime === '—' || formattedTime === '-') {
+                        return <span className="text-gray-300 dark:text-slate-600 font-medium">—</span>;
+                      }
+                      return <span className="font-mono text-xs font-semibold text-gray-700 dark:text-slate-200">{formattedTime}</span>;
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-center whitespace-nowrap">
                     {isEditing ? (
@@ -738,7 +774,7 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                         </button>
                       </div>
                     ) : (
-                      <button type="button" onClick={() => startEditingGrade(grade)} className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 cursor-pointer" aria-label={`Edit score for ${grade.student_name}`} title="Edit score">
+                      <button type="button" onClick={() => startEditingGrade(grade)} className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer" aria-label={`Edit score for ${grade.student_name}`} title="Edit score">
                         <Edit3 className="h-3.5 w-3.5" />
                       </button>
                     )}
@@ -755,28 +791,28 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
         <table className="min-w-[700px] w-full border-separate border-spacing-0 text-xs">
           <thead>
             <tr className="bg-gray-50 dark:bg-[#151515]">
-              <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[26%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+              <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[26%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
                 <SortableScoreHeader label="STUDENT" sortKey="student" />
               </th>
-              <th className="w-[18%] min-w-[110px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="w-[18%] min-w-[110px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableScoreHeader label="DESCRIPTION" sortKey="description" />
               </th>
-              <th className="w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableScoreHeader label="SCORE" sortKey="score" />
               </th>
-              <th className="w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableScoreHeader label="REMARK" sortKey="remark" />
               </th>
-              <th className="w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="w-[12%] min-w-[75px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableScoreHeader label="STATUS" sortKey="status" />
               </th>
-              <th className="w-[14%] min-w-[95px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="w-[14%] min-w-[95px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableScoreHeader label="DATE" sortKey="date" />
               </th>
-              <th className="w-[10%] min-w-[70px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="w-[10%] min-w-[70px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableScoreHeader label="TIME" sortKey="time" />
               </th>
-              <th className="w-[8%] min-w-[60px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+              <th className="w-[8%] min-w-[60px] px-2 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                 ACTIONS
               </th>
             </tr>
@@ -801,8 +837,8 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                     isLastSaved ? 'bg-[var(--brand-light)] hover:bg-[var(--brand-light)]' : 'hover:bg-gray-50/80 dark:hover:bg-[#151515]'
                   }`}
                 >
-                  <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
-                    <span className="block truncate max-w-[120px] text-xs font-semibold text-gray-800 dark:text-slate-100" title={grade.student_name || 'Unknown student'}>
+                  <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-bold text-gray-900 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                    <span className="block truncate max-w-[120px] text-xs font-bold text-gray-900 dark:text-slate-100 tracking-tight" title={grade.student_name || 'Unknown student'}>
                       {grade.student_name || 'Unknown student'}
                     </span>
                   </td>
@@ -825,9 +861,10 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                         }`}
                       />
                     ) : (
-                      <div className="flex flex-col items-center justify-center">
+                      <div className="flex flex-col items-center justify-center font-mono">
                         <span className="font-bold text-xs text-gray-900 dark:text-slate-100 whitespace-nowrap">
-                          {grade.score} / {grade.total_score}
+                          {grade.score}{' '}
+                          <span className="font-normal text-gray-400 dark:text-slate-500">/ {grade.total_score}</span>
                         </span>
                         <span className={`text-[10px] font-extrabold ${scoreColor(scorePercentage)}`}>
                           {isNotTaken ? '0%' : `${smartPct(scorePercentage)}%`}
@@ -837,12 +874,12 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                   </td>
                   <td className="px-2 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                     <span
-                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap ${
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${
                         isNotTaken
-                          ? 'border-gray-200 bg-gray-50 text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                          ? 'border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
                           : scorePercentage >= 70
-                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                            : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+                            : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-300'
                       }`}
                     >
                       {isNotTaken ? 'Not Taken' : scorePercentage >= 70 ? 'Passed' : 'Failed'}
@@ -864,10 +901,10 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                       </select>
                     ) : (
                       <span
-                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium capitalize whitespace-nowrap ${
+                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${
                           isNotTaken
-                            ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
-                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
                         }`}
                       >
                         {isNotTaken ? 'Not Taken' : 'Taken'}
@@ -900,10 +937,12 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                           )}
                       </div>
                     ) : (
-                      formatShortDateStr(grade.date_logged)
+                      <span className="font-semibold text-gray-800 dark:text-slate-200">
+                        {formatShortDateStr(grade.date_logged)}
+                      </span>
                     )}
                   </td>
-                  <td className="px-2 py-2 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-mono border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                  <td className="px-2 py-2 whitespace-nowrap text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                     {isEditing ? (
                       <div className="relative inline-block">
                         <button
@@ -973,9 +1012,13 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                             document.body
                           )}
                       </div>
-                    ) : (
-                      formatTimeStr(grade.created_at)
-                    )}
+                    ) : (() => {
+                      const formattedTime = formatTimeStr(grade.created_at);
+                      if (!formattedTime || formattedTime === '—' || formattedTime === '-') {
+                        return <span className="text-gray-300 dark:text-slate-600 font-medium">—</span>;
+                      }
+                      return <span className="font-mono text-xs font-semibold text-gray-700 dark:text-slate-200">{formattedTime}</span>;
+                    })()}
                   </td>
                   <td className="px-2 py-2 text-center whitespace-nowrap border-b border-gray-100 dark:border-[#1A1A1A]">
                     {isEditing ? (
@@ -1005,7 +1048,7 @@ const ScoreEntryTable: React.FC<ScoreEntryTableProps> = ({
                       <button
                         type="button"
                         onClick={() => startEditingGrade(grade)}
-                        className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 cursor-pointer"
+                        className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer"
                         aria-label={`Edit score for ${grade.student_name}`}
                         title="Edit score"
                       >
@@ -1220,8 +1263,8 @@ const ScoreHistoryGroupSection: React.FC<ScoreHistoryGroupSectionProps> = ({
         </div>
         {isOpen && (
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold text-gray-400">
-              {displayRows.length} Record{displayRows.length !== 1 ? 's' : ''}
+            <span className="text-[11px] font-medium text-gray-400 dark:text-slate-400">
+              <span className="font-bold text-gray-700 dark:text-slate-200">{displayRows.length}</span> Record{displayRows.length !== 1 ? 's' : ''}
             </span>
           </div>
         )}
@@ -2352,7 +2395,7 @@ export const TutorScores: React.FC = () => {
 
       {/* ── Score Entry Form ───────────────────────────────────────── */}
       {showAddEntry && (
-        <div className="order-1 flex flex-col rounded-md border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 w-full min-w-0 max-w-full sm:h-[600px] sm:min-h-[500px] sm:overflow-hidden">
+        <div className="order-1 flex flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm w-full min-w-0 max-w-full sm:h-[600px] sm:min-h-[500px] sm:overflow-hidden">
           <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-3.5 border-b border-gray-100 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-3">
               <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm uppercase">
@@ -2391,14 +2434,14 @@ export const TutorScores: React.FC = () => {
           </div>
 
           <div className="flex-1 p-3.5 sm:p-5 flex flex-col gap-3 sm:gap-4 sm:min-h-0 sm:overflow-hidden">
-            <div className="shrink-0 flex flex-col gap-2.5 sm:gap-3 sm:grid sm:grid-cols-[minmax(0,1.8fr)_auto] sm:items-end relative z-30">
+            <div className="shrink-0 flex flex-col gap-2.5 sm:gap-3 sm:grid sm:grid-cols-[minmax(0,1.8fr)_auto] sm:items-end">
               <div className="min-w-0 w-full">
                 <div className="grid grid-cols-[1fr_84px] xs:grid-cols-[1fr_96px] sm:grid-cols-[minmax(0,260px)_160px] gap-2.5 sm:gap-3">
-                  <div className="w-full relative z-30">
-                    <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1.5">
+                  <div className="w-full">
+                    <label className="block text-[10.5px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-1.5">
                       SESSION DATE
                     </label>
-                    <div className="relative w-full z-30">
+                    <div className="relative w-full">
                       <button
                         ref={entryPickerAnchorRef}
                         type="button"
@@ -2435,7 +2478,7 @@ export const TutorScores: React.FC = () => {
                   </div>
 
                   <div className="w-full">
-                    <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1.5">TOTAL ITEMS</label>
+                    <label className="block text-[10.5px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-1.5">TOTAL ITEMS</label>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -2488,7 +2531,7 @@ export const TutorScores: React.FC = () => {
                   <div>
                     <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">Student Score List</h3>
                     <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">
-                      Enter scores for the {cohortStudents.length} assigned {cohortStudents.length === 1 ? 'student' : 'students'} of {`${selectedAralLevel.toUpperCase()} • ${selectedSubject.toUpperCase()} • ${selectedCohort}`}
+                      Enter scores for the <span className="font-bold text-gray-800 dark:text-slate-200">{cohortStudents.length}</span> assigned {cohortStudents.length === 1 ? 'student' : 'students'} of <span className="font-semibold text-gray-700 dark:text-slate-300">{`${selectedAralLevel.toUpperCase()} • ${selectedSubject.toUpperCase()} • ${selectedCohort}`}</span>
                     </p>
                   </div>
                   <label className="relative flex w-full sm:w-auto sm:min-w-56 items-center">
@@ -2508,27 +2551,27 @@ export const TutorScores: React.FC = () => {
                   <table className="hidden sm:table min-w-[680px] w-full divide-y divide-gray-100 dark:divide-slate-800 text-sm">
                     <thead className="bg-gray-50 dark:bg-slate-900">
                       <tr className="divide-x divide-gray-100 dark:divide-slate-800">
-                        <th aria-sort={studentSortActive ? (studentSortDirection === 'asc' ? 'ascending' : 'descending') : undefined} className="w-[42%] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                        <th aria-sort={studentSortActive ? (studentSortDirection === 'asc' ? 'ascending' : 'descending') : undefined} className="w-[38%] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                           <button
                             type="button"
                             onClick={() => {
                               setStudentSortActive(true);
                               setStudentSortDirection((direction) => direction === 'desc' ? 'asc' : 'desc');
                             }}
-                            className="inline-flex items-center gap-1 text-left transition-colors hover:text-gray-700 dark:hover:text-slate-200"
+                            className="inline-flex items-center gap-1 text-left transition-colors hover:text-gray-900 dark:hover:text-white font-extrabold cursor-pointer"
                             aria-label={`Sort students ${studentSortDirection === 'desc' ? 'ascending' : 'descending'}`}
                           >
                             STUDENT
                             {studentSortActive
                               ? studentSortDirection === 'desc'
-                                ? <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
-                                : <ChevronUp className="h-3.5 w-3.5 text-gray-400" />
-                              : <ArrowUpDown className="h-3.5 w-3.5 text-gray-400" />}
+                                ? <ChevronDown className="h-3.5 w-3.5 text-[var(--brand)]" />
+                                : <ChevronUp className="h-3.5 w-3.5 text-[var(--brand)]" />
+                              : <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />}
                           </button>
                         </th>
-                        <th className="w-[22%] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">Score (OUT OF {totalScore || 'Total'})</th>
-                        <th className="w-[18%] px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">Preview %</th>
-                        <th className="w-[18%] px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">Status</th>
+                        <th className="w-[22%] px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">SCORE (OUT OF {totalScore || 0})</th>
+                        <th className="w-[16%] px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">PREVIEW %</th>
+                        <th className="w-[24%] px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">STATUS</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
@@ -2551,7 +2594,7 @@ export const TutorScores: React.FC = () => {
                           <tr key={student.id} className="divide-x divide-gray-100 dark:divide-slate-800 transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800/60">
                             <td className="px-4 py-2.5">
                               <div className="min-w-0">
-                                <p className="truncate text-sm font-bold text-gray-900 dark:text-slate-100">{student.full_name}</p>
+                                <p className="truncate text-xs sm:text-[13px] font-bold text-gray-900 dark:text-slate-100 tracking-tight">{student.full_name}</p>
                               </div>
                             </td>
                             <td className="px-4 py-2.5">
@@ -2592,19 +2635,38 @@ export const TutorScores: React.FC = () => {
                                 <span className="text-xs text-gray-300 dark:text-slate-600">0%</span>
                               )}
                             </td>
-                            <td className="px-4 py-2.5 text-center">
-                              <select
-                                value={status}
-                                onChange={(e) => {
-                                  const newStatus = e.target.value as 'Taken' | 'Not';
-                                  setEntryStatus((prev) => ({ ...prev, [student.id]: newStatus }));
-                                  if (newStatus === 'Not') setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
-                                }}
-                                className="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs font-semibold text-gray-700 dark:text-slate-200 focus:outline-none cursor-pointer"
-                              >
-                                <option value="Taken">Taken</option>
-                                <option value="Not">Not Taken</option>
-                              </select>
+                            <td className="px-4 py-2 text-center">
+                              <div className="inline-flex rounded-lg border border-gray-200 dark:border-neutral-800 p-0.5 bg-gray-50 dark:bg-[#161616]">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEntryStatus((prev) => ({ ...prev, [student.id]: 'Taken' }));
+                                  }}
+                                  aria-pressed={status === 'Taken'}
+                                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                                    status === 'Taken'
+                                      ? 'bg-emerald-600 text-white shadow-xs'
+                                      : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                                  }`}
+                                >
+                                  Taken
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEntryStatus((prev) => ({ ...prev, [student.id]: 'Not' }));
+                                    setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
+                                  }}
+                                  aria-pressed={status === 'Not'}
+                                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                                    status === 'Not'
+                                      ? 'bg-rose-600 text-white shadow-xs'
+                                      : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                                  }`}
+                                >
+                                  Not Taken
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -2614,33 +2676,33 @@ export const TutorScores: React.FC = () => {
 
                   {/* Mobile Responsive Score Table (< 640px) with sealed sticky student column */}
                   <div className="sm:hidden overflow-x-auto mobile-scroll-table rounded-lg border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111]">
-                    <table className="min-w-[390px] w-full border-separate border-spacing-0 text-xs">
+                    <table className="min-w-[430px] w-full border-separate border-spacing-0 text-xs">
                       <thead>
                         <tr className="bg-gray-50 dark:bg-[#151515]">
-                          <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[40%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                          <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[40%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
                             <button
                               type="button"
                               onClick={() => {
                                 setStudentSortActive(true);
                                 setStudentSortDirection((direction) => direction === 'desc' ? 'asc' : 'desc');
                               }}
-                              className="inline-flex items-center gap-1 text-left transition-colors hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer"
+                              className="inline-flex items-center gap-1 text-left transition-colors hover:text-gray-900 dark:hover:text-white font-extrabold cursor-pointer"
                             >
                               STUDENT
                               {studentSortActive
                                 ? studentSortDirection === 'desc'
-                                  ? <ChevronDown className="h-3 w-3 text-gray-400" />
-                                  : <ChevronUp className="h-3 w-3 text-gray-400" />
-                                : <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                                ? <ChevronDown className="h-3 w-3 text-[var(--brand)]" />
+                                : <ChevronUp className="h-3 w-3 text-[var(--brand)]" />
+                                : <ArrowUpDown className="h-3 w-3 opacity-50" />}
                             </button>
                           </th>
-                          <th className="w-[24%] min-w-[80px] px-1.5 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                          <th className="w-[22%] min-w-[80px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                             SCORE ({totalScore || 0})
                           </th>
-                          <th className="w-[16%] min-w-[55px] px-1 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                          <th className="w-[14%] min-w-[55px] px-1 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                             PREVIEW
                           </th>
-                          <th className="w-[20%] min-w-[75px] px-1.5 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                          <th className="w-[24%] min-w-[130px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                             STATUS
                           </th>
                         </tr>
@@ -2670,8 +2732,8 @@ export const TutorScores: React.FC = () => {
 
                             return (
                               <tr key={`mobile-entry-${student.id}`} className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
-                                <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
-                                  <span className="block truncate max-w-[120px] text-xs font-semibold text-gray-800 dark:text-slate-100" title={student.full_name}>
+                                <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-bold text-gray-900 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                                  <span className="block truncate max-w-[120px] text-xs font-bold text-gray-900 dark:text-slate-100 tracking-tight" title={student.full_name}>
                                     {student.full_name}
                                   </span>
                                   {hasNoScore && hasAttemptedSave && (
@@ -2714,18 +2776,37 @@ export const TutorScores: React.FC = () => {
                                   )}
                                 </td>
                                 <td className="px-1.5 py-2 text-center border-b border-gray-100 dark:border-[#1A1A1A]">
-                                  <select
-                                    value={status}
-                                    onChange={(e) => {
-                                      const newStatus = e.target.value as 'Taken' | 'Not';
-                                      setEntryStatus((prev) => ({ ...prev, [student.id]: newStatus }));
-                                      if (newStatus === 'Not') setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
-                                    }}
-                                    className="w-full max-w-[70px] h-8 rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-1 text-[11px] font-semibold text-gray-700 dark:text-slate-200 focus:outline-none cursor-pointer"
-                                  >
-                                    <option value="Taken">Taken</option>
-                                    <option value="Not">Not</option>
-                                  </select>
+                                  <div className="inline-flex rounded-lg border border-gray-200 dark:border-neutral-800 p-0.5 bg-gray-50 dark:bg-[#161616]">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEntryStatus((prev) => ({ ...prev, [student.id]: 'Taken' }));
+                                      }}
+                                      aria-pressed={status === 'Taken'}
+                                      className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                                        status === 'Taken'
+                                          ? 'bg-emerald-600 text-white shadow-xs'
+                                          : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                                      }`}
+                                    >
+                                      Taken
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEntryStatus((prev) => ({ ...prev, [student.id]: 'Not' }));
+                                        setEntryScores((prev) => ({ ...prev, [student.id]: 0 }));
+                                      }}
+                                      aria-pressed={status === 'Not'}
+                                      className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                                        status === 'Not'
+                                          ? 'bg-rose-600 text-white shadow-xs'
+                                          : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                                      }`}
+                                    >
+                                      Not Taken
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -2743,31 +2824,31 @@ export const TutorScores: React.FC = () => {
       )}
 
       {/* ── DTR-style Score Records Table ─────────────────────────── */}
-      <div ref={tableContainerRef} className="order-4 mt-2.5 sm:mt-4 rounded-md border border-gray-200 bg-white overflow-visible">
+      <div ref={tableContainerRef} className="order-4 mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm overflow-visible">
 
         {/* Table header */}
-        <div className="flex flex-col gap-3 px-5 py-3.5 border-b border-gray-100 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center">
-            <div>
-              <h3 className="text-sm font-bold text-gray-900 uppercase">STUDENTS SCORES HISTORY</h3>
-              <p className="mt-0.5 text-xs font-normal text-gray-500">
-                {visibleScoreRows.length} Record{visibleScoreRows.length !== 1 ? 's' : ''}
-              </p>
-            </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
+          <div className="min-w-0">
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase tracking-tight">STUDENTS SCORES HISTORY</h3>
+            <p className="mt-0.5 text-[11px] sm:text-xs font-normal text-gray-500 dark:text-slate-400">
+              <span className="font-bold text-gray-800 dark:text-slate-200">
+                <AnimatedCounter value={visibleScoreRows.length} />
+              </span> Record{visibleScoreRows.length !== 1 ? 's' : ''}
+            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="relative flex w-full sm:w-auto sm:min-w-52 items-center">
-              <Search className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-gray-400" />
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+            <label className="relative flex-1 sm:flex-initial sm:w-52 items-center">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
               <input
                 type="search"
                 value={scoreStudentSearch}
                 onChange={(event) => setScoreStudentSearch(event.target.value)}
                 placeholder="Search Student Name"
                 aria-label="Search score records by student"
-                className="h-8 w-full rounded-md border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white focus:ring-1 focus:ring-[var(--brand)]"
+                className="h-8 sm:h-8.5 w-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] pl-8 pr-2.5 text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-[#111111]"
               />
             </label>
-            <div className="flex h-8 shrink-0 items-center gap-0.5 rounded-md bg-gray-100 dark:bg-[#1A1A1A] p-0.5">
+            <div className="flex bg-gray-100 dark:bg-[#1A1A1A] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
               {(['week', 'month'] as const).map((mode) => (
                 <button
                   key={mode}
@@ -2821,12 +2902,12 @@ export const TutorScores: React.FC = () => {
         </div>
 
         {jumpDate && (
-          <div className="flex items-center gap-2 px-5 py-2 border-b border-gray-50 bg-emerald-50/60">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="text-xs font-semibold text-emerald-700">
+          <div className="flex items-center gap-2 px-5 py-2 border-b border-gray-100 dark:border-[#1A1A1A] bg-emerald-50/60 dark:bg-emerald-950/30">
+            <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
               {new Date(`${jumpDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
             </span>
-            <button type="button" onClick={() => setJumpDate(null)} className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-800">
+            <button type="button" onClick={() => setJumpDate(null)} className="ml-auto flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 cursor-pointer">
               <X className="w-3 h-3" /> Clear
             </button>
           </div>
@@ -3000,106 +3081,112 @@ export const TutorScores: React.FC = () => {
       )}
 
       {/* ── Saved Scores Floating Notification Toast ─────────────────────── */}
-      {showSuccessModal && (
-        <aside
-          aria-live="polite"
-          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
-        >
-          <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-white p-3.5 shadow-xl">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200">
-              <CheckCircle2 className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-bold text-gray-900">
-                  {successModalTitle || 'Scores Saved Successfully'}
-                </h3>
-                <button
-                  type="button"
-                  onClick={handleDismissSuccessModal}
-                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition cursor-pointer"
-                  aria-label="Close notification"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+      {showSuccessModal &&
+        createPortal(
+          <aside
+            aria-live="polite"
+            className="fixed top-20 right-4 sm:right-6 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+          >
+            <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-white dark:bg-[#111111] dark:border-emerald-800 p-3.5 shadow-xl">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400">
+                <CheckCircle2 className="h-4 w-4" />
               </div>
-              <p className="mt-1 text-xs text-gray-600 leading-relaxed">
-                {saveSuccessMsg || 'Intervention Activity scores saved and highlighted below.'}
-              </p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                    {successModalTitle || 'Scores Saved Successfully'}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={handleDismissSuccessModal}
+                    className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                    aria-label="Close notification"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                  {saveSuccessMsg || 'Intervention Activity scores saved and highlighted below.'}
+                </p>
+              </div>
             </div>
-          </div>
-        </aside>
-      )}
+          </aside>,
+          document.body
+        )}
 
       {/* ── Score Validation / Error Floating Notification Toast ─────────── */}
-      {validationToast && (
-        <aside
-          aria-live="assertive"
-          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
-        >
-          <div className={`flex items-start gap-3 rounded-lg border p-3.5 shadow-xl bg-white dark:bg-[#111111] ${validationToast.type === 'warning'
-              ? 'border-amber-300 dark:border-amber-700/80'
-              : 'border-rose-300 dark:border-rose-700/80'
-            }`}>
-            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${validationToast.type === 'warning'
-                ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
-                : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
+      {validationToast &&
+        createPortal(
+          <aside
+            aria-live="assertive"
+            className="fixed top-20 right-4 sm:right-6 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+          >
+            <div className={`flex items-start gap-3 rounded-lg border p-3.5 shadow-xl bg-white dark:bg-[#111111] ${validationToast.type === 'warning'
+                ? 'border-amber-300 dark:border-amber-700/80'
+                : 'border-rose-300 dark:border-rose-700/80'
               }`}>
-              <AlertCircle className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
-                  {validationToast.title}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setValidationToast(null)}
-                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                  aria-label="Close notification"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${validationToast.type === 'warning'
+                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
+                }`}>
+                <AlertCircle className="h-4 w-4" />
               </div>
-              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
-                {validationToast.message}
-              </p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                    {validationToast.title}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setValidationToast(null)}
+                    className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                    aria-label="Close notification"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                  {validationToast.message}
+                </p>
+              </div>
             </div>
-          </div>
-        </aside>
-      )}
+          </aside>,
+          document.body
+        )}
 
       {/* ── Trashbin Actions Floating Notification Toast ─────────────────── */}
-      {trashToast && (
-        <aside
-          aria-live="polite"
-          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
-        >
-          <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-white dark:bg-[#111111] dark:border-blue-800 p-3.5 shadow-xl">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-50 text-[var(--brand)] border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400">
-              <CheckCircle2 className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
-                  {trashToast.title}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setTrashToast(null)}
-                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                  aria-label="Close notification"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+      {trashToast &&
+        createPortal(
+          <aside
+            aria-live="polite"
+            className="fixed top-20 right-4 sm:right-6 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+          >
+            <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-white dark:bg-[#111111] dark:border-blue-800 p-3.5 shadow-xl">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-50 text-[var(--brand)] border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400">
+                <CheckCircle2 className="h-4 w-4" />
               </div>
-              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
-                {trashToast.message}
-              </p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                    {trashToast.title}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setTrashToast(null)}
+                    className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                    aria-label="Close notification"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                  {trashToast.message}
+                </p>
+              </div>
             </div>
-          </div>
-        </aside>
-      )}
+          </aside>,
+          document.body
+        )}
 
       {/* ── Delete Record Entry Confirmation Modal ───────────────────────── */}
       {confirmTrashModal && createPortal(

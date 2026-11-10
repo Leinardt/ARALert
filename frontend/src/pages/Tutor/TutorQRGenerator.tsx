@@ -46,6 +46,7 @@ import {
 import { matchesSearch } from '../../utils/searchHelpers';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
 import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 import {
   formatSessionLabel,
   formatSessionTime,
@@ -153,9 +154,10 @@ const CustomCalendarDropdown: React.FC<{
   onClear: () => void;
   onClose: () => void;
   loggedDates: Set<string>;
+  maxDate?: string;
   className?: string;
   style?: React.CSSProperties;
-}> = ({ selectedDate, onSelectDate, onClear, onClose, loggedDates, className, style }) => {
+}> = ({ selectedDate, onSelectDate, onClear, onClose, loggedDates, maxDate, className, style }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [viewDate, setViewDate] = useState(() => {
     if (selectedDate) {
@@ -257,6 +259,20 @@ const CustomCalendarDropdown: React.FC<{
           const isSelected = selectedDate === cellDateKey;
           const isToday = todayStr === cellDateKey;
           const hasLogs = loggedDates.has(cellDateKey);
+          const isFuture = Boolean(maxDate && cellDateKey > maxDate);
+
+          if (isFuture) {
+            return (
+              <button
+                key={cellDateKey}
+                type="button"
+                disabled
+                className="relative flex flex-col items-center justify-center h-7 w-7 mx-auto rounded-md text-xs font-semibold text-slate-300 dark:text-slate-700 opacity-40 cursor-not-allowed select-none"
+              >
+                <span>{dayNum}</span>
+              </button>
+            );
+          }
 
           return (
             <button
@@ -306,6 +322,25 @@ const CustomCalendarDropdown: React.FC<{
       </div>
     </div>
   );
+};
+
+const calculatePickerPosition = (picker: 'date' | 'time', anchor: HTMLElement) => {
+  const bounds = anchor.getBoundingClientRect();
+  const width = picker === 'date' ? 288 : 256;
+  const height = picker === 'date' ? 340 : 150;
+
+  const spaceBelow = window.innerHeight - bounds.bottom;
+  const spaceAbove = bounds.top;
+
+  let top: number;
+  if (spaceBelow >= height + 12 || spaceBelow >= spaceAbove) {
+    top = Math.min(window.innerHeight - height - 12, bounds.bottom + 8);
+  } else {
+    top = Math.max(12, bounds.top - height - 8);
+  }
+
+  const left = Math.max(12, Math.min(window.innerWidth - width - 12, bounds.left));
+  return { top, left };
 };
 
 const formatEditTime = (value: string) => {
@@ -407,25 +442,6 @@ const AttendanceTable: React.FC<{
     }));
   };
 
-  const calculatePickerPosition = (picker: 'date' | 'time', anchor: HTMLElement) => {
-    const bounds = anchor.getBoundingClientRect();
-    const width = picker === 'date' ? 288 : 256;
-    const height = picker === 'date' ? 340 : 150;
-
-    const spaceBelow = window.innerHeight - bounds.bottom;
-    const spaceAbove = bounds.top;
-
-    let top: number;
-    if (spaceBelow >= height + 12 || spaceBelow >= spaceAbove) {
-      top = Math.min(window.innerHeight - height - 12, bounds.bottom + 8);
-    } else {
-      top = Math.max(12, bounds.top - height - 8);
-    }
-
-    const left = Math.max(12, Math.min(window.innerWidth - width - 12, bounds.left));
-    return { top, left };
-  };
-
   const startEditing = (log: Attendance) => {
     setEditingId(log.id);
     setEditDate(log.date);
@@ -512,7 +528,7 @@ const AttendanceTable: React.FC<{
       <button
         type="button"
         onClick={() => toggleSort(sortKey)}
-        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-700"
+        className="inline-flex items-center gap-1.5 text-left transition-colors hover:text-gray-900 dark:hover:text-white cursor-pointer"
         aria-label={`Sort by ${label}`}
       >
         {label}
@@ -532,20 +548,20 @@ const AttendanceTable: React.FC<{
         <table className="min-w-[680px] w-full divide-y divide-gray-100 dark:divide-[#1A1A1A] text-sm">
           <thead>
             <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#151515]">
-              <th className="w-[35%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="STUDENT" sortKey="student" /></th>
-              <th className="w-[25%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="DATE" sortKey="date" /></th>
-              <th className="w-[20%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="TIME" sortKey="time" /></th>
-              <th className="w-[12%] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400"><SortableHeader label="STATUS" sortKey="status" /></th>
-              <th className="w-[8%] px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-gray-400">ACTIONS</th>
+              <th className="w-[35%] px-3 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"><SortableHeader label="STUDENT" sortKey="student" /></th>
+              <th className="w-[25%] px-3 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"><SortableHeader label="DATE" sortKey="date" /></th>
+              <th className="w-[20%] px-3 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"><SortableHeader label="TIME" sortKey="time" /></th>
+              <th className="w-[12%] px-3 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"><SortableHeader label="STATUS" sortKey="status" /></th>
+              <th className="w-[8%] px-3 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">ACTIONS</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white dark:divide-[#1A1A1A] dark:bg-[#111111]">
             {sortedLogs.map((log) => (
               <tr key={log.id} className="group divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
-                <td className="px-4 py-2.5 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap">
+                <td className="px-4 py-2.5 font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-[13px] tracking-tight whitespace-nowrap">
                   {log.user_name}
                 </td>
-                <td className="px-4 py-2.5 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs">
+                <td className="px-4 py-2.5 whitespace-nowrap text-xs">
                   {editingId === log.id ? (
                     <div className="relative inline-block">
                       <button type="button" onClick={(event) => togglePicker('date', event)} className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700" style={{ color: editDate ? '#1f2937' : '#9ca3af' }}>
@@ -564,9 +580,22 @@ const AttendanceTable: React.FC<{
                         document.body
                       )}
                     </div>
-                  ) : formatDateString(log.date)}
+                  ) : (() => {
+                    const formatted = formatDateString(log.date);
+                    if (formatted && formatted.includes(' | ')) {
+                      const [datePart, dayPart] = formatted.split(' | ');
+                      return (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="font-semibold text-gray-800 dark:text-slate-200">{datePart}</span>
+                          <span className="text-gray-300 dark:text-zinc-600">|</span>
+                          <span className="text-[11px] font-normal text-gray-400 dark:text-slate-400">{dayPart}</span>
+                        </span>
+                      );
+                    }
+                    return <span className="font-semibold text-gray-800 dark:text-slate-200">{formatted}</span>;
+                  })()}
                 </td>
-                <td className="px-4 py-2.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs">
+                <td className="px-4 py-2.5 whitespace-nowrap text-xs">
                   {editingId === log.id ? (
                     <div className="relative inline-block">
                       <button type="button" onClick={(event) => togglePicker('time', event)} className="h-8 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2.5 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700" style={{ color: editTimeIn ? '#1f2937' : '#9ca3af' }}>
@@ -608,7 +637,13 @@ const AttendanceTable: React.FC<{
                         document.body
                       )}
                     </div>
-                  ) : formatTimeString(log.time_in)}
+                  ) : (() => {
+                    const formattedTime = formatTimeString(log.time_in);
+                    if (!formattedTime || formattedTime === '—' || formattedTime === '-') {
+                      return <span className="text-gray-300 dark:text-slate-600 font-medium">—</span>;
+                    }
+                    return <span className="font-mono text-xs font-semibold text-gray-700 dark:text-slate-200">{formattedTime}</span>;
+                  })()}
                 </td>
                 <td className="px-4 py-2.5">
                   {editingId === log.id ? (
@@ -631,7 +666,7 @@ const AttendanceTable: React.FC<{
                       </button>
                     </div>
                   ) : (
-                    <button type="button" onClick={() => startEditing(log)} className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700" aria-label={`Edit attendance for ${log.user_name}`} title="Edit attendance">
+                    <button type="button" onClick={() => startEditing(log)} className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-[#202020] hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer" aria-label={`Edit attendance for ${log.user_name}`} title="Edit attendance">
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
                   )}
@@ -647,19 +682,19 @@ const AttendanceTable: React.FC<{
         <table className="min-w-[480px] w-full border-separate border-spacing-0 text-xs">
           <thead>
             <tr className="bg-gray-50 dark:bg-[#151515]">
-              <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[35%] min-w-[130px] px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+              <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[35%] min-w-[130px] px-2.5 py-2 text-left text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
                 <SortableHeader label="STUDENT" sortKey="student" />
               </th>
-              <th className="w-[26%] min-w-[105px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="w-[26%] min-w-[105px] px-2 py-2 text-left text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableHeader label="DATE" sortKey="date" />
               </th>
-              <th className="w-[18%] min-w-[75px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="w-[18%] min-w-[75px] px-2 py-2 text-left text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableHeader label="TIME" sortKey="time" />
               </th>
-              <th className="w-[13%] min-w-[85px] px-2 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+              <th className="w-[13%] min-w-[85px] px-2 py-2 text-left text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                 <SortableHeader label="STATUS" sortKey="status" />
               </th>
-              <th className="w-[8%] min-w-[60px] px-2 py-2 text-center text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+              <th className="w-[8%] min-w-[60px] px-2 py-2 text-center text-[10px] sm:text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
                 ACTIONS
               </th>
             </tr>
@@ -667,12 +702,12 @@ const AttendanceTable: React.FC<{
           <tbody className="bg-white dark:bg-[#111111]">
             {sortedLogs.map((log) => (
               <tr key={`mobile-row-${log.id}`} className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
-                <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
-                  <span className="block truncate max-w-[120px] text-xs font-semibold text-gray-800 dark:text-slate-100">
+                <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                  <span className="block truncate max-w-[120px] text-xs font-bold text-gray-900 dark:text-slate-100 tracking-tight">
                     {log.user_name}
                   </span>
                 </td>
-                <td className="px-2 py-2 text-gray-600 dark:text-slate-300 whitespace-nowrap text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                <td className="px-2 py-2 whitespace-nowrap text-xs border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                   {editingId === log.id ? (
                     <div className="relative inline-block">
                       <button type="button" onClick={(event) => togglePicker('date', event)} className="h-7.5 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700" style={{ color: editDate ? '#1f2937' : '#9ca3af' }}>
@@ -691,9 +726,11 @@ const AttendanceTable: React.FC<{
                         document.body
                       )}
                     </div>
-                  ) : formatShortDateString(log.date)}
+                  ) : (
+                    <span className="font-semibold text-gray-800 dark:text-slate-200">{formatShortDateString(log.date)}</span>
+                  )}
                 </td>
-                <td className="px-2 py-2 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-mono border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                <td className="px-2 py-2 whitespace-nowrap text-xs font-mono border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                   {editingId === log.id ? (
                     <div className="relative inline-block">
                       <button type="button" onClick={(event) => togglePicker('time', event)} className="h-7.5 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#161616] px-2 text-xs font-semibold outline-none transition-all cursor-pointer hover:bg-gray-100 hover:text-gray-700" style={{ color: editTimeIn ? '#1f2937' : '#9ca3af' }}>
@@ -735,7 +772,13 @@ const AttendanceTable: React.FC<{
                         document.body
                       )}
                     </div>
-                  ) : formatTimeString(log.time_in)}
+                  ) : (() => {
+                    const formattedTime = formatTimeString(log.time_in);
+                    if (!formattedTime || formattedTime === '—' || formattedTime === '-') {
+                      return <span className="text-gray-300 dark:text-slate-600 font-medium">—</span>;
+                    }
+                    return <span className="font-semibold text-gray-700 dark:text-slate-200">{formattedTime}</span>;
+                  })()}
                 </td>
                 <td className="px-2 py-2 whitespace-nowrap border-b border-r border-gray-100 dark:border-[#1A1A1A]">
                   {editingId === log.id ? (
@@ -758,7 +801,7 @@ const AttendanceTable: React.FC<{
                       </button>
                     </div>
                   ) : (
-                    <button type="button" onClick={() => startEditing(log)} className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700" aria-label={`Edit attendance for ${log.user_name}`} title="Edit attendance">
+                    <button type="button" onClick={() => startEditing(log)} className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-[#202020] hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer" aria-label={`Edit attendance for ${log.user_name}`} title="Edit attendance">
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
                   )}
@@ -948,8 +991,8 @@ const AttendanceHistoryGroupSection: React.FC<AttendanceHistoryGroupSectionProps
         </div>
         {isOpen && (
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold text-gray-400">
-              {displayRecords.length} Record{displayRecords.length !== 1 ? 's' : ''}
+            <span className="text-[11px] font-normal text-gray-400 dark:text-slate-400">
+              <span className="font-bold text-gray-700 dark:text-slate-200">{displayRecords.length}</span> Record{displayRecords.length !== 1 ? 's' : ''}
             </span>
           </div>
         )}
@@ -1092,6 +1135,29 @@ export const TutorQRGenerator: React.FC = () => {
   const [studentSearch, setStudentSearch] = useState('');
   const [sessionLaunchTimes, setSessionLaunchTimes] = useState<Record<string, string>>(() => getStoredSessionTimes());
   const [successToast, setSuccessToast] = useState<{ title: string; message: string; type?: 'success' | 'error' } | null>(null);
+
+  // ── Manual Attendance Mode State ─────────────────────────────────
+  const [attendanceMode, setAttendanceMode] = useState<'qr' | 'manual'>('qr');
+  const [manualDate, setManualDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [showManualCalendar, setShowManualCalendar] = useState<boolean>(false);
+  const [manualPickerPosition, setManualPickerPosition] = useState({ top: 0, left: 0 });
+  const manualPickerAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const [manualStatus, setManualStatus] = useState<Record<string, 'present' | 'absent'>>({});
+  const [manualSearch, setManualSearch] = useState<string>('');
+  const [isSavingManual, setIsSavingManual] = useState<boolean>(false);
+
+  // Manual attendance session time & student times
+  const [sessionStartTime, setSessionStartTime] = useState<string>(() => {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(Math.floor(now.getMinutes() / 5) * 5).padStart(2, '0');
+    return `${h}:${m}`;
+  });
+  const [manualTimePickerTarget, setManualTimePickerTarget] = useState<'session' | string | null>(null);
+  const [manualTimePickerPos, setManualTimePickerPos] = useState({ top: 0, left: 0 });
+  const manualTimePickerAnchorRef = useRef<HTMLElement | null>(null);
+  const manualTimePickerRef = useRef<HTMLDivElement | null>(null);
+  const [studentTimes, setStudentTimes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!successToast) return;
@@ -2012,15 +2078,218 @@ export const TutorQRGenerator: React.FC = () => {
 
   const statusBadge = (status: string, display: string) => {
     const map: Record<string, string> = {
-      present: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      absent: 'bg-rose-50   text-rose-700   border-rose-200',
+      present: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60',
+      absent: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60',
+      late: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60',
     };
-    const cls = map[status] ?? 'bg-gray-50 text-gray-600 border-gray-200';
+    const cls = map[status] ?? 'bg-gray-50 text-gray-600 border-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700';
     return (
-      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize ${cls}`}>
+      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider ${cls}`}>
         {display || status}
       </span>
     );
+  };
+
+  // ── Manual Attendance Handlers & Data ────────────────────────────
+  useEffect(() => {
+    if (!manualDate || attendanceHistory.length === 0) return;
+    const dateLogs = attendanceHistory.filter((l) => l.date === manualDate);
+    if (dateLogs.length > 0) {
+      const existingMap: Record<string, 'present' | 'absent'> = {};
+      const existingTimeMap: Record<string, string> = {};
+      for (const log of dateLogs) {
+        const studentId = String(log.user);
+        if (log.status === 'present' || log.status === 'absent') {
+          existingMap[studentId] = log.status;
+        }
+        if (log.time_in) {
+          existingTimeMap[studentId] = log.time_in.slice(0, 5);
+        }
+      }
+      setManualStatus((prev) => ({
+        ...prev,
+        ...existingMap,
+      }));
+      setStudentTimes((prev) => ({
+        ...prev,
+        ...existingTimeMap,
+      }));
+    }
+  }, [manualDate, attendanceHistory]);
+
+  const toggleManualCalendar = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (showManualCalendar) {
+      setShowManualCalendar(false);
+      return;
+    }
+    manualPickerAnchorRef.current = event.currentTarget;
+    setManualPickerPosition(calculatePickerPosition('date', event.currentTarget));
+    setShowManualCalendar(true);
+  };
+
+  useEffect(() => {
+    if (!showManualCalendar) return;
+    const updatePos = () => {
+      if (manualPickerAnchorRef.current) {
+        setManualPickerPosition(calculatePickerPosition('date', manualPickerAnchorRef.current));
+      }
+    };
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [showManualCalendar]);
+
+  const toggleManualTimePicker = (target: 'session' | string, event: React.MouseEvent<HTMLElement>) => {
+    if (manualTimePickerTarget === target) {
+      setManualTimePickerTarget(null);
+      return;
+    }
+    manualTimePickerAnchorRef.current = event.currentTarget;
+    setManualTimePickerPos(calculatePickerPosition('time', event.currentTarget));
+    setManualTimePickerTarget(target);
+  };
+
+  useEffect(() => {
+    if (!manualTimePickerTarget) return;
+    const updatePos = () => {
+      if (manualTimePickerAnchorRef.current) {
+        setManualTimePickerPos(calculatePickerPosition('time', manualTimePickerAnchorRef.current));
+      }
+    };
+    const handlePointerDown = (e: MouseEvent) => {
+      if (
+        manualTimePickerRef.current &&
+        !manualTimePickerRef.current.contains(e.target as Node) &&
+        manualTimePickerAnchorRef.current &&
+        !manualTimePickerAnchorRef.current.contains(e.target as Node)
+      ) {
+        setManualTimePickerTarget(null);
+      }
+    };
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [manualTimePickerTarget]);
+
+  const [manualSortField, setManualSortField] = useState<'student' | 'lrn'>('student');
+  const [manualSortDirection, setManualSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const handleManualSort = (field: 'student' | 'lrn') => {
+    if (manualSortField === field) {
+      setManualSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setManualSortField(field);
+      setManualSortDirection('asc');
+    }
+  };
+
+  const sortedManualStudents = useMemo(() => {
+    let list = [...filteredStudents];
+    if (manualSearch.trim()) {
+      list = list.filter((s) => matchesSearch(manualSearch, s.full_name, s.lrn));
+    }
+
+    list.sort((a, b) => {
+      let comparison = 0;
+      if (manualSortField === 'student') {
+        comparison = compareNamesByLastName(a.full_name, b.full_name);
+      } else if (manualSortField === 'lrn') {
+        const lrnA = (a.lrn || '').trim();
+        const lrnB = (b.lrn || '').trim();
+        comparison = lrnA.localeCompare(lrnB, undefined, { numeric: true });
+      }
+      return manualSortDirection === 'asc' ? comparison : -comparison;
+    });
+
+    return list;
+  }, [filteredStudents, manualSearch, manualSortField, manualSortDirection]);
+
+  // ── Session & Student Time Handlers ───────────────────────────────
+  const getStudentEffectiveTime = (studentId: string | number) => {
+    return studentTimes[String(studentId)] || sessionStartTime;
+  };
+
+  const handleManualTimePartChange = (part: 'hour' | 'minute' | 'period', value: string) => {
+    if (manualTimePickerTarget === 'session') {
+      const updated = updateEditTimePart(sessionStartTime, part, value);
+      setSessionStartTime(updated);
+      setStudentTimes({});
+    } else if (manualTimePickerTarget) {
+      const key = String(manualTimePickerTarget);
+      const current = studentTimes[key] || sessionStartTime;
+      const updated = updateEditTimePart(current, part, value);
+      setStudentTimes((prev) => ({ ...prev, [key]: updated }));
+    }
+  };
+
+  const activeManualTimeValue = manualTimePickerTarget === 'session'
+    ? sessionStartTime
+    : manualTimePickerTarget
+      ? (studentTimes[String(manualTimePickerTarget)] || sessionStartTime)
+      : sessionStartTime;
+
+  const handleSaveManualAttendance = async () => {
+    if (filteredStudents.length === 0) {
+      setSuccessToast({
+        title: 'No Students',
+        message: 'There are no students in the selected class cohort to record attendance for.',
+        type: 'error',
+      });
+      return;
+    }
+    if (!manualDate) {
+      setSuccessToast({
+        title: 'Date Required',
+        message: 'Please choose a valid session date.',
+        type: 'error',
+      });
+      return;
+    }
+
+    setIsSavingManual(true);
+    try {
+      const records = filteredStudents.map((s) => {
+        const studentTime = studentTimes[String(s.id)] || sessionStartTime;
+        const [rawH, rawM] = studentTime.split(':').map(Number);
+        const safeH = String(rawH || 0).padStart(2, '0');
+        const safeM = String(rawM || 0).padStart(2, '0');
+        return {
+          student_id: s.id,
+          status: manualStatus[s.id] ?? 'present',
+          time_in: `${safeH}:${safeM}:00`,
+        };
+      });
+
+      const res = await academicService.logBatchManualAttendance({
+        date: manualDate,
+        records,
+      });
+
+      await fetchAttendanceHistory();
+
+      setSuccessToast({
+        title: 'Attendance Saved',
+        message: res.message || `Successfully recorded attendance for ${formatShortDateString(manualDate)}.`,
+        type: 'success',
+      });
+    } catch (err: any) {
+      console.error('Failed to save manual attendance:', err);
+      setSuccessToast({
+        title: 'Save Failed',
+        message: err.response?.data?.error || 'Failed to record manual attendance.',
+        type: 'error',
+      });
+    } finally {
+      setIsSavingManual(false);
+    }
   };
 
   /* ─────────────────────────── render ─────────────────────────── */
@@ -2043,12 +2312,49 @@ export const TutorQRGenerator: React.FC = () => {
         title="CURRENT CLASS FOR ATTENDANCE"
       />
 
-      {/* ── Main Grid ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-6">
+      {/* ── Attendance Mode Segmented Toggle ── */}
+      <div
+        className="flex w-full rounded-md bg-gray-100 p-0.5 gap-0.5 dark:bg-[#111111]"
+        role="tablist"
+        aria-label="Attendance session mode"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={attendanceMode === 'qr'}
+          onClick={() => setAttendanceMode('qr')}
+          className={`flex-1 h-8 rounded-sm px-2 sm:px-4 flex items-center justify-center text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+            attendanceMode === 'qr'
+              ? 'bg-[var(--brand)] text-white font-extrabold shadow-sm'
+              : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-white/5'
+          }`}
+        >
+          <span className="sm:hidden">QR ATTENDANCE</span>
+          <span className="hidden sm:inline">QR ATTENDANCE SESSION</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={attendanceMode === 'manual'}
+          onClick={() => setAttendanceMode('manual')}
+          className={`flex-1 h-8 rounded-sm px-2 sm:px-4 flex items-center justify-center text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+            attendanceMode === 'manual'
+              ? 'bg-[var(--brand)] text-white font-extrabold shadow-sm'
+              : 'text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-white/5'
+          }`}
+        >
+          <span className="sm:hidden">MANUAL ATTENDANCE</span>
+          <span className="hidden sm:inline">MANUAL ATTENDANCE SESSION</span>
+        </button>
+      </div>
+
+      {attendanceMode === 'qr' ? (
+        /* ── Main Grid ───────────────────────────────────────────── */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-6">
 
         {/* ── LEFT: QR Generator ─────────────────────────────────── */}
         <div className="lg:col-span-7">
-          <div className="h-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden">
+          <div className="h-full rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden shadow-sm">
 
             {/* Card Header */}
             <div className="h-12 sm:h-[60px] shrink-0 flex items-center justify-between px-3.5 sm:px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -2072,8 +2378,8 @@ export const TutorQRGenerator: React.FC = () => {
                 <div className="order-2 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/60 dark:bg-[#161616] p-3 sm:p-4 space-y-2.5 sm:space-y-4">
                   {/* Duration */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1.5 sm:mb-3">
-                      Duration
+                    <label className="block text-[10.5px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-1.5 sm:mb-2.5">
+                      Session Duration
                     </label>
                     <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
                       {[5, 10, 15, 30].map((mins) => (
@@ -2082,8 +2388,8 @@ export const TutorQRGenerator: React.FC = () => {
                           type="button"
                           onClick={() => setExpiresIn(mins)}
                           className={`py-1.5 sm:py-2 rounded-md text-[11px] sm:text-xs font-bold border transition-all cursor-pointer ${expiresIn === mins
-                            ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
-                            : 'bg-white dark:bg-[#111111] text-gray-600 dark:text-slate-300 border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:text-[var(--brand)]'
+                            ? 'bg-[var(--brand)] text-white border-[var(--brand)] shadow-xs font-extrabold'
+                            : 'bg-white dark:bg-[#111111] text-gray-700 dark:text-slate-200 border-gray-200 dark:border-[#1A1A1A] hover:border-[var(--brand)] hover:text-[var(--brand)] font-semibold'
                             }`}
                         >
                           {mins} mins
@@ -2305,10 +2611,10 @@ export const TutorQRGenerator: React.FC = () => {
                     <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-full border border-dashed border-gray-300 dark:border-white/10 bg-white dark:bg-[#111111] flex items-center justify-center mb-2 sm:mb-3">
                       <Camera className="w-5 h-5 sm:w-7 sm:h-7 text-gray-300 dark:text-slate-600 stroke-[1.5]" />
                     </div>
-                    <h3 className="text-xs sm:text-sm font-bold text-gray-800 dark:text-slate-200">
+                    <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100">
                       Ready to Scan Student Attendance
                     </h3>
-                    <p className="text-[11px] sm:text-xs text-gray-400 dark:text-slate-500 max-w-xs mt-0.5 sm:mt-1">
+                    <p className="text-[11px] sm:text-xs text-gray-500 dark:text-slate-400 max-w-xs mt-0.5 sm:mt-1">
                       Select a session duration and start the session to activate the camera scanner.
                     </p>
                   </div>
@@ -2319,11 +2625,11 @@ export const TutorQRGenerator: React.FC = () => {
                   <div className="mt-3 sm:mt-4 space-y-1.5">
                     {/* Progress bar */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900 dark:text-slate-100">
-                        <Clock className="w-3.5 h-3.5 text-gray-900 dark:text-slate-100" />
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-slate-400">
+                        <Clock className="w-3.5 h-3.5 text-gray-700 dark:text-slate-300" />
                         Time Remaining
                       </div>
-                      <span className="text-sm font-bold font-mono text-gray-900 dark:text-slate-100">{formatTime(timeLeft)}</span>
+                      <span className="text-base sm:text-lg font-black font-mono tracking-tight text-gray-900 dark:text-slate-100">{formatTime(timeLeft)}</span>
                     </div>
                     <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-[#222222] overflow-hidden">
                       <div
@@ -2340,7 +2646,7 @@ export const TutorQRGenerator: React.FC = () => {
 
         {/* ── RIGHT: Live Check-in Feed ──────────────────────────── */}
         <div className="lg:col-span-5">
-          <div className="flex h-full min-h-[240px] sm:min-h-[380px] lg:min-h-[480px] flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden">
+          <div className="flex h-full min-h-[240px] sm:min-h-[380px] lg:min-h-[480px] flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden shadow-sm">
 
             {/* Feed header */}
             <div className="h-12 sm:h-[60px] shrink-0 flex items-center justify-between px-3.5 sm:px-6 border-b border-gray-100 dark:border-[#1A1A1A]">
@@ -2348,9 +2654,21 @@ export const TutorQRGenerator: React.FC = () => {
                 <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base">RECENT STUDENT QR SCANS</h3>
               </div>
               <div>
-                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A1A1A] px-1.5 py-0.5 text-[10px] font-extrabold text-gray-700 dark:text-slate-300">
-                  {isSessionForCurrentClass ? scannedStudents.length : 0}
-                </span>
+                {(() => {
+                  const scanCount = isSessionForCurrentClass ? scannedStudents.length : 0;
+                  return (
+                    <span
+                      className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-black border transition-colors ${
+                        scanCount > 0
+                          ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60'
+                          : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-700 dark:text-slate-300 border-gray-200 dark:border-[#262626]'
+                      }`}
+                      title={`${scanCount} student${scanCount !== 1 ? 's' : ''} scanned`}
+                    >
+                      {scanCount}
+                    </span>
+                  );
+                })()}
               </div>
             </div>
 
@@ -2385,11 +2703,11 @@ export const TutorQRGenerator: React.FC = () => {
                     className="flex items-center justify-between gap-3 p-2.5 sm:p-3 bg-gray-50/60 dark:bg-[#161616] hover:bg-gray-100/60 dark:hover:bg-[#1a1a1a] rounded-md border border-gray-100 dark:border-[#1A1A1A] transition-colors"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-gray-800 dark:text-slate-200 leading-tight truncate">{log.user_name}</p>
-                      <p className="text-[11px] text-gray-400 truncate">LRN: {log.user_lrn || 'N/A'}</p>
+                      <p className="text-xs font-bold text-gray-900 dark:text-slate-100 leading-snug tracking-tight truncate">{log.user_name}</p>
+                      <p className="font-mono text-[10.5px] font-medium text-gray-400 dark:text-slate-500 truncate mt-0.5">LRN: {log.user_lrn || 'N/A'}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800">
+                      <span className="inline-flex items-center gap-1 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60">
                         <CheckCircle2 className="w-3 h-3" />
                         {log.time_in ? formatTimeString(log.time_in) : 'Logged'}
                       </span>
@@ -2401,16 +2719,485 @@ export const TutorQRGenerator: React.FC = () => {
           </div>
         </div>
       </div>
+      ) : (
+        /* ── Manual Attendance Entry (Mirrors Score Entry Layout) ── */
+        <div className="flex flex-col rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm w-full min-w-0 max-w-full sm:h-[600px] sm:min-h-[500px] sm:overflow-hidden">
+          {/* Card Header (Matches Score Entry header) */}
+          <div className="flex shrink-0 items-center justify-between px-4 sm:px-5 py-3.5 border-b border-gray-100 dark:border-slate-800">
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm uppercase">
+              RECORD MANUAL ATTENDANCE
+            </h3>
+          </div>
+
+          <div className="flex-1 p-3.5 sm:p-5 flex flex-col gap-3 sm:gap-4 sm:min-h-0 sm:overflow-hidden">
+            {/* Configuration Controls Bar */}
+            <div className="shrink-0 flex flex-col gap-2.5 sm:gap-3 sm:grid sm:grid-cols-[minmax(0,1.8fr)_auto] sm:items-end">
+              <div className="min-w-0 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,260px)_240px] gap-2.5 sm:gap-3">
+                  {/* Session Date Picker */}
+                  <div className="w-full">
+                    <label className="block text-[10.5px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-1.5">
+                      SESSION DATE
+                    </label>
+                    <div className="relative w-full">
+                      <button
+                        ref={manualPickerAnchorRef}
+                        type="button"
+                        onClick={toggleManualCalendar}
+                        className="flex w-full min-h-[38px] sm:min-h-0 sm:h-9 items-center justify-between rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-left text-xs font-semibold text-gray-900 dark:text-slate-100 transition hover:bg-gray-50 dark:hover:bg-slate-700/50 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] cursor-pointer"
+                        aria-label="Select session date"
+                      >
+                        <span className="truncate">
+                          <span className="sm:hidden">{manualDate ? formatShortDateString(manualDate) : 'Select date'}</span>
+                          <span className="hidden sm:inline">{manualDate ? formatDateString(manualDate) : 'Select date'}</span>
+                        </span>
+                        <Calendar className="h-4 w-4 text-gray-400 shrink-0 ml-1.5" />
+                      </button>
+                      {showManualCalendar && createPortal(
+                        <CustomCalendarDropdown
+                          selectedDate={manualDate}
+                          onSelectDate={(d) => {
+                            setManualDate(d);
+                            setShowManualCalendar(false);
+                          }}
+                          onClear={() => {
+                            setManualDate(new Date().toISOString().slice(0, 10));
+                            setShowManualCalendar(false);
+                          }}
+                          onClose={() => setShowManualCalendar(false)}
+                          loggedDates={new Set(attendanceHistory.map((l) => l.date))}
+                          maxDate={new Date().toISOString().slice(0, 10)}
+                          className="fixed"
+                          style={{ position: 'fixed', top: manualPickerPosition.top, left: manualPickerPosition.left, marginTop: 0 }}
+                        />,
+                        document.body
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Session Starting Time */}
+                  <div className="w-full">
+                    <label className="block text-[10.5px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-1.5">
+                      SESSION STARTING TIME
+                    </label>
+                    <div className="relative w-full">
+                      <button
+                        type="button"
+                        onClick={(e) => toggleManualTimePicker('session', e)}
+                        className="flex w-full min-h-[38px] sm:min-h-0 sm:h-9 items-center justify-between rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-left text-xs font-semibold text-gray-900 dark:text-slate-100 transition hover:bg-gray-50 dark:hover:bg-slate-700/50 focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] cursor-pointer"
+                        aria-label="Select session starting time"
+                      >
+                        <span className="truncate">{formatEditTime(sessionStartTime)}</span>
+                        <Clock className="h-4 w-4 text-gray-400 shrink-0 ml-1.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Save Attendance Button */}
+              <div className="w-full sm:w-auto flex items-end justify-end">
+                <button
+                  type="button"
+                  onClick={handleSaveManualAttendance}
+                  disabled={isSavingManual || filteredStudents.length === 0}
+                  className={`w-full sm:w-auto min-h-[38px] sm:min-h-0 sm:h-9 inline-flex items-center justify-center gap-2 rounded-md px-4 sm:px-5 py-2 text-xs font-bold text-white transition shadow-sm ${
+                    isSavingManual || filteredStudents.length === 0
+                      ? 'bg-[var(--brand)] opacity-60 cursor-not-allowed'
+                      : 'bg-[var(--brand)] hover:bg-[var(--brand-dark)] cursor-pointer'
+                  }`}
+                >
+                  {isSavingManual ? (
+                    <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving Attendance...</>
+                  ) : (
+                    'Save Attendance Session'
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Student Roster Table Area */}
+            {filteredStudents.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500">
+                <p className="text-sm font-semibold">No students in this class cohort</p>
+                <p className="text-xs text-slate-400 mt-1">Select a different cohort from the filter above.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col rounded-md border border-gray-200 dark:border-slate-800 sm:min-h-0 sm:flex-1 sm:overflow-hidden">
+                {/* Table Header Bar with Search (matching Score Entry style) */}
+                <div className="flex shrink-0 flex-col gap-3 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 sm:py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold uppercase text-gray-900 dark:text-slate-100">
+                      STUDENT ATTENDANCE LIST
+                    </h3>
+                    <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">
+                      Enter attendance for the{' '}
+                      <span className="font-bold text-gray-800 dark:text-slate-200">{filteredStudents.length}</span>{' '}
+                      assigned {filteredStudents.length === 1 ? 'student' : 'students'} of{' '}
+                      <span className="font-semibold text-gray-700 dark:text-slate-300">
+                        {`${(selectedAralLevel || '').toUpperCase()} • ${(selectedSubject || '').toUpperCase()} • ${selectedCohort || ''}`}
+                      </span>
+                    </p>
+                  </div>
+                  <label className="relative flex w-full sm:w-auto sm:min-w-56 items-center">
+                    <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-gray-400" />
+                    <input
+                      type="search"
+                      placeholder="Search Student Name"
+                      value={manualSearch}
+                      onChange={(e) => setManualSearch(e.target.value)}
+                      className="min-h-[44px] sm:min-h-0 sm:h-8 w-full rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 pl-10 pr-3 text-xs font-medium text-gray-700 dark:text-slate-200 outline-none transition placeholder:text-gray-400 focus:border-[var(--brand)] focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-[var(--brand)]"
+                      aria-label="Search student name"
+                    />
+                  </label>
+                </div>
+
+                {/* Scrollable list area */}
+                <div className="mobile-scroll-table sm:min-h-0 sm:flex-1 sm:overflow-auto">
+                  {/* Desktop Table View (>= 640px) */}
+                  <table className="hidden sm:table min-w-full divide-y divide-gray-100 dark:divide-slate-800 text-sm">
+                    <thead className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10">
+                      <tr className="divide-x divide-gray-100 dark:divide-slate-800">
+                        <th
+                          aria-sort={manualSortField === 'student' ? (manualSortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+                          className="px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleManualSort('student')}
+                            className="inline-flex items-center gap-1 text-left transition-colors hover:text-gray-900 dark:hover:text-white font-extrabold cursor-pointer"
+                            aria-label={`Sort students ${manualSortField === 'student' && manualSortDirection === 'desc' ? 'ascending' : 'descending'}`}
+                          >
+                            STUDENT
+                            {manualSortField === 'student' ? (
+                              manualSortDirection === 'desc' ? (
+                                <ChevronDown className="h-3.5 w-3.5 text-[var(--brand)]" />
+                              ) : (
+                                <ChevronUp className="h-3.5 w-3.5 text-[var(--brand)]" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+                            )}
+                          </button>
+                        </th>
+                        <th
+                          aria-sort={manualSortField === 'lrn' ? (manualSortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+                          className="px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 w-40"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleManualSort('lrn')}
+                            className="inline-flex items-center gap-1 text-left transition-colors hover:text-gray-900 dark:hover:text-white font-extrabold cursor-pointer"
+                            aria-label={`Sort by LRN ${manualSortField === 'lrn' && manualSortDirection === 'desc' ? 'ascending' : 'descending'}`}
+                          >
+                            LRN
+                            {manualSortField === 'lrn' ? (
+                              manualSortDirection === 'desc' ? (
+                                <ChevronDown className="h-3.5 w-3.5 text-[var(--brand)]" />
+                              ) : (
+                                <ChevronUp className="h-3.5 w-3.5 text-[var(--brand)]" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+                            )}
+                          </button>
+                        </th>
+                        <th className="px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 w-44">
+                          TIME
+                        </th>
+                        <th className="px-4 py-2.5 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 w-56">
+                          ATTENDANCE STATUS
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-neutral-800 bg-white dark:bg-[#111111]">
+                      {sortedManualStudents.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-8 text-center text-xs text-gray-400">
+                            {manualSearch.trim() ? `No students found matching "${manualSearch}".` : 'No students found.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        sortedManualStudents.map((student) => {
+                          const currentStatus = manualStatus[student.id] ?? 'present';
+                          const studentTime = getStudentEffectiveTime(student.id);
+
+                          return (
+                            <tr key={student.id} className="divide-x divide-gray-100 dark:divide-neutral-800 hover:bg-gray-50/60 dark:hover:bg-neutral-900/50 transition-colors">
+                              <td className="px-4 py-2.5">
+                                <p className="text-xs sm:text-[13px] font-bold text-gray-900 dark:text-slate-100">
+                                  {student.full_name}
+                                </p>
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <span className="text-xs font-mono font-medium text-slate-500 dark:text-slate-400">
+                                  {student.lrn || '—'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 text-center">
+                                {currentStatus === 'absent' ? (
+                                  <button
+                                    type="button"
+                                    disabled
+                                    className="h-8 rounded-md border border-gray-100 dark:border-neutral-800/60 bg-gray-50/50 dark:bg-neutral-900/40 px-3 text-xs font-semibold text-gray-400 dark:text-slate-600 opacity-40 cursor-not-allowed select-none"
+                                    aria-label="Student is absent"
+                                  >
+                                    —
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => toggleManualTimePicker(String(student.id), e)}
+                                    className="h-8 rounded-md border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#161616] px-3 text-xs font-semibold text-gray-800 dark:text-slate-200 hover:border-[var(--brand)] hover:bg-gray-50 dark:hover:bg-neutral-800/60 transition shadow-2xs cursor-pointer"
+                                    aria-label={`Edit time for ${student.full_name}`}
+                                  >
+                                    {formatEditTime(studentTime)}
+                                  </button>
+                                )}
+                              </td>
+                              <td className="px-4 py-2 text-center">
+                                <div className="inline-flex rounded-lg border border-gray-200 dark:border-neutral-800 p-0.5 bg-gray-50 dark:bg-[#161616]">
+                                  <button
+                                    type="button"
+                                    onClick={() => setManualStatus((prev) => ({ ...prev, [student.id]: 'present' }))}
+                                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                                      currentStatus === 'present'
+                                        ? 'bg-emerald-600 text-white shadow-xs'
+                                        : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                                    }`}
+                                  >
+                                    Present
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setManualStatus((prev) => ({ ...prev, [student.id]: 'absent' }))}
+                                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                                      currentStatus === 'absent'
+                                        ? 'bg-rose-600 text-white shadow-xs'
+                                        : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                                    }`}
+                                  >
+                                    Absent
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+
+                  {/* Mobile Responsive Attendance Table (< 640px) with sealed sticky student column */}
+                  <div className="sm:hidden overflow-x-auto mobile-scroll-table rounded-md border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#111111]">
+                    <table className="min-w-[430px] w-full border-separate border-spacing-0 text-xs">
+                      <thead>
+                        <tr className="bg-gray-50 dark:bg-[#151515]">
+                          <th className="sticky left-0 z-20 bg-gray-50 dark:bg-[#151515] w-[36%] min-w-[125px] px-2.5 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                            <button
+                              type="button"
+                              onClick={() => handleManualSort('student')}
+                              className="inline-flex items-center gap-1 text-left transition-colors hover:text-gray-900 dark:hover:text-white font-extrabold cursor-pointer"
+                              aria-label={`Sort students ${manualSortField === 'student' && manualSortDirection === 'desc' ? 'ascending' : 'descending'}`}
+                            >
+                              STUDENT
+                              {manualSortField === 'student' ? (
+                                manualSortDirection === 'desc' ? (
+                                  <ChevronDown className="h-3 w-3 text-[var(--brand)]" />
+                                ) : (
+                                  <ChevronUp className="h-3 w-3 text-[var(--brand)]" />
+                                )
+                              ) : (
+                                <ArrowUpDown className="h-3 w-3 opacity-50" />
+                              )}
+                            </button>
+                          </th>
+                          <th className="w-[20%] min-w-[85px] px-2 py-2 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            <button
+                              type="button"
+                              onClick={() => handleManualSort('lrn')}
+                              className="inline-flex items-center gap-1 text-left transition-colors hover:text-gray-900 dark:hover:text-white font-extrabold cursor-pointer"
+                              aria-label={`Sort by LRN ${manualSortField === 'lrn' && manualSortDirection === 'desc' ? 'ascending' : 'descending'}`}
+                            >
+                              LRN
+                              {manualSortField === 'lrn' ? (
+                                manualSortDirection === 'desc' ? (
+                                  <ChevronDown className="h-3 w-3 text-[var(--brand)]" />
+                                ) : (
+                                  <ChevronUp className="h-3 w-3 text-[var(--brand)]" />
+                                )
+                              ) : (
+                                <ArrowUpDown className="h-3 w-3 opacity-50" />
+                              )}
+                            </button>
+                          </th>
+                          <th className="w-[18%] min-w-[75px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                            TIME
+                          </th>
+                          <th className="w-[26%] min-w-[130px] px-1.5 py-2 text-center text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 border-b border-gray-100 dark:border-[#1A1A1A]">
+                            STATUS
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-[#111111]">
+                        {sortedManualStudents.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="text-center py-6 text-xs text-gray-400 border-b border-gray-100 dark:border-[#1A1A1A]">
+                              {manualSearch.trim() ? `No students found matching "${manualSearch}".` : 'No students found.'}
+                            </td>
+                          </tr>
+                        ) : (
+                          sortedManualStudents.map((student) => {
+                            const currentStatus = manualStatus[student.id] ?? 'present';
+                            const studentTime = getStudentEffectiveTime(student.id);
+
+                            return (
+                              <tr key={`mobile-manual-${student.id}`} className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515]">
+                                <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 dark:bg-[#111111] dark:group-hover:bg-[#151515] px-2.5 py-2 font-bold text-gray-900 dark:text-slate-100 whitespace-nowrap border-b border-r border-gray-200 dark:border-[#222222] shadow-[3px_0_5px_-1px_rgba(0,0,0,0.06)] dark:shadow-[3px_0_5px_-1px_rgba(0,0,0,0.5)]">
+                                  <span className="block truncate max-w-[115px] text-xs font-bold text-gray-900 dark:text-slate-100 tracking-tight" title={student.full_name}>
+                                    {student.full_name}
+                                  </span>
+                                </td>
+                                <td className="px-2 py-2 border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                  <span className="text-[11px] font-mono font-medium text-slate-500 dark:text-slate-400">
+                                    {student.lrn || '—'}
+                                  </span>
+                                </td>
+                                <td className="px-1.5 py-2 text-center border-b border-r border-gray-100 dark:border-[#1A1A1A]">
+                                  {currentStatus === 'absent' ? (
+                                    <button
+                                      type="button"
+                                      disabled
+                                      className="h-7 w-full max-w-[70px] rounded-md border border-gray-100 dark:border-neutral-800/60 bg-gray-50/50 dark:bg-neutral-900/40 text-[11px] font-semibold text-gray-400 dark:text-slate-600 opacity-40 cursor-not-allowed select-none"
+                                      aria-label="Student is absent"
+                                    >
+                                      —
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => toggleManualTimePicker(String(student.id), e)}
+                                      className="h-7 w-full max-w-[70px] inline-flex items-center justify-center rounded-md border border-gray-200 dark:border-neutral-800 bg-white dark:bg-[#161616] px-1 text-[11px] font-semibold text-gray-800 dark:text-slate-200 hover:border-[var(--brand)] hover:bg-gray-50 dark:hover:bg-neutral-800/60 transition shadow-2xs cursor-pointer"
+                                      aria-label={`Edit time for ${student.full_name}`}
+                                    >
+                                      {formatEditTime(studentTime)}
+                                    </button>
+                                  )}
+                                </td>
+                                <td className="px-1.5 py-2 text-center border-b border-gray-100 dark:border-[#1A1A1A]">
+                                  <div className="inline-flex rounded-lg border border-gray-200 dark:border-neutral-800 p-0.5 bg-gray-50 dark:bg-[#161616]">
+                                    <button
+                                      type="button"
+                                      onClick={() => setManualStatus((prev) => ({ ...prev, [student.id]: 'present' }))}
+                                      className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                                        currentStatus === 'present'
+                                          ? 'bg-emerald-600 text-white shadow-xs'
+                                          : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                                      }`}
+                                    >
+                                      Present
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setManualStatus((prev) => ({ ...prev, [student.id]: 'absent' }))}
+                                      className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                                        currentStatus === 'absent'
+                                          ? 'bg-rose-600 text-white shadow-xs'
+                                          : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                                      }`}
+                                    >
+                                      Absent
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Unified Manual Time Picker Popover (Matches Set Time Modal) */}
+        {manualTimePickerTarget !== null && createPortal(
+          <div
+            ref={manualTimePickerRef}
+            className="fixed z-[70] w-64 rounded-xl border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 shadow-2xl font-sans text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150"
+            style={{
+              top: manualTimePickerPos.top,
+              left: manualTimePickerPos.left,
+              fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif",
+            }}
+          >
+            <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-gray-100 dark:border-[#1A1A1A]">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Set time</p>
+              <button
+                type="button"
+                onClick={() => setManualTimePickerTarget(null)}
+                className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                aria-label="Close time picker"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <select
+                value={String(Number(activeManualTimeValue.split(':')[0]) % 12 || 12)}
+                onChange={(e) => handleManualTimePartChange('hour', e.target.value)}
+                className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                  <option key={h} value={h}>{String(h).padStart(2, '0')}</option>
+                ))}
+              </select>
+              <select
+                value={String(Number(activeManualTimeValue.split(':')[1]) || 0).padStart(2, '0')}
+                onChange={(e) => handleManualTimePartChange('minute', e.target.value)}
+                className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+              >
+                {Array.from({ length: 60 }, (_, i) => (
+                  <option key={i} value={String(i).padStart(2, '0')}>{String(i).padStart(2, '0')}</option>
+                ))}
+              </select>
+              <select
+                value={Number(activeManualTimeValue.split(':')[0]) >= 12 ? 'PM' : 'AM'}
+                onChange={(e) => handleManualTimePartChange('period', e.target.value)}
+                className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-slate-50 dark:bg-[#161616] px-2 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[var(--brand)] cursor-pointer"
+              >
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+              </select>
+            </div>
+            <div className="mt-3 flex items-center justify-end border-t border-gray-100 dark:border-[#1A1A1A] pt-2 text-[11px] font-semibold">
+              <button
+                type="button"
+                onClick={() => setManualTimePickerTarget(null)}
+                className="text-[var(--brand)] transition hover:underline cursor-pointer font-bold"
+              >
+                Done
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
+      </div>
+    )}
 
       {/* ── Attendance History ───────────────────────────────────── */}
-      <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <div className="mt-2.5 sm:mt-4 rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm relative" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}>
 
         {/* Section header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
           <div className="min-w-0">
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-base uppercase tracking-tight">STUDENTS ATTENDANCE HISTORY</h3>
             <p className="mt-0.5 text-[11px] sm:text-xs font-normal text-gray-500 dark:text-slate-400">
-              {activeHistoryRecords.length} Record{activeHistoryRecords.length !== 1 ? 's' : ''}
+              <span className="font-bold text-gray-800 dark:text-slate-200">
+                <AnimatedCounter value={activeHistoryRecords.length} />
+              </span> Record{activeHistoryRecords.length !== 1 ? 's' : ''}
             </p>
           </div>
 
@@ -2620,48 +3407,50 @@ export const TutorQRGenerator: React.FC = () => {
         document.body
       )}
       {/* ── Attendance Record Floating Notification Toast ── */}
-      {successToast && (
-        <aside
-          aria-live="polite"
-          className="fixed top-5 right-5 z-50 max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
-        >
-          <div className={`flex items-start gap-3 rounded-lg border bg-white dark:bg-[#111111] p-3.5 shadow-xl ${
-            successToast.type === 'error'
-              ? 'border-rose-200 dark:border-rose-900/60'
-              : 'border-emerald-200 dark:border-emerald-800'
-          }`}>
-            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${
+      {successToast &&
+        createPortal(
+          <aside
+            aria-live="polite"
+            className="fixed top-20 right-4 sm:right-6 z-[9999] max-w-sm w-[calc(100vw-2.5rem)] animate-in fade-in slide-in-from-top-3 duration-200"
+          >
+            <div className={`flex items-start gap-3 rounded-lg border bg-white dark:bg-[#111111] p-3.5 shadow-xl ${
               successToast.type === 'error'
-                ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-400'
-                : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400'
+                ? 'border-rose-200 dark:border-rose-900/60'
+                : 'border-emerald-200 dark:border-emerald-800'
             }`}>
-              {successToast.type === 'error' ? (
-                <AlertCircle className="h-4 w-4" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
-                  {successToast.title}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setSuccessToast(null)}
-                  className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                  aria-label="Close notification"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${
+                successToast.type === 'error'
+                  ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-400'
+                  : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400'
+              }`}>
+                {successToast.type === 'error' ? (
+                  <AlertCircle className="h-4 w-4" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
               </div>
-              <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
-                {successToast.message}
-              </p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                    {successToast.title}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setSuccessToast(null)}
+                    className="rounded-md p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                    aria-label="Close notification"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                  {successToast.message}
+                </p>
+              </div>
             </div>
-          </div>
-        </aside>
-      )}
+          </aside>,
+          document.body
+        )}
     </div>
   );
 };

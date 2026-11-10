@@ -4,6 +4,7 @@ Academics API URL configuration.
 
 from django.urls import path
 
+from .cron_views import WeeklyRiskDigestCronView
 from .views import (
     AcademicRiskDetailView,
     AcademicRiskListCreateView,
@@ -115,5 +116,8 @@ urlpatterns = [
     # Tutor Cohort History (Active & Past Cohorts)
     path('tutors/cohort-history/', TutorCohortHistoryView.as_view(), name='tutor-cohort-history-self'),
     path('tutors/<uuid:tutor_id>/cohort-history/', TutorCohortHistoryView.as_view(), name='tutor-cohort-history-detail'),
+
+    # Automated Weekly Risk Digest Cron (Saturday 12:00 AM PHT)
+    path('cron/weekly-risk-digest/', WeeklyRiskDigestCronView.as_view(), name='cron-weekly-risk-digest'),
 ]
 

@@ -23,6 +23,7 @@ import {
 } from '../../utils/sessionDescriptionHelpers';
 import { EntrySessionSeparator } from '../../components/EntrySessionSeparator';
 import { compareNamesByLastName } from '../../utils/studentFormatters';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
 
@@ -1079,7 +1080,7 @@ export const StudentScores: React.FC = () => {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-4 min-h-[100px] flex items-center gap-3.5 animate-pulse"
+              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm p-4 min-h-[100px] flex items-center gap-3.5 animate-pulse"
             >
               {i < 3 && <div className="w-6 h-6 rounded-md bg-gray-200 dark:bg-gray-800 shrink-0" />}
               <div className="flex-1 min-w-0">
@@ -1092,7 +1093,7 @@ export const StudentScores: React.FC = () => {
         </div>
 
         {/* Score Entries Table skeleton */}
-        <div className="bg-white dark:bg-[#0A0A0A] rounded-md border border-gray-200 dark:border-[#1A1A1A] overflow-hidden skeleton-row-2">
+        <div className="bg-white dark:bg-[#111111] rounded-md border border-gray-200 dark:border-[#1A1A1A] overflow-hidden skeleton-row-2 shadow-sm">
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="space-y-1">
               <div className="h-4 w-44 rounded bg-gray-200 dark:bg-gray-800" />
@@ -1118,31 +1119,35 @@ export const StudentScores: React.FC = () => {
       {/* ── Top KPI Stat Containers ──────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* TOTAL PASSED */}
-        <div className="rounded-md border border-emerald-500 dark:border-emerald-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+        <div className="rounded-md border border-emerald-500/30 dark:border-emerald-500/40 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#111111] shadow-sm">
           <Check className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={3} />
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">TOTAL PASSED</p>
-            <p className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-0.5">{passedCount}</p>
+            <p className="text-2xl sm:text-3xl font-black text-emerald-900 dark:text-emerald-100 mt-0.5 tracking-tight">
+              <AnimatedCounter value={passedCount} />
+            </p>
             <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s total passed score records</p>
           </div>
         </div>
 
         {/* TOTAL FAILED */}
-        <div className="rounded-md border border-rose-500 dark:border-rose-500 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#0A0A0A]">
+        <div className="rounded-md border border-rose-500/30 dark:border-rose-500/40 bg-white p-4 min-h-[100px] flex items-center gap-3.5 dark:bg-[#111111] shadow-sm">
           <X className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={3} />
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">TOTAL FAILED</p>
-            <p className="text-2xl font-extrabold text-rose-900 dark:text-rose-100 mt-0.5">{failedCount}</p>
+            <p className="text-2xl sm:text-3xl font-black text-rose-900 dark:text-rose-100 mt-0.5 tracking-tight">
+              <AnimatedCounter value={failedCount} />
+            </p>
             <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s total failed score records</p>
           </div>
         </div>
 
         {/* AVERAGE SCORE */}
-        <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A]">
+        <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE SCORE</p>
             <p
-              className={`text-2xl font-extrabold mt-0.5 ${
+              className={`text-2xl sm:text-3xl font-black mt-0.5 tracking-tight ${
                 !hasScoreData
                   ? 'text-gray-900 dark:text-slate-100'
                   : calculatedAvgScore >= 81
@@ -1152,7 +1157,7 @@ export const StudentScores: React.FC = () => {
                   : 'text-risk-high text-rose-600 dark:text-rose-400'
               }`}
             >
-              {hasScoreData ? `${smartPct(calculatedAvgScore)}%` : '—'}
+              {hasScoreData ? <AnimatedCounter value={calculatedAvgScore} decimals={calculatedAvgScore % 1 !== 0 ? 1 : 0} suffix="%" /> : '—'}
             </p>
             <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s average score</p>
           </div>
@@ -1160,7 +1165,7 @@ export const StudentScores: React.FC = () => {
       </div>
 
       {/* ── Academic Records Container ──────────────────────────────────── */}
-      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
+      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm relative">
         {/* Header & Controls Toolbar */}
         <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 px-3 sm:px-5 py-3 sm:py-3.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
           {/* 1. Title & Record Count */}
@@ -1169,7 +1174,7 @@ export const StudentScores: React.FC = () => {
               {studentFirstName}'s Academic Records
             </h3>
             <p className="mt-0.5 text-[10px] sm:text-xs font-medium text-gray-500 dark:text-slate-400 truncate">
-              {visibleRecordsCount} Record{visibleRecordsCount !== 1 ? 's' : ''}
+              <AnimatedCounter value={visibleRecordsCount} /> Record{visibleRecordsCount !== 1 ? 's' : ''}
             </p>
           </div>
 

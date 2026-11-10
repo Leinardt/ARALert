@@ -111,9 +111,16 @@ export const TransitionConfirmationModal: React.FC<TransitionConfirmationModalPr
         {/* Content Body */}
         <div className="p-5 flex-1 overflow-y-auto space-y-4">
           {isLoading ? (
-            <div className="py-12 text-center text-xs text-slate-500 dark:text-zinc-400 flex flex-col items-center gap-2">
-              <RefreshCw className="w-5 h-5 animate-spin text-slate-600" />
-              <span>Calculating student projections...</span>
+            <div className="space-y-3 animate-pulse">
+              <div className="h-3 w-40 rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="rounded-lg border border-slate-200 dark:border-zinc-800 divide-y divide-slate-100 dark:divide-zinc-800 overflow-hidden">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="p-3 flex items-center justify-between">
+                    <div className="h-3 w-32 rounded bg-gray-200 dark:bg-gray-800" />
+                    <div className="h-3 w-16 rounded bg-gray-100 dark:bg-gray-800" />
+                  </div>
+                ))}
+              </div>
             </div>
           ) : summary ? (
             <>

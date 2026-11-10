@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { TablePagination } from '../../components/TablePagination';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { isTutorEligibleForStudent } from '../../utils/tutorCohortHelpers';
 
 /* ─── ARAL Badge Helper (Clean typography without pill container) ─── */
@@ -1171,7 +1172,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
 
 
       {/* ── Main Integrated Directory Table Card ──────────────────────── */}
-      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] relative">
+      <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] relative shadow-sm">
         {/* Table Toolbar (Section Title + Action Buttons & Filters) */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 px-3 sm:px-4 py-2.5 border-b border-gray-100 dark:border-[#1A1A1A] overflow-visible">
           {/* Left: Title & Counter */}
@@ -1190,7 +1191,7 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
                           : 'USER DIRECTORY'}
             </h3>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-[#1A1A1A] text-slate-600 dark:text-slate-300 whitespace-nowrap">
-              {totalCount} {totalCount === 1 ? 'user' : 'users'}
+              <AnimatedCounter value={totalCount} /> {totalCount === 1 ? 'user' : 'users'}
             </span>
           </div>
 
@@ -2463,9 +2464,16 @@ const isSelfUser = (target?: Partial<User> | null, current?: Partial<User> | nul
             {/* Timeline content body */}
             <div className="flex-1 overflow-y-auto pr-1 space-y-4">
               {isLoadingActivities ? (
-                <div className="p-8 text-center text-gray-500 flex flex-col items-center gap-3">
-                  <RefreshCw className="w-6 h-6 animate-spin text-[var(--brand)]" />
-                  <span className="text-xs">Loading login activity history...</span>
+                <div className="space-y-3 animate-pulse p-2">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="p-3 rounded-md border border-gray-100 dark:border-[#1A1A1A] bg-gray-50/50 dark:bg-[#111111] flex items-center justify-between">
+                      <div className="space-y-1.5 flex-1">
+                        <div className="h-3.5 w-32 rounded bg-gray-200 dark:bg-gray-800" />
+                        <div className="h-2.5 w-48 rounded bg-gray-100 dark:bg-gray-800" />
+                      </div>
+                      <div className="h-3 w-20 rounded bg-gray-100 dark:bg-gray-800" />
+                    </div>
+                  ))}
                 </div>
               ) : userActivities.length === 0 ? (
                 <div className="p-8 text-center text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-[#111111] rounded-md border border-gray-200 dark:border-[#1A1A1A]">

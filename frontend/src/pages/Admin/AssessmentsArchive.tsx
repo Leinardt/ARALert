@@ -7,6 +7,7 @@ import { academicService } from '../../services/academicService';
 import { userService } from '../../services/userService';
 import { SchoolYear, User, Grade, Attendance } from '../../types';
 import { TableSkeleton } from '../../components/SkeletonLoader';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
 import { buildTutorClassSections } from '../../utils/tutorCohortHelpers';
 import { useAuth } from '../../hooks/useAuth';
 import { isAssessmentWindowOpen } from '../../utils/sessionDescriptionHelpers';
@@ -1110,7 +1111,7 @@ export const AssessmentsArchive: React.FC = () => {
           <TableSkeleton rows={8} cols={7} />
         </div>
       ) : (
-        <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs overflow-hidden">
+        <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] shadow-sm overflow-hidden">
           {/* Table Header / Search Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 sm:px-5 py-3 sm:py-4 border-b border-gray-100 dark:border-[#1A1A1A]">
             <div className="space-y-1">
@@ -1120,23 +1121,24 @@ export const AssessmentsArchive: React.FC = () => {
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs pt-0.5">
                 <span className="text-slate-500 dark:text-zinc-400 font-medium">
-                  {cohortTotals.totalStudents} Total Students
+                  <AnimatedCounter value={cohortTotals.totalStudents} /> Total Students
                 </span>
                 {cohortTotals.graduatedCount > 0 && (
                   <span className="inline-flex items-center gap-1 font-semibold text-[var(--brand)]">
                     <GraduationCap className="w-3.5 h-3.5" />
-                    {cohortTotals.graduatedCount} Graduated
+                    <AnimatedCounter value={cohortTotals.graduatedCount} /> Graduated
                   </span>
                 )}
                 {cohortTotals.movedUpCount > 0 && (
                   <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    {cohortTotals.movedUpCount} Moved Up ARAL Level
+                    <AnimatedCounter value={cohortTotals.movedUpCount} /> Moved Up ARAL Level
                   </span>
                 )}
                 {cohortTotals.retainedCount > 0 && (
                   <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
-                    {cohortTotals.retainedCount} Retained ARAL Level
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <AnimatedCounter value={cohortTotals.retainedCount} /> Retained ARAL Level
                   </span>
                 )}
               </div>
