@@ -60,12 +60,14 @@ interface TutorGreetingIntroProps {
   isTutor?: boolean;
   sidebarLogoId?: string;
   sidebarTextId?: string;
+  onComplete?: () => void;
 }
 
 export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
   user,
   sidebarLogoId = 'sidebar-brand-logo',
   sidebarTextId = 'sidebar-brand-text',
+  onComplete,
 }) => {
   const isAllowed = Boolean(user);
   const [phase, setPhase] = useState<'idle' | 'centered' | 'flying' | 'completed'>('idle');
@@ -140,6 +142,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
         sidebarTextEl.style.transformOrigin = '';
       }
       setPhase('completed');
+      onComplete?.();
       return;
     }
 
@@ -197,8 +200,9 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
       }
 
       setPhase('completed');
+      onComplete?.();
     }, 850);
-  }, [sidebarLogoId, sidebarTextId]);
+  }, [sidebarLogoId, sidebarTextId, onComplete]);
 
   triggerDismissalRef.current = triggerDismissal;
 
@@ -244,6 +248,7 @@ export const TutorGreetingIntro: React.FC<TutorGreetingIntroProps> = ({
     const { show, isNewcomer } = checkGreetingEligibility(user);
     if (!show) {
       setPhase('idle');
+      onComplete?.();
       return;
     }
 

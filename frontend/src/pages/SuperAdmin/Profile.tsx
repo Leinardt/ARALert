@@ -93,48 +93,33 @@ const formatSystemDisplayName = (user: User | null): string => {
   return (last || given || user.full_name || user.username || '').toUpperCase();
 };
 
-const SecurityHelpButton: React.FC<{ label: string; description: string }> = ({ label, description }) => (
-  <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }} className="group">
-    <button
-      type="button"
-      aria-label={label}
-      style={{
-        border: 'none',
-        background: 'transparent',
-        padding: 0,
-        color: 'var(--text-muted)',
-        fontSize: '0.7rem',
-        fontWeight: 800,
-        letterSpacing: '0.06em',
-        cursor: 'pointer',
-      }}
-    >
-      {label.toUpperCase()}
-    </button>
-    <button
-      type="button"
-      aria-label={label}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '20px',
-        height: '20px',
-        borderRadius: '50%',
-        border: 'none',
-        background: 'transparent',
-        color: 'var(--text-muted)',
-        cursor: 'pointer',
-      }}
-    >
-      <Info size={14} />
-    </button>
-    <span className="pointer-events-none absolute left-0 bottom-full z-20 mb-2 hidden w-72 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs font-semibold leading-relaxed text-slate-800 dark:text-white shadow-xl group-hover:block group-focus-within:block">
-      {description}
-      <span className="absolute left-6 top-full -mt-1 border-4 border-transparent border-t-white dark:border-t-zinc-900" />
-    </span>
-  </span>
-);
+const SecurityHelpButton: React.FC<{ label: string; description: string }> = ({ label, description }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="relative inline-flex items-center gap-1.5 group">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-label={label}
+        className="border-none bg-transparent p-0 text-[11px] font-bold tracking-wider text-[var(--text-muted)] hover:text-slate-900 dark:hover:text-white cursor-pointer uppercase transition-colors"
+      >
+        {label.toUpperCase()}
+      </button>
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-label={label}
+        className="inline-flex items-center justify-center w-5 h-5 rounded-full border-none bg-transparent text-[var(--text-muted)] hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors"
+      >
+        <Info size={13} />
+      </button>
+      <span className={`absolute left-0 bottom-full z-30 mb-2 w-[calc(100vw-64px)] max-w-xs sm:w-72 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs font-semibold leading-relaxed text-slate-800 dark:text-white shadow-xl ${isOpen ? 'block' : 'hidden group-hover:block group-focus-within:block'}`}>
+        {description}
+        <span className="absolute left-6 top-full -mt-1 border-4 border-transparent border-t-white dark:border-t-zinc-900" />
+      </span>
+    </div>
+  );
+};
 
 export const Profile: React.FC = () => {
   const { user, updateProfile } = useAuth();
@@ -514,18 +499,18 @@ export const Profile: React.FC = () => {
               type="button"
               onClick={() => setShowCancelConfirmModal(true)}
               disabled={isCancelling}
-              className="flex-1 sm:flex-initial justify-center whitespace-nowrap inline-flex items-center px-3 sm:px-4 py-2 rounded-xl bg-white dark:bg-rose-950/20 border border-rose-300 dark:border-rose-800/80 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-bold text-[11px] sm:text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
+              className="flex-1 sm:flex-initial justify-center whitespace-nowrap inline-flex items-center px-2.5 sm:px-4 py-2 rounded-xl bg-white dark:bg-rose-950/20 border border-rose-300 dark:border-rose-800/80 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-bold text-[11px] sm:text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
             >
-              {isCancelling ? 'Cancelling...' : 'Cancel Request'}
+              {isCancelling ? 'Cancelling...' : <><span className="sm:hidden">Cancel</span><span className="hidden sm:inline">Cancel Request</span></>}
             </button>
 
             <button
               type="button"
               onClick={() => setShowPendingModal(true)}
-              className="flex-1 sm:flex-initial justify-center whitespace-nowrap inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border border-amber-400 dark:border-amber-500 hover:border-amber-500 text-amber-700 dark:text-amber-400 font-bold text-[11px] sm:text-xs shadow-xs transition cursor-pointer"
+              className="flex-1 sm:flex-initial justify-center whitespace-nowrap inline-flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border border-amber-400 dark:border-amber-500 hover:border-amber-500 text-amber-700 dark:text-amber-400 font-bold text-[11px] sm:text-xs shadow-xs transition cursor-pointer"
             >
               <Eye className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-              <span>View Request Details</span>
+              <span><span className="sm:hidden">View Details</span><span className="hidden sm:inline">View Request Details</span></span>
             </button>
           </div>
         </div>
@@ -945,20 +930,20 @@ export const Profile: React.FC = () => {
               )}
             </div>
 
-            <div className="flex justify-end gap-2 sm:gap-2.5 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-2.5 pt-3 border-t border-gray-100 dark:border-[#1A1A1A]">
               <button
                 type="button"
                 onClick={() => setIsEditingStudent(false)}
-                className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer whitespace-nowrap"
+                className="w-full sm:w-auto bg-white dark:bg-[#111111] border border-gray-200 dark:border-[#1A1A1A] text-gray-700 dark:text-slate-300 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] cursor-pointer whitespace-nowrap text-center justify-center"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-4 sm:px-5 py-2 rounded-xl text-xs font-bold cursor-pointer shadow-sm transition-all inline-flex items-center gap-1.5 whitespace-nowrap"
+                className="w-full sm:w-auto bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white px-4 sm:px-5 py-2 rounded-xl text-xs font-bold cursor-pointer shadow-sm transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
               >
                 <Send className="w-3.5 h-3.5 shrink-0" />
-                Submit Request for Approval
+                <span><span className="sm:hidden">Submit Request</span><span className="hidden sm:inline">Submit Request for Approval</span></span>
               </button>
             </div>
           </form>

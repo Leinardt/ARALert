@@ -83,7 +83,7 @@ class GoogleLoginView(GenericAPIView):
                 log_audit_event('GOOGLE_LOGIN_UNREGISTERED_EMAIL', request=request, details={'email': email})
                 return Response(
                     {
-                        'detail': 'Your account is not registered in ARALert. Please contact your Super Admin to be added to the system.'
+                        'detail': 'The account you used is not registered to ARALert. Please contact the school admin to be added to the system.'
                     },
                     status=status.HTTP_403_FORBIDDEN,
                 )

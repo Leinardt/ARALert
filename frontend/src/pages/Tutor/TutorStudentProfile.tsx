@@ -103,7 +103,8 @@ const getAralBadge = (level?: string | null) => {
 const getRiskBadge = (tier?: string | null) => {
   switch (tier?.toLowerCase()) {
     case 'high': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-high">High Risk</span>;
-    case 'medium': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-medium">Medium Risk</span>;
+    case 'moderate':
+    case 'medium': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-moderate">Moderate Risk</span>;
     default: return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border risk-badge-low">Low Risk</span>;
   }
 };
@@ -167,7 +168,7 @@ export const TutorStudentProfile: React.FC = () => {
       scAvg = sum / profile.grade_details.length;
     }
     const compScore = Number(((attRate * 0.4) + (scAvg * 0.6)).toFixed(2));
-    const tier = compScore >= 86 ? 'Low' : compScore >= 70 ? 'Medium' : 'High';
+    const tier = compScore >= 86 ? 'Low' : compScore >= 70 ? 'Moderate' : 'High';
     return {
       attendanceRate: Number(attRate.toFixed(2)),
       scoreAvg: Number(scAvg.toFixed(2)),
@@ -235,12 +236,12 @@ export const TutorStudentProfile: React.FC = () => {
     }
     if (calculatedAvgScore >= 75) {
       return {
-        cardBg: 'risk-card-medium',
-        iconBg: 'risk-badge-medium',
-        iconColor: 'text-risk-medium',
-        textColor: 'text-risk-medium',
-        valueColor: 'text-risk-medium',
-        descColor: 'text-risk-medium',
+        cardBg: 'risk-card-moderate',
+        iconBg: 'risk-badge-moderate',
+        iconColor: 'text-risk-moderate',
+        textColor: 'text-risk-moderate',
+        valueColor: 'text-risk-moderate',
+        descColor: 'text-risk-moderate',
       };
     }
     return {
@@ -282,12 +283,12 @@ export const TutorStudentProfile: React.FC = () => {
     }
     if (attendanceRate >= 75) {
       return {
-        cardBg: 'risk-card-medium',
-        iconBg: 'risk-badge-medium',
-        iconColor: 'text-risk-medium',
-        textColor: 'text-risk-medium',
-        valueColor: 'text-risk-medium',
-        descColor: 'text-risk-medium',
+        cardBg: 'risk-card-moderate',
+        iconBg: 'risk-badge-moderate',
+        iconColor: 'text-risk-moderate',
+        textColor: 'text-risk-moderate',
+        valueColor: 'text-risk-moderate',
+        descColor: 'text-risk-moderate',
       };
     }
     return {
@@ -317,7 +318,7 @@ export const TutorStudentProfile: React.FC = () => {
   });
 
   const [riskForm, setRiskForm] = useState({
-    risk_level: 'low' as 'low' | 'medium' | 'high',
+    risk_level: 'low' as 'low' | 'moderate' | 'medium' | 'high',
     details: ''
   });
 
@@ -752,30 +753,30 @@ export const TutorStudentProfile: React.FC = () => {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-4">
               <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex flex-col justify-center col-span-1">
                 <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-black dark:text-white truncate">COMPOSITE SCORE</p>
-                <p className={`text-xl sm:text-2xl font-extrabold mt-0.5 ${riskTier === 'High' ? 'text-risk-high' : riskTier === 'Medium' ? 'text-risk-medium' : 'text-risk-low'}`}>
+                <p className={`text-xl sm:text-2xl font-extrabold mt-0.5 ${riskTier === 'High' ? 'text-risk-high' : (riskTier === 'Moderate' || riskTier === 'Medium') ? 'text-risk-moderate' : 'text-risk-low'}`}>
                   {smartPct(compositeScore)}%
                 </p>
               </div>
 
               <div className={`rounded-md border p-3.5 sm:p-5 flex flex-col justify-center col-span-1 md:col-span-2 ${riskTier === 'High'
                 ? 'risk-card-high'
-                : riskTier === 'Medium'
-                  ? 'risk-card-medium'
+                : (riskTier === 'Moderate' || riskTier === 'Medium')
+                  ? 'risk-card-moderate'
                   : 'risk-card-low'
                 }`}>
                 <p className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate ${riskTier === 'High'
                   ? 'text-risk-high'
-                  : riskTier === 'Medium'
-                    ? 'text-risk-medium'
+                  : (riskTier === 'Moderate' || riskTier === 'Medium')
+                    ? 'text-risk-moderate'
                     : 'text-risk-low'
                   }`}>RISK LEVEL</p>
                 <p className={`text-xl sm:text-2xl font-extrabold mt-0.5 truncate ${riskTier === 'High'
                   ? 'text-risk-high'
-                  : riskTier === 'Medium'
-                    ? 'text-risk-medium'
+                  : (riskTier === 'Moderate' || riskTier === 'Medium')
+                    ? 'text-risk-moderate'
                     : 'text-risk-low'
                   }`}>
-                  {riskTier}
+                  {riskTier === 'Medium' ? 'Moderate' : riskTier}
                 </p>
               </div>
             </div>
@@ -797,10 +798,10 @@ export const TutorStudentProfile: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
                     <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-[#151515] text-center">
-                      <td className={`px-2 sm:px-6 py-2.5 sm:py-3.5 font-semibold ${attendanceRate >= 81 ? 'text-risk-low' : attendanceRate >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                      <td className={`px-2 sm:px-6 py-2.5 sm:py-3.5 font-semibold ${attendanceRate >= 81 ? 'text-risk-low' : attendanceRate >= 75 ? 'text-risk-moderate' : 'text-risk-high'}`}>
                         {smartPct(attendanceRate)}%
                       </td>
-                      <td className={`px-2 sm:px-6 py-2.5 sm:py-3.5 font-semibold ${calculatedAvgScore >= 81 ? 'text-risk-low' : calculatedAvgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                      <td className={`px-2 sm:px-6 py-2.5 sm:py-3.5 font-semibold ${calculatedAvgScore >= 81 ? 'text-risk-low' : calculatedAvgScore >= 75 ? 'text-risk-moderate' : 'text-risk-high'}`}>
                         {smartPct(calculatedAvgScore)}%
                       </td>
                       <td className="px-2 sm:px-6 py-2.5 sm:py-3.5 font-semibold text-indigo-600 dark:text-indigo-400">
@@ -845,7 +846,7 @@ export const TutorStudentProfile: React.FC = () => {
                         : attendanceRate >= 81
                         ? 'text-risk-low text-emerald-600 dark:text-emerald-400'
                         : attendanceRate >= 75
-                        ? 'text-risk-medium text-amber-600 dark:text-amber-400'
+                        ? 'text-risk-moderate text-amber-600 dark:text-amber-400'
                         : 'text-risk-high text-rose-600 dark:text-rose-400'
                     }`}
                   >
@@ -892,7 +893,7 @@ export const TutorStudentProfile: React.FC = () => {
                         : calculatedAvgScore >= 81
                         ? 'text-risk-low text-emerald-600 dark:text-emerald-400'
                         : calculatedAvgScore >= 70
-                        ? 'text-risk-medium text-amber-600 dark:text-amber-400'
+                        ? 'text-risk-moderate text-amber-600 dark:text-amber-400'
                         : 'text-risk-high text-rose-600 dark:text-rose-400'
                     }`}
                   >
@@ -1003,12 +1004,12 @@ export const TutorStudentProfile: React.FC = () => {
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Risk Level</label>
               <select
-                value={riskForm.risk_level}
+                value={riskForm.risk_level === 'medium' ? 'moderate' : riskForm.risk_level}
                 onChange={(e) => setRiskForm({ ...riskForm, risk_level: e.target.value as any })}
                 className="w-full px-3 py-2 border border-gray-200 dark:border-[#1A1A1A] rounded-md text-sm bg-gray-50 dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:bg-white dark:focus:bg-[#111111] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] focus:border-[var(--brand)]"
               >
                 <option value="low">Low Risk</option>
-                <option value="medium">Medium Risk</option>
+                <option value="moderate">Moderate Risk</option>
                 <option value="high">High Risk</option>
               </select>
             </div>

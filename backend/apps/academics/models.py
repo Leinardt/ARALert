@@ -991,9 +991,10 @@ class ApiAcademicRisk(models.Model):
     """Maps to the api_academic_risk table."""
 
     class RiskLevel(models.TextChoices):
-        LOW    = 'low',    'Low'
-        MEDIUM = 'medium', 'Medium'
-        HIGH   = 'high',   'High'
+        LOW      = 'low',      'Low'
+        MODERATE = 'moderate', 'Moderate'
+        MEDIUM   = 'medium',   'Medium'
+        HIGH     = 'high',     'High'
 
     student               = models.ForeignKey(
         'accounts.User', on_delete=models.CASCADE,

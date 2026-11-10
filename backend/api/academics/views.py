@@ -1582,10 +1582,12 @@ class PrincipalDashboardView(APIView):
         # Risk summary (1 query)
         risk_counts = ApiAcademicRisk.objects.filter(resolved=False).values('risk_level').annotate(count=Count('id'))
         risk_map = {row['risk_level']: row['count'] for row in risk_counts}
+        moderate_count = risk_map.get('moderate', 0) + risk_map.get('medium', 0)
         risk_summary = {
-            'low':    risk_map.get('low', 0),
-            'medium': risk_map.get('medium', 0),
-            'high':   risk_map.get('high', 0),
+            'low':      risk_map.get('low', 0),
+            'moderate': moderate_count,
+            'medium':   moderate_count,
+            'high':     risk_map.get('high', 0),
         }
 
         # Class performance trend (daily avg score + attendance rate over last N days)

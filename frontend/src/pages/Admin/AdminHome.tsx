@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Filter,
   ChevronDown,
+  Users,
 } from 'lucide-react';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
 import { getRecentSchoolWeekdays, compareNamesByLastName } from '../../utils/studentFormatters';
@@ -967,7 +968,7 @@ export const AdminHome: React.FC = () => {
       } else {
         status = 'PENDING';
         label = `${adminMilestone} Pending`;
-        badgeClass = 'bg-amber-50 dark:bg-amber-950/40 text-risk-medium border-amber-200 dark:border-amber-800/60';
+        badgeClass = 'bg-amber-50 dark:bg-amber-950/40 text-risk-moderate border-amber-200 dark:border-amber-800/60';
       }
 
       return {
@@ -1019,7 +1020,7 @@ export const AdminHome: React.FC = () => {
       return 'bg-emerald-50 dark:bg-emerald-950/40 text-risk-low border-emerald-200 dark:border-emerald-800/60';
     }
     if (conductedCount > 0) {
-      return 'bg-amber-50 dark:bg-amber-950/40 text-risk-medium border-amber-200 dark:border-amber-800/60';
+      return 'bg-amber-50 dark:bg-amber-950/40 text-risk-moderate border-amber-200 dark:border-amber-800/60';
     }
     return 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-zinc-700';
   }, [isWindowOpen, tutors.length, conductedCount]);
@@ -1189,7 +1190,7 @@ export const AdminHome: React.FC = () => {
                   : overallAttendanceRate >= 81
                   ? 'text-risk-low'
                   : overallAttendanceRate >= 75
-                  ? 'text-risk-medium'
+                  ? 'text-risk-moderate'
                   : 'text-risk-high'
               }`}
             >
@@ -1210,7 +1211,7 @@ export const AdminHome: React.FC = () => {
                   : overallAvgScore >= 81
                   ? 'text-risk-low'
                   : overallAvgScore >= 75
-                  ? 'text-risk-medium'
+                  ? 'text-risk-moderate'
                   : 'text-risk-high'
               }`}
             >
@@ -1231,7 +1232,7 @@ export const AdminHome: React.FC = () => {
                   : overallCompositeScore >= 81
                   ? 'text-risk-low'
                   : overallCompositeScore >= 75
-                  ? 'text-risk-medium'
+                  ? 'text-risk-moderate'
                   : 'text-risk-high'
               }`}
             >
@@ -1434,12 +1435,12 @@ export const AdminHome: React.FC = () => {
                 {
                   label: 'Highest',
                   value: chartTrendData.length === 0 ? '—' : `${highestScore}%`,
-                  color: chartTrendData.length === 0 ? 'text-gray-400 dark:text-slate-500' : highestScore >= 81 ? 'text-risk-low' : highestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
+                  color: chartTrendData.length === 0 ? 'text-gray-400 dark:text-slate-500' : highestScore >= 81 ? 'text-risk-low' : highestScore >= 75 ? 'text-risk-moderate' : 'text-risk-high',
                 },
                 {
                   label: 'Lowest',
                   value: chartTrendData.length === 0 ? '—' : `${lowestScore}%`,
-                  color: chartTrendData.length === 0 ? 'text-gray-400 dark:text-slate-500' : lowestScore >= 81 ? 'text-risk-low' : lowestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
+                  color: chartTrendData.length === 0 ? 'text-gray-400 dark:text-slate-500' : lowestScore >= 81 ? 'text-risk-low' : lowestScore >= 75 ? 'text-risk-moderate' : 'text-risk-high',
                 },
               ].map((stat) => (
                 <div key={stat.label} className="bg-gray-50/80 dark:bg-[#111111] p-2.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center min-w-0">
@@ -1508,10 +1509,18 @@ export const AdminHome: React.FC = () => {
             </div>
 
             {/* Tutors Status List */}
-            <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5">
+            <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5 flex flex-col">
               {filteredTutorStatusList.length === 0 ? (
-                <div className="py-8 text-center text-xs text-gray-400 dark:text-slate-500">
-                  {tutors.length === 0 ? 'No tutors enrolled in ARAL Program' : 'No tutors matching search filter'}
+                <div className="flex-1 min-h-[200px] flex flex-col items-center justify-center p-6 text-center select-none bg-gray-50/50 dark:bg-[#111111]/40 border border-dashed border-gray-200 dark:border-[#1E1E1E] rounded-lg">
+                  <Users className="w-8 h-8 text-gray-200 dark:text-gray-700 mb-2" />
+                  <p className="text-xs font-semibold text-gray-400 dark:text-slate-500">
+                    {tutors.length === 0 ? 'No tutors enrolled in ARAL Program' : 'No tutors matching search'}
+                  </p>
+                  <p className="text-[11px] text-gray-400/80 dark:text-slate-600 mt-1 max-w-[220px] leading-relaxed">
+                    {tutors.length === 0
+                      ? 'Assessment tracking will appear once tutors are added to the system'
+                      : 'Try checking for typos or searching by another tutor name'}
+                  </p>
                 </div>
               ) : (
                 filteredTutorStatusList.map((item) => {

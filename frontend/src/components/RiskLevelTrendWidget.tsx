@@ -4,6 +4,7 @@ export interface RiskTrendPoint {
   dateKey: string;
   label: string;
   high: number;
+  moderate?: number;
   medium: number;
   low: number;
   value?: number;
@@ -72,7 +73,7 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
   const maxTotal = useMemo(() => {
     if (isSingleStudent) return 1;
     const maxCount = Math.max(
-      ...data.map((p) => (p.high || 0) + (p.medium || 0) + (p.low || 0)),
+      ...data.map((p) => (p.high || 0) + (p.moderate ?? p.medium ?? 0) + (p.low || 0)),
       0
     );
     return Math.max(10, Math.ceil(maxCount / 5) * 5);
@@ -89,7 +90,7 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
   // Low: #4ECB8D (soft emerald)
   const series = [
     { key: 'high' as const, label: 'High', color: '#F3716B', gradId: `grad-coral-${uniqueId}` },
-    { key: 'medium' as const, label: 'Medium', color: '#FFB648', gradId: `grad-amber-${uniqueId}` },
+    { key: 'moderate' as const, label: 'Moderate', color: '#FFB648', gradId: `grad-amber-${uniqueId}` },
     { key: 'low' as const, label: 'Low', color: '#4ECB8D', gradId: `grad-emerald-${uniqueId}` },
   ];
 
@@ -198,7 +199,7 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#FFB648' }} />
-              Medium
+              Moderate
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block h-2.5 w-2.5 rounded-full shadow-xs" style={{ backgroundColor: '#4ECB8D' }} />
@@ -255,7 +256,7 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: '#FFB648' }} />
-            Medium
+            Moderate
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: '#4ECB8D' }} />
@@ -301,7 +302,7 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
                 {data.map((point, index) => {
                   const x = getDBarX(index);
                   const high = point.high || 0;
-                  const med = point.medium || 0;
+                  const med = point.moderate ?? point.medium ?? 0;
                   const low = point.low || 0;
                   const totalCount = high + med + low;
                   const totalH = (totalCount / maxTotal) * dChartHeight;
@@ -371,7 +372,7 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
               {data.map((point, index) => {
                 const x = getDBarX(index);
                 const highCount = point.high || 0;
-                const medCount = point.medium || 0;
+                const medCount = point.moderate ?? point.medium ?? 0;
                 const lowCount = point.low || 0;
 
                 const lowH = (lowCount / maxTotal) * dChartHeight;
@@ -503,7 +504,7 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
               const barRightPct = ((barX + dBarWidth / 2) / dWidth) * 100;
               const isNearRight = barRightPct > 72;
               const high = p.high || 0;
-              const med = p.medium || 0;
+              const med = p.moderate ?? p.medium ?? 0;
               const low = p.low || 0;
               const totalCount = high + med + low;
 
@@ -528,7 +529,7 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
                   </div>
                   <div className="space-y-1">
                     {series.map((item) => {
-                      const count = p[item.key] || 0;
+                      const count = (item.key === 'moderate' ? (p.moderate ?? p.medium ?? 0) : p[item.key]) || 0;
                       return (
                         <div key={item.key} className="flex items-center justify-between gap-3 text-xs">
                           <span className="flex items-center gap-1.5" style={{ color: item.color }}>
@@ -572,7 +573,7 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
                     {data.map((point, index) => {
                       const x = getMBarX(index);
                       const high = point.high || 0;
-                      const med = point.medium || 0;
+                      const med = point.moderate ?? point.medium ?? 0;
                       const low = point.low || 0;
                       const totalCount = high + med + low;
                       const totalH = (totalCount / maxTotal) * mChartHeight;
@@ -642,7 +643,7 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
                   {data.map((point, index) => {
                     const x = getMBarX(index);
                     const highCount = point.high || 0;
-                    const medCount = point.medium || 0;
+                    const medCount = point.moderate ?? point.medium ?? 0;
                     const lowCount = point.low || 0;
 
                     const lowH = (lowCount / maxTotal) * mChartHeight;
@@ -779,7 +780,7 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
             {hoveredIdx !== null && data[hoveredIdx] && (() => {
               const p = data[hoveredIdx];
               const high = p.high || 0;
-              const med = p.medium || 0;
+              const med = p.moderate ?? p.medium ?? 0;
               const low = p.low || 0;
               const totalCount = high + med + low;
 
@@ -799,7 +800,7 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     {series.map((item) => {
-                      const count = p[item.key] || 0;
+                      const count = (item.key === 'moderate' ? (p.moderate ?? p.medium ?? 0) : p[item.key]) || 0;
                       return (
                         <div key={item.key} className="flex items-center gap-1.5 text-xs">
                           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />

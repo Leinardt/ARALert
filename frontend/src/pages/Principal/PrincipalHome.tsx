@@ -1142,7 +1142,7 @@ export const PrincipalHome: React.FC = () => {
                       : overallAttendanceRate >= 81
                       ? 'text-risk-low'
                       : overallAttendanceRate >= 75
-                      ? 'text-risk-medium'
+                      ? 'text-risk-moderate'
                       : 'text-risk-high'
                   }`}
                 >
@@ -1160,7 +1160,7 @@ export const PrincipalHome: React.FC = () => {
                       : overallAvgScore >= 81
                       ? 'text-risk-low'
                       : overallAvgScore >= 75
-                      ? 'text-risk-medium'
+                      ? 'text-risk-moderate'
                       : 'text-risk-high'
                   }`}
                 >
@@ -1178,7 +1178,7 @@ export const PrincipalHome: React.FC = () => {
                       : overallCompositeScore >= 81
                       ? 'text-risk-low'
                       : overallCompositeScore >= 75
-                      ? 'text-risk-medium'
+                      ? 'text-risk-moderate'
                       : 'text-risk-high'
                   }`}
                 >
@@ -1381,7 +1381,7 @@ export const PrincipalHome: React.FC = () => {
                       : highestScore >= 81
                       ? 'text-risk-low'
                       : highestScore >= 75
-                      ? 'text-risk-medium'
+                      ? 'text-risk-moderate'
                       : 'text-risk-high',
                 },
                 {
@@ -1393,7 +1393,7 @@ export const PrincipalHome: React.FC = () => {
                       : lowestScore >= 81
                       ? 'text-risk-low'
                       : lowestScore >= 75
-                      ? 'text-risk-medium'
+                      ? 'text-risk-moderate'
                       : 'text-risk-high',
                 },
               ].map((stat) => (
@@ -1478,10 +1478,18 @@ export const PrincipalHome: React.FC = () => {
             </div>
 
             {/* Ranked Tutors List */}
-            <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5">
+            <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5 flex flex-col">
               {filteredRankedTutors.length === 0 ? (
-                <div className="py-8 text-center text-xs text-gray-400 dark:text-slate-500">
-                  {rankedTutorClasses.length === 0 ? 'No tutor classes found' : 'No tutors matching search filter'}
+                <div className="flex-1 min-h-[200px] flex flex-col items-center justify-center p-6 text-center select-none bg-gray-50/50 dark:bg-[#111111]/40 border border-dashed border-gray-200 dark:border-[#1E1E1E] rounded-lg">
+                  <Users className="w-8 h-8 text-gray-200 dark:text-gray-700 mb-2" />
+                  <p className="text-xs font-semibold text-gray-400 dark:text-slate-500">
+                    {rankedTutorClasses.length === 0 ? 'No tutor classes found' : 'No tutors matching search'}
+                  </p>
+                  <p className="text-[11px] text-gray-400/80 dark:text-slate-600 mt-1 max-w-[220px] leading-relaxed">
+                    {rankedTutorClasses.length === 0
+                      ? 'Academic rankings will display once tutors are assigned to classes'
+                      : 'Try checking for typos or searching by another tutor name'}
+                  </p>
                 </div>
               ) : (
                 filteredRankedTutors.map((item) => (
@@ -1513,7 +1521,7 @@ export const PrincipalHome: React.FC = () => {
                               : item.compositeScore >= 81
                               ? 'text-risk-low border-emerald-200 bg-emerald-50 dark:border-emerald-800/80 dark:bg-emerald-950/40'
                               : item.compositeScore >= 70
-                              ? 'text-risk-medium border-amber-200 bg-amber-50 dark:border-amber-800/80 dark:bg-amber-950/40'
+                              ? 'text-risk-moderate border-amber-200 bg-amber-50 dark:border-amber-800/80 dark:bg-amber-950/40'
                               : 'text-risk-high border-rose-200 bg-rose-50 dark:border-rose-800/80 dark:bg-rose-950/40'
                           }`}
                         >

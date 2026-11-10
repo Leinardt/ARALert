@@ -900,23 +900,28 @@ class ExistingSectionsView(APIView):
                 chunk = chunk.strip().upper()
                 if not chunk:
                     continue
-                if ' - ' in chunk:
-                    parts = chunk.split(' - ')
-                    grade_part = parts[0].strip()
-                    sec_part = parts[-1].strip()
+                # Normalize unicode dashes to standard hyphen
+                chunk = re.sub(r'[\u2010\u2011\u2012\u2013\u2014\u2015]', '-', chunk)
+                if '-' in chunk:
+                    parts = [p.strip() for p in chunk.split('-') if p.strip()]
+                    grade_part = parts[0] if parts else ''
+                    sec_part = parts[-1] if parts else ''
                     if clean_grade_num:
                         g_num = re.sub(r'[^0-9]', '', grade_part)
                         if g_num and g_num != clean_grade_num:
                             continue
-                    if sec_part and sec_part != '—' and not re.match(r'^GRADE\s*\d+$', sec_part):
-                        sections.add(sec_part)
+                    clean_sec = re.sub(r'^(?:GRADE\s*\d+|\d+)\s*[-–—:\s]?\s*', '', sec_part, flags=re.IGNORECASE).strip()
+                    clean_sec = re.sub(r'^[-–—:\s]+|[-–—:\s]+$', '', clean_sec).strip()
+                    if clean_sec and clean_sec != '—' and not re.match(r'^GRADE\s*\d+$', clean_sec) and not clean_sec.isdigit():
+                        sections.add(clean_sec)
                 else:
                     if clean_grade_num:
                         g_num = re.sub(r'[^0-9]', '', chunk)
                         if g_num and g_num != clean_grade_num:
                             continue
-                    clean = re.sub(r'^GRADE\s*\d*\s*', '', chunk).strip()
-                    if clean and clean != '—' and not clean.isdigit():
+                    clean = re.sub(r'^(?:GRADE\s*\d+|\d+)\s*[-–—:\s]?\s*', '', chunk, flags=re.IGNORECASE).strip()
+                    clean = re.sub(r'^[-–—:\s]+|[-–—:\s]+$', '', clean).strip()
+                    if clean and clean != '—' and not clean.isdigit() and not re.match(r'^GRADE\s*\d+$', clean):
                         sections.add(clean)
 
         return Response({'sections': sorted(list(sections))})
