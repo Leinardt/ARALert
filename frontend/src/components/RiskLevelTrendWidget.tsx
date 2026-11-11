@@ -276,7 +276,6 @@ export const RiskLevelTrendWidget: React.FC<RiskLevelTrendWidgetProps> = ({
           <div className="hidden md:block relative select-none">
             <svg
               viewBox={`0 0 ${dWidth} ${dHeight}`}
-              preserveAspectRatio="none"
               className="h-56 w-full overflow-visible block"
               role="img"
               aria-label="Risk level trend stacked bar chart"

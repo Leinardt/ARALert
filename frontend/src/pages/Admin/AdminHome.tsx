@@ -13,6 +13,7 @@ import {
   Unlock,
   CheckCircle2,
   Clock,
+  ChevronLeft,
   ChevronRight,
   Filter,
   ChevronDown,
@@ -104,7 +105,7 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
   const { width, height } = dimensions;
   const isMobile = width < 520;
   const paddingLeft = isMobile ? 38 : 50;
-  const paddingRight = isMobile ? 18 : 14;
+  const paddingRight = isMobile ? 18 : 44;
   const paddingTop = isMobile ? 16 : 20;
   const paddingBottom = isMobile ? (trendFilter === 'month' ? 24 : 34) : 24;
 
@@ -160,7 +161,7 @@ const InteractiveAdminPerformanceChart: React.FC<{ data: AdminChartPoint[]; tren
 
   return (
     <div ref={containerRef} className="relative flex-1 w-full h-full min-h-[196px] sm:min-h-[220px] select-none min-w-0 overflow-hidden">
-      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full h-full min-h-[196px] sm:min-h-[220px] block" role="img" aria-label="Performance Trend Chart">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full min-h-[196px] sm:min-h-[220px] block" role="img" aria-label="Performance Trend Chart">
         <defs>
           <style>{`
             @keyframes traceLine {
@@ -521,6 +522,7 @@ export const AdminHome: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [trendFilter, setTrendFilter] = useState<TrendFilter>('week');
+  const [trendPage, setTrendPage] = useState<number>(0);
   const [selectedTutorId, setSelectedTutorId] = useState<string>('all');
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [isTutorMenuOpen, setIsTutorMenuOpen] = useState(false);
@@ -844,7 +846,9 @@ export const AdminHome: React.FC = () => {
     }[];
 
     if (trendFilter === 'day') {
-      const schoolDays = getRecentSchoolWeekdays(10, now);
+      const count = 10 * (trendPage + 1);
+      const allSchoolDays = getRecentSchoolWeekdays(count, now);
+      const schoolDays = allSchoolDays.slice(0, 10);
       periods = schoolDays.map((d) => {
         const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
         const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
@@ -869,10 +873,10 @@ export const AdminHome: React.FC = () => {
       const periodCount = 6;
       periods = Array.from({ length: periodCount }).map((_, index) => {
         let start: Date, end: Date, label: string, fullDateLabel: string;
+        const totalOffset = (periodCount - 1 - index) + trendPage * periodCount;
         if (trendFilter === 'month') {
-          const offset = periodCount - 1 - index;
-          start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-          end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
+          start = new Date(now.getFullYear(), now.getMonth() - totalOffset, 1);
+          end = new Date(now.getFullYear(), now.getMonth() - totalOffset + 1, 1);
           label = formatMonth(start);
           const monthFull = start.toLocaleDateString('en-US', { month: 'long' });
           const year = start.getFullYear();
@@ -883,7 +887,7 @@ export const AdminHome: React.FC = () => {
           const dayOfWeek = now.getDay();
           const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
           const currentWeekMon = new Date(startOfToday.getTime() + diffToMon * oneDay);
-          start = new Date(currentWeekMon.getTime() - offset * 7 * oneDay);
+          start = new Date(currentWeekMon.getTime() - totalOffset * 7 * oneDay);
           const fri = new Date(start.getTime() + 4 * oneDay);
           end = new Date(start.getTime() + 5 * oneDay);
           label = `${formatDate(start)} – ${formatDate(fri)}`;
@@ -958,7 +962,20 @@ export const AdminHome: React.FC = () => {
       assessmentLabels: Array.from(p.assessmentLabels),
     }));
 
-    if (points.every((p) => p.value === null)) return [];
+    if (points.every((p) => p.value === null)) {
+      if (trendPage > 0) {
+        return points.map((p) => ({
+          label: p.label,
+          fullDateLabel: p.fullDateLabel,
+          dateRange: p.dateRange,
+          value: 0,
+          actualCount: 0,
+          attendanceCount: p.attendanceCount,
+          assessmentLabels: p.assessmentLabels,
+        }));
+      }
+      return [];
+    }
 
     let lastValid = 75;
     return points.map((p) => {
@@ -973,7 +990,7 @@ export const AdminHome: React.FC = () => {
         assessmentLabels: p.assessmentLabels,
       };
     });
-  }, [filteredStudents, grades, attendance, trendFilter, adminMilestone]);
+  }, [filteredStudents, grades, attendance, trendFilter, adminMilestone, trendPage]);
 
   const highestScore = useMemo(() => (chartTrendData.length === 0 ? 0 : Math.max(...chartTrendData.map((d) => d.value))), [chartTrendData]);
   const lowestScore = useMemo(() => (chartTrendData.length === 0 ? 0 : Math.min(...chartTrendData.map((d) => d.value))), [chartTrendData]);
@@ -1252,7 +1269,7 @@ export const AdminHome: React.FC = () => {
         <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm">
           <div className="flex-1 flex items-center justify-between px-3.5 py-1.5 min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
-              OVERALL AVERAGE ATTENDANCE
+              OVERALL AVERAGE ATTENDANCE RATE
             </p>
             <p
               className={`text-xs sm:text-sm font-extrabold shrink-0 ${
@@ -1273,7 +1290,7 @@ export const AdminHome: React.FC = () => {
             className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
           >
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
-              OVERALL AVERAGE SCORE
+              OVERALL AVERAGE SCORE RATE
             </p>
             <p
               className={`text-xs sm:text-sm font-extrabold shrink-0 ${
@@ -1294,7 +1311,7 @@ export const AdminHome: React.FC = () => {
             className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
           >
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
-              OVERALL COMPOSITE SCORE
+              OVERALL COMPOSITE RATING
             </p>
             <p
               className={`text-xs sm:text-sm font-extrabold shrink-0 ${
@@ -1328,22 +1345,50 @@ export const AdminHome: React.FC = () => {
                 </h3>
               </div>
 
-              {/* Period Toggles (DAY / WEEK / MONTH) */}
-              <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
-                {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-nowrap">
+                {/* Period Toggles (DAY / WEEK / MONTH) */}
+                <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
+                  {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => {
+                        setTrendFilter(filter);
+                        setTrendPage(0);
+                      }}
+                      className={`rounded-sm px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
+                        trendFilter === filter
+                          ? 'bg-[var(--brand)] text-white shadow-xs'
+                          : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      {filter}
+                    </button>
+                  ))}
+                </div>
+                {/* Period navigation arrows */}
+                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present records">
                   <button
-                    key={filter}
                     type="button"
-                    onClick={() => setTrendFilter(filter)}
-                    className={`rounded-sm px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${
-                      trendFilter === filter
-                        ? 'bg-[var(--brand)] text-white shadow-xs'
-                        : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                    }`}
+                    onClick={() => setTrendPage((p) => p + 1)}
+                    disabled={trendPage >= 10}
+                    aria-label="Previous records"
+                    title={trendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
+                    className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
                   >
-                    {filter}
+                    <ChevronLeft size={14} className="stroke-[2.5]" />
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setTrendPage((p) => Math.max(0, p - 1))}
+                    disabled={trendPage === 0}
+                    aria-label="Next records"
+                    title={trendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
+                    className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                  >
+                    <ChevronRight size={14} className="stroke-[2.5]" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1376,6 +1421,7 @@ export const AdminHome: React.FC = () => {
                       aria-selected={selectedTutorId === 'all'}
                       onClick={() => {
                         setSelectedTutorId('all');
+                        setTrendPage(0);
                         setIsTutorMenuOpen(false);
                       }}
                       className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
@@ -1403,6 +1449,7 @@ export const AdminHome: React.FC = () => {
                             aria-selected={isSel}
                             onClick={() => {
                               setSelectedTutorId(String(tutor.id));
+                              setTrendPage(0);
                               setIsTutorMenuOpen(false);
                             }}
                             className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
@@ -1446,6 +1493,7 @@ export const AdminHome: React.FC = () => {
                       aria-selected={selectedClass === 'all'}
                       onClick={() => {
                         setSelectedClass('all');
+                        setTrendPage(0);
                         setIsClassMenuOpen(false);
                       }}
                       className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${
@@ -1466,6 +1514,7 @@ export const AdminHome: React.FC = () => {
                           aria-selected={isSel}
                           onClick={() => {
                             setSelectedClass(cls);
+                            setTrendPage(0);
                             setIsClassMenuOpen(false);
                           }}
                           className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold transition cursor-pointer ${

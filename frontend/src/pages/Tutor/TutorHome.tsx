@@ -6,6 +6,7 @@ import { academicService } from '../../services/academicService';
 import type { Attendance, Grade, User } from '../../types';
 import {
   CheckCircle,
+  ChevronLeft,
   ChevronRight,
   AlertCircle,
   Users,
@@ -87,7 +88,7 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[]; trendFilter: Tr
   const { width, height } = dimensions;
   const isMobile = width < 520;
   const paddingLeft = isMobile ? 38 : 50;
-  const paddingRight = isMobile ? 18 : 14;
+  const paddingRight = isMobile ? 18 : 44;
   const paddingTop = isMobile ? 16 : 20;
   const paddingBottom = isMobile ? (trendFilter === 'month' ? 24 : 34) : 24;
 
@@ -145,7 +146,7 @@ const InteractiveTutorChart: React.FC<{ data: TutorChartPoint[]; trendFilter: Tr
 
   return (
     <div ref={containerRef} className="relative flex-1 w-full h-full min-h-[196px] sm:min-h-[220px] select-none min-w-0 overflow-hidden">
-      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full h-full min-h-[196px] sm:min-h-[220px] block" role="img" aria-label="Students Performance Trend Chart">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full min-h-[196px] sm:min-h-[220px] block" role="img" aria-label="Students Performance Trend Chart">
         <defs>
           <linearGradient id="tutorChartFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.22" />
@@ -506,6 +507,7 @@ export const TutorHome: React.FC = () => {
   const [isLoading, setIsLoading] = useState(() => getCachedTutorStudents(user?.id).length === 0);
   const [error, setError] = useState<string | null>(null);
   const [trendFilter, setTrendFilter] = useState<TrendFilter>('week');
+  const [trendPage, setTrendPage] = useState<number>(0);
 
   useEffect(() => {
     if (!user) return;
@@ -550,6 +552,10 @@ export const TutorHome: React.FC = () => {
       })
     );
   }, [students, selectedAralLevel, selectedSubject, selectedCohort]);
+
+  useEffect(() => {
+    setTrendPage(0);
+  }, [selectedAralLevel, selectedSubject, selectedCohort]);
 
   const studentStats = useMemo(
     () => computeStudentStats(filteredStudents, grades, attendance),
@@ -617,7 +623,7 @@ export const TutorHome: React.FC = () => {
         setActiveSystemSemester(sy.current_semester as any);
         setActiveSystemSem(sy.current_semester as any);
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
     const handleSemChange = (e: any) => {
       const newSem = e?.detail?.semester || getActiveSystemSemester();
@@ -679,7 +685,9 @@ export const TutorHome: React.FC = () => {
     }[];
 
     if (trendFilter === 'day') {
-      const schoolDays = getRecentSchoolWeekdays(10, now);
+      const count = 10 * (trendPage + 1);
+      const allSchoolDays = getRecentSchoolWeekdays(count, now);
+      const schoolDays = allSchoolDays.slice(0, 10);
       periods = schoolDays.map((d) => {
         const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
         const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
@@ -704,10 +712,10 @@ export const TutorHome: React.FC = () => {
       const periodCount = 6;
       periods = Array.from({ length: periodCount }).map((_, index) => {
         let start: Date, end: Date, label: string, fullDateLabel: string;
+        const totalOffset = (periodCount - 1 - index) + trendPage * periodCount;
         if (trendFilter === 'month') {
-          const offset = periodCount - 1 - index;
-          start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-          end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
+          start = new Date(now.getFullYear(), now.getMonth() - totalOffset, 1);
+          end = new Date(now.getFullYear(), now.getMonth() - totalOffset + 1, 1);
           label = formatMonth(start);
           const monthFull = start.toLocaleDateString('en-US', { month: 'long' });
           const year = start.getFullYear();
@@ -718,7 +726,7 @@ export const TutorHome: React.FC = () => {
           const dayOfWeek = now.getDay();
           const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
           const currentWeekMon = new Date(startOfToday.getTime() + diffToMon * oneDay);
-          start = new Date(currentWeekMon.getTime() - offset * 7 * oneDay);
+          start = new Date(currentWeekMon.getTime() - totalOffset * 7 * oneDay);
           const fri = new Date(start.getTime() + 4 * oneDay);
           end = new Date(start.getTime() + 5 * oneDay);
           label = `${formatDate(start)} – ${formatDate(fri)}`;
@@ -793,7 +801,20 @@ export const TutorHome: React.FC = () => {
       assessmentLabels: Array.from(p.assessmentLabels),
     }));
 
-    if (points.every((p) => p.value === null)) return [];
+    if (points.every((p) => p.value === null)) {
+      if (trendPage > 0) {
+        return points.map((p) => ({
+          label: p.label,
+          fullDateLabel: p.fullDateLabel,
+          dateRange: p.dateRange,
+          value: 0,
+          actualCount: 0,
+          attendanceCount: p.attendanceCount,
+          assessmentLabels: p.assessmentLabels,
+        }));
+      }
+      return [];
+    }
 
     let lastValid = 70;
     return points.map((p) => {
@@ -808,7 +829,7 @@ export const TutorHome: React.FC = () => {
         assessmentLabels: p.assessmentLabels,
       };
     });
-  }, [filteredStudents, grades, attendance, trendFilter, selectedSubject, tutorMilestone]);
+  }, [filteredStudents, grades, attendance, trendFilter, selectedSubject, tutorMilestone, trendPage]);
 
   const highestScore = useMemo(() => last4WeeksData.length === 0 ? 0 : Math.max(...last4WeeksData.map((d) => d.value)), [last4WeeksData]);
   const lowestScore = useMemo(() => last4WeeksData.length === 0 ? 0 : Math.min(...last4WeeksData.map((d) => d.value)), [last4WeeksData]);
@@ -959,270 +980,294 @@ export const TutorHome: React.FC = () => {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 lg:items-start gap-3 w-full min-w-0 max-w-full">
-      {/* ── Left 3-Column Section: 3 Top Summary Cards + Chart Below ──── */}
-      <div className="lg:col-span-3 flex flex-col gap-3 w-full min-w-0 max-w-full">
-        {/* Row 1: My Students | Avg Attendance & Scores | High/Medium/Low Risk */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 w-full min-w-0 max-w-full">
-          {/* 1. My Students */}
-          <Link
-            to="/tutor/students"
-            className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3 sm:p-3.5 transition-all hover:bg-gray-50/60 dark:hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] flex flex-col justify-between h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm hover:shadow-md"
-          >
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">My Students</p>
-              <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mt-0.5 sm:mt-1 tracking-tight text-gray-900 dark:text-slate-100">
-                <AnimatedCounter value={totalStudents} />
-              </p>
-            </div>
-            <p className="text-[11px] font-normal text-gray-400 dark:text-slate-500">Enrolled learners</p>
-          </Link>
-
-          {/* 2. Average Attendance & Average Scores */}
-          <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm">
+        {/* ── Left 3-Column Section: 3 Top Summary Cards + Chart Below ──── */}
+        <div className="lg:col-span-3 flex flex-col gap-3 w-full min-w-0 max-w-full">
+          {/* Row 1: My Students | Avg Attendance & Scores | High/Medium/Low Risk */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0 w-full min-w-0 max-w-full">
+            {/* 1. My Students */}
             <Link
-              to="/tutor/analytics?tab=attendance"
-              className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+              to="/tutor/students"
+              className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] p-3 sm:p-3.5 transition-all hover:bg-gray-50/60 dark:hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] flex flex-col justify-between h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm hover:shadow-md"
             >
-              <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">Average Attendance</p>
-              <p className={`text-base sm:text-lg font-bold shrink-0 ${!hasAttendanceData ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
-                {!hasAttendanceData ? '—' : <AnimatedCounter value={avgAttendance} suffix="%" />}
-              </p>
-            </Link>
-            <Link
-              to="/tutor/analytics?tab=score"
-              className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
-            >
-              <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">Average Scores</p>
-              <p className={`text-base sm:text-lg font-bold shrink-0 ${!hasScoreData ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
-                {!hasScoreData ? '—' : <AnimatedCounter value={avgScore} decimals={avgScore % 1 !== 0 ? 1 : 0} suffix="%" />}
-              </p>
-            </Link>
-          </div>
-
-          {/* 3. High / Medium / Low Risk Breakdown */}
-          <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm">
-            <Link
-              to="/tutor/analytics"
-              className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
-            >
-              <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">High Risk</p>
-              <p className="text-xs sm:text-sm font-bold text-risk-high shrink-0">
-                <AnimatedCounter value={highRiskStudents.length} />
-              </p>
-            </Link>
-            <Link
-              to="/tutor/analytics"
-              className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
-            >
-              <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">Moderate Risk</p>
-              <p className="text-xs sm:text-sm font-bold text-risk-medium shrink-0">
-                <AnimatedCounter value={moderateRiskStudents.length} />
-              </p>
-            </Link>
-            <Link
-              to="/tutor/analytics"
-              className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
-            >
-              <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">Low Risk</p>
-              <p className="text-xs sm:text-sm font-bold text-risk-low shrink-0">
-                <AnimatedCounter value={lowRiskStudents.length} />
-              </p>
-            </Link>
-          </div>
-        </div>
-
-        {/* Row 2: Performance Trend Chart */}
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3 sm:px-5 sm:py-3.5 flex flex-col sm:h-[388px] overflow-hidden w-full min-w-0 max-w-full shadow-sm">
-          <div className="flex flex-col gap-1.5 shrink-0 pb-2 sm:pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
-            <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0">
-              <div className="min-w-0 flex-1">
-                <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 tracking-tight whitespace-nowrap truncate" title={performanceTrendTitle}>{performanceTrendTitle}</h3>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">My Students</p>
+                <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mt-0.5 sm:mt-1 tracking-tight text-gray-900 dark:text-slate-100">
+                  <AnimatedCounter value={totalStudents} />
+                </p>
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap">
-                <div className="hidden sm:flex items-center gap-3 shrink-0 whitespace-nowrap">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 whitespace-nowrap">
-                    <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
-                    <span className="whitespace-nowrap">Composite rating</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400 whitespace-nowrap">
-                    <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block shrink-0" />
-                    <span className="truncate max-w-[120px] whitespace-nowrap">{tutorMilestone}</span>
-                  </div>
-                </div>
-                <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
-                  {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => setTrendFilter(filter)}
-                      className={`rounded-sm px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${trendFilter === filter ? 'bg-[var(--brand)] text-white shadow-xs' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                        }`}
-                    >
-                      {filter}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {/* Mobile Legend Row (< 640px) */}
-            <div className="flex sm:hidden items-center gap-3 flex-wrap text-[11px] font-semibold">
-              <div className="flex items-center gap-1.5 text-gray-600 dark:text-slate-300 whitespace-nowrap">
-                <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
-                <span>Composite rating</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-sky-600 dark:text-sky-400 whitespace-nowrap">
-                <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block shrink-0" />
-                <span>{tutorMilestone}</span>
-              </div>
-            </div>
-          </div>
+              <p className="text-[11px] font-normal text-gray-400 dark:text-slate-500">Enrolled learners</p>
+            </Link>
 
-          <div className="flex-1 flex flex-col justify-between min-h-0 gap-2 sm:gap-2.5 mt-2.5 sm:mt-3">
-            <div className="relative flex-1 flex flex-col min-h-[216px] sm:min-h-[240px] w-full min-w-0 max-w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-5 sm:py-2.5 overflow-hidden">
-              {last4WeeksData.length > 0 ? (
-                <InteractiveTutorChart data={last4WeeksData} trendFilter={trendFilter} />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 select-none">
-                  <BarChart2 className="w-8 h-8 text-gray-200 dark:text-gray-700" />
-                  <p className="text-xs font-semibold text-gray-400 dark:text-slate-500">
-                    {trendFilter === 'day' ? 'No recorded score today' : trendFilter === 'week' ? 'No recorded score this week' : 'No recorded score this month'}
-                  </p>
-                  <p className="text-[11px] text-gray-300 dark:text-slate-600">
-                    Data will appear once scores and attendance are logged for your students
-                  </p>
-                </div>
-              )}
+            {/* 2. Average Attendance & Average Scores */}
+            <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm">
+              <Link
+                to="/tutor/analytics?tab=attendance"
+                className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+              >
+                <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">Average Attendance Rate</p>
+                <p className={`text-base sm:text-lg font-bold shrink-0 ${!hasAttendanceData ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                  {!hasAttendanceData ? '—' : <AnimatedCounter value={avgAttendance} suffix="%" />}
+                </p>
+              </Link>
+              <Link
+                to="/tutor/analytics?tab=score"
+                className="flex-1 flex items-center justify-between px-3.5 py-2 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+              >
+                <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">Average Score Rate</p>
+                <p className={`text-base sm:text-lg font-bold shrink-0 ${!hasScoreData ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-medium' : 'text-risk-high'}`}>
+                  {!hasScoreData ? '—' : <AnimatedCounter value={avgScore} decimals={avgScore % 1 !== 0 ? 1 : 0} suffix="%" />}
+                </p>
+              </Link>
             </div>
 
-            <div
-              key={`trend-stats-${selectedAralLevel}-${selectedSubject}-${selectedCohort}-${trendFilter}`}
-              className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0"
-            >
-              {[
-                {
-                  label: 'Highest',
-                  numValue: last4WeeksData.length === 0 ? null : highestScore,
-                  color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : highestScore >= 81 ? 'text-risk-low' : highestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
-                },
-                {
-                  label: 'Lowest',
-                  numValue: last4WeeksData.length === 0 ? null : lowestScore,
-                  color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : lowestScore >= 81 ? 'text-risk-low' : lowestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
-                },
-              ].map((stat) => (
-                <div key={stat.label} className="bg-gray-50/80 dark:bg-[#111111] px-2.5 py-1.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
-                  <p className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider leading-tight">{stat.label}</p>
-                  <p className={`text-sm sm:text-base font-bold mt-0.5 leading-tight ${stat.color}`}>
-                    <AnimatedCounter
-                      value={stat.numValue}
-                      duration={850}
-                      suffix="%"
-                      fallback="—"
-                      alwaysFromZero
-                    />
-                  </p>
-                </div>
-              ))}
-              <div className="bg-gray-50/80 dark:bg-[#111111] px-2.5 py-1.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
-                <p className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider leading-tight">Trend</p>
-                <div className="mt-0.5 leading-tight">
-                  {last4WeeksData.length === 0 ? (
-                    <span className="text-sm sm:text-base font-bold text-gray-400 dark:text-slate-500">—</span>
-                  ) : tutorTrendDir === 'up' ? (
-                    <span className="text-sm sm:text-base font-bold text-risk-low">Improving</span>
-                  ) : tutorTrendDir === 'down' ? (
-                    <span className="text-sm sm:text-base font-bold text-risk-high">Declining</span>
-                  ) : (
-                    <span className="text-sm sm:text-base font-bold text-gray-500 dark:text-slate-400">Stable</span>
-                  )}
-                </div>
-              </div>
+            {/* 3. High / Medium / Low Risk Breakdown */}
+            <div className="flex flex-col justify-between divide-y divide-gray-100 dark:divide-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#0A0A0A] overflow-hidden h-[116px] sm:h-[120px] w-full min-w-0 shadow-sm">
               <Link
                 to="/tutor/analytics"
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 dark:border-[#222222] bg-gray-50 dark:bg-[#141414] px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1f1f1f] transition-all"
+                className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
               >
-                <span>See Analytics</span>
-                <span className="font-bold text-gray-400" aria-hidden="true">&gt;</span>
+                <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">High Risk</p>
+                <p className="text-xs sm:text-sm font-bold text-risk-high shrink-0">
+                  <AnimatedCounter value={highRiskStudents.length} />
+                </p>
+              </Link>
+              <Link
+                to="/tutor/analytics"
+                className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+              >
+                <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">Moderate Risk</p>
+                <p className="text-xs sm:text-sm font-bold text-risk-medium shrink-0">
+                  <AnimatedCounter value={moderateRiskStudents.length} />
+                </p>
+              </Link>
+              <Link
+                to="/tutor/analytics"
+                className="flex-1 flex items-center justify-between px-3.5 py-1.5 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
+              >
+                <p className="text-xs font-medium text-gray-600 dark:text-slate-400 truncate mr-2">Low Risk</p>
+                <p className="text-xs sm:text-sm font-bold text-risk-low shrink-0">
+                  <AnimatedCounter value={lowRiskStudents.length} />
+                </p>
               </Link>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* ── Right 1-Column Section: Top At-Risk Panel (Fixed Height) ──── */}
-      <div className="lg:col-span-1 min-h-0">
-        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-[420px] lg:h-[520px] flex flex-col shadow-sm">
-          <div className="flex items-center justify-between gap-1.5 px-3 sm:px-3.5 py-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
-            <h3
-              className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 tracking-tight whitespace-nowrap truncate min-w-0"
-              title={topAtRiskTitle}
-            >
-              {topAtRiskTitle}
-            </h3>
-            <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-950/60 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300">
-              <AnimatedCounter value={atRiskStudents.length} />
-            </span>
-          </div>
-
-          <div
-            key={`risk-list-${selectedAralLevel}-${selectedSubject}-${selectedCohort}`}
-            className="p-2 space-y-1 flex-1 min-h-0 overflow-y-auto"
-          >
-            {atRiskStudents.length === 0 ? (
-              <div className="risk-card-cascade flex flex-col items-center justify-center text-center py-12 px-4 gap-2">
-                <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-                <p className="text-sm font-semibold text-gray-700 dark:text-slate-300">All students on track</p>
-                <p className="text-xs text-gray-400 dark:text-slate-500">No high or moderate risk students.</p>
-              </div>
-            ) : (
-              atRiskStudents.map((s, idx) => {
-                const cascadeDelay = Math.min(idx * 50, 500);
-                const isHighRisk = s.riskTier === 'High';
-                return (
-                  <div
-                    key={s.student.id}
-                    className="risk-card-cascade"
-                    style={{ animationDelay: `${cascadeDelay}ms` }}
-                  >
-                    <Link
-                      to={`/tutor/students/${s.student.id}`}
-                      state={{ from: 'dashboard' }}
-                      className={`group relative block rounded-sm border px-3 py-2 min-h-[44px] flex flex-col justify-center transition-all duration-150 ease-out cursor-pointer hover:z-10 hover:scale-[1.018] hover:-translate-y-0.5 hover:shadow-md ${
-                        isHighRisk ? 'risk-card-high' : 'risk-card-medium'
-                      }`}
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center justify-between gap-1.5">
-                          <span className="font-semibold text-xs text-gray-900 dark:text-slate-100 group-hover:text-black dark:group-hover:text-white truncate block leading-tight transition-colors">
-                            {s.student.full_name}
-                          </span>
-                          <span
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[8.5px] font-bold shrink-0 border leading-none transition-transform duration-150 group-hover:scale-105 ${
-                              isHighRisk ? 'risk-badge-high' : 'risk-badge-medium'
-                            }`}
-                          >
-                            {s.riskTier.toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="mt-1 flex items-center justify-between gap-1">
-                          <span className="text-gray-500 dark:text-slate-400 text-[11px] font-medium leading-tight">
-                            Composite:
-                          </span>
-                          <span className="text-xs font-bold text-gray-900 dark:text-slate-100 leading-tight">
-                            {s.compositeScore.toFixed(1)}%
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
+          {/* Row 2: Performance Trend Chart */}
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md px-3.5 py-3 sm:px-5 sm:py-3.5 flex flex-col sm:h-[388px] overflow-hidden w-full min-w-0 max-w-full shadow-sm">
+            <div className="flex flex-col gap-1.5 shrink-0 pb-2 sm:pb-2.5 border-b border-gray-100 dark:border-[#1A1A1A] min-w-0">
+              <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 tracking-tight whitespace-nowrap truncate" title={performanceTrendTitle}>{performanceTrendTitle}</h3>
+                </div>
+                <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 flex-nowrap">
+                  <div className="hidden sm:flex items-center gap-3 shrink-0 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                      <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
+                      <span className="whitespace-nowrap">Composite rating</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400 whitespace-nowrap">
+                      <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block shrink-0" />
+                      <span className="truncate max-w-[120px] whitespace-nowrap">{tutorMilestone}</span>
+                    </div>
                   </div>
-                );
-              })
-            )}
+                  <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap" aria-label="Tutor performance trend period">
+                    {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
+                      <button
+                        key={filter}
+                        type="button"
+                        onClick={() => {
+                          setTrendFilter(filter);
+                          setTrendPage(0);
+                        }}
+                        className={`rounded-sm px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${trendFilter === filter ? 'bg-[var(--brand)] text-white shadow-xs' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                          }`}
+                      >
+                        {filter}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Period navigation arrows */}
+                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present records">
+                    <button
+                      type="button"
+                      onClick={() => setTrendPage((p) => p + 1)}
+                      disabled={trendPage >= 10}
+                      aria-label="Previous records"
+                      title={trendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
+                      className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    >
+                      <ChevronLeft size={14} className="stroke-[2.5]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrendPage((p) => Math.max(0, p - 1))}
+                      disabled={trendPage === 0}
+                      aria-label="Next records"
+                      title={trendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
+                      className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    >
+                      <ChevronRight size={14} className="stroke-[2.5]" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {/* Mobile Legend Row (< 640px) */}
+              <div className="flex sm:hidden items-center gap-3 flex-wrap text-[11px] font-semibold">
+                <div className="flex items-center gap-1.5 text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                  <span className="h-2 w-2 rounded-full bg-[var(--brand)] inline-block shrink-0" />
+                  <span>Composite rating</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-sky-600 dark:text-sky-400 whitespace-nowrap">
+                  <span className="h-2 w-2 rounded-full bg-[#38BDF8] inline-block shrink-0" />
+                  <span>{tutorMilestone}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 flex flex-col justify-between min-h-0 gap-2 sm:gap-2.5 mt-2.5 sm:mt-3">
+              <div className="relative flex-1 flex flex-col min-h-[216px] sm:min-h-[240px] w-full min-w-0 max-w-full bg-gray-50/60 dark:bg-[#111111] border border-gray-100 dark:border-[#1A1A1A] rounded-lg px-2 py-2 sm:px-5 sm:py-2.5 overflow-hidden">
+                {last4WeeksData.length > 0 ? (
+                  <InteractiveTutorChart data={last4WeeksData} trendFilter={trendFilter} />
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 select-none">
+                    <BarChart2 className="w-8 h-8 text-gray-200 dark:text-gray-700" />
+                    <p className="text-xs font-semibold text-gray-400 dark:text-slate-500">
+                      {trendFilter === 'day' ? 'No recorded score today' : trendFilter === 'week' ? 'No recorded score this week' : 'No recorded score this month'}
+                    </p>
+                    <p className="text-[11px] text-gray-300 dark:text-slate-600">
+                      Data will appear once scores and attendance are logged for your students
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div
+                key={`trend-stats-${selectedAralLevel}-${selectedSubject}-${selectedCohort}-${trendFilter}`}
+                className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0"
+              >
+                {[
+                  {
+                    label: 'Highest',
+                    numValue: last4WeeksData.length === 0 ? null : highestScore,
+                    color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : highestScore >= 81 ? 'text-risk-low' : highestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
+                  },
+                  {
+                    label: 'Lowest',
+                    numValue: last4WeeksData.length === 0 ? null : lowestScore,
+                    color: last4WeeksData.length === 0 ? 'text-gray-400 dark:text-slate-500' : lowestScore >= 81 ? 'text-risk-low' : lowestScore >= 75 ? 'text-risk-medium' : 'text-risk-high',
+                  },
+                ].map((stat) => (
+                  <div key={stat.label} className="bg-gray-50/80 dark:bg-[#111111] px-2.5 py-1.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
+                    <p className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider leading-tight">{stat.label}</p>
+                    <p className={`text-sm sm:text-base font-bold mt-0.5 leading-tight ${stat.color}`}>
+                      <AnimatedCounter
+                        value={stat.numValue}
+                        duration={850}
+                        suffix="%"
+                        fallback="—"
+                        alwaysFromZero
+                      />
+                    </p>
+                  </div>
+                ))}
+                <div className="bg-gray-50/80 dark:bg-[#111111] px-2.5 py-1.5 rounded-lg border border-gray-100 dark:border-[#1A1A1A] text-center flex flex-col justify-center">
+                  <p className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider leading-tight">Trend</p>
+                  <div className="mt-0.5 leading-tight">
+                    {last4WeeksData.length === 0 ? (
+                      <span className="text-sm sm:text-base font-bold text-gray-400 dark:text-slate-500">—</span>
+                    ) : tutorTrendDir === 'up' ? (
+                      <span className="text-sm sm:text-base font-bold text-risk-low">Improving</span>
+                    ) : tutorTrendDir === 'down' ? (
+                      <span className="text-sm sm:text-base font-bold text-risk-high">Declining</span>
+                    ) : (
+                      <span className="text-sm sm:text-base font-bold text-gray-500 dark:text-slate-400">Stable</span>
+                    )}
+                  </div>
+                </div>
+                <Link
+                  to="/tutor/analytics"
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 dark:border-[#222222] bg-gray-50 dark:bg-[#141414] px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#1f1f1f] transition-all"
+                >
+                  <span>See Analytics</span>
+                  <span className="font-bold text-gray-400" aria-hidden="true">&gt;</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Right 1-Column Section: Top At-Risk Panel (Fixed Height) ──── */}
+        <div className="lg:col-span-1 min-h-0">
+          <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1A1A1A] rounded-md overflow-hidden h-[420px] lg:h-[520px] flex flex-col shadow-sm">
+            <div className="flex items-center justify-between gap-1.5 px-3 sm:px-3.5 py-3 border-b border-gray-100 dark:border-[#1A1A1A] shrink-0">
+              <h3
+                className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 tracking-tight whitespace-nowrap truncate min-w-0"
+                title={topAtRiskTitle}
+              >
+                {topAtRiskTitle}
+              </h3>
+              <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-950/60 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300">
+                <AnimatedCounter value={atRiskStudents.length} />
+              </span>
+            </div>
+
+            <div
+              key={`risk-list-${selectedAralLevel}-${selectedSubject}-${selectedCohort}`}
+              className="p-2 space-y-1 flex-1 min-h-0 overflow-y-auto"
+            >
+              {atRiskStudents.length === 0 ? (
+                <div className="risk-card-cascade flex flex-col items-center justify-center text-center py-12 px-4 gap-2">
+                  <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                  <p className="text-sm font-semibold text-gray-700 dark:text-slate-300">All students on track</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500">No high or moderate risk students.</p>
+                </div>
+              ) : (
+                atRiskStudents.map((s, idx) => {
+                  const cascadeDelay = Math.min(idx * 50, 500);
+                  const isHighRisk = s.riskTier === 'High';
+                  return (
+                    <div
+                      key={s.student.id}
+                      className="risk-card-cascade"
+                      style={{ animationDelay: `${cascadeDelay}ms` }}
+                    >
+                      <Link
+                        to={`/tutor/students/${s.student.id}`}
+                        state={{ from: 'dashboard' }}
+                        className={`group relative block rounded-sm border px-3 py-2 min-h-[44px] flex flex-col justify-center transition-all duration-150 ease-out cursor-pointer hover:z-10 hover:scale-[1.018] hover:-translate-y-0.5 hover:shadow-md ${isHighRisk ? 'risk-card-high' : 'risk-card-medium'
+                          }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center justify-between gap-1.5">
+                            <span className="font-semibold text-xs text-gray-900 dark:text-slate-100 group-hover:text-black dark:group-hover:text-white truncate block leading-tight transition-colors">
+                              {s.student.full_name}
+                            </span>
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[8.5px] font-bold shrink-0 border leading-none transition-transform duration-150 group-hover:scale-105 ${isHighRisk ? 'risk-badge-high' : 'risk-badge-medium'
+                                }`}
+                            >
+                              {s.riskTier.toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="mt-1 flex items-center justify-between gap-1">
+                            <span className="text-gray-500 dark:text-slate-400 text-[11px] font-medium leading-tight">
+                              Composite:
+                            </span>
+                            <span className="text-xs font-bold text-gray-900 dark:text-slate-100 leading-tight">
+                              {s.compositeScore.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
   );
 };
 

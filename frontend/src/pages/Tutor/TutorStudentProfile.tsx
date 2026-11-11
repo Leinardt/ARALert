@@ -195,6 +195,9 @@ export const TutorStudentProfile: React.FC = () => {
   const [riskTrendFilter, setRiskTrendFilter] = useState<TrendFilter>('week');
   const [attendanceTrendFilter, setAttendanceTrendFilter] = useState<TrendFilter>('week');
   const [scoreTrendFilter, setScoreTrendFilter] = useState<TrendFilter>('week');
+  const [riskTrendPage, setRiskTrendPage] = useState<number>(0);
+  const [attendanceTrendPage, setAttendanceTrendPage] = useState<number>(0);
+  const [scoreTrendPage, setScoreTrendPage] = useState<number>(0);
 
   const studentForTrend = useMemo<UserType[]>(() => {
     const studentIdStr = id || profile?.student?.id || (studentUser?.id ? String(studentUser.id) : '');
@@ -237,18 +240,18 @@ export const TutorStudentProfile: React.FC = () => {
 
   const riskTrend = useMemo(() => {
     if (studentForTrend.length === 0) return [];
-    return buildRiskTrendPoints(studentForTrend as any, studentGrades, studentAttendance, riskTrendFilter);
-  }, [studentForTrend, studentGrades, studentAttendance, riskTrendFilter]);
+    return buildRiskTrendPoints(studentForTrend as any, studentGrades, studentAttendance, riskTrendFilter, riskTrendPage);
+  }, [studentForTrend, studentGrades, studentAttendance, riskTrendFilter, riskTrendPage]);
 
   const attendanceTrend = useMemo(() => {
     if (studentForTrend.length === 0) return [];
-    return buildTrendPoints(studentForTrend as any, studentGrades, studentAttendance, 'attendance', attendanceTrendFilter);
-  }, [studentForTrend, studentGrades, studentAttendance, attendanceTrendFilter]);
+    return buildTrendPoints(studentForTrend as any, studentGrades, studentAttendance, 'attendance', attendanceTrendFilter, attendanceTrendPage);
+  }, [studentForTrend, studentGrades, studentAttendance, attendanceTrendFilter, attendanceTrendPage]);
 
   const scoreTrend = useMemo(() => {
     if (studentForTrend.length === 0) return [];
-    return buildTrendPoints(studentForTrend as any, studentGrades, studentAttendance, 'score', scoreTrendFilter);
-  }, [studentForTrend, studentGrades, studentAttendance, scoreTrendFilter]);
+    return buildTrendPoints(studentForTrend as any, studentGrades, studentAttendance, 'score', scoreTrendFilter, scoreTrendPage);
+  }, [studentForTrend, studentGrades, studentAttendance, scoreTrendFilter, scoreTrendPage]);
 
   const studentFirstName = profile?.student?.first_name || profile?.student?.name?.trim().split(' ')[0] || 'Student';
 
@@ -410,6 +413,7 @@ export const TutorStudentProfile: React.FC = () => {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showRiskModal, setShowRiskModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [showAttendanceConfirmModal, setShowAttendanceConfirmModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [showExportQrModal, setShowExportQrModal] = useState(false);
   const [qrPreviewUrl, setQrPreviewUrl] = useState<string | null>(null);
@@ -584,8 +588,14 @@ export const TutorStudentProfile: React.FC = () => {
     }
   };
 
-  const handleAddAttendance = async (e: React.FormEvent) => {
+  const handlePromptAddAttendance = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!id) return;
+    setShowAttendanceConfirmModal(true);
+  };
+
+  const handleConfirmAddAttendance = async () => {
+    setShowAttendanceConfirmModal(false);
     if (!id) return;
     try {
       await academicService.logManualAttendance({
@@ -870,7 +880,7 @@ export const TutorStudentProfile: React.FC = () => {
             {/* KPI Containers */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-4">
               <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex flex-col justify-center col-span-1 shadow-sm">
-                <p className="text-[10.5px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 truncate">COMPOSITE SCORE</p>
+                <p className="text-[10.5px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 truncate">COMPOSITE RATING</p>
                 <p className={`text-2xl sm:text-3xl font-black mt-1 tracking-tight ${effectiveRiskTier === 'High' ? 'text-risk-high' : effectiveRiskTier === 'Moderate' ? 'text-risk-moderate' : 'text-risk-low'}`}>
                   <AnimatedCounter value={effectiveCompositeScore} suffix="%" duration={600} decimals={effectiveCompositeScore % 1 !== 0 ? 1 : 0} />
                 </p>
@@ -921,7 +931,10 @@ export const TutorStudentProfile: React.FC = () => {
                       <button
                         key={filter}
                         type="button"
-                        onClick={() => setRiskTrendFilter(filter)}
+                        onClick={() => {
+                          setRiskTrendFilter(filter);
+                          setRiskTrendPage(0);
+                        }}
                         className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] sm:text-[10.5px] uppercase tracking-wider transition-all ${
                           riskTrendFilter === filter
                             ? 'bg-[var(--brand)] text-white font-black shadow-sm'
@@ -931,6 +944,29 @@ export const TutorStudentProfile: React.FC = () => {
                         {filter}
                       </button>
                     ))}
+                  </div>
+                  {/* Period navigation arrows */}
+                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Scroll between previous and present risk records">
+                    <button
+                      type="button"
+                      onClick={() => setRiskTrendPage((p) => p + 1)}
+                      disabled={riskTrendPage >= 10}
+                      aria-label="Previous records"
+                      title={riskTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
+                      className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    >
+                      <ChevronLeft size={14} className="stroke-[2.5]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRiskTrendPage((p) => Math.max(0, p - 1))}
+                      disabled={riskTrendPage === 0}
+                      aria-label="Next records"
+                      title={riskTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
+                      className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    >
+                      <ChevronRight size={14} className="stroke-[2.5]" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -959,8 +995,8 @@ export const TutorStudentProfile: React.FC = () => {
                   <thead className="bg-gray-50 dark:bg-[#151515]">
                     <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">
                       <th className="px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">AVERAGE ATTENDANCE RATE</th>
-                      <th className="px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">AVERAGE SCORE</th>
-                      <th className="px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">COMPOSITE SCORE</th>
+                      <th className="px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">AVERAGE SCORE RATE</th>
+                      <th className="px-2 sm:px-6 py-2.5 sm:py-3 text-center leading-tight">COMPOSITE RATING</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#111111]">
@@ -1049,7 +1085,10 @@ export const TutorStudentProfile: React.FC = () => {
                       <button
                         key={filter}
                         type="button"
-                        onClick={() => setAttendanceTrendFilter(filter)}
+                        onClick={() => {
+                          setAttendanceTrendFilter(filter);
+                          setAttendanceTrendPage(0);
+                        }}
                         className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] sm:text-[10.5px] uppercase tracking-wider transition-all ${
                           attendanceTrendFilter === filter
                             ? 'bg-[var(--brand)] text-white font-black shadow-sm'
@@ -1059,6 +1098,29 @@ export const TutorStudentProfile: React.FC = () => {
                         {filter}
                       </button>
                     ))}
+                  </div>
+                  {/* Period navigation arrows */}
+                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Scroll between previous and present attendance records">
+                    <button
+                      type="button"
+                      onClick={() => setAttendanceTrendPage((p) => p + 1)}
+                      disabled={attendanceTrendPage >= 10}
+                      aria-label="Previous records"
+                      title={attendanceTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
+                      className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    >
+                      <ChevronLeft size={14} className="stroke-[2.5]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAttendanceTrendPage((p) => Math.max(0, p - 1))}
+                      disabled={attendanceTrendPage === 0}
+                      aria-label="Next records"
+                      title={attendanceTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
+                      className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    >
+                      <ChevronRight size={14} className="stroke-[2.5]" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1110,7 +1172,7 @@ export const TutorStudentProfile: React.FC = () => {
               </div>
               <div className="rounded-md border border-gray-200 dark:border-[#1A1A1A] bg-white dark:bg-[#111111] p-3.5 sm:p-5 flex flex-col justify-center col-span-2 sm:col-span-1 shadow-sm">
                 <div className="min-w-0">
-                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 truncate">AVERAGE SCORE</p>
+                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 truncate">AVERAGE SCORE RATE</p>
                   <p
                     className={`text-2xl sm:text-3xl font-black mt-1 tracking-tight ${!hasScoreData
                       ? 'text-gray-900 dark:text-slate-100'
@@ -1125,7 +1187,7 @@ export const TutorStudentProfile: React.FC = () => {
                       <AnimatedCounter value={calculatedAvgScore} suffix="%" duration={600} decimals={calculatedAvgScore % 1 !== 0 ? 1 : 0} />
                     ) : '—'}
                   </p>
-                  <p className="mt-0.5 text-[10.5px] font-medium text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s average score</p>
+                  <p className="mt-0.5 text-[10.5px] font-medium text-gray-500 dark:text-slate-400 truncate hidden sm:block">{studentFirstName}'s average score rate</p>
                 </div>
               </div>
             </div>
@@ -1143,14 +1205,17 @@ export const TutorStudentProfile: React.FC = () => {
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
-                    <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Average Score</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Average Score Rate</span>
                   </div>
                   <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Score trend period">
                     {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                       <button
                         key={filter}
                         type="button"
-                        onClick={() => setScoreTrendFilter(filter)}
+                        onClick={() => {
+                          setScoreTrendFilter(filter);
+                          setScoreTrendPage(0);
+                        }}
                         className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] sm:text-[10.5px] uppercase tracking-wider transition-all ${
                           scoreTrendFilter === filter
                             ? 'bg-[var(--brand)] text-white font-black shadow-sm'
@@ -1161,6 +1226,29 @@ export const TutorStudentProfile: React.FC = () => {
                       </button>
                     ))}
                   </div>
+                  {/* Period navigation arrows */}
+                  <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#1A1A1A]" role="group" aria-label="Scroll between previous and present score records">
+                    <button
+                      type="button"
+                      onClick={() => setScoreTrendPage((p) => p + 1)}
+                      disabled={scoreTrendPage >= 10}
+                      aria-label="Previous records"
+                      title={scoreTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
+                      className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    >
+                      <ChevronLeft size={14} className="stroke-[2.5]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScoreTrendPage((p) => Math.max(0, p - 1))}
+                      disabled={scoreTrendPage === 0}
+                      aria-label="Next records"
+                      title={scoreTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
+                      className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                    >
+                      <ChevronRight size={14} className="stroke-[2.5]" />
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="relative mt-4 h-64 sm:h-72 w-full rounded-md border border-gray-100 bg-gray-50/60 p-2.5 dark:border-[#1A1A1A] dark:bg-[#111111]">
@@ -1168,7 +1256,7 @@ export const TutorStudentProfile: React.FC = () => {
                   data={scoreTrend}
                   color="#0052B7"
                   emptyLabel={scoreTrendFilter === 'day' ? 'No recorded score today' : scoreTrendFilter === 'week' ? 'No recorded score this week' : 'No recorded score this month'}
-                  valueLabel={`${profile.student.name}'s Average Score`}
+                  valueLabel={`${profile.student.name}'s Average Score Rate`}
                   trendFilter={scoreTrendFilter}
                 />
               </div>
@@ -1317,7 +1405,7 @@ export const TutorStudentProfile: React.FC = () => {
       {/* ── ATTENDANCE MODAL ───────────────────────────────────────── */}
       {showAttendanceModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleAddAttendance} className="bg-white dark:bg-[#111111] rounded-lg p-4 sm:p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
+          <form onSubmit={handlePromptAddAttendance} className="bg-white dark:bg-[#111111] rounded-lg p-4 sm:p-6 max-w-md w-full border border-gray-200 dark:border-[#1A1A1A] shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1A1A1A] pb-3">
               <h3 className="font-bold text-gray-900 dark:text-white text-base">Log Manual Attendance</h3>
               <button type="button" onClick={() => setShowAttendanceModal(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors cursor-pointer">
@@ -1380,6 +1468,44 @@ export const TutorStudentProfile: React.FC = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ── Attendance Log Confirmation Modal (Matches Score Entry) ── */}
+      {showAttendanceConfirmModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+          style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowAttendanceConfirmModal(false); }}
+        >
+          <div className="relative w-full max-w-sm rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl space-y-3 animate-fade-in-scale">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">
+                Log Manual Attendance
+              </h3>
+              <p className="mt-1 text-xs font-normal text-gray-500 dark:text-slate-400 leading-relaxed">
+                Are you sure you want to log this manual attendance record for {profile?.student?.name}?
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowAttendanceConfirmModal(false)}
+                className="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAddAttendance}
+                className="rounded-md bg-[var(--brand)] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer"
+              >
+                Log Attendance
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

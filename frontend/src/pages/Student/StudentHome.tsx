@@ -6,6 +6,8 @@ import type { Attendance, Grade, StudentAcademicProfile } from '../../types';
 import {
   AlertCircle,
   BarChart2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { computeStudentRiskRows } from '../../utils/analyticsHelpers';
 import { getRecentSchoolWeekdays } from '../../utils/studentFormatters';
@@ -84,7 +86,7 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
   const { width, height } = dimensions;
   const isMobile = width < 520;
   const paddingLeft = isMobile ? 38 : 50;
-  const paddingRight = isMobile ? 18 : 14;
+  const paddingRight = isMobile ? 18 : 44;
   const paddingTop = isMobile ? 16 : 20;
   const paddingBottom = isMobile ? (trendFilter === 'month' ? 24 : 34) : 24;
 
@@ -140,7 +142,7 @@ const InteractiveStudentChart: React.FC<{ data: StudentChartPoint[]; trendFilter
 
   return (
     <div ref={containerRef} className="relative flex-1 w-full h-full min-h-[196px] sm:min-h-[220px] select-none min-w-0 overflow-hidden">
-      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="w-full h-full min-h-[196px] sm:min-h-[220px] block" role="img" aria-label="Student Performance Trend Chart">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full min-h-[196px] sm:min-h-[220px] block" role="img" aria-label="Student Performance Trend Chart">
         <defs>
           <style>{`
             @keyframes traceLine {
@@ -513,6 +515,7 @@ export const StudentHome: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [trendFilter, setTrendFilter] = useState<TrendFilter>('week');
+  const [trendPage, setTrendPage] = useState<number>(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -657,7 +660,9 @@ export const StudentHome: React.FC = () => {
     }[];
 
     if (trendFilter === 'day') {
-      const schoolDays = getRecentSchoolWeekdays(10, now);
+      const count = 10 * (trendPage + 1);
+      const allSchoolDays = getRecentSchoolWeekdays(count, now);
+      const schoolDays = allSchoolDays.slice(0, 10);
       periods = schoolDays.map((d) => {
         const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
         const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
@@ -682,21 +687,20 @@ export const StudentHome: React.FC = () => {
       const periodCount = 6;
       periods = Array.from({ length: periodCount }).map((_, index) => {
         let start: Date, end: Date, label: string, fullDateLabel: string;
+        const totalOffset = (periodCount - 1 - index) + trendPage * periodCount;
         if (trendFilter === 'month') {
-          const offset = periodCount - 1 - index;
-          start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-          end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
+          start = new Date(now.getFullYear(), now.getMonth() - totalOffset, 1);
+          end = new Date(now.getFullYear(), now.getMonth() - totalOffset + 1, 1);
           label = formatMonth(start);
           const monthFull = start.toLocaleDateString('en-US', { month: 'long' });
           const year = start.getFullYear();
           fullDateLabel = `${monthFull} ${year}`;
         } else {
           // week (5 school weekdays: Mon–Fri)
-          const offset = periodCount - 1 - index;
           const dayOfWeek = now.getDay();
           const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
           const currentWeekMon = new Date(startOfToday.getTime() + diffToMon * oneDay);
-          start = new Date(currentWeekMon.getTime() - offset * 7 * oneDay);
+          start = new Date(currentWeekMon.getTime() - totalOffset * 7 * oneDay);
           const fri = new Date(start.getTime() + 4 * oneDay);
           end = new Date(start.getTime() + 5 * oneDay);
           label = `${formatDate(start)} – ${formatDate(fri)}`;
@@ -770,7 +774,20 @@ export const StudentHome: React.FC = () => {
       assessmentLabels: Array.from(p.assessmentLabels),
     }));
 
-    if (points.every((p) => p.value === null)) return [];
+    if (points.every((p) => p.value === null)) {
+      if (trendPage > 0) {
+        return points.map((p) => ({
+          label: p.label,
+          fullDateLabel: p.fullDateLabel,
+          dateRange: p.dateRange,
+          value: 0,
+          actualCount: 0,
+          attendanceCount: p.attendanceCount,
+          assessmentLabels: p.assessmentLabels,
+        }));
+      }
+      return [];
+    }
 
     let lastValid = 70;
     return points.map((p) => {
@@ -785,7 +802,7 @@ export const StudentHome: React.FC = () => {
         assessmentLabels: p.assessmentLabels,
       };
     });
-  }, [currentStudentGrades, currentStudentAttendance, trendFilter, studentMilestone]);
+  }, [currentStudentGrades, currentStudentAttendance, trendFilter, studentMilestone, trendPage]);
 
   const highestScore = useMemo(() => (last4WeeksData.length === 0 ? 0 : Math.max(...last4WeeksData.map((d) => d.value))), [last4WeeksData]);
   const lowestScore = useMemo(() => (last4WeeksData.length === 0 ? 0 : Math.min(...last4WeeksData.map((d) => d.value))), [last4WeeksData]);
@@ -921,7 +938,7 @@ export const StudentHome: React.FC = () => {
             className="flex items-center justify-between px-3.5 sm:px-4 py-3 min-h-[44px] hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
           >
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
-              Average Attendance
+              Average Attendance Rate
             </p>
             <p
               className={`text-base sm:text-xl font-black shrink-0 tracking-tight ${currentStudentAttendance.length === 0
@@ -942,7 +959,7 @@ export const StudentHome: React.FC = () => {
             className="flex items-center justify-between px-3.5 sm:px-4 py-3 min-h-[44px] hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors focus-visible:outline-none focus-visible:ring-inset focus-visible:ring-1 focus-visible:ring-[var(--brand)] min-w-0"
           >
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-slate-500 truncate mr-2">
-              Average Scores
+              Average Score Rate
             </p>
             <p
               className={`text-base sm:text-xl font-black shrink-0 tracking-tight ${!hasScoreData
@@ -1003,12 +1020,15 @@ export const StudentHome: React.FC = () => {
                     <span className="whitespace-nowrap">{studentMilestone}</span>
                   </div>
                 </div>
-                <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap">
+                <div className="flex bg-gray-100 dark:bg-[#111111] rounded-md p-0.5 gap-0.5 shrink-0 whitespace-nowrap" aria-label="Student performance trend period">
                   {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
                     <button
                       key={filter}
                       type="button"
-                      onClick={() => setTrendFilter(filter)}
+                      onClick={() => {
+                        setTrendFilter(filter);
+                        setTrendPage(0);
+                      }}
                       className={`rounded-sm px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all cursor-pointer whitespace-nowrap ${trendFilter === filter
                           ? 'bg-[var(--brand)] text-white shadow-xs'
                           : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
@@ -1017,6 +1037,29 @@ export const StudentHome: React.FC = () => {
                       {filter}
                     </button>
                   ))}
+                </div>
+                {/* Period navigation arrows */}
+                <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present records">
+                  <button
+                    type="button"
+                    onClick={() => setTrendPage((p) => p + 1)}
+                    disabled={trendPage >= 10}
+                    aria-label="Previous records"
+                    title={trendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
+                    className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                  >
+                    <ChevronLeft size={14} className="stroke-[2.5]" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTrendPage((p) => Math.max(0, p - 1))}
+                    disabled={trendPage === 0}
+                    aria-label="Next records"
+                    title={trendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
+                    className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                  >
+                    <ChevronRight size={14} className="stroke-[2.5]" />
+                  </button>
                 </div>
               </div>
             </div>

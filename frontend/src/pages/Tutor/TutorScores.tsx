@@ -1513,7 +1513,7 @@ export const TutorScores: React.FC = () => {
 
   useEffect(() => {
     setHasAttemptedSave(false);
-  }, [selectedCohort, selectedSubject, selectedAralLevel, entryKind]);
+  }, [selectedCohort, selectedSubject, selectedAralLevel, entryKind, logDate]);
 
   // Attendance-pattern: track last saved batch for inline DTR row highlight
   const [lastSavedBatchId, setLastSavedBatchId] = useState<string | null>(null);
@@ -1668,6 +1668,8 @@ export const TutorScores: React.FC = () => {
       return;
     }
 
+    setHasAttemptedSave(false);
+
     if (cohortStudents.length === 0) {
       setValidationToast({
         type: 'warning',
@@ -1798,6 +1800,7 @@ export const TutorScores: React.FC = () => {
       setEntryScores(resetScores);
       setEntryStatus(resetStatus);
       setTotalScore(entryKind === 'daily' ? 20 : 40);
+      setHasAttemptedSave(false);
 
       // Remove the submitted entry kind from draftsByKind
       const updatedDrafts = { ...draftsByKind };
@@ -1880,6 +1883,7 @@ export const TutorScores: React.FC = () => {
 
   const handleDismissSuccessModal = () => {
     setShowSuccessModal(false);
+    setHasAttemptedSave(false);
   };
 
   useEffect(() => {
@@ -2305,6 +2309,10 @@ export const TutorScores: React.FC = () => {
       setSelectedDate(null);
     }
   }, [jumpDate, mostRecentDateWithEntry, viewMode, scoreStudentSearch]);
+
+  useEffect(() => {
+    setHasAttemptedSave(false);
+  }, [selectedDate]);
 
   const scoreTableGroups = useMemo((): ScoreTableGroup[] => {
     if (jumpDate) {

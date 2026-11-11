@@ -4,6 +4,8 @@ import { academicService } from '../../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../../utils/analyticsHelpers';
 import {
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
   Info,
   Users,
 } from 'lucide-react';
@@ -100,7 +102,7 @@ const RiskCalculationInfo: React.FC = () => (
       <Info className="h-3.5 w-3.5" />
     </button>
     <span className="pointer-events-none absolute left-0 top-full mt-2 sm:left-full sm:top-1/2 sm:mt-0 sm:ml-2 z-20 hidden w-72 sm:w-80 max-w-[calc(100vw-2rem)] sm:-translate-y-1/2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2.5 sm:px-3 sm:py-2 text-left text-xs font-semibold leading-relaxed text-slate-800 dark:text-white shadow-lg group-hover:block group-focus-within:block">
-      Risk level is calculated from the composite score of a student. Composite Score = 40% (Attendance Rate) + 60% (Average Score)
+      Risk level is calculated from the composite rating of a student. Composite Rating = 40% (Attendance Rate) + 60% (Average Score Rate)
     </span>
   </span>
 );
@@ -111,7 +113,8 @@ const buildRiskTrendPoints = (
   students: User[],
   grades: Grade[],
   attendanceLogs: Attendance[],
-  filter: TrendFilter
+  filter: TrendFilter,
+  pageOffset: number = 0
 ): RiskTrendPoint[] => {
   const studentIds = new Set(students.map((student) => String(student.id)));
   const now = new Date();
@@ -121,7 +124,9 @@ const buildRiskTrendPoints = (
 
   let periods: { start: Date; end: Date; label: string; dateKey: string }[];
   if (filter === 'day') {
-    const schoolDays = getRecentSchoolWeekdays(10, now);
+    const count = 10 * (pageOffset + 1);
+    const allSchoolDays = getRecentSchoolWeekdays(count, now);
+    const schoolDays = allSchoolDays.slice(0, 10);
     periods = schoolDays.map((d) => {
       const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
       const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
@@ -130,19 +135,19 @@ const buildRiskTrendPoints = (
   } else {
     const periodCount = 6;
     periods = Array.from({ length: periodCount }, (_, index) => {
-      const offset = periodCount - 1 - index;
+      const totalOffset = (periodCount - 1 - index) + pageOffset * periodCount;
       let start: Date;
       let end: Date;
       let label: string;
       if (filter === 'month') {
-        start = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-        end = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
+        start = new Date(now.getFullYear(), now.getMonth() - totalOffset, 1);
+        end = new Date(now.getFullYear(), now.getMonth() - totalOffset + 1, 1);
         label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
       } else {
         const dayOfWeek = now.getDay();
         const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
         const currentWeekMon = new Date(startOfToday.getTime() + diffToMon * dayMs);
-        start = new Date(currentWeekMon.getTime() - offset * 7 * dayMs);
+        start = new Date(currentWeekMon.getTime() - totalOffset * 7 * dayMs);
         const fri = new Date(start.getTime() + 4 * dayMs);
         end = new Date(start.getTime() + 5 * dayMs);
         label = `${formatDate(start)} – ${formatDate(fri)}`;
@@ -176,6 +181,17 @@ const buildRiskTrendPoints = (
       },
     };
   });
+
+  if (pageOffset > 0 && points.every(({ point }) => point === null)) {
+    return periods.map((period) => ({
+      dateKey: period.dateKey,
+      label: period.label,
+      high: 0,
+      moderate: 0,
+      medium: 0,
+      low: 0,
+    }));
+  }
 
   const firstRecordedPoint = points.find(({ point }) => point !== null)?.point;
   if (!firstRecordedPoint) {
@@ -220,14 +236,43 @@ const DesktopRiskTrendChart: React.FC<{
   isSingleStudent: boolean;
   studentName?: string;
 }> = ({ data, total, isSingleStudent, studentName }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(800);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const width = 800;
-  const height = 160;
+
+  useEffect(() => {
+    setHoveredIdx(null);
+  }, [data]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        if (rect.width > 0) setContainerWidth(Math.round(rect.width));
+      }
+    };
+    updateSize();
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0) {
+          setContainerWidth(Math.round(entry.contentRect.width));
+        }
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [data.length]);
+
+  const width = Math.max(300, containerWidth);
+  const height = 216;
   const paddingLeft = 48;
-  const paddingRight = 6;
+  const paddingRight = 48;
   const paddingTop = 15;
-  const paddingBottom = 28;
-  const chartWidth = width - paddingLeft - paddingRight;
+  const paddingBottom = 32;
+  const chartWidth = Math.max(10, width - paddingLeft - paddingRight);
   const chartHeight = height - paddingTop - paddingBottom;
   const maxValue = isSingleStudent ? 1 : Math.max(5, Math.ceil(total / 5) * 5);
   const axisSteps = isSingleStudent
@@ -239,17 +284,20 @@ const DesktopRiskTrendChart: React.FC<{
     { key: 'low' as const, color: '#22C55E', label: 'Low Risk' },
   ];
   const barWidth = Math.max(14, Math.min(34, (chartWidth / (data.length || 1)) * 0.35));
-  const getBarX = (index: number) =>
-    paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1 || 1);
+  const getBarX = (index: number) => {
+    if (data.length <= 1) {
+      return paddingLeft + chartWidth / 2;
+    }
+    return paddingLeft + barWidth / 2 + (index * (chartWidth - barWidth)) / (data.length - 1);
+  };
 
   const desktopAnimationKey = `student_desktop_bars_${data.length}_${isSingleStudent}_${studentName || 'all'}_${data.map((d) => `${d.high}-${d.moderate ?? d.medium ?? 0}-${d.low}`).join('_')}`;
 
   return (
-    <div className="relative overflow-hidden">
+    <div ref={containerRef} className="relative w-full overflow-hidden">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
-        className="h-52 w-full overflow-visible"
+        className="h-[216px] w-full overflow-visible select-none"
         role="img"
         aria-label="Risk level trend chart"
       >
@@ -336,7 +384,7 @@ const DesktopRiskTrendChart: React.FC<{
               >
                 <text
                   x={x}
-                  y={height - 4}
+                  y={height - 8}
                   textAnchor="middle"
                   className="fill-slate-500 font-semibold text-[8px]"
                 >
@@ -513,7 +561,6 @@ const MobileRiskTrendChart: React.FC<{
     <div ref={containerRef} className="relative select-none w-full max-w-full min-w-0 h-[196px] overflow-hidden">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
         className="w-full h-full block"
         role="img"
         aria-label="Risk level trend chart"
@@ -796,6 +843,7 @@ const RiskTrendChart: React.FC<{
 export const StudentAnalytics: React.FC = () => {
   const { user } = useAuth();
   const [trendFilter, setTrendFilter] = useState<TrendFilter>('week');
+  const [trendPage, setTrendPage] = useState<number>(0);
   const [grades, setGrades] = useState<Grade[]>([]);
   const [attendanceLogs, setAttendanceLogs] = useState<Attendance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -846,8 +894,8 @@ export const StudentAnalytics: React.FC = () => {
 
   const riskTrend = useMemo(() => {
     if (!user) return [];
-    return buildRiskTrendPoints([user], grades, attendanceLogs, trendFilter);
-  }, [user, grades, attendanceLogs, trendFilter]);
+    return buildRiskTrendPoints([user], grades, attendanceLogs, trendFilter, trendPage);
+  }, [user, grades, attendanceLogs, trendFilter, trendPage]);
 
   // ── Performance Details Table Rows ──────────────────────────────────
 
@@ -960,7 +1008,7 @@ export const StudentAnalytics: React.FC = () => {
           }`}
         >
           <div className="absolute right-3 top-3">
-            <RiskRangeInfo range="Composite score is 69% and below" />
+            <RiskRangeInfo range="Composite rating is 69% and below" />
           </div>
           <div className="min-w-0">
             {studentRiskTier === 'High' && (
@@ -992,7 +1040,7 @@ export const StudentAnalytics: React.FC = () => {
           }`}
         >
           <div className="absolute right-3 top-3">
-            <RiskRangeInfo range="Composite score is between 70% to 85%" />
+            <RiskRangeInfo range="Composite rating is between 70% to 85%" />
           </div>
           <div className="min-w-0">
             {(studentRiskTier === 'Moderate' || studentRiskTier === 'Medium') && (
@@ -1024,7 +1072,7 @@ export const StudentAnalytics: React.FC = () => {
           }`}
         >
           <div className="absolute right-3 top-3">
-            <RiskRangeInfo range="Composite score is between 86% to 100%" />
+            <RiskRangeInfo range="Composite rating is between 86% to 100%" />
           </div>
           <div className="min-w-0">
             {studentRiskTier === 'Low' && (
@@ -1088,7 +1136,10 @@ export const StudentAnalytics: React.FC = () => {
                   <button
                     key={filter}
                     type="button"
-                    onClick={() => setTrendFilter(filter)}
+                    onClick={() => {
+                      setTrendFilter(filter);
+                      setTrendPage(0);
+                    }}
                     className={`cursor-pointer rounded-sm px-1.5 sm:px-3 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-bold uppercase transition-all whitespace-nowrap ${
                       trendFilter === filter
                         ? 'bg-[var(--brand)] text-white shadow-xs'
@@ -1098,6 +1149,29 @@ export const StudentAnalytics: React.FC = () => {
                     {filter}
                   </button>
                 ))}
+              </div>
+              {/* Period navigation arrows */}
+              <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present records">
+                <button
+                  type="button"
+                  onClick={() => setTrendPage((p) => p + 1)}
+                  disabled={trendPage >= 10}
+                  aria-label="Previous records"
+                  title={trendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
+                  className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                >
+                  <ChevronLeft size={14} className="stroke-[2.5]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrendPage((p) => Math.max(0, p - 1))}
+                  disabled={trendPage === 0}
+                  aria-label="Next records"
+                  title={trendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
+                  className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                >
+                  <ChevronRight size={14} className="stroke-[2.5]" />
+                </button>
               </div>
             </div>
           </div>
@@ -1156,8 +1230,8 @@ export const StudentAnalytics: React.FC = () => {
                   <tr className="divide-x divide-gray-100 dark:divide-[#1A1A1A] bg-gray-50 dark:bg-[#111111]">
                     <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">STUDENT</th>
                     <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">AVERAGE ATTENDANCE RATE</th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">AVERAGE SCORE</th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">COMPOSITE SCORE</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">AVERAGE SCORE RATE</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">COMPOSITE RATING</th>
                     <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">RISK LEVEL</th>
                     <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">RISK LEVEL REMARKS</th>
                   </tr>

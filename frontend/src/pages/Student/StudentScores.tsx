@@ -1142,10 +1142,10 @@ export const StudentScores: React.FC = () => {
           </div>
         </div>
 
-        {/* AVERAGE SCORE */}
+        {/* AVERAGE SCORE RATE */}
         <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#111111] shadow-sm">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE SCORE</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">AVERAGE SCORE RATE</p>
             <p
               className={`text-2xl sm:text-3xl font-black mt-0.5 tracking-tight ${
                 !hasScoreData
@@ -1159,7 +1159,7 @@ export const StudentScores: React.FC = () => {
             >
               {hasScoreData ? <AnimatedCounter value={calculatedAvgScore} decimals={calculatedAvgScore % 1 !== 0 ? 1 : 0} suffix="%" /> : '—'}
             </p>
-            <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s average score</p>
+            <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-slate-400">{studentFirstName}'s average score rate</p>
           </div>
         </div>
       </div>

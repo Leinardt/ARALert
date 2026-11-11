@@ -334,10 +334,10 @@ const ArchiveClassSectionTable: React.FC<ArchiveClassSectionTableProps> = ({
                     <SortableSubHeader label="FINAL AVG ATTENDANCE RATE" field="attendanceRate" align="center" />
                   </th>
                   <th className="px-3 py-2 text-center whitespace-nowrap">
-                    <SortableSubHeader label="FINAL AVG SCORE" field="avgScore" align="center" />
+                    <SortableSubHeader label="FINAL AVG SCORE RATE" field="avgScore" align="center" />
                   </th>
                   <th className="px-3 py-2 text-center whitespace-nowrap">
-                    <SortableSubHeader label="FINAL AVG COMPOSITE" field="compositeScore" align="center" />
+                    <SortableSubHeader label="FINAL AVG COMPOSITE RATING" field="compositeScore" align="center" />
                   </th>
                   <th className="px-3 py-2 text-center whitespace-nowrap">
                     <SortableSubHeader

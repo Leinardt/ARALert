@@ -12,10 +12,10 @@ import {
 import { userService } from '../services/userService';
 import { academicService } from '../services/academicService';
 import { computeStudentRiskRows, type StudentRiskRow } from '../utils/analyticsHelpers';
-import { parseTutorRoleDetailsFromUser, isStudentInCohort, buildTutorClassSections } from '../utils/tutorCohortHelpers';
+import { parseTutorRoleDetailsFromUser, isStudentInCohort, buildTutorClassSections, parseStudentGradeAndSection } from '../utils/tutorCohortHelpers';
 import { getReviewerLabel } from '../utils/studentFormatters';
 
-import type { AcademicRisk, StudentEditRequest } from '../types';
+import type { AcademicRisk, StudentEditRequest, User } from '../types';
 import { TutorGreetingIntro, checkGreetingEligibility } from '../components/TutorGreetingIntro';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { StudentEditRequestsModal } from '../components/StudentEditRequestsModal';
@@ -425,6 +425,8 @@ export const DashboardLayout: React.FC = () => {
   const [moderateRiskStudents, setModerateRiskStudents] = useState<StudentRiskRow[]>([]);
   const [showRiskList, setShowRiskList] = useState(false);
   const [selectedAlertClass, setSelectedAlertClass] = useState<string>('all');
+  const [principalTutors, setPrincipalTutors] = useState<User[]>([]);
+  const [expandedPrincipalTutorId, setExpandedPrincipalTutorId] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const profileMenuEnterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -653,19 +655,30 @@ export const DashboardLayout: React.FC = () => {
     `sidebar-item ${active ? 'active' : ''} ${collapsed ? 'justify-center !p-0 w-10 h-10 mx-auto' : ''}`;
 
   const fetchRiskStudents = async () => {
-    if (!user || user.role !== 'tutor') return;
+    if (!user || (user.role !== 'tutor' && user.role !== 'principal')) return;
     try {
-      const [studentRes, gradesRaw, attRaw, risksRaw] = await Promise.all([
-        userService.getAllUsers({ role: 'student', assigned_tutor: user.id }),
-        academicService.getGrades(),
-        academicService.getAttendanceHistory(),
-        academicService.getAcademicRisks(),
+      const isPrincipal = user.role === 'principal';
+      const [studentRes, gradesRaw, attRaw, risksRaw, tutorsRes] = await Promise.all([
+        isPrincipal
+          ? userService.getAllUsers({ role: 'student' }).catch(() => [] as User[])
+          : userService.getAllUsers({ role: 'student', assigned_tutor: user.id }).catch(() => [] as User[]),
+        academicService.getGrades().catch(() => [] as any),
+        academicService.getAttendanceHistory().catch(() => [] as any),
+        academicService.getAcademicRisks().catch(() => [] as any),
+        isPrincipal
+          ? userService.getAllUsers({ role: 'tutor' }).catch(() => [] as User[])
+          : Promise.resolve([] as User[]),
       ]);
 
       const students = Array.isArray(studentRes) ? studentRes : [];
       const grades = Array.isArray(gradesRaw) ? gradesRaw : (gradesRaw as any)?.results ?? [];
       const attendanceLogs = Array.isArray(attRaw) ? attRaw : (attRaw as any)?.results ?? [];
       const riskRecords = Array.isArray(risksRaw) ? risksRaw : (risksRaw as any)?.results ?? [];
+      const tutors = Array.isArray(tutorsRes) ? tutorsRes : [];
+
+      if (isPrincipal) {
+        setPrincipalTutors(tutors);
+      }
 
       const rows = computeStudentRiskRows(students, grades, attendanceLogs);
       const highRiskRows = rows.filter((r) => r.riskTier === 'High').sort((a, b) => b.compositeScore - a.compositeScore);
@@ -695,7 +708,7 @@ export const DashboardLayout: React.FC = () => {
       });
       setAcknowledgedRiskIds(Object.fromEntries(Object.entries(latestResolvedRiskByStudent).map(([id, r]: [string, AcademicRisk]) => [id, r.id])));
     } catch (error) {
-      console.error('Failed to load tutor alerts', error);
+      console.error('Failed to load risk alerts', error);
     }
   };
 
@@ -703,6 +716,129 @@ export const DashboardLayout: React.FC = () => {
     if (!user || user.role !== 'tutor') return [];
     return buildTutorClassSections(user, highRiskStudents);
   }, [user, highRiskStudents]);
+
+  const principalClassSections = useMemo(() => {
+    if (!user || user.role !== 'principal') return [];
+    const classesMap = new Map<string, { key: string; label: string; cohort: string; aralLevel: string; students: StudentRiskRow[] }>();
+
+    highRiskStudents.forEach((r) => {
+      const st = r.student;
+      const rawAral = (st.aral_level || 'basic').toLowerCase().trim();
+      const aralLevel = rawAral.includes('summer') ? 'summer' : rawAral.includes('plus') ? 'plus' : 'basic';
+      let subj = (st.subject || '').trim();
+      if (!subj) {
+        subj = aralLevel === 'basic' ? 'Filipino' : 'English';
+      } else {
+        const norm = subj.toLowerCase();
+        if (norm.includes('math')) subj = 'Math';
+        else if (norm.includes('sci')) subj = 'Science';
+        else if (norm.includes('english')) subj = 'English';
+        else if (norm.includes('filipino')) subj = aralLevel === 'plus' ? 'English' : 'Filipino';
+        else if (norm.includes('reading')) subj = aralLevel === 'plus' ? 'English' : 'Filipino';
+        else subj = subj.charAt(0).toUpperCase() + subj.slice(1);
+      }
+      const { grade, section } = parseStudentGradeAndSection(st);
+      let cleanGrade = (grade || 'GRADE 7').toUpperCase().trim();
+      if (!cleanGrade.startsWith('GRADE')) {
+        const numMatch = cleanGrade.match(/\d+/);
+        cleanGrade = numMatch ? `GRADE ${numMatch[0]}` : `GRADE ${cleanGrade}`;
+      }
+      const cleanSec = (section || 'HYACINTH').toUpperCase().trim();
+      const cohortStr = `${cleanGrade} - ${cleanSec}`;
+      const label = `${aralLevel.toUpperCase()} • ${subj.toUpperCase()} • ${cohortStr}`;
+      const key = `${aralLevel}-${subj}-${cleanGrade}-${cleanSec}`.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+      if (!classesMap.has(key)) {
+        classesMap.set(key, { key, label, cohort: cohortStr, aralLevel, students: [] });
+      }
+      classesMap.get(key)!.students.push(r);
+    });
+
+    return Array.from(classesMap.values()).sort((a, b) => b.students.length - a.students.length);
+  }, [user, highRiskStudents]);
+
+  const availableClassSections = useMemo(() => {
+    if (user?.role === 'principal') return principalClassSections;
+    if (user?.role === 'tutor') return tutorClassSections;
+    return [];
+  }, [user?.role, principalClassSections, tutorClassSections]);
+
+  const principalTutorGroups = useMemo(() => {
+    if (!user || user.role !== 'principal') return [];
+
+    const isStudentAssignedToTutor = (s: any, tutorId: string, tutorFullName?: string): boolean => {
+      const assigned = s.assigned_tutor;
+      const assignedId =
+        typeof assigned === 'object' && assigned !== null
+          ? String(assigned.id ?? assigned.pk ?? '')
+          : String(assigned ?? s.assigned_tutor_id ?? '');
+      if (assignedId && assignedId === tutorId) return true;
+      if (
+        tutorFullName &&
+        s.assigned_tutor_name &&
+        s.assigned_tutor_name.trim().toLowerCase() === tutorFullName.trim().toLowerCase()
+      ) {
+        return true;
+      }
+      return false;
+    };
+
+    const targetStudents = selectedAlertClass === 'all'
+      ? highRiskStudents
+      : (principalClassSections.find((c) => c.key === selectedAlertClass)?.students ?? highRiskStudents);
+
+    const groups = principalTutors.map((tutor) => {
+      const tutorIdStr = String(tutor.id);
+      const tutorFullName = tutor.full_name || `${tutor.first_name || ''} ${tutor.last_name || ''}`.trim() || 'Tutor';
+
+      const assignedStudents = targetStudents.filter((r) =>
+        isStudentAssignedToTutor(r.student, tutorIdStr, tutorFullName)
+      );
+
+      const classesSet = new Set<string>();
+      assignedStudents.forEach((r) => {
+        const { grade, section } = parseStudentGradeAndSection(r.student);
+        if (grade && section) {
+          classesSet.add(`${grade} - ${section}`);
+        } else if (grade) {
+          classesSet.add(grade);
+        } else if (section) {
+          classesSet.add(section);
+        }
+      });
+      if (classesSet.size === 0 && tutor.grade_level) {
+        tutor.grade_level.split(',').forEach((c: string) => {
+          const trimmed = c.trim();
+          if (trimmed) classesSet.add(trimmed);
+        });
+      }
+      const classesHandled = classesSet.size > 0 ? Array.from(classesSet).sort().join(', ') : 'No Section Specified';
+
+      return {
+        tutor,
+        tutorId: tutorIdStr,
+        tutorName: tutorFullName,
+        classesHandled,
+        students: assignedStudents,
+      };
+    }).filter((g) => g.students.length > 0);
+
+    // Group any unassigned high-risk students so nothing is omitted
+    const assignedStudentIds = new Set(groups.flatMap((g) => g.students.map((s) => s.student.id)));
+    const unassignedStudents = targetStudents.filter((r) => !assignedStudentIds.has(r.student.id));
+    if (unassignedStudents.length > 0) {
+      groups.push({
+        tutor: { id: 'unassigned', full_name: 'Unassigned Students' } as any,
+        tutorId: 'unassigned',
+        tutorName: 'Unassigned Students',
+        classesHandled: 'General',
+        students: unassignedStudents,
+      });
+    }
+
+    groups.sort((a, b) => b.students.length - a.students.length);
+    return groups;
+  }, [user, principalTutors, highRiskStudents, selectedAlertClass, principalClassSections]);
 
   const [isAlertClassDropdownOpen, setIsAlertClassDropdownOpen] = useState(false);
   const alertClassDropdownRef = useRef<HTMLDivElement>(null);
@@ -729,12 +865,12 @@ export const DashboardLayout: React.FC = () => {
 
   const selectedAlertClassLabel = useMemo(() => {
     if (selectedAlertClass === 'all') {
-      const totalHigh = tutorClassSections.reduce((s, c) => s + c.students.length, 0);
+      const totalHigh = availableClassSections.reduce((s, c) => s + c.students.length, 0);
       return `ALL CLASSES (${totalHigh} high-risk)`;
     }
-    const match = tutorClassSections.find((c) => c.key === selectedAlertClass);
+    const match = availableClassSections.find((c) => c.key === selectedAlertClass);
     return match ? `${match.label} (${match.students.length})` : 'ALL CLASSES';
-  }, [selectedAlertClass, tutorClassSections]);
+  }, [selectedAlertClass, availableClassSections]);
 
   const handleAcknowledgeAlert = async (row: StudentRiskRow) => {
     const existingRiskId = acknowledgedRiskIds[row.student.id];
@@ -743,7 +879,8 @@ export const DashboardLayout: React.FC = () => {
         : (row.riskTier === 'Moderate' || row.riskTier === 'Medium') ? 'moderate'
           : 'low';
     try {
-      const detailsMsg = `High risk alert acknowledged by ${user?.first_name || 'tutor'}.`;
+      const actorLabel = user?.role === 'principal' ? (user?.first_name ? `Principal ${user.first_name}` : 'Principal') : (user?.first_name || 'tutor');
+      const detailsMsg = `High risk alert acknowledged by ${actorLabel}.`;
       if (existingRiskId) {
         await academicService.updateAcademicRisk(existingRiskId, { resolved: true, details: detailsMsg });
       } else {
@@ -1014,7 +1151,7 @@ export const DashboardLayout: React.FC = () => {
   // Auto-refresh high risk student alerts with a gentle 60s interval and event-driven updates
   useEffect(() => {
     fetchRiskStudents();
-    if (user?.role === 'tutor') {
+    if (user?.role === 'tutor' || user?.role === 'principal') {
       const interval = setInterval(() => {
         if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
           fetchRiskStudents();
@@ -1396,7 +1533,17 @@ export const DashboardLayout: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: 'var(--surface-bg)', overflow: 'hidden', fontFamily: 'var(--font-body)' }}>
+    <div
+      className="fixed inset-0 flex h-full w-full overflow-hidden"
+      style={{
+        display: 'flex',
+        height: '100vh',
+        maxHeight: '100dvh',
+        background: 'var(--surface-bg)',
+        overflow: 'hidden',
+        fontFamily: 'var(--font-body)',
+      }}
+    >
 
       {/* ── System Greeting Intro (Chat Bubble + Flying Mascot) ───── */}
       <TutorGreetingIntro
@@ -1790,11 +1937,22 @@ export const DashboardLayout: React.FC = () => {
       </aside>
 
       {/* ── Main Panel ─────────────────────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+      <div
+        className="flex flex-col flex-1 h-full min-h-0 min-w-0 overflow-hidden relative"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          minHeight: 0,
+          minWidth: 0,
+          height: '100%',
+          overflow: 'hidden',
+        }}
+      >
 
         {/* ── Top Bar ── */}
         <header
-          className={`h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 relative transition-colors duration-150 ${
+          className={`h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 xs:px-3 sm:px-6 lg:px-8 shrink-0 sticky top-0 transition-colors duration-150 ${
             showRiskList || showTutorNotifications || showStudentEditRequests || (profileMenuOpen && !isMobileDrawerOpen)
               ? 'z-[80]'
               : 'z-30'
@@ -1838,13 +1996,19 @@ export const DashboardLayout: React.FC = () => {
 
           {/* Right controls */}
           <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 relative shrink-0">
-            {/* High Risk Alert (Warning Triangle Icon - Tutor role) */}
-            {user?.role === 'tutor' && (
+            {/* High Risk Alert (Warning Triangle Icon - Tutor & Principal roles) */}
+            {(user?.role === 'tutor' || user?.role === 'principal') && (
               <div style={{ position: 'relative', zIndex: showRiskList ? 80 : 1 }}>
                 <button
                   type="button"
                   onClick={() => {
-                    setShowRiskList((prev) => !prev);
+                    setShowRiskList((prev) => {
+                      const next = !prev;
+                      if (next) {
+                        setExpandedPrincipalTutorId(null);
+                      }
+                      return next;
+                    });
                     setSelectedAlertClass('all');
                     setShowTutorNotifications(false);
                     setShowStudentEditRequests(false);
@@ -1926,7 +2090,7 @@ export const DashboardLayout: React.FC = () => {
 
                     {/* Notification Panel */}
                     <div
-                      className="animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[380px] max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-[80] overflow-hidden"
+                      className={`animate-fade-in-scale fixed inset-x-2.5 top-16 sm:absolute sm:inset-auto sm:right-0 sm:top-[calc(100%+8px)] ${user?.role === 'principal' ? 'sm:w-[410px]' : 'sm:w-[380px]'} max-w-[calc(100vw-20px)] bg-[var(--surface-card)] border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-xl shadow-2xl sm:shadow-xl z-[80] overflow-visible`}
                     >
                       {/* Dropdown header */}
                       <div
@@ -1965,9 +2129,9 @@ export const DashboardLayout: React.FC = () => {
                         </button>
                       </div>
 
-                      {/* Class filter dropdown */}
-                      {tutorClassSections.length > 1 && (
-                        <div style={{ padding: '0.25rem 1.25rem 0.625rem', background: 'var(--surface-card)' }}>
+                      {/* Class filter dropdown (Tutor and Principal) */}
+                      {((user?.role === 'tutor' && tutorClassSections.length > 1) || (user?.role === 'principal' && availableClassSections.length > 0)) && (
+                        <div style={{ position: 'relative', zIndex: 30, padding: '0.25rem 1.25rem 0.625rem', background: 'var(--surface-card)' }}>
                           <div ref={alertClassDropdownRef} className="relative w-full max-w-full">
                             <button
                               type="button"
@@ -1985,7 +2149,7 @@ export const DashboardLayout: React.FC = () => {
                               <div
                                 role="listbox"
                                 aria-label="Filter classes"
-                                className="absolute left-0 right-0 top-full mt-1.5 z-50 w-full max-w-full rounded-xl border border-slate-200 dark:border-neutral-800 bg-[var(--surface-card)] p-1.5 shadow-xl max-h-56 overflow-y-auto no-scrollbar animate-in fade-in zoom-in-95 duration-100"
+                                className="absolute left-0 right-0 top-full mt-1.5 z-50 w-full max-w-full rounded-xl border border-slate-200 dark:border-neutral-800 bg-[var(--surface-card)] p-1.5 shadow-2xl max-h-56 overflow-y-auto no-scrollbar animate-in fade-in zoom-in-95 duration-100"
                               >
                                 <button
                                   type="button"
@@ -1999,12 +2163,12 @@ export const DashboardLayout: React.FC = () => {
                                       ? 'bg-[var(--brand-light)] text-[var(--brand-dark)] dark:bg-blue-950/60 dark:text-blue-300'
                                       : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-neutral-800'
                                     }`}
-                                  title={`ALL CLASSES (${tutorClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)`}
+                                  title={`ALL CLASSES (${availableClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)`}
                                 >
-                                  <span className="truncate">ALL CLASSES ({tutorClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)</span>
+                                  <span className="truncate">ALL CLASSES ({availableClassSections.reduce((s, c) => s + c.students.length, 0)} high-risk)</span>
                                   {selectedAlertClass === 'all' && <Check className="w-3.5 h-3.5 shrink-0 text-[var(--brand)] dark:text-blue-400 ml-2" />}
                                 </button>
-                                {tutorClassSections.map((cls) => {
+                                {availableClassSections.map((cls) => {
                                   const isSelected = selectedAlertClass === cls.key;
                                   return (
                                     <button
@@ -2037,7 +2201,7 @@ export const DashboardLayout: React.FC = () => {
                       <div
                         className="rounded-b-2xl sm:rounded-b-xl"
                         style={{
-                          maxHeight: 'min(420px, calc(100vh - 140px))',
+                          maxHeight: 'min(440px, calc(100vh - 140px))',
                           overflowY: 'auto',
                           background: 'var(--surface-card)',
                           padding: '0.5rem 1.25rem 1rem',
@@ -2046,8 +2210,165 @@ export const DashboardLayout: React.FC = () => {
                           gap: '0.75rem',
                         }}
                       >
-                        {(() => {
-                          const visibleSections = selectedAlertClass === 'all'
+                        {user?.role === 'principal' ? (
+                          principalTutorGroups.length === 0 ? (
+                            <div style={{ background: 'var(--surface-card)', border: '1px solid var(--risk-high-border)', borderRadius: '8px', padding: '0.75rem', textAlign: 'center' }}>
+                              <p style={{ fontSize: '0.8rem', color: 'var(--risk-high-text)', margin: 0 }}>
+                                {selectedAlertClass === 'all'
+                                  ? 'No high-risk students detected across all tutors.'
+                                  : 'No high-risk students detected for the selected class.'}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-2.5">
+                              {principalTutorGroups.map((group) => {
+                                const isExpanded = expandedPrincipalTutorId === group.tutorId;
+                                return (
+                                  <div
+                                    key={`principal-tutor-${group.tutorId}`}
+                                    className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#0A0A0A] overflow-hidden shadow-2xs transition-all"
+                                  >
+                                    {/* Tutor Header Row - Clickable Dropdown Trigger */}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setExpandedPrincipalTutorId((prev) => (prev === group.tutorId ? null : group.tutorId));
+                                      }}
+                                      className="w-full flex items-center justify-between p-3.5 text-left hover:bg-slate-50/70 dark:hover:bg-neutral-900/60 transition-colors cursor-pointer select-none"
+                                      aria-expanded={isExpanded}
+                                      aria-label={`Toggle high-risk students handled by ${group.tutorName}`}
+                                    >
+                                      <div className="min-w-0 flex-1 pr-2">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                                            {group.tutorName}
+                                          </span>
+                                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
+                                            {group.students.length} HIGH RISK
+                                          </span>
+                                        </div>
+                                        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                                          {group.classesHandled}
+                                        </p>
+                                      </div>
+                                      <div className="shrink-0 flex items-center gap-1.5">
+                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider hidden xs:inline">
+                                          {isExpanded ? 'Hide' : 'View'}
+                                        </span>
+                                        <ChevronDown
+                                          className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                                            isExpanded ? 'rotate-180 text-[var(--brand)]' : ''
+                                          }`}
+                                        />
+                                      </div>
+                                    </button>
+
+                                    {/* Collapsible Dropdown of Handled High-Risk Students */}
+                                    {isExpanded && (
+                                      <div className="border-t border-slate-100 dark:border-neutral-800/80 bg-slate-50/50 dark:bg-black/30 p-3 space-y-2.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                                        <div className="flex items-center justify-between px-0.5 pb-0.5">
+                                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                            Handled Students ({group.students.length})
+                                          </span>
+                                          {group.tutorId !== 'unassigned' && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setShowRiskList(false);
+                                                navigate(`/principal/analytics?tutorId=${group.tutorId}`);
+                                              }}
+                                              className="text-[10.5px] font-bold text-[var(--brand)] hover:underline flex items-center gap-1 cursor-pointer"
+                                            >
+                                              View Analytics
+                                            </button>
+                                          )}
+                                        </div>
+
+                                        <div className="flex flex-col gap-2">
+                                          {group.students.map((row) => {
+                                            const { grade: stGrade, section: stSection } = parseStudentGradeAndSection(row.student);
+                                            return (
+                                              <div
+                                                key={`principal-student-${row.student.id}`}
+                                                className="rounded-lg border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#111111] p-3 space-y-2 shadow-2xs"
+                                              >
+                                                <div className="flex items-start justify-between gap-2">
+                                                  <div className="min-w-0 flex-1">
+                                                    <p className="font-bold text-xs text-slate-900 dark:text-white truncate m-0">
+                                                      {row.student.full_name}
+                                                    </p>
+                                                    <p className="text-[10.5px] text-slate-400 font-mono m-0 mt-0.5">
+                                                      LRN: {row.student.lrn || 'N/A'} {stGrade && stSection ? `• ${stGrade} - ${stSection}` : ''}
+                                                    </p>
+                                                  </div>
+                                                <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60">
+                                                  HIGH RISK
+                                                </span>
+                                              </div>
+
+                                              {/* Metrics */}
+                                              <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
+                                                <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Composite Rating:</span>
+                                                <span className="font-extrabold text-rose-600 dark:text-rose-400">{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
+                                              </div>
+
+                                              {/* Safety Gate or Recovery Targets Remark */}
+                                              <div className="flex flex-col gap-1 pt-0.5">
+                                                {row.compositeScore >= 70 && row.attendanceRate <= 75 && (
+                                                  <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-900 dark:text-amber-200 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 leading-snug">
+                                                    Despite current composite rating, student is marked high risk due to the attendace rate being 75% or less.
+                                                  </span>
+                                                )}
+                                                {row.neededPresentAttendance > 0 && (
+                                                  <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10.5px] font-semibold text-amber-800 dark:text-amber-300 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50">
+                                                    Need +{row.neededPresentAttendance} more Present records to improve risk level
+                                                  </span>
+                                                )}
+                                                {row.neededPassedScores > 0 && (
+                                                  <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[10.5px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
+                                                    Need +{row.neededPassedScores} more Passed records to improve risk level
+                                                  </span>
+                                                )}
+                                                {row.neededPresentAttendance === 0 && row.neededPassedScores === 0 && (
+                                                  <span className="inline-flex items-center rounded bg-rose-50 px-2 py-0.5 text-[10.5px] font-semibold text-rose-800 dark:text-rose-300 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/50">
+                                                    Need +1 more Passed record to improve risk level
+                                                  </span>
+                                                )}
+                                              </div>
+
+                                              {/* Direct Acknowledge Alert button for Principal */}
+                                              <div className="pt-2 border-t border-slate-100 dark:border-neutral-800">
+                                                {acknowledgedAlerts[row.student.id] ? (
+                                                  <div className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-lg">
+                                                    <Check size={14} className="stroke-[3]" />
+                                                    <span>Alert Addressed</span>
+                                                  </div>
+                                                ) : (
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleAcknowledgeAlert(row)}
+                                                    className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                                                  >
+                                                    <CheckCircle2 size={14} />
+                                                    <span>Acknowledge Alert</span>
+                                                  </button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )
+                        ) : (
+                          /* Existing Tutor View */
+                          (() => {
+                            const visibleSections = selectedAlertClass === 'all'
                             ? tutorClassSections
                             : tutorClassSections.filter((cls) => cls.key === selectedAlertClass);
                           return visibleSections.map((cls) => {
@@ -2108,7 +2429,7 @@ export const DashboardLayout: React.FC = () => {
 
                                         {/* Composite score */}
                                         <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
-                                          <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Composite Score:</span>
+                                          <span className="text-slate-600 dark:text-slate-400 text-[11px] font-medium">Composite Rating:</span>
                                           <span className="font-extrabold text-rose-600 dark:text-rose-400">{parseFloat(row.compositeScore.toFixed(1)).toString()}%</span>
                                         </div>
 
@@ -2161,7 +2482,8 @@ export const DashboardLayout: React.FC = () => {
                               </div>
                             );
                           });
-                        })()}
+                        })()
+                      )}
                       </div>
                     </div>
                   </>
@@ -3109,7 +3431,7 @@ export const DashboardLayout: React.FC = () => {
         </header>
 
         {/* ── Content body ── */}
-        <main className="relative z-0 flex-1 w-full min-w-0 max-w-full overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 md:p-6 lg:p-8">
+        <main className="relative z-0 flex-1 w-full min-w-0 max-w-full min-h-0 overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 md:p-6 lg:p-8">
           <ErrorBoundary
             fallbackTitle="Dashboard View Error"
             fallbackMessage="An issue occurred while rendering this dashboard view. You can reload or navigate to another page using the sidebar."

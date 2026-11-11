@@ -9,6 +9,8 @@ import {
   Check,
   ChevronUp,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   AlertCircle,
   Users,
   Info,
@@ -136,13 +138,16 @@ const isNotTakenGrade = (grade: Grade | any): boolean => {
 const buildTrendPeriods = (
   filter: TrendFilter,
   anchorDate: Date,
-  recordedDates: Date[] = []
+  recordedDates: Date[] = [],
+  pageOffset: number = 0
 ): { start: Date; end: Date; label: string; dateKey: string }[] => {
   const startOfAnchor = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), anchorDate.getDate(), 0, 0, 0, 0);
   const formatDate = (date: Date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
   if (filter === 'day') {
-    const schoolDays = getRecentSchoolWeekdays(10, startOfAnchor);
+    const count = 10 * (pageOffset + 1);
+    const allSchoolDays = getRecentSchoolWeekdays(count, startOfAnchor);
+    const schoolDays = allSchoolDays.slice(0, 10);
     const basePeriods = schoolDays.map((d) => {
       const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
       const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0);
@@ -175,19 +180,19 @@ const buildTrendPeriods = (
 
   const periodCount = 6;
   return Array.from({ length: periodCount }, (_, index) => {
-    const offset = periodCount - 1 - index;
+    const totalOffset = (periodCount - 1 - index) + pageOffset * periodCount;
     let start: Date;
     let end: Date;
     let label: string;
     if (filter === 'month') {
-      start = new Date(startOfAnchor.getFullYear(), startOfAnchor.getMonth() - offset, 1, 0, 0, 0, 0);
-      end = new Date(startOfAnchor.getFullYear(), startOfAnchor.getMonth() - offset + 1, 1, 0, 0, 0, 0);
+      start = new Date(startOfAnchor.getFullYear(), startOfAnchor.getMonth() - totalOffset, 1, 0, 0, 0, 0);
+      end = new Date(startOfAnchor.getFullYear(), startOfAnchor.getMonth() - totalOffset + 1, 1, 0, 0, 0, 0);
       label = start.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
     } else {
       const dayOfWeek = startOfAnchor.getDay();
       const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
       const currentWeekMon = new Date(startOfAnchor.getFullYear(), startOfAnchor.getMonth(), startOfAnchor.getDate() + diffToMon, 0, 0, 0, 0);
-      start = new Date(currentWeekMon.getFullYear(), currentWeekMon.getMonth(), currentWeekMon.getDate() - offset * 7, 0, 0, 0, 0);
+      start = new Date(currentWeekMon.getFullYear(), currentWeekMon.getMonth(), currentWeekMon.getDate() - totalOffset * 7, 0, 0, 0, 0);
       const fri = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 4, 0, 0, 0, 0);
       end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7, 0, 0, 0, 0);
       label = `${formatDate(start)} – ${formatDate(fri)}`;
@@ -201,7 +206,8 @@ export const buildTrendPoints = (
   grades: Grade[],
   attendanceLogs: Attendance[],
   metric: 'attendance' | 'score',
-  filter: TrendFilter
+  filter: TrendFilter,
+  pageOffset: number = 0
 ): TrendPoint[] => {
   const studentIds = buildStudentIdSet(students);
   if (studentIds.size === 0) return [];
@@ -219,8 +225,8 @@ export const buildTrendPoints = (
       ))
     : [];
 
-  if (metric === 'attendance' && relevantAttendance.length === 0) return [];
-  if (metric === 'score' && relevantGrades.length === 0) return [];
+  if (metric === 'attendance' && relevantAttendance.length === 0 && pageOffset === 0) return [];
+  if (metric === 'score' && relevantGrades.length === 0 && pageOffset === 0) return [];
 
   const recordedDates = (metric === 'attendance' ? relevantAttendance : relevantGrades)
     .map((rec) => getRecordDate(rec))
@@ -228,7 +234,7 @@ export const buildTrendPoints = (
     .sort((a, b) => a.getTime() - b.getTime());
 
   const now = new Date();
-  let periods = buildTrendPeriods(filter, now, recordedDates);
+  let periods = buildTrendPeriods(filter, now, recordedDates, pageOffset);
 
   const evaluatePeriods = (periodList: { start: Date; end: Date; label: string; dateKey: string }[]) =>
     periodList.map((period) => {
@@ -266,13 +272,19 @@ export const buildTrendPoints = (
 
   let points = evaluatePeriods(periods);
 
-  if (points.every(({ point }) => point === null) && recordedDates.length > 0) {
+  if (pageOffset === 0 && points.every(({ point }) => point === null) && recordedDates.length > 0) {
     const latestRecordedDate = recordedDates[recordedDates.length - 1];
-    periods = buildTrendPeriods(filter, latestRecordedDate, recordedDates);
+    periods = buildTrendPeriods(filter, latestRecordedDate, recordedDates, 0);
     points = evaluatePeriods(periods);
   }
 
-  if (points.every(({ point }) => point === null)) return [];
+  if (points.every(({ point }) => point === null)) {
+    return periods.map((p) => ({
+      dateKey: p.dateKey,
+      label: p.label,
+      value: 0,
+    }));
+  }
 
   const firstRecordedPoint = points.find(({ point }) => point !== null)?.point;
   let lastValue = firstRecordedPoint ? firstRecordedPoint.value : (metric === 'attendance' ? 100 : 75);
@@ -289,7 +301,8 @@ export const buildRiskTrendPoints = (
   students: User[],
   grades: Grade[],
   attendanceLogs: Attendance[],
-  filter: TrendFilter
+  filter: TrendFilter,
+  pageOffset: number = 0
 ): RiskTrendPoint[] => {
   const studentIds = buildStudentIdSet(students);
   if (studentIds.size === 0) return [];
@@ -315,7 +328,7 @@ export const buildRiskTrendPoints = (
     .sort((a, b) => a.getTime() - b.getTime());
 
   const now = new Date();
-  const periods = buildTrendPeriods(filter, now, recordedDates);
+  const periods = buildTrendPeriods(filter, now, recordedDates, pageOffset);
 
   const points = periods.map((period) => {
     const periodGrades = relevantGrades.filter((grade) => {
@@ -341,17 +354,52 @@ export const buildRiskTrendPoints = (
     };
   });
 
-  if (points.every(({ point }) => point === null)) return [];
+  if (points.every(({ point }) => point === null)) {
+    return periods.map((p) => ({
+      dateKey: p.dateKey,
+      label: p.label,
+      high: 0,
+      moderate: 0,
+      medium: 0,
+      low: 0,
+    }));
+  }
 
   const firstRecordedPoint = points.find(({ point }) => point !== null)?.point;
-  if (!firstRecordedPoint) return [];
-  let lastPoint = firstRecordedPoint;
+  if (!firstRecordedPoint) {
+    return periods.map((p) => ({
+      dateKey: p.dateKey,
+      label: p.label,
+      high: 0,
+      moderate: 0,
+      medium: 0,
+      low: 0,
+    }));
+  }
+  let lastPoint: RiskTrendPoint | null = null;
   return points.map(({ period, point }) => {
     if (point) {
       lastPoint = point;
       return point;
     }
-    return { dateKey: period.dateKey, label: period.label, high: lastPoint.high, moderate: lastPoint.moderate ?? lastPoint.medium ?? 0, medium: lastPoint.medium ?? lastPoint.moderate ?? 0, low: lastPoint.low };
+    if (lastPoint) {
+      return {
+        dateKey: period.dateKey,
+        label: period.label,
+        high: lastPoint.high,
+        moderate: lastPoint.moderate ?? lastPoint.medium ?? 0,
+        medium: lastPoint.medium ?? lastPoint.moderate ?? 0,
+        low: lastPoint.low,
+      };
+    }
+    return {
+      dateKey: period.dateKey,
+      label: period.label,
+      high: 0,
+      moderate: 0,
+      medium: 0,
+      low: 0,
+    };
   });
 };
 
@@ -419,7 +467,7 @@ export const TrendChart: React.FC<{
   const { width, height } = dimensions;
   const isMobile = width < 520;
   const paddingLeft = isMobile ? 38 : 50;
-  const paddingRight = isMobile ? 18 : 14;
+  const paddingRight = isMobile ? 24 : 44;
   const paddingTop = isMobile ? 16 : 20;
   const paddingBottom = isMobile ? (trendFilter === 'month' ? 24 : 34) : 24;
 
@@ -489,7 +537,6 @@ export const TrendChart: React.FC<{
     <div ref={containerRef} className="relative flex-1 w-full h-full min-h-[196px] sm:min-h-[220px] select-none min-w-0 overflow-hidden">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
         className="w-full h-full min-h-[196px] sm:min-h-[220px] block"
         role="img"
         aria-label="Trend chart"
@@ -807,11 +854,11 @@ const DesktopRiskTrendChart: React.FC<{
   }, [data.length]);
 
   const width = Math.max(300, containerWidth);
-  const height = 208;
+  const height = 216;
   const paddingLeft = 48;
-  const paddingRight = 16;
+  const paddingRight = 48;
   const paddingTop = 16;
-  const paddingBottom = 28;
+  const paddingBottom = 32;
   const chartWidth = Math.max(10, width - paddingLeft - paddingRight);
   const chartHeight = Math.max(10, height - paddingTop - paddingBottom);
   const { maxValue, axisSteps } = useMemo(() => {
@@ -869,7 +916,7 @@ const DesktopRiskTrendChart: React.FC<{
     <div ref={containerRef} className="relative w-full overflow-hidden">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="h-52 w-full overflow-visible select-none"
+        className="h-[216px] w-full overflow-visible select-none"
         role="img"
         aria-label="Risk level trend chart"
       >
@@ -956,7 +1003,7 @@ const DesktopRiskTrendChart: React.FC<{
               >
                 <text
                   x={x}
-                  y={height - 6}
+                  y={height - 8}
                   textAnchor="middle"
                   className="fill-slate-500 font-semibold text-[10px]"
                 >
@@ -1080,7 +1127,7 @@ const MobileRiskTrendChart: React.FC<{
   const width = containerWidth;
   const height = 196;
   const paddingLeft = isSingleStudent ? 24 : 32;
-  const paddingRight = 16;
+  const paddingRight = 24;
   const paddingTop = 14;
   const paddingBottom = trendFilter === 'month' ? 24 : 34;
 
@@ -1494,7 +1541,7 @@ const RiskCalculationInfo: React.FC = () => (
       <Info className="h-3.5 w-3.5" />
     </button>
     <span className="pointer-events-none absolute left-0 top-full mt-2 sm:left-full sm:top-1/2 sm:mt-0 sm:ml-2 z-20 hidden w-72 sm:w-80 max-w-[calc(100vw-2rem)] sm:-translate-y-1/2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2.5 sm:px-3 sm:py-2 text-left text-xs font-semibold leading-relaxed text-slate-800 dark:text-white shadow-lg group-hover:block group-focus-within:block">
-      Risk level is calculated from the composite score of a student. Composite Score = 40% (Attendance Rate) + 60% (Average Score)
+      Risk level is calculated from the composite rating of a student. Composite Rating = 40% (Attendance Rate) + 60% (Average Score Rate)
     </span>
   </span>
 );
@@ -1605,6 +1652,9 @@ export const TutorAnalytics: React.FC = () => {
   const [attendanceScope, setAttendanceScope] = useState<RiskScope>('all');
   const [scoreScope, setScoreScope] = useState<RiskScope>('all');
   const [riskTrendFilter, setRiskTrendFilter] = useState<TrendFilter>('week');
+  const [riskTrendPage, setRiskTrendPage] = useState<number>(0);
+  const [attendanceTrendPage, setAttendanceTrendPage] = useState<number>(0);
+  const [scoreTrendPage, setScoreTrendPage] = useState<number>(0);
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [scoreSearch, setScoreSearch] = useState('');
   const [scoreDescFilter, setScoreDescFilter] = useState<'all' | 'Intervention Activity' | 'milestone'>('all');
@@ -1845,15 +1895,17 @@ export const TutorAnalytics: React.FC = () => {
     grades,
     attendanceLogs,
     'attendance',
-    attendanceFilter
-  ), [attendanceScopedRows, grades, attendanceLogs, attendanceFilter]);
+    attendanceFilter,
+    attendanceTrendPage
+  ), [attendanceScopedRows, grades, attendanceLogs, attendanceFilter, attendanceTrendPage]);
   const scoreTrend = useMemo(() => buildTrendPoints(
     scoreScopedRows.map((row) => row.student),
     grades,
     attendanceLogs,
     'score',
-    scoreFilter
-  ), [scoreScopedRows, grades, attendanceLogs, scoreFilter]);
+    scoreFilter,
+    scoreTrendPage
+  ), [scoreScopedRows, grades, attendanceLogs, scoreFilter, scoreTrendPage]);
   const riskScopedRows = useMemo(() => (
     riskScope === 'all' ? rows : rows.filter((row) => String(row.student.id) === riskScope)
   ), [rows, riskScope]);
@@ -1896,16 +1948,17 @@ export const TutorAnalytics: React.FC = () => {
 
   const scoreTrendTitle = useMemo(() => {
     if (!classViewLabel) {
-      return 'STUDENTS AVERAGE SCORE TREND CHART';
+      return 'STUDENTS AVERAGE SCORE RATE TREND CHART';
     }
-    return `${classViewLabel}'S AVERAGE SCORE TREND CHART`;
+    return `${classViewLabel}'S AVERAGE SCORE RATE TREND CHART`;
   }, [classViewLabel]);
   const riskTrend = useMemo(() => buildRiskTrendPoints(
     riskScopedRows.map((row) => row.student),
     grades,
     attendanceLogs,
-    riskTrendFilter
-  ), [riskScopedRows, grades, attendanceLogs, riskTrendFilter]);
+    riskTrendFilter,
+    riskTrendPage
+  ), [riskScopedRows, grades, attendanceLogs, riskTrendFilter, riskTrendPage]);
   const attendanceSummary = useMemo(() => {
     const todayStr = toLocalDateKey(new Date());
     const todayLogs = attendanceLogs.filter((log) => {
@@ -2246,7 +2299,7 @@ export const TutorAnalytics: React.FC = () => {
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="relative rounded-md border risk-card-high p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
                   <div className="absolute right-3 top-3">
-                    <RiskRangeInfo range="Composite score is 69% and below" />
+                    <RiskRangeInfo range="Composite rating is 69% and below" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-high">
@@ -2259,7 +2312,7 @@ export const TutorAnalytics: React.FC = () => {
 
                 <div className="relative rounded-md border risk-card-moderate p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
                   <div className="absolute right-3 top-3">
-                    <RiskRangeInfo range="Composite score is between 70% to 85%" />
+                    <RiskRangeInfo range="Composite rating is between 70% to 85%" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-moderate">
@@ -2272,7 +2325,7 @@ export const TutorAnalytics: React.FC = () => {
 
                 <div className="relative rounded-md border risk-card-low p-4 min-h-[100px] flex flex-col justify-center shadow-sm">
                   <div className="absolute right-3 top-3">
-                    <RiskRangeInfo range="Composite score is between 86% to 100%" />
+                    <RiskRangeInfo range="Composite rating is between 86% to 100%" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1 text-risk-low">
@@ -2297,14 +2350,52 @@ export const TutorAnalytics: React.FC = () => {
                       <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: '#22C55E' }} />Low Risk</span>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                      <StudentRiskFilter rows={rows} value={riskScope} onChange={setRiskScope} />
+                      <StudentRiskFilter
+                        rows={rows}
+                        value={riskScope}
+                        onChange={(val) => {
+                          setRiskScope(val);
+                          setRiskTrendPage(0);
+                        }}
+                      />
                     </div>
                     <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Filter risk chart by time period">
                       {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button key={filter} type="button" onClick={() => setRiskTrendFilter(filter)} className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${riskTrendFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}>
+                        <button
+                          key={filter}
+                          type="button"
+                          onClick={() => {
+                            setRiskTrendFilter(filter);
+                            setRiskTrendPage(0);
+                          }}
+                          className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${riskTrendFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}
+                        >
                           {filter}
                         </button>
                       ))}
+                    </div>
+                    {/* Period navigation arrows to scroll between previous and present records */}
+                    <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present risk records">
+                      <button
+                        type="button"
+                        onClick={() => setRiskTrendPage((p) => p + 1)}
+                        disabled={riskTrendPage >= 10}
+                        aria-label="Previous records"
+                        title={riskTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
+                        className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                      >
+                        <ChevronLeft size={14} className="stroke-[2.5]" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRiskTrendPage((p) => Math.max(0, p - 1))}
+                        disabled={riskTrendPage === 0}
+                        aria-label="Next records"
+                        title={riskTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
+                        className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                      >
+                        <ChevronRight size={14} className="stroke-[2.5]" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -2316,7 +2407,15 @@ export const TutorAnalytics: React.FC = () => {
                       isSingleStudent={riskScope !== 'all'}
                       studentName={selectedRiskStudent?.full_name}
                       trendFilter={riskTrendFilter}
-                      emptyLabel={riskTrendFilter === 'day' ? 'No recorded performance data today' : riskTrendFilter === 'week' ? 'No recorded performance data this week' : 'No recorded performance data this month'}
+                      emptyLabel={
+                        riskTrendPage > 0
+                          ? 'No recorded performance data in this historical period'
+                          : riskTrendFilter === 'day'
+                          ? 'No recorded performance data today'
+                          : riskTrendFilter === 'week'
+                          ? 'No recorded performance data this week'
+                          : 'No recorded performance data this month'
+                      }
                     />
                   </div>
                 </div>
@@ -2544,8 +2643,8 @@ export const TutorAnalytics: React.FC = () => {
                               <th className="px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300 select-none">ARAL Level</th>
                             )}
                             <SortHeader field="attendanceRate">Average Attendance Rate</SortHeader>
-                            <SortHeader field="scoreAvg">Average Score</SortHeader>
-                            <SortHeader field="compositeScore">COMPOSITE SCORE</SortHeader>
+                            <SortHeader field="scoreAvg">Average Score Rate</SortHeader>
+                            <SortHeader field="compositeScore">COMPOSITE RATING</SortHeader>
                             <SortHeader field="riskTier">Risk Level</SortHeader>
                             <th className="px-4 py-2.5 text-left text-[10.5px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-slate-300">RISK LEVEL REMARKS</th>
                           </tr>
@@ -2662,7 +2761,7 @@ export const TutorAnalytics: React.FC = () => {
                 </div>
                 <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-sm">
                   <div className="min-w-0">
-                    <p className="text-[10.5px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Attendance</p>
+                    <p className="text-[10.5px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Attendance Rate</p>
                     <p className={`text-2xl sm:text-3xl font-black tracking-tight mt-0.5 ${attendanceLogs.length === 0 ? 'text-gray-400 dark:text-slate-500' : avgAttendance >= 81 ? 'text-risk-low' : avgAttendance >= 75 ? 'text-risk-moderate' : 'text-risk-high'}`}>
                       {attendanceLogs.length === 0 ? '—' : <AnimatedCounter value={avgAttendance} decimals={avgAttendance % 1 !== 0 ? 1 : 0} suffix="%" />}
                     </p>
@@ -2682,14 +2781,52 @@ export const TutorAnalytics: React.FC = () => {
                       <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Attendance Rate</span>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                      <StudentRiskFilter rows={rows} value={attendanceScope} onChange={setAttendanceScope} />
+                      <StudentRiskFilter
+                        rows={rows}
+                        value={attendanceScope}
+                        onChange={(val) => {
+                          setAttendanceScope(val);
+                          setAttendanceTrendPage(0);
+                        }}
+                      />
                     </div>
                     <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Attendance trend period">
                       {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button key={filter} type="button" onClick={() => setAttendanceFilter(filter)} className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${attendanceFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}>
+                        <button
+                          key={filter}
+                          type="button"
+                          onClick={() => {
+                            setAttendanceFilter(filter);
+                            setAttendanceTrendPage(0);
+                          }}
+                          className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${attendanceFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}
+                        >
                           {filter}
                         </button>
                       ))}
+                    </div>
+                    {/* Period navigation arrows */}
+                    <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present attendance records">
+                      <button
+                        type="button"
+                        onClick={() => setAttendanceTrendPage((p) => p + 1)}
+                        disabled={attendanceTrendPage >= 10}
+                        aria-label="Previous records"
+                        title={attendanceTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
+                        className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                      >
+                        <ChevronLeft size={14} className="stroke-[2.5]" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAttendanceTrendPage((p) => Math.max(0, p - 1))}
+                        disabled={attendanceTrendPage === 0}
+                        aria-label="Next records"
+                        title={attendanceTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
+                        className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                      >
+                        <ChevronRight size={14} className="stroke-[2.5]" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -2698,7 +2835,7 @@ export const TutorAnalytics: React.FC = () => {
                     data={attendanceTrend}
                     color="#0052B7"
                     emptyLabel={attendanceFilter === 'day' ? 'No recorded attendance today' : attendanceFilter === 'week' ? 'No recorded attendance this week' : 'No recorded attendance this month'}
-                    valueLabel={selectedAttendanceStudent ? selectedAttendanceStudent.full_name : 'Class Average Attendance'}
+                    valueLabel={selectedAttendanceStudent ? selectedAttendanceStudent.full_name : 'Class Average Attendance Rate'}
                     trendFilter={attendanceFilter}
                   />
                 </div>
@@ -2879,7 +3016,7 @@ export const TutorAnalytics: React.FC = () => {
                 </div>
                 <div className="rounded-md border border-gray-200 bg-white p-4 min-h-[100px] flex flex-col justify-center dark:border-[#1A1A1A] dark:bg-[#0A0A0A] shadow-sm">
                   <div className="min-w-0">
-                    <p className="text-[10.5px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Score</p>
+                    <p className="text-[10.5px] font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100">Average Score Rate</p>
                     <p className={`text-2xl sm:text-3xl font-black tracking-tight mt-0.5 ${grades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? 'text-gray-400 dark:text-slate-500' : avgScore >= 81 ? 'text-risk-low' : avgScore >= 75 ? 'text-risk-moderate' : 'text-risk-high'}`}>
                       {grades.filter((g) => g.component_type !== 'attendance' && g.remarks !== 'Not Taken').length === 0 ? '—' : <AnimatedCounter value={avgScore} decimals={avgScore % 1 !== 0 ? 1 : 0} suffix="%" />}
                     </p>
@@ -2896,17 +3033,55 @@ export const TutorAnalytics: React.FC = () => {
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-3 text-xs font-semibold text-gray-600 dark:text-slate-300">
-                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Average Score</span>
+                      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#0052B7]" />Average Score Rate</span>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                      <StudentRiskFilter rows={rows} value={scoreScope} onChange={setScoreScope} />
+                      <StudentRiskFilter
+                        rows={rows}
+                        value={scoreScope}
+                        onChange={(val) => {
+                          setScoreScope(val);
+                          setScoreTrendPage(0);
+                        }}
+                      />
                     </div>
                     <div className="flex rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" aria-label="Score trend period">
                       {(['day', 'week', 'month'] as TrendFilter[]).map((filter) => (
-                        <button key={filter} type="button" onClick={() => setScoreFilter(filter)} className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${scoreFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}>
+                        <button
+                          key={filter}
+                          type="button"
+                          onClick={() => {
+                            setScoreFilter(filter);
+                            setScoreTrendPage(0);
+                          }}
+                          className={`cursor-pointer rounded-sm px-3 py-1.5 text-[10px] uppercase tracking-wider transition-all ${scoreFilter === filter ? 'bg-[var(--brand)] text-white font-black shadow-sm' : 'text-gray-500 dark:text-slate-400 font-bold hover:text-gray-900 dark:hover:text-slate-100'}`}
+                        >
                           {filter}
                         </button>
                       ))}
+                    </div>
+                    {/* Period navigation arrows */}
+                    <div className="flex items-center gap-0.5 rounded-md bg-gray-100 p-0.5 dark:bg-[#111111]" role="group" aria-label="Scroll between previous and present score records">
+                      <button
+                        type="button"
+                        onClick={() => setScoreTrendPage((p) => p + 1)}
+                        disabled={scoreTrendPage >= 10}
+                        aria-label="Previous records"
+                        title={scoreTrendPage >= 10 ? 'Earliest historical records reached' : 'Scroll to previous records'}
+                        className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                      >
+                        <ChevronLeft size={14} className="stroke-[2.5]" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setScoreTrendPage((p) => Math.max(0, p - 1))}
+                        disabled={scoreTrendPage === 0}
+                        aria-label="Next records"
+                        title={scoreTrendPage === 0 ? 'Viewing present records' : 'Scroll towards present records'}
+                        className="flex items-center justify-center h-[26px] w-[26px] rounded-sm text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#1E1E1E] hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:disabled:hover:bg-transparent dark:disabled:hover:text-slate-600 disabled:cursor-not-allowed transition-all cursor-pointer shadow-none hover:shadow-xs"
+                      >
+                        <ChevronRight size={14} className="stroke-[2.5]" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -2915,7 +3090,7 @@ export const TutorAnalytics: React.FC = () => {
                     data={scoreTrend}
                     color="#0052B7"
                     emptyLabel={scoreFilter === 'day' ? 'No recorded score today' : scoreFilter === 'week' ? 'No recorded score this week' : 'No recorded score this month'}
-                    valueLabel={selectedScoreStudent ? selectedScoreStudent.full_name : 'Class Average Score'}
+                    valueLabel={selectedScoreStudent ? selectedScoreStudent.full_name : 'Class Average Score Rate'}
                     trendFilter={scoreFilter}
                   />
                 </div>
@@ -3106,7 +3281,7 @@ export const TutorAnalytics: React.FC = () => {
                           <SortHeader field="description" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>DESCRIPTION</SortHeader>
                           <SortHeader field="passed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Passed</SortHeader>
                           <SortHeader field="failed" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Total Failed</SortHeader>
-                          <SortHeader field="scoreAverage" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Average Score</SortHeader>
+                          <SortHeader field="scoreAverage" activeField={scoreSortField} ascending={scoreSortAsc} onSort={(field) => handleDetailSort(field as ScoreDetailSortField, scoreSortField, setScoreSortField, setScoreSortAsc, scoreSortAsc)}>Average Score Rate</SortHeader>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 dark:divide-[#1A1A1A] bg-white dark:bg-[#0A0A0A]">{scoreDetails.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-gray-400">No students found</td></tr> : scoreDetails.map((row, idx) => <tr key={`${row.student.id}-${row.description}-${idx}`} className="divide-x divide-gray-100 dark:divide-[#1A1A1A] transition-colors hover:bg-gray-50/80 dark:hover:bg-white/5"><td className="px-4 py-3 font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-[13px] tracking-tight">{row.student.full_name}</td><td className="px-4 py-3">{getAralBadge(row.student.aral_level)}</td><td className="px-4 py-3 text-left"><span className="text-xs font-semibold text-gray-700 dark:text-slate-300">{row.description}</span></td><td className="px-4 py-3 font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs">{row.passed}</td><td className="px-4 py-3 font-mono font-bold text-rose-600 dark:text-rose-400 text-xs">{row.failed}</td><td className="px-4 py-3 font-normal"><span className={`text-xs ${getScoreAvgCls(row.scoreAverage)}`}>{smartPct(row.scoreAverage)}%</span></td></tr>)}</tbody>

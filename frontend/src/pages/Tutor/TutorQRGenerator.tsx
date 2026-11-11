@@ -1158,6 +1158,7 @@ export const TutorQRGenerator: React.FC = () => {
   const manualTimePickerAnchorRef = useRef<HTMLElement | null>(null);
   const manualTimePickerRef = useRef<HTMLDivElement | null>(null);
   const [studentTimes, setStudentTimes] = useState<Record<string, string>>({});
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState<boolean>(false);
 
   useEffect(() => {
     if (!successToast) return;
@@ -2236,6 +2237,32 @@ export const TutorQRGenerator: React.FC = () => {
       ? (studentTimes[String(manualTimePickerTarget)] || sessionStartTime)
       : sessionStartTime;
 
+  const handlePreSaveManualAttendance = () => {
+    if (filteredStudents.length === 0) {
+      setSuccessToast({
+        title: 'No Students',
+        message: 'There are no students in the selected class cohort to record attendance for.',
+        type: 'error',
+      });
+      return;
+    }
+    if (!manualDate) {
+      setSuccessToast({
+        title: 'Date Required',
+        message: 'Please choose a valid session date.',
+        type: 'error',
+      });
+      return;
+    }
+
+    setShowSaveConfirmation(true);
+  };
+
+  const confirmSaveManualAttendance = () => {
+    setShowSaveConfirmation(false);
+    handleSaveManualAttendance();
+  };
+
   const handleSaveManualAttendance = async () => {
     if (filteredStudents.length === 0) {
       setSuccessToast({
@@ -2799,7 +2826,7 @@ export const TutorQRGenerator: React.FC = () => {
               <div className="w-full sm:w-auto flex items-end justify-end">
                 <button
                   type="button"
-                  onClick={handleSaveManualAttendance}
+                  onClick={handlePreSaveManualAttendance}
                   disabled={isSavingManual || filteredStudents.length === 0}
                   className={`w-full sm:w-auto min-h-[38px] sm:min-h-0 sm:h-9 inline-flex items-center justify-center gap-2 rounded-md px-4 sm:px-5 py-2 text-xs font-bold text-white transition shadow-sm ${
                     isSavingManual || filteredStudents.length === 0
@@ -3400,6 +3427,45 @@ export const TutorQRGenerator: React.FC = () => {
                   }`}
               >
                 {confirmAction.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Save Manual Attendance Confirmation Modal (Matches Score Entry) ── */}
+      {showSaveConfirmation && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
+          style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSaveConfirmation(false); }}
+        >
+          <div className="relative w-full max-w-sm rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl space-y-3 animate-fade-in-scale">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 uppercase">
+                Save Attendance Session
+              </h3>
+              <p className="mt-1 text-xs font-normal text-gray-500 dark:text-slate-400 leading-relaxed">
+                Are you sure you want to save this manual attendance session?
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowSaveConfirmation(false)}
+                className="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmSaveManualAttendance}
+                className="rounded-md bg-[var(--brand)] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[var(--brand-dark)] cursor-pointer"
+              >
+                Save Attendance Session
               </button>
             </div>
           </div>
