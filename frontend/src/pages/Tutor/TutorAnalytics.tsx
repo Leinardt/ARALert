@@ -2481,6 +2481,11 @@ export const TutorAnalytics: React.FC = () => {
                                 <td className="px-2.5 py-2 text-left border-b border-gray-100 dark:border-[#1A1A1A]">
                                   {row.riskTier === 'High' ? (
                                     <div className="flex flex-wrap items-center gap-1.5">
+                                      {row.compositeScore >= 70 && row.attendanceRate <= 75 && (
+                                        <span className="inline-flex items-center rounded bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-900 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-200 leading-snug">
+                                          Despite current composite rating, student is marked high risk due to the attendace rate being 75% or less.
+                                        </span>
+                                      )}
                                       {row.neededPresentAttendance > 0 && (
                                         <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-300 uppercase tracking-tight">
                                           Need +{row.neededPresentAttendance} more Present records to improve risk level
@@ -2577,6 +2582,11 @@ export const TutorAnalytics: React.FC = () => {
                               <td className="px-4 py-3 align-middle">
                                 {row.riskTier === 'High' ? (
                                   <div className="flex flex-wrap items-center gap-1.5">
+                                    {row.compositeScore >= 70 && row.attendanceRate <= 75 && (
+                                      <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[10.5px] font-medium text-amber-900 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-200 leading-snug">
+                                        Despite current composite rating, student is marked high risk due to the attendace rate being 75% or less.
+                                      </span>
+                                    )}
                                     {row.neededPresentAttendance > 0 && (
                                       <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[10.5px] font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-300 uppercase tracking-tight">
                                         Need +{row.neededPresentAttendance} more Present records to improve risk level

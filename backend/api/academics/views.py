@@ -1663,9 +1663,21 @@ class StudentAcademicProfileView(APIView):
             except Exception:
                 pass
 
-        w_assess  = tutor.assessment_weight   if tutor else 50
-        w_tasks   = tutor.weekly_tasks_weight if tutor else 30
-        w_attend  = tutor.attendance_weight   if tutor else 20
+        # Attendance (Strictly binary: Present vs Absent)
+        active_sy    = SchoolYear.objects.filter(is_active=True).first()
+        att_logs     = ApiAttendance.objects.filter(user=student)
+        if active_sy:
+            att_logs = att_logs.filter(Q(school_year=active_sy) | Q(school_year__isnull=True))
+        total_days   = att_logs.count()
+        present_days = att_logs.filter(status__iexact='present').count()
+        absent_days  = att_logs.filter(status__iexact='absent').count()
+        att_rate     = round(present_days / total_days * 100, 2) if total_days > 0 else 100.0
+
+        # Unified 60% Academic Score / 40% Attendance Rate
+        # Milestone assessments carry 0% weight in running grades; used solely for pass/retention evaluation.
+        w_assess  = 0
+        w_tasks   = 60
+        w_attend  = 40
 
         # Grades (optimized from 64 queries to 1 query)
         grades = ApiGrade.objects.filter(student=student)
@@ -1684,35 +1696,21 @@ class StudentAcademicProfileView(APIView):
         for row in grade_stats:
             subject    = row['subject']
             quarter    = row['quarter']
-            avg_assess = row['avg_assess'] or 0
-            avg_task   = row['avg_task'] or 0
-            avg_attend = row['avg_attend'] or 0
-            final = (
-                float(avg_assess) * w_assess / 100
-                + float(avg_task)  * w_tasks  / 100
-                + float(avg_attend) * w_attend / 100
-            )
+            avg_assess = float(row['avg_assess'] or 0)
+            avg_task   = float(row['avg_task'] or 0)
+            academic_avg = avg_task if avg_task > 0 else avg_assess
+            final = round((academic_avg * 0.60) + (att_rate * 0.40), 2)
             grade_summary.append({
                 'subject':         subject,
                 'quarter':         quarter,
-                'assessment_avg':  round(float(avg_assess), 2),
-                'weekly_task_avg': round(float(avg_task), 2),
-                'attendance_avg':  round(float(avg_attend), 2),
+                'assessment_avg':  round(avg_assess, 2),
+                'weekly_task_avg': round(avg_task, 2),
+                'attendance_avg':  round(att_rate, 2),
                 'final_grade':     round(final, 2),
             })
             overall_scores.append(final)
 
         gpa = round(sum(overall_scores) / len(overall_scores), 2) if overall_scores else None
-
-        # Attendance
-        active_sy    = SchoolYear.objects.filter(is_active=True).first()
-        att_logs     = ApiAttendance.objects.filter(user=student)
-        if active_sy:
-            att_logs = att_logs.filter(Q(school_year=active_sy) | Q(school_year__isnull=True))
-        total_days   = att_logs.count()
-        present_days = att_logs.filter(status='present').count()
-        absent_days  = att_logs.filter(status='absent').count()
-        att_rate     = round(present_days / total_days * 100, 2) if total_days > 0 else 100
 
         # ARAL activities
         activities  = ApiAralActivity.objects.filter(student=student)

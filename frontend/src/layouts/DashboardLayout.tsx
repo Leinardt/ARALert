@@ -2114,6 +2114,11 @@ export const DashboardLayout: React.FC = () => {
 
                                         {/* Recovery targets */}
                                         <div className="flex flex-col gap-1.5 pt-0.5">
+                                          {row.compositeScore >= 70 && row.attendanceRate <= 75 && (
+                                            <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[10.5px] font-medium text-amber-900 dark:text-amber-200 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 leading-snug">
+                                              Despite current composite rating, student is marked high risk due to the attendace rate being 75% or less.
+                                            </span>
+                                          )}
                                           {row.neededPresentAttendance > 0 && (
                                             <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50">
                                               Need +{row.neededPresentAttendance} more Present records to improve risk level

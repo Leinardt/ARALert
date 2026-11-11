@@ -16,22 +16,21 @@ def get_client_ip(request):
 
 def compute_student_risk_level(attendance_rate, score_avg):
     """Return the same risk tier used by tutor-facing analytics."""
-    composite_score = ((attendance_rate * 0.4) + (score_avg * 0.6))
+    att = float(attendance_rate if attendance_rate is not None else 100.0)
+    score = float(score_avg if score_avg is not None else 100.0)
 
-    if composite_score >= 85:
-        base_tier = 'low'
-    elif composite_score >= 70:
-        base_tier = 'moderate'
-    else:
-        base_tier = 'high'
+    # Attendance Safety Gate: <= 75% attendance automatically classifies student as high risk
+    if att <= 75.0:
+        return 'high'
 
-    if attendance_rate >= 90:
-        return base_tier
-    if attendance_rate >= 80:
-        return 'moderate' if base_tier == 'low' else base_tier
-    if base_tier == 'low':
+    composite_score = ((att * 0.40) + (score * 0.60))
+
+    if composite_score >= 86.0:
+        return 'low'
+    elif composite_score >= 70.0:
         return 'moderate'
-    return 'high'
+    else:
+        return 'high'
 
 
 def grade_percent(score, total_score):

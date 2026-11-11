@@ -109,7 +109,7 @@ export const computeStudentRiskRows = (
   const isAttended = (status?: string | null): boolean => {
     if (!status) return false;
     const s = String(status).trim().toLowerCase();
-    return s === 'present' || s === 'p' || s === 'late';
+    return s === 'present' || s === 'p';
   };
 
   const scoreTotals = safeGrades
@@ -153,11 +153,14 @@ export const computeStudentRiskRows = (
     const scoreAvg = scoreCount > 0 ? Number((totalScorePercent / scoreCount).toFixed(2)) : 100;
 
     const compositeScore = Number(((attendanceRate * 0.4) + (scoreAvg * 0.6)).toFixed(2));
-    const riskTier = getRiskTier(compositeScore);
+    const baseRiskTier = getRiskTier(compositeScore);
+    // Attendance Safety Gate: attendance <= 75% automatically overrides and classifies student as High Risk
+    const isAttendanceOverridden = totalDays > 0 && attendanceRate <= 75;
+    const riskTier = isAttendanceOverridden ? 'High' : baseRiskTier;
 
-    // Number of consecutive present sessions needed to reach >= 75% attendance rate
-    const neededPresentAttendance = totalDays > 0 && attendanceRate < 75
-      ? Math.max(0, Math.ceil((0.75 * totalDays - presentDays) / 0.25))
+    // Number of consecutive present sessions needed to reach > 75% attendance rate (exit High Risk override)
+    const neededPresentAttendance = isAttendanceOverridden
+      ? Math.max(0, Math.floor((0.75 * totalDays - presentDays) / 0.25) + 1)
       : 0;
 
     // Number of passed scores (assuming 100% or passing score mastery) needed to raise score average to >= 75%

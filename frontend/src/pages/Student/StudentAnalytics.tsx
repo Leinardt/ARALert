@@ -833,7 +833,7 @@ export const StudentAnalytics: React.FC = () => {
     fetchStudentData();
   }, [user]);
 
-  // Compute student risk row using the stakeholder-validated 30/50/20 formula
+  // Compute student risk row using the 60% Academic Score / 40% Attendance formula with <= 75% attendance gate override
   const riskRow: StudentRiskRow | null = useMemo(() => {
     if (!user) return null;
     const rows = computeStudentRiskRows([user], grades, attendanceLogs);
@@ -1194,6 +1194,11 @@ export const StudentAnalytics: React.FC = () => {
                       <td className="px-4 py-3 align-middle">
                         {row.riskTier === 'High' ? (
                           <div className="flex flex-wrap items-center gap-1.5">
+                            {row.compositeScore >= 70 && row.attendanceRate <= 75 && (
+                              <span className="inline-flex items-center rounded bg-amber-50 px-2.5 py-1 text-[10.5px] font-medium text-amber-900 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-200 leading-snug">
+                                Despite current composite rating, student is marked high risk due to the attendace rate being 75% or less.
+                              </span>
+                            )}
                             {row.neededPresentAttendance > 0 && (
                               <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/50 dark:text-amber-300">
                                 Need +{row.neededPresentAttendance} more Present records to improve risk level

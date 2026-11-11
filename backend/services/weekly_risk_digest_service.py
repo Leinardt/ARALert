@@ -235,7 +235,7 @@ def compute_student_weekly_metrics(student: User, grades_by_student: dict, att_b
     total_att = len(student_att)
     attended_count = sum(
         1 for a in student_att
-        if str(getattr(a, 'status', '') or '').strip().lower() in ('present', 'p', 'late')
+        if str(getattr(a, 'status', '') or '').strip().lower() in ('present', 'p')
     )
     attendance_rate = round((attended_count / total_att) * 100.0, 2) if total_att > 0 else 100.0
 
@@ -253,7 +253,8 @@ def compute_student_weekly_metrics(student: User, grades_by_student: dict, att_b
         score_avg = 100.0
 
     composite_score = round((attendance_rate * 0.40) + (score_avg * 0.60), 2)
-    is_high_risk = composite_score < 70.0
+    # Attendance Safety Gate: <= 75% attendance automatically triggers High Risk tier
+    is_high_risk = (composite_score < 70.0) or (total_att > 0 and attendance_rate <= 75.0)
 
     class_section = normalize_class_section_name(student)
     program_bucket, program_label = format_program_subject_label(student)

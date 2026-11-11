@@ -377,10 +377,6 @@ export const Login: React.FC = () => {
                     title="Continue with Google"
                   />
                 </div>
-
-                <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 text-center mt-2 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 w-full leading-relaxed select-none tracking-tight">
-                  Only authorized Google accounts are permitted to access.
-                </div>
               </div>
             )}
 

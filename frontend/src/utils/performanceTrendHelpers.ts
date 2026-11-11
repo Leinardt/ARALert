@@ -5,7 +5,7 @@ export interface PerformanceTrendPoint {
 
 const ATTENDANCE_VALUE = {
   present: 100,
-  late: 70,
+  late: 0,
   absent: 0,
 } as const;
 
@@ -91,7 +91,7 @@ export const buildPerformanceTrend = (
       if (scoreValue === null && attendanceValue === null) return null;
 
       const combinedValue = scoreValue !== null && attendanceValue !== null
-        ? scoreValue * 0.65 + attendanceValue * 0.35
+        ? scoreValue * 0.60 + attendanceValue * 0.40
         : scoreValue !== null
         ? scoreValue
         : attendanceValue ?? 0;
